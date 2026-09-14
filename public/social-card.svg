@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f3f3e9"/>
+  <path d="M60 110h1080M60 561h1080" stroke="#20231e" stroke-width="2"/>
+  <text x="60" y="80" font-family="Arial,sans-serif" font-weight="900" font-size="42" fill="#20231e">PLAY 100.</text>
+  <text x="60" y="259" font-family="Arial,sans-serif" font-weight="900" font-size="76" letter-spacing="-3" fill="#20231e">GOOD GAMES.</text>
+  <text x="60" y="350" font-family="Arial,sans-serif" font-weight="900" font-size="76" letter-spacing="-3" fill="#65714e">GREAT ESCAPES.</text>
+  <text x="64" y="427" font-family="Arial,sans-serif" font-size="26" fill="#414b35">One hundred games worth making time for.</text>
+  <text x="64" y="600" font-family="Arial,sans-serif" font-size="20" fill="#414b35">EXPLORE THE COLLECTION</text>
+  <g transform="translate(850 160) rotate(14)">
+    <path d="M30 64h194v260H30z" fill="#929d7e" stroke="#20231e" stroke-width="2"/>
+    <path d="M15 38h194v260H15z" fill="#20231e"/>
+    <path d="M0 12h194v260H0z" fill="#d3f36b" stroke="#20231e" stroke-width="2"/>
+    <path d="M16 30h162M16 244h162" stroke="#20231e" stroke-width="2"/>
+    <text x="20" y="157" font-family="Arial,sans-serif" font-size="80" font-weight="900" fill="#20231e">100</text>
+    <text x="20" y="188" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#20231e">WORLDS TO PLAY</text>
+  </g>
+</svg>

@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-14T00:47:31.339+03:00",
+  "title": "Design System: Play 100",
+  "extensions": {
+    "colorMeta": {
+      "lime": {
+        "role": "primary",
+        "displayName": "Flat acid lime",
+        "tonalRamp": ["oklch(from #d3f36b 0.15 c h)", "oklch(from #d3f36b 0.27 c h)", "oklch(from #d3f36b 0.38 c h)", "oklch(from #d3f36b 0.50 c h)", "oklch(from #d3f36b 0.61 c h)", "oklch(from #d3f36b 0.72 c h)", "oklch(from #d3f36b 0.84 c h)", "oklch(from #d3f36b 0.95 c h)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm chalk",
+        "tonalRamp": ["oklch(from #f3f3e9 0.15 c h)", "oklch(from #f3f3e9 0.27 c h)", "oklch(from #f3f3e9 0.38 c h)", "oklch(from #f3f3e9 0.50 c h)", "oklch(from #f3f3e9 0.61 c h)", "oklch(from #f3f3e9 0.72 c h)", "oklch(from #f3f3e9 0.84 c h)", "oklch(from #f3f3e9 0.95 c h)"]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Soft white",
+        "tonalRamp": ["oklch(from #fdfdf6 0.15 c h)", "oklch(from #fdfdf6 0.27 c h)", "oklch(from #fdfdf6 0.38 c h)", "oklch(from #fdfdf6 0.50 c h)", "oklch(from #fdfdf6 0.61 c h)", "oklch(from #fdfdf6 0.72 c h)", "oklch(from #fdfdf6 0.84 c h)", "oklch(from #fdfdf6 0.95 c h)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite ink",
+        "tonalRamp": ["oklch(from #20231e 0.15 c h)", "oklch(from #20231e 0.27 c h)", "oklch(from #20231e 0.38 c h)", "oklch(from #20231e 0.50 c h)", "oklch(from #20231e 0.61 c h)", "oklch(from #20231e 0.72 c h)", "oklch(from #20231e 0.84 c h)", "oklch(from #20231e 0.95 c h)"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted olive grey",
+        "tonalRamp": ["oklch(from #606457 0.15 c h)", "oklch(from #606457 0.27 c h)", "oklch(from #606457 0.38 c h)", "oklch(from #606457 0.50 c h)", "oklch(from #606457 0.61 c h)", "oklch(from #606457 0.72 c h)", "oklch(from #606457 0.84 c h)", "oklch(from #606457 0.95 c h)"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Chalk divider",
+        "tonalRamp": ["oklch(from #d1d4c6 0.15 c h)", "oklch(from #d1d4c6 0.27 c h)", "oklch(from #d1d4c6 0.38 c h)", "oklch(from #d1d4c6 0.50 c h)", "oklch(from #d1d4c6 0.61 c h)", "oklch(from #d1d4c6 0.72 c h)", "oklch(from #d1d4c6 0.84 c h)", "oklch(from #d1d4c6 0.95 c h)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Condensed display", "purpose": "Desktop introduction; maximum 96px." },
+      "display-mobile": { "displayName": "Mobile display", "purpose": "Compact mobile introduction, retaining display weight and tracking." },
+      "display-compact": { "displayName": "Narrowest display", "purpose": "Size-only override at widths up to 380px." },
+      "body": { "displayName": "Collection reading", "purpose": "Root body stack; no inferred browser-default size token." },
+      "button": { "displayName": "Standard action", "purpose": "Shared standard-button typography." },
+      "artifact-control": { "displayName": "Scene fold action", "purpose": "Fan out or stack up the authored collection sleeves; quality preferences live separately in Settings." },
+      "personal-page": { "displayName": "Private working-page heading", "purpose": "52px desktop, 41px mobile, 37px narrow; retain Barlow voice but omit redundant mobile tagline." },
+      "ratings-data": { "displayName": "Ratings table data", "purpose": "13-14px Hanken with tabular numerals, 11-12px native-scale labels; no independent-review implication for source rank index." }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Existing named easing token, not permission for continuous decorative motion."
+      },
+      {
+        "name": "control-state-transition",
+        "value": "color 150ms, background-color 150ms, border-color 150ms",
+        "purpose": "Implemented button and link state transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "artifact-mobile-max", "value": "640px" },
+      { "name": "compact-mobile-max", "value": "380px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Dark button",
+      "kind": "button",
+      "refersTo": "button-dark",
+      "description": "Primary collection action; 48px minimum height, not a fixed height.",
+      "html": "<button type=\"button\" class=\"ds-button-dark\">Explore all 100</button>",
+      "css": ".ds-button-dark { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 12px 22px; border: 1px solid transparent; border-radius: 4px; background: var(--ink, #20231e); color: var(--white, #fdfdf6); font-family: 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 650; line-height: 1.25; cursor: pointer; touch-action: manipulation; transition: color 150ms, background-color 150ms, border-color 150ms; } .ds-button-dark:hover { background: #39422e; } .ds-button-dark:focus-visible { outline: 3px solid #426515; outline-offset: 4px; } .ds-button-dark:disabled { cursor: not-allowed; opacity: .45; } @media (forced-colors: active) { .ds-button-dark { border: 1px solid CanvasText; } }"
+    },
+    {
+      "name": "Lime button",
+      "kind": "button",
+      "refersTo": "button-lime",
+      "description": "Flat accent action using the same standard-button geometry.",
+      "html": "<button type=\"button\" class=\"ds-button-lime\">Play later</button>",
+      "css": ".ds-button-lime { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 12px 22px; border: 1px solid transparent; border-radius: 4px; background: var(--lime, #d3f36b); color: var(--ink, #20231e); font-family: 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 650; line-height: 1.25; cursor: pointer; touch-action: manipulation; transition: color 150ms, background-color 150ms, border-color 150ms; } .ds-button-lime:hover { background: #c2e459; } .ds-button-lime:focus-visible { outline: 3px solid #426515; outline-offset: 4px; } .ds-button-lime:disabled { cursor: not-allowed; opacity: .45; } @media (forced-colors: active) { .ds-button-lime { border: 1px solid CanvasText; } }"
+    },
+    {
+      "name": "Outline button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action with an explicit border and quiet hover fill.",
+      "html": "<button type=\"button\" class=\"ds-button-outline\">Download workbook</button>",
+      "css": ".ds-button-outline { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 12px 22px; border: 1px solid #a5ac98; border-radius: 4px; background: transparent; color: var(--ink, #20231e); font-family: 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 650; line-height: 1.25; cursor: pointer; touch-action: manipulation; transition: color 150ms, background-color 150ms, border-color 150ms; } .ds-button-outline:hover { background: #e6e9dc; border-color: var(--ink, #20231e); } .ds-button-outline:focus-visible { outline: 3px solid #426515; outline-offset: 4px; } .ds-button-outline:disabled { cursor: not-allowed; opacity: .45; } @media (forced-colors: active) { .ds-button-outline { border: 1px solid CanvasText; } }"
+    },
+    {
+      "name": "Quiet button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Low-emphasis action retaining the standard minimum touch height.",
+      "html": "<button type=\"button\" class=\"ds-button-quiet\">View collection</button>",
+      "css": ".ds-button-quiet { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--ink, #20231e); font-family: 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 650; line-height: 1.25; cursor: pointer; touch-action: manipulation; transition: color 150ms, background-color 150ms, border-color 150ms; } .ds-button-quiet:hover { background: #e6e9dc; } .ds-button-quiet:focus-visible { outline: 3px solid #426515; outline-offset: 4px; } .ds-button-quiet:disabled { cursor: not-allowed; opacity: .45; } @media (forced-colors: active) { .ds-button-quiet { border: 1px solid CanvasText; } }"
+    },
+    {
+      "name": "Destructive button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Existing destructive-action variant; no additional hover fill is defined.",
+      "html": "<button type=\"button\" class=\"ds-button-danger\">Confirm</button>",
+      "css": ".ds-button-danger { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 12px 22px; border: 1px solid transparent; border-radius: 4px; background: #8c3026; color: #fff; font-family: 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 650; line-height: 1.25; cursor: pointer; touch-action: manipulation; transition: color 150ms, background-color 150ms, border-color 150ms; } .ds-button-danger:focus-visible { outline: 3px solid #426515; outline-offset: 4px; } .ds-button-danger:disabled { cursor: not-allowed; opacity: .45; } @media (forced-colors: active) { .ds-button-danger { border: 1px solid CanvasText; } }"
+    },
+    {
+      "name": "Scene fold control",
+      "kind": "button",
+      "refersTo": "artifact-control",
+      "description": "Static preview of the Fan out / Stack up action; the real component supplies fold state and rendering behavior.",
+      "html": "<button type=\"button\" class=\"ds-artifact-control\">Fan out</button>",
+      "css": ".ds-artifact-control { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 9px; min-width: 112px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--artifact-ink, var(--ink, #20231e)); border-radius: 2px; background: transparent; color: var(--artifact-ink, var(--ink, #20231e)); font-family: 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; line-height: 1.2; cursor: pointer; touch-action: manipulation; transition: color 150ms, background-color 150ms, border-color 150ms; } .ds-artifact-control:focus-visible { outline: 2px solid var(--artifact-ink, var(--ink, #20231e)); outline-offset: 4px; } .ds-artifact-control:active { background: var(--artifact-lime, var(--lime, #d3f36b)); } @media (hover: hover) { .ds-artifact-control:hover { background: var(--artifact-lime, var(--lime, #d3f36b)); } } @media (forced-colors: active) { .ds-artifact-control { border-color: ButtonText; color: ButtonText; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The listening-counter collection index",
+    "overview": "Warm chalk, graphite ink and flat acid-lime sleeves make a finite collection feel like a handled record-store crate. Condensed box-art typography, numbered jackets and open ruled lists carry the identity; controls remain direct and unornamented.\n\nThe implemented collection is an Operate surface: finding, filtering and opening a game takes priority over spectacle. Ordinary scrolling and optional dimensional motion keep the catalogue usable without completing an introduction. This describes the existing collection, not a mode requirement for every future surface.",
+    "keyCharacteristics": [
+      "Chalk-and-ink clarity with flat lime emphasis.",
+      "Canonical rank numbers and authored jacket imagery.",
+      "Compact controls, responsive density and optional motion."
+    ],
+    "rules": [
+      {
+        "name": "The Rank Rule",
+        "body": "Keep canonical rank visible; sorting changes presentation, never the displayed authored rank.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do preserve canonical rank and recognizable supplied artwork.",
+      "Do keep keyboard focus visible and interactive targets at least 44px.",
+      "Do retain the compact mobile introduction and Explore all 100 CTA.",
+      "Do keep essential controls usable in Auto, Full and Lite."
+    ],
+    "donts": [
+      "Don't use neon, glow, generic floating cards or decorative clutter.",
+      "Don't enlarge tiny cover files or substitute invented artwork.",
+      "Don't run animation loops offscreen or against system reduced-motion preferences.",
+      "Don't present private device state as a change to the public collection.",
+      "Don't put the decorative introduction ahead of table mode.",
+      "Don't promise private IndexedDB data is cloud-synced or safe from manual browser-data deletion.",
+      "Don't introduce external artwork or invented critic scores for imported catalog records."
+    ]
+  }
+}

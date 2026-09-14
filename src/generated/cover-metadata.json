@@ -1,0 +1,402 @@
+{
+  "red-dead-redemption-2": {
+    "width": 150,
+    "height": 185
+  },
+  "mass-effect-2": {
+    "width": 150,
+    "height": 217
+  },
+  "the-witcher-3-wild-hunt": {
+    "width": 150,
+    "height": 225
+  },
+  "god-of-war": {
+    "width": 150,
+    "height": 200
+  },
+  "the-last-of-us": {
+    "width": 150,
+    "height": 199
+  },
+  "grand-theft-auto-v": {
+    "width": 150,
+    "height": 185
+  },
+  "grand-theft-auto-iv": {
+    "width": 96,
+    "height": 120
+  },
+  "red-dead-redemption": {
+    "width": 97,
+    "height": 120
+  },
+  "bioshock": {
+    "width": 150,
+    "height": 186
+  },
+  "mass-effect": {
+    "width": 85,
+    "height": 120
+  },
+  "the-elder-scrolls-v-skyrim": {
+    "width": 88,
+    "height": 120
+  },
+  "baldurs-gate-3": {
+    "width": 80,
+    "height": 120
+  },
+  "clair-obscur-expedition-33": {
+    "width": 150,
+    "height": 202
+  },
+  "batman-arkham-city": {
+    "width": 86,
+    "height": 120
+  },
+  "elden-ring": {
+    "width": 150,
+    "height": 200
+  },
+  "uncharted-4-a-thiefs-end": {
+    "width": 91,
+    "height": 120
+  },
+  "god-of-war-ragnarok": {
+    "width": 98,
+    "height": 120
+  },
+  "the-last-of-us-part-ii": {
+    "width": 90,
+    "height": 120
+  },
+  "grand-theft-auto-san-andreas": {
+    "width": 97,
+    "height": 120
+  },
+  "mass-effect-3": {
+    "width": 87,
+    "height": 120
+  },
+  "fallout-3": {
+    "width": 72,
+    "height": 120
+  },
+  "baldurs-gate-ii-shadows-of-amn": {
+    "width": 92,
+    "height": 120
+  },
+  "halo-3": {
+    "width": 95,
+    "height": 120
+  },
+  "portal-2": {
+    "width": 80,
+    "height": 120
+  },
+  "half-life-2": {
+    "width": 87,
+    "height": 120
+  },
+  "cyberpunk-2077": {
+    "width": 102,
+    "height": 120
+  },
+  "resident-evil-4": {
+    "width": 80,
+    "height": 120
+  },
+  "alan-wake-2": {
+    "width": 90,
+    "height": 120
+  },
+  "control": {
+    "width": 90,
+    "height": 120
+  },
+  "star-wars-knights-of-the-old-republic": {
+    "width": 86,
+    "height": 120
+  },
+  "metal-gear-solid-3-snake-eater": {
+    "width": 85,
+    "height": 120
+  },
+  "call-of-duty-4-modern-warfare": {
+    "width": 82,
+    "height": 120
+  },
+  "assassins-creed-iv-black-flag": {
+    "width": 92,
+    "height": 120
+  },
+  "dishonored": {
+    "width": 98,
+    "height": 120
+  },
+  "the-elder-scrolls-iv-oblivion": {
+    "width": 86,
+    "height": 120
+  },
+  "halo-reach": {
+    "width": 94,
+    "height": 120
+  },
+  "far-cry-4": {
+    "width": 92,
+    "height": 120
+  },
+  "dragon-age-inquisition": {
+    "width": 90,
+    "height": 120
+  },
+  "metro-exodus": {
+    "width": 90,
+    "height": 120
+  },
+  "resident-evil-2": {
+    "width": 90,
+    "height": 120
+  },
+  "resident-evil-requiem": {
+    "width": 90,
+    "height": 120
+  },
+  "titanfall-2": {
+    "width": 90,
+    "height": 120
+  },
+  "star-wars-battlefront-ii": {
+    "width": 88,
+    "height": 120
+  },
+  "sekiro-shadows-die-twice": {
+    "width": 96,
+    "height": 120
+  },
+  "bloodborne": {
+    "width": 100,
+    "height": 120
+  },
+  "grand-theft-auto-vice-city": {
+    "width": 95,
+    "height": 120
+  },
+  "star-wars-jedi-fallen-order": {
+    "width": 90,
+    "height": 120
+  },
+  "horizon-zero-dawn": {
+    "width": 90,
+    "height": 120
+  },
+  "horizon-forbidden-west": {
+    "width": 90,
+    "height": 120
+  },
+  "ghost-of-tsushima": {
+    "width": 90,
+    "height": 120
+  },
+  "doom-eternal": {
+    "width": 90,
+    "height": 120
+  },
+  "star-wars-jedi-survivor": {
+    "width": 90,
+    "height": 120
+  },
+  "death-stranding": {
+    "width": 90,
+    "height": 120
+  },
+  "death-stranding-2-on-the-beach": {
+    "width": 90,
+    "height": 120
+  },
+  "final-fantasy-vii-remake": {
+    "width": 84,
+    "height": 120
+  },
+  "final-fantasy-xvi": {
+    "width": 109,
+    "height": 120
+  },
+  "final-fantasy-xv": {
+    "width": 95,
+    "height": 120
+  },
+  "kingdom-hearts-ii": {
+    "width": 90,
+    "height": 120
+  },
+  "nier-automata": {
+    "width": 100,
+    "height": 120
+  },
+  "diablo-ii": {
+    "width": 80,
+    "height": 120
+  },
+  "diablo-iv": {
+    "width": 90,
+    "height": 120
+  },
+  "world-of-warcraft": {
+    "width": 84,
+    "height": 120
+  },
+  "starcraft-ii-wings-of-liberty": {
+    "width": 85,
+    "height": 120
+  },
+  "warcraft-iii-reign-of-chaos": {
+    "width": 85,
+    "height": 120
+  },
+  "overwatch": {
+    "width": 84,
+    "height": 120
+  },
+  "call-of-duty-modern-warfare-2": {
+    "width": 82,
+    "height": 120
+  },
+  "call-of-duty-black-ops": {
+    "width": 85,
+    "height": 120
+  },
+  "call-of-duty-black-ops-ii": {
+    "width": 87,
+    "height": 120
+  },
+  "battlefield-1": {
+    "width": 80,
+    "height": 120
+  },
+  "battlefield-3": {
+    "width": 83,
+    "height": 120
+  },
+  "battlefield-4": {
+    "width": 82,
+    "height": 120
+  },
+  "metal-gear-solid-v-the-phantom-pain": {
+    "width": 90,
+    "height": 120
+  },
+  "hitman-world-of-assassination": {
+    "width": 93,
+    "height": 120
+  },
+  "dishonored-2": {
+    "width": 98,
+    "height": 120
+  },
+  "prey": {
+    "width": 90,
+    "height": 120
+  },
+  "the-evil-within-2": {
+    "width": 98,
+    "height": 120
+  },
+  "resident-evil-7-biohazard": {
+    "width": 81,
+    "height": 120
+  },
+  "resident-evil-3": {
+    "width": 90,
+    "height": 120
+  },
+  "resident-evil-village": {
+    "width": 80,
+    "height": 120
+  },
+  "resident-evil-5": {
+    "width": 98,
+    "height": 120
+  },
+  "shadow-of-mordor": {
+    "width": 90,
+    "height": 120
+  },
+  "middle-earth-shadow-of-war": {
+    "width": 90,
+    "height": 120
+  },
+  "hogwarts-legacy": {
+    "width": 80,
+    "height": 120
+  },
+  "marvels-spider-man-2": {
+    "width": 100,
+    "height": 120
+  },
+  "ratchet-clank-rift-apart": {
+    "width": 93,
+    "height": 120
+  },
+  "returnal": {
+    "width": 90,
+    "height": 120
+  },
+  "deathloop": {
+    "width": 98,
+    "height": 120
+  },
+  "days-gone": {
+    "width": 120,
+    "height": 120
+  },
+  "the-division": {
+    "width": 92,
+    "height": 120
+  },
+  "the-division-2": {
+    "width": 92,
+    "height": 120
+  },
+  "assassins-creed-origins": {
+    "width": 96,
+    "height": 120
+  },
+  "assassins-creed-odyssey": {
+    "width": 92,
+    "height": 120
+  },
+  "assassins-creed-valhalla": {
+    "width": 92,
+    "height": 120
+  },
+  "watch-dogs-2": {
+    "width": 92,
+    "height": 120
+  },
+  "sleeping-dogs": {
+    "width": 91,
+    "height": 120
+  },
+  "just-cause-3": {
+    "width": 101,
+    "height": 120
+  },
+  "max-payne-3": {
+    "width": 97,
+    "height": 120
+  },
+  "tomb-raider": {
+    "width": 90,
+    "height": 120
+  },
+  "rise-of-the-tomb-raider": {
+    "width": 90,
+    "height": 120
+  },
+  "l-a-noire": {
+    "width": 90,
+    "height": 120
+  }
+}

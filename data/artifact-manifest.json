@@ -1,0 +1,3443 @@
+{
+  "schemaVersion": 1,
+  "title": "Play 100 artifact manifest",
+  "workbookPresentation": {
+    "identity": "Ink / cream / restrained lime",
+    "palette": {
+      "background": "#F8F7F0",
+      "panel": "#F3F4ED",
+      "alternate": "#EAEDE3",
+      "line": "#CBD3C3",
+      "text": "#1D2921",
+      "muted": "#536355",
+      "secondary": "#3B4B3D",
+      "ink": "#18211C",
+      "onInk": "#F8F7F0",
+      "onInkMuted": "#C8D2C4",
+      "accent": "#D3EA82",
+      "accentInk": "#354919",
+      "accentPanel": "#EBF2D6"
+    },
+    "scoreText": "Dark ink on neutral cells and light lime data bars; no lime text on cream.",
+    "minimumScoreTextContrastRatio": 11.4,
+    "headers": "Ink backgrounds with light cream text and restrained lime rules."
+  },
+  "source": {
+    "displayFilename": "AAA_games_u_have_to_play_list_top_100.xlsx",
+    "sha256": "301043fb513209b129586f617f1d205526c3c61785c48182760cf1aacaf29143",
+    "bytes": 487200,
+    "authoritativeSheet": "AAA Top 50",
+    "originalModified": false,
+    "criticSnapshotDate": null,
+    "scope": "Mainstream AAA / blockbuster / major-publisher flagship games, plus a small number of AAA-caliber premium exceptions that clearly belong in an essential modern-gaming list. Nintendo excluded.",
+    "rankingBasis": "Curated must-play ranking, not a raw Metacritic leaderboard. Critical acclaim, lasting reputation, industry influence, cultural impact, design quality, production ambition and “must-play” status.",
+    "sheets": [
+      {
+        "name": "AAA Top 50",
+        "dimensions": "A1:O105",
+        "nonemptyCellCount": 1260,
+        "formulaCount": 200,
+        "embeddedImageCount": 100,
+        "mergedRanges": [
+          "A1:O1",
+          "A2:O2",
+          "A55:N55"
+        ],
+        "comments": {},
+        "hiddenRows": [],
+        "hiddenColumns": []
+      },
+      {
+        "name": "Posters",
+        "dimensions": "A1:H78",
+        "nonemptyCellCount": 11,
+        "formulaCount": 0,
+        "embeddedImageCount": 9,
+        "mergedRanges": [
+          "A17:D18",
+          "A19:D19",
+          "A1:H1",
+          "A20:D31",
+          "A2:H2",
+          "A32:D33",
+          "A34:D34",
+          "A35:D46",
+          "A47:D48",
+          "A49:D49",
+          "A4:D4",
+          "A50:D61",
+          "A5:D16",
+          "A62:D63",
+          "A64:D64",
+          "A65:D76",
+          "A77:D78",
+          "E17:H18",
+          "E19:H19",
+          "E20:H31",
+          "E32:H33",
+          "E34:H34",
+          "E35:H46",
+          "E47:H48",
+          "E49:H49",
+          "E4:H4",
+          "E50:H61",
+          "E5:H16",
+          "E62:H63"
+        ],
+        "comments": {},
+        "hiddenRows": [],
+        "hiddenColumns": []
+      },
+      {
+        "name": "Timeline",
+        "dimensions": "A1:H53",
+        "nonemptyCellCount": 360,
+        "formulaCount": 0,
+        "embeddedImageCount": 0,
+        "mergedRanges": [
+          "A1:H1",
+          "D4:E28"
+        ],
+        "comments": {},
+        "hiddenRows": [],
+        "hiddenColumns": []
+      },
+      {
+        "name": "Methodology",
+        "dimensions": "A1:F13",
+        "nonemptyCellCount": 51,
+        "formulaCount": 0,
+        "embeddedImageCount": 0,
+        "mergedRanges": [
+          "A1:F1"
+        ],
+        "comments": {},
+        "hiddenRows": [],
+        "hiddenColumns": []
+      },
+      {
+        "name": "Sortable Ratings",
+        "dimensions": "A1:I101",
+        "nonemptyCellCount": 909,
+        "formulaCount": 900,
+        "embeddedImageCount": 0,
+        "mergedRanges": [],
+        "comments": {},
+        "hiddenRows": [],
+        "hiddenColumns": []
+      }
+    ]
+  },
+  "canonical": {
+    "file": "collection.json",
+    "schemaVersion": 1,
+    "gameCount": 100,
+    "coreCount": 50,
+    "essentialCount": 50,
+    "sourceYearRange": [
+      2000,
+      2026
+    ],
+    "criticColumns": {
+      "metacritic": 100,
+      "metacriticPc": 100,
+      "ign": 10,
+      "gamespot": 10,
+      "pcGamer": 100
+    },
+    "missingCounts": {
+      "metacritic": 0,
+      "metacriticPc": 16,
+      "ign": 16,
+      "gamespot": 0,
+      "pcGamer": 24
+    },
+    "availableCriticEntryCount": 444,
+    "explicitSourceNoteCount": 12,
+    "criticAverage": "Arithmetic mean of the available columns after IGN and GameSpot × 10; missing => null; all missing => null.",
+    "rankIndex": "10 - (rank - 1) * 3 / 99; a derived index, not an independent review.",
+    "authorRating": "Original numeric value plus exact raw cached text, displayed source value, source cell and number format; all100 are preserved.",
+    "author": {
+      "fullName": "Leul Tewodros Agonafer",
+      "shortName": "Leul",
+      "githubOwner": "LeulTew",
+      "repository": "play-100",
+      "githubUrl": "https://github.com/LeulTew/play-100",
+      "linkedinUrl": "https://www.linkedin.com/in/leul-t-agonafer-861bb3336/",
+      "telegramHandle": "@fabbin",
+      "telegramUrl": "https://t.me/fabbin",
+      "siteUrl": "https://play-100-collection.vercel.app"
+    },
+    "precision": "JSON retains full finite Python floating-point precision; workbook displays scores to one decimal without rounding stored values.",
+    "artworkCount": 100
+  },
+  "differencesAndCleaningDecisions": {
+    "authoritativeOrder": "Preserved all 100 ranks and source titles, studios, years, genres, rationales, and native critic values from AAA Top 50.",
+    "primaryAverageHeader": {
+      "sourceCell": "K4",
+      "sourceHeader": "43.2",
+      "replacementHeader": "Critic average /100"
+    },
+    "authorRatingPreservation": {
+      "sourceHeader": "my rating(based on rank)",
+      "replacementHeader": "Leul's original rating /10",
+      "meaning": "Leul's original cached ratings, based on his curated rank. Preserve original rounded/text results, values, display, number formats and notes; never substitute the reconstructed curve.",
+      "originalFormulaCaveats": [
+        {
+          "rank": 7,
+          "title": "Grand Theft Auto IV",
+          "cell": "L11",
+          "sourceFormula": "=TEXT(10-(5*(3/99)),\"0.0\")",
+          "sourceCache": "9.8",
+          "correctIndex": 9.818181818181818,
+          "handling": "The original cached author value is preserved. The separate legacy rankIndex field is not the author's recorded rating."
+        }
+      ],
+      "visitorRatings": "Separate device-only data. Never seeded from these public author ratings."
+    },
+    "sourceCriticAverageDifferences": [],
+    "explicitSourceNotesPreserved": [
+      {
+        "rank": 3,
+        "title": "The Witcher 3: Wild Hunt",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 11,
+        "title": "The Elder Scrolls V: Skyrim",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 12,
+        "title": "Baldur's Gate 3",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 15,
+        "title": "Elden Ring",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 22,
+        "title": "Baldur's Gate II: Shadows of Amn",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 24,
+        "title": "Portal 2",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 28,
+        "title": "Alan Wake 2",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 30,
+        "title": "Star Wars: Knights of the Old Republic",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 34,
+        "title": "Dishonored",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 38,
+        "title": "Dragon Age: Inquisition",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 48,
+        "title": "Horizon Zero Dawn",
+        "sourceNote": "(AI – not played)"
+      },
+      {
+        "rank": 49,
+        "title": "Horizon Forbidden West",
+        "sourceNote": "(AI – not played)"
+      }
+    ],
+    "blankPrimaryScoresDisplayedAsZeroInSortableRatings": {
+      "count": 56,
+      "decision": "Use authoritative primary blanks as JSON nulls and genuinely blank Excel critic cells; do not import derivative zeros.",
+      "evidence": [
+        {
+          "rank": 1,
+          "title": "Red Dead Redemption 2",
+          "cell": "G2",
+          "sourcePrimaryCell": "J5",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 5,
+          "title": "The Last of Us",
+          "cell": "D6",
+          "sourcePrimaryCell": "G9",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 5,
+          "title": "The Last of Us",
+          "cell": "G6",
+          "sourcePrimaryCell": "J9",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 7,
+          "title": "Grand Theft Auto IV",
+          "cell": "E8",
+          "sourcePrimaryCell": "H11",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 7,
+          "title": "Grand Theft Auto IV",
+          "cell": "G8",
+          "sourcePrimaryCell": "J11",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 8,
+          "title": "Red Dead Redemption",
+          "cell": "D9",
+          "sourcePrimaryCell": "G12",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 8,
+          "title": "Red Dead Redemption",
+          "cell": "G9",
+          "sourcePrimaryCell": "J12",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 9,
+          "title": "BioShock",
+          "cell": "E10",
+          "sourcePrimaryCell": "H13",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 10,
+          "title": "Mass Effect",
+          "cell": "D11",
+          "sourcePrimaryCell": "G14",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 10,
+          "title": "Mass Effect",
+          "cell": "E11",
+          "sourcePrimaryCell": "H14",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 13,
+          "title": "Clair Obscur: Expedition 33",
+          "cell": "G14",
+          "sourcePrimaryCell": "J17",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 16,
+          "title": "Uncharted 4: A Thief's End",
+          "cell": "D17",
+          "sourcePrimaryCell": "G20",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 16,
+          "title": "Uncharted 4: A Thief's End",
+          "cell": "E17",
+          "sourcePrimaryCell": "H20",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 16,
+          "title": "Uncharted 4: A Thief's End",
+          "cell": "G17",
+          "sourcePrimaryCell": "J20",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 18,
+          "title": "The Last of Us Part II",
+          "cell": "D19",
+          "sourcePrimaryCell": "G22",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 18,
+          "title": "The Last of Us Part II",
+          "cell": "E19",
+          "sourcePrimaryCell": "H22",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 18,
+          "title": "The Last of Us Part II",
+          "cell": "G19",
+          "sourcePrimaryCell": "J22",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 19,
+          "title": "Grand Theft Auto: San Andreas",
+          "cell": "D20",
+          "sourcePrimaryCell": "G23",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 19,
+          "title": "Grand Theft Auto: San Andreas",
+          "cell": "E20",
+          "sourcePrimaryCell": "H23",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 19,
+          "title": "Grand Theft Auto: San Andreas",
+          "cell": "G20",
+          "sourcePrimaryCell": "J23",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 22,
+          "title": "Baldur's Gate II: Shadows of Amn",
+          "cell": "D23",
+          "sourcePrimaryCell": "G26",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 22,
+          "title": "Baldur's Gate II: Shadows of Amn",
+          "cell": "E23",
+          "sourcePrimaryCell": "H26",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 22,
+          "title": "Baldur's Gate II: Shadows of Amn",
+          "cell": "G23",
+          "sourcePrimaryCell": "J26",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 23,
+          "title": "Halo 3",
+          "cell": "D24",
+          "sourcePrimaryCell": "G27",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 23,
+          "title": "Halo 3",
+          "cell": "E24",
+          "sourcePrimaryCell": "H27",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 23,
+          "title": "Halo 3",
+          "cell": "G24",
+          "sourcePrimaryCell": "J27",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 31,
+          "title": "Metal Gear Solid 3: Snake Eater",
+          "cell": "D32",
+          "sourcePrimaryCell": "G35",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 31,
+          "title": "Metal Gear Solid 3: Snake Eater",
+          "cell": "E32",
+          "sourcePrimaryCell": "H35",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 31,
+          "title": "Metal Gear Solid 3: Snake Eater",
+          "cell": "G32",
+          "sourcePrimaryCell": "J35",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 32,
+          "title": "Call of Duty 4: Modern Warfare",
+          "cell": "G33",
+          "sourcePrimaryCell": "J36",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 36,
+          "title": "Halo: Reach",
+          "cell": "D37",
+          "sourcePrimaryCell": "G40",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 36,
+          "title": "Halo: Reach",
+          "cell": "E37",
+          "sourcePrimaryCell": "H40",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 36,
+          "title": "Halo: Reach",
+          "cell": "G37",
+          "sourcePrimaryCell": "J40",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 44,
+          "title": "Sekiro: Shadows Die Twice",
+          "cell": "E45",
+          "sourcePrimaryCell": "H48",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 45,
+          "title": "Bloodborne",
+          "cell": "D46",
+          "sourcePrimaryCell": "G49",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 45,
+          "title": "Bloodborne",
+          "cell": "E46",
+          "sourcePrimaryCell": "H49",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 45,
+          "title": "Bloodborne",
+          "cell": "G46",
+          "sourcePrimaryCell": "J49",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 46,
+          "title": "Grand Theft Auto: Vice City",
+          "cell": "D47",
+          "sourcePrimaryCell": "G50",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 46,
+          "title": "Grand Theft Auto: Vice City",
+          "cell": "G47",
+          "sourcePrimaryCell": "J50",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 57,
+          "title": "Final Fantasy XV",
+          "cell": "E58",
+          "sourcePrimaryCell": "H62",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 58,
+          "title": "Kingdom Hearts II",
+          "cell": "D59",
+          "sourcePrimaryCell": "G63",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 58,
+          "title": "Kingdom Hearts II",
+          "cell": "G59",
+          "sourcePrimaryCell": "J63",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 59,
+          "title": "NieR:Automata",
+          "cell": "E60",
+          "sourcePrimaryCell": "H64",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 60,
+          "title": "Diablo II",
+          "cell": "D61",
+          "sourcePrimaryCell": "G65",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 60,
+          "title": "Diablo II",
+          "cell": "G61",
+          "sourcePrimaryCell": "J65",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 61,
+          "title": "Diablo IV",
+          "cell": "E62",
+          "sourcePrimaryCell": "H66",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 62,
+          "title": "World of Warcraft",
+          "cell": "D63",
+          "sourcePrimaryCell": "G67",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 62,
+          "title": "World of Warcraft",
+          "cell": "G63",
+          "sourcePrimaryCell": "J67",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 63,
+          "title": "StarCraft II: Wings of Liberty",
+          "cell": "E64",
+          "sourcePrimaryCell": "H68",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 64,
+          "title": "Warcraft III: Reign of Chaos",
+          "cell": "D65",
+          "sourcePrimaryCell": "G69",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 64,
+          "title": "Warcraft III: Reign of Chaos",
+          "cell": "G65",
+          "sourcePrimaryCell": "J69",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 66,
+          "title": "Call of Duty: Modern Warfare 2",
+          "cell": "G67",
+          "sourcePrimaryCell": "J71",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 67,
+          "title": "Call of Duty: Black Ops",
+          "cell": "G68",
+          "sourcePrimaryCell": "J72",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 70,
+          "title": "Battlefield 3",
+          "cell": "G71",
+          "sourcePrimaryCell": "J75",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 71,
+          "title": "Battlefield 4",
+          "cell": "G72",
+          "sourcePrimaryCell": "J76",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        },
+        {
+          "rank": 80,
+          "title": "Resident Evil 5",
+          "cell": "G81",
+          "sourcePrimaryCell": "J85",
+          "derivativeCachedValue": 0,
+          "authoritativeValue": null
+        }
+      ]
+    },
+    "otherSortableDifferences": [],
+    "methodologyAlternateTopTen": {
+      "mismatchCount": 6,
+      "evidence": [
+        {
+          "rank": 1,
+          "sourceTitle": "Red Dead Redemption 2",
+          "canonicalTitle": "Red Dead Redemption 2",
+          "matches": true
+        },
+        {
+          "rank": 2,
+          "sourceTitle": "Mass Effect 2",
+          "canonicalTitle": "Mass Effect 2",
+          "matches": true
+        },
+        {
+          "rank": 3,
+          "sourceTitle": "The Witcher 3: Wild Hunt",
+          "canonicalTitle": "The Witcher 3: Wild Hunt",
+          "matches": true
+        },
+        {
+          "rank": 4,
+          "sourceTitle": "Grand Theft Auto V",
+          "canonicalTitle": "God of War",
+          "matches": false
+        },
+        {
+          "rank": 5,
+          "sourceTitle": "BioShock",
+          "canonicalTitle": "The Last of Us",
+          "matches": false
+        },
+        {
+          "rank": 6,
+          "sourceTitle": "God of War",
+          "canonicalTitle": "Grand Theft Auto V",
+          "matches": false
+        },
+        {
+          "rank": 7,
+          "sourceTitle": "The Last of Us",
+          "canonicalTitle": "Grand Theft Auto IV",
+          "matches": false
+        },
+        {
+          "rank": 8,
+          "sourceTitle": "Grand Theft Auto IV",
+          "canonicalTitle": "Red Dead Redemption",
+          "matches": false
+        },
+        {
+          "rank": 9,
+          "sourceTitle": "Red Dead Redemption",
+          "canonicalTitle": "BioShock",
+          "matches": false
+        },
+        {
+          "rank": 10,
+          "sourceTitle": "Mass Effect",
+          "canonicalTitle": "Mass Effect",
+          "matches": true
+        }
+      ],
+      "decision": "Remove stale duplicate top-ten side table; the primary curated order is the sole order."
+    },
+    "timeline": {
+      "recordCount": 100,
+      "uniqueTitleCount": 100,
+      "missingYearCount": 25,
+      "missingTierCount": 24,
+      "titlesNotInPrimary": [
+        "Crysis",
+        "Metal Gear Solid V: Ground Zeroes"
+      ],
+      "primaryTitlesOmitted": [
+        "Resident Evil 4",
+        "Resident Evil Requiem"
+      ],
+      "rankDisagreementCount": 61
+    },
+    "timelineDecision": "The source actually holds 100 titles in two 50-row blocks. Rebuild one complete 100-record chronology from primary years and ranks; do not reinstate obsolete derivative-only titles.",
+    "extraColumnsNO": {},
+    "separatorRow": {
+      "sourceRow": 55,
+      "decision": "Preserve tier meaning but omit the decorative non-record divider from the native table."
+    },
+    "genreTags": "Split only the existing slash-separated source genre; trim separator-adjacent whitespace without adding classifications.",
+    "slugs": "NFKD ASCII transliteration, remove apostrophes, replace other punctuation/whitespace with single hyphens; assert uniqueness."
+  },
+  "artwork": {
+    "source": "User-provided workbook",
+    "sourceEmbeddedImageCount": 109,
+    "rowThumbnails": 100,
+    "largerPosters": 9,
+    "selectedCount": 100,
+    "selectedFrom": {
+      "Posters": 9,
+      "AAA Top 50": 91
+    },
+    "mapping": "Resolve drawing relationships and exact anchor-cell titles; do not assume drawing order equals curated order. Review contact sheets against those labels.",
+    "allPosterTitlesMatchPrimary": true,
+    "externalArtworkRequests": 0,
+    "imageBytesModified": false,
+    "selected": [
+      {
+        "rank": 1,
+        "title": "Red Dead Redemption 2",
+        "slug": "red-dead-redemption-2",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "A4",
+        "sourceAnchor": {
+          "row": 5,
+          "column": 1
+        },
+        "sourceMediaPath": "xl/media/image101.jpeg",
+        "sha256": "1ab6622c5945c3d6af33e66b2f86adcb17f272ab2c78c10e83644274c0b536c5",
+        "width": 150,
+        "height": 185,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/red-dead-redemption-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 2,
+        "title": "Mass Effect 2",
+        "slug": "mass-effect-2",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "E4",
+        "sourceAnchor": {
+          "row": 5,
+          "column": 5
+        },
+        "sourceMediaPath": "xl/media/image102.jpeg",
+        "sha256": "a5cf4c5f8f057dbfc66a4dca4331dba775da676816c4b73702f9685ff4491e15",
+        "width": 150,
+        "height": 217,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/mass-effect-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 3,
+        "title": "The Witcher 3: Wild Hunt",
+        "slug": "the-witcher-3-wild-hunt",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "E34",
+        "sourceAnchor": {
+          "row": 35,
+          "column": 5
+        },
+        "sourceMediaPath": "xl/media/image106.jpeg",
+        "sha256": "f0ef3c3d3ab00425d51185a3595deff1196c84abde3a79a7ccde7c5d691aaddb",
+        "width": 150,
+        "height": 225,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-witcher-3-wild-hunt.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 4,
+        "title": "God of War",
+        "slug": "god-of-war",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "E19",
+        "sourceAnchor": {
+          "row": 20,
+          "column": 5
+        },
+        "sourceMediaPath": "xl/media/image104.jpeg",
+        "sha256": "fb9082a49fe01c7a439a65a35de04e180876cadc825eea5c47b053a6eb5bf158",
+        "width": 150,
+        "height": 200,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/god-of-war.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 5,
+        "title": "The Last of Us",
+        "slug": "the-last-of-us",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "A49",
+        "sourceAnchor": {
+          "row": 50,
+          "column": 1
+        },
+        "sourceMediaPath": "xl/media/image107.jpeg",
+        "sha256": "de32900fcb0506ab056b117c6a501338a7a03828ecbe056eea529933652807ad",
+        "width": 150,
+        "height": 199,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-last-of-us.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 6,
+        "title": "Grand Theft Auto V",
+        "slug": "grand-theft-auto-v",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "A19",
+        "sourceAnchor": {
+          "row": 20,
+          "column": 1
+        },
+        "sourceMediaPath": "xl/media/image103.jpeg",
+        "sha256": "3ee5de7feb253fe17dddc26145e963bb221779f8c0e0c197b375bf3d27cdc0d5",
+        "width": 150,
+        "height": 185,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/grand-theft-auto-v.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 7,
+        "title": "Grand Theft Auto IV",
+        "slug": "grand-theft-auto-iv",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B11",
+        "sourceAnchor": {
+          "row": 11,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image7.jpeg",
+        "sha256": "19880546a02aae0b7f9143c64ea4a8bf874594b0d554f4ea2bfa9f5ca97464aa",
+        "width": 96,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/grand-theft-auto-iv.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 8,
+        "title": "Red Dead Redemption",
+        "slug": "red-dead-redemption",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B12",
+        "sourceAnchor": {
+          "row": 12,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image8.jpeg",
+        "sha256": "091ac91f2bbbf3fa227b10fa7a2e406cf103643265d73ccbc8bea2aacce09b21",
+        "width": 97,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/red-dead-redemption.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 9,
+        "title": "BioShock",
+        "slug": "bioshock",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "A34",
+        "sourceAnchor": {
+          "row": 35,
+          "column": 1
+        },
+        "sourceMediaPath": "xl/media/image105.jpeg",
+        "sha256": "07633f4315ca47c9ab30d7d78313cf4cc96a3fa763fd662d28459db2d3bf0363",
+        "width": 150,
+        "height": 186,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/bioshock.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 10,
+        "title": "Mass Effect",
+        "slug": "mass-effect",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B14",
+        "sourceAnchor": {
+          "row": 14,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image10.jpeg",
+        "sha256": "6e8271a626c0543cfbad14fcf0778c6c9544c5e341aae25a282fd244e10e57cf",
+        "width": 85,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/mass-effect.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 11,
+        "title": "The Elder Scrolls V: Skyrim",
+        "slug": "the-elder-scrolls-v-skyrim",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B15",
+        "sourceAnchor": {
+          "row": 15,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image11.jpeg",
+        "sha256": "bbc6c5125ee7ef361cf428d6028fc17529ef771d04b8a6097497be3813ddc522",
+        "width": 88,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-elder-scrolls-v-skyrim.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 12,
+        "title": "Baldur's Gate 3",
+        "slug": "baldurs-gate-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B16",
+        "sourceAnchor": {
+          "row": 16,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image12.jpeg",
+        "sha256": "7616d733029e84ef05b627990fba7df11a7e677f4c777aeb11b45190c8e5ec58",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/baldurs-gate-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 13,
+        "title": "Clair Obscur: Expedition 33",
+        "slug": "clair-obscur-expedition-33",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "A64",
+        "sourceAnchor": {
+          "row": 65,
+          "column": 1
+        },
+        "sourceMediaPath": "xl/media/image109.jpeg",
+        "sha256": "8def060fd143c2ad46a0b58b34f2fc4b5ae53aa4a2fa31956756359dacb690da",
+        "width": 150,
+        "height": 202,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/clair-obscur-expedition-33.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 14,
+        "title": "Batman: Arkham City",
+        "slug": "batman-arkham-city",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B18",
+        "sourceAnchor": {
+          "row": 18,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image14.jpeg",
+        "sha256": "a9979bf8bbe4e2f11d42b5cbd9b4b93c656278d188ba7bd77d0100075f0fa0a8",
+        "width": 86,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/batman-arkham-city.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 15,
+        "title": "Elden Ring",
+        "slug": "elden-ring",
+        "sourceSheet": "Posters",
+        "sourceLabelCell": "E49",
+        "sourceAnchor": {
+          "row": 50,
+          "column": 5
+        },
+        "sourceMediaPath": "xl/media/image108.jpeg",
+        "sha256": "7ef8469695e6330d687d301838a3aae20aef6896b1722ebaae5a9631cf599a66",
+        "width": 150,
+        "height": 200,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/elden-ring.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 16,
+        "title": "Uncharted 4: A Thief's End",
+        "slug": "uncharted-4-a-thiefs-end",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B20",
+        "sourceAnchor": {
+          "row": 20,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image16.jpeg",
+        "sha256": "e8f264e04284cce297f68daa6915ba2ab9d2ae9cb15c0d40c08c3e65a11f2a69",
+        "width": 91,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/uncharted-4-a-thiefs-end.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 17,
+        "title": "God of War Ragnarök",
+        "slug": "god-of-war-ragnarok",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B21",
+        "sourceAnchor": {
+          "row": 21,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image17.jpeg",
+        "sha256": "b7f677845b476c8ba7973fd3d6bd9c2dd74b68ca132e2811fe0aa90eedac158c",
+        "width": 98,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/god-of-war-ragnarok.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 18,
+        "title": "The Last of Us Part II",
+        "slug": "the-last-of-us-part-ii",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B22",
+        "sourceAnchor": {
+          "row": 22,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image18.jpeg",
+        "sha256": "a594b3580fc417073bd5c525662c7f2355d1d6136db1e20160d186e15ff1324d",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-last-of-us-part-ii.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 19,
+        "title": "Grand Theft Auto: San Andreas",
+        "slug": "grand-theft-auto-san-andreas",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B23",
+        "sourceAnchor": {
+          "row": 23,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image19.jpeg",
+        "sha256": "6c229b43e43584137d126b9ea0ee4bf8e64bd7fd11650d3fccbb8eb2deffde89",
+        "width": 97,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/grand-theft-auto-san-andreas.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 20,
+        "title": "Mass Effect 3",
+        "slug": "mass-effect-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B24",
+        "sourceAnchor": {
+          "row": 24,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image20.jpeg",
+        "sha256": "8696208a6e7dd0cd145998beca0c53a1b02a3bbd49068098a65bf93d06a9a783",
+        "width": 87,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/mass-effect-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 21,
+        "title": "Fallout 3",
+        "slug": "fallout-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B25",
+        "sourceAnchor": {
+          "row": 25,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image21.jpeg",
+        "sha256": "2a05dcc0fb90c43e6e7786dda942fca755c1ca85f770d99f3de1f8db2c038922",
+        "width": 72,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/fallout-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 22,
+        "title": "Baldur's Gate II: Shadows of Amn",
+        "slug": "baldurs-gate-ii-shadows-of-amn",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B26",
+        "sourceAnchor": {
+          "row": 26,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image22.jpeg",
+        "sha256": "e6fb983748348b317aab5076838e0376356afeaf67ca278ad75ada539143902e",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/baldurs-gate-ii-shadows-of-amn.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 23,
+        "title": "Halo 3",
+        "slug": "halo-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B27",
+        "sourceAnchor": {
+          "row": 27,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image23.jpeg",
+        "sha256": "c99c68237e25bec016d980f21b3693b32312421acb81b2bcc5461f2ac118e6e7",
+        "width": 95,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/halo-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 24,
+        "title": "Portal 2",
+        "slug": "portal-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B28",
+        "sourceAnchor": {
+          "row": 28,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image24.jpeg",
+        "sha256": "ed8b88b31193893c95c962eafe1c843fd45fadee71734d6b98336c886cff0679",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/portal-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 25,
+        "title": "Half-Life 2",
+        "slug": "half-life-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B29",
+        "sourceAnchor": {
+          "row": 29,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image25.jpeg",
+        "sha256": "0473474e059e132cdd3a86eae3052af5ee35a6a6064ae3a8f4dd9f4e339b8779",
+        "width": 87,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/half-life-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 26,
+        "title": "Cyberpunk 2077",
+        "slug": "cyberpunk-2077",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B30",
+        "sourceAnchor": {
+          "row": 30,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image26.jpeg",
+        "sha256": "8d20ba986d3124e8321314e59c969020e09e64638a519a88eecaa2676cc99cdc",
+        "width": 102,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/cyberpunk-2077.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 27,
+        "title": "Resident Evil 4",
+        "slug": "resident-evil-4",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B31",
+        "sourceAnchor": {
+          "row": 31,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image27.jpeg",
+        "sha256": "9b28f8d89c4c2c22db4bde5684d001f7aea6c5b4396124f31d7911d60cfe49df",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-4.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 28,
+        "title": "Alan Wake 2",
+        "slug": "alan-wake-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B32",
+        "sourceAnchor": {
+          "row": 32,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image28.jpeg",
+        "sha256": "b151c7d60d2dc70cb0c19e86f767a8ed689e07f28b93a66dfbb5473a4fcbb065",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/alan-wake-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 29,
+        "title": "Control",
+        "slug": "control",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B33",
+        "sourceAnchor": {
+          "row": 33,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image29.jpeg",
+        "sha256": "bf27e2c2826488c7662be8f5f32707b68f0874e361d0213abaef297a086ea951",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/control.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 30,
+        "title": "Star Wars: Knights of the Old Republic",
+        "slug": "star-wars-knights-of-the-old-republic",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B34",
+        "sourceAnchor": {
+          "row": 34,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image30.jpeg",
+        "sha256": "ba91e78efd323ea775126facf9d168f1f6ada6d251377890d6cbf1748f925db8",
+        "width": 86,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/star-wars-knights-of-the-old-republic.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 31,
+        "title": "Metal Gear Solid 3: Snake Eater",
+        "slug": "metal-gear-solid-3-snake-eater",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B35",
+        "sourceAnchor": {
+          "row": 35,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image31.jpeg",
+        "sha256": "38e4d97d095955dfdda91162b7c4ee269732e368d808b155dd92d3be28c19701",
+        "width": 85,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/metal-gear-solid-3-snake-eater.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 32,
+        "title": "Call of Duty 4: Modern Warfare",
+        "slug": "call-of-duty-4-modern-warfare",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B36",
+        "sourceAnchor": {
+          "row": 36,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image32.jpeg",
+        "sha256": "f202f045070502214630734e0cf63c282cf12a4337ce072896d291ae45b8a003",
+        "width": 82,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/call-of-duty-4-modern-warfare.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 33,
+        "title": "Assassin's Creed IV: Black Flag",
+        "slug": "assassins-creed-iv-black-flag",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B37",
+        "sourceAnchor": {
+          "row": 37,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image33.jpeg",
+        "sha256": "f43c9ee7cd76e2dd4383395a7d6a4667825e781ce0afc4b0254628ca0f575b26",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/assassins-creed-iv-black-flag.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 34,
+        "title": "Dishonored",
+        "slug": "dishonored",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B38",
+        "sourceAnchor": {
+          "row": 38,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image34.jpeg",
+        "sha256": "e78389e64b34b2cfeba4cf0615984c8db7cd328e66c0eabac164bfd95da6b23f",
+        "width": 98,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/dishonored.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 35,
+        "title": "The Elder Scrolls IV: Oblivion",
+        "slug": "the-elder-scrolls-iv-oblivion",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B39",
+        "sourceAnchor": {
+          "row": 39,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image35.jpeg",
+        "sha256": "09164f8ba6dd5a9d262d730359ff26d834ce56a281601092384b81ddf2362f61",
+        "width": 86,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-elder-scrolls-iv-oblivion.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 36,
+        "title": "Halo: Reach",
+        "slug": "halo-reach",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B40",
+        "sourceAnchor": {
+          "row": 40,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image36.jpeg",
+        "sha256": "add996351147c4fc33ac2a96b11bf9a3798eb359ab8d2d912e5812ea01fe266c",
+        "width": 94,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/halo-reach.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 37,
+        "title": "Far Cry 4",
+        "slug": "far-cry-4",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B41",
+        "sourceAnchor": {
+          "row": 41,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image37.jpeg",
+        "sha256": "49111061544d8be62b322feb19542b35413c18b42ef887467fad94fba98dbc1f",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/far-cry-4.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 38,
+        "title": "Dragon Age: Inquisition",
+        "slug": "dragon-age-inquisition",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B42",
+        "sourceAnchor": {
+          "row": 42,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image38.jpeg",
+        "sha256": "9cd8acf7612b0b162f75bac6ae0de79b6ab80845ffc819120d0d2495fcb0ac93",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/dragon-age-inquisition.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 39,
+        "title": "Metro Exodus",
+        "slug": "metro-exodus",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B43",
+        "sourceAnchor": {
+          "row": 43,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image39.jpeg",
+        "sha256": "c939c1136c551e970028f9d7e705a326a1618fb22028d9a97adaf01b2a4aed16",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/metro-exodus.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 40,
+        "title": "Resident Evil 2",
+        "slug": "resident-evil-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B44",
+        "sourceAnchor": {
+          "row": 44,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image40.jpeg",
+        "sha256": "9804845d0946b2c49be9299cb7afc65361992dfd1565a7227e0268b49a86f836",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 41,
+        "title": "Resident Evil Requiem",
+        "slug": "resident-evil-requiem",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B45",
+        "sourceAnchor": {
+          "row": 45,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image41.jpeg",
+        "sha256": "7d1e6959d8c2fd8cfc470275daf333dbb9eb10ce97832cfd42bd38cea1ea5934",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-requiem.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 42,
+        "title": "Titanfall 2",
+        "slug": "titanfall-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B46",
+        "sourceAnchor": {
+          "row": 46,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image42.jpeg",
+        "sha256": "e71d0f4b58b0e7e122a40145bb927b7b0d1ccf1391d61453385a34e2bf6dc2e4",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/titanfall-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 43,
+        "title": "Star Wars Battlefront II",
+        "slug": "star-wars-battlefront-ii",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B47",
+        "sourceAnchor": {
+          "row": 47,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image43.jpeg",
+        "sha256": "974cbcacaa718f58ff6cb36079ad10cb5343993f11b33e16a7a3ce58828f8623",
+        "width": 88,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/star-wars-battlefront-ii.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 44,
+        "title": "Sekiro: Shadows Die Twice",
+        "slug": "sekiro-shadows-die-twice",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B48",
+        "sourceAnchor": {
+          "row": 48,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image44.jpeg",
+        "sha256": "ed23a409d90c425fc3638ec20058db767b58eda952d6f8df02f14faa56a36589",
+        "width": 96,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/sekiro-shadows-die-twice.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 45,
+        "title": "Bloodborne",
+        "slug": "bloodborne",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B49",
+        "sourceAnchor": {
+          "row": 49,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image45.jpeg",
+        "sha256": "e920912a3594a00d56cf72d71a0d32c72a4b18c56255c0ad9972cf5d3cba7aee",
+        "width": 100,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/bloodborne.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 46,
+        "title": "Grand Theft Auto: Vice City",
+        "slug": "grand-theft-auto-vice-city",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B50",
+        "sourceAnchor": {
+          "row": 50,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image46.jpeg",
+        "sha256": "093c3c15743b50dff70c64d106026aa6b5017ac9dc1a45cdb2bdd524b7d89bd2",
+        "width": 95,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/grand-theft-auto-vice-city.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 47,
+        "title": "Star Wars Jedi: Fallen Order",
+        "slug": "star-wars-jedi-fallen-order",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B51",
+        "sourceAnchor": {
+          "row": 51,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image47.jpeg",
+        "sha256": "ba327df52d939bec3324952b444422a8ad66aa7de924593dfb29fbfe841de799",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/star-wars-jedi-fallen-order.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 48,
+        "title": "Horizon Zero Dawn",
+        "slug": "horizon-zero-dawn",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B52",
+        "sourceAnchor": {
+          "row": 52,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image48.jpeg",
+        "sha256": "9ed17b962b35d0e37d71593743b2959123cf316be234dd967c233389d3a212d7",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/horizon-zero-dawn.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 49,
+        "title": "Horizon Forbidden West",
+        "slug": "horizon-forbidden-west",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B53",
+        "sourceAnchor": {
+          "row": 53,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image49.jpeg",
+        "sha256": "020308ab99883ede6cf8b79cec3452b63ecd82a76548fc3e6545c579e76759f1",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/horizon-forbidden-west.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 50,
+        "title": "Ghost of Tsushima",
+        "slug": "ghost-of-tsushima",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B54",
+        "sourceAnchor": {
+          "row": 54,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image50.jpeg",
+        "sha256": "4f1916de7538fe56e90b5b7b2eeb36b4d01fdc4f805cdb1c36f69f6032284669",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/ghost-of-tsushima.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 51,
+        "title": "DOOM Eternal",
+        "slug": "doom-eternal",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B56",
+        "sourceAnchor": {
+          "row": 56,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image51.jpeg",
+        "sha256": "33542e4598749f8ffdafd7e816da01c58d94161a9ec4add3d2c60fa38ca26d84",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/doom-eternal.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 52,
+        "title": "Star Wars Jedi: Survivor",
+        "slug": "star-wars-jedi-survivor",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B57",
+        "sourceAnchor": {
+          "row": 57,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image52.jpeg",
+        "sha256": "41a6d3d832eb80a654066df907cbe45d155ece99c823fce8491f00a20b625345",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/star-wars-jedi-survivor.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 53,
+        "title": "Death Stranding",
+        "slug": "death-stranding",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B58",
+        "sourceAnchor": {
+          "row": 58,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image53.jpeg",
+        "sha256": "fee9aeb5237b1af869b3dbfa33e7108f91dca5bcf81378151e84abbf8536fb4d",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/death-stranding.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 54,
+        "title": "Death Stranding 2: On the Beach",
+        "slug": "death-stranding-2-on-the-beach",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B59",
+        "sourceAnchor": {
+          "row": 59,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image54.jpeg",
+        "sha256": "cbf60558e872006a0bff268854e6565e43c777d11d0c80fdfc8b1647395b5c6b",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/death-stranding-2-on-the-beach.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 55,
+        "title": "Final Fantasy VII Remake",
+        "slug": "final-fantasy-vii-remake",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B60",
+        "sourceAnchor": {
+          "row": 60,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image55.jpeg",
+        "sha256": "0a372206c3b2f70819d1d2f056e8b2da8f1298a234c7ad49d5cb746a2e0a1e94",
+        "width": 84,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/final-fantasy-vii-remake.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 56,
+        "title": "Final Fantasy XVI",
+        "slug": "final-fantasy-xvi",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B61",
+        "sourceAnchor": {
+          "row": 61,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image56.jpeg",
+        "sha256": "dfed16647a12652a1f12c672cd4c760a03a245e584afc943c7783fa2d2c9cb37",
+        "width": 109,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/final-fantasy-xvi.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 57,
+        "title": "Final Fantasy XV",
+        "slug": "final-fantasy-xv",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B62",
+        "sourceAnchor": {
+          "row": 62,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image57.jpeg",
+        "sha256": "e2e5248f4a719114a6ddaf29ff14c8de621d76e56b84663c23892263819d9e63",
+        "width": 95,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/final-fantasy-xv.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 58,
+        "title": "Kingdom Hearts II",
+        "slug": "kingdom-hearts-ii",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B63",
+        "sourceAnchor": {
+          "row": 63,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image58.jpeg",
+        "sha256": "1c625f8fe1106a23d45bf4174de6f0f1073231893d850dceb0919557f195fa25",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/kingdom-hearts-ii.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 59,
+        "title": "NieR:Automata",
+        "slug": "nier-automata",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B64",
+        "sourceAnchor": {
+          "row": 64,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image59.jpeg",
+        "sha256": "4c35e33eb84b56a20cc42e054a8bae40c1338b876714940a7a63234f1c5baeac",
+        "width": 100,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/nier-automata.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 60,
+        "title": "Diablo II",
+        "slug": "diablo-ii",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B65",
+        "sourceAnchor": {
+          "row": 65,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image60.jpeg",
+        "sha256": "2552979164ece2c75d7be62f2095213e00dea370db596a9486d07ee44a41ff8f",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/diablo-ii.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 61,
+        "title": "Diablo IV",
+        "slug": "diablo-iv",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B66",
+        "sourceAnchor": {
+          "row": 66,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image61.jpeg",
+        "sha256": "3e755c96b90b67712e6c9d654c591601f65559d4e3af80482e8cfd971531378e",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/diablo-iv.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 62,
+        "title": "World of Warcraft",
+        "slug": "world-of-warcraft",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B67",
+        "sourceAnchor": {
+          "row": 67,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image62.jpeg",
+        "sha256": "521bddf69ccb0aae7953391cbd3c7a2184bf2a85e722c8b36e70e1643a8a4eb1",
+        "width": 84,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/world-of-warcraft.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 63,
+        "title": "StarCraft II: Wings of Liberty",
+        "slug": "starcraft-ii-wings-of-liberty",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B68",
+        "sourceAnchor": {
+          "row": 68,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image63.jpeg",
+        "sha256": "68429366cbe4f98527f5479a4f5b77cdc2498560cc7f3c35636d1ae5951b7efe",
+        "width": 85,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/starcraft-ii-wings-of-liberty.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 64,
+        "title": "Warcraft III: Reign of Chaos",
+        "slug": "warcraft-iii-reign-of-chaos",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B69",
+        "sourceAnchor": {
+          "row": 69,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image64.jpeg",
+        "sha256": "9bcec0143835e1022f2e7908ab806b18b037ddeeb6707c7700c60b39f23d3129",
+        "width": 85,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/warcraft-iii-reign-of-chaos.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 65,
+        "title": "Overwatch",
+        "slug": "overwatch",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B70",
+        "sourceAnchor": {
+          "row": 70,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image65.jpeg",
+        "sha256": "60842d9fd86affe33a5f2ef1451fc3108f3f4c39ddf98e948e7abef6882200fb",
+        "width": 84,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/overwatch.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 66,
+        "title": "Call of Duty: Modern Warfare 2",
+        "slug": "call-of-duty-modern-warfare-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B71",
+        "sourceAnchor": {
+          "row": 71,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image66.jpeg",
+        "sha256": "95b973d3565990d39d265ac82c0cbe83b8c5cfbcdf4e12ca86631df05a580cf9",
+        "width": 82,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/call-of-duty-modern-warfare-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 67,
+        "title": "Call of Duty: Black Ops",
+        "slug": "call-of-duty-black-ops",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B72",
+        "sourceAnchor": {
+          "row": 72,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image67.jpeg",
+        "sha256": "0162d6a8cc3fba8c97d924ebacad30d1afa9316964b9d125cc6a61d3076513c2",
+        "width": 85,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/call-of-duty-black-ops.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 68,
+        "title": "Call of Duty: Black Ops II",
+        "slug": "call-of-duty-black-ops-ii",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B73",
+        "sourceAnchor": {
+          "row": 73,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image68.jpeg",
+        "sha256": "6f1d36b69beb1ded13cce4ff85027491603b7ee75b53a20d340fb74bf784a30e",
+        "width": 87,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/call-of-duty-black-ops-ii.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 69,
+        "title": "Battlefield 1",
+        "slug": "battlefield-1",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B74",
+        "sourceAnchor": {
+          "row": 74,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image69.jpeg",
+        "sha256": "fdfe8c012cc7c46cdf09f902f8779b06086ea01288ed3545b083e270e1293ac9",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/battlefield-1.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 70,
+        "title": "Battlefield 3",
+        "slug": "battlefield-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B75",
+        "sourceAnchor": {
+          "row": 75,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image70.jpeg",
+        "sha256": "fec7b6fe16314809e16527921bea0cbd8909496280fef71a4275c022310e5403",
+        "width": 83,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/battlefield-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 71,
+        "title": "Battlefield 4",
+        "slug": "battlefield-4",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B76",
+        "sourceAnchor": {
+          "row": 76,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image71.jpeg",
+        "sha256": "6e225b3527ce4e92eae0baf01e8d518df9a528d0bd3bba8d6d6d702648d59f3c",
+        "width": 82,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/battlefield-4.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 72,
+        "title": "Metal Gear Solid V: The Phantom Pain",
+        "slug": "metal-gear-solid-v-the-phantom-pain",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B77",
+        "sourceAnchor": {
+          "row": 77,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image72.jpeg",
+        "sha256": "fa15bf1746ce432d7471cba15a1b264ea8a44ce17e884e3e953a05fe5c7a7fa7",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/metal-gear-solid-v-the-phantom-pain.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 73,
+        "title": "Hitman: World of Assassination",
+        "slug": "hitman-world-of-assassination",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B78",
+        "sourceAnchor": {
+          "row": 78,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image73.jpeg",
+        "sha256": "413469d9dcae3ab418cb7a5dbd5d5dec6ac4dfd3a317dba7070e905e17273ab9",
+        "width": 93,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/hitman-world-of-assassination.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 74,
+        "title": "Dishonored 2",
+        "slug": "dishonored-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B79",
+        "sourceAnchor": {
+          "row": 79,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image74.jpeg",
+        "sha256": "276daedb253b1939876096e87af7dceeed64d351e3b8587d1ecfbe628f25a7f3",
+        "width": 98,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/dishonored-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 75,
+        "title": "Prey",
+        "slug": "prey",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B80",
+        "sourceAnchor": {
+          "row": 80,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image75.jpeg",
+        "sha256": "b83d418391357f57b15a34d3b8f9b4f29f54ba44bc34bf0a21d95c4e9c17c946",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/prey.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 76,
+        "title": "The Evil Within 2",
+        "slug": "the-evil-within-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B81",
+        "sourceAnchor": {
+          "row": 81,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image76.jpeg",
+        "sha256": "080cd516e5e87f6b7684216f9a42f14b7df4e4e5bbbccc933558f5bdb160e6dc",
+        "width": 98,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-evil-within-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 77,
+        "title": "Resident Evil 7: Biohazard",
+        "slug": "resident-evil-7-biohazard",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B82",
+        "sourceAnchor": {
+          "row": 82,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image77.jpeg",
+        "sha256": "39416d61338f88bbe0b454865638f2f222d06ba63e8cf8c77ea154633e78afcf",
+        "width": 81,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-7-biohazard.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 78,
+        "title": "Resident Evil 3",
+        "slug": "resident-evil-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B83",
+        "sourceAnchor": {
+          "row": 83,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image78.jpeg",
+        "sha256": "92b7f8e0aebc717955d5b69f3f7c19334ab78fe5bb53e59b3e50c1fa848ab605",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 79,
+        "title": "Resident Evil Village",
+        "slug": "resident-evil-village",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B84",
+        "sourceAnchor": {
+          "row": 84,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image79.jpeg",
+        "sha256": "d33b62bd1caa6a51bc4f318d836d2bea54ffd96ebf0d6b3a735dccf424bf9b33",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-village.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 80,
+        "title": "Resident Evil 5",
+        "slug": "resident-evil-5",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B85",
+        "sourceAnchor": {
+          "row": 85,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image80.jpeg",
+        "sha256": "e2db66f4e9f3ed6b0013b0cd2799da083f3c46eaca23dafc974b6f4d4042197c",
+        "width": 98,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/resident-evil-5.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 81,
+        "title": "Shadow of Mordor",
+        "slug": "shadow-of-mordor",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B86",
+        "sourceAnchor": {
+          "row": 86,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image81.jpeg",
+        "sha256": "8be4f97a636da7e7f49bd03383d9309f4d119fa18a4c23ed198ef26df7c52d00",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/shadow-of-mordor.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 82,
+        "title": "Middle-earth: Shadow of War",
+        "slug": "middle-earth-shadow-of-war",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B87",
+        "sourceAnchor": {
+          "row": 87,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image82.jpeg",
+        "sha256": "0dbb882edeb947344fe9e08661bb6b776f405a6834827a10f653adb6f7734bfe",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/middle-earth-shadow-of-war.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 83,
+        "title": "Hogwarts Legacy",
+        "slug": "hogwarts-legacy",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B88",
+        "sourceAnchor": {
+          "row": 88,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image83.jpeg",
+        "sha256": "9bad8eaf0f4a2159c47093c209f853073ce1585bc5e347960aa9744eded9f09a",
+        "width": 80,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/hogwarts-legacy.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 84,
+        "title": "Marvel's Spider-Man 2",
+        "slug": "marvels-spider-man-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B89",
+        "sourceAnchor": {
+          "row": 89,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image84.jpeg",
+        "sha256": "cd2ca106deba5780e0d624143a0bd8de07ad9454ba5f8b73d51caf5917131aa8",
+        "width": 100,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/marvels-spider-man-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 85,
+        "title": "Ratchet & Clank: Rift Apart",
+        "slug": "ratchet-clank-rift-apart",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B90",
+        "sourceAnchor": {
+          "row": 90,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image85.jpeg",
+        "sha256": "5322055ff7f0de336d33d826e2e146b1660c0cd16ccbc152683486c9529f20b9",
+        "width": 93,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/ratchet-clank-rift-apart.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 86,
+        "title": "Returnal",
+        "slug": "returnal",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B91",
+        "sourceAnchor": {
+          "row": 91,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image86.jpeg",
+        "sha256": "5a5e6a486a5063850bf3ecfd30e687996be7ead4698edabb3e0206f6fc880c43",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/returnal.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 87,
+        "title": "Deathloop",
+        "slug": "deathloop",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B92",
+        "sourceAnchor": {
+          "row": 92,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image87.jpeg",
+        "sha256": "707e15666ff831029946ce63a2c20cd15e95fffee3a4cdc26b5e1384f99138b4",
+        "width": 98,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/deathloop.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 88,
+        "title": "Days Gone",
+        "slug": "days-gone",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B93",
+        "sourceAnchor": {
+          "row": 93,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image88.jpeg",
+        "sha256": "57db2a6751df341f2f30b0d87c74b592d5f009bc994c2db181168445f3de4321",
+        "width": 120,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/days-gone.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 89,
+        "title": "The Division",
+        "slug": "the-division",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B94",
+        "sourceAnchor": {
+          "row": 94,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image89.jpeg",
+        "sha256": "6016abae01611248dbae5e93ee25002f42dc33a63c6d3f17f2aefb2dd78ff5c7",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-division.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 90,
+        "title": "The Division 2",
+        "slug": "the-division-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B95",
+        "sourceAnchor": {
+          "row": 95,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image90.jpeg",
+        "sha256": "2a59069b7d0e47c0ad7539451b883a3c5ccfe9fbb6c0c5570d6acd59b7c36e6e",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/the-division-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 91,
+        "title": "Assassin's Creed Origins",
+        "slug": "assassins-creed-origins",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B96",
+        "sourceAnchor": {
+          "row": 96,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image91.jpeg",
+        "sha256": "9523d5665ed333d7315cd08e819d9a88a3460a18e4389f059649c34e89ab5c6d",
+        "width": 96,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/assassins-creed-origins.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 92,
+        "title": "Assassin's Creed Odyssey",
+        "slug": "assassins-creed-odyssey",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B97",
+        "sourceAnchor": {
+          "row": 97,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image92.jpeg",
+        "sha256": "b1b6d423786456e3c4250c694ce8d6d41568d465db2176aab05bc3f9a09057d6",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/assassins-creed-odyssey.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 93,
+        "title": "Assassin's Creed Valhalla",
+        "slug": "assassins-creed-valhalla",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B98",
+        "sourceAnchor": {
+          "row": 98,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image93.jpeg",
+        "sha256": "67a44233b710faab3b8ac244eca251c48e48b3a0f612f9a17aefdf22c9a4ca09",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/assassins-creed-valhalla.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 94,
+        "title": "Watch Dogs 2",
+        "slug": "watch-dogs-2",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B99",
+        "sourceAnchor": {
+          "row": 99,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image94.jpeg",
+        "sha256": "8dacfac13ac6c7deb454af90a4f62100512c2e04d85c410b65c6cdba0d699401",
+        "width": 92,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/watch-dogs-2.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 95,
+        "title": "Sleeping Dogs",
+        "slug": "sleeping-dogs",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B100",
+        "sourceAnchor": {
+          "row": 100,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image95.jpeg",
+        "sha256": "45e0cee4f82f21c073156aa0e0e176bfd712ce5b4bff9a16959197109781fbaf",
+        "width": 91,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/sleeping-dogs.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 96,
+        "title": "Just Cause 3",
+        "slug": "just-cause-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B101",
+        "sourceAnchor": {
+          "row": 101,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image96.jpeg",
+        "sha256": "64a6d07b1e7f133764054b2dbc65bc3ed61eaf7cac77c449187491b830e23b55",
+        "width": 101,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/just-cause-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 97,
+        "title": "Max Payne 3",
+        "slug": "max-payne-3",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B102",
+        "sourceAnchor": {
+          "row": 102,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image97.jpeg",
+        "sha256": "3eff8143b75aa214d42a40ebe19e6432064dac94e89a4ccfe21134deabe34ff7",
+        "width": 97,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/max-payne-3.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 98,
+        "title": "Tomb Raider",
+        "slug": "tomb-raider",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B103",
+        "sourceAnchor": {
+          "row": 103,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image98.jpeg",
+        "sha256": "79fc03462e933ebfbb80afdcb993b902b2cc89a023c688b18a39c534d40b9e1a",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/tomb-raider.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 99,
+        "title": "Rise of the Tomb Raider",
+        "slug": "rise-of-the-tomb-raider",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B104",
+        "sourceAnchor": {
+          "row": 104,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image99.jpeg",
+        "sha256": "56fa8a0af33ee00e99166a5d4843c791cebf0624390982788befe6701f61134d",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/rise-of-the-tomb-raider.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      },
+      {
+        "rank": 100,
+        "title": "L.A. Noire",
+        "slug": "l-a-noire",
+        "sourceSheet": "AAA Top 50",
+        "sourceLabelCell": "B105",
+        "sourceAnchor": {
+          "row": 105,
+          "column": 2
+        },
+        "sourceMediaPath": "xl/media/image100.jpeg",
+        "sha256": "d550a68d55f392a49845b593829a217808629f711c08d4317b4dfa517f0ad69a",
+        "width": 90,
+        "height": 120,
+        "format": "JPEG",
+        "mappingBasis": "Exact title at the source row or immediately above the poster anchor.",
+        "file": "assets/l-a-noire.jpg",
+        "selection": "Largest supplied image for this exact anchored title; original bytes preserved.",
+        "review": "Source anchors, labels, and visible cover branding reviewed together."
+      }
+    ],
+    "allSourceImagesEvidence": "source-audit.json#embeddedImages",
+    "visualReviewEvidence": [
+      "previews/source-thumbnails-01.jpg",
+      "previews/source-thumbnails-02.jpg",
+      "previews/source-thumbnails-03.jpg",
+      "previews/source-thumbnails-04.jpg",
+      "previews/source-posters-01.jpg"
+    ]
+  },
+  "uncertaintiesAndLimitations": [
+    "Scores and source years were not independently reverified. The source provides no reliable critic snapshot date.",
+    "Metacritic and Metacritic PC are both included when entered. The normalized average covers entered columns, not independent publications.",
+    "Leul's rating is copied from the original cached column L; rank-based provenance is retained. The legacy rankIndex JSON field is a separate internal compatibility value, not a replacement author rating.",
+    "An unmarked title has unknown play status. Only 12 explicit (AI – not played) notes are preserved.",
+    "91 selected images are low-resolution 120-pixel-high thumbnails; the nine larger poster originals are also modest resolution.",
+    "Rank 73 retains source title Hitman: World of Assassination, source year 2016, and its anchored HITMAN III-branded image. This source edition/year naming caveat is disclosed, not silently normalized.",
+    "Artwork and visible packaging do not establish platform availability, an exact edition, release date, or redistribution licence.",
+    "The source has no document creation timestamp. Automatically generated document created/modified tags are omitted, keeping builds reproducible without inventing a document or critic verification date."
+  ],
+  "libraryReadWarnings": [
+    "Conditional Formatting extension is not supported and will be removed",
+    "Unknown extension is not supported and will be removed"
+  ],
+  "libraryReadWarningHandling": "Original is read only. Unsupported source formatting extensions are not round-tripped; the enhanced workbook is created independently.",
+  "reproduce": {
+    "generator": "generate_collection.py",
+    "tests": "test_collection.py",
+    "requirements": "requirements.txt",
+    "pythonVersion": "3.14.2",
+    "libraryVersions": {
+      "openpyxl": "3.1.5",
+      "XlsxWriter": "3.2.9",
+      "Pillow": "12.3.0"
+    },
+    "windowsCommands": [
+      "python -m venv .venv",
+      ".\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt",
+      ".\\.venv\\Scripts\\python.exe -B .\\generate_collection.py --source \"PATH_TO_ORIGINAL.xlsx\" --output .",
+      ".\\.venv\\Scripts\\python.exe -B -m unittest -q test_collection"
+    ],
+    "sourcePinnedArtworkReview": "301043fb513209b129586f617f1d205526c3c61785c48182760cf1aacaf29143",
+    "differentSourceHandling": "Use --inspect-only to inspect a different workbook. Generation refuses unreviewed source bytes rather than silently assigning unverified artwork.",
+    "networkRequiredDuringGeneration": false,
+    "outputPathDefaultsToScriptDirectory": true,
+    "copyForWebsite": [
+      "collection.json",
+      "assets",
+      "Play-100-Collection.xlsx"
+    ],
+    "shareableWorkbook": "The .xlsx embeds its own images, tables, cached values and methodology. No sibling files are required to open it.",
+    "excludeFromDistribution": [
+      ".venv",
+      ".package-work",
+      "__pycache__",
+      "previews"
+    ]
+  },
+  "validation": {
+    "status": "passed",
+    "recordCount": 100,
+    "uniqueRanksTitlesAndSlugs": true,
+    "sourceFieldsAndCriticEntriesPreserved": true,
+    "missingCriticValuesAreNullAndBlank": true,
+    "criticScoresCompared": 500,
+    "missingCriticValueCount": 56,
+    "mainAndChronologyNumericFormulaCachesCompared": 300,
+    "originalAuthorRatingsCompared": 100,
+    "originalAuthorRatingRawCachesAndFormatsPreserved": true,
+    "authorFooterHyperlinksVerifiedOnAllSheets": true,
+    "formulaCount": 500,
+    "formulaExpressionsChecked": true,
+    "workbookZipCrcAndXmlValid": true,
+    "xmlPartsParsed": 26,
+    "readableByOpenpyxl": true,
+    "nativeTablesContain100RowsEach": true,
+    "galleryImagesVerified": 100,
+    "minimumScoreTextContrastRatio": 11.4,
+    "scoreTextContrastAtLeast7To1": true,
+    "originalImageBytesPreserved": true,
+    "macrosAndExternalWorkbookLinks": false,
+    "validationScope": "Library/ZIP/XML checks and direct arithmetic. No Excel/LibreOffice recalculation engine was invoked.",
+    "sourceSha256UnchangedAfterGeneration": true
+  },
+  "files": [
+    {
+      "path": "collection.json",
+      "bytes": 102901,
+      "sha256": "fac701c4889ebe0e8596531a203cb9534abf6efbcd407e0dfa7807229da68b22"
+    },
+    {
+      "path": "Play-100-Collection.xlsx",
+      "bytes": 457376,
+      "sha256": "bc24d79e467ee23378c5f86a8f927a64547131e4abc1a9d468e1892549cfbf93"
+    },
+    {
+      "path": "source-audit.json",
+      "bytes": 279170,
+      "sha256": "9c9f83a71a5c680ed25e0511633cec4f66a3b1de153049fc07e9ae552e806203"
+    },
+    {
+      "path": "generate_collection.py",
+      "bytes": 78176,
+      "sha256": "695f64b984424aadaae5bda571a72e16405595b7837126f63021bcac4024d55a"
+    },
+    {
+      "path": "test_collection.py",
+      "bytes": 14648,
+      "sha256": "cbd06ca1fda32dd14517dfb477314b4a3c7db86521cd2ff146e11d4c585a8e2a"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 52,
+      "sha256": "d07ff583f05ac5dbca6ee082c7adfdecac80e6cde757c0b574432c7903501c79"
+    },
+    {
+      "path": "author.json",
+      "bytes": 388,
+      "sha256": "99e9acdf442d4c4a7c64681f5936ee3152561a9e37f8af87c2e73f15bc354b69"
+    },
+    {
+      "path": "assets/red-dead-redemption-2.jpg",
+      "bytes": 7594,
+      "sha256": "1ab6622c5945c3d6af33e66b2f86adcb17f272ab2c78c10e83644274c0b536c5"
+    },
+    {
+      "path": "assets/mass-effect-2.jpg",
+      "bytes": 8491,
+      "sha256": "a5cf4c5f8f057dbfc66a4dca4331dba775da676816c4b73702f9685ff4491e15"
+    },
+    {
+      "path": "assets/the-witcher-3-wild-hunt.jpg",
+      "bytes": 7107,
+      "sha256": "f0ef3c3d3ab00425d51185a3595deff1196c84abde3a79a7ccde7c5d691aaddb"
+    },
+    {
+      "path": "assets/god-of-war.jpg",
+      "bytes": 5301,
+      "sha256": "fb9082a49fe01c7a439a65a35de04e180876cadc825eea5c47b053a6eb5bf158"
+    },
+    {
+      "path": "assets/the-last-of-us.jpg",
+      "bytes": 7094,
+      "sha256": "de32900fcb0506ab056b117c6a501338a7a03828ecbe056eea529933652807ad"
+    },
+    {
+      "path": "assets/grand-theft-auto-v.jpg",
+      "bytes": 9382,
+      "sha256": "3ee5de7feb253fe17dddc26145e963bb221779f8c0e0c197b375bf3d27cdc0d5"
+    },
+    {
+      "path": "assets/grand-theft-auto-iv.jpg",
+      "bytes": 5011,
+      "sha256": "19880546a02aae0b7f9143c64ea4a8bf874594b0d554f4ea2bfa9f5ca97464aa"
+    },
+    {
+      "path": "assets/red-dead-redemption.jpg",
+      "bytes": 4336,
+      "sha256": "091ac91f2bbbf3fa227b10fa7a2e406cf103643265d73ccbc8bea2aacce09b21"
+    },
+    {
+      "path": "assets/bioshock.jpg",
+      "bytes": 7611,
+      "sha256": "07633f4315ca47c9ab30d7d78313cf4cc96a3fa763fd662d28459db2d3bf0363"
+    },
+    {
+      "path": "assets/mass-effect.jpg",
+      "bytes": 3779,
+      "sha256": "6e8271a626c0543cfbad14fcf0778c6c9544c5e341aae25a282fd244e10e57cf"
+    },
+    {
+      "path": "assets/the-elder-scrolls-v-skyrim.jpg",
+      "bytes": 2099,
+      "sha256": "bbc6c5125ee7ef361cf428d6028fc17529ef771d04b8a6097497be3813ddc522"
+    },
+    {
+      "path": "assets/baldurs-gate-3.jpg",
+      "bytes": 3446,
+      "sha256": "7616d733029e84ef05b627990fba7df11a7e677f4c777aeb11b45190c8e5ec58"
+    },
+    {
+      "path": "assets/clair-obscur-expedition-33.jpg",
+      "bytes": 6897,
+      "sha256": "8def060fd143c2ad46a0b58b34f2fc4b5ae53aa4a2fa31956756359dacb690da"
+    },
+    {
+      "path": "assets/batman-arkham-city.jpg",
+      "bytes": 3179,
+      "sha256": "a9979bf8bbe4e2f11d42b5cbd9b4b93c656278d188ba7bd77d0100075f0fa0a8"
+    },
+    {
+      "path": "assets/elden-ring.jpg",
+      "bytes": 5041,
+      "sha256": "7ef8469695e6330d687d301838a3aae20aef6896b1722ebaae5a9631cf599a66"
+    },
+    {
+      "path": "assets/uncharted-4-a-thiefs-end.jpg",
+      "bytes": 3409,
+      "sha256": "e8f264e04284cce297f68daa6915ba2ab9d2ae9cb15c0d40c08c3e65a11f2a69"
+    },
+    {
+      "path": "assets/god-of-war-ragnarok.jpg",
+      "bytes": 4168,
+      "sha256": "b7f677845b476c8ba7973fd3d6bd9c2dd74b68ca132e2811fe0aa90eedac158c"
+    },
+    {
+      "path": "assets/the-last-of-us-part-ii.jpg",
+      "bytes": 2788,
+      "sha256": "a594b3580fc417073bd5c525662c7f2355d1d6136db1e20160d186e15ff1324d"
+    },
+    {
+      "path": "assets/grand-theft-auto-san-andreas.jpg",
+      "bytes": 5293,
+      "sha256": "6c229b43e43584137d126b9ea0ee4bf8e64bd7fd11650d3fccbb8eb2deffde89"
+    },
+    {
+      "path": "assets/mass-effect-3.jpg",
+      "bytes": 3232,
+      "sha256": "8696208a6e7dd0cd145998beca0c53a1b02a3bbd49068098a65bf93d06a9a783"
+    },
+    {
+      "path": "assets/fallout-3.jpg",
+      "bytes": 2830,
+      "sha256": "2a05dcc0fb90c43e6e7786dda942fca755c1ca85f770d99f3de1f8db2c038922"
+    },
+    {
+      "path": "assets/baldurs-gate-ii-shadows-of-amn.jpg",
+      "bytes": 3473,
+      "sha256": "e6fb983748348b317aab5076838e0376356afeaf67ca278ad75ada539143902e"
+    },
+    {
+      "path": "assets/halo-3.jpg",
+      "bytes": 3008,
+      "sha256": "c99c68237e25bec016d980f21b3693b32312421acb81b2bcc5461f2ac118e6e7"
+    },
+    {
+      "path": "assets/portal-2.jpg",
+      "bytes": 3549,
+      "sha256": "ed8b88b31193893c95c962eafe1c843fd45fadee71734d6b98336c886cff0679"
+    },
+    {
+      "path": "assets/half-life-2.jpg",
+      "bytes": 2989,
+      "sha256": "0473474e059e132cdd3a86eae3052af5ee35a6a6064ae3a8f4dd9f4e339b8779"
+    },
+    {
+      "path": "assets/cyberpunk-2077.jpg",
+      "bytes": 3562,
+      "sha256": "8d20ba986d3124e8321314e59c969020e09e64638a519a88eecaa2676cc99cdc"
+    },
+    {
+      "path": "assets/resident-evil-4.jpg",
+      "bytes": 2337,
+      "sha256": "9b28f8d89c4c2c22db4bde5684d001f7aea6c5b4396124f31d7911d60cfe49df"
+    },
+    {
+      "path": "assets/alan-wake-2.jpg",
+      "bytes": 2670,
+      "sha256": "b151c7d60d2dc70cb0c19e86f767a8ed689e07f28b93a66dfbb5473a4fcbb065"
+    },
+    {
+      "path": "assets/control.jpg",
+      "bytes": 3458,
+      "sha256": "bf27e2c2826488c7662be8f5f32707b68f0874e361d0213abaef297a086ea951"
+    },
+    {
+      "path": "assets/star-wars-knights-of-the-old-republic.jpg",
+      "bytes": 3811,
+      "sha256": "ba91e78efd323ea775126facf9d168f1f6ada6d251377890d6cbf1748f925db8"
+    },
+    {
+      "path": "assets/metal-gear-solid-3-snake-eater.jpg",
+      "bytes": 4776,
+      "sha256": "38e4d97d095955dfdda91162b7c4ee269732e368d808b155dd92d3be28c19701"
+    },
+    {
+      "path": "assets/call-of-duty-4-modern-warfare.jpg",
+      "bytes": 3153,
+      "sha256": "f202f045070502214630734e0cf63c282cf12a4337ce072896d291ae45b8a003"
+    },
+    {
+      "path": "assets/assassins-creed-iv-black-flag.jpg",
+      "bytes": 4613,
+      "sha256": "f43c9ee7cd76e2dd4383395a7d6a4667825e781ce0afc4b0254628ca0f575b26"
+    },
+    {
+      "path": "assets/dishonored.jpg",
+      "bytes": 3718,
+      "sha256": "e78389e64b34b2cfeba4cf0615984c8db7cd328e66c0eabac164bfd95da6b23f"
+    },
+    {
+      "path": "assets/the-elder-scrolls-iv-oblivion.jpg",
+      "bytes": 3444,
+      "sha256": "09164f8ba6dd5a9d262d730359ff26d834ce56a281601092384b81ddf2362f61"
+    },
+    {
+      "path": "assets/halo-reach.jpg",
+      "bytes": 3264,
+      "sha256": "add996351147c4fc33ac2a96b11bf9a3798eb359ab8d2d912e5812ea01fe266c"
+    },
+    {
+      "path": "assets/far-cry-4.jpg",
+      "bytes": 4144,
+      "sha256": "49111061544d8be62b322feb19542b35413c18b42ef887467fad94fba98dbc1f"
+    },
+    {
+      "path": "assets/dragon-age-inquisition.jpg",
+      "bytes": 3638,
+      "sha256": "9cd8acf7612b0b162f75bac6ae0de79b6ab80845ffc819120d0d2495fcb0ac93"
+    },
+    {
+      "path": "assets/metro-exodus.jpg",
+      "bytes": 3658,
+      "sha256": "c939c1136c551e970028f9d7e705a326a1618fb22028d9a97adaf01b2a4aed16"
+    },
+    {
+      "path": "assets/resident-evil-2.jpg",
+      "bytes": 3559,
+      "sha256": "9804845d0946b2c49be9299cb7afc65361992dfd1565a7227e0268b49a86f836"
+    },
+    {
+      "path": "assets/resident-evil-requiem.jpg",
+      "bytes": 3807,
+      "sha256": "7d1e6959d8c2fd8cfc470275daf333dbb9eb10ce97832cfd42bd38cea1ea5934"
+    },
+    {
+      "path": "assets/titanfall-2.jpg",
+      "bytes": 3787,
+      "sha256": "e71d0f4b58b0e7e122a40145bb927b7b0d1ccf1391d61453385a34e2bf6dc2e4"
+    },
+    {
+      "path": "assets/star-wars-battlefront-ii.jpg",
+      "bytes": 3674,
+      "sha256": "974cbcacaa718f58ff6cb36079ad10cb5343993f11b33e16a7a3ce58828f8623"
+    },
+    {
+      "path": "assets/sekiro-shadows-die-twice.jpg",
+      "bytes": 3337,
+      "sha256": "ed23a409d90c425fc3638ec20058db767b58eda952d6f8df02f14faa56a36589"
+    },
+    {
+      "path": "assets/bloodborne.jpg",
+      "bytes": 3298,
+      "sha256": "e920912a3594a00d56cf72d71a0d32c72a4b18c56255c0ad9972cf5d3cba7aee"
+    },
+    {
+      "path": "assets/grand-theft-auto-vice-city.jpg",
+      "bytes": 5578,
+      "sha256": "093c3c15743b50dff70c64d106026aa6b5017ac9dc1a45cdb2bdd524b7d89bd2"
+    },
+    {
+      "path": "assets/star-wars-jedi-fallen-order.jpg",
+      "bytes": 3705,
+      "sha256": "ba327df52d939bec3324952b444422a8ad66aa7de924593dfb29fbfe841de799"
+    },
+    {
+      "path": "assets/horizon-zero-dawn.jpg",
+      "bytes": 4249,
+      "sha256": "9ed17b962b35d0e37d71593743b2959123cf316be234dd967c233389d3a212d7"
+    },
+    {
+      "path": "assets/horizon-forbidden-west.jpg",
+      "bytes": 4142,
+      "sha256": "020308ab99883ede6cf8b79cec3452b63ecd82a76548fc3e6545c579e76759f1"
+    },
+    {
+      "path": "assets/ghost-of-tsushima.jpg",
+      "bytes": 3785,
+      "sha256": "4f1916de7538fe56e90b5b7b2eeb36b4d01fdc4f805cdb1c36f69f6032284669"
+    },
+    {
+      "path": "assets/doom-eternal.jpg",
+      "bytes": 4028,
+      "sha256": "33542e4598749f8ffdafd7e816da01c58d94161a9ec4add3d2c60fa38ca26d84"
+    },
+    {
+      "path": "assets/star-wars-jedi-survivor.jpg",
+      "bytes": 2999,
+      "sha256": "41a6d3d832eb80a654066df907cbe45d155ece99c823fce8491f00a20b625345"
+    },
+    {
+      "path": "assets/death-stranding.jpg",
+      "bytes": 2778,
+      "sha256": "fee9aeb5237b1af869b3dbfa33e7108f91dca5bcf81378151e84abbf8536fb4d"
+    },
+    {
+      "path": "assets/death-stranding-2-on-the-beach.jpg",
+      "bytes": 3377,
+      "sha256": "cbf60558e872006a0bff268854e6565e43c777d11d0c80fdfc8b1647395b5c6b"
+    },
+    {
+      "path": "assets/final-fantasy-vii-remake.jpg",
+      "bytes": 3173,
+      "sha256": "0a372206c3b2f70819d1d2f056e8b2da8f1298a234c7ad49d5cb746a2e0a1e94"
+    },
+    {
+      "path": "assets/final-fantasy-xvi.jpg",
+      "bytes": 3670,
+      "sha256": "dfed16647a12652a1f12c672cd4c760a03a245e584afc943c7783fa2d2c9cb37"
+    },
+    {
+      "path": "assets/final-fantasy-xv.jpg",
+      "bytes": 3247,
+      "sha256": "e2e5248f4a719114a6ddaf29ff14c8de621d76e56b84663c23892263819d9e63"
+    },
+    {
+      "path": "assets/kingdom-hearts-ii.jpg",
+      "bytes": 3747,
+      "sha256": "1c625f8fe1106a23d45bf4174de6f0f1073231893d850dceb0919557f195fa25"
+    },
+    {
+      "path": "assets/nier-automata.jpg",
+      "bytes": 3648,
+      "sha256": "4c35e33eb84b56a20cc42e054a8bae40c1338b876714940a7a63234f1c5baeac"
+    },
+    {
+      "path": "assets/diablo-ii.jpg",
+      "bytes": 3187,
+      "sha256": "2552979164ece2c75d7be62f2095213e00dea370db596a9486d07ee44a41ff8f"
+    },
+    {
+      "path": "assets/diablo-iv.jpg",
+      "bytes": 2424,
+      "sha256": "3e755c96b90b67712e6c9d654c591601f65559d4e3af80482e8cfd971531378e"
+    },
+    {
+      "path": "assets/world-of-warcraft.jpg",
+      "bytes": 3771,
+      "sha256": "521bddf69ccb0aae7953391cbd3c7a2184bf2a85e722c8b36e70e1643a8a4eb1"
+    },
+    {
+      "path": "assets/starcraft-ii-wings-of-liberty.jpg",
+      "bytes": 3513,
+      "sha256": "68429366cbe4f98527f5479a4f5b77cdc2498560cc7f3c35636d1ae5951b7efe"
+    },
+    {
+      "path": "assets/warcraft-iii-reign-of-chaos.jpg",
+      "bytes": 3741,
+      "sha256": "9bcec0143835e1022f2e7908ab806b18b037ddeeb6707c7700c60b39f23d3129"
+    },
+    {
+      "path": "assets/overwatch.jpg",
+      "bytes": 3312,
+      "sha256": "60842d9fd86affe33a5f2ef1451fc3108f3f4c39ddf98e948e7abef6882200fb"
+    },
+    {
+      "path": "assets/call-of-duty-modern-warfare-2.jpg",
+      "bytes": 3010,
+      "sha256": "95b973d3565990d39d265ac82c0cbe83b8c5cfbcdf4e12ca86631df05a580cf9"
+    },
+    {
+      "path": "assets/call-of-duty-black-ops.jpg",
+      "bytes": 3386,
+      "sha256": "0162d6a8cc3fba8c97d924ebacad30d1afa9316964b9d125cc6a61d3076513c2"
+    },
+    {
+      "path": "assets/call-of-duty-black-ops-ii.jpg",
+      "bytes": 2816,
+      "sha256": "6f1d36b69beb1ded13cce4ff85027491603b7ee75b53a20d340fb74bf784a30e"
+    },
+    {
+      "path": "assets/battlefield-1.jpg",
+      "bytes": 3002,
+      "sha256": "fdfe8c012cc7c46cdf09f902f8779b06086ea01288ed3545b083e270e1293ac9"
+    },
+    {
+      "path": "assets/battlefield-3.jpg",
+      "bytes": 3607,
+      "sha256": "fec7b6fe16314809e16527921bea0cbd8909496280fef71a4275c022310e5403"
+    },
+    {
+      "path": "assets/battlefield-4.jpg",
+      "bytes": 3479,
+      "sha256": "6e225b3527ce4e92eae0baf01e8d518df9a528d0bd3bba8d6d6d702648d59f3c"
+    },
+    {
+      "path": "assets/metal-gear-solid-v-the-phantom-pain.jpg",
+      "bytes": 2853,
+      "sha256": "fa15bf1746ce432d7471cba15a1b264ea8a44ce17e884e3e953a05fe5c7a7fa7"
+    },
+    {
+      "path": "assets/hitman-world-of-assassination.jpg",
+      "bytes": 2060,
+      "sha256": "413469d9dcae3ab418cb7a5dbd5d5dec6ac4dfd3a317dba7070e905e17273ab9"
+    },
+    {
+      "path": "assets/dishonored-2.jpg",
+      "bytes": 3109,
+      "sha256": "276daedb253b1939876096e87af7dceeed64d351e3b8587d1ecfbe628f25a7f3"
+    },
+    {
+      "path": "assets/prey.jpg",
+      "bytes": 2971,
+      "sha256": "b83d418391357f57b15a34d3b8f9b4f29f54ba44bc34bf0a21d95c4e9c17c946"
+    },
+    {
+      "path": "assets/the-evil-within-2.jpg",
+      "bytes": 3598,
+      "sha256": "080cd516e5e87f6b7684216f9a42f14b7df4e4e5bbbccc933558f5bdb160e6dc"
+    },
+    {
+      "path": "assets/resident-evil-7-biohazard.jpg",
+      "bytes": 3045,
+      "sha256": "39416d61338f88bbe0b454865638f2f222d06ba63e8cf8c77ea154633e78afcf"
+    },
+    {
+      "path": "assets/resident-evil-3.jpg",
+      "bytes": 3334,
+      "sha256": "92b7f8e0aebc717955d5b69f3f7c19334ab78fe5bb53e59b3e50c1fa848ab605"
+    },
+    {
+      "path": "assets/resident-evil-village.jpg",
+      "bytes": 2499,
+      "sha256": "d33b62bd1caa6a51bc4f318d836d2bea54ffd96ebf0d6b3a735dccf424bf9b33"
+    },
+    {
+      "path": "assets/resident-evil-5.jpg",
+      "bytes": 3402,
+      "sha256": "e2db66f4e9f3ed6b0013b0cd2799da083f3c46eaca23dafc974b6f4d4042197c"
+    },
+    {
+      "path": "assets/shadow-of-mordor.jpg",
+      "bytes": 3089,
+      "sha256": "8be4f97a636da7e7f49bd03383d9309f4d119fa18a4c23ed198ef26df7c52d00"
+    },
+    {
+      "path": "assets/middle-earth-shadow-of-war.jpg",
+      "bytes": 2969,
+      "sha256": "0dbb882edeb947344fe9e08661bb6b776f405a6834827a10f653adb6f7734bfe"
+    },
+    {
+      "path": "assets/hogwarts-legacy.jpg",
+      "bytes": 2922,
+      "sha256": "9bad8eaf0f4a2159c47093c209f853073ce1585bc5e347960aa9744eded9f09a"
+    },
+    {
+      "path": "assets/marvels-spider-man-2.jpg",
+      "bytes": 3478,
+      "sha256": "cd2ca106deba5780e0d624143a0bd8de07ad9454ba5f8b73d51caf5917131aa8"
+    },
+    {
+      "path": "assets/ratchet-clank-rift-apart.jpg",
+      "bytes": 4388,
+      "sha256": "5322055ff7f0de336d33d826e2e146b1660c0cd16ccbc152683486c9529f20b9"
+    },
+    {
+      "path": "assets/returnal.jpg",
+      "bytes": 3845,
+      "sha256": "5a5e6a486a5063850bf3ecfd30e687996be7ead4698edabb3e0206f6fc880c43"
+    },
+    {
+      "path": "assets/deathloop.jpg",
+      "bytes": 4066,
+      "sha256": "707e15666ff831029946ce63a2c20cd15e95fffee3a4cdc26b5e1384f99138b4"
+    },
+    {
+      "path": "assets/days-gone.jpg",
+      "bytes": 4813,
+      "sha256": "57db2a6751df341f2f30b0d87c74b592d5f009bc994c2db181168445f3de4321"
+    },
+    {
+      "path": "assets/the-division.jpg",
+      "bytes": 4190,
+      "sha256": "6016abae01611248dbae5e93ee25002f42dc33a63c6d3f17f2aefb2dd78ff5c7"
+    },
+    {
+      "path": "assets/the-division-2.jpg",
+      "bytes": 3824,
+      "sha256": "2a59069b7d0e47c0ad7539451b883a3c5ccfe9fbb6c0c5570d6acd59b7c36e6e"
+    },
+    {
+      "path": "assets/assassins-creed-origins.jpg",
+      "bytes": 3610,
+      "sha256": "9523d5665ed333d7315cd08e819d9a88a3460a18e4389f059649c34e89ab5c6d"
+    },
+    {
+      "path": "assets/assassins-creed-odyssey.jpg",
+      "bytes": 3837,
+      "sha256": "b1b6d423786456e3c4250c694ce8d6d41568d465db2176aab05bc3f9a09057d6"
+    },
+    {
+      "path": "assets/assassins-creed-valhalla.jpg",
+      "bytes": 4094,
+      "sha256": "67a44233b710faab3b8ac244eca251c48e48b3a0f612f9a17aefdf22c9a4ca09"
+    },
+    {
+      "path": "assets/watch-dogs-2.jpg",
+      "bytes": 4112,
+      "sha256": "8dacfac13ac6c7deb454af90a4f62100512c2e04d85c410b65c6cdba0d699401"
+    },
+    {
+      "path": "assets/sleeping-dogs.jpg",
+      "bytes": 4975,
+      "sha256": "45e0cee4f82f21c073156aa0e0e176bfd712ce5b4bff9a16959197109781fbaf"
+    },
+    {
+      "path": "assets/just-cause-3.jpg",
+      "bytes": 4553,
+      "sha256": "64a6d07b1e7f133764054b2dbc65bc3ed61eaf7cac77c449187491b830e23b55"
+    },
+    {
+      "path": "assets/max-payne-3.jpg",
+      "bytes": 4263,
+      "sha256": "3eff8143b75aa214d42a40ebe19e6432064dac94e89a4ccfe21134deabe34ff7"
+    },
+    {
+      "path": "assets/tomb-raider.jpg",
+      "bytes": 3599,
+      "sha256": "79fc03462e933ebfbb80afdcb993b902b2cc89a023c688b18a39c534d40b9e1a"
+    },
+    {
+      "path": "assets/rise-of-the-tomb-raider.jpg",
+      "bytes": 3751,
+      "sha256": "56fa8a0af33ee00e99166a5d4843c791cebf0624390982788befe6701f61134d"
+    },
+    {
+      "path": "assets/l-a-noire.jpg",
+      "bytes": 4001,
+      "sha256": "d550a68d55f392a49845b593829a217808629f711c08d4317b4dfa517f0ad69a"
+    }
+  ],
+  "manifestSelfHash": "Not included to avoid a recursive self-hash."
+}

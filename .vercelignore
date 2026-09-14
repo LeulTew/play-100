@@ -1,0 +1,13 @@
+/data/
+/third-party/
+/tests/
+/test-results/
+/playwright-report/
+/.impeccable/
+/.playwright-mcp/
+PRODUCT.md
+DESIGN.md
+/node_modules/
+/dist/
+/.venv-data/
+.env*

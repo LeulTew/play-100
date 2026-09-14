@@ -1,0 +1,3557 @@
+{
+  "schemaVersion": 1,
+  "collection": {
+    "title": "Play 100",
+    "sourceFile": "AAA_games_u_have_to_play_list_top_100.xlsx",
+    "scope": "Mainstream AAA / blockbuster / major-publisher flagship games, plus a small number of AAA-caliber premium exceptions that clearly belong in an essential modern-gaming list. Nintendo excluded.",
+    "rankingBasis": "Curated must-play ranking, not a raw Metacritic leaderboard. Critical acclaim, lasting reputation, industry influence, cultural impact, design quality, production ambition and “must-play” status.",
+    "criticScoresAreSnapshot": true,
+    "author": {
+      "fullName": "Leul Tewodros Agonafer",
+      "shortName": "Leul",
+      "githubOwner": "LeulTew",
+      "repository": "play-100",
+      "githubUrl": "https://github.com/LeulTew/play-100",
+      "linkedinUrl": "https://www.linkedin.com/in/leul-t-agonafer-861bb3336/",
+      "telegramHandle": "@fabbin",
+      "telegramUrl": "https://t.me/fabbin",
+      "siteUrl": "https://play-100-collection.vercel.app"
+    },
+    "authorRatingsAreOriginal": true
+  },
+  "games": [
+    {
+      "rank": 1,
+      "slug": "red-dead-redemption-2",
+      "title": "Red Dead Redemption 2",
+      "year": 2018,
+      "studio": "Rockstar Games",
+      "genre": "Open-world / Action-Adventure",
+      "genreTags": [
+        "Open-world",
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 97,
+        "metacriticPc": 93,
+        "ign": 10,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 95.0,
+      "rankIndex": 10.0,
+      "authorRating": {
+        "value": 10,
+        "rawValue": "10",
+        "display": "10.0",
+        "sourceCell": "L5",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "The benchmark blockbuster: world-building, immersion, narrative detail and systemic depth at extraordinary scale.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/red-dead-redemption-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 2,
+      "slug": "mass-effect-2",
+      "title": "Mass Effect 2",
+      "year": 2010,
+      "studio": "BioWare / EA",
+      "genre": "Action RPG / Sci-Fi",
+      "genreTags": [
+        "Action RPG",
+        "Sci-Fi"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 96,
+        "metacriticPc": 94,
+        "ign": 9.6,
+        "gamespot": 9,
+        "pcGamer": 90
+      },
+      "criticAverage": 93.2,
+      "rankIndex": 9.969696969696969,
+      "authorRating": {
+        "value": 9.969696969696969,
+        "rawValue": "9.9696969696969688",
+        "display": "10.0",
+        "sourceCell": "L6",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Elite character-driven sci-fi RPG design; squad relationships and mission structure remain genre-defining.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/mass-effect-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 3,
+      "slug": "the-witcher-3-wild-hunt",
+      "title": "The Witcher 3: Wild Hunt",
+      "year": 2015,
+      "studio": "CD Projekt Red",
+      "genre": "Open-world RPG",
+      "genreTags": [
+        "Open-world RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 92,
+        "metacriticPc": 93,
+        "ign": 9.3,
+        "gamespot": 9,
+        "pcGamer": 92
+      },
+      "criticAverage": 92.0,
+      "rankIndex": 9.93939393939394,
+      "authorRating": {
+        "value": 9.9,
+        "rawValue": "9.9 (AI – not played)",
+        "display": "9.9 (AI – not played)",
+        "sourceCell": "L7",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A landmark open-world RPG with exceptional side quests, world density and long-term reputation.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/the-witcher-3-wild-hunt.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 4,
+      "slug": "god-of-war",
+      "title": "God of War",
+      "year": 2018,
+      "studio": "Santa Monica Studio / Sony",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 90,
+        "ign": 10,
+        "gamespot": 9,
+        "pcGamer": 90
+      },
+      "criticAverage": 92.8,
+      "rankIndex": 9.909090909090908,
+      "authorRating": {
+        "value": 9.909090909090908,
+        "rawValue": "9.9090909090909083",
+        "display": "9.9",
+        "sourceCell": "L8",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Major reinvention of a flagship action series with strong combat, presentation and character writing.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/god-of-war.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 5,
+      "slug": "the-last-of-us",
+      "title": "The Last of Us",
+      "year": 2013,
+      "studio": "Naughty Dog / Sony",
+      "genre": "Action-Adventure / Survival",
+      "genreTags": [
+        "Action-Adventure",
+        "Survival"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": null,
+        "ign": 10,
+        "gamespot": 8,
+        "pcGamer": null
+      },
+      "criticAverage": 91.66666666666667,
+      "rankIndex": 9.878787878787879,
+      "authorRating": {
+        "value": 9.878787878787879,
+        "rawValue": "9.8787878787878789",
+        "display": "9.9",
+        "sourceCell": "L9",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A landmark cinematic action game with unusually strong pacing, performances and environmental storytelling.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/the-last-of-us.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 6,
+      "slug": "grand-theft-auto-v",
+      "title": "Grand Theft Auto V",
+      "year": 2013,
+      "studio": "Rockstar Games",
+      "genre": "Open-world / Action-Adventure",
+      "genreTags": [
+        "Open-world",
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 97,
+        "metacriticPc": 96,
+        "ign": 10,
+        "gamespot": 9,
+        "pcGamer": 93
+      },
+      "criticAverage": 95.2,
+      "rankIndex": 9.848484848484848,
+      "authorRating": {
+        "value": 9.848484848484848,
+        "rawValue": "9.8484848484848477",
+        "display": "9.8",
+        "sourceCell": "L10",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the defining blockbuster open worlds; huge cultural footprint and exceptional sandbox freedom.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/grand-theft-auto-v.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 7,
+      "slug": "grand-theft-auto-iv",
+      "title": "Grand Theft Auto IV",
+      "year": 2008,
+      "studio": "Rockstar Games",
+      "genre": "Open-world / Action-Adventure",
+      "genreTags": [
+        "Open-world",
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 98,
+        "metacriticPc": 90,
+        "ign": null,
+        "gamespot": 10,
+        "pcGamer": null
+      },
+      "criticAverage": 96.0,
+      "rankIndex": 9.818181818181818,
+      "authorRating": {
+        "value": 9.8,
+        "rawValue": "9.8",
+        "display": "9.8",
+        "sourceCell": "L11",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "Massive cultural impact and a more grounded crime-world tone that influenced open-world design.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/grand-theft-auto-iv.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 8,
+      "slug": "red-dead-redemption",
+      "title": "Red Dead Redemption",
+      "year": 2010,
+      "studio": "Rockstar Games",
+      "genre": "Open-world / Action-Adventure",
+      "genreTags": [
+        "Open-world",
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": null,
+        "ign": 9.7,
+        "gamespot": 9.5,
+        "pcGamer": null
+      },
+      "criticAverage": 95.66666666666667,
+      "rankIndex": 9.787878787878787,
+      "authorRating": {
+        "value": 9.787878787878787,
+        "rawValue": "9.7878787878787872",
+        "display": "9.8",
+        "sourceCell": "L12",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Outstanding western open world and a foundational Rockstar story experience.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/red-dead-redemption.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 9,
+      "slug": "bioshock",
+      "title": "BioShock",
+      "year": 2007,
+      "studio": "2K / Irrational Games",
+      "genre": "FPS / Narrative",
+      "genreTags": [
+        "FPS",
+        "Narrative"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 96,
+        "metacriticPc": 96,
+        "ign": null,
+        "gamespot": 9,
+        "pcGamer": 94
+      },
+      "criticAverage": 94.0,
+      "rankIndex": 9.757575757575758,
+      "authorRating": {
+        "value": 9.757575757575758,
+        "rawValue": "9.7575757575757578",
+        "display": "9.8",
+        "sourceCell": "L13",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A landmark AAA shooter/narrative hybrid whose setting, atmosphere and storytelling still stand out.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/bioshock.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 10,
+      "slug": "mass-effect",
+      "title": "Mass Effect",
+      "year": 2007,
+      "studio": "BioWare / EA",
+      "genre": "Action RPG / Sci-Fi",
+      "genreTags": [
+        "Action RPG",
+        "Sci-Fi"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 91,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 8.5,
+        "pcGamer": 85
+      },
+      "criticAverage": 87.0,
+      "rankIndex": 9.727272727272727,
+      "authorRating": {
+        "value": 9.727272727272727,
+        "rawValue": "9.7272727272727266",
+        "display": "9.7",
+        "sourceCell": "L14",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Established BioWare's galaxy-scale RPG formula and the Commander Shepard trilogy foundation.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/mass-effect.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 11,
+      "slug": "the-elder-scrolls-v-skyrim",
+      "title": "The Elder Scrolls V: Skyrim",
+      "year": 2011,
+      "studio": "Bethesda Game Studios",
+      "genre": "Open-world RPG",
+      "genreTags": [
+        "Open-world RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 96,
+        "metacriticPc": 94,
+        "ign": 9.5,
+        "gamespot": 9.5,
+        "pcGamer": 94
+      },
+      "criticAverage": 94.8,
+      "rankIndex": 9.696969696969697,
+      "authorRating": {
+        "value": 9.7,
+        "rawValue": "9.7 (AI – not played)",
+        "display": "9.7 (AI – not played)",
+        "sourceCell": "L15",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "Defining open-world fantasy RPG freedom; exploration, modding and scale made it a lasting gateway RPG.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/the-elder-scrolls-v-skyrim.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 12,
+      "slug": "baldurs-gate-3",
+      "title": "Baldur's Gate 3",
+      "year": 2023,
+      "studio": "Larian Studios",
+      "genre": "CRPG / RPG",
+      "genreTags": [
+        "CRPG",
+        "RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 96,
+        "metacriticPc": 96,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 97
+      },
+      "criticAverage": 97.8,
+      "rankIndex": 9.666666666666666,
+      "authorRating": {
+        "value": 9.7,
+        "rawValue": "9.7 (AI – not played)",
+        "display": "9.7 (AI – not played)",
+        "sourceCell": "L16",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A modern RPG landmark for player choice, reactivity, companions, encounter design and systemic freedom.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/baldurs-gate-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 13,
+      "slug": "clair-obscur-expedition-33",
+      "title": "Clair Obscur: Expedition 33",
+      "year": 2025,
+      "studio": "Sandfall Interactive / Kepler Interactive",
+      "genre": "Turn-based RPG",
+      "genreTags": [
+        "Turn-based RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 92,
+        "metacriticPc": 91,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 90.75,
+      "rankIndex": 9.636363636363637,
+      "authorRating": {
+        "value": 9.636363636363637,
+        "rawValue": "9.6363636363636367",
+        "display": "9.6",
+        "sourceCell": "L17",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Exceptional modern RPG breakout: distinctive world, music, story and an innovative turn-based/action hybrid. AAA-caliber presentation despite an indie-sized studio.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/clair-obscur-expedition-33.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 14,
+      "slug": "batman-arkham-city",
+      "title": "Batman: Arkham City",
+      "year": 2011,
+      "studio": "Rocksteady / WB Games",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 94,
+        "ign": 9.5,
+        "gamespot": 9,
+        "pcGamer": 94
+      },
+      "criticAverage": 93.4,
+      "rankIndex": 9.606060606060606,
+      "authorRating": {
+        "value": 9.606060606060606,
+        "rawValue": "9.6060606060606055",
+        "display": "9.6",
+        "sourceCell": "L18",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "The standout Batman game and a benchmark for open-world superhero action.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/batman-arkham-city.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 15,
+      "slug": "elden-ring",
+      "title": "Elden Ring",
+      "year": 2022,
+      "studio": "FromSoftware / Bandai Namco",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 96,
+        "metacriticPc": 94,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 95
+      },
+      "criticAverage": 97.0,
+      "rankIndex": 9.575757575757576,
+      "authorRating": {
+        "value": 9.6,
+        "rawValue": "9.6 (AI – not played)",
+        "display": "9.6 (AI – not played)",
+        "sourceCell": "L19",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "Modern action-RPG landmark with huge exploration freedom and influential world design.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/elden-ring.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 16,
+      "slug": "uncharted-4-a-thiefs-end",
+      "title": "Uncharted 4: A Thief's End",
+      "year": 2016,
+      "studio": "Naughty Dog / Sony",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 10,
+        "pcGamer": null
+      },
+      "criticAverage": 96.5,
+      "rankIndex": 9.545454545454545,
+      "authorRating": {
+        "value": 9.545454545454545,
+        "rawValue": "9.545454545454545",
+        "display": "9.5",
+        "sourceCell": "L20",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "AAA cinematic adventure polished to an exceptional degree, with superb set pieces and production value.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/uncharted-4-a-thiefs-end.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 17,
+      "slug": "god-of-war-ragnarok",
+      "title": "God of War Ragnarök",
+      "year": 2022,
+      "studio": "Santa Monica Studio / Sony",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 94,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 90
+      },
+      "criticAverage": 95.6,
+      "rankIndex": 9.515151515151516,
+      "authorRating": {
+        "value": 9.515151515151516,
+        "rawValue": "9.5151515151515156",
+        "display": "9.5",
+        "sourceCell": "L21",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Refined sequel that expands the 2018 formula while delivering some of the strongest modern blockbuster combat.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/god-of-war-ragnarok.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 18,
+      "slug": "the-last-of-us-part-ii",
+      "title": "The Last of Us Part II",
+      "year": 2020,
+      "studio": "Naughty Dog / Sony",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 8,
+        "pcGamer": null
+      },
+      "criticAverage": 86.5,
+      "rankIndex": 9.484848484848484,
+      "authorRating": {
+        "value": 9.484848484848484,
+        "rawValue": "9.4848484848484844",
+        "display": "9.5",
+        "sourceCell": "L22",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Bold sequel with elite production, combat depth and unusually ambitious storytelling.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/the-last-of-us-part-ii.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 19,
+      "slug": "grand-theft-auto-san-andreas",
+      "title": "Grand Theft Auto: San Andreas",
+      "year": 2004,
+      "studio": "Rockstar North / Rockstar",
+      "genre": "Open-world / Action-Adventure",
+      "genreTags": [
+        "Open-world",
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 9.6,
+        "pcGamer": null
+      },
+      "criticAverage": 95.5,
+      "rankIndex": 9.454545454545455,
+      "authorRating": {
+        "value": 9.454545454545455,
+        "rawValue": "9.454545454545455",
+        "display": "9.5",
+        "sourceCell": "L23",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "An enormous cultural landmark and one of the strongest examples of early 3D open-world freedom.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/grand-theft-auto-san-andreas.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 20,
+      "slug": "mass-effect-3",
+      "title": "Mass Effect 3",
+      "year": 2012,
+      "studio": "BioWare / EA",
+      "genre": "Action RPG / Sci-Fi",
+      "genreTags": [
+        "Action RPG",
+        "Sci-Fi"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": 89,
+        "ign": 9.5,
+        "gamespot": 9.5,
+        "pcGamer": 90
+      },
+      "criticAverage": 92.4,
+      "rankIndex": 9.424242424242424,
+      "authorRating": {
+        "value": 9.424242424242424,
+        "rawValue": "9.4242424242424239",
+        "display": "9.4",
+        "sourceCell": "L24",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Excellent RPG systems, companions and galaxy-scale storytelling despite a divisive finale.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/mass-effect-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 21,
+      "slug": "fallout-3",
+      "title": "Fallout 3",
+      "year": 2008,
+      "studio": "Bethesda Game Studios",
+      "genre": "Open-world RPG",
+      "genreTags": [
+        "Open-world RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": 91,
+        "ign": 9.6,
+        "gamespot": 9,
+        "pcGamer": 92
+      },
+      "criticAverage": 92.4,
+      "rankIndex": 9.393939393939394,
+      "authorRating": {
+        "value": 9.393939393939394,
+        "rawValue": "9.3939393939393945",
+        "display": "9.4",
+        "sourceCell": "L25",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A foundational modern open-world RPG with exploration, questing and atmosphere still worth experiencing.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/fallout-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 22,
+      "slug": "baldurs-gate-ii-shadows-of-amn",
+      "title": "Baldur's Gate II: Shadows of Amn",
+      "year": 2000,
+      "studio": "BioWare / Interplay",
+      "genre": "CRPG / RPG",
+      "genreTags": [
+        "CRPG",
+        "RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 9.6,
+        "pcGamer": null
+      },
+      "criticAverage": 95.5,
+      "rankIndex": 9.363636363636363,
+      "authorRating": {
+        "value": 9.4,
+        "rawValue": "9.4 (AI – not played)",
+        "display": "9.4 (AI – not played)",
+        "sourceCell": "L26",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "One of the foundational large-scale RPGs; less modern-looking, but massively important to the genre.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/baldurs-gate-ii-shadows-of-amn.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 23,
+      "slug": "halo-3",
+      "title": "Halo 3",
+      "year": 2007,
+      "studio": "Bungie / Microsoft",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 9.5,
+        "pcGamer": null
+      },
+      "criticAverage": 94.5,
+      "rankIndex": 9.333333333333334,
+      "authorRating": {
+        "value": 9.333333333333334,
+        "rawValue": "9.3333333333333339",
+        "display": "9.3",
+        "sourceCell": "L27",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the defining console FPS campaigns and a major multiplayer-era blockbuster.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/halo-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 24,
+      "slug": "portal-2",
+      "title": "Portal 2",
+      "year": 2011,
+      "studio": "Valve",
+      "genre": "Puzzle / Adventure",
+      "genreTags": [
+        "Puzzle",
+        "Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": 95,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 94
+      },
+      "criticAverage": 96.8,
+      "rankIndex": 9.303030303030303,
+      "authorRating": {
+        "value": 9.3,
+        "rawValue": "9.3 (AI – not played)",
+        "display": "9.3 (AI – not played)",
+        "sourceCell": "L28",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "One of the strongest puzzle/adventure productions ever released by a major studio.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/portal-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 25,
+      "slug": "half-life-2",
+      "title": "Half-Life 2",
+      "year": 2004,
+      "studio": "Valve",
+      "genre": "FPS / Action",
+      "genreTags": [
+        "FPS",
+        "Action"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 96,
+        "metacriticPc": 96,
+        "ign": 9.7,
+        "gamespot": 9.2,
+        "pcGamer": 96
+      },
+      "criticAverage": 95.4,
+      "rankIndex": 9.272727272727273,
+      "authorRating": {
+        "value": 9.272727272727273,
+        "rawValue": "9.2727272727272734",
+        "display": "9.3",
+        "sourceCell": "L29",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A transformative FPS that reshaped physics, environmental storytelling and immersive level design.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/half-life-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 26,
+      "slug": "cyberpunk-2077",
+      "title": "Cyberpunk 2077",
+      "year": 2020,
+      "studio": "CD Projekt Red",
+      "genre": "Open-world RPG",
+      "genreTags": [
+        "Open-world RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 86,
+        "metacriticPc": 86,
+        "ign": 9,
+        "gamespot": 7,
+        "pcGamer": 78
+      },
+      "criticAverage": 82.0,
+      "rankIndex": 9.242424242424242,
+      "authorRating": {
+        "value": 9.242424242424242,
+        "rawValue": "9.2424242424242422",
+        "display": "9.2",
+        "sourceCell": "L30",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "An ambitious, visually striking RPG whose post-launch evolution is important to its legacy.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/cyberpunk-2077.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 27,
+      "slug": "resident-evil-4",
+      "title": "Resident Evil 4",
+      "year": 2023,
+      "studio": "Capcom",
+      "genre": "Survival Horror / Action",
+      "genreTags": [
+        "Survival Horror",
+        "Action"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": 91,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 80
+      },
+      "criticAverage": 92.8,
+      "rankIndex": 9.212121212121213,
+      "authorRating": {
+        "value": 9.212121212121213,
+        "rawValue": "9.2121212121212128",
+        "display": "9.2",
+        "sourceCell": "L31",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A benchmark survival-horror remake: masterful pacing, encounter design and combat that sharpen an all-time classic.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-4.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 28,
+      "slug": "alan-wake-2",
+      "title": "Alan Wake 2",
+      "year": 2023,
+      "studio": "Remedy / Epic Games",
+      "genre": "Survival Horror / Action",
+      "genreTags": [
+        "Survival Horror",
+        "Action"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 89,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 88
+      },
+      "criticAverage": 89.2,
+      "rankIndex": 9.181818181818182,
+      "authorRating": {
+        "value": 9.2,
+        "rawValue": "9.2 (AI – not played)",
+        "display": "9.2 (AI – not played)",
+        "sourceCell": "L32",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A landmark modern horror production with exceptional audiovisual direction and narrative ambition.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/alan-wake-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 29,
+      "slug": "control",
+      "title": "Control",
+      "year": 2019,
+      "studio": "Remedy / 505 Games",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 85,
+        "metacriticPc": 82,
+        "ign": 8.8,
+        "gamespot": 8,
+        "pcGamer": 88
+      },
+      "criticAverage": 84.6,
+      "rankIndex": 9.151515151515152,
+      "authorRating": {
+        "value": 9.151515151515152,
+        "rawValue": "9.1515151515151523",
+        "display": "9.2",
+        "sourceCell": "L33",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Distinctive AAA supernatural action with exceptional atmosphere, art direction and telekinetic combat.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/control.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 30,
+      "slug": "star-wars-knights-of-the-old-republic",
+      "title": "Star Wars: Knights of the Old Republic",
+      "year": 2003,
+      "studio": "BioWare / LucasArts",
+      "genre": "RPG",
+      "genreTags": [
+        "RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 94,
+        "ign": 9.2,
+        "gamespot": 9.1,
+        "pcGamer": 92
+      },
+      "criticAverage": 92.6,
+      "rankIndex": 9.121212121212121,
+      "authorRating": {
+        "value": 9.1,
+        "rawValue": "9.1 (AI – not played)",
+        "display": "9.1 (AI – not played)",
+        "sourceCell": "L34",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A landmark licensed RPG with strong writing, choice and world-building.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/star-wars-knights-of-the-old-republic.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 31,
+      "slug": "metal-gear-solid-3-snake-eater",
+      "title": "Metal Gear Solid 3: Snake Eater",
+      "year": 2004,
+      "studio": "Konami",
+      "genre": "Action / Stealth",
+      "genreTags": [
+        "Action",
+        "Stealth"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 91,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 90.5,
+      "rankIndex": 9.090909090909092,
+      "authorRating": {
+        "value": 9.09090909090909,
+        "rawValue": "9.0909090909090899",
+        "display": "9.1",
+        "sourceCell": "L35",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A landmark stealth blockbuster with exceptional survival mechanics and storytelling.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/metal-gear-solid-3-snake-eater.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 32,
+      "slug": "call-of-duty-4-modern-warfare",
+      "title": "Call of Duty 4: Modern Warfare",
+      "year": 2007,
+      "studio": "Infinity Ward / Activision",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 92,
+        "ign": 9.4,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 92.5,
+      "rankIndex": 9.06060606060606,
+      "authorRating": {
+        "value": 9.06060606060606,
+        "rawValue": "9.0606060606060606",
+        "display": "9.1",
+        "sourceCell": "L36",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A defining AAA shooter whose campaign, multiplayer and presentation changed the mainstream FPS.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/call-of-duty-4-modern-warfare.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 33,
+      "slug": "assassins-creed-iv-black-flag",
+      "title": "Assassin's Creed IV: Black Flag",
+      "year": 2013,
+      "studio": "Ubisoft Montreal / Ubisoft",
+      "genre": "Open-world Action-Adventure",
+      "genreTags": [
+        "Open-world Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 84,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 86
+      },
+      "criticAverage": 87.6,
+      "rankIndex": 9.030303030303031,
+      "authorRating": {
+        "value": 9.030303030303031,
+        "rawValue": "9.0303030303030312",
+        "display": "9.0",
+        "sourceCell": "L37",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Combines Assassin's Creed with a highly memorable open-world naval sandbox.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/assassins-creed-iv-black-flag.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 34,
+      "slug": "dishonored",
+      "title": "Dishonored",
+      "year": 2012,
+      "studio": "Arkane / Bethesda",
+      "genre": "Immersive Sim / Action",
+      "genreTags": [
+        "Immersive Sim",
+        "Action"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 88,
+        "ign": 9.2,
+        "gamespot": 9,
+        "pcGamer": 88
+      },
+      "criticAverage": 89.2,
+      "rankIndex": 9.0,
+      "authorRating": {
+        "value": 9.0,
+        "rawValue": "9.0 (AI – not played)",
+        "display": "9.0 (AI – not played)",
+        "sourceCell": "L38",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A landmark modern immersive sim with excellent level design and player-driven approaches.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/dishonored.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 35,
+      "slug": "the-elder-scrolls-iv-oblivion",
+      "title": "The Elder Scrolls IV: Oblivion",
+      "year": 2006,
+      "studio": "Bethesda Game Studios",
+      "genre": "Open-world RPG",
+      "genreTags": [
+        "Open-world RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 94,
+        "ign": 9.3,
+        "gamespot": 9.5,
+        "pcGamer": 92
+      },
+      "criticAverage": 93.6,
+      "rankIndex": 8.969696969696969,
+      "authorRating": {
+        "value": 8.969696969696969,
+        "rawValue": "8.9696969696969688",
+        "display": "9.0",
+        "sourceCell": "L39",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the key early open-world RPGs and a direct ancestor to Skyrim.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/the-elder-scrolls-iv-oblivion.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 36,
+      "slug": "halo-reach",
+      "title": "Halo: Reach",
+      "year": 2010,
+      "studio": "Bungie / Microsoft",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 91,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 9.5,
+        "pcGamer": null
+      },
+      "criticAverage": 93.0,
+      "rankIndex": 8.93939393939394,
+      "authorRating": {
+        "value": 8.93939393939394,
+        "rawValue": "8.9393939393939394",
+        "display": "8.9",
+        "sourceCell": "L40",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Excellent campaign pacing, combat and world-building within the Halo formula.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/halo-reach.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 37,
+      "slug": "far-cry-4",
+      "title": "Far Cry 4",
+      "year": 2014,
+      "studio": "Ubisoft Montreal / Ubisoft",
+      "genre": "Open-world FPS",
+      "genreTags": [
+        "Open-world FPS"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 80,
+        "metacriticPc": 80,
+        "ign": 8.5,
+        "gamespot": 8.5,
+        "pcGamer": 80
+      },
+      "criticAverage": 82.0,
+      "rankIndex": 8.909090909090908,
+      "authorRating": {
+        "value": 8.90909090909091,
+        "rawValue": "8.9090909090909101",
+        "display": "8.9",
+        "sourceCell": "L41",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Big, polished Ubisoft open world; less groundbreaking than FC3 but still a core AAA shooter experience.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/far-cry-4.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 38,
+      "slug": "dragon-age-inquisition",
+      "title": "Dragon Age: Inquisition",
+      "year": 2014,
+      "studio": "BioWare / EA",
+      "genre": "Open-world RPG",
+      "genreTags": [
+        "Open-world RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 85,
+        "ign": 8.8,
+        "gamespot": 9,
+        "pcGamer": 87
+      },
+      "criticAverage": 87.8,
+      "rankIndex": 8.878787878787879,
+      "authorRating": {
+        "value": 8.9,
+        "rawValue": "8.9 (AI – not played)",
+        "display": "8.9 (AI – not played)",
+        "sourceCell": "L42",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A large-scale fantasy RPG that brought BioWare's companions and choices to an expansive 3D world.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/dragon-age-inquisition.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 39,
+      "slug": "metro-exodus",
+      "title": "Metro Exodus",
+      "year": 2019,
+      "studio": "4A Games / Deep Silver",
+      "genre": "FPS / Survival",
+      "genreTags": [
+        "FPS",
+        "Survival"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 80,
+        "metacriticPc": 81,
+        "ign": 8.6,
+        "gamespot": 8,
+        "pcGamer": 79
+      },
+      "criticAverage": 81.2,
+      "rankIndex": 8.848484848484848,
+      "authorRating": {
+        "value": 8.848484848484848,
+        "rawValue": "8.8484848484848477",
+        "display": "8.8",
+        "sourceCell": "L43",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Immersive post-apocalyptic FPS design with strong atmosphere, world detail and survival mechanics.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/metro-exodus.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 40,
+      "slug": "resident-evil-2",
+      "title": "Resident Evil 2",
+      "year": 2019,
+      "studio": "Capcom",
+      "genre": "Survival Horror",
+      "genreTags": [
+        "Survival Horror"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 91,
+        "metacriticPc": 91,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 90
+      },
+      "criticAverage": 90.4,
+      "rankIndex": 8.818181818181818,
+      "authorRating": {
+        "value": 8.818181818181818,
+        "rawValue": "8.8181818181818183",
+        "display": "8.8",
+        "sourceCell": "L44",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A near-perfect modern remake of a foundational survival-horror game.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 41,
+      "slug": "resident-evil-requiem",
+      "title": "Resident Evil Requiem",
+      "year": 2026,
+      "studio": "Capcom",
+      "genre": "Survival Horror",
+      "genreTags": [
+        "Survival Horror"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 92,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 92
+      },
+      "criticAverage": 88.6,
+      "rankIndex": 8.787878787878787,
+      "authorRating": {
+        "value": 8.787878787878787,
+        "rawValue": "8.7878787878787872",
+        "display": "8.8",
+        "sourceCell": "L45",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "The newest mainline Resident Evil: strong RE Engine horror craft and a well-received return to slower, tenser survival design.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-requiem.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 42,
+      "slug": "titanfall-2",
+      "title": "Titanfall 2",
+      "year": 2016,
+      "studio": "Respawn / EA",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 86,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 89
+      },
+      "criticAverage": 88.8,
+      "rankIndex": 8.757575757575758,
+      "authorRating": {
+        "value": 8.757575757575758,
+        "rawValue": "8.7575757575757578",
+        "display": "8.8",
+        "sourceCell": "L46",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A standout blockbuster FPS with one of the genre's most praised campaigns and movement systems.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/titanfall-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 43,
+      "slug": "star-wars-battlefront-ii",
+      "title": "Star Wars Battlefront II",
+      "year": 2017,
+      "studio": "DICE / EA",
+      "genre": "FPS / Action",
+      "genreTags": [
+        "FPS",
+        "Action"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 68,
+        "metacriticPc": 68,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 80
+      },
+      "criticAverage": 75.2,
+      "rankIndex": 8.727272727272727,
+      "authorRating": {
+        "value": 8.727272727272727,
+        "rawValue": "8.7272727272727266",
+        "display": "8.7",
+        "sourceCell": "L47",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A visually spectacular Star Wars blockbuster that improved significantly after launch.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/star-wars-battlefront-ii.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 44,
+      "slug": "sekiro-shadows-die-twice",
+      "title": "Sekiro: Shadows Die Twice",
+      "year": 2019,
+      "studio": "FromSoftware / Activision",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 90,
+        "metacriticPc": 90,
+        "ign": null,
+        "gamespot": 9,
+        "pcGamer": 90
+      },
+      "criticAverage": 90.0,
+      "rankIndex": 8.696969696969697,
+      "authorRating": {
+        "value": 8.696969696969697,
+        "rawValue": "8.6969696969696972",
+        "display": "8.7",
+        "sourceCell": "L48",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Masterful precision action design; a modern FromSoftware essential.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/sekiro-shadows-die-twice.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 45,
+      "slug": "bloodborne",
+      "title": "Bloodborne",
+      "year": 2015,
+      "studio": "FromSoftware / Sony",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 92,
+        "metacriticPc": null,
+        "ign": null,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 91.0,
+      "rankIndex": 8.666666666666666,
+      "authorRating": {
+        "value": 8.666666666666666,
+        "rawValue": "8.6666666666666661",
+        "display": "8.7",
+        "sourceCell": "L49",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A defining PlayStation action RPG with atmosphere, combat and world design that shaped the genre.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/bloodborne.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 46,
+      "slug": "grand-theft-auto-vice-city",
+      "title": "Grand Theft Auto: Vice City",
+      "year": 2002,
+      "studio": "Rockstar North / Rockstar",
+      "genre": "Open-world / Action-Adventure",
+      "genreTags": [
+        "Open-world",
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": null,
+        "ign": 9.6,
+        "gamespot": 9.6,
+        "pcGamer": null
+      },
+      "criticAverage": 95.66666666666667,
+      "rankIndex": 8.636363636363637,
+      "authorRating": {
+        "value": 8.636363636363637,
+        "rawValue": "8.6363636363636367",
+        "display": "8.6",
+        "sourceCell": "L50",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A defining open-world classic whose tone, setting and mission design made it culturally iconic.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/grand-theft-auto-vice-city.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 47,
+      "slug": "star-wars-jedi-fallen-order",
+      "title": "Star Wars Jedi: Fallen Order",
+      "year": 2019,
+      "studio": "Respawn / EA",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 81,
+        "metacriticPc": 80,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 81
+      },
+      "criticAverage": 84.4,
+      "rankIndex": 8.606060606060606,
+      "authorRating": {
+        "value": 8.606060606060606,
+        "rawValue": "8.6060606060606055",
+        "display": "8.6",
+        "sourceCell": "L51",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major modern Star Wars single-player revival with Soulslike-inspired combat and blockbuster presentation.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/star-wars-jedi-fallen-order.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 48,
+      "slug": "horizon-zero-dawn",
+      "title": "Horizon Zero Dawn",
+      "year": 2017,
+      "studio": "Guerrilla / Sony",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 84,
+        "ign": 9.3,
+        "gamespot": 9,
+        "pcGamer": 85
+      },
+      "criticAverage": 88.2,
+      "rankIndex": 8.575757575757576,
+      "authorRating": {
+        "value": 8.6,
+        "rawValue": "8.6 (AI – not played)",
+        "display": "8.6 (AI – not played)",
+        "sourceCell": "L52",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "A major PS4-era open-world RPG with a distinctive science-fiction setting and strong combat.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/horizon-zero-dawn.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 49,
+      "slug": "horizon-forbidden-west",
+      "title": "Horizon Forbidden West",
+      "year": 2022,
+      "studio": "Guerrilla / Sony",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 88,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 87
+      },
+      "criticAverage": 88.6,
+      "rankIndex": 8.545454545454545,
+      "authorRating": {
+        "value": 8.5,
+        "rawValue": "8.5 (AI – not played)",
+        "display": "8.5 (AI – not played)",
+        "sourceCell": "L53",
+        "numberFormat": "0.0",
+        "sourceType": "text"
+      },
+      "rationale": "Large-scale sequel with expanded combat, exploration and presentation.",
+      "sourceNote": "(AI – not played)",
+      "artwork": {
+        "file": "assets/horizon-forbidden-west.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 50,
+      "slug": "ghost-of-tsushima",
+      "title": "Ghost of Tsushima",
+      "year": 2020,
+      "studio": "Sucker Punch / Sony",
+      "genre": "Open-world Action-Adventure",
+      "genreTags": [
+        "Open-world Action-Adventure"
+      ],
+      "tier": "core",
+      "critics": {
+        "metacritic": 83,
+        "metacriticPc": 87,
+        "ign": 9,
+        "gamespot": 7,
+        "pcGamer": 87
+      },
+      "criticAverage": 83.4,
+      "rankIndex": 8.515151515151516,
+      "authorRating": {
+        "value": 8.515151515151516,
+        "rawValue": "8.5151515151515156",
+        "display": "8.5",
+        "sourceCell": "L54",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the strongest samurai-themed open worlds, with exceptional art direction and sword combat.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/ghost-of-tsushima.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 51,
+      "slug": "doom-eternal",
+      "title": "DOOM Eternal",
+      "year": 2020,
+      "studio": "id Software / Bethesda",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 88,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 94
+      },
+      "criticAverage": 88.0,
+      "rankIndex": 8.484848484848484,
+      "authorRating": {
+        "value": 8.484848484848484,
+        "rawValue": "8.4848484848484844",
+        "display": "8.5",
+        "sourceCell": "L56",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Pushes modern FPS combat speed and mechanical depth to a remarkable level.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/doom-eternal.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 52,
+      "slug": "star-wars-jedi-survivor",
+      "title": "Star Wars Jedi: Survivor",
+      "year": 2023,
+      "studio": "Respawn / EA",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 85,
+        "metacriticPc": 79,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 85
+      },
+      "criticAverage": 85.8,
+      "rankIndex": 8.454545454545455,
+      "authorRating": {
+        "value": 8.454545454545455,
+        "rawValue": "8.454545454545455",
+        "display": "8.5",
+        "sourceCell": "L57",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major modern Star Wars action-adventure with strong exploration, combat and cinematic production.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/star-wars-jedi-survivor.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 53,
+      "slug": "death-stranding",
+      "title": "Death Stranding",
+      "year": 2019,
+      "studio": "Kojima Productions / Sony",
+      "genre": "Action / Adventure",
+      "genreTags": [
+        "Action",
+        "Adventure"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 82,
+        "metacriticPc": 85,
+        "ign": 6.8,
+        "gamespot": 9,
+        "pcGamer": 83
+      },
+      "criticAverage": 81.6,
+      "rankIndex": 8.424242424242424,
+      "authorRating": {
+        "value": 8.424242424242424,
+        "rawValue": "8.4242424242424239",
+        "display": "8.4",
+        "sourceCell": "L58",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A singular AAA experiment that became one of the medium's most discussed blockbuster releases.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/death-stranding.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 54,
+      "slug": "death-stranding-2-on-the-beach",
+      "title": "Death Stranding 2: On the Beach",
+      "year": 2025,
+      "studio": "Kojima Productions / Sony",
+      "genre": "Action / Adventure",
+      "genreTags": [
+        "Action",
+        "Adventure"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 90,
+        "metacriticPc": 90,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 90
+      },
+      "criticAverage": 90.0,
+      "rankIndex": 8.393939393939394,
+      "authorRating": {
+        "value": 8.393939393939394,
+        "rawValue": "8.3939393939393945",
+        "display": "8.4",
+        "sourceCell": "L59",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major premium sequel with unusually ambitious production, traversal and cinematic presentation.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/death-stranding-2-on-the-beach.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 55,
+      "slug": "final-fantasy-vii-remake",
+      "title": "Final Fantasy VII Remake",
+      "year": 2020,
+      "studio": "Square Enix",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 87,
+        "metacriticPc": 89,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 80
+      },
+      "criticAverage": 83.2,
+      "rankIndex": 8.363636363636363,
+      "authorRating": {
+        "value": 8.363636363636363,
+        "rawValue": "8.3636363636363633",
+        "display": "8.4",
+        "sourceCell": "L60",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major modern blockbuster RPG remake with strong combat and iconic characters.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/final-fantasy-vii-remake.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 56,
+      "slug": "final-fantasy-xvi",
+      "title": "Final Fantasy XVI",
+      "year": 2023,
+      "studio": "Square Enix",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 87,
+        "metacriticPc": 89,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 80
+      },
+      "criticAverage": 87.2,
+      "rankIndex": 8.333333333333334,
+      "authorRating": {
+        "value": 8.333333333333334,
+        "rawValue": "8.3333333333333339",
+        "display": "8.3",
+        "sourceCell": "L61",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "High-production-value fantasy action with spectacular set pieces and a strong cinematic identity.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/final-fantasy-xvi.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 57,
+      "slug": "final-fantasy-xv",
+      "title": "Final Fantasy XV",
+      "year": 2016,
+      "studio": "Square Enix",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 81,
+        "metacriticPc": 82,
+        "ign": null,
+        "gamespot": 8,
+        "pcGamer": 85
+      },
+      "criticAverage": 82.0,
+      "rankIndex": 8.303030303030303,
+      "authorRating": {
+        "value": 8.303030303030303,
+        "rawValue": "8.3030303030303028",
+        "display": "8.3",
+        "sourceCell": "L62",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A huge modern Final Fantasy road-trip RPG with a memorable world and blockbuster production.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/final-fantasy-xv.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 58,
+      "slug": "kingdom-hearts-ii",
+      "title": "Kingdom Hearts II",
+      "year": 2005,
+      "studio": "Square Enix",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 87,
+        "metacriticPc": null,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 89.0,
+      "rankIndex": 8.272727272727273,
+      "authorRating": {
+        "value": 8.272727272727273,
+        "rawValue": "8.2727272727272734",
+        "display": "8.3",
+        "sourceCell": "L63",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major crossover action RPG with enduring mainstream recognition.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/kingdom-hearts-ii.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 59,
+      "slug": "nier-automata",
+      "title": "NieR:Automata",
+      "year": 2017,
+      "studio": "PlatinumGames / Square Enix",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 84,
+        "ign": null,
+        "gamespot": 8,
+        "pcGamer": 87
+      },
+      "criticAverage": 84.75,
+      "rankIndex": 8.242424242424242,
+      "authorRating": {
+        "value": 8.242424242424242,
+        "rawValue": "8.2424242424242422",
+        "display": "8.2",
+        "sourceCell": "L64",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A critically acclaimed action RPG known for philosophical storytelling and inventive structure.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/nier-automata.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 60,
+      "slug": "diablo-ii",
+      "title": "Diablo II",
+      "year": 2000,
+      "studio": "Blizzard",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": null,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 89.33333333333333,
+      "rankIndex": 8.212121212121213,
+      "authorRating": {
+        "value": 8.212121212121213,
+        "rawValue": "8.2121212121212128",
+        "display": "8.2",
+        "sourceCell": "L65",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A foundational AAA action RPG with enormous influence on loot-driven game design.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/diablo-ii.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 61,
+      "slug": "diablo-iv",
+      "title": "Diablo IV",
+      "year": 2023,
+      "studio": "Blizzard",
+      "genre": "Action RPG",
+      "genreTags": [
+        "Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 91,
+        "metacriticPc": 90,
+        "ign": null,
+        "gamespot": 9,
+        "pcGamer": 86
+      },
+      "criticAverage": 89.25,
+      "rankIndex": 8.181818181818182,
+      "authorRating": {
+        "value": 8.181818181818182,
+        "rawValue": "8.1818181818181817",
+        "display": "8.2",
+        "sourceCell": "L66",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major modern live-service action RPG and one of Blizzard's biggest launches.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/diablo-iv.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 62,
+      "slug": "world-of-warcraft",
+      "title": "World of Warcraft",
+      "year": 2004,
+      "studio": "Blizzard",
+      "genre": "MMORPG",
+      "genreTags": [
+        "MMORPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": null,
+        "ign": 9.5,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 92.66666666666667,
+      "rankIndex": 8.151515151515152,
+      "authorRating": {
+        "value": 8.151515151515152,
+        "rawValue": "8.1515151515151523",
+        "display": "8.2",
+        "sourceCell": "L67",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A defining AAA MMO that reshaped online gaming and gaming culture.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/world-of-warcraft.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 63,
+      "slug": "starcraft-ii-wings-of-liberty",
+      "title": "StarCraft II: Wings of Liberty",
+      "year": 2010,
+      "studio": "Blizzard",
+      "genre": "RTS",
+      "genreTags": [
+        "RTS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 93,
+        "metacriticPc": 93,
+        "ign": null,
+        "gamespot": 9,
+        "pcGamer": 93
+      },
+      "criticAverage": 92.25,
+      "rankIndex": 8.121212121212121,
+      "authorRating": {
+        "value": 8.121212121212121,
+        "rawValue": "8.1212121212121211",
+        "display": "8.1",
+        "sourceCell": "L68",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the definitive modern competitive strategy games with enormous production value and esports impact.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/starcraft-ii-wings-of-liberty.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 64,
+      "slug": "warcraft-iii-reign-of-chaos",
+      "title": "Warcraft III: Reign of Chaos",
+      "year": 2002,
+      "studio": "Blizzard",
+      "genre": "RTS",
+      "genreTags": [
+        "RTS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 92,
+        "metacriticPc": null,
+        "ign": 9.5,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 92.33333333333333,
+      "rankIndex": 8.090909090909092,
+      "authorRating": {
+        "value": 8.09090909090909,
+        "rawValue": "8.0909090909090899",
+        "display": "8.1",
+        "sourceCell": "L69",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A landmark AAA RTS with huge influence on strategy games and custom-map culture.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/warcraft-iii-reign-of-chaos.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 65,
+      "slug": "overwatch",
+      "title": "Overwatch",
+      "year": 2016,
+      "studio": "Blizzard",
+      "genre": "Hero Shooter",
+      "genreTags": [
+        "Hero Shooter"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 91,
+        "metacriticPc": 91,
+        "ign": 9.5,
+        "gamespot": 9,
+        "pcGamer": 90
+      },
+      "criticAverage": 91.4,
+      "rankIndex": 8.06060606060606,
+      "authorRating": {
+        "value": 8.06060606060606,
+        "rawValue": "8.0606060606060606",
+        "display": "8.1",
+        "sourceCell": "L70",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major modern multiplayer blockbuster with influential character-driven FPS design.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/overwatch.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 66,
+      "slug": "call-of-duty-modern-warfare-2",
+      "title": "Call of Duty: Modern Warfare 2",
+      "year": 2009,
+      "studio": "Infinity Ward / Activision",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 94,
+        "metacriticPc": 94,
+        "ign": 9.5,
+        "gamespot": 9.5,
+        "pcGamer": null
+      },
+      "criticAverage": 94.5,
+      "rankIndex": 8.030303030303031,
+      "authorRating": {
+        "value": 8.030303030303031,
+        "rawValue": "8.0303030303030312",
+        "display": "8.0",
+        "sourceCell": "L71",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the biggest shooter blockbusters of its era with huge cultural impact.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/call-of-duty-modern-warfare-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 67,
+      "slug": "call-of-duty-black-ops",
+      "title": "Call of Duty: Black Ops",
+      "year": 2010,
+      "studio": "Treyarch / Activision",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 81,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 87.25,
+      "rankIndex": 8.0,
+      "authorRating": {
+        "value": 8,
+        "rawValue": "8",
+        "display": "8.0",
+        "sourceCell": "L72",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A hugely successful shooter with a memorable campaign and influential multiplayer.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/call-of-duty-black-ops.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 68,
+      "slug": "call-of-duty-black-ops-ii",
+      "title": "Call of Duty: Black Ops II",
+      "year": 2012,
+      "studio": "Treyarch / Activision",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 83,
+        "metacriticPc": 81,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 85
+      },
+      "criticAverage": 85.8,
+      "rankIndex": 7.96969696969697,
+      "authorRating": {
+        "value": 7.96969696969697,
+        "rawValue": "7.9696969696969697",
+        "display": "8.0",
+        "sourceCell": "L73",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A mainstream AAA FPS with branching campaign choices and a major multiplayer legacy.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/call-of-duty-black-ops-ii.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 69,
+      "slug": "battlefield-1",
+      "title": "Battlefield 1",
+      "year": 2016,
+      "studio": "DICE / EA",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 87,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 84
+      },
+      "criticAverage": 86.0,
+      "rankIndex": 7.9393939393939394,
+      "authorRating": {
+        "value": 7.9393939393939394,
+        "rawValue": "7.9393939393939394",
+        "display": "7.9",
+        "sourceCell": "L74",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "One of the strongest recent Battlefield entries, with exceptional audiovisual presentation.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/battlefield-1.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 70,
+      "slug": "battlefield-3",
+      "title": "Battlefield 3",
+      "year": 2011,
+      "studio": "DICE / EA",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 85,
+        "metacriticPc": 87,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": null
+      },
+      "criticAverage": 88.0,
+      "rankIndex": 7.909090909090909,
+      "authorRating": {
+        "value": 7.909090909090909,
+        "rawValue": "7.9090909090909092",
+        "display": "7.9",
+        "sourceCell": "L75",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A hugely influential modern military shooter and major multiplayer-era blockbuster.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/battlefield-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 71,
+      "slug": "battlefield-4",
+      "title": "Battlefield 4",
+      "year": 2013,
+      "studio": "DICE / EA",
+      "genre": "FPS",
+      "genreTags": [
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 81,
+        "metacriticPc": 84,
+        "ign": 8.5,
+        "gamespot": 8,
+        "pcGamer": null
+      },
+      "criticAverage": 82.5,
+      "rankIndex": 7.878787878787879,
+      "authorRating": {
+        "value": 7.878787878787879,
+        "rawValue": "7.8787878787878789",
+        "display": "7.9",
+        "sourceCell": "L76",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A large-scale multiplayer FPS that remains a core modern Battlefield experience.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/battlefield-4.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 72,
+      "slug": "metal-gear-solid-v-the-phantom-pain",
+      "title": "Metal Gear Solid V: The Phantom Pain",
+      "year": 2015,
+      "studio": "Kojima Productions / Konami",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 95,
+        "metacriticPc": 91,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 95
+      },
+      "criticAverage": 96.2,
+      "rankIndex": 7.848484848484849,
+      "authorRating": {
+        "value": 7.848484848484849,
+        "rawValue": "7.8484848484848486",
+        "display": "7.8",
+        "sourceCell": "L77",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A technically ambitious open-world stealth game with extraordinary systems and freedom.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/metal-gear-solid-v-the-phantom-pain.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 73,
+      "slug": "hitman-world-of-assassination",
+      "title": "Hitman: World of Assassination",
+      "year": 2016,
+      "studio": "IO Interactive",
+      "genre": "Stealth / Action",
+      "genreTags": [
+        "Stealth",
+        "Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 85,
+        "metacriticPc": 84,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 88
+      },
+      "criticAverage": 85.4,
+      "rankIndex": 7.818181818181818,
+      "authorRating": {
+        "value": 7.818181818181818,
+        "rawValue": "7.8181818181818183",
+        "display": "7.8",
+        "sourceCell": "L78",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A modern stealth sandbox with extraordinary systemic freedom and replayability.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/hitman-world-of-assassination.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 74,
+      "slug": "dishonored-2",
+      "title": "Dishonored 2",
+      "year": 2016,
+      "studio": "Arkane / Bethesda",
+      "genre": "Immersive Sim / Action",
+      "genreTags": [
+        "Immersive Sim",
+        "Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 88,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 88
+      },
+      "criticAverage": 88.8,
+      "rankIndex": 7.787878787878788,
+      "authorRating": {
+        "value": 7.787878787878787,
+        "rawValue": "7.7878787878787872",
+        "display": "7.8",
+        "sourceCell": "L79",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Deepens the original's systemic stealth/action sandbox with excellent level design.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/dishonored-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 75,
+      "slug": "prey",
+      "title": "Prey",
+      "year": 2017,
+      "studio": "Arkane / Bethesda",
+      "genre": "Immersive Sim / FPS",
+      "genreTags": [
+        "Immersive Sim",
+        "FPS"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 84,
+        "metacriticPc": 82,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 84
+      },
+      "criticAverage": 82.0,
+      "rankIndex": 7.757575757575758,
+      "authorRating": {
+        "value": 7.757575757575758,
+        "rawValue": "7.7575757575757578",
+        "display": "7.8",
+        "sourceCell": "L80",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A cult AAA immersive sim with outstanding atmosphere, exploration and systemic problem-solving.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/prey.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 76,
+      "slug": "the-evil-within-2",
+      "title": "The Evil Within 2",
+      "year": 2017,
+      "studio": "Tango Gameworks / Bethesda",
+      "genre": "Survival Horror",
+      "genreTags": [
+        "Survival Horror"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 82,
+        "metacriticPc": 80,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 80
+      },
+      "criticAverage": 80.4,
+      "rankIndex": 7.7272727272727275,
+      "authorRating": {
+        "value": 7.727272727272727,
+        "rawValue": "7.7272727272727266",
+        "display": "7.7",
+        "sourceCell": "L81",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A strong modern survival-horror sequel that balances open exploration and horror.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/the-evil-within-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 77,
+      "slug": "resident-evil-7-biohazard",
+      "title": "Resident Evil 7: Biohazard",
+      "year": 2017,
+      "studio": "Capcom",
+      "genre": "Survival Horror",
+      "genreTags": [
+        "Survival Horror"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 86,
+        "metacriticPc": 86,
+        "ign": 7.7,
+        "gamespot": 8,
+        "pcGamer": 89
+      },
+      "criticAverage": 83.6,
+      "rankIndex": 7.696969696969697,
+      "authorRating": {
+        "value": 7.696969696969697,
+        "rawValue": "7.6969696969696972",
+        "display": "7.7",
+        "sourceCell": "L82",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A first-person reinvention of Resident Evil that brought major mainstream attention back to horror.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-7-biohazard.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 78,
+      "slug": "resident-evil-3",
+      "title": "Resident Evil 3",
+      "year": 2020,
+      "studio": "Capcom",
+      "genre": "Survival Horror",
+      "genreTags": [
+        "Survival Horror"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 79,
+        "metacriticPc": 84,
+        "ign": 9,
+        "gamespot": 6,
+        "pcGamer": 77
+      },
+      "criticAverage": 78.0,
+      "rankIndex": 7.666666666666667,
+      "authorRating": {
+        "value": 7.666666666666666,
+        "rawValue": "7.6666666666666661",
+        "display": "7.7",
+        "sourceCell": "L83",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A polished modern remake with strong presentation, though shorter and less expansive than RE2.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 79,
+      "slug": "resident-evil-village",
+      "title": "Resident Evil Village",
+      "year": 2021,
+      "studio": "Capcom",
+      "genre": "Survival Horror / Action",
+      "genreTags": [
+        "Survival Horror",
+        "Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 84,
+        "metacriticPc": 84,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 80
+      },
+      "criticAverage": 81.6,
+      "rankIndex": 7.636363636363637,
+      "authorRating": {
+        "value": 7.636363636363637,
+        "rawValue": "7.6363636363636367",
+        "display": "7.6",
+        "sourceCell": "L84",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A blockbuster horror-action hybrid with memorable atmosphere and production.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-village.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 80,
+      "slug": "resident-evil-5",
+      "title": "Resident Evil 5",
+      "year": 2009,
+      "studio": "Capcom",
+      "genre": "Action / Survival Horror",
+      "genreTags": [
+        "Action",
+        "Survival Horror"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 84,
+        "metacriticPc": 76,
+        "ign": 8.5,
+        "gamespot": 8,
+        "pcGamer": null
+      },
+      "criticAverage": 81.25,
+      "rankIndex": 7.606060606060606,
+      "authorRating": {
+        "value": 7.6060606060606055,
+        "rawValue": "7.6060606060606055",
+        "display": "7.6",
+        "sourceCell": "L85",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major co-op action title and one of the franchise's most commercially significant releases.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/resident-evil-5.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 81,
+      "slug": "shadow-of-mordor",
+      "title": "Shadow of Mordor",
+      "year": 2014,
+      "studio": "Monolith / WB Games",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 84,
+        "metacriticPc": 84,
+        "ign": 9.3,
+        "gamespot": 8,
+        "pcGamer": 79
+      },
+      "criticAverage": 84.0,
+      "rankIndex": 7.575757575757576,
+      "authorRating": {
+        "value": 7.575757575757576,
+        "rawValue": "7.5757575757575761",
+        "display": "7.6",
+        "sourceCell": "L86",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Introduced the influential Nemesis system to a mainstream open-world action formula.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/shadow-of-mordor.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 82,
+      "slug": "middle-earth-shadow-of-war",
+      "title": "Middle-earth: Shadow of War",
+      "year": 2017,
+      "studio": "Monolith / WB Games",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 80,
+        "metacriticPc": 80,
+        "ign": 8,
+        "gamespot": 7.5,
+        "pcGamer": 81
+      },
+      "criticAverage": 79.2,
+      "rankIndex": 7.545454545454546,
+      "authorRating": {
+        "value": 7.545454545454545,
+        "rawValue": "7.545454545454545",
+        "display": "7.5",
+        "sourceCell": "L87",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "Expanded the Nemesis system into a huge open-world action sequel.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/middle-earth-shadow-of-war.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 83,
+      "slug": "hogwarts-legacy",
+      "title": "Hogwarts Legacy",
+      "year": 2023,
+      "studio": "Avalanche Software / WB Games",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 84,
+        "metacriticPc": 84,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 85
+      },
+      "criticAverage": 84.6,
+      "rankIndex": 7.515151515151516,
+      "authorRating": {
+        "value": 7.515151515151516,
+        "rawValue": "7.5151515151515156",
+        "display": "7.5",
+        "sourceCell": "L88",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major mainstream fantasy open world with huge audience reach and production scale.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/hogwarts-legacy.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 84,
+      "slug": "marvels-spider-man-2",
+      "title": "Marvel's Spider-Man 2",
+      "year": 2023,
+      "studio": "Insomniac / Sony",
+      "genre": "Open-world Action-Adventure",
+      "genreTags": [
+        "Open-world Action-Adventure"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 90,
+        "metacriticPc": 90,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 89
+      },
+      "criticAverage": 85.8,
+      "rankIndex": 7.484848484848484,
+      "authorRating": {
+        "value": 7.484848484848484,
+        "rawValue": "7.4848484848484844",
+        "display": "7.5",
+        "sourceCell": "L89",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major superhero sequel with high-end presentation, traversal and combat.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/marvels-spider-man-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 85,
+      "slug": "ratchet-clank-rift-apart",
+      "title": "Ratchet & Clank: Rift Apart",
+      "year": 2021,
+      "studio": "Insomniac / Sony",
+      "genre": "Action-Platformer",
+      "genreTags": [
+        "Action-Platformer"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 89,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 85
+      },
+      "criticAverage": 88.4,
+      "rankIndex": 7.454545454545454,
+      "authorRating": {
+        "value": 7.454545454545455,
+        "rawValue": "7.454545454545455",
+        "display": "7.5",
+        "sourceCell": "L90",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A showcase of modern AAA platform-action presentation, visuals and seamless world transitions.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/ratchet-clank-rift-apart.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 86,
+      "slug": "returnal",
+      "title": "Returnal",
+      "year": 2021,
+      "studio": "Housemarque / Sony",
+      "genre": "Third-person Roguelike Shooter",
+      "genreTags": [
+        "Third-person Roguelike Shooter"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 86,
+        "metacriticPc": 85,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 88
+      },
+      "criticAverage": 85.8,
+      "rankIndex": 7.424242424242424,
+      "authorRating": {
+        "value": 7.424242424242424,
+        "rawValue": "7.4242424242424239",
+        "display": "7.4",
+        "sourceCell": "L91",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A premium PlayStation action game with demanding combat, atmosphere and exceptional audiovisual production.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/returnal.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 87,
+      "slug": "deathloop",
+      "title": "Deathloop",
+      "year": 2021,
+      "studio": "Arkane / Bethesda",
+      "genre": "FPS / Immersive Sim",
+      "genreTags": [
+        "FPS",
+        "Immersive Sim"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 89,
+        "metacriticPc": 87,
+        "ign": 10,
+        "gamespot": 10,
+        "pcGamer": 91
+      },
+      "criticAverage": 93.4,
+      "rankIndex": 7.393939393939394,
+      "authorRating": {
+        "value": 7.3939393939393945,
+        "rawValue": "7.3939393939393945",
+        "display": "7.4",
+        "sourceCell": "L92",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "An ambitious time-loop immersive sim that earned major critical acclaim.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/deathloop.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 88,
+      "slug": "days-gone",
+      "title": "Days Gone",
+      "year": 2019,
+      "studio": "Bend Studio / Sony",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 71,
+        "metacriticPc": 76,
+        "ign": 6.5,
+        "gamespot": 5,
+        "pcGamer": 74
+      },
+      "criticAverage": 67.2,
+      "rankIndex": 7.363636363636363,
+      "authorRating": {
+        "value": 7.363636363636363,
+        "rawValue": "7.3636363636363633",
+        "display": "7.4",
+        "sourceCell": "L93",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A big-budget open world with strong atmosphere and a persistent motorcycle-focused identity.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/days-gone.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 89,
+      "slug": "the-division",
+      "title": "The Division",
+      "year": 2016,
+      "studio": "Massive / Ubisoft",
+      "genre": "Online Action RPG / Shooter",
+      "genreTags": [
+        "Online Action RPG",
+        "Shooter"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 80,
+        "metacriticPc": 80,
+        "ign": 6.7,
+        "gamespot": 6,
+        "pcGamer": 74
+      },
+      "criticAverage": 72.2,
+      "rankIndex": 7.333333333333333,
+      "authorRating": {
+        "value": 7.333333333333333,
+        "rawValue": "7.333333333333333",
+        "display": "7.3",
+        "sourceCell": "L94",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major online AAA shooter built around a detailed recreation of New York.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/the-division.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 90,
+      "slug": "the-division-2",
+      "title": "The Division 2",
+      "year": 2019,
+      "studio": "Massive / Ubisoft",
+      "genre": "Online Action RPG / Shooter",
+      "genreTags": [
+        "Online Action RPG",
+        "Shooter"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 84,
+        "metacriticPc": 84,
+        "ign": 8.5,
+        "gamespot": 8,
+        "pcGamer": 84
+      },
+      "criticAverage": 83.4,
+      "rankIndex": 7.303030303030303,
+      "authorRating": {
+        "value": 7.303030303030303,
+        "rawValue": "7.3030303030303028",
+        "display": "7.3",
+        "sourceCell": "L95",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A refined looter-shooter with an unusually detailed urban open world.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/the-division-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 91,
+      "slug": "assassins-creed-origins",
+      "title": "Assassin's Creed Origins",
+      "year": 2017,
+      "studio": "Ubisoft Montreal / Ubisoft",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 81,
+        "metacriticPc": 81,
+        "ign": 8.5,
+        "gamespot": 8,
+        "pcGamer": 80
+      },
+      "criticAverage": 81.4,
+      "rankIndex": 7.2727272727272725,
+      "authorRating": {
+        "value": 7.2727272727272725,
+        "rawValue": "7.2727272727272725",
+        "display": "7.3",
+        "sourceCell": "L96",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major reboot that shifted Assassin's Creed into a larger RPG framework.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/assassins-creed-origins.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 92,
+      "slug": "assassins-creed-odyssey",
+      "title": "Assassin's Creed Odyssey",
+      "year": 2018,
+      "studio": "Ubisoft Quebec / Ubisoft",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 85,
+        "metacriticPc": 87,
+        "ign": 8.5,
+        "gamespot": 7.5,
+        "pcGamer": 83
+      },
+      "criticAverage": 83.0,
+      "rankIndex": 7.242424242424242,
+      "authorRating": {
+        "value": 7.242424242424242,
+        "rawValue": "7.2424242424242422",
+        "display": "7.2",
+        "sourceCell": "L97",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A huge ancient-Greece RPG with substantial exploration and choice.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/assassins-creed-odyssey.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 93,
+      "slug": "assassins-creed-valhalla",
+      "title": "Assassin's Creed Valhalla",
+      "year": 2020,
+      "studio": "Ubisoft Montreal / Ubisoft",
+      "genre": "Open-world Action RPG",
+      "genreTags": [
+        "Open-world Action RPG"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 80,
+        "metacriticPc": 80,
+        "ign": 8,
+        "gamespot": 8,
+        "pcGamer": 82
+      },
+      "criticAverage": 80.4,
+      "rankIndex": 7.212121212121212,
+      "authorRating": {
+        "value": 7.212121212121212,
+        "rawValue": "7.2121212121212119",
+        "display": "7.2",
+        "sourceCell": "L98",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A massive Viking-era open world with extensive questing and exploration.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/assassins-creed-valhalla.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 94,
+      "slug": "watch-dogs-2",
+      "title": "Watch Dogs 2",
+      "year": 2016,
+      "studio": "Ubisoft Montreal / Ubisoft",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 82,
+        "metacriticPc": 81,
+        "ign": 8.5,
+        "gamespot": 8,
+        "pcGamer": 80
+      },
+      "criticAverage": 81.6,
+      "rankIndex": 7.181818181818182,
+      "authorRating": {
+        "value": 7.181818181818182,
+        "rawValue": "7.1818181818181817",
+        "display": "7.2",
+        "sourceCell": "L99",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A polished open-world sandbox with strong hacking systems and traversal.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/watch-dogs-2.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 95,
+      "slug": "sleeping-dogs",
+      "title": "Sleeping Dogs",
+      "year": 2012,
+      "studio": "United Front Games / Square Enix",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 80,
+        "metacriticPc": 79,
+        "ign": 9,
+        "gamespot": 8,
+        "pcGamer": 79
+      },
+      "criticAverage": 81.6,
+      "rankIndex": 7.151515151515151,
+      "authorRating": {
+        "value": 7.151515151515151,
+        "rawValue": "7.1515151515151514",
+        "display": "7.2",
+        "sourceCell": "L100",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A highly regarded open-world crime game with standout hand-to-hand combat.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/sleeping-dogs.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 96,
+      "slug": "just-cause-3",
+      "title": "Just Cause 3",
+      "year": 2015,
+      "studio": "Avalanche Studios / Square Enix",
+      "genre": "Open-world Action",
+      "genreTags": [
+        "Open-world Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 74,
+        "metacriticPc": 73,
+        "ign": 8,
+        "gamespot": 7,
+        "pcGamer": 76
+      },
+      "criticAverage": 74.6,
+      "rankIndex": 7.121212121212121,
+      "authorRating": {
+        "value": 7.121212121212121,
+        "rawValue": "7.1212121212121211",
+        "display": "7.1",
+        "sourceCell": "L101",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A pure blockbuster sandbox built around traversal, destruction and spectacle.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/just-cause-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 97,
+      "slug": "max-payne-3",
+      "title": "Max Payne 3",
+      "year": 2012,
+      "studio": "Rockstar Studios / Rockstar Games",
+      "genre": "Third-person Shooter / Action",
+      "genreTags": [
+        "Third-person Shooter",
+        "Action"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 87,
+        "metacriticPc": 86,
+        "ign": 9,
+        "gamespot": 9,
+        "pcGamer": 89
+      },
+      "criticAverage": 88.4,
+      "rankIndex": 7.090909090909091,
+      "authorRating": {
+        "value": 7.090909090909091,
+        "rawValue": "7.0909090909090908",
+        "display": "7.1",
+        "sourceCell": "L102",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A tightly produced Rockstar blockbuster with excellent shooting, pacing and cinematic presentation.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/max-payne-3.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 98,
+      "slug": "tomb-raider",
+      "title": "Tomb Raider",
+      "year": 2013,
+      "studio": "Crystal Dynamics / Square Enix",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 86,
+        "metacriticPc": 85,
+        "ign": 9.1,
+        "gamespot": 8.5,
+        "pcGamer": 85
+      },
+      "criticAverage": 86.4,
+      "rankIndex": 7.0606060606060606,
+      "authorRating": {
+        "value": 7.0606060606060606,
+        "rawValue": "7.0606060606060606",
+        "display": "7.1",
+        "sourceCell": "L103",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A major AAA reboot that modernized Lara Croft with strong action, exploration and set pieces.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/tomb-raider.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 99,
+      "slug": "rise-of-the-tomb-raider",
+      "title": "Rise of the Tomb Raider",
+      "year": 2015,
+      "studio": "Crystal Dynamics / Square Enix",
+      "genre": "Action-Adventure",
+      "genreTags": [
+        "Action-Adventure"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 88,
+        "metacriticPc": 86,
+        "ign": 9,
+        "gamespot": 8.5,
+        "pcGamer": 86
+      },
+      "criticAverage": 87.0,
+      "rankIndex": 7.03030303030303,
+      "authorRating": {
+        "value": 7.03030303030303,
+        "rawValue": "7.0303030303030303",
+        "display": "7.0",
+        "sourceCell": "L104",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A polished AAA adventure with strong traversal, tomb exploration and cinematic spectacle.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/rise-of-the-tomb-raider.jpg",
+        "source": "User-provided workbook"
+      }
+    },
+    {
+      "rank": 100,
+      "slug": "l-a-noire",
+      "title": "L.A. Noire",
+      "year": 2011,
+      "studio": "Team Bondi / Rockstar Games",
+      "genre": "Action-Adventure / Detective",
+      "genreTags": [
+        "Action-Adventure",
+        "Detective"
+      ],
+      "tier": "essential",
+      "critics": {
+        "metacritic": 83,
+        "metacriticPc": 83,
+        "ign": 8.5,
+        "gamespot": 7.5,
+        "pcGamer": 82
+      },
+      "criticAverage": 81.6,
+      "rankIndex": 7.0,
+      "authorRating": {
+        "value": 7,
+        "rawValue": "7",
+        "display": "7.0",
+        "sourceCell": "L105",
+        "numberFormat": "0.0",
+        "sourceType": "number"
+      },
+      "rationale": "A distinctive Rockstar-era AAA detective adventure with facial-performance technology and strong atmosphere.",
+      "sourceNote": null,
+      "artwork": {
+        "file": "assets/l-a-noire.jpg",
+        "source": "User-provided workbook"
+      }
+    }
+  ]
+}

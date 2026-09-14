@@ -1,0 +1,77 @@
+PLAY 100 - SOURCE AND THIRD-PARTY NOTICES
+
+Curated by Leul Tewodros Agonafer
+Public source: https://github.com/LeulTew/play-100
+LinkedIn: https://www.linkedin.com/in/leul-t-agonafer-861bb3336/
+Telegram: https://t.me/fabbin (@fabbin)
+
+This is a personal curated collection, not an official game ranking.
+Leul's original ratings are preserved from the original workbook column headed
+"my rating(based on rank)", including its actual rounded/text caches and notes.
+They are public creator metadata, never a seed for visitor/device-only ratings.
+The 100 entries and 100 supplied cover images come from the user's original
+AAA_games_u_have_to_play_list_top_100.xlsx workbook. Cover artwork remains the
+property of its respective rights holders. Original abstract numbered jackets,
+SVG graphics and the folding collection sculpture were created for this website;
+they are not official game cover artwork.
+
+React Bits - Copyright (c) 2026 David Haz
+https://reactbits.dev
+https://github.com/DavidHDev/react-bits
+Source revision: 3a1c7f2f9f94ed833934ab5c2635760b9e644583
+Customized components: CountUp, Magnet, AnimatedContent.
+MIT + Commons Clause. Full license: /licenses/react-bits.txt
+Original pinned source and modification notes are retained in the project.
+CountUp animates private-list counts, not invented performance metrics.
+Magnet is bounded to fine-pointer interaction on one optional selection action.
+AnimatedContent uses native Web Animations instead of GSAP and leaves content
+visible before JavaScript enhancement. All honor visual/reduced-motion settings.
+
+React / React DOM - Meta Platforms, Inc. and affiliates - MIT
+https://react.dev - /licenses/react.txt
+
+Three.js - Three.js authors - MIT
+https://threejs.org - /licenses/three.txt
+
+Motion - Framer / Motion contributors - MIT
+https://motion.dev - /licenses/motion.txt
+
+Barlow Condensed - The Barlow Project Authors - SIL Open Font License 1.1
+https://github.com/jpt/barlow - /licenses/barlow-condensed.txt
+
+Hanken Grotesk - The Hanken Grotesk Project Authors - SIL Open Font License 1.1
+https://github.com/marcologous/hanken-grotesk - /licenses/hanken-grotesk.txt
+
+No analytics or tracking scripts are installed. Vercel provides hosting and may
+process standard request/access information under its own infrastructure policy.
+Private games, play queue, play history, personal ranks/scores/notes and visual
+preferences stay in the current browser's IndexedDB. Legacy Play 100 localStorage
+lists migrate after an atomic IndexedDB commit. Backups are downloaded/imported
+locally. No Supabase or server-side personal database is used.
+
+dnd kit - Copyright (c) 2021 Clauderic Demers - MIT
+https://dndkit.com
+/licenses/dnd-kit-core.txt
+/licenses/dnd-kit-sortable.txt
+/licenses/dnd-kit-utilities.txt
+
+PUBLIC CATALOG METADATA
+
+Wikidata structured data is available under CC0.
+https://www.wikidata.org/wiki/Wikidata:Data_access
+Records retain their Wikidata entity links. Discovery uses a conservative direct
+video-game classification and is not an exhaustive census.
+
+Game data from FreeToGame:
+https://www.freetogame.com/
+https://www.freetogame.com/api-doc
+The API documentation permits personal/commercial use with an active attribution
+link and asks clients to avoid more than 10 requests per second. The app uses the
+documented metadata API, not a scrape of the website. Its general website terms
+still apply: https://www.freetogame.com/terms-of-use
+FreeToGame is not CC0. Its data covers its free-to-play catalog, not all paid games.
+No external artwork, descriptions or critic scores are copied into these records.
+
+Catalog lookup sends only the public query/source/page to a stateless same-origin
+proxy and the chosen provider. Private library state is never sent to that proxy.
+Source failures, rate limits and unavailable metadata are shown explicitly.

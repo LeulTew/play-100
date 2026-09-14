@@ -1,0 +1,14 @@
+title = "Play 100 staged-source secret checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "linkedin-client-id"
+
+[[rules.allowlists]]
+description = "A public author-config property name adjacent to linkedinUrl, not an OAuth credential."
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^telegramHandle$''']
+paths = ['''(^|/)data/generate_collection\.py$''']

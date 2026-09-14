@@ -1,0 +1,9 @@
+* text=auto eol=lf
+/data/** -text
+/public/data/** -text
+/public/downloads/** -text
+/public/covers/** -text
+*.png -text
+*.jpg -text
+*.webp -text
+*.xlsx -text
