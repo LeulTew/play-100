@@ -7,7 +7,7 @@ import { useCapabilities } from './hooks/useCapabilities';
 import { useShare } from './hooks/useShare';
 import { createShareUrl, PAGE_PATHS } from './lib/url';
 import type { AppPage, Filters } from './lib/types';
-import type { PersonalAction } from './lib/personal-types';
+import type { LibraryRecord, PersonalAction } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
 import { Icon } from './components/Icon';
 import CollectionPage from './components/CollectionPage';
@@ -31,6 +31,7 @@ function actionMessage(action: PersonalAction): string {
     case 'remove-ranking': return 'Removed from your personal ranking.';
     case 'move-item': return `Your ${action.list === 'queue' ? 'play order' : 'ranking order'} is saved.`;
     case 'edit-ranking': return 'Your opinion is saved.';
+    case 'rate-game': return 'Your rating is saved. This game is in your private library.';
     case 'use-rating-order': return action.id ? 'This game now follows rating order.' : 'Automatic rating order restored. Manual positions have been cleared.';
     case 'set-motion': return 'Visual preference saved.';
     case 'set-progress': return `${action.records.length} ${action.records.length === 1 ? 'game' : 'games'} updated in your ${action.key === 'later' ? 'play queue' : 'play history'}.`;
@@ -46,6 +47,7 @@ export default function App() {
   const effectiveMotion = library.status === 'loading' ? 'lite' : library.state.motion;
   const capabilities = useCapabilities(effectiveMotion);
   const [panel, setPanel] = useState<'about' | 'settings' | null>(null);
+  const [previewedRecords, setPreviewedRecords] = useState<Map<string, LibraryRecord>>(new Map());
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = useCallback((message: string) => {
@@ -57,7 +59,7 @@ export default function App() {
   const games = collection.data?.games;
   const allRecords = useMemo(() => new Map([...Object.values(library.state.records), ...canonicalRecords].map((record) => [record.id, record])), [library.state.records, canonicalRecords]);
   const selectedGame = games?.find((game) => game.slug === selectedSlug);
-  const selectedRecord = selectedSlug ? allRecords.get(selectedSlug) : undefined;
+  const selectedRecord = selectedSlug ? allRecords.get(selectedSlug) ?? previewedRecords.get(selectedSlug) : undefined;
   const savedCount = library.state.queueOrder.length;
   const completedCount = Object.values(library.state.progress).filter((value) => value.completed).length;
   const rankingPosition = selectedSlug ? library.state.ranking.findIndex((entry) => entry.id === selectedSlug) + 1 : 0;
@@ -69,10 +71,21 @@ export default function App() {
     if (success) notify(`${actionMessage(action)}${storageStatus === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`);
     return success;
   }, [saveAction, storageStatus, notify]);
+  const preview = useCallback((record: LibraryRecord) => {
+    setPreviewedRecords((previous) => {
+      const next = new Map([...previous, [record.id, record]]);
+      if (next.size > 64) {
+        const oldest = next.keys().next().value;
+        if (oldest !== undefined) next.delete(oldest);
+      }
+      return next;
+    });
+    openGame(record.id);
+  }, [openGame]);
 
   useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
   useEffect(() => {
-    document.title = selectedGame ? `${selectedGame.title} - #${selectedGame.rank} | Play 100` : selectedRecord ? `${selectedRecord.title} | My Play 100 library` : `Play 100 - ${PAGE_TITLES[page]}`;
+    document.title = selectedGame ? `${selectedGame.title} - #${selectedGame.rank} | Play 100` : selectedRecord ? `${selectedRecord.title} | Play 100` : `Play 100 - ${PAGE_TITLES[page]}`;
   }, [selectedGame, selectedRecord, page]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -131,7 +144,7 @@ export default function App() {
       {warning && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{warning}</p><button className="text-button" onClick={() => setPanel('settings')}>Settings<Icon name="arrow" width="18" height="18" /></button></div></div>}
       <main id="page-main">
         <Suspense fallback={<div className="page-loading" role="status"><h2>Opening your page...</h2><p>Your games stay right where you left them.</p></div>}>
-          {privateLoading ? <div className="page-loading" role="status"><h2>Opening your device library...</h2><p>Safely loading your saved games and preferences.</p></div> : page === 'library' ? <LibraryPage state={library.state} filters={filters} busy={library.busy} animate={capabilities.animate} onFilters={updateFilters} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} onBrowse={() => navigate('collection')} /> : page === 'rankings' ? <RankingsPage state={library.state} availableRecords={[...allRecords.values()]} busy={library.busy} persistent={library.status === 'ready'} animate={capabilities.animate} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} /> : page === 'discover' ? <DiscoverPage state={library.state} busy={library.busy} onAction={perform} onLibrary={() => navigate('library')} /> : <CollectionPage collection={collection} state={library.state} filters={filters} busy={library.busy} motion={effectiveMotion} animate={capabilities.animate} reducedMotion={capabilities.reducedMotion} coarsePointer={capabilities.coarsePointer} constrained={capabilities.constrained} onFilters={updateFilters} onAction={perform} onOpen={openGame} onShare={() => shareView()} onFullLibrary={() => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' })} notify={notify} />}
+          {privateLoading ? <div className="page-loading" role="status"><h2>Opening your device library...</h2><p>Safely loading your saved games and preferences.</p></div> : page === 'library' ? <LibraryPage state={library.state} filters={filters} busy={library.busy} animate={capabilities.animate} onFilters={updateFilters} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} onBrowse={() => navigate('collection')} /> : page === 'rankings' ? <RankingsPage state={library.state} availableRecords={[...allRecords.values()]} busy={library.busy} persistent={library.status === 'ready'} animate={capabilities.animate} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} /> : page === 'discover' ? <DiscoverPage state={library.state} busy={library.busy} onAction={perform} onLibrary={() => navigate('library')} /> : <CollectionPage collection={collection} state={library.state} filters={filters} busy={library.busy} motion={effectiveMotion} animate={capabilities.animate} reducedMotion={capabilities.reducedMotion} coarsePointer={capabilities.coarsePointer} constrained={capabilities.constrained} onFilters={updateFilters} onAction={perform} onOpen={openGame} onPreview={preview} onShare={() => shareView()} onFullLibrary={() => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' })} notify={notify} />}
         </Suspense>
       </main>
       {page !== 'collection' && <div className="compact-download"><a className="text-button" href="/downloads/Play-100-Collection.xlsx" download><Icon name="download" width="17" height="17" />Download the author's Excel collection</a><a className="original-download" href="/downloads/AAA_games_u_have_to_play_list_top_100.xlsx" download>Untouched original spreadsheet</a></div>}
@@ -148,7 +161,7 @@ export default function App() {
         <button onClick={() => setPanel('settings')}><Icon name="sliders" width="20" height="20" /><span>Settings</span></button>
       </nav>
       {selectedGame && <GameDetail game={selectedGame} state={library.state.progress[selectedGame.slug]} previous={games?.[selectedGame.rank - 2]} next={games?.[selectedGame.rank]} onClose={closeGame} onOpen={openGame} onToggle={toggle} onShare={() => shareView(selectedGame.slug)} shareFeedback={notice || library.error || ''} busy={library.busy} played={library.state.progress[selectedGame.slug]?.played} onPlayed={() => toggle(selectedGame.slug, 'played')} rankingPosition={rankingPosition || null} onRank={rankSelected} />}
-      {!selectedGame && selectedRecord && <Suspense fallback={null}><CatalogDetail record={selectedRecord} progress={library.state.progress[selectedRecord.id]} rankingPosition={rankingPosition || null} busy={library.busy} onClose={closeGame} onAction={perform} onRankings={() => navigate('rankings')} /></Suspense>}
+      {!selectedGame && selectedRecord && <Suspense fallback={null}><CatalogDetail record={selectedRecord} saved={Boolean(library.state.records[selectedRecord.id])} progress={library.state.progress[selectedRecord.id]} rankingPosition={rankingPosition || null} rating={library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null} busy={library.busy} onClose={closeGame} onAction={perform} onRankings={() => navigate('rankings')} /></Suspense>}
       {selectedSlug && collection.status !== 'loading' && library.status !== 'loading' && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't saved on this device."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Private libraries do not automatically sync. Import your backup or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
       {panel === 'about' && <AboutDialog onClose={() => setPanel(null)} />}
       {panel === 'settings' && <SettingsDialog motion={library.state.motion} reducedMotion={capabilities.reducedMotion} constrained={capabilities.constrained} saved={savedCount} completed={completedCount} warning={warning} onMotion={(motion) => { void perform({ type: 'set-motion', motion }); }} onReset={library.reset} onRestore={library.restore} state={library.state} persistent={library.status === 'ready'} busy={library.busy} onAbout={() => setPanel('about')} onClose={() => setPanel(null)} />}

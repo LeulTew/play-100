@@ -83,6 +83,42 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('atomic catalog ratings', () => {
+  it('commits metadata and the personal rating together, then reads both after reopening', async () => {
+    await loadPersonalLibrary(canonical);
+    const state = await commitPersonalAction({ type: 'rate-game', record: c, score: 9.5 });
+    expect(await stored()).toEqual(state);
+    closePersonalLibrary();
+    const reopened = await loadPersonalLibrary(canonical);
+    expect(reopened.state.records[c.id]).toEqual(c);
+    expect(reopened.state.ranking).toEqual([{ id: c.id, score: 9.5, note: '', manualPosition: null }]);
+    expect(reopened.state.progress).toEqual({});
+  });
+
+  it('a failed catalog rating transaction writes neither a record nor a ranking', async () => {
+    const before = (await loadPersonalLibrary(canonical)).state;
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+    await expect(commitPersonalAction({ type: 'rate-game', record: c, score: 8 })).rejects.toMatchObject({ name: 'PersonalLibraryQuotaError' });
+    put.mockRestore();
+    expect(await stored()).toEqual(before);
+  });
+
+  it('another tab can update progress while an external rating is imported without losing either', async () => {
+    await loadPersonalLibrary(canonical);
+    const peer = await secondClient();
+    await Promise.all([
+      commitPersonalAction({ type: 'rate-game', record: c, score: 8 }),
+      peer.commitPersonalAction({ type: 'set-progress', records: [a], key: 'played', value: true }),
+    ]);
+    const state = parsePersonalLibrary(await stored());
+    expect(state.records[c.id]).toEqual(c);
+    expect(state.ranking[0]?.score).toBe(8);
+    expect(state.progress[a.id]?.played).toBe(true);
+  });
+});
+
 describe('IndexedDB initialization and migration', () => {
   it('upgrades a version-one database with version-two rankings without guessing prior drag intent', async () => {
     const connection = await openForTest(1);

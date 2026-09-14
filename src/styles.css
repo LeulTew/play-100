@@ -92,7 +92,10 @@ svg { flex-shrink: 0; }
 .collection-tabs button > span { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; padding-inline: 5px; border-radius: 2px; min-width: 21px; background: #e5e8db; text-align: center; }
 .collection-tabs button.is-active > span { background: var(--lime); color: var(--ink); }
 .list-privacy { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 15px; }
-.search-and-filters { display: grid; grid-template-columns: minmax(200px, 1.5fr) minmax(135px, .85fr) minmax(105px, .43fr) minmax(160px, .6fr); gap: 12px; margin-top: 22px; }
+.search-and-filters { display: grid; grid-template-columns: minmax(200px, 1.5fr) minmax(135px, .85fr) minmax(105px, .43fr) minmax(160px, .6fr); align-items: end; gap: 12px; margin-top: 22px; }
+.collection-search { min-width: 0; display: grid; gap: 6px; }
+.field-label, .filter-select > label { color: var(--muted); font-size: 12px; line-height: 18px; font-weight: 550; }
+.collection-search .search-field { height: 48px; }
 .search-field { display: flex; align-items: center; padding-left: 16px; background: var(--white); min-width: 0; border: 1px solid #bbc1ac; border-radius: 4px; height: 57px; }
 .search-field:focus-within { border-color: #426515; outline: 2px solid #426515; outline-offset: 2px; }
 .search-field > svg { color: var(--muted); margin-right: 10px; width: 21px; height: 21px; }
@@ -102,19 +105,22 @@ svg { flex-shrink: 0; }
 .search-field input::-webkit-search-cancel-button { display: none; }
 .search-field .icon-button { flex-shrink: 0; margin-right: 5px; }
 .search-field kbd { display: inline-grid; place-items: center; margin-inline: 8px 14px; border: 1px solid var(--line); border-radius: 3px; height: 23px; width: 21px; font: inherit; font-size: 12px; color: var(--muted); }
-.filter-select { position: relative; border: 1px solid #bbc1ac; border-radius: 4px; min-width: 0; }
-.filter-select label { position: absolute; left: 13px; top: 7px; color: var(--muted); font-size: 11px; font-weight: 550; pointer-events: none; }
-.filter-select select { width: 100%; min-height: 55px; background-color: transparent; border: 0; padding: 22px 27px 6px 12px; font-size: 13px; font-weight: 650; border-radius: 4px; text-overflow: ellipsis; }
-.filter-select select:hover { background-color: #e9ecdF; }
+.filter-select { min-width: 0; display: grid; gap: 6px; }
+.select-shell { position: relative; min-width: 0; }
+.filter-select select { appearance: none; display: block; width: 100%; min-height: 48px; height: 48px; background-color: transparent; border: 1px solid #bbc1ac; padding: 0 36px 0 12px; font-size: 14px; font-weight: 600; border-radius: 4px; text-overflow: ellipsis; }
+.filter-select select:hover { background-color: #e9ecdf; }
+.select-chevron { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink); }
+.search-scope { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+.search-scope .check-control { flex-shrink: 0; }
+.search-scope p { font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 80ch; }
+.result-breakdown { display: block; margin-top: 4px; line-height: 1.5; }
 .collection-utilities { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-block: 14px 18px; min-height: 44px; }
 .result-summary { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .result-summary p { font-size: 13px; color: var(--muted); }
 .result-summary strong { color: var(--ink); font-weight: 650; }
 .clear-filters { font-size: 12px; min-height: 44px; }
-.view-controls { display: flex; gap: 16px; align-items: center; }
-.sort-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.sort-control label { font-size: 12px; color: var(--muted); }
-.sort-control select { min-height: 44px; border: 0; background: transparent; font-size: 13px; font-weight: 600; max-width: 190px; padding-right: 3px; }
+.view-controls { display: flex; gap: 16px; align-items: flex-end; }
+.sort-control { width: 216px; }
 .view-switch { display: flex; padding-left: 12px; border-left: 1px solid var(--line); gap: 2px; }
 .view-switch .icon-button { color: #747866; }
 .view-switch .is-active { background: #e3e8d6; color: var(--ink); }
@@ -336,11 +342,11 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   .file-badge { display: none; }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
-  .search-and-filters { grid-template-columns: minmax(185px, 1.2fr) minmax(135px, .75fr) 100px 140px; }
-  .search-field, .filter-select:has(#genre-filter), .year-select, .tier-select { grid-column: auto; grid-row: auto; }
+  .search-and-filters { grid-template-columns: minmax(185px, 1.2fr) minmax(150px, .75fr) 115px 150px; }
+  .collection-search, .filter-select:has(#genre-filter), .year-select, .tier-select { grid-column: auto; grid-row: auto; }
   .search-field input { font-size: 13px; }
   .search-field kbd { display: none; }
-  .tier-select select { font-size: 12px; }
+  .tier-select select { font-size: 13px; }
 }
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1.18fr 1fr; gap: 0; padding-top: 30px; }
@@ -378,28 +384,28 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   .hero-art { max-width: 470px; margin-inline: auto; }
   .hero-art .collection-artifact { min-height: 236px; }
   .hero-art .artifact-stage { height: 185px; min-height: 185px; }
-  .collection-section { padding-top: 7px; padding-bottom: 38px; scroll-margin-top: 66px; }
-  .collection-title-line { padding-top: 14px; }
+  .collection-section { padding-top: 4px; padding-bottom: 38px; scroll-margin-top: 66px; }
+  .collection-title-line { padding-top: 12px; }
   .collection-title-line h2 { font-size: 34px; }
   .share-view { font-size: 12px; gap: 7px; }
   .share-view > svg { width: 17px; height: 17px; }
-  .collection-tabs { gap: 20px; margin-top: 9px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-inline: 2px; padding-bottom: 1px; }
+  .collection-tabs { gap: 20px; margin-top: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-inline: 2px; padding-bottom: 1px; }
   .collection-tabs button { font-size: 13px; min-height: 46px; gap: 6px; }
   .collection-tabs button span { font-size: 11px; }
-  .search-and-filters { margin-top: 15px; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+  .search-and-filters { margin-top: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
   .search-field { grid-column: 1 / -1; height: 54px; }
   .search-field input { font-size: 14px; }
   .search-field kbd { display: none; }
-  .filter-select:has(#genre-filter), .year-select, .tier-select { grid-column: auto; grid-row: auto; }
-  .filter-select label { font-size: 10px; left: 10px; }
-  .filter-select select { padding-left: 9px; font-size: 12px; min-height: 54px; }
+  .collection-search, .filter-select:has(#genre-filter) { grid-column: 1 / -1; }
+  .year-select, .tier-select { grid-column: auto; grid-row: auto; }
+  .filter-select select { font-size: 14px; }
+  .collection-search .search-field input { font-size: 16px; }
+  .search-scope { flex-direction: column; align-items: flex-start; gap: 0; }
   .collection-utilities { gap: 6px; margin-block: 12px 17px; flex-wrap: wrap; }
   .result-summary { gap: 10px; }
   .result-summary p { font-size: 12px; }
-  .view-controls { margin-left: auto; gap: 5px; }
-  .sort-control { gap: 4px; }
-  .sort-control label { font-size: 12px; }
-  .sort-control select { max-width: 132px; font-size: 12px; }
+  .view-controls { width: 100%; justify-content: space-between; gap: 12px; }
+  .sort-control { flex: 1; width: auto; max-width: 240px; }
   .view-switch { padding-left: 5px; gap: 0; }
   .view-switch .icon-button { width: 44px; height: 44px; }
   .clear-filters { font-size: 11px; }
@@ -493,12 +499,8 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   .collection-title-line h2 { font-size: 31px; }
   .collection-title-line h2 > span { margin-left: 7px; font-size: 11px; }
   .share-view { font-size: 11px; gap: 5px; }
-  .filter-select label { font-size: 9px; }
-  .filter-select select { font-size: 11px; padding-right: 20px; }
   .result-summary { width: 100%; }
   .view-controls { width: 100%; justify-content: space-between; }
-  .sort-control label { display: block; }
-  .sort-control select { max-width: 200px; }
   .game-copy h3 { font-size: 15px; }
   .game-meta { font-size: 9px; gap: 5px; }
   .workbook-section { padding-inline: 22px; }

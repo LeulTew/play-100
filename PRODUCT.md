@@ -44,6 +44,13 @@ sync. Shareable collection URLs never contain private progress or opinions.
 - Broader, user-triggered catalog browsing/search/import from Wikidata and the
   documented FreeToGame API. Manual game entry is available. Coverage follows
   provider classifications and limits, not an exhaustive scrape of all sites.
+- Main search includes saved additions and bounded, debounced public matches.
+  Unranked source records remain separate from the author's 100. Saving or
+  rating imports metadata and private state atomically; provider failures do
+  not remove already saved games. Online lookup has a URL-persisted opt-out,
+  requires 2-80 characters and pauses in curated-tier or saved/completed scopes.
+- Public catalog queries leave the device, while private ratings, notes and
+  progress never do. Empty searches do not launch background catalog crawls.
 - Existing localStorage lists migrate only after IndexedDB commits. Corrupt data
   is preserved with an explicit recovery path. Failed writes are not reported as
   durable success. Backups are validated before atomic replacement.

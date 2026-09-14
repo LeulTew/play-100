@@ -328,6 +328,19 @@ export function applyPersonalAction(state: PersonalLibraryState, action: Persona
       if (Object.hasOwn(input, 'note')) item.note = text(input.note, 'A note', 2_000);
       break;
     }
+    case 'rate-game': {
+      shape(input, ['type', 'record', 'score'], 'The save game rating action');
+      const value = score(input.score);
+      const [game] = addRecords(result, [input.record]);
+      if (!game) return invalid('the game being rated is missing.');
+      let entry = result.ranking.find((item) => item.id === game.id);
+      if (!entry) {
+        entry = { id: game.id, score: null, note: '', manualPosition: null };
+        result.ranking.push(entry);
+      }
+      entry.score = value;
+      break;
+    }
     case 'move-item': {
       shape(input, ['type', 'list', 'id', 'overId'], 'The reorder action');
       const id = safeId(input.id);

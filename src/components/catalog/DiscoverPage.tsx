@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import type { CatalogPage, CatalogSource } from '../../lib/catalog-types';
-import { parseCatalogPage } from '../../lib/catalog-types';
+import { fetchCatalogPage } from '../../lib/catalog-client';
 import { Icon } from '../Icon';
 import { SelectionBar } from '../SelectionBar';
 import type { SelectionAction } from '../SelectionBar';
@@ -38,13 +38,7 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary }: {
     setError(''); setLoading(true); setSelected(new Set());
     const timeout = window.setTimeout(() => controller.abort('timeout'), 15000);
     try {
-      const response = await fetch(`/api/catalog?${new URLSearchParams({ source: searchSource, q: searchQuery, offset: String(offset) })}`, { signal: controller.signal });
-      const data: unknown = await response.json();
-      if (!response.ok) {
-        const message = typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string' ? data.error : 'The public catalog is temporarily unavailable.';
-        throw new Error(message);
-      }
-      const parsed = parseCatalogPage(data);
+      const parsed = await fetchCatalogPage(searchSource, searchQuery, offset, controller.signal);
       if (!controller.signal.aborted) setResult(parsed);
     } catch (cause: unknown) {
       if (controller.signal.aborted && controller.signal.reason !== 'timeout') return;

@@ -62,6 +62,7 @@ export interface Filters {
   sort: SortOrder;
   direction: SortDirection;
   view: ViewMode;
+  catalogs: 'on' | 'off';
 }
 
 export interface GameProgress {

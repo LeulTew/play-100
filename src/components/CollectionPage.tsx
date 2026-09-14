@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { useCollection } from '../hooks/useCollection';
 import type { Filters, MotionPreference } from '../lib/types';
-import type { PersonalAction, PersonalLibraryState } from '../lib/personal-types';
+import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 import { recordFromGame } from '../lib/personal-types';
 import { filterGames } from '../lib/collection';
 import { createSearch, defaultFilters } from '../lib/url';
@@ -15,6 +15,9 @@ import { Icon } from './Icon';
 import Magnet from './bits/Magnet';
 import AnimatedContent from './bits/AnimatedContent';
 import { author } from '../lib/author';
+import { useExtendedSearch } from '../hooks/useExtendedSearch';
+import { filterUnranked, unrankedRecords } from '../lib/extended-search';
+import ExtendedResults from './catalog/ExtendedResults';
 
 const PAGE_SIZE = 24;
 
@@ -31,21 +34,30 @@ interface CollectionPageProps {
   onFilters: (patch: Partial<Filters>, method?: 'push' | 'replace') => void;
   onAction: (action: PersonalAction) => Promise<boolean>;
   onOpen: (id: string) => void;
+  onPreview: (record: LibraryRecord) => void;
   onShare: () => void;
   onFullLibrary: () => void;
   notify: (message: string) => void;
 }
 
-export default function CollectionPage({ collection, state, filters, busy, motion, animate, reducedMotion, coarsePointer, constrained, onFilters, onAction, onOpen, onShare, onFullLibrary, notify }: CollectionPageProps) {
+export default function CollectionPage({ collection, state, filters, busy, motion, animate, reducedMotion, coarsePointer, constrained, onFilters, onAction, onOpen, onPreview, onShare, onFullLibrary, notify }: CollectionPageProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const games = collection.data?.games;
   const results = useMemo(() => filterGames(games ?? [], filters, state.progress), [games, filters, state.progress]);
+  const onlineScope = filters.tier === 'all' && filters.list !== 'later' && filters.list !== 'completed';
+  const online = useExtendedSearch(filters.q, Boolean(games) && onlineScope && filters.catalogs === 'on');
+  const extras = unrankedRecords(games ?? [], state.records, online.records);
+  const extraResults = filterUnranked(extras, filters, state.progress, new Set(online.records.map((record) => record.id)));
+  const resultRecords = [...results.map(recordFromGame), ...extraResults];
+  const currentSelection = new Set(resultRecords.filter((record) => selected.has(record.id)).map((record) => record.id));
+  const showExtended = extraResults.length > 0 || online.eligible;
+  const additions = Object.values(state.records).filter((record) => record.collectionRank === null);
   const signature = createSearch(filters);
   useEffect(() => { setVisibleCount(PAGE_SIZE); setSelected(new Set()); }, [signature]);
-  const savedCount = games?.filter((game) => state.progress[game.slug]?.later).length ?? 0;
-  const completedCount = games?.filter((game) => state.progress[game.slug]?.completed).length ?? 0;
+  const savedCount = Object.values(state.progress).filter((progress) => progress.later).length;
+  const completedCount = Object.values(state.progress).filter((progress) => progress.completed).length;
   const browse = () => document.getElementById('collection')?.scrollIntoView({ behavior: animate ? 'smooth' : 'instant' });
   const toggle = (id: string, key: 'later' | 'completed' | 'played') => {
     const game = games?.find((candidate) => candidate.slug === id);
@@ -57,17 +69,19 @@ export default function CollectionPage({ collection, state, filters, busy, motio
     return next;
   });
   const bulk = async (action: SelectionAction) => {
-    const records = results.filter((game) => selected.has(game.slug)).map(recordFromGame);
+    const records = resultRecords.filter((record) => currentSelection.has(record.id));
+    if (!records.length) { notify('Select a matching game before applying a bulk action.'); return; }
     const change: PersonalAction = action === 'ranking' ? { type: 'add-ranking', records } : {
       type: 'set-progress', records, key: action === 'completed' ? 'completed' : 'later', value: true,
     };
     if (await onAction(change)) setSelected(new Set());
   };
   const pick = () => {
-    const candidates = filters.list === 'completed' ? results : results.filter((game) => !state.progress[game.slug]?.completed);
+    const candidates = filters.list === 'completed' ? resultRecords : resultRecords.filter((record) => !state.progress[record.id]?.completed);
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    if (chosen) onOpen(chosen.slug);
-    else notify(results.length ? 'You have completed every game in this view. Change a filter to discover more.' : 'No games match this view. Reset filters for a fresh pick.');
+    if (chosen && chosen.collectionRank !== null) onOpen(chosen.id);
+    else if (chosen) onPreview(chosen);
+    else notify(resultRecords.length ? 'You have completed every game in this view. Change a filter to discover more.' : 'No loaded games match this view. Reset filters for a fresh pick.');
   };
   return (
     <>
@@ -75,7 +89,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
         <div className="hero-copy">
           <h1 id="hero-title">GOOD GAMES.<br /><span>GREAT ESCAPES.</span></h1>
           <p>One hundred games worth making time for.<br className="desktop-break" /> Find your next world.</p>
-          <div className="hero-actions"><a className="button button-dark" href="#collection" onClick={(event) => { event.preventDefault(); onFilters({ ...defaultFilters, view: filters.view }); browse(); }}>Explore all 100<Icon name="down" width="19" height="19" /></a><Magnet disabled={!animate || coarsePointer}><button className="button button-quiet" onClick={pick} disabled={!games}><Icon name="shuffle" width="19" height="19" />Pick for me</button></Magnet></div>
+          <div className="hero-actions"><a className="button button-dark" href="#collection" onClick={(event) => { event.preventDefault(); onFilters({ ...defaultFilters, catalogs: filters.catalogs, view: filters.view }); browse(); }}>Explore all 100<Icon name="down" width="19" height="19" /></a><Magnet disabled={!animate || coarsePointer}><button className="button button-quiet" onClick={pick} disabled={!games}><Icon name="shuffle" width="19" height="19" />Pick for me</button></Magnet></div>
           <p className="hero-footnote"><span className="collection-dot" />The Core 50. And 50 more essentials.</p>
         </div>
         <div className="hero-art"><CollectionArtifact quality={motion} reducedMotion={reducedMotion} constrained={constrained} /></div>
@@ -83,14 +97,15 @@ export default function CollectionPage({ collection, state, filters, busy, motio
       <section className="collection-section" id="collection" aria-labelledby="collection-title">
         {collection.status === 'ready' ? <>
           {!collection.data.collection.authorRatingsAreOriginal && <div className="source-version-notice" role="status"><p>This cached collection does not include {author.shortName}'s original ratings yet. No substitute values are shown.</p><button className="text-button" onClick={collection.retry}>Refresh original ratings<Icon name="arrow" width="16" height="16" /></button></div>}
-          <CollectionControls games={collection.data.games} filters={filters} count={results.length} savedCount={savedCount} completedCount={completedCount} onChange={onFilters} onShare={onShare} selecting={selecting} onSelectMode={() => { setSelecting((value) => !value); setSelected(new Set()); }} onFullLibrary={onFullLibrary} />
-          {selecting && <SelectionBar count={selected.size} total={results.length} busy={busy} onSelectAll={() => setSelected(new Set(results.map((game) => game.slug)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
+          <CollectionControls games={collection.data.games} filters={filters} count={resultRecords.length} addedCount={additions.length} unrankedCount={extraResults.length} extraRecords={extras} onlineScope={onlineScope} searching={online.loading} savedCount={savedCount} completedCount={completedCount} onChange={onFilters} onShare={onShare} selecting={selecting} onSelectMode={() => { setSelecting((value) => !value); setSelected(new Set()); }} onFullLibrary={onFullLibrary} />
+          {selecting && <SelectionBar count={currentSelection.size} total={resultRecords.length} busy={busy} onSelectAll={() => setSelected(new Set(resultRecords.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
           {results.length ? <>
             {filters.view === 'table' ? <RatingsTable games={results.slice(0, visibleCount)} filters={filters} progress={state.progress} selecting={selecting} selected={selected} busy={busy} onSelect={toggleSelection} onOpen={onOpen} onToggle={toggle} onSort={onFilters} /> : <div className={`games ${filters.view === 'list' ? 'games-list' : 'games-grid'}`} aria-label="Games in this view">
               {results.slice(0, visibleCount).map((game, index) => <GameCard key={game.slug} game={game} filters={filters} state={state.progress[game.slug]} onOpen={onOpen} onSave={(id) => toggle(id, 'later')} onPlayed={(id) => toggle(id, 'played')} eager={index < 4} selecting={selecting} selected={selected.has(game.slug)} onSelect={toggleSelection} busy={busy} />)}
             </div>}
-            <div className="collection-end"><p>Showing {Math.min(visibleCount, results.length)} of {results.length} games</p>{visibleCount < results.length ? <button className="button button-outline" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>Show {Math.min(PAGE_SIZE, results.length - visibleCount)} more<Icon name="down" width="18" height="18" /></button> : <span className="end-mark"><Icon name="check" width="17" height="17" />You're at the end of this view.</span>}</div>
-          </> : <div className="empty-state"><div className="empty-jacket" aria-hidden="true"><Icon name={filters.list === 'later' ? 'bookmark' : 'search'} width="40" height="40" /></div><h3>{filters.list === 'later' && savedCount === 0 ? 'Your next great game goes here.' : filters.list === 'completed' && completedCount === 0 ? 'Every collection starts somewhere.' : 'No worlds found. Yet.'}</h3><p>{filters.list === 'later' && savedCount === 0 ? 'Tap a bookmark on any game to save it for later. Your full queue can also include games from other catalogs.' : filters.list === 'completed' && completedCount === 0 ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.' : 'Try a shorter search or loosen a filter. A hundred games means there is plenty left to explore.'}</p><button className="button button-dark" onClick={() => onFilters({ ...defaultFilters, view: filters.view })}>Browse all 100<Icon name="arrow" width="18" height="18" /></button></div>}
+            <div className="collection-end"><p>Showing {Math.min(visibleCount, results.length)} of {results.length} games from the 100</p>{visibleCount < results.length ? <button className="button button-outline" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>Show {Math.min(PAGE_SIZE, results.length - visibleCount)} more<Icon name="down" width="18" height="18" /></button> : <span className="end-mark"><Icon name="check" width="17" height="17" />{showExtended ? 'End of the curated matches.' : "You're at the end of this view."}</span>}</div>
+          </> : showExtended ? <p className="curated-empty">No matches in {author.shortName}'s original 100 for this view.</p> : <div className="empty-state"><div className="empty-jacket" aria-hidden="true"><Icon name={filters.list === 'later' ? 'bookmark' : 'search'} width="40" height="40" /></div><h3>{filters.list === 'later' && savedCount === 0 ? 'Your next great game goes here.' : filters.list === 'completed' && completedCount === 0 ? 'Every collection starts somewhere.' : 'No worlds found. Yet.'}</h3><p>{filters.list === 'later' && savedCount === 0 ? 'Tap a bookmark on any game to save it for later. Your full queue can also include games from other catalogs.' : filters.list === 'completed' && completedCount === 0 ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.' : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'}</p><button className="button button-dark" onClick={() => onFilters({ ...defaultFilters, catalogs: filters.catalogs, view: filters.view })}>Browse all 100<Icon name="arrow" width="18" height="18" /></button></div>}
+          {showExtended && <ExtendedResults records={extraResults} online={online} state={state} queryKey={signature} busy={busy} selecting={selecting} selected={currentSelection} onSelect={toggleSelection} onPreview={onPreview} onAction={onAction} />}
         </> : collection.status === 'error' ? <div className="data-error" role="alert"><h2 id="collection-title">The collection couldn't load.</h2><p>{collection.error}</p><div className="button-row"><button className="button button-dark" onClick={collection.retry}>Try again<Icon name="arrow" /></button><a className="button button-outline" href="/downloads/Play-100-Collection.xlsx" download>Download the workbook</a></div></div> : <div className="collection-loading" aria-busy="true" role="status"><h2 id="collection-title">Opening the collection...</h2><p>One hundred games. Just a moment.</p><div className="loading-jackets" aria-hidden="true"><span /><span /><span /><span /></div></div>}
       </section>
       <AnimatedContent animate={animate} className="workbook-section">

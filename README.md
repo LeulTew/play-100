@@ -55,6 +55,10 @@ rankings, private scores/notes, backup export/restore, catalog failure recovery,
 sharing and both exact-byte Excel downloads. It also covers live reduced motion,
 Lite/no-WebGL behavior, automated WCAG checks, every declared font face and
 browser console/CSP errors.
+Unified-search regressions cover debouncing, cancelled responses, source-page
+retry, Unranked labels, atomic rating/import failures, saved additions during
+provider outages, native-select alignment, and full browser close/relaunch with
+the same isolated test profile.
 
 To exercise an existing public deployment instead of the local preview:
 
@@ -146,7 +150,7 @@ Source updates must still contain the intended 100 author-ordered records.
 | `src\hooks` | Collection loading, history, transactional UI state, sharing and capability hints |
 | `src\components` | Controls, game jackets, game details, settings and methodology |
 | `src\components\personal` | Ordered queue, personal rankings, manual entry and backups |
-| `src\components\catalog` | Explicit public catalog lookup and import |
+| `src\components\catalog` | Main-search catalog results and explicit discovery/import |
 | `api\catalog.ts` | Fixed-host, bounded, read-only catalog adapters |
 | `src\components\scene` | Authored Three.js folios, static SVG, lifecycle and frame budget |
 | `src\components\bits` | Customized, attributed React Bits components |
@@ -156,12 +160,15 @@ Source updates must still contain the intended 100 author-ordered records.
 | `tests` | Real-browser interaction and accessibility coverage |
 
 Public collection state is query-string based: `q`, `genre`, `year`, `tier`,
-`sort`, `direction`, `view` (grid/list/table) and `game`. `list` is a device-only
+`sort`, `direction`, `view` (grid/list/table), `catalogs` (on/off) and `game`. `list` is a device-only
 view filter and is stripped from shared URLs. Separate `/my-library`,
 `/my-rankings` and `/discover` routes are rewritten to the app entry on Vercel.
 Private library/ranking search stays out of URLs. A private-page URL opens each
 visitor's own local data; it does not publish the original visitor's ranking.
 Game dialogs preserve direct entry and Back/Forward behavior.
+Unsaved catalog previews are held only in the current page session, not silently
+imported. Save or rate an external entry before closing the page to retain its
+metadata and allow its private detail link to reopen on that browser.
 Social previews use the collection's common static card; game titles update in
 the browser rather than requiring a server renderer.
 
@@ -222,6 +229,31 @@ Bulk selection affects the current view and clears when its filters/page change.
 
 ## Public catalog integration
 
+The main collection search immediately searches the original 100 plus saved
+additions. With **Search public catalogs** enabled, a 2-80-character query also
+searches Wikidata and FreeToGame after a 750ms pause. Empty or one-character
+queries do not fetch catalogs. Core/Essential and Play later/Completed scopes
+pause online lookup; locally saved additions still follow applicable filters.
+The explicit `catalogs=off` URL choice survives reload, Back/Forward and in-app
+navigation, and is preserved by Reset filters.
+
+External results appear in a separate **Unranked** section, never with an
+invented author rank, rating or critic score. Source IDs remain the identity;
+editions and source duplicates are not guessed into one game. Source-search
+aliases can match even when absent from the imported English title. Year/genre
+and device-state filters still apply. Title/year sorts apply within this section;
+author/critic sorts cannot compare missing public scores and use title order
+there instead. Result counts describe currently loaded matches, not every game
+on the internet.
+
+Saving, marking played/completed, or rating a result imports its metadata and
+requested private state in one IndexedDB transaction. A rating adds it to
+**My rankings** without marking it played, replacing existing notes, or releasing
+manual positions. Saved additions stay in the collection and search after a
+reload or browser restart, including when a catalog request fails. The Excel
+downloads always remain the author's unchanged 100-game collection, not a
+visitor's additions or progress.
+
 `GET /api/catalog?source=wikidata&q=Hades&offset=0` and
 `GET /api/catalog?source=freetogame&q=Palia&offset=0` return normalized facts.
 An empty query is an explicit paginated browse operation, not a background crawl.
@@ -245,13 +277,16 @@ The Vite dev/preview middleware uses the same handler as the Vercel function.
 
 Only source/query/offset are accepted. Upstream hosts are fixed, redirects
 rejected, responses bounded to 4 MiB and requests timed out after nine seconds.
-HTTP/JSON source errors and rate limits are surfaced. Searches are explicitly
-submitted and client-throttled, not issued on every keystroke. Anonymous
+HTTP/JSON source errors and rate limits are surfaced. Discover searches are
+explicitly submitted and client-throttled; main searches use the debounce above,
+not a request on every keystroke. Stale searches are cancelled, and each source
+has an independent retry and user-requested pagination. A failed next page
+retains existing results and retries that page, not the first page. Anonymous
 Wikidata requests ask for public 300-second caching; normalized responses use
 short CDN caching. The FreeToGame snapshot also has a bounded per-instance
 cache; this is not a durable database or a globally enforced rate limiter.
 
-Catalog search necessarily sends the typed query to the selected provider.
+Catalog search necessarily sends the typed query to the selected providers.
 Private library state, opinions and backups are never sent to the proxy.
 Imported records retain source IDs/links; title similarity never silently
 merges editions. Manual entry covers missing titles without inventing metadata.
@@ -289,9 +324,17 @@ This is a standalone project. Do not link it to an unrelated existing Vercel
 project. The authorized environment used for publication is Ubuntu-24.04 WSL,
 fish and the existing Vercel CLI login via `npx`.
 
-```powershell
-wsl -d Ubuntu-24.04 -- fish -lc 'cd /mnt/c/Users/USER-PC/Projects/play-100; and npx --yes vercel@latest link --yes --project play-100-collection'
-wsl -d Ubuntu-24.04 -- fish -lc 'cd /mnt/c/Users/USER-PC/Projects/play-100; and npx --yes vercel@latest deploy --prod --yes'
+Use a clean, isolated staging copy of committed source with Linux-installed
+dependencies, not the Windows checkout's `node_modules`. Copy only the existing
+ignored `.vercel\project.json` link metadata to target this same project; do not
+copy authentication files. From that staging directory in WSL fish:
+
+```fish
+npm ci --no-fund --no-audit
+npx --yes vercel@latest pull --yes --environment=production --scope leulman2-gmailcoms-projects
+set -lx VITE_SITE_URL https://play-100-collection.vercel.app
+npx --yes vercel@latest build --prod --standalone
+npx --yes vercel@latest deploy --prebuilt --prod --yes --scope leulman2-gmailcoms-projects
 ```
 
 Keep `.vercel` and all environment files ignored. Never copy a token into the
@@ -303,18 +346,15 @@ subsets, so `font-src 'self'` stays strict without blocked data-URI fonts.
 Check the production alias without an authenticated Vercel browser and run the
 production browser suite before treating a deployment as delivered.
 
-Production builds use Vercel's `VERCEL_PROJECT_PRODUCTION_URL` for absolute
+Hosted build environments provide `VERCEL_PROJECT_PRODUCTION_URL` for absolute
 Open Graph image/URL and canonical metadata. `VITE_SITE_URL` is an optional
-explicit HTTPS origin override. Local preview does not guess a public origin.
+explicit HTTPS origin override; set it as above for the local prebuilt release,
+where Vercel system variables may be unavailable. Local preview does not guess a public origin.
 The shared social card describes the collection, not private visitor progress.
 
-To avoid hosted build/CI usage, build Vercel's production output locally in a
-Linux environment with Linux-installed dependencies, then upload it with
-`vercel deploy --prebuilt --prod`. Use `vercel pull --environment=production`
-first and `vercel build --prod --standalone`. On a Windows checkout, use a
-separate temporary staging copy under WSL rather than replacing the checkout's
-Windows `node_modules`. Keep pulled environment files private and out of source
-archives.
+This local/prebuilt path avoids hosted application builds and CI usage. Keep
+pulled environment files private and out of source archives, and remove only
+the staging copy's `.vercel\.env.production.local` after publication.
 The source is now published on the public `LeulTew/play-100` repository. Its
 initial `main` publication is not a PR merge. No hosted CI workflows or automatic
 Vercel Git-build integration are installed; use the local/prebuilt path.

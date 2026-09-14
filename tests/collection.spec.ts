@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
+import { emptyCatalogs } from './catalog-helpers';
 
 const firstTitle = 'Red Dead Redemption 2';
 const firstSlug = 'red-dead-redemption-2';
@@ -8,6 +9,7 @@ const firstCard = `[data-game="${firstSlug}"]`;
 const key = 'play100.library.v1';
 
 test.beforeEach(async ({ page }) => {
+  await emptyCatalogs(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
   });
@@ -142,7 +144,7 @@ test('play-later and completion are independent and persist on this device', asy
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
   await expect(page.locator('.game-card')).toHaveCount(1);
-  await expect(page.locator('.list-privacy')).toContainText("This filter covers games in the author's 100");
+  await expect(page.locator('.list-privacy')).toContainText('including games you added beyond the 100');
   await expect(page.locator('.list-privacy').getByRole('button', { name: 'Open my full library' })).toBeVisible();
   await page.locator('.collection-tabs').getByRole('button', { name: /^Completed/ }).click();
   await expect(page.locator('.game-card')).toHaveCount(1);

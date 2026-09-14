@@ -12,7 +12,7 @@ export function pageFromPath(path: string): AppPage {
 }
 
 export const defaultFilters: Filters = {
-  q: '', genre: '', year: '', tier: 'all', list: 'all', sort: 'rank', direction: 'auto', view: 'grid',
+  q: '', genre: '', year: '', tier: 'all', list: 'all', sort: 'rank', direction: 'auto', view: 'grid', catalogs: 'on',
 };
 
 export function parseUrl(search: string): { filters: Filters; game: string | null } {
@@ -33,6 +33,7 @@ export function parseUrl(search: string): { filters: Filters; game: string | nul
       sort: SORT_ORDERS.find((option) => option === sort) ?? 'rank',
       direction: direction === 'asc' || direction === 'desc' ? direction : 'auto',
       view: view === 'list' || view === 'table' ? view : 'grid',
+      catalogs: params.get('catalogs') === 'off' ? 'off' : 'on',
     },
     game: params.get('game'),
   };

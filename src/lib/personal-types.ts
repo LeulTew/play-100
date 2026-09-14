@@ -44,6 +44,7 @@ export type PersonalAction =
   | { type: 'add-ranking'; records: LibraryRecord[] }
   | { type: 'remove-ranking'; ids: string[] }
   | { type: 'edit-ranking'; id: string; score?: number | null; note?: string }
+  | { type: 'rate-game'; record: LibraryRecord; score: number | null }
   | { type: 'use-rating-order'; id?: string }
   | { type: 'move-item'; list: 'queue' | 'ranking'; id: string; overId: string }
   | { type: 'set-motion'; motion: MotionPreference };

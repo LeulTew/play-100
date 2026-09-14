@@ -96,6 +96,54 @@ describe('personal library actions', () => {
     expect(state.records[a.id]?.collectionRank).toBe(a.collectionRank);
   });
 
+  it('atomically imports and rates an external game without inventing progress or author scores', () => {
+    const initial = emptyPersonalLibrary();
+    const state = apply(initial, { type: 'rate-game', record: c, score: 9.25 });
+    expect(state.revision).toBe(1);
+    expect(state.records).toEqual({ [c.id]: c });
+    expect(state.ranking).toEqual([{ id: c.id, score: 9.25, note: '', manualPosition: null }]);
+    expect(state.progress).toEqual({});
+    expect(state.queueOrder).toEqual([]);
+    expect(initial).toEqual(emptyPersonalLibrary());
+  });
+
+  it('rating from another surface preserves existing metadata, notes, manual slots and replay progress', () => {
+    const state = apply(emptyPersonalLibrary(),
+      { type: 'rate-game', record: a, score: 8 },
+      { type: 'rate-game', record: c, score: 5 },
+      { type: 'edit-ranking', id: c.id, note: 'My own order' },
+      { type: 'move-item', list: 'ranking', id: c.id, overId: a.id },
+      { type: 'set-progress', records: [c], key: 'completed', value: true },
+      { type: 'set-progress', records: [c], key: 'later', value: true },
+    );
+    const changed = apply(state,
+      { type: 'rate-game', record: { ...c, title: 'Changed provider metadata' }, score: 0 },
+      { type: 'rate-game', record: a, score: 10 },
+    );
+    expect(changed.ranking.map((entry) => entry.id)).toEqual([c.id, a.id]);
+    expect(changed.ranking[0]).toEqual({ id: c.id, score: 0, note: 'My own order', manualPosition: 1 });
+    expect(changed.records[c.id]).toEqual(c);
+    expect(changed.progress).toEqual(state.progress);
+    expect(changed.queueOrder).toEqual([c.id]);
+  });
+
+  it('repeated catalog ratings create one record and ranking; clearing a rating retains the game', () => {
+    const state = apply(emptyPersonalLibrary(),
+      { type: 'rate-game', record: c, score: 8 },
+      { type: 'rate-game', record: c, score: 10 },
+      { type: 'rate-game', record: c, score: null },
+    );
+    expect(Object.keys(state.records)).toEqual([c.id]);
+    expect(state.ranking).toEqual([{ id: c.id, score: null, note: '', manualPosition: null }]);
+    expect(state.progress).toEqual({});
+  });
+
+  it.each([-1, 10.1, NaN, Infinity])('invalid catalog rating %s cannot leave a partly imported game', (score) => {
+    const initial = emptyPersonalLibrary();
+    expect(() => apply(initial, { type: 'rate-game', record: c, score })).toThrow(/rating/);
+    expect(initial).toEqual(emptyPersonalLibrary());
+  });
+
   it('removes ranking membership without deleting progress or record metadata', () => {
     const state = apply(fixture(),
       { type: 'add-ranking', records: [a] },

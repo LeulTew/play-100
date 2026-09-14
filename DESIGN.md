@@ -165,6 +165,20 @@ Dark, lime, outline, quiet and destructive variants use the extracted assignment
 
 Keep search, original-data filters, sorting and device-list controls legible and directly operable. Do not imply that changing the view changes authored ranks. Desktop navigation is direct; mobile prioritizes reachable controls rather than decorative navigation chrome.
 
+Search and native selects use visible labels above 48px controls. A shared
+select shell centers its noninteractive SVG chevron on the value row, not on
+the combined label/control height. On mobile, search and genre occupy full
+rows, followed by year/collection columns; sort and layout controls align along
+their control bottoms. Native menus, keyboard behavior and focus outlines stay
+intact. Online search scope is explicit beneath the fields.
+
+Unranked matches and saved additions use an open ruled list below the original
+100, not fake numbered jackets or empty critic-score cells. Source attribution
+and a restrained Unranked label distinguish public metadata from the visitor's
+rating. Save, Played and rating controls stay together, reflowing into larger
+touch-friendly rows on mobile. Loading/error controls belong to each source;
+saved records remain usable independently.
+
 Buttons, links, inputs, selects and summaries use a visible **3px `#426515` outline with 4px offset**. Preserve semantic controls, the skip link and keyboard access; do not substitute hover-only affordances.
 
 ### Numbered jackets and collection rows

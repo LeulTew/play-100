@@ -105,6 +105,12 @@ describe('shareable and reversible URL state', () => {
     expect(createSearch(defaultFilters)).toBe('');
     expect(parseUrl('?tier=fake&sort=bad&list=everyone&year=no&view=poster').filters).toEqual(defaultFilters);
   });
+  it('retains the explicit catalog opt-out through reloads and public filter links', () => {
+    const filters = { ...defaultFilters, q: 'Atlas', catalogs: 'off' as const };
+    expect(parseUrl(createSearch(filters)).filters).toEqual(filters);
+    expect(new URL(createShareUrl('https://play100.example', filters, null)).searchParams.get('catalogs')).toBe('off');
+    expect(parseUrl('?catalogs=unknown').filters.catalogs).toBe('on');
+  });
   it('omits device-list filters from shared links but preserves public filters', () => {
     const url = new URL(createShareUrl('https://play100.example', { ...defaultFilters, list: 'completed', year: '2018' }, 'red-dead-redemption-2'));
     expect(url.searchParams.get('list')).toBeNull();

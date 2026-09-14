@@ -53,7 +53,8 @@ export function useUrlState() {
   }, [navigate]);
 
   const goToPage = useCallback((nextPage: AppPage, patch: Partial<Filters> = {}) => {
-    navigate(createSearch({ ...defaultFilters, ...patch }), 'push', null, PAGE_PATHS[nextPage]);
+    const { filters: current } = parseUrl(window.location.search);
+    navigate(createSearch({ ...defaultFilters, catalogs: current.catalogs, ...patch }), 'push', null, PAGE_PATHS[nextPage]);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [navigate]);
 
