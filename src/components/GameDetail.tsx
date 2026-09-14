@@ -6,6 +6,7 @@ import { GameCover } from './GameCover';
 import { Icon } from './Icon';
 import { PlayedToggle } from './PlayedToggle';
 import { author, authorRatingText } from '../lib/author';
+import { PersonalRatingInput } from './personal/PersonalRatingInput';
 
 interface GameDetailProps {
   game: Game;
@@ -22,9 +23,11 @@ interface GameDetailProps {
   rankingPosition?: number | null;
   onPlayed?: () => void;
   onRank?: () => void;
+  personalRating: number | null;
+  onRate: (score: number | null) => Promise<boolean>;
 }
 
-export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank }: GameDetailProps) {
+export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank, personalRating, onRate }: GameDetailProps) {
   const topRef = useRef<HTMLDivElement>(null);
   const lastSlug = useRef(game.slug);
   useEffect(() => {
@@ -56,6 +59,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         </div>
         <p className="device-note">Your progress stays in this browser. No account. No sync.</p>
         {onRank && <div className="personal-detail-actions">{onPlayed && <PlayedToggle id={game.slug} title={game.title} played={Boolean(played)} completed={state?.completed} busy={busy} onChange={onPlayed} />}<button className="text-button" disabled={busy} onClick={onRank}><Icon name="rank" width="18" height="18" />{rankingPosition ? `Your rank: #${rankingPosition}` : 'Add to my ranking'}</button></div>}
+        <div className="catalog-detail-rating"><PersonalRatingInput key={game.slug} title={game.title} value={personalRating} busy={Boolean(busy)} onCommit={onRate} /><p>Your opinion, separate from {author.shortName}'s original rating. Saves to My rankings without marking the game played or changing a fixed position.</p></div>
         {shareFeedback && <p className="detail-share-notice" role="status">{shareFeedback}</p>}
       </div>
       <section className="detail-section">
@@ -75,7 +79,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
           <summary>How to read these numbers<Icon name="down" width="18" height="18" /></summary>
           <p>The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications.</p>
           <p>{author.shortName}'s original rating is preserved separately from those critics. The source column was headed "my rating(based on rank)"; its actual cached number is used, including any rounded text result, not a reconstructed curve. {game.authorRating && <>Original cached value: <strong>{game.authorRating.rawValue}</strong>.</>}</p>
-          <p>Your editable rating on My rankings is private to this device and is never prefilled from {author.shortName}'s rating.</p>
+          <p>Your editable rating here and on My rankings is private to this device and is never prefilled from {author.shortName}'s rating.</p>
         </details>
       </section>
       <nav className="detail-pagination" aria-label="Games in the collection">

@@ -213,6 +213,24 @@ save a backup and explicitly restore or reset when storage becomes available.
 Focused ranking fields follow peer-tab updates unless the user actually edited
 them. Dirty drafts are retained until an intentional save, invalid native number
 input does not clear a saved score, and unsaved drafts warn before page unload.
+Valid pending ratings and notes also flush when their editor disappears, such
+as browser Back, dialog Escape or next-game navigation. Each detail editor is
+keyed to its game, so an outgoing draft cannot become the next game's rating.
+An already-failed save is not silently retried on exit; committed data stays
+unchanged and the storage warning remains explicit.
+
+Both original and imported game details provide **Your rating**, using the same
+private state as My rankings. The original creator's rating stays separately
+labeled and is never overwritten or used as a personal default.
+
+My library supports individual and selected-game removal, with a focused
+confirmation listing the affected titles and explaining loss of their private
+progress, queue membership, ratings and notes. The cancellation button receives
+initial focus. Removal is atomic and only touches selected IDs; other records
+and their relative ordering are retained. Removing a canonical game from a
+private library does not remove it from the public 100. This action has no
+undo, so export a Settings backup first when needed. All my games and Completed
+use plain lists instead of showing disabled drag controls for unordered views.
 
 Settings exports a versioned JSON backup with all private data. Import validates
 the complete file, previews counts and requires explicit replacement approval;

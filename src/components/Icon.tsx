@@ -2,7 +2,7 @@ import type { SVGProps } from 'react';
 
 type IconName = 'arrow' | 'up-right' | 'down' | 'back' | 'download' | 'bookmark' | 'check' |
   'search' | 'close' | 'sliders' | 'grid' | 'list' | 'shuffle' | 'share' | 'info' | 'stack' | 'copy' |
-  'table' | 'select' | 'grip' | 'up' | 'plus' | 'upload' | 'rank';
+  'table' | 'select' | 'grip' | 'up' | 'plus' | 'upload' | 'rank' | 'trash';
 
 export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -30,6 +30,7 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
     plus: <path d="M12 4v16M4 12h16" />,
     upload: <path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5" />,
     rank: <><path d="M4 19V11h5v8m0 0V5h6v14m0 0V9h5v10M3 19h18" /></>,
+    trash: <><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7" /></>,
   };
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>;
 }

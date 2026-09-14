@@ -39,6 +39,7 @@ export interface PersonalLibraryState {
 
 export type PersonalAction =
   | { type: 'add-records'; records: LibraryRecord[] }
+  | { type: 'remove-records'; ids: string[] }
   | { type: 'set-progress'; records: LibraryRecord[]; key: keyof PersonalProgress; value: boolean }
   | { type: 'toggle-progress'; record: LibraryRecord; key: keyof PersonalProgress }
   | { type: 'add-ranking'; records: LibraryRecord[] }

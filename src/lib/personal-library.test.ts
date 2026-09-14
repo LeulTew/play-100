@@ -154,6 +154,50 @@ describe('personal library actions', () => {
     expect(state.records[a.id]).toEqual(a);
   });
 
+  it('removes only selected private records and their memberships while retaining remaining manual order', () => {
+    const before = apply(emptyPersonalLibrary(),
+      { type: 'set-progress', records: [a, b, c], key: 'later', value: true },
+      { type: 'set-progress', records: [b], key: 'completed', value: true },
+      { type: 'add-ranking', records: [a, b, c] },
+      { type: 'edit-ranking', id: b.id, score: 10, note: 'Remove this private note too' },
+      { type: 'edit-ranking', id: a.id, score: 8, note: 'Keep this note' },
+      { type: 'move-item', list: 'ranking', id: c.id, overId: b.id },
+    );
+    const original = JSON.stringify(before);
+    const after = apply(before, { type: 'remove-records', ids: [b.id] });
+    expect(Object.keys(after.records)).toEqual([a.id, c.id]);
+    expect(after.records[b.id]).toBeUndefined();
+    expect(after.progress[b.id]).toBeUndefined();
+    expect(after.queueOrder).toEqual([a.id, c.id]);
+    expect(after.ranking.map((entry) => entry.id)).toEqual([c.id, a.id]);
+    expect(after.ranking[0]?.manualPosition).toBe(1);
+    expect(after.ranking[1]?.note).toBe('Keep this note');
+    expect(after.records[a.id]).toEqual(a);
+    expect(JSON.stringify(before)).toBe(original);
+    expect(canonical).toEqual([a, b]);
+    expect(parsePersonalLibrary(after)).toEqual(after);
+  });
+
+  it('bulk removal is idempotent and preserves preferences even when all private games are removed', () => {
+    const before = apply(fixture(), { type: 'set-motion', motion: 'lite' });
+    const removed = apply(before, { type: 'remove-records', ids: [a.id, a.id, b.id, c.id, 'already-removed'] });
+    expect(removed.records).toEqual({});
+    expect(removed.progress).toEqual({});
+    expect(removed.queueOrder).toEqual([]);
+    expect(removed.ranking).toEqual([]);
+    expect(removed.motion).toBe('lite');
+    expect(removed.revision).toBe(before.revision + 1);
+    const again = apply(removed, { type: 'remove-records', ids: [a.id] });
+    expect(again.records).toEqual({});
+  });
+
+  it.each([null, [null], [5], [''], ['x'.repeat(201)]])('rejects malformed private removal IDs (%s) without partial changes', (ids) => {
+    const before = fixture();
+    const original = JSON.stringify(before);
+    expect(() => applyPersonalAction(before, { type: 'remove-records', ids } as unknown as PersonalAction)).toThrow();
+    expect(JSON.stringify(before)).toBe(original);
+  });
+
   it('clears a score with null, preserves omitted edits, and supports exact limits', () => {
     const state = apply(fixture(),
       { type: 'edit-ranking', id: c.id, score: 0, note: 'n'.repeat(2_000) },

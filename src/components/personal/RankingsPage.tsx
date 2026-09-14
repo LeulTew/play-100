@@ -7,6 +7,7 @@ import ReorderList from './ReorderList';
 import AddGamesPanel from './AddGamesPanel';
 import { PlayedToggle } from '../PlayedToggle';
 import { PersonalRatingInput } from './PersonalRatingInput';
+import { useExitSave } from '../../hooks/useExitSave';
 
 export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover }: {
   state: PersonalLibraryState; availableRecords: LibraryRecord[]; busy: boolean; persistent: boolean; animate: boolean;
@@ -54,6 +55,8 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
   const [note, setNote] = useState(entry.note);
   const [noteError, setNoteError] = useState('');
   const [noteEdited, setNoteEdited] = useState(false);
+  const noteSaving = useRef(false);
+  const noteEdits = useRef(0);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (!noteEdited) setNote(entry.note); }, [entry.note, noteEdited]);
   useEffect(() => {
@@ -63,11 +66,18 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, [noteEdited]);
   const saveNote = async () => {
-    if (!noteEdited) return;
+    if (!noteEdited || noteSaving.current) return;
     setNoteError('');
-    if (note === entry.note || await onAction({ type: 'edit-ranking', id: entry.id, note })) setNoteEdited(false);
-    else setNoteError('The note could not be saved. Keep this field open to retry or copy your text.');
+    if (note === entry.note) { setNoteEdited(false); return; }
+    const version = noteEdits.current;
+    noteSaving.current = true;
+    try {
+      if (await onAction({ type: 'edit-ranking', id: entry.id, note })) {
+        if (version === noteEdits.current) setNoteEdited(false);
+      } else setNoteError('The note could not be saved. Keep this field open to retry or copy your text.');
+    } finally { noteSaving.current = false; }
   };
+  useExitSave(() => { if (!noteError) void saveNote(); });
   return (
     <div className="ranking-row-content">
       <RecordIdentity record={record} onOpen={onOpen} />
@@ -75,7 +85,7 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
       <div className="played-check"><PlayedToggle id={record.id} title={record.title} played={played} completed={completed} busy={busy} onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} /></div>
       <button className="icon-button" aria-label={`Remove ${record.title} from my ranking`} disabled={busy} onClick={() => { void onAction({ type: 'remove-ranking', ids: [entry.id] }); }}><Icon name="close" width="18" height="18" /></button>
       {entry.manualPosition !== null && <div className="manual-rank"><span>Fixed at #{entry.manualPosition}</span><button className="text-button" disabled={busy} aria-label={`Use rating order for ${record.title}`} onClick={() => { void onAction({ type: 'use-rating-order', id: entry.id }); }}>Use rating order<Icon name="rank" width="16" height="16" /></button></div>}
-      <details className="ranking-note"><summary>{entry.note ? 'Your note' : 'Add a note'}<Icon name="plus" width="15" height="15" /></summary><label htmlFor={`note-${entry.id}`} className="sr-only">Your note for {record.title}</label><textarea ref={noteRef} id={`note-${entry.id}`} rows={3} maxLength={2000} value={note} disabled={busy} aria-invalid={Boolean(noteError)} aria-describedby={noteError ? `note-error-${entry.id}` : undefined} onChange={(event) => { setNoteEdited(true); setNote(event.target.value); }} onBlur={() => { void saveNote(); }} placeholder="Why this game belongs here..." /><span>Saved when you leave the field. Only on this device.</span></details>
+      <details className="ranking-note"><summary>{entry.note ? 'Your note' : 'Add a note'}<Icon name="plus" width="15" height="15" /></summary><label htmlFor={`note-${entry.id}`} className="sr-only">Your note for {record.title}</label><textarea ref={noteRef} id={`note-${entry.id}`} rows={3} maxLength={2000} value={note} disabled={busy} aria-invalid={Boolean(noteError)} aria-describedby={noteError ? `note-error-${entry.id}` : undefined} onChange={(event) => { noteEdits.current += 1; setNoteEdited(true); setNoteError(''); setNote(event.target.value); }} onBlur={() => { void saveNote(); }} placeholder="Why this game belongs here..." /><span>Saved when you leave the field or this page. Only on this device.</span></details>
       {noteError && <p id={`note-error-${entry.id}`} className="inline-error" role="alert">{noteError}</p>}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useExitSave } from '../../hooks/useExitSave';
 
 export function PersonalRatingInput({ title, value, busy, onCommit }: {
   title: string; value: number | null; busy: boolean; onCommit: (score: number | null) => Promise<boolean>;
@@ -42,6 +43,7 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
     const timer = window.setTimeout(() => { void save(); }, 650);
     return () => window.clearTimeout(timer);
   }, [edited, draft, editVersion, busy, error, save]);
+  useExitSave(() => { if (!error) void save(); });
   return (
     <>
       <label className="personal-score">Your rating / 10<input type="number" inputMode="decimal" min="0" max="10" step="any"

@@ -27,12 +27,13 @@ function lockBody() {
 interface DialogProps {
   open: boolean;
   titleId: string;
+  descriptionId?: string;
   onClose: () => void;
   children: ReactNode;
   className?: string;
 }
 
-export function Dialog({ open, titleId, onClose, children, className = '' }: DialogProps) {
+export function Dialog({ open, titleId, descriptionId, onClose, children, className = '' }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -56,6 +57,7 @@ export function Dialog({ open, titleId, onClose, children, className = '' }: Dia
       ref={ref}
       className={`dialog ${className}`}
       aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >

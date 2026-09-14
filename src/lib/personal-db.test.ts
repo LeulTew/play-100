@@ -119,6 +119,50 @@ describe('atomic catalog ratings', () => {
   });
 });
 
+describe('atomic private library removal', () => {
+  it('removes a game and all its private state in the committed snapshot, including after reopening', async () => {
+    await loadPersonalLibrary(canonical);
+    await commitPersonalAction({ type: 'set-progress', records: [a, c], key: 'later', value: true });
+    await commitPersonalAction({ type: 'rate-game', record: c, score: 9 });
+    const removed = await commitPersonalAction({ type: 'remove-records', ids: [c.id] });
+    expect(await stored()).toEqual(removed);
+    closePersonalLibrary();
+    const reopened = (await loadPersonalLibrary(canonical)).state;
+    expect(reopened.records[c.id]).toBeUndefined();
+    expect(reopened.progress[c.id]).toBeUndefined();
+    expect(reopened.ranking).toEqual([]);
+    expect(reopened.queueOrder).toEqual([a.id]);
+  });
+
+  it('a failed removal retains metadata, ratings and progress without a partial deletion', async () => {
+    await loadPersonalLibrary(canonical);
+    await commitPersonalAction({ type: 'set-progress', records: [a, c], key: 'completed', value: true });
+    const before = await commitPersonalAction({ type: 'rate-game', record: c, score: 8 });
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('Storage unavailable', 'QuotaExceededError');
+    });
+    await expect(commitPersonalAction({ type: 'remove-records', ids: [a.id, c.id] })).rejects.toMatchObject({ name: 'PersonalLibraryQuotaError' });
+    put.mockRestore();
+    expect(await stored()).toEqual(before);
+  });
+
+  it('does not discard another client addition while removing selected IDs', async () => {
+    await loadPersonalLibrary(canonical);
+    await commitPersonalAction({ type: 'set-progress', records: [a, b], key: 'later', value: true });
+    const peer = await secondClient();
+    await Promise.all([
+      commitPersonalAction({ type: 'remove-records', ids: [a.id] }),
+      peer.commitPersonalAction({ type: 'rate-game', record: c, score: 7 }),
+    ]);
+    const after = parsePersonalLibrary(await stored());
+    expect(after.records[a.id]).toBeUndefined();
+    expect(after.records[b.id]).toEqual(b);
+    expect(after.records[c.id]).toEqual(c);
+    expect(after.ranking[0]?.score).toBe(7);
+    expect(after.queueOrder).toEqual([b.id]);
+  });
+});
+
 describe('IndexedDB initialization and migration', () => {
   it('upgrades a version-one database with version-two rankings without guessing prior drag intent', async () => {
     const connection = await openForTest(1);

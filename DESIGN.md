@@ -179,6 +179,17 @@ rating. Save, Played and rating controls stay together, reflowing into larger
 touch-friendly rows on mobile. Loading/error controls belong to each source;
 saved records remain usable independently.
 
+Game details keep the creator's original score and **Your rating** visually and
+semantically separate. Private ratings and notes commit on editor exit as well
+as their normal save triggers. Unordered library views omit disabled drag/move
+chrome; actual play queues retain all existing ordering affordances.
+
+Private-library removal is a deliberate destructive action, not a bookmark
+toggle. A restrained trash control opens a confirmation naming affected games
+and private data; **Keep games** receives initial focus. Failed removal remains
+in the dialog with a recovery message. No visitor action removes the public
+100 or changes its authored ratings.
+
 Buttons, links, inputs, selects and summaries use a visible **3px `#426515` outline with 4px offset**. Preserve semantic controls, the skip link and keyboard access; do not substitute hover-only affordances.
 
 ### Numbered jackets and collection rows

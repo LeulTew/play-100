@@ -284,6 +284,18 @@ export function applyPersonalAction(state: PersonalLibraryState, action: Persona
       shape(input, ['type', 'records'], 'The add games action');
       addRecords(result, input.records);
       break;
+    case 'remove-records': {
+      shape(input, ['type', 'ids'], 'The private library removal');
+      const ids = new Set(list(input.ids, 'Games to remove').map(safeId));
+      for (const id of ids) {
+        delete result.records[id];
+        delete result.progress[id];
+        queued.delete(id);
+      }
+      result.ranking = result.ranking.filter((entry) => !ids.has(entry.id));
+      retainManualPositions(result.ranking);
+      break;
+    }
     case 'set-progress': {
       shape(input, ['type', 'records', 'key', 'value'], 'The progress action');
       const key = progressKey(input.key);

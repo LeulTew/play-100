@@ -10,10 +10,11 @@ interface SelectionBarProps {
   onClear: () => void;
   onDone: () => void;
   onAction: (action: SelectionAction) => void;
+  onRemove?: () => void;
   context?: 'collection' | 'library' | 'discover';
 }
 
-export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone, onAction, context = 'collection' }: SelectionBarProps) {
+export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone, onAction, onRemove, context = 'collection' }: SelectionBarProps) {
   return (
     <section className="selection-bar" aria-label="Bulk game actions">
       <div className="selection-summary">
@@ -28,6 +29,7 @@ export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone,
         {context === 'library' && <>
           <button className="text-button" disabled={!count || busy} onClick={() => onAction('remove-later')}>Remove from queue</button>
           <button className="text-button" disabled={!count || busy} onClick={() => onAction('uncomplete')}>Unmark completed</button>
+          {onRemove && <button className="text-button remove-library-action" disabled={!count || busy} onClick={onRemove}><Icon name="trash" width="17" height="17" />Remove from my library</button>}
         </>}
       </div>
       <p>Changing the page or filters clears this selection. Your original collection ranks never change.</p>

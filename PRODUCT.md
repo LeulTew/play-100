@@ -66,6 +66,12 @@ sync. Shareable collection URLs never contain private progress or opinions.
   moved game retains a persisted position until explicitly returned to automatic
   order. Existing orders are preserved during schema upgrades.
 - One Played value is shared by every view; author notes never set visitor state.
+- Original and imported details share the visitor's private rating editor.
+  Valid pending rating/note edits flush when leaving their field's page or
+  dialog; game changes never transfer a draft to a different record.
+- Accidental private additions can be removed individually or in a selection,
+  only after confirmation of the affected progress, ratings and notes. The
+  original public 100 is never deleted by a visitor's library action.
 - No invented platforms, playtimes, trailers, current reviews or cover art.
 - One real, lazy-loaded Three.js enhancement with a useful original static
   fallback; all essential functionality is independent of WebGL.
