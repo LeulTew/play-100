@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FriendStore } from '../src/cloud/friend-store';
+import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { friendPairId } from '../src/lib/friend-types';
 import type { FriendPair, FriendSettings } from '../src/lib/friend-types';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
@@ -24,6 +25,7 @@ let environment: RulesTestEnvironment;
 const apps: FirebaseApp[] = [];
 
 beforeAll(async () => {
+  if (!['127.0.0.1', 'localhost'].includes(firestoreHost ?? '') || !/^(127[.]0[.]0[.]1|localhost):[0-9]+$/.test(authAddress)) throw new Error('Friendship tests require explicitly local emulator endpoints.');
   setLogLevel('silent');
   environment = await initializeTestEnvironment({ projectId, firestore: { host: firestoreHost, port: Number(firestorePort), rules: readFileSync('firestore.rules', 'utf8') } });
 });
@@ -34,7 +36,7 @@ afterAll(async () => { await environment.cleanup(); });
 async function seed(path: string, value: Record<string, unknown>) {
   await environment.withSecurityRulesDisabled(async (context) => { await context.firestore().doc(path).set(value); });
 }
-async function client(anonymous = false) {
+async function client(anonymous = false, prepareFriends = true) {
   const app = initializeApp({ apiKey: 'demo-play100-key', projectId }, crypto.randomUUID()); apps.push(app);
   const auth = initializeAuth(app, { persistence: inMemoryPersistence });
   connectAuthEmulator(auth, `http://${authAddress}`, { disableWarnings: true });
@@ -47,8 +49,11 @@ async function client(anonymous = false) {
   });
   if (!response.ok) throw new Error('Could not verify the isolated friendship Auth fixture.');
   await reload(user); await getIdToken(user, true);
-  await store.initialize(user.uid);
-  await store.saveIdentity(user.uid, { displayName: 'Chosen nickname', avatar }, 0);
+  await ensureAccountActivity(db, user.uid);
+  if (prepareFriends) {
+    await store.initialize(user.uid);
+    await store.saveIdentity(user.uid, { displayName: 'Chosen nickname', avatar }, 0);
+  }
   await seed(`publicProfiles/${user.uid}`, { uid: user.uid, published: true, hidden: false });
   await seed(`syncHeads/${user.uid}`, { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
   return { uid: user.uid, db, store };
@@ -82,6 +87,7 @@ describe('canonical friendship requests and private relationship metadata', () =
     await assertFails(getDocFromServer(doc(b.db, 'syncHeads', a.uid)));
     await assertFails(setDoc(doc(a.db, 'friendPairs', friendPairId(a.uid, b.uid)), pairData(a.uid, b.uid, a.uid)));
     await assertFails(setDoc(doc(a.db, 'friendEdges', a.uid, 'items', b.uid), { isFriend: true }));
+    await assertFails(stranger.store.pair(a.uid, b.uid));
     const request = await a.store.sendRequest(a.uid, b.uid);
     expect((await b.store.identity(a.uid))?.displayName).toBe('Chosen nickname');
     await assertFails(stranger.store.pair(a.uid, b.uid));
@@ -102,6 +108,19 @@ describe('canonical friendship requests and private relationship metadata', () =
       recipient.store.respond(recipient.uid, sender.uid, 'decline', pending.epoch),
     ]);
     expect(responses.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+  });
+  it('can request a published legacy target before they initialize Friends, without writing their private settings', async () => {
+    const sender = await client(); const recipient = await client(false, false);
+    expect(await recipient.store.settings(recipient.uid)).toBeNull();
+    const request = await sender.store.sendRequest(sender.uid, recipient.uid);
+    expect((await recipient.store.listRelations(recipient.uid, 'pending')).items).toHaveLength(1);
+    expect((await recipient.store.identity(sender.uid))?.displayName).toBe('Chosen nickname');
+    expect(await recipient.store.settings(recipient.uid)).toBeNull();
+    await assertFails(recipient.store.respond(recipient.uid, sender.uid, 'accept', request.epoch));
+    await recipient.store.initialize(recipient.uid);
+    await recipient.store.saveIdentity(recipient.uid, { displayName: 'Recipient', avatar }, 0);
+    expect((await recipient.store.respond(recipient.uid, sender.uid, 'accept', request.epoch)).state).toBe('accepted');
+    expect((await settings(recipient)).enabled).toBe(false);
   });
   it('implements decline, cancel, remove, re-request and stale-epoch rejection', async () => {
     const a = await client(); const b = await client();

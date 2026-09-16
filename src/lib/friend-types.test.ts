@@ -39,7 +39,7 @@ describe('strict friend types and selected projection', () => {
   it('prunes removed games, allows an empty result, and never adds unselected games', () => {
     const state = emptyPersonalLibrary();
     state.records[entry.id] = { id: entry.id, title: entry.title, year: entry.year, source: entry.source, sourceId: entry.sourceId, sourceUrl: entry.sourceUrl, collectionRank: null, studio: null, genre: null };
-    state.ranking = [{ id: entry.id, score: 0 }];
+    state.ranking = [{ id: entry.id, score: 0, note: 'Never shared', manualPosition: null }];
     const before = structuredClone(state);
     expect(projectFriendRanking(state, ['manual:removed', entry.id], [])).toEqual({ entries: [entry], selectedIds: [entry.id] });
     expect(projectFriendRanking(state, [], [])).toEqual({ entries: [], selectedIds: [] });

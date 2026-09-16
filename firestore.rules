@@ -381,6 +381,10 @@ service cloud.firestore {
     function fOwnLive(uid) { return own(uid) && fLive(uid); }
     function fPairId(a, b) { return a < b ? a + '~' + b : b + '~' + a; }
     function fPairPath(a, b) { return /databases/$(database)/documents/friendPairs/$(fPairId(a, b)); }
+    function fOwnPairId(id) {
+      let participants = id.split('~');
+      return verified() && participants.size() == 2 && request.auth.uid in participants;
+    }
     function fUnblocked(a, b) {
       return !exists(/databases/$(database)/documents/friendBlocks/$(a)/items/$(b))
         && !exists(/databases/$(database)/documents/friendBlocks/$(b)/items/$(a));
@@ -389,7 +393,10 @@ service cloud.firestore {
       let pair = get(fPairPath(uid, request.auth.uid)).data;
       return verified() && uid != request.auth.uid && fLive(uid) && fLive(request.auth.uid)
         && fUnblocked(uid, request.auth.uid)
-        && (pair.state == 'accepted' || (pending && pair.state == 'pending'));
+        && ((pair.state == 'accepted'
+            && exists(/databases/$(database)/documents/friendSettings/$(uid))
+            && exists(/databases/$(database)/documents/friendSettings/$(request.auth.uid)))
+          || (pending && pair.state == 'pending'));
     }
     function fSelection(selection) {
       return selection is string && selection.size() <= 40199
@@ -419,7 +426,8 @@ service cloud.firestore {
     match /friendIdentities/{uid} {
       allow get: if own(uid) || fConnected(uid, true);
       allow list: if false;
-      allow create: if fOwnLive(uid) && fIdentityShape(request.resource.data, uid) && request.resource.data.revision == 1;
+      allow create: if fOwnLive(uid) && exists(/databases/$(database)/documents/friendSettings/$(uid))
+        && fIdentityShape(request.resource.data, uid) && request.resource.data.revision == 1;
       allow update: if fOwnLive(uid) && fIdentityShape(request.resource.data, uid) && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if own(uid) && fDeleted(uid);
     }
@@ -435,6 +443,7 @@ service cloud.firestore {
       let other = data.from == data.a ? data.b : data.a;
       return data.from == request.auth.uid && data.state == 'pending' && data.inviteSlot == null
         && fLive(data.a) && fLive(data.b) && fUnblocked(data.a, data.b)
+        && exists(/databases/$(database)/documents/friendSettings/$(data.from))
         && exists(/databases/$(database)/documents/friendIdentities/$(data.from)) && liveProfile(other);
     }
     function fInviteCurrent(data, token) {
@@ -448,12 +457,14 @@ service cloud.firestore {
       let after = getAfter(/databases/$(database)/documents/friendInvites/$(token)).data;
       return pair.state == 'accepted' && pair.inviteSlot != null && pair.from != request.auth.uid
         && before.ownerUid == pair.from && before.slot == pair.inviteSlot
-        && fInviteCurrent(before, token) && fLive(request.auth.uid) && fUnblocked(pair.a, pair.b)
+        && fInviteCurrent(before, token) && fLive(request.auth.uid)
+        && exists(/databases/$(database)/documents/friendSettings/$(request.auth.uid)) && fUnblocked(pair.a, pair.b)
         && after.state == 'consumed' && after.acceptedBy == request.auth.uid;
     }
     function fPairTransition(before, after) {
       return (before.state == 'pending' && after.from == before.from && after.inviteSlot == null
           && ((after.state == 'accepted' && request.auth.uid != before.from
+              && exists(/databases/$(database)/documents/friendSettings/$(request.auth.uid))
               && fLive(before.a) && fLive(before.b) && fUnblocked(before.a, before.b))
             || (after.state == 'declined' && request.auth.uid != before.from)
             || (after.state == 'cancelled' && request.auth.uid == before.from)))
@@ -464,7 +475,7 @@ service cloud.firestore {
         || (before.state != 'accepted' && fInviteProof(after));
     }
     match /friendPairs/{id} {
-      allow get: if verified() && (resource == null || request.auth.uid in resource.data.participants);
+      allow get: if fOwnPairId(id) && (resource == null || request.auth.uid in resource.data.participants);
       // Metadata queries need only the caller's participant constraint, not 20 per-row authorization lookups.
       allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && request.auth.uid in resource.data.participants;
       allow create: if verified() && request.auth.uid in request.resource.data.participants
@@ -496,7 +507,8 @@ service cloud.firestore {
       let pairPath = fPairPath(before.ownerUid, request.auth.uid);
       let pair = getAfter(pairPath).data;
       return verified() && request.auth.uid != before.ownerUid && fInviteCurrent(before, token)
-        && fLive(request.auth.uid) && fUnblocked(before.ownerUid, request.auth.uid)
+        && fLive(request.auth.uid) && exists(/databases/$(database)/documents/friendSettings/$(request.auth.uid))
+        && fUnblocked(before.ownerUid, request.auth.uid)
         && after.diff(before).affectedKeys().hasOnly(['state', 'acceptedBy'])
         && after.state == 'consumed' && after.acceptedBy == request.auth.uid
         && pair.state == 'accepted' && pair.from == before.ownerUid && pair.inviteSlot == before.slot
