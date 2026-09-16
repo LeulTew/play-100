@@ -261,7 +261,8 @@ describe('bounded strict friends-only ranking generations', () => {
     const result = await share(a, entries);
     expect((await b.store.ranking(a.uid)).entries).toEqual(entries);
     await assertFails(outsider.store.ranking(a.uid));
-    await assertFails(getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks'), limit(20))));
+    await assertFails(getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks'), limit(21))));
+    await assertFails(getDocsFromServer(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks')));
     await expect(a.store.publishRanking(a.uid, entries, await settings(a), source, result.head.revision)).resolves.toMatchObject({ changed: false });
   }, 60000);
   it('supports empty/removal projections and promptly retires beyond current/previous without waiting five minutes', async () => {
@@ -376,6 +377,8 @@ describe('private groups, export and resumable account deletion', () => {
     await expect(a.store.saveGroup(a.uid, { id: group.id, name: 'Stale', participantUids: [a.uid, b.uid] }, 0)).rejects.toThrow(/changed/);
     const invalid = { format: 1, name: 'Invalid', participantUids: [a.uid, a.uid], revision: 1, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
     await assertFails(setDoc(doc(a.db, 'friendGroups', a.uid, 'items', crypto.randomUUID()), invalid));
+    await assertFails(setDoc(doc(a.db, 'friendGroups', a.uid, 'items', crypto.randomUUID()), { ...invalid, participantUids: [a.uid] }));
+    await assertFails(setDoc(doc(a.db, 'friendGroups', a.uid, 'items', 'a'.repeat(36)), { ...invalid, participantUids: [a.uid, b.uid] }));
     await assertFails(setDoc(doc(a.db, 'friendGroups', a.uid, 'items', crypto.randomUUID()), { ...invalid, participantUids: Array.from({ length: 7 }, (_, i) => `person${i}`) }));
     await assertFails(setDoc(doc(a.db, 'friendGroups', a.uid, 'items', crypto.randomUUID()), { ...invalid, participantUids: [a.uid, b.uid], scores: [0, 10] }));
     group = await a.store.saveGroup(a.uid, { id: group.id, name: 'Renamed', participantUids: ['different-person', b.uid] }, group.revision);

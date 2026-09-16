@@ -60,7 +60,9 @@ cleanupDeleted(uid: string): Promise<FriendCleanupResult>
 `projectFriendRanking(state, selectedIds, games)` reuses the public projection,
 supports an empty result and returns `{ entries, selectedIds }`, pruning removed
 ranked games. Save that pruned selection with its expected settings revision
-before publishing. A later re-added game is not automatically selected.
+before publishing. Selection order remains stable when the personal ranking
+reorders; the projection follows the actual ranking order. A later re-added game
+is not automatically selected.
 
 ## Integration order
 
@@ -167,7 +169,10 @@ to members, private chunks, creator ranks or raw library state.
 ## Cost and operational limits
 
 No Functions, paid TTL, polling, global presence or per-friend write fanout.
-One ranking costs a head plus up to 20 packed chunk reads and a final head check.
+One ranking costs a head plus up to 20 packed chunk documents in one
+generation-scoped query and a final head check. Rules authorize the whole known
+owner/generation path and cap the query at 20; they do not filter documents.
+This avoids repeating relationship authorization for 20 separate get requests.
 Page size is 20. Invite allocation reads at most 20 slots plus their occupied
 invites; fixed slots, not an unchecked counter, enforce the active limit.
 Publishing stages one chunk and its progress record per atomic write and uses a
@@ -192,7 +197,7 @@ They are not a claim that a rules test ran when an execution slot is unavailable
 | Accept and consume invitation | 9 | 11 |
 | Block and remove canonical pair | 3 | 4 |
 | Friend identity get | 7 | Not applicable |
-| Friend head / current chunk get | 8 | Not applicable |
+| Friend head / bounded current-chunk query | 8 | Not applicable |
 | Stage generation + registry | 4 | 5 |
 | Write ten-entry chunk + progress (including canonical catalog) | 6 | 7 |
 | Publish head + mark generation published | 5 | 6 |

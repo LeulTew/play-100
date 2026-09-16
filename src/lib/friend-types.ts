@@ -188,7 +188,8 @@ export function validateFriendEntries(value: readonly PublicEntry[], selectedIds
   return entries;
 }
 export function projectFriendRanking(state: PersonalLibraryState, selectedIds: readonly string[], games: Game[]): { entries: PublicEntry[]; selectedIds: string[] } {
-  const requested = new Set(friendSelection(selectedIds));
-  const remaining = state.ranking.filter((entry) => requested.has(entry.id)).map((entry) => entry.id);
+  const selected = friendSelection(selectedIds);
+  const ranked = new Set(state.ranking.map((entry) => entry.id));
+  const remaining = selected.filter((id) => ranked.has(id));
   return { entries: remaining.length ? projectPublicRanking(state, new Set(remaining), games) : [], selectedIds: remaining };
 }

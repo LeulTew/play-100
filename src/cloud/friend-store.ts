@@ -266,10 +266,13 @@ export class FriendStore {
     if (!head?.current) throw new FriendStoreError('unavailable', 'This person has not shared a ranking.');
     const current = head.current;
     const entries: PublicEntry[] = [];
-    for (let index = 0; index < Math.ceil(current.count / 10); index += 1) {
-      const snap = await getDocFromServer(doc(this.db, 'friendShares', ownerUid, 'generations', current.generation, 'chunks', String(index)));
-      if (!snap.exists()) throw new FriendStoreError('unavailable', 'This shared ranking is incomplete. Reload it.');
-      entries.push(...parseFriendChunk(snap.data(), index, current.count));
+    if (current.count) {
+      const chunks = await getDocsFromServer(query(collection(this.db, 'friendShares', ownerUid, 'generations', current.generation, 'chunks'), orderBy('index'), limit(20)));
+      if (chunks.size !== Math.ceil(current.count / 10)) throw new FriendStoreError('unavailable', 'This shared ranking is incomplete. Reload it.');
+      chunks.docs.forEach((snap, index) => {
+        if (snap.id !== String(index)) throw new FriendStoreError('invalid', 'This shared ranking has inconsistent chunk positions.');
+        entries.push(...parseFriendChunk(snap.data(), index, current.count));
+      });
     }
     if (new Set(entries.map((entry) => entry.id)).size !== entries.length || await contentDigest(entries) !== current.digest) throw new FriendStoreError('invalid', 'This shared ranking failed its integrity check.');
     const latest = await this.shareHead(ownerUid);

@@ -45,6 +45,12 @@ describe('strict friend types and selected projection', () => {
     expect(projectFriendRanking(state, [], [])).toEqual({ entries: [], selectedIds: [] });
     expect(projectFriendRanking(state, ['manual:removed'], [])).toEqual({ entries: [], selectedIds: [] });
     expect(state).toEqual(before);
+    const secondId = 'wikidata:Q124';
+    state.records[secondId] = { ...state.records[entry.id]!, id: secondId, sourceId: 'Q124', sourceUrl: 'https://www.wikidata.org/wiki/Q124' };
+    state.ranking.push({ id: secondId, score: null, note: '', manualPosition: null });
+    const selected = [secondId, entry.id];
+    expect(projectFriendRanking(state, selected, []).selectedIds).toEqual(selected);
+    expect(projectFriendRanking(state, selected, []).entries.map((row) => row.id)).toEqual([entry.id, secondId]);
   });
   it('rejects arbitrary identity/control fields and malformed local avatars', () => {
     expect(parseFriendIdentity(identity).updatedAt).toBe(1000);

@@ -370,6 +370,7 @@ service cloud.firestore {
     }
     // Friendship data is separate from all legacy member/private/public formats.
     function fUid(uid) { return uid is string && uid.matches('^[A-Za-z0-9_-]{1,128}$'); }
+    function fUuid(id) { return id is string && id.matches('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'); }
     function fKeys(data, keys) { return data.keys().hasOnly(keys) && data.keys().hasAll(keys); }
     function fInt(value, low, high) { return value is int && value >= low && value <= high; }
     function fSettings(uid) { return get(/databases/$(database)/documents/friendSettings/$(uid)).data; }
@@ -563,7 +564,7 @@ service cloud.firestore {
     }
     function fManifest(data) {
       return data is map && fKeys(data, ['generation', 'digest', 'count'])
-        && uuid(data.generation) && digest(data.digest) && fInt(data.count, 0, 200);
+        && fUuid(data.generation) && digest(data.digest) && fInt(data.count, 0, 200);
     }
     function fShareHead(uid) { return get(/databases/$(database)/documents/friendShareHeads/$(uid)).data; }
     function fShareCurrent(uid, generationId) {
@@ -604,7 +605,7 @@ service cloud.firestore {
     }
     function fRegistryAdded(uid, id) {
       let gen = getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(id)).data;
-      return fOwnLive(uid) && uuid(id) && gen.createdAt == request.time && gen.status in ['staging', 'ready'];
+      return fOwnLive(uid) && fUuid(id) && gen.createdAt == request.time && gen.status in ['staging', 'ready'];
     }
     match /friendShareRegistry/{uid} {
       allow get: if own(uid);
@@ -644,7 +645,7 @@ service cloud.firestore {
     match /friendShares/{uid}/generations/{id} {
       allow get: if own(uid);
       allow list: if own(uid) && request.query.limit != null && request.query.limit <= 3;
-      allow create: if uuid(id) && fGenerationShape(request.resource.data)
+      allow create: if fUuid(id) && fGenerationShape(request.resource.data)
         && fPublish(uid, request.resource.data.epoch, request.resource.data.settingsRevision, request.resource.data.source)
         && request.resource.data.uploaded == 0 && request.resource.data.ids == [] && request.resource.data.createdAt == request.time
         && request.resource.data.status == (request.resource.data.count == 0 ? 'ready' : 'staging')
@@ -676,7 +677,8 @@ service cloud.firestore {
     }
     match /friendShares/{uid}/generations/{generationId}/chunks/{chunkId} {
       allow get: if fOwnLive(uid) || fShareCurrent(uid, generationId);
-      allow list: if false;
+      allow list: if request.query.limit != null && request.query.limit <= 20
+        && (fOwnLive(uid) || fShareCurrent(uid, generationId));
       allow create: if own(uid) && string(request.resource.data.index) == chunkId
         && fChunkShape(request.resource.data, fGeneration(uid, generationId).count)
         && fGeneration(uid, generationId).status == 'staging' && fGeneration(uid, generationId).uploaded == request.resource.data.index
@@ -701,7 +703,7 @@ service cloud.firestore {
     match /friendGroups/{uid}/items/{id} {
       allow get: if own(uid);
       allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
-      allow create: if fOwnLive(uid) && uuid(id) && fGroup(request.resource.data)
+      allow create: if fOwnLive(uid) && fUuid(id) && fGroup(request.resource.data)
         && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time;
       allow update: if fOwnLive(uid) && fGroup(request.resource.data)
         && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.createdAt == resource.data.createdAt;
