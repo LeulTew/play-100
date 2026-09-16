@@ -43,7 +43,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
         <button className={filters.list === 'completed' ? 'is-active' : ''} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed' })}>Completed<span>{completedCount}</span></button>
         <button className={filters.list === 'unplayed' ? 'is-active' : ''} aria-pressed={filters.list === 'unplayed'} onClick={() => onChange({ list: 'unplayed' })}>Not completed</button>
       </div>
-      {filters.list !== 'all' && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your active library's progress, including games you added beyond the 100. Public ranks never change.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
+      {filters.list !== 'all' && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your progress, including games you added beyond the 100.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
       <div className="search-and-filters">
         <div className="collection-search">
           <label className="field-label" htmlFor="game-search">Search games, studios or genres</label>
@@ -51,7 +51,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
           <Icon name="search" />
           <input
             id="game-search" type="search" autoComplete="off" spellCheck={false}
-            placeholder="A game, a studio, a whole new world..."
+            placeholder="Game, studio or genre"
             maxLength={160} value={filters.q}
             onChange={(event) => {
               onChange({ q: event.target.value }, searchSession.current ? 'replace' : 'push');
@@ -78,7 +78,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
       </div>
       <div className="search-scope">
         <label className="check-control"><input type="checkbox" checked={filters.catalogs === 'on'} disabled={!onlineScope} aria-describedby="catalog-search-help" onChange={(event) => onChange({ catalogs: event.target.checked ? 'on' : 'off' })} />Search public catalogs</label>
-        <p id="catalog-search-help">{!onlineScope ? 'Online lookup pauses in this filtered view. Your saved additions are still included when their filters match.' : filters.catalogs === 'off' ? 'Online lookup is off. Search the 100 and your saved additions without contacting catalog providers.' : filters.q.trim().length > 80 ? 'This search is too long for online lookup (80 characters maximum). Your local games are still searched.' : 'Type 2+ characters to also check Wikidata and FreeToGame. Only search words go online, never your ratings or progress.'}</p>
+        <p id="catalog-search-help">{!onlineScope ? 'Online lookup is paused in this view. Matching saved games still appear.' : filters.catalogs === 'off' ? 'Online lookup is off. Only the 100 and saved additions are searched.' : filters.q.trim().length > 80 ? 'Online lookup: 80 characters maximum. Local games are still searched.' : 'Enter 2+ characters to search Wikidata and FreeToGame. Only your query is sent.'}</p>
       </div>
       <div className="collection-utilities">
         <div className="result-summary">
@@ -102,7 +102,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
         </div>
       </div>
       <div className="collection-extra-actions"><button className="text-button" aria-pressed={Boolean(selecting)} onClick={onSelectMode}><Icon name="select" width="18" height="18" />{selecting ? 'Exit selection mode' : 'Select multiple games'}</button><a className="text-button" href="/downloads/Play-100-Collection.xlsx" download><Icon name="download" width="18" height="18" />Download Excel</a></div>
-      {filters.sort === 'score' && <p className="sort-note">Normalized average of available workbook columns, not a live score. Original rank stays on every game.</p>}
+      {filters.sort === 'score' && <p className="sort-note">Workbook snapshot, not live scores.</p>}
     </>
   );
 }

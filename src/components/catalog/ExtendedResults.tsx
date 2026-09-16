@@ -21,14 +21,14 @@ export default function ExtendedResults({ records, online, state, queryKey, busy
   return (
     <section className="extended-results" aria-labelledby="extended-results-title">
       <div className="extended-heading"><h2 id="extended-results-title">{online.eligible ? 'Beyond the 100' : 'Your additions'}</h2><span>{records.length} unranked {records.length === 1 ? 'game' : 'games'}</span></div>
-      <p className="extended-intro">Save or rate a game to keep it in your private collection. These records have no {author.shortName} rank or rating. Different sources or editions can appear separately.</p>
+      <p className="extended-intro">Outside {author.shortName}'s 100. Save or rate to keep a game. Sources and editions may appear separately.</p>
       {records.length > 0 && <ul className="unranked-list" aria-label="Unranked games in this view">
         {records.slice(0, limit).map((record) => <li key={record.id} data-unranked-id={record.id} className={selected.has(record.id) ? 'is-selected' : undefined}>
           {selecting && <label className="select-control"><input type="checkbox" checked={selected.has(record.id)} onChange={() => onSelect(record.id)} aria-label={`Select ${record.title}`} /></label>}
           <div className="unranked-copy">
             <div className="unranked-labels"><span className="unranked-label">Unranked</span>{state.records[record.id] && <span className="in-library"><Icon name="check" width="14" height="14" />In your library</span>}</div>
             <h3><button onClick={() => onPreview(record)}>{record.title}<Icon name="up-right" width="17" height="17" /></button></h3>
-            <p>{[record.year, record.studio, record.genre].filter((value) => value !== null).join(' · ') || 'No additional metadata provided.'}</p>
+            <p>{[record.year, record.studio, record.genre].filter((value) => value !== null).join(' · ') || 'Metadata unavailable.'}</p>
             {record.sourceUrl ? <a className="unranked-source" href={record.sourceUrl} target="_blank" rel="noreferrer">View on {SOURCE_LABELS[record.source]}<Icon name="up-right" width="14" height="14" /></a> : <span className="unranked-source">{SOURCE_LABELS[record.source]}</span>}
           </div>
           <div className="unranked-actions">
@@ -49,8 +49,8 @@ export default function ExtendedResults({ records, online, state, queryKey, busy
             : source.nextOffset !== null && <button className="text-button" disabled={source.status === 'loading'} onClick={() => online.more(source.source)}>More from {SOURCE_LABELS[source.source]}<Icon name="down" width="16" height="16" /></button>}
         </div>)}
       </div>}
-      {!records.length && <p className="extended-empty" role="status">{online.loading ? 'Looking beyond the 100. Your local games are available while catalogs load.' : failed ? 'The online search is incomplete. Retry a source, or change the search to find a saved game.' : 'No unranked games match these filters. Try a shorter title or a wider year or genre.'}</p>}
-      <p className="extended-footnote">Your rating saves after a short pause and adds the game to My rankings. It never marks the game played. Public catalog metadata is not independently verified.</p>
+      {!records.length && <p className="extended-empty" role="status">{online.loading ? 'Searching catalogs. Saved games remain available.' : failed ? 'Online search is incomplete. Retry a source or search your saved games.' : 'No unranked matches. Try a shorter title or broader filters.'}</p>}
+      <p className="extended-footnote">Rating adds to My rankings without marking played. Source metadata is not independently verified.</p>
     </section>
   );
 }

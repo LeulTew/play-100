@@ -27,9 +27,9 @@ export default function ManualGameForm({ onAdd, busy, actionLabel = 'Add game' }
   };
   return (
     <details className="manual-add">
-      <summary><Icon name="plus" width="17" height="17" />Can't find it? Add a game yourself.</summary>
+      <summary><Icon name="plus" width="17" height="17" />Add a game manually</summary>
       <form onSubmit={(event) => { void submit(event); }}>
-        <p>Only the details you enter are saved. It won't be marked played or completed.</p>
+        <p>Adding a game does not mark it played or completed.</p>
         <div className="manual-fields"><label htmlFor={`${prefix}-title`}>Game title<input id={`${prefix}-title`} value={title} maxLength={200} required onChange={(event) => setTitle(event.target.value)} /></label><label htmlFor={`${prefix}-year`}>Year <span>(optional)</span><input id={`${prefix}-year`} value={year} type="number" min="1900" max="2100" onChange={(event) => setYear(event.target.value)} /></label></div>
         {error && <p className="inline-error" role="alert">{error}</p>}
         <button className="button button-dark" disabled={busy || !title.trim()} type="submit"><Icon name="plus" width="17" height="17" />{actionLabel}</button>
