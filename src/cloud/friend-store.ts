@@ -20,7 +20,7 @@ import { parseHead } from './cloud-store';
 
 function conflict(message = 'This changed elsewhere. Reload before trying again.'): never { throw new FriendStoreError('conflict', message); }
 function online(): void {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) throw new FriendStoreError('offline', 'Reconnect before changing friendships or sharing.');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new FriendStoreError('offline', 'Reconnect before changing friendships or sharing.');
 }
 function activeSettings(value: FriendSettings | null): FriendSettings {
   if (!value) throw new FriendStoreError('unavailable', 'Open Friends to prepare your friend profile first.');
