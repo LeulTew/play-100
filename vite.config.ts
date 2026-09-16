@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import type { HtmlTagDescriptor } from 'vite';
 import react from '@vitejs/plugin-react';
 import catalogHandler from './api/catalog.ts';
 import author from './author.json' with { type: 'json' };
+import { readFirebaseConfiguration } from './src/lib/online-config.ts';
 
 const publicUrl = process.env.VITE_SITE_URL ||
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined);
@@ -11,7 +13,13 @@ if (siteOrigin && !siteOrigin.startsWith('https://')) {
   throw new Error('The public website origin must use HTTPS.');
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const environment = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+  const online = readFirebaseConfiguration(environment);
+  if (mode !== 'cloud-test' && (online.error || (environment.VITE_FIREBASE_REQUIRED === 'true' && !online.config))) {
+    throw new Error(online.error ?? 'This release requires a complete public Firebase configuration. Build stopped before publication.');
+  }
+  return {
   plugins: [
     react(),
     {
@@ -58,4 +66,5 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
   },
+  };
 });

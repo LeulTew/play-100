@@ -17,7 +17,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { Dialog } from './components/Dialog';
 import CountUp from './components/bits/CountUp';
 import { author } from './lib/author';
-import { ONLINE_AVAILABLE, onlineWasRequested, rememberOnlineRequest } from './lib/online-availability';
+import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR, onlineWasRequested, rememberOnlineRequest } from './lib/online-availability';
 import type { OnlineBridge } from './cloud/ui-types';
 import { LibraryModeContext } from './lib/library-mode';
 import { flushPendingEdits } from './hooks/useExitSave';
@@ -168,6 +168,7 @@ export default function App() {
         </div>
       </header>
       {warning && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{warning}</p><button className="text-button" onClick={() => setPanel('settings')}>Settings<Icon name="arrow" width="18" height="18" /></button></div></div>}
+      {ONLINE_CONFIG_ERROR && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{ONLINE_CONFIG_ERROR}</p></div></div>}
       <main id="page-main">
         {ONLINE_AVAILABLE && (onlineRequested || cloudPage) && <OnlineBoundary onDevice={() => { rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); }}><Suspense fallback={cloudPage ? <div className="page-loading" role="status"><h1>Opening online tools...</h1><p>Your device library is not being uploaded.</p></div> : panel === 'account' ? <Dialog open titleId="loading-account-title" onClose={() => setPanel(null)} className="info-dialog"><h2 id="loading-account-title" data-autofocus tabIndex={-1}>Opening sign-in...</h2><p role="status">Your device library remains separate.</p></Dialog> : null}><OnlineController page={page} publicHandle={publicHandle} showSheet={panel === 'account'} guest={guestLibrary} games={games ?? []} onBridge={setOnline} onCloseSheet={() => setPanel(null)} onNavigate={navigate} onProfile={openProfile} onOpenRecord={preview} onShare={(title, url) => { void share(title, url, false); }} /></Suspense></OnlineBoundary>}
         {cloudPage && !ONLINE_AVAILABLE ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : !cloudPage && <Suspense fallback={<div className="page-loading" role="status"><h2>Opening your page...</h2><p>Your games stay right where you left them.</p></div>}><div key={libraryScope}>

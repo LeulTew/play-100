@@ -1,22 +1,13 @@
-import { CLOUD_PROJECT } from './cloud-types';
+import { readFirebaseConfiguration } from './online-config';
 
 export const ONLINE_HINT = 'play100.online-requested.v1';
 export const EMULATOR_MODE = import.meta.env.MODE === 'cloud-test' && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
-const raw: unknown = import.meta.env.VITE_FIREBASE_CONFIG;
+const configured = readFirebaseConfiguration(import.meta.env);
+export const ONLINE_CONFIG_ERROR = EMULATOR_MODE ? null : configured.error;
 
 export function firebaseConfiguration(): { apiKey: string; authDomain: string; projectId: string; appId: string } | null {
   if (EMULATOR_MODE) return { apiKey: 'demo-play100-key', authDomain: 'demo-play100.firebaseapp.com', projectId: 'demo-play100', appId: 'demo-play100-app' };
-  if (typeof raw !== 'string' || !raw) return null;
-  let value: unknown;
-  try { value = JSON.parse(raw); }
-  catch { throw new Error('Online saving configuration is invalid. Your device library is unaffected.'); }
-  if (!value || typeof value !== 'object' || !('apiKey' in value) || typeof value.apiKey !== 'string' ||
-    !('authDomain' in value) || value.authDomain !== `${CLOUD_PROJECT}.firebaseapp.com` ||
-    !('projectId' in value) || value.projectId !== CLOUD_PROJECT ||
-    !('appId' in value) || typeof value.appId !== 'string') {
-    throw new Error('Online saving points to an unsupported project. Your device library is unaffected.');
-  }
-  return { apiKey: value.apiKey, authDomain: value.authDomain, projectId: value.projectId, appId: value.appId };
+  return configured.config;
 }
 
 export const ONLINE_AVAILABLE = Boolean(firebaseConfiguration());

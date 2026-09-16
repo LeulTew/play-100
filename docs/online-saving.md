@@ -214,5 +214,11 @@ billing, a real managed-account data roundtrip, and the exact workbook hashes.
 
 Deploy committed source through an isolated WSL staging copy, `vercel build
 --prod --standalone`, and `vercel deploy --prebuilt --prod`. Never deploy a
-`cloud-test` build to production. The normal site requires verified public
-`VITE_FIREBASE_CONFIG`; no administrative credential is needed in Vercel.
+`cloud-test` build to production. The normal site uses four primitive public
+configuration values, avoiding JSON/newline quoting across environment tools:
+`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+`VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID`.
+Production releases set `VITE_FIREBASE_REQUIRED=true`, so a missing or malformed
+configuration fails the build before publication. The runtime also preserves
+guest browsing with an explicit warning if optional online config is invalid.
+No administrative credential is needed in Vercel.
