@@ -5,12 +5,13 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemoryPersistence, initializeAuth, reload } from 'firebase/auth';
 import {
-  collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, query,
+  collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, orderBy, query,
   serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FriendStore } from '../src/cloud/friend-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
+import { parseCollection } from '../src/lib/collection';
 import { friendPairId } from '../src/lib/friend-types';
 import type { FriendPair, FriendSettings } from '../src/lib/friend-types';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
@@ -264,6 +265,33 @@ describe('bounded strict friends-only ranking generations', () => {
     await assertFails(getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks'), limit(21))));
     await assertFails(getDocsFromServer(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks')));
     await expect(a.store.publishRanking(a.uid, entries, await settings(a), source, result.head.revision)).resolves.toMatchObject({ changed: false });
+  }, 60000);
+  it('publishes 100 canonical plus 100 Wikidata games through catalog-checked chunks and a bounded friend query', async () => {
+    const { games } = parseCollection(JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8')));
+    // Seed the trusted catalog fixture; connect(), share(), and friend reads remain rules-enforced SDK operations.
+    await seed('catalog/author', { records: Object.fromEntries(games.map((game) => [game.slug, { title: game.title, year: game.year }])) });
+    const a = await client(); const b = await client();
+    await connect(a, b);
+    const entries = games.flatMap((game, index): PublicEntry[] => [
+      { position: index * 2 + 1, id: game.slug, title: game.title, year: game.year, source: 'collection', sourceId: game.slug, sourceUrl: null, score: index === 0 ? 0 : null },
+      { ...entry, position: index * 2 + 2, id: `wikidata:Q${index + 1}`, sourceId: `Q${index + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${index + 1}`, score: null },
+    ]);
+    expect(entries.filter((row) => row.source === 'collection')).toHaveLength(100);
+    expect(entries.filter((row) => row.source === 'wikidata')).toHaveLength(100);
+    // Catalog-dependent chunk/progress writes must fit 10 calls per operation / 20 per atomic commit; this is not a billing assertion.
+    const published = await share(a, entries);
+    const manifest = published.head.current;
+    if (!manifest) throw new Error('The mixed-source publication did not create a current generation.');
+    expect(manifest.count).toBe(200);
+    const generation = await getDocFromServer(doc(a.db, 'friendShares', a.uid, 'generations', manifest.generation));
+    expect(generation.data()).toMatchObject({ count: 200, uploaded: 20, status: 'published', ids: entries.map((row) => row.id) });
+    const chunks = await getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', manifest.generation, 'chunks'), orderBy('index'), limit(20)));
+    expect(chunks.size).toBe(20);
+    chunks.docs.forEach((chunk, index) => {
+      expect(chunk.id).toBe(String(index));
+      expect(chunk.data()).toEqual({ index, entries: entries.slice(index * 10, index * 10 + 10), ids: entries.slice(index * 10, index * 10 + 10).map((row) => row.id) });
+    });
+    expect((await b.store.ranking(a.uid)).entries).toEqual(entries);
   }, 60000);
   it('supports empty/removal projections and promptly retires beyond current/previous without waiting five minutes', async () => {
     const a = await client(); const b = await client(); await connect(a, b);
