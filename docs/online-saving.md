@@ -101,12 +101,56 @@ references and marks the scope deleted, blocking old tabs from recreating data.
 
 ## Identity, profiles and permissions
 
-Firebase provides Google popup authentication and verified email/password
+Firebase provides same-tab Google authentication and verified email/password
 authentication. Only basic Google identity scopes are requested. Email reset
 and verification use Firebase's built-in service, with enumeration protection
 and client resend cooldowns. No custom password handling or credential storage,
 magic-link primary flow, SMS
 or Identity Platform upgrade is introduced.
+
+### Same-tab Google continuation
+
+Google sign-in, account linking and Google reauthentication use Firebase's public
+redirect APIs. A cold popup resolver can spend the browser's activation budget
+loading GAPI before calling `window.open`; a synchronous click handler does not
+prevent that failure. No popup is required by the new flow, including after a
+slow network start. Browser privacy protections remain enabled.
+
+The deployment implements [Firebase redirect option 3](https://firebase.google.com/docs/auth/web/redirect-best-practices#proxy-requests).
+Seven fixed `/__/auth/` helper paths are transparently reverse-proxied by Vercel
+to the dedicated project's `firebaseapp.com` origin, preserving GET/POST bodies
+and query strings. They are not 302 redirects or an arbitrary-host proxy.
+The browser `authDomain` is **`play-100-collection.vercel.app`**, so the helper
+iframe and the app use first-party storage on the same origin. The Google OAuth
+client must authorize `https://play-100-collection.vercel.app/__/auth/handler`
+and the `https://play-100-collection.vercel.app` JavaScript origin. Keep the
+previous Firebase callback valid for already-open older clients.
+
+Only the helper routes allow same-origin framing and the upstream helper's
+initialization-script nonce. The application retains `frame-ancestors 'none'`
+and its existing script policy. Helper responses are private/no-store at both
+browser and CDN layers; never cache OAuth callbacks. Verify real helper GET and
+POST responses, framing, CSP and provider handoff on the built deployment.
+
+Firebase owns OAuth state/CSRF verification and credential persistence. The
+app keeps only a bounded, 15-minute, tab-scoped UI intent: action, random request
+identifier, expected UID for linking/reauthentication, approved relative return
+route, timestamp and deletion target/consent epoch when needed. It stores no
+password, provider token, email or library contents there. Unknown fields,
+expired intents and unapproved routes are rejected. Redirect results must match
+the SDK operation, Google provider, expected UID and current signed-in UID.
+
+Pending drafts flush before leaving. Account listeners and scoped editing wait
+for redirect reconciliation. A browser-Back/bfcache return reinitializes the SDK
+instead of retaining an indefinitely busy request. Cancellation is explicit and
+non-destructive; unavailable temporary storage offers email/device use, never
+instructions to weaken browser privacy.
+
+Google reauthentication only restores an explicit deletion confirmation. It
+never deletes on return. A short-lived in-memory approval is tied to the exact
+UID, action, auth session and consent epoch, and requires a recent signed
+`auth_time`. Refreshing or cancelling discards that approval; no persisted intent
+alone can authorize deletion.
 
 UI authorization comes from the signed `email_verified` claim. A cached user
 profile saying verified while its token says otherwise triggers a bounded,

@@ -87,16 +87,14 @@ export async function enableSync(page: Page, choice: 'guest' | 'online' | 'empty
   await expect(page.locator('.sync-panel .sync-state')).toHaveText('Saved online', { timeout: 30000 });
 }
 
-export async function googlePopup(page: Page, trigger: () => Promise<void>, email: string, create = false) {
-  const opening = page.waitForEvent('popup');
+export async function googleRedirect(page: Page, trigger: () => Promise<void>, email: string, create = false) {
   await trigger();
-  const popup = await opening;
-  await popup.waitForURL(/127\.0\.0\.1:9199/);
+  await page.waitForURL(/127\.0\.0\.1:9199/);
   if (create) {
-    await popup.getByRole('button', { name: /Add new account/ }).click();
-    await popup.locator('#email-input').fill(email);
-    await popup.locator('#display-name-input').fill('QA Google account');
-    await popup.getByRole('button', { name: /Sign in with Google\.com/ }).click();
-  } else await popup.getByText(email, { exact: true }).click();
-  await expect.poll(() => popup.isClosed()).toBe(true);
+    await page.getByRole('button', { name: /Add new account/ }).click();
+    await page.locator('#email-input').fill(email);
+    await page.locator('#display-name-input').fill('QA Google account');
+    await page.getByRole('button', { name: /Sign in with Google\.com/ }).click();
+  } else await page.getByText(email, { exact: true }).click();
+  await page.waitForURL(/127\.0\.0\.1:4187/);
 }

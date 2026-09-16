@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, enableSync, googlePopup, password, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, googleRedirect, password, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
 test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });
@@ -15,14 +15,18 @@ test('verified unused email registration can delete without first enabling sync 
   expect((await readLibrary(page)).records).toEqual({});
 });
 
-test('verified unused Google registration can reauthenticate and delete without a private library', async ({ page }) => {
+test('verified unused Google registration returns from reauthentication without deleting until explicitly confirmed', async ({ page, request }) => {
   const email = emailFor('unused-google');
   await page.goto('/account');
-  await googlePopup(page, () => page.getByRole('button', { name: 'Continue with Google', exact: true }).click(), email, true);
+  await googleRedirect(page, () => page.getByRole('button', { name: 'Continue with Google', exact: true }).click(), email, true);
   await expect(page.locator('.account-heading')).toContainText(email);
+  const uid = await uidFor(request, email);
   await page.locator('.account-danger summary').click();
   await page.getByRole('button', { name: 'Delete account', exact: true }).click();
-  await googlePopup(page, () => page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click(), email);
+  await googleRedirect(page, () => page.getByRole('dialog').getByRole('button', { name: 'Continue in this tab', exact: true }).click(), email);
+  await expect(page.getByRole('dialog')).toContainText('Nothing has been deleted');
+  expect(await uidFor(request, email)).toBe(uid);
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
 });
 

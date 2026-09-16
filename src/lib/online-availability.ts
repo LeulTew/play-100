@@ -1,4 +1,5 @@
 import { readFirebaseConfiguration } from './online-config';
+import { GOOGLE_REDIRECT_KEY } from './google-intent';
 
 export const ONLINE_HINT = 'play100.online-requested.v1';
 export const EMULATOR_MODE = import.meta.env.MODE === 'cloud-test' && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
@@ -14,6 +15,8 @@ export const ONLINE_AVAILABLE = Boolean(firebaseConfiguration());
 
 export function onlineWasRequested(): boolean {
   if (!ONLINE_AVAILABLE) return false;
+  try { if (sessionStorage.getItem(GOOGLE_REDIRECT_KEY) !== null) return true; }
+  catch { console.warn('The temporary Google return preference could not be read. Device-only mode remains available.'); }
   try { return localStorage.getItem(ONLINE_HINT) === 'yes'; }
   catch { console.warn('The online sign-in preference could not be read. Device-only mode remains available.'); return false; }
 }

@@ -45,14 +45,16 @@ test('a cross-tab identity change flushes the old account draft without exposing
   } finally { await peer.close(); }
 });
 
-test('Google popup cancellation is harmless and the preloaded button preserves a real popup gesture', async ({ page }) => {
+test('Google stays in the same tab even if windows are blocked, and browser Back cancels without changing the guest', async ({ page, context }) => {
+  await page.addInitScript(() => { window.open = () => null; });
   await page.goto('/account');
-  const popupPromise = page.waitForEvent('popup');
   await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
-  const popup = await popupPromise;
-  await popup.waitForURL(/127\.0\.0\.1:9199/, { timeout: 20000 });
-  await popup.close();
+  await page.waitForURL(/127\.0\.0\.1:9199/, { timeout: 20000 });
+  expect(context.pages()).toHaveLength(1);
+  await page.goBack();
   await expect(page.locator('.auth-panel')).toBeVisible();
   await expect(page.locator('.auth-panel .inline-error')).toHaveCount(0);
+  await expect(page.locator('.auth-panel')).toContainText('Google sign-in was not completed');
+  await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeEnabled();
   expect((await readLibrary(page)).records).toEqual({});
 });

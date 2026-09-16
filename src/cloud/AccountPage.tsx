@@ -9,7 +9,7 @@ import { Dialog } from '../components/Dialog';
 import { Icon } from '../components/Icon';
 
 export type ConnectionChoice = 'guest' | 'online' | 'empty' | 'cached';
-export function AccountPage({ identity, member, cache, guest, head, remoteReady, status, error, message, cleanupWarning, busy, resendIn, isCreator, avatar, onAvatar, onName, onConnect, onVerify, onRefreshIdentity, onSignOut, onLinkGoogle, onRetry, onCleanup, onPause, onDownload, onUseRemote, onUseLocal, onDelete, onPublish, onCommunity, onCreator }: {
+export function AccountPage({ identity, member, cache, guest, head, remoteReady, status, error, message, cleanupWarning, busy, resendIn, isCreator, avatar, googleDeletion, onDismissDeletion, onAvatar, onName, onConnect, onVerify, onRefreshIdentity, onSignOut, onLinkGoogle, onRetry, onCleanup, onPause, onDownload, onUseRemote, onUseLocal, onDelete, onPublish, onCommunity, onCreator }: {
   identity: AccountIdentity; member: Member | null; cache: ScopedLibrary | null; guest: PersonalLibraryState;
   head: SyncHead | null; remoteReady: boolean; status: SyncStatus; error: string; message: string; cleanupWarning: string; busy: boolean; resendIn: number; isCreator: boolean; avatar: ReactNode;
   onAvatar: () => void; onName: (name: string) => Promise<boolean>; onConnect: (choice: ConnectionChoice, name: string) => Promise<boolean>;
@@ -18,6 +18,7 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
   onDownload: (source: 'local' | 'online' | 'guest' | 'all') => Promise<boolean>;
   onUseRemote: (head: SyncHead, localRevision: number) => Promise<boolean>; onUseLocal: (head: SyncHead, localRevision: number) => Promise<boolean>;
   onDelete: (account: boolean, password: string) => Promise<boolean>;
+  googleDeletion: { requestId: string; target: 'copy' | 'account' } | null; onDismissDeletion: () => void;
   onPublish: () => void; onCommunity: () => void; onCreator: () => void;
 }) {
   const [choice, setChoice] = useState<ConnectionChoice>(head?.current ? 'online' : Object.keys(guest.records).length ? 'guest' : 'empty');
@@ -35,6 +36,13 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
   const previewSignature = `${guest.revision}:${cache?.state.revision ?? 0}:${head?.epoch ?? 0}:${head?.revision ?? 0}`;
   const lastPreview = useRef(previewSignature);
   const [previewChanged, setPreviewChanged] = useState(false);
+  const resumedDeletion = useRef<string | null>(null);
+  useEffect(() => {
+    if (googleDeletion && resumedDeletion.current !== googleDeletion.requestId) {
+      resumedDeletion.current = googleDeletion.requestId;
+      setConfirmation(googleDeletion.target === 'account' ? 'delete-account' : 'delete-copy');
+    }
+  }, [googleDeletion]);
   useEffect(() => {
     if (remoteReady && !choiceTouched) setChoice(hasOnlineCopy ? 'online' : guestGames ? 'guest' : 'empty');
   }, [remoteReady, hasOnlineCopy, guestGames, choiceTouched]);
@@ -46,9 +54,12 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
     if (!nameEdited) setName(member?.displayName || identity.displayName || 'Player');
   }, [member?.displayName, identity.displayName, nameEdited]);
   const choose = (value: ConnectionChoice) => { setChoiceTouched(true); setChoice(value); };
+  const closeConfirmation = () => { setConfirmation(null); setPassword(''); onDismissDeletion(); };
+  const googleConfirmation = confirmation?.startsWith('delete') && !identity.providers.includes('password');
+  const googleConfirmed = googleDeletion?.target === (confirmation === 'delete-account' ? 'account' : 'copy');
   const confirm = async () => {
     const result = confirmation === 'pause' ? await onPause() : confirmation === 'remote' ? conflictVersion && await onUseRemote(conflictVersion.head, conflictVersion.localRevision) : confirmation === 'local' ? conflictVersion && await onUseLocal(conflictVersion.head, conflictVersion.localRevision) : await onDelete(confirmation === 'delete-account', password);
-    if (result) { setConfirmation(null); setPassword(''); }
+    if (result) closeConfirmation();
   };
   return (
     <section className="app-page account-page" aria-labelledby="account-title">
@@ -87,14 +98,14 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
         <section className="account-section"><h2>Share your taste.</h2><p>Your ranking stays private until you preview and publish a selected snapshot. Directory listing is optional, too.</p><button className="button button-dark" onClick={onPublish}>Publish a ranking<Icon name="share" width="18" height="18" /></button><button className="text-button" onClick={onCommunity}>Explore Community<Icon name="arrow" width="17" height="17" /></button>{isCreator && <button className="text-button" onClick={onCreator}>Open creator desk<Icon name="arrow" width="17" height="17" /></button>}</section>
         <details className="account-danger"><summary>{identity.verified ? 'Delete online data' : 'Cancel this registration'}</summary><p>{identity.verified ? 'Sign-out, stopping sync and deletion are different. Download a backup before deleting.' : 'Used the wrong email? An unused, unverified registration can be cancelled without uploading anything. Accounts with prior online activity require verification for safe full deletion.'} Your guest library is never deleted here.</p>{identity.verified && <button className="text-button danger-text" disabled={busy} onClick={() => setConfirmation('delete-copy')}>Delete online copy</button>}<button className="text-button danger-text" disabled={busy} onClick={() => setConfirmation('delete-account')}>{identity.verified ? 'Delete account' : 'Delete unused registration'}</button></details>
       </aside></div>
-      {confirmation && <Dialog open titleId="account-confirm-title" onClose={() => { if (!busy) { setConfirmation(null); setPassword(''); } }} className="info-dialog">
+      {confirmation && <Dialog open titleId="account-confirm-title" onClose={() => { if (!busy) closeConfirmation(); }} className="info-dialog">
         <h2 id="account-confirm-title">{confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : identity.verified ? 'Delete your account?' : 'Cancel this unused registration?'}</h2>
         <p>{confirmation === 'pause' ? 'Uploads stop for this account, including stale tabs. The existing online copy is retained. This device copy stays available.' : confirmation === 'remote' ? 'This account device library will be replaced. A local recovery copy is retained; download a backup too if you need it.' : confirmation === 'local' ? 'Your current device copy will replace the latest reviewed online library. If another device saves again, you will be asked to review the conflict again.' : !identity.verified ? 'The server must confirm that this account has no prior online activity before cancellation. A content-free marker prevents a racing session from uploading to the cancelled identity. Your guest library stays untouched.' : 'Your public ranking will be unpublished, stale writers revoked, and online profile/library data removed. Download a backup first. The guest library is untouched.'}</p>
         {(confirmation === 'remote' || confirmation === 'local') && conflictVersion && <p className="section-help">Reviewed online revision {conflictVersion.head.revision}; this device revision {conflictVersion.localRevision}. A newer version will require another choice.</p>}
         {(confirmation === 'delete-copy' || confirmation === 'delete-account') && identity.providers.includes('password') && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
-        {(confirmation === 'delete-copy' || confirmation === 'delete-account') && !identity.providers.includes('password') && <p className="section-help">Google will ask you to confirm this account before deletion.</p>}
+        {googleConfirmation && <p className="section-help">{googleConfirmed ? 'Google confirmed this account. Nothing has been deleted. Confirm below only if you still want to remove this data.' : "Continue to Google in this tab to confirm your account. You'll return to this confirmation; coming back never deletes data automatically."}</p>}
         {error && <p className="inline-error" role="alert">{error}</p>}
-        <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={() => setConfirmation(null)}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working...' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>
+        <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={closeConfirmation}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working...' : googleConfirmation && !googleConfirmed ? 'Continue in this tab' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>
       </Dialog>}
     </section>
   );

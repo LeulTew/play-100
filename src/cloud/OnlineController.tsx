@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  createUserWithEmailAndPassword, deleteUser, EmailAuthProvider, getIdTokenResult, GoogleAuthProvider, linkWithPopup,
-  onIdTokenChanged, reauthenticateWithCredential, reauthenticateWithPopup, reload, sendEmailVerification,
-  sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut,
+  createUserWithEmailAndPassword, deleteUser, EmailAuthProvider, getIdTokenResult,
+  onIdTokenChanged, reauthenticateWithCredential, reload, sendEmailVerification,
+  sendPasswordResetEmail, signInWithEmailAndPassword, signOut,
 } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import type { AppPage, Game } from '../lib/types';
@@ -25,6 +25,9 @@ import { creatorAccess, deleteOwnMember } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
 import { onlineError, popupCancelled } from './errors';
+import { finishGoogleRedirect, startGoogleRedirect } from './google-auth';
+import type { GoogleReturn } from './google-auth';
+import { readGoogleIntent } from '../lib/google-intent';
 import { cancelUnusedRegistration, ensureAccountActivity } from './account-lifecycle';
 import { AuthPanel } from './AuthPanel';
 import { AccountPage } from './AccountPage';
@@ -34,6 +37,11 @@ import { CommunityPage, PublicProfilePage } from './CommunityPages';
 import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
 import './cloud-ui.css';
+
+interface GoogleDeletionApproval {
+  requestId: string; uid: string; target: 'copy' | 'account'; epoch: number;
+  sessionEpoch: number; startedAt: number; expiresAt: number;
+}
 
 function identityOf(user: User, verified: boolean): AccountIdentity {
   return { uid: user.uid, email: user.email ?? '', displayName: user.displayName ?? '', verified, providers: user.providerData.map((provider) => provider.providerId) };
@@ -63,6 +71,13 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [googleReturn, setGoogleReturn] = useState<GoogleReturn | null>(null);
+  const [returnSheet, setReturnSheet] = useState(false);
+  const [startupError, setStartupError] = useState('');
+  const [deletionApproval, setDeletionApproval] = useState<GoogleDeletionApproval | null>(null);
+  const handledGoogleReturn = useRef<string | null>(null);
+  const navigation = useRef({ page, onCloseSheet, onNavigate });
+  navigation.current = { page, onCloseSheet, onNavigate };
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState(() => createAvatarDescriptor());
   const [cooldown, setCooldown] = useState(0);
@@ -106,16 +121,64 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     void task.then(() => { if (identityRead.current === entry) identityRead.current = null; }, () => { if (identityRead.current === entry) identityRead.current = null; });
     return task;
   }, []);
-  useEffect(() => onIdTokenChanged(cloudAuth, (user) => {
-    if ((user?.uid ?? null) !== authSessionUid.current) { authSessionUid.current = user?.uid ?? null; authSessionEpoch.current += 1; }
-    if (!user) { identityRead.current = null; refreshedMismatch.current.clear(); setIdentity(null); return; }
-    void reconcileIdentity(user).catch((cause) => {
-      if (cloudAuth.currentUser?.uid === user.uid) { setIdentity(identityOf(user, false)); setError(onlineError(cause)); }
-    });
-  }, (cause) => { setIdentity(null); setError(onlineError(cause)); }), [reconcileIdentity]);
   useEffect(() => {
-    setMember(null); setProfile(null); setHeadSnapshot(null); setCreatorUid(null); setError(''); setMessage(''); setAvatarOpen(false); setDefaultAvatar(createAvatarDescriptor());
+    let alive = true;
+    let unsubscribe = () => {};
+    const timeout = window.setTimeout(() => {
+      if (alive) setStartupError('Account restoration timed out. Reload when connected, or keep using the device library.');
+    }, 45000);
+    const settled = () => window.clearTimeout(timeout);
+    void finishGoogleRedirect(cloudAuth).then((outcome) => {
+      if (!alive) return;
+      if (outcome.attempted) { setGoogleReturn(outcome); setReturnSheet(!outcome.completed); }
+      unsubscribe = onIdTokenChanged(cloudAuth, (user) => {
+        if ((user?.uid ?? null) !== authSessionUid.current) { authSessionUid.current = user?.uid ?? null; authSessionEpoch.current += 1; }
+        if (!user) { identityRead.current = null; refreshedMismatch.current.clear(); setIdentity(null); settled(); return; }
+        void reconcileIdentity(user).catch((cause) => {
+          if (alive && cloudAuth.currentUser?.uid === user.uid) { setIdentity(identityOf(user, false)); setError(onlineError(cause)); }
+        }).finally(settled);
+      }, (cause) => { setIdentity(null); setError(onlineError(cause)); settled(); });
+    }).catch((cause) => { if (alive) { setStartupError(onlineError(cause)); settled(); } });
+    const restorePage = (event: PageTransitionEvent) => {
+      if (event.persisted && readGoogleIntent().raw !== null) location.reload();
+    };
+    window.addEventListener('pageshow', restorePage);
+    return () => { alive = false; settled(); unsubscribe(); window.removeEventListener('pageshow', restorePage); };
+  }, [reconcileIdentity]);
+  useEffect(() => {
+    setMember(null); setProfile(null); setHeadSnapshot(null); setCreatorUid(null); setError(''); setMessage(''); setAvatarOpen(false); setDefaultAvatar(createAvatarDescriptor()); setDeletionApproval(null);
   }, [identity?.uid]);
+  useEffect(() => {
+    const returned = googleReturn;
+    if (!returned?.completed || !returned.intent || !identity || identity.uid !== returned.uid || cloudAuth.currentUser?.uid !== returned.uid) return;
+    const intent = returned.intent;
+    if (handledGoogleReturn.current === intent.requestId) return;
+    if (intent.kind === 'reauthenticate' && !account.snapshot && !account.error) return;
+    handledGoogleReturn.current = intent.requestId;
+    setReturnSheet(false);
+    if (intent.kind === 'sign-in') {
+      rememberOnlineRequest(true);
+      navigation.current.onCloseSheet();
+      if (navigation.current.page !== 'publish' && navigation.current.page !== 'creator') navigation.current.onNavigate('account');
+    } else if (intent.kind === 'link') setMessage('Google is linked to this existing account.');
+    else if (intent.epoch !== (account.snapshot?.sync.epoch ?? 0)) {
+      setError('This account changed while Google was open. Nothing was deleted. Review the account before confirming again.');
+    } else {
+      setDeletionApproval({ requestId: intent.requestId, uid: identity.uid, target: intent.target, epoch: intent.epoch, sessionEpoch: authSessionEpoch.current, startedAt: intent.createdAt, expiresAt: Date.now() + 5 * 60 * 1000 });
+      setMessage('Google confirmed this account. Nothing has been deleted; review and confirm the deletion below.');
+    }
+  }, [googleReturn, identity, account.snapshot, account.error]);
+  useEffect(() => {
+    if (page !== 'account') setDeletionApproval(null);
+  }, [page]);
+  useEffect(() => {
+    if (!deletionApproval) return;
+    const requestId = deletionApproval.requestId;
+    const timeout = window.setTimeout(() => {
+      setDeletionApproval((current) => current?.requestId === requestId ? null : current);
+    }, Math.max(0, deletionApproval.expiresAt - Date.now()));
+    return () => window.clearTimeout(timeout);
+  }, [deletionApproval]);
   useEffect(() => {
     if (cooldown <= now) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -150,7 +213,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   const run = async (operation: () => Promise<void>, identityChange = false): Promise<boolean> => {
     if (running.current) return false;
     const startedUid = identityRef.current?.uid;
-    running.current = true; setBusy(true); setError(''); setMessage('');
+    running.current = true; setBusy(true); setError(''); setMessage(''); setGoogleReturn(null);
     try { await operation(); return true; }
     catch (cause) {
       if (identityChange || identityRef.current?.uid === startedUid) {
@@ -165,10 +228,20 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     rememberOnlineRequest(true); onCloseSheet();
     if (page !== 'publish' && page !== 'creator') onNavigate('account');
   };
-  const google = () => {
-    if (hasPendingEdits()) { setError('Finish or correct the open rating/note before changing accounts.'); return Promise.resolve(false); }
-    return run(async () => { const result = await signInWithPopup(cloudAuth, new GoogleAuthProvider()); await afterSignIn(result.user); }, true);
-  };
+  const google = () => run(async () => {
+    const session = authSessionEpoch.current;
+    if (!await flushPendingEdits()) throw new Error('Finish or correct the open rating/note before signing in.');
+    if (authSessionEpoch.current !== session || cloudAuth.currentUser) throw new Error('The signed-in account changed. Review Account before continuing.');
+    await startGoogleRedirect(cloudAuth, { kind: 'sign-in', uid: null });
+  }, true);
+  const linkGoogle = () => run(async () => {
+    const { user } = verifiedIdentity();
+    const session = authSessionEpoch.current;
+    if (!await flushPendingEdits()) throw new Error('Finish or correct the open edit before linking Google.');
+    await account.waitForWrites();
+    if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed. No other account was linked.');
+    await startGoogleRedirect(cloudAuth, { kind: 'link', uid: user.uid });
+  });
   const email = (address: string, password: string, create: boolean) => run(async () => {
     if (!await flushPendingEdits()) throw new Error('Finish or correct the open edit before signing in.');
     const result = create ? await createUserWithEmailAndPassword(cloudAuth, address, password) : await signInWithEmailAndPassword(cloudAuth, address, password);
@@ -272,12 +345,26 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     return run(async () => {
       const signedIn = cloudAuth.currentUser;
       if (!signedIn || signedIn.uid !== identityRef.current?.uid || !scope) throw new Error('Sign in to the account you want to delete.');
+      const session = authSessionEpoch.current;
+      const targetKind = removeAccount ? 'account' : 'copy';
+      if (!navigator.onLine) throw new Error('Connect before deleting cloud data. No success is reported until deletion finishes.');
+      if (identity?.providers.includes('password')) {
+        if (!password) throw new Error('Confirm your password before deleting.');
+        await reauthenticateWithCredential(signedIn, EmailAuthProvider.credential(signedIn.email ?? '', password));
+      } else {
+        const approval = deletionApproval;
+        if (!approval || approval.uid !== signedIn.uid || approval.target !== targetKind ||
+          approval.sessionEpoch !== session || approval.epoch !== currentEpoch.current || approval.expiresAt <= Date.now()) {
+          setDeletionApproval(null);
+          await startGoogleRedirect(cloudAuth, { kind: 'reauthenticate', uid: signedIn.uid, target: targetKind, epoch: currentEpoch.current });
+          return;
+        }
+        setDeletionApproval(null);
+        const token = await getIdTokenResult(signedIn);
+        if (typeof token.claims.auth_time !== 'number' || token.claims.auth_time * 1000 < approval.startedAt - 5000) throw new Error('Google confirmation is no longer current. Review the account and confirm again.');
+      }
+      if (cloudAuth.currentUser?.uid !== signedIn.uid || identityRef.current?.uid !== signedIn.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Nothing was deleted.');
       if (removeAccount && !identityRef.current.verified) {
-        if (!navigator.onLine) throw new Error('Connect before cancelling this registration.');
-        if (identity?.providers.includes('password')) {
-          if (!password) throw new Error('Confirm the registration password before deleting it.');
-          await reauthenticateWithCredential(signedIn, EmailAuthProvider.credential(signedIn.email ?? '', password));
-        } else await reauthenticateWithPopup(signedIn, new GoogleAuthProvider());
         const token = await getIdTokenResult(signedIn, true);
         if (token.claims.email_verified === true) {
           await reconcileIdentity(signedIn, true);
@@ -290,12 +377,8 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
       }
       if (!identityRef.current?.verified || !sync.store) throw new Error('Verify this account before deleting existing online data.');
       const user = signedIn; const target = scope; const store = sync.store;
-      if (!navigator.onLine) throw new Error('Connect before deleting cloud data. No success is reported until deletion finishes.');
-      if (identity?.providers.includes('password')) {
-        if (!password) throw new Error('Confirm your password before deleting.');
-        await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email ?? '', password));
-      } else await reauthenticateWithPopup(user, new GoogleAuthProvider());
       await account.waitForWrites();
+      if (cloudAuth.currentUser?.uid !== user.uid || identityRef.current?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before cleanup. Nothing was deleted.');
       if (account.snapshot) await pauseScopedLibrary(target);
       await ensureAccountActivity(cloudDb, user.uid);
       await social.unpublish(user.uid, await social.control(user.uid), true);
@@ -313,8 +396,14 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
 
   const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? defaultAvatar;
   const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
-  const authPanel = <AuthPanel busy={busy} error={error} message={message} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { onCloseSheet(); if (page === 'account' || page === 'publish' || page === 'creator') onNavigate('collection'); }} />;
+  const visibleError = error || googleReturn?.error || '';
+  const visibleMessage = message || googleReturn?.message || '';
+  const currentDeletionApproval = deletionApproval?.uid === identity?.uid &&
+    deletionApproval?.sessionEpoch === authSessionEpoch.current && deletionApproval.epoch === currentEpoch.current ? deletionApproval : null;
+  const closeSignin = () => { setReturnSheet(false); onCloseSheet(); };
+  const authPanel = <AuthPanel busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (page === 'account' || page === 'publish' || page === 'creator') onNavigate('collection'); }} />;
   const cloudPage = ['account', 'publish', 'community', 'profile', 'creator'].includes(page);
+  if (startupError) throw new Error(startupError);
   return (
     <>
       {cloudPage && EMULATOR_MODE && <p className="emulator-note emulator-page-note">Local emulator preview — no production account or cloud data connection.</p>}
@@ -324,16 +413,17 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
         !identity ? <section className="app-page auth-page"><h1 data-page-heading tabIndex={-1}>Your list.<br />Wherever you play.</h1>{authPanel}</section> :
         page === 'creator' ? <CreatorPage key={identity.uid} social={social} allowed={isCreator} verified={identity.verified} onAccount={() => onNavigate('account')} /> :
         page === 'publish' ? <PublishPage key={identity.uid} social={social} identity={identity} member={member} avatar={avatar} state={activeController.state} games={games} existing={profile} isCreator={isCreator} onAccount={() => onNavigate('account')} onPublished={(next) => { if (cloudAuth.currentUser?.uid === next.uid) { setProfile(next); onProfile(next.handle); } }} /> :
-        <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={error || account.error || sync.error} message={message} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
+        <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
           onAvatar={() => setAvatarOpen(true)} onName={(name) => run(async () => { const { user } = verifiedIdentity(); await social.saveMemberName(user.uid, name, avatar); await refresh(); setMessage('Account name saved. Published snapshots change only when explicitly updated.'); })}
           onConnect={connect} onVerify={sendVerification} onRefreshIdentity={() => run(async () => { const user = cloudAuth.currentUser; if (!user) return; await reload(user); refreshedMismatch.current.delete(user.uid); const next = await reconcileIdentity(user, true); setMessage(next.verified ? 'Email verified. You can choose online saving or publishing.' : 'Verification is not confirmed yet. Open the latest email link, then try again.'); })}
-          onSignOut={signOutAccount} onLinkGoogle={() => run(async () => { const { user } = verifiedIdentity(); await linkWithPopup(user, new GoogleAuthProvider()); await reconcileIdentity(user, true); setMessage('Google is linked to this existing account.'); })}
+          onSignOut={signOutAccount} onLinkGoogle={linkGoogle}
           onRetry={() => run(async () => { await sync.retry(); await refresh(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
           onPause={pause} onDownload={downloadData}
           onUseRemote={(reviewed, revision) => run(async () => { await sync.useRemote(reviewed, revision); await account.refresh(); })}
           onUseLocal={(reviewed, revision) => run(async () => { await sync.useLocal(reviewed, revision); })}
+          googleDeletion={currentDeletionApproval} onDismissDeletion={() => setDeletionApproval(null)}
           onDelete={deleteOnline} onPublish={() => onNavigate('publish')} onCommunity={() => onNavigate('community')} onCreator={() => onNavigate('creator')} />)}
-      {showSheet && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={onCloseSheet}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Your list.<br />Wherever you play.</h2>{authPanel}</Dialog>}
+      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Your list.<br />Wherever you play.</h2>{authPanel}</Dialog>}
       {avatarOpen && identity && <Dialog open titleId="account-avatar-title" className="info-dialog" onClose={() => { if (!busy) setAvatarOpen(false); }}><p className="section-help">Saving updates your account creature, visible to the creator. A published profile keeps its existing snapshot until you update it.</p><AvatarPicker value={avatar} identityKey={identityKey} titleId="account-avatar-title" onCancel={() => setAvatarOpen(false)} onSave={async (next) => {
         const uid = identity.uid; const epoch = currentEpoch.current; const sessionEpoch = authSessionEpoch.current;
         const saved = await run(async () => {

@@ -7,7 +7,7 @@ export function readFirebaseConfiguration(environment: Record<string, unknown>):
     return { config: null, error: environment.VITE_FIREBASE_CONFIG ? 'The old JSON online configuration is unsupported. Configure the four public Firebase fields before enabling online tools.' : null };
   }
   const [apiKey, authDomain, projectId, appId] = fields.map((field) => typeof environment[field] === 'string' ? (environment[field] as string).trim() : '');
-  if (!apiKey || !/^AIza[A-Za-z0-9_-]{35}$/.test(apiKey) || authDomain !== `${CLOUD_PROJECT}.firebaseapp.com` ||
+  if (!apiKey || !/^AIza[A-Za-z0-9_-]{35}$/.test(apiKey) || authDomain !== 'play-100-collection.vercel.app' ||
     projectId !== CLOUD_PROJECT || !appId || !/^1:\d+:web:[a-f0-9]+$/.test(appId)) {
     return { config: null, error: 'Online tools are unavailable because their public configuration is incomplete or invalid. Your device library remains available.' };
   }
