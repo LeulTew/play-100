@@ -2,7 +2,6 @@ import { getRedirectResult, GoogleAuthProvider, linkWithRedirect, reauthenticate
 import type { Auth } from 'firebase/auth';
 import { clearGoogleIntent, readGoogleIntent, validateGoogleReturn, writeGoogleIntent } from '../lib/google-intent';
 import type { GoogleRedirectIntent, GoogleRequest } from '../lib/google-intent';
-import { rememberOnlineRequest } from '../lib/online-availability';
 import { onlineError, popupCancelled } from './errors';
 
 export interface GoogleReturn {
@@ -15,7 +14,6 @@ export async function startGoogleRedirect(auth: Auth, request: GoogleRequest): P
   if (!navigator.onLine) throw new Error('Connect before continuing to Google. Your device library is unchanged.');
   if ((auth.currentUser?.uid ?? null) !== request.uid) throw new Error('The signed-in account changed. Start the Google action again from Account.');
   const stored = writeGoogleIntent(request, `${location.pathname}${location.search}`);
-  rememberOnlineRequest(true);
   try {
     // Firebase owns OAuth state/CSRF and credential storage; this record only restores UI intent.
     if (`${location.pathname}${location.search}${location.hash}` !== stored.intent.returnPath) {
