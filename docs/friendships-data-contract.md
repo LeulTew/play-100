@@ -15,6 +15,31 @@ items and return `{ items, cursor }`; `cursor` is `undefined` on the final page.
 Errors reject, including unavailable/forbidden/offline data; never convert them
 to an empty successful ranking. Every watch returns `() => void`.
 
+**Mutation acknowledgement is distinct from metadata refresh.** Successful
+return shapes below are unchanged. If a transaction is acknowledged but its
+subsequent readback (or post-publication cleanup) fails, the store throws
+`FriendCommittedError`, not a generic operation failure. It has
+`code: 'committed-refresh-failed'`, `committed: true`, `phase: 'refresh' | 'cleanup'`,
+the original `cause`, and a `receipt` identifying the operation, owner and known
+pair epoch / group ID / generation revision where applicable. It contains no
+invented timestamps or invitation capability. Do not log raw errors/causes from
+capability operations; SDK details can contain sensitive paths.
+
+Callers must handle this class before ordinary errors: show **Saved; refresh
+needed**, reload metadata without replaying the mutation, and clear stale
+displayed data. An `accept-invite` receipt proves consumption was acknowledged,
+so clear the resume secret and show the accepted outcome. For `create-invite`,
+reload the bounded owner registry rather than issuing a replacement invite.
+For settings or publication, read current settings/head before scheduling any
+new write. A group receipt supplies `groupId` for recovery. Do not clear unrelated
+newer local edits or a newly changed account scope in response to an old receipt.
+The receipt is not authorization to read another person's scores.
+
+Ordinary transaction rejection remains unqualified: the store does not invent
+an acknowledgement when the SDK did not receive one. Network loss during a commit
+can have an uncertain outcome; reconcile server state before manually retrying.
+Void-returning graph helpers have no post-commit reads and resolve only on ACK.
+
 ```ts
 initialize(uid: string): Promise<FriendSettings>
 settings(uid: string): Promise<FriendSettings | null>
@@ -222,3 +247,31 @@ Run only these named files with existing tooling. The cloud file respects
 `FIRESTORE_EMULATOR_HOST` and `FIREBASE_AUTH_EMULATOR_HOST`; reserve the shared
 emulator execution slot first. No hosted/local CI, production fixtures or rule
 deployment is part of this isolated implementation.
+
+### SDK network-disable and acknowledgement regression
+
+The first runtime attempt exposed Node's navigator without `onLine`; only an
+explicit `navigator.onLine === false` blocks a mutation. The next attempt proved
+that `disableNetwork(db)` alone does not block this SDK's transaction RPCs: a
+request committed, then its required server readback failed. The original
+disable-network test still asserts rejection **and no server pair**, unchanged.
+Graph mutations now perform a server-only own-settings preflight before any
+transaction, so an already-disabled SDK stream fails before a graph write starts.
+This is one additional document read per graph action, not part of the atomic
+rules budget. It is not a guarantee that connectivity cannot change afterward.
+
+The exact pinned Firebase 12.19.0 source explains the observed behavior:
+
+- [`remoteStoreDisableNetwork`](https://github.com/firebase/firebase-js-sdk/blob/firebase%4012.19.0/packages/firestore/src/remote/remote_store.ts)
+  stops the RemoteStore streams and changes online-state reporting.
+- [`Transaction.lookup/commit`](https://github.com/firebase/firebase-js-sdk/blob/firebase%4012.19.0/packages/firestore/src/core/transaction.ts)
+  use Datastore BatchGet/Commit RPCs, independent of the RemoteStore flag.
+- [`TransactionRunner`](https://github.com/firebase/firebase-js-sdk/blob/firebase%4012.19.0/packages/firestore/src/core/transaction_runner.ts)
+  resolves the callback result only after the commit RPC acknowledges.
+
+`friend-mutations.test.ts` tests preflight rejection, acknowledgement timing,
+raw transaction failure and typed post-ACK failures across graph, invitations,
+settings, identity, groups and sharing. The cloud suite separately injects only
+readback failures after real SDK graph/settings commits, then verifies their
+server state from a fresh store. Explicit browser-offline coverage is additional,
+not a replacement or weakening of the SDK-disable test.

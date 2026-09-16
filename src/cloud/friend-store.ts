@@ -6,14 +6,14 @@ import type { DocumentData, DocumentReference, Firestore, Query, QueryDocumentSn
 import { parseAvatar } from '../lib/community';
 import type { AvatarValue, PublicEntry } from '../lib/community';
 import {
-  FriendStoreError, friendName, friendPairId, friendParticipants, friendSelection,
+  FriendCommittedError, FriendStoreError, friendName, friendPairId, friendParticipants, friendSelection,
   friendToken, friendUid, friendUuid, parseFriendBlock, parseFriendChunk, parseFriendGeneration, parseFriendGroup,
   parseFriendHead, parseFriendIdentity, parseFriendInvite, parseFriendPair, parseFriendRegistry, parseFriendSettings,
   parseFriendSlot, parseFriendSource, validateFriendEntries,
 } from '../lib/friend-types';
 import type {
   FriendBlock, FriendCleanupResult, FriendCursor, FriendExportPage, FriendGroup, FriendIdentity, FriendInvitation,
-  FriendInvitePreview, FriendPage, FriendPair, FriendPairState, FriendRanking, FriendSettings, FriendShareHead, FriendSourceRevision,
+  FriendInvitePreview, FriendMutationReceipt, FriendPage, FriendPair, FriendPairState, FriendRanking, FriendSettings, FriendShareHead, FriendSourceRevision,
 } from '../lib/friend-types';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
@@ -54,6 +54,17 @@ export class FriendStore {
     const snap = await getDocFromServer(ref);
     return snap.exists() ? parse(snap.data()) : null;
   }
+  private async graphReady(uid: string): Promise<void> {
+    online();
+    // Transaction RPCs bypass disableNetwork(); a server-only read checks the SDK's stream state before any graph write.
+    const settings = await this.settings(uid);
+    if (settings) activeSettings(settings);
+    online();
+  }
+  private async afterCommit<T>(receipt: FriendMutationReceipt, operation: () => Promise<T>, phase: 'refresh' | 'cleanup' = 'refresh'): Promise<T> {
+    try { return await operation(); }
+    catch (cause) { throw new FriendCommittedError(receipt, errorValue(cause), phase); }
+  }
   private watch<T>(ref: DocumentReference<DocumentData>, parse: (data: DocumentData) => T, next: (value: T | null) => void, error: (cause: Error) => void): () => void {
     return onSnapshot(ref, { includeMetadataChanges: true }, (snap) => {
       if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
@@ -69,7 +80,7 @@ export class FriendStore {
       if (snap.exists()) { activeSettings(parseFriendSettings(snap.data())); return; }
       tx.set(ref, { format: 1, enabled: false, deleted: false, selection: '', epoch: 1, revision: 1, updatedAt: serverTimestamp() });
     });
-    return activeSettings(await this.settings(uid));
+    return this.afterCommit({ operation: 'initialize', uid }, async () => activeSettings(await this.settings(uid)));
   }
   settings(uid: string): Promise<FriendSettings | null> { return this.read(this.ref('friendSettings', uid), parseFriendSettings); }
   watchSettings(uid: string, next: (value: FriendSettings | null) => void, error: (cause: Error) => void): () => void {
@@ -87,7 +98,7 @@ export class FriendStore {
       if (current.enabled === input.enabled && current.selectedIds.join('|') === selectedIds.join('|')) return;
       tx.update(ref, { enabled: input.enabled, selection: selectedIds.join('|'), epoch: current.epoch + 1, revision: current.revision + 1, updatedAt: serverTimestamp() });
     });
-    return activeSettings(await this.settings(uid));
+    return this.afterCommit({ operation: 'save-settings', uid }, async () => activeSettings(await this.settings(uid)));
   }
   identity(uid: string): Promise<FriendIdentity | null> {
     return this.read(this.ref('friendIdentities', uid), (data) => {
@@ -109,9 +120,11 @@ export class FriendStore {
       if (current && current.displayName === displayName && JSON.stringify(current.avatar) === JSON.stringify(avatar)) return;
       tx.set(ref, { format: 1, uid, displayName, avatar, revision: expectedRevision + 1, updatedAt: serverTimestamp() });
     });
-    const result = await this.identity(uid);
-    if (!result) conflict();
-    return result;
+    return this.afterCommit({ operation: 'save-identity', uid }, async () => {
+      const result = await this.identity(uid);
+      if (!result) conflict();
+      return result;
+    });
   }
   pair(uid: string, otherUid: string): Promise<FriendPair | null> { return this.read(this.pairRef(uid, otherUid), parseFriendPair); }
   watchPair(uid: string, otherUid: string, next: (value: FriendPair | null) => void, error: (cause: Error) => void): () => void {
@@ -133,7 +146,9 @@ export class FriendStore {
   }
   async sendRequest(uid: string, otherUid: string): Promise<FriendPair> {
     const ref = this.pairRef(uid, otherUid); online();
-    await runTransaction(this.db, async (tx) => {
+    await this.graphReady(uid);
+    const epoch = await runTransaction(this.db, async (tx) => {
+      online();
       const snap = await tx.get(ref); const current = snap.exists() ? parseFriendPair(snap.data()) : null;
       if (current?.state === 'accepted') conflict('You are already friends.');
       if (current?.state === 'pending') conflict(current.from === uid ? 'Your request is already waiting for a response.' : 'This person already sent you a request. Accept or decline that request instead.');
@@ -142,12 +157,17 @@ export class FriendStore {
         format: 1, a, b, participants: [a, b], from: uid, state: 'pending', epoch: (current?.epoch ?? 0) + 1, inviteSlot: null,
         createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp(),
       });
+      return (current?.epoch ?? 0) + 1;
     });
-    const result = await this.pair(uid, otherUid); if (!result) conflict(); return result;
+    return this.afterCommit({ operation: 'send-request', uid, otherUid, epoch }, async () => {
+      const result = await this.pair(uid, otherUid); if (!result) conflict(); return result;
+    });
   }
   async respond(uid: string, otherUid: string, action: 'accept' | 'decline' | 'cancel' | 'remove', expectedEpoch: number): Promise<FriendPair> {
     const ref = this.pairRef(uid, otherUid); online();
+    await this.graphReady(uid);
     await runTransaction(this.db, async (tx) => {
+      online();
       const snap = await tx.get(ref); const current = snap.exists() ? parseFriendPair(snap.data()) : null;
       if (!current || current.epoch !== expectedEpoch) conflict();
       if (action === 'remove' ? current.state !== 'accepted' : current.state !== 'pending') conflict('That relationship no longer has this action available.');
@@ -156,12 +176,16 @@ export class FriendStore {
       const state: FriendPairState = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : action === 'cancel' ? 'cancelled' : 'removed';
       tx.update(ref, { state, epoch: current.epoch + 1, inviteSlot: null, updatedAt: serverTimestamp() });
     });
-    const result = await this.pair(uid, otherUid); if (!result) conflict(); return result;
+    return this.afterCommit({ operation: 'respond', uid, otherUid, epoch: expectedEpoch + 1 }, async () => {
+      const result = await this.pair(uid, otherUid); if (!result) conflict(); return result;
+    });
   }
   async block(uid: string, otherUid: string): Promise<void> {
     const pairRef = this.pairRef(uid, otherUid); online();
+    await this.graphReady(uid);
     const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
     await runTransaction(this.db, async (tx) => {
+      online();
       const [pair, block] = await Promise.all([tx.get(pairRef), tx.get(ref)]);
       const current = pair.exists() ? parseFriendPair(pair.data()) : null;
       if (!block.exists()) tx.set(ref, { createdAt: serverTimestamp() });
@@ -170,8 +194,9 @@ export class FriendStore {
   }
   async unblock(uid: string, otherUid: string): Promise<void> {
     friendPairId(uid, otherUid); online();
+    await this.graphReady(uid);
     const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
-    await runTransaction(this.db, async (tx) => { if ((await tx.get(ref)).exists()) tx.delete(ref); });
+    await runTransaction(this.db, async (tx) => { online(); if ((await tx.get(ref)).exists()) tx.delete(ref); });
   }
   async listBlocks(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendBlock>> {
     const result = await getDocsFromServer(query(collection(this.db, 'friendBlocks', friendUid(uid), 'items'), orderBy(documentId()), ...(cursor ? [startAfter(cursor)] : []), limit(20)));
@@ -179,9 +204,11 @@ export class FriendStore {
   }
   async createInvite(uid: string): Promise<FriendInvitation> {
     friendUid(uid); online();
+    await this.graphReady(uid);
     const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
     const ref = doc(this.db, 'friendInvites', token);
     await runTransaction(this.db, async (tx) => {
+      online();
       const slotRefs = Array.from({ length: 20 }, (_, slot) => doc(this.db, 'friendInviteSlots', uid, 'slots', String(slot)));
       const [identity, ...slots] = await Promise.all([tx.get(this.ref('friendIdentities', uid)), ...slotRefs.map((slot) => tx.get(slot))]);
       if (!identity.exists()) throw new FriendStoreError('unavailable', 'Save your friend-facing name and icon before creating a link.');
@@ -203,9 +230,11 @@ export class FriendStore {
       tx.set(slotRef, { token });
       tx.set(ref, { format: 1, ownerUid: uid, slot: index, displayName: chosen.displayName, avatar: chosen.avatar, createdAt: serverTimestamp(), state: 'active', acceptedBy: null });
     });
-    const snap = await getDocFromServer(ref);
-    if (!snap.exists()) conflict();
-    return parseFriendInvite(token, snap.data());
+    return this.afterCommit({ operation: 'create-invite', uid }, async () => {
+      const snap = await getDocFromServer(ref);
+      if (!snap.exists()) conflict();
+      return parseFriendInvite(token, snap.data());
+    });
   }
   async previewInvite(tokenInput: string): Promise<FriendInvitePreview> {
     const token = friendToken(tokenInput);
@@ -225,8 +254,10 @@ export class FriendStore {
   }
   async revokeInvite(uid: string, tokenInput: string): Promise<void> {
     friendUid(uid); const token = friendToken(tokenInput); online();
+    await this.graphReady(uid);
     const ref = doc(this.db, 'friendInvites', token);
     await runTransaction(this.db, async (tx) => {
+      online();
       const snap = await tx.get(ref);
       if (!snap.exists() || snap.data().ownerUid !== uid) throw new FriendStoreError('invite-unavailable', 'This invitation is unavailable.');
       if (snap.data().state === 'closed') return;
@@ -237,13 +268,15 @@ export class FriendStore {
   }
   async acceptInvite(uid: string, tokenInput: string): Promise<FriendPair> {
     friendUid(uid); const token = friendToken(tokenInput); online();
-    let ownerUid = '';
+    await this.graphReady(uid);
+    let accepted: { ownerUid: string; epoch: number };
     try {
-      await runTransaction(this.db, async (tx) => {
+      accepted = await runTransaction(this.db, async (tx) => {
+        online();
         const inviteRef = doc(this.db, 'friendInvites', token);
         const snap = await tx.get(inviteRef);
         if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invitation is unavailable.');
-        const invite = parseFriendInvite(token, snap.data()); ownerUid = invite.ownerUid;
+        const invite = parseFriendInvite(token, snap.data()); const ownerUid = invite.ownerUid;
         if (uid === ownerUid) throw new FriendStoreError('invalid', 'You cannot accept your own invitation.');
         if (invite.expiresAt <= Date.now()) throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
         const ref = this.pairRef(uid, ownerUid); const pair = await tx.get(ref);
@@ -253,9 +286,12 @@ export class FriendStore {
         tx.set(ref, { format: 1, a, b, participants: [a, b], from: ownerUid, state: 'accepted', epoch: (current?.epoch ?? 0) + 1, inviteSlot: invite.slot,
           createdAt: pair.exists() ? pair.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
         tx.update(inviteRef, { state: 'consumed', acceptedBy: uid });
+        return { ownerUid, epoch: (current?.epoch ?? 0) + 1 };
       });
     } catch (cause) { return unavailableInvite(cause); }
-    const result = await this.pair(uid, ownerUid); if (!result) conflict(); return result;
+    return this.afterCommit({ operation: 'accept-invite', uid, otherUid: accepted.ownerUid, epoch: accepted.epoch }, async () => {
+      const result = await this.pair(uid, accepted.ownerUid); if (!result) conflict(); return result;
+    });
   }
   shareHead(ownerUid: string): Promise<FriendShareHead | null> { return this.read(this.ref('friendShareHeads', ownerUid), parseFriendHead); }
   watchShareHead(uid: string, next: (value: FriendShareHead | null) => void, error: (cause: Error) => void): () => void {
@@ -337,8 +373,11 @@ export class FriendStore {
       tx.set(headRef, { format: 1, epoch: expected.epoch, settingsRevision: expected.revision, source, revision: expectedHeadRevision + 1,
         current: { generation: id, digest, count: entries.length }, previous: current?.current ?? null, updatedAt: serverTimestamp() });
     });
-    const head = await this.shareHead(uid); if (!head || head.current?.generation !== id) conflict();
-    await this.cleanupSharing(uid);
+    const receipt: FriendMutationReceipt = { operation: 'publish-ranking', uid, generation: id, epoch: expected.epoch, revision: expectedHeadRevision + 1 };
+    const head = await this.afterCommit(receipt, async () => {
+      const current = await this.shareHead(uid); if (!current || current.current?.generation !== id) conflict(); return current;
+    });
+    await this.afterCommit(receipt, () => this.cleanupSharing(uid), 'cleanup');
     return { changed: true, head };
   }
   async getGroup(uid: string, id: string): Promise<FriendGroup | null> {
@@ -356,7 +395,9 @@ export class FriendStore {
       if ((current?.revision ?? 0) !== expectedRevision) conflict('This saved group changed. Reload before saving.');
       tx.set(ref, { format: 1, name, participantUids, revision: expectedRevision + 1, createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
     });
-    const result = await this.getGroup(uid, id); if (!result) conflict(); return result;
+    return this.afterCommit({ operation: 'save-group', uid, groupId: id, revision: expectedRevision + 1 }, async () => {
+      const result = await this.getGroup(uid, id); if (!result) conflict(); return result;
+    });
   }
   async deleteGroup(uid: string, id: string, expectedRevision: number): Promise<void> {
     const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', friendUuid(id)); online();

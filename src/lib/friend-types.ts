@@ -12,9 +12,20 @@ export const FRIEND_INVITE_LIMIT = 20;
 export const FRIEND_INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 export type FriendCursor = QueryDocumentSnapshot<DocumentData>;
 export interface FriendPage<T> { items: T[]; cursor: FriendCursor | undefined }
-export type FriendErrorCode = 'invalid' | 'conflict' | 'unavailable' | 'invite-unavailable' | 'limit' | 'offline' | 'deleted';
+export type FriendErrorCode = 'invalid' | 'conflict' | 'unavailable' | 'invite-unavailable' | 'limit' | 'offline' | 'deleted' | 'committed-refresh-failed';
 export class FriendStoreError extends Error {
   constructor(readonly code: FriendErrorCode, message: string) { super(message); this.name = 'FriendStoreError'; }
+}
+export interface FriendMutationReceipt {
+  operation: 'initialize' | 'save-settings' | 'save-identity' | 'send-request' | 'respond' | 'create-invite' | 'accept-invite' | 'publish-ranking' | 'save-group';
+  uid: string; otherUid?: string; groupId?: string; generation?: string; epoch?: number; revision?: number;
+}
+export class FriendCommittedError extends FriendStoreError {
+  readonly committed = true;
+  constructor(readonly receipt: FriendMutationReceipt, readonly cause: Error, readonly phase: 'refresh' | 'cleanup' = 'refresh') {
+    super('committed-refresh-failed', 'The change was saved, but its latest details could not be refreshed. Refresh instead of repeating the action.');
+    this.name = 'FriendCommittedError';
+  }
 }
 export interface FriendIdentity {
   format: 1; uid: string; displayName: string; avatar: AvatarValue; revision: number; updatedAt: number;

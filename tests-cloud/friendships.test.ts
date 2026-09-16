@@ -8,7 +8,7 @@ import {
   collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, orderBy, query,
   serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FriendStore } from '../src/cloud/friend-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { parseCollection } from '../src/lib/collection';
@@ -31,7 +31,7 @@ beforeAll(async () => {
   environment = await initializeTestEnvironment({ projectId, firestore: { host: firestoreHost, port: Number(firestorePort), rules: readFileSync('firestore.rules', 'utf8') } });
 });
 beforeEach(async () => { await environment.clearFirestore(); });
-afterEach(async () => { await Promise.all(apps.splice(0).map((app) => deleteApp(app))); });
+afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); await Promise.all(apps.splice(0).map((app) => deleteApp(app))); });
 afterAll(async () => { await environment.cleanup(); });
 
 async function seed(path: string, value: Record<string, unknown>) {
@@ -172,6 +172,46 @@ describe('canonical friendship requests and private relationship metadata', () =
     try { await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toThrow(); }
     finally { await enableNetwork(a.db); }
     expect(await b.store.pair(b.uid, a.uid)).toBeNull();
+  });
+  it('also prevents graph writes when the browser explicitly reports offline', async () => {
+    const a = await client(); const b = await client();
+    vi.stubGlobal('navigator', { onLine: false });
+    try { await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toMatchObject({ code: 'offline' }); }
+    finally { vi.unstubAllGlobals(); }
+    expect(await b.store.pair(b.uid, a.uid)).toBeNull();
+  });
+  it('reports acknowledged request, acceptance and removal separately from post-commit readback failure', async () => {
+    const a = await client(); const b = await client();
+    const fresh = new FriendStore(b.db);
+    const disconnected = new Error('Readback disconnected after commit acknowledgement.');
+    vi.spyOn(a.store, 'pair').mockRejectedValue(disconnected);
+    await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toMatchObject({
+      code: 'committed-refresh-failed', committed: true, receipt: { operation: 'send-request', epoch: 1 },
+    });
+    expect((await fresh.pair(b.uid, a.uid))?.state).toBe('pending');
+    vi.spyOn(b.store, 'pair').mockRejectedValue(disconnected);
+    await expect(b.store.respond(b.uid, a.uid, 'accept', 1)).rejects.toMatchObject({
+      committed: true, receipt: { operation: 'respond', epoch: 2 },
+    });
+    expect((await fresh.pair(b.uid, a.uid))?.state).toBe('accepted');
+    await expect(a.store.respond(a.uid, b.uid, 'remove', 2)).rejects.toMatchObject({
+      committed: true, receipt: { operation: 'respond', epoch: 3 },
+    });
+    expect((await fresh.pair(b.uid, a.uid))?.state).toBe('removed');
+  });
+  it('preserves a successful sharing-stop acknowledgement when its settings readback fails', async () => {
+    const a = await client(); const control = await settings(a);
+    vi.spyOn(a.store, 'settings').mockRejectedValue(new Error('Settings stream disconnected after commit.'));
+    await expect(a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, control)).rejects.toMatchObject({
+      committed: true, receipt: { operation: 'save-settings', uid: a.uid },
+    });
+    const saved = await new FriendStore(a.db).settings(a.uid);
+    expect(saved).toMatchObject({ enabled: true, selectedIds: [entry.id], revision: control.revision + 1 });
+    if (!saved) throw new Error('The acknowledged sharing settings are missing.');
+    await expect(a.store.saveSettings(a.uid, { enabled: false, selectedIds: [] }, saved)).rejects.toMatchObject({
+      committed: true, receipt: { operation: 'save-settings', uid: a.uid },
+    });
+    expect(await new FriendStore(a.db).settings(a.uid)).toMatchObject({ enabled: false, selectedIds: [], revision: saved.revision + 1 });
   });
   it('watches only the selected pair and returns an explicit unsubscribe', async () => {
     const a = await client(); const b = await client();
