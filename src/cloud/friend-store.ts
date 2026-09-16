@@ -9,7 +9,7 @@ import {
   FriendCommittedError, FriendStoreError, friendName, friendPairId, friendParticipants, friendSelection,
   friendToken, friendUid, friendUuid, parseFriendBlock, parseFriendChunk, parseFriendGeneration, parseFriendGroup,
   parseFriendHead, parseFriendIdentity, parseFriendInvite, parseFriendPair, parseFriendRegistry, parseFriendSettings,
-  parseFriendSlot, parseFriendSource, validateFriendEntries,
+  parseFriendSlot, parseFriendSource, retainsFriendGeneration, validateFriendEntries,
 } from '../lib/friend-types';
 import type {
   FriendBlock, FriendCleanupResult, FriendCursor, FriendExportPage, FriendGroup, FriendIdentity, FriendInvitation,
@@ -390,11 +390,14 @@ export class FriendStore {
   async saveGroup(uid: string, input: { id?: string; name: string; participantUids: string[] }, expectedRevision: number): Promise<FriendGroup> {
     const id = input.id ? friendUuid(input.id) : crypto.randomUUID(); const name = friendName(input.name, 80); const participantUids = friendParticipants(input.participantUids);
     const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', id); online();
-    await runTransaction(this.db, async (tx) => {
+    const existing = await runTransaction(this.db, async (tx) => {
       const snap = await tx.get(ref); const current = snap.exists() ? parseFriendGroup(id, snap.data()) : null;
+      if (input.id && expectedRevision === 0 && current && current.name === name && current.participantUids.join('|') === participantUids.join('|')) return current;
       if ((current?.revision ?? 0) !== expectedRevision) conflict('This saved group changed. Reload before saving.');
       tx.set(ref, { format: 1, name, participantUids, revision: expectedRevision + 1, createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
+      return null;
     });
+    if (existing) return existing;
     return this.afterCommit({ operation: 'save-group', uid, groupId: id, revision: expectedRevision + 1 }, async () => {
       const result = await this.getGroup(uid, id); if (!result) conflict(); return result;
     });
@@ -422,6 +425,12 @@ export class FriendStore {
     });
   }
   async cleanupSharing(uid: string): Promise<number> {
+    return this.cleanupGenerations(uid, false);
+  }
+  async pruneSharing(uid: string): Promise<number> {
+    return this.cleanupGenerations(uid, true);
+  }
+  private async cleanupGenerations(uid: string, preserveHead: boolean): Promise<number> {
     const registryRef = this.ref('friendShareRegistry', uid);
     const registry = await getDocFromServer(registryRef);
     if (!registry.exists()) return 0;
@@ -433,8 +442,7 @@ export class FriendStore {
         if (!generation.exists()) throw new FriendStoreError('invalid', 'Sharing cleanup found an inconsistent generation registry.');
         const gen = parseFriendGeneration(generation.data()); const control = settings.exists() ? parseFriendSettings(settings.data()) : null;
         const pointer = head.exists() ? parseFriendHead(head.data()) : null;
-        const active = control?.enabled && !control.deleted && pointer?.epoch === control.epoch && pointer.settingsRevision === control.revision;
-        if (active && (pointer?.current?.generation === id || pointer?.previous?.generation === id)) return false;
+        if (retainsFriendGeneration(id, pointer, control, preserveHead)) return false;
         if (control?.enabled && !control.deleted && gen.epoch === control.epoch && gen.settingsRevision === control.revision &&
           gen.status !== 'deleting' && gen.status !== 'published' && gen.createdAt + 300000 > Date.now()) return false;
         if (gen.status !== 'deleting') tx.update(ref, { status: 'deleting' });

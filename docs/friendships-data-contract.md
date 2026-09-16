@@ -79,6 +79,7 @@ watchRelations(uid: string, state: FriendPairState, next: (page: FriendPage<Frie
 exportPage(uid: string, cursors?: { relations?: FriendCursor; groups?: FriendCursor; blocks?: FriendCursor }): Promise<FriendExportPage>
 revokeForDeletion(uid: string): Promise<void>
 cleanupSharing(uid: string): Promise<number>
+pruneSharing(uid: string): Promise<number>
 cleanupDeleted(uid: string): Promise<FriendCleanupResult>
 ```
 
@@ -88,6 +89,20 @@ ranked games. Save that pruned selection with its expected settings revision
 before publishing. Selection order remains stable when the personal ranking
 reorders; the projection follows the actual ranking order. A later re-added game
 is not automatically selected.
+
+For first group creation, allocate and retain the intended UUID before calling
+`saveGroup(uid, { id, name, participantUids }, 0)`. A supplied ID is supported for
+creation; it does not imply update-only. If the SDK returns no commit ACK, keep
+that same ID and reconcile with `getGroup(uid, id)` before any retry. A matching
+server group confirms persistence using real server metadata. A conflicting
+existing group must be shown for review, never overwritten by retrying revision
+zero. If the lookup also fails, block Save until read-only recovery succeeds.
+Only retry creation at the retained ID after a confirmed absent result. Never
+allocate another UUID simply because the original response was lost.
+As a further idempotency guard, `saveGroup` with an explicit ID and revision zero
+returns an existing group without writing when its normalized name and ordered
+participant IDs exactly match the requested payload. It returns that server
+group's real revision/timestamps, not a newly synthesized acknowledgement.
 
 ## Integration order
 
@@ -137,6 +152,21 @@ Delete-online-copy additionally clears `selectedIds` and runs `cleanupSharing`,
 preserving relationships, identities, invitations and groups. Neither ordinary
 operation calls `revokeForDeletion` or `cleanupDeleted`. Public Unpublish is
 independent and does not change friend sharing.
+
+Use **`pruneSharing(uid): Promise<number>`** for follow-up cleanup after a known
+publication ACK. It retries only the bounded generation cleanup engine (at most
+three registry generations), returning the number removed; it does not publish,
+change settings, enable sharing, or update the head. Every retirement transaction
+re-reads the head and **always preserves its latest current and previous IDs**,
+even when consent is disabled or changed. A head race retries that transaction;
+once a generation is marked deleting, existing rules prevent publishing it.
+Failures remain visible and the caller retains its cleanup-pending marker.
+
+Keep that marker after both `publish-ranking` committed-error phases: a failed
+`refresh` occurs before post-publication cleanup has run, while `cleanup` means
+cleanup itself failed. After read-only recovery, call `pruneSharing`, not another
+publication. Do not substitute `cleanupSharing`: that separate operation may
+deliberately remove inactive head generations after explicit stop/delete.
 
 ## Storage and rules
 

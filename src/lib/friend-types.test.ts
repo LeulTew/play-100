@@ -5,8 +5,9 @@ import type { PublicEntry } from './community';
 import {
   friendPairId, friendParticipants, friendSelection, friendToken, parseFriendChunk, parseFriendGeneration,
   parseFriendGroup, parseFriendIdentity, parseFriendInvite, parseFriendPair, parseFriendSettings, parseFriendSource,
-  projectFriendRanking, validateFriendEntries,
+  projectFriendRanking, retainsFriendGeneration, validateFriendEntries,
 } from './friend-types';
+import type { FriendSettings, FriendShareHead } from './friend-types';
 
 const avatar = { version: 1, seed: 'b'.repeat(32), palette: 'moss' };
 const time = Timestamp.fromMillis(1000);
@@ -16,6 +17,21 @@ const settings = { format: 1, enabled: true, deleted: false, selection: entry.id
 const pair = { format: 1, a: 'alice', b: 'bob', participants: ['alice', 'bob'], from: 'alice', state: 'pending', epoch: 1, inviteSlot: null, createdAt: time, updatedAt: time };
 
 describe('strict friend types and selected projection', () => {
+  it('keeps head pointers during prune retries even after consent changes, without changing deletion cleanup', () => {
+    const current = crypto.randomUUID(); const previous = crypto.randomUUID(); const retired = crypto.randomUUID();
+    const control: FriendSettings = { format: 1, enabled: true, deleted: false, selectedIds: [], epoch: 1, revision: 1, updatedAt: 1000 };
+    const head: FriendShareHead = { format: 1, epoch: 1, settingsRevision: 1, revision: 2, source: { syncEpoch: 1, remoteRevision: 0 },
+      current: { generation: current, count: 0, digest: '0'.repeat(64) }, previous: { generation: previous, count: 0, digest: '0'.repeat(64) }, updatedAt: 1000 };
+    for (const settings of [control, { ...control, enabled: false }, { ...control, epoch: 2, revision: 2 }, { ...control, deleted: true }, null]) {
+      expect(retainsFriendGeneration(current, head, settings, true)).toBe(true);
+      expect(retainsFriendGeneration(previous, head, settings, true)).toBe(true);
+      expect(retainsFriendGeneration(retired, head, settings, true)).toBe(false);
+    }
+    expect(retainsFriendGeneration(current, head, control, false)).toBe(true);
+    expect(retainsFriendGeneration(current, head, { ...control, enabled: false }, false)).toBe(false);
+    expect(retainsFriendGeneration(current, head, { ...control, epoch: 2 }, false)).toBe(false);
+    expect(retainsFriendGeneration(current, null, control, true)).toBe(false);
+  });
   it('keeps zero distinct from null and excludes all private fields', () => {
     expect(validateFriendEntries([entry], [entry.id])[0]?.score).toBe(0);
     expect(validateFriendEntries([{ ...entry, score: null }], [entry.id])[0]?.score).toBeNull();

@@ -45,6 +45,10 @@ export interface FriendShareHead {
   source: FriendSourceRevision; current: FriendManifest | null; previous: FriendManifest | null; updatedAt: number;
 }
 export interface FriendRanking { head: FriendShareHead; entries: PublicEntry[] }
+export function retainsFriendGeneration(id: string, head: FriendShareHead | null, settings: FriendSettings | null, preserveHead: boolean): boolean {
+  if (head?.current?.generation !== id && head?.previous?.generation !== id) return false;
+  return preserveHead || Boolean(settings?.enabled && !settings.deleted && head?.epoch === settings.epoch && head.settingsRevision === settings.revision);
+}
 export interface FriendGroup {
   format: 1; id: string; name: string; participantUids: string[]; revision: number; createdAt: number; updatedAt: number;
 }

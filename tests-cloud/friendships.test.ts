@@ -5,7 +5,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemoryPersistence, initializeAuth, reload } from 'firebase/auth';
 import {
-  collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, orderBy, query,
+  collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, orderBy, query, runTransaction,
   serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -347,6 +347,62 @@ describe('bounded strict friends-only ranking generations', () => {
     expect(head.current?.count).toBe(0);
     expect((await b.store.ranking(a.uid)).entries).toEqual([]);
   });
+  it('retries cleanup alone after a published ACK and preserves both head generations even after consent stops', async () => {
+    const a = await client();
+    let head = (await share(a)).head;
+    head = (await a.store.publishRanking(a.uid, [{ ...entry, score: 1 }], await settings(a), source, head.revision)).head;
+    const originalCleanup = a.store.cleanupSharing.bind(a.store);
+    vi.spyOn(a.store, 'cleanupSharing').mockImplementationOnce(originalCleanup).mockRejectedValueOnce(new Error('Cleanup interrupted after publication.'));
+    await expect(a.store.publishRanking(a.uid, [{ ...entry, score: 2 }], await settings(a), source, head.revision)).rejects.toMatchObject({
+      committed: true, phase: 'cleanup', receipt: { operation: 'publish-ranking', revision: head.revision + 1 },
+    });
+    const published = await a.store.shareHead(a.uid);
+    if (!published?.current || !published.previous) throw new Error('Published head pointers are missing.');
+    await a.store.saveSettings(a.uid, { enabled: false, selectedIds: [] }, await settings(a));
+    const stopped = await settings(a);
+    expect(await a.store.pruneSharing(a.uid)).toBe(1);
+    expect(await a.store.pruneSharing(a.uid)).toBe(0);
+    expect(await a.store.shareHead(a.uid)).toEqual(published);
+    expect(await settings(a)).toEqual(stopped);
+    for (const id of [published.current.generation, published.previous.generation]) {
+      expect((await getDocFromServer(doc(a.db, 'friendShares', a.uid, 'generations', id))).data()?.status).toBe('published');
+    }
+    const registry = await getDocFromServer(doc(a.db, 'friendShareRegistry', a.uid));
+    expect(new Set(registry.data()?.ids)).toEqual(new Set([published.current.generation, published.previous.generation]));
+  });
+  it('serializes a racing head publication versus pruning an old staging generation without deleting the winning head', async () => {
+    const a = await client(); const b = await client(); await connect(a, b);
+    const first = await share(a);
+    const control = await settings(a);
+    const candidate = crypto.randomUUID();
+    const candidateRef = doc(a.db, 'friendShares', a.uid, 'generations', candidate);
+    const registryRef = doc(a.db, 'friendShareRegistry', a.uid);
+    const registry = await getDocFromServer(registryRef);
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('[]'))), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const stage = writeBatch(a.db);
+    stage.update(registryRef, { ids: [...registry.data()!.ids, candidate], revision: registry.data()!.revision + 1 });
+    stage.set(candidateRef, { epoch: control.epoch, settingsRevision: control.revision, source, count: 0, digest, uploaded: 0, ids: [], status: 'ready', createdAt: serverTimestamp() });
+    await stage.commit();
+    // Advance only the grace-period fixture; both competing retirement/publication writes still use normal rules.
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(candidateRef.path).update({ createdAt: Timestamp.fromMillis(Date.now() - 360000) });
+    });
+    const headRef = doc(a.db, 'friendShareHeads', a.uid);
+    const publish = runTransaction(a.db, async (tx) => {
+      const [current, generation] = await Promise.all([tx.get(headRef), tx.get(candidateRef)]);
+      if (!generation.exists() || generation.data().status !== 'ready') throw new Error('Pruning won the generation race.');
+      tx.update(candidateRef, { status: 'published' });
+      tx.set(headRef, { format: 1, epoch: control.epoch, settingsRevision: control.revision, source, revision: current.data()!.revision + 1,
+        current: { generation: candidate, digest, count: 0 }, previous: current.data()!.current, updatedAt: serverTimestamp() });
+    });
+    const [pruned, published] = await Promise.allSettled([a.store.pruneSharing(a.uid), publish]);
+    expect(pruned.status).toBe('fulfilled');
+    const winner = await a.store.shareHead(a.uid);
+    if (!winner?.current) throw new Error('The head was lost during cleanup.');
+    expect(winner.current.generation).toBe(published.status === 'fulfilled' ? candidate : first.head.current!.generation);
+    expect((await getDocFromServer(doc(a.db, 'friendShares', a.uid, 'generations', winner.current.generation))).data()?.status).toBe('published');
+    expect((await b.store.ranking(a.uid)).entries).toEqual(published.status === 'fulfilled' ? [] : [entry]);
+  });
   it('rejects private projection fields, bad sources, unchecked tenth entries and forged progress', async () => {
     const a = await client(); const control = await a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, await settings(a));
     const generation = crypto.randomUUID(); const ref = doc(a.db, 'friendShares', a.uid, 'generations', generation);
@@ -437,6 +493,18 @@ describe('bounded strict friends-only ranking generations', () => {
 });
 
 describe('private groups, export and resumable account deletion', () => {
+  it('reconciles a repeated create intent at its retained UUID without duplicating or rewriting the server group', async () => {
+    const a = await client(); const b = await client();
+    const input = { id: crypto.randomUUID(), name: 'Retained create intent', participantUids: [a.uid, b.uid] };
+    const first = await a.store.saveGroup(a.uid, input, 0);
+    const recovered = await a.store.getGroup(a.uid, input.id);
+    expect(recovered).toEqual(first);
+    expect(await a.store.saveGroup(a.uid, input, 0)).toEqual(first);
+    expect((await a.store.listGroups(a.uid)).items).toEqual([first]);
+    await expect(a.store.saveGroup(a.uid, { ...input, name: 'Different intent' }, 0)).rejects.toThrow(/changed/);
+    await expect(a.store.saveGroup(a.uid, { ...input, participantUids: [...input.participantUids].reverse() }, 0)).rejects.toThrow(/changed/);
+    expect(await a.store.getGroup(a.uid, input.id)).toEqual(first);
+  });
   it('enforces owner-only groups, 2-6 unique members, pagination and edit/delete conflicts', async () => {
     const a = await client(); const b = await client();
     let group = await a.store.saveGroup(a.uid, { name: 'Group', participantUids: [a.uid, b.uid] }, 0);
