@@ -127,14 +127,18 @@ accepted pair; owners can read their own identity for cleanup/export.
 machine. Its exact participants never change. Every transition increments the
 epoch; pending acceptance is recipient-only. No reciprocal half-edge is possible.
 Pair documents contain only relationship metadata, no identity, scores or tokens.
-Participant-only bounded queries may include inactive/deleted relationship
-metadata until cleanup; they are not data-access grants. Terminal metadata can
-be read by its participants even after revocation, to support cleanup/conflicts.
+Participant-only gets and bounded queries may include inactive/deleted
+relationship metadata until cleanup; they are not data-access grants. Keeping
+this minimal metadata readable lets the surviving participant remove a deleted
+friend even if that friend's account cleanup stopped halfway. Blocking always
+changes an active/pending pair to the generic removed state atomically.
 
 `friendBlocks/{uid}/items/{otherUid}` is private. Blocking atomically removes any
 pending/accepted pair; unblocking deletes only the private block, never reconnects.
 
-`friendInvites/{token}` holds the minimal invitation projection and terms.
+`friendInvites/{token}` holds the minimal invitation projection and terms. Its
+name/avatar are the deliberate creation-time snapshot; later profile edits do
+not silently change already-issued links. Revoke/recreate a link to update it.
 `friendInviteSlots/{uid}/slots/{0..19}` is an owner-only fixed-slot registry.
 An active invite must match its slot. At most 20 active capabilities can exist.
 Expired/consumed slots can be reused; anonymous list/query is denied. Acceptance
@@ -173,3 +177,43 @@ to normal Firestore billing even when cached within a rules evaluation.
 Schema-specific access-call accounting and executed evidence are recorded with
 the implementation handoff. Free quota/network failures remain explicit errors.
 Revocation prevents new server reads, not erasure of content already copied.
+
+### Authorization-read budget
+
+The following counts are a code-level inventory of distinct document states
+looked up by one rule evaluation, including before/after states separately.
+Firestore may cache repeated calls; the emulator cases exercise the real writes.
+They are not a claim that a rules test ran when an execution slot is unavailable.
+
+| Operation | Maximum per operation | Atomic union |
+| --- | ---: | ---: |
+| Send known-public-profile request | 8 | 8 |
+| Accept pending request | 6 | 6 |
+| Accept and consume invitation | 9 | 11 |
+| Block and remove canonical pair | 3 | 4 |
+| Friend identity get | 7 | Not applicable |
+| Friend head / current chunk get | 8 | Not applicable |
+| Stage generation + registry | 4 | 5 |
+| Write ten-entry chunk + progress (including canonical catalog) | 6 | 7 |
+| Publish head + mark generation published | 5 | 6 |
+| Delete one generation's 20 chunks | 3 | 3 |
+| List 20 own relationship metadata rows | 0 | Not applicable |
+
+Content reads do not perform a lookup for each shared entry. The canonical
+collection source uses the existing single trusted `catalog/author` document.
+The default 200-selection limit is enforced on the encoded string by regex plus
+uniqueness; generation upload adds ten strictly validated IDs at a time and
+requires global uniqueness, so duplicate identities across chunks cannot commit.
+
+## Focused verification
+
+`src/lib/friend-types.test.ts` covers strict projection/identity/source parsers,
+zero/null, unknown private fields, exact IDs, empty/pruned selections and bounds.
+`tests-cloud/friendships.test.ts` exercises the real store with synthetic Auth
+emulator clients, including canonical races, invitations, 200-entry packing,
+direct forged writes, selected/source/settings CAS and resumable deletion.
+
+Run only these named files with existing tooling. The cloud file respects
+`FIRESTORE_EMULATOR_HOST` and `FIREBASE_AUTH_EMULATOR_HOST`; reserve the shared
+emulator execution slot first. No hosted/local CI, production fixtures or rule
+deployment is part of this isolated implementation.

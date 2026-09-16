@@ -368,6 +368,333 @@ service cloud.firestore {
       allow update: if creator() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'resolved';
       allow delete: if own(resource.data.reporterUid) && head(request.auth.uid).deleted;
     }
+    // Friendship data is separate from all legacy member/private/public formats.
+    function fUid(uid) { return uid is string && uid.matches('^[A-Za-z0-9_-]{1,128}$'); }
+    function fKeys(data, keys) { return data.keys().hasOnly(keys) && data.keys().hasAll(keys); }
+    function fInt(value, low, high) { return value is int && value >= low && value <= high; }
+    function fSettings(uid) { return get(/databases/$(database)/documents/friendSettings/$(uid)).data; }
+    function fDeleted(uid) { return fSettings(uid).deleted; }
+    function fLive(uid) {
+      return get(/databases/$(database)/documents/accountLifecycle/$(uid)).data.state == 'active'
+        && (!exists(/databases/$(database)/documents/friendSettings/$(uid)) || !fDeleted(uid));
+    }
+    function fOwnLive(uid) { return own(uid) && fLive(uid); }
+    function fPairId(a, b) { return a < b ? a + '~' + b : b + '~' + a; }
+    function fPairPath(a, b) { return /databases/$(database)/documents/friendPairs/$(fPairId(a, b)); }
+    function fUnblocked(a, b) {
+      return !exists(/databases/$(database)/documents/friendBlocks/$(a)/items/$(b))
+        && !exists(/databases/$(database)/documents/friendBlocks/$(b)/items/$(a));
+    }
+    function fConnected(uid, pending) {
+      let pair = get(fPairPath(uid, request.auth.uid)).data;
+      return verified() && uid != request.auth.uid && fLive(uid) && fLive(request.auth.uid)
+        && fUnblocked(uid, request.auth.uid)
+        && (pair.state == 'accepted' || (pending && pair.state == 'pending'));
+    }
+    function fSelection(selection) {
+      return selection is string && selection.size() <= 40199
+        && (selection == '' || (selection.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}([|][A-Za-z0-9][A-Za-z0-9:_-]{0,199}){0,199}$')
+          && selection.split('[|]').toSet().size() == selection.split('[|]').size()));
+    }
+    function fSettingsShape(data) {
+      return fKeys(data, ['format', 'enabled', 'deleted', 'selection', 'epoch', 'revision', 'updatedAt'])
+        && data.format == 1 && data.enabled is bool && data.deleted is bool && fSelection(data.selection)
+        && fInt(data.epoch, 1, 9007199254740991) && fInt(data.revision, 1, 9007199254740991)
+        && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.selection == ''));
+    }
+    match /friendSettings/{uid} {
+      allow get: if own(uid);
+      allow list, delete: if false;
+      allow create: if accountActive(uid) && fSettingsShape(request.resource.data)
+        && request.resource.data.epoch == 1 && request.resource.data.revision == 1 && !request.resource.data.enabled;
+      allow update: if fOwnLive(uid) && fSettingsShape(request.resource.data)
+        && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.revision == resource.data.revision + 1;
+    }
+    function fIdentityShape(data, uid) {
+      return fKeys(data, ['format', 'uid', 'displayName', 'avatar', 'revision', 'updatedAt'])
+        && data.format == 1 && data.uid == uid && data.displayName is string
+        && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && avatar(data.avatar) && fInt(data.revision, 1, 9007199254740991) && data.updatedAt == request.time;
+    }
+    match /friendIdentities/{uid} {
+      allow get: if own(uid) || fConnected(uid, true);
+      allow list: if false;
+      allow create: if fOwnLive(uid) && fIdentityShape(request.resource.data, uid) && request.resource.data.revision == 1;
+      allow update: if fOwnLive(uid) && fIdentityShape(request.resource.data, uid) && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if own(uid) && fDeleted(uid);
+    }
+    function fPairShape(data, id) {
+      return fKeys(data, ['format', 'a', 'b', 'participants', 'from', 'state', 'epoch', 'inviteSlot', 'createdAt', 'updatedAt'])
+        && data.format == 1 && fUid(data.a) && fUid(data.b) && data.a < data.b && id == data.a + '~' + data.b
+        && data.participants == [data.a, data.b] && data.from in data.participants
+        && data.state in ['pending', 'accepted', 'declined', 'cancelled', 'removed']
+        && fInt(data.epoch, 1, 9007199254740991) && (data.inviteSlot == null || fInt(data.inviteSlot, 0, 19))
+        && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    function fRequest(data) {
+      let other = data.from == data.a ? data.b : data.a;
+      return data.from == request.auth.uid && data.state == 'pending' && data.inviteSlot == null
+        && fLive(data.a) && fLive(data.b) && fUnblocked(data.a, data.b)
+        && exists(/databases/$(database)/documents/friendIdentities/$(data.from)) && liveProfile(other);
+    }
+    function fInviteCurrent(data, token) {
+      return data.state == 'active' && data.createdAt <= request.time
+        && request.time < data.createdAt + duration.value(7, 'd') && fLive(data.ownerUid)
+        && get(/databases/$(database)/documents/friendInviteSlots/$(data.ownerUid)/slots/$(string(data.slot))).data.token == token;
+    }
+    function fInviteProof(pair) {
+      let token = get(/databases/$(database)/documents/friendInviteSlots/$(pair.from)/slots/$(string(pair.inviteSlot))).data.token;
+      let before = get(/databases/$(database)/documents/friendInvites/$(token)).data;
+      let after = getAfter(/databases/$(database)/documents/friendInvites/$(token)).data;
+      return pair.state == 'accepted' && pair.inviteSlot != null && pair.from != request.auth.uid
+        && before.ownerUid == pair.from && before.slot == pair.inviteSlot
+        && fInviteCurrent(before, token) && fLive(request.auth.uid) && fUnblocked(pair.a, pair.b)
+        && after.state == 'consumed' && after.acceptedBy == request.auth.uid;
+    }
+    function fPairTransition(before, after) {
+      return (before.state == 'pending' && after.from == before.from && after.inviteSlot == null
+          && ((after.state == 'accepted' && request.auth.uid != before.from
+              && fLive(before.a) && fLive(before.b) && fUnblocked(before.a, before.b))
+            || (after.state == 'declined' && request.auth.uid != before.from)
+            || (after.state == 'cancelled' && request.auth.uid == before.from)))
+        || (after.state == 'removed' && after.from == before.from && after.inviteSlot == null
+          && (before.state == 'accepted' || (before.state == 'pending'
+            && existsAfter(/databases/$(database)/documents/friendBlocks/$(request.auth.uid)/items/$(request.auth.uid == before.a ? before.b : before.a)))))
+        || (before.state in ['declined', 'cancelled', 'removed'] && fRequest(after))
+        || (before.state != 'accepted' && fInviteProof(after));
+    }
+    match /friendPairs/{id} {
+      allow get: if verified() && (resource == null || request.auth.uid in resource.data.participants);
+      // Metadata queries need only the caller's participant constraint, not 20 per-row authorization lookups.
+      allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && request.auth.uid in resource.data.participants;
+      allow create: if verified() && request.auth.uid in request.resource.data.participants
+        && fPairShape(request.resource.data, id) && request.resource.data.epoch == 1 && request.resource.data.createdAt == request.time
+        && (fRequest(request.resource.data) || fInviteProof(request.resource.data));
+      allow update: if fOwnLive(request.auth.uid) && request.auth.uid in resource.data.participants
+        && fPairShape(request.resource.data, id) && request.resource.data.a == resource.data.a && request.resource.data.b == resource.data.b
+        && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.createdAt == resource.data.createdAt
+        && fPairTransition(resource.data, request.resource.data);
+      allow delete: if verified() && request.auth.uid in resource.data.participants && fDeleted(request.auth.uid);
+    }
+    match /friendBlocks/{uid}/items/{otherUid} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow create: if fOwnLive(uid) && fUid(otherUid) && uid != otherUid
+        && fKeys(request.resource.data, ['createdAt']) && request.resource.data.createdAt == request.time
+        && (!existsAfter(fPairPath(uid, otherUid)) || getAfter(fPairPath(uid, otherUid)).data.state in ['declined', 'cancelled', 'removed']);
+      allow update: if false;
+      allow delete: if own(uid);
+    }
+    function fInviteShape(data) {
+      return fKeys(data, ['format', 'ownerUid', 'slot', 'displayName', 'avatar', 'createdAt', 'state', 'acceptedBy'])
+        && data.format == 1 && fUid(data.ownerUid) && fInt(data.slot, 0, 19)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && avatar(data.avatar) && data.createdAt is timestamp && data.state in ['active', 'consumed', 'revoked']
+        && (data.state == 'consumed' ? fUid(data.acceptedBy) && data.acceptedBy != data.ownerUid : data.acceptedBy == null);
+    }
+    function fConsumeInvite(before, after, token) {
+      let pairPath = fPairPath(before.ownerUid, request.auth.uid);
+      let pair = getAfter(pairPath).data;
+      return verified() && request.auth.uid != before.ownerUid && fInviteCurrent(before, token)
+        && fLive(request.auth.uid) && fUnblocked(before.ownerUid, request.auth.uid)
+        && after.diff(before).affectedKeys().hasOnly(['state', 'acceptedBy'])
+        && after.state == 'consumed' && after.acceptedBy == request.auth.uid
+        && pair.state == 'accepted' && pair.from == before.ownerUid && pair.inviteSlot == before.slot
+        && pair.participants.hasAll([before.ownerUid, request.auth.uid]) && pair.updatedAt == request.time
+        && pair.epoch == (exists(pairPath) ? get(pairPath).data.epoch + 1 : 1);
+    }
+    match /friendInvites/{token} {
+      allow get: if (resource != null && own(resource.data.ownerUid))
+        || (resource != null && fInviteCurrent(resource.data, token)
+          && (request.auth == null || request.auth.uid == resource.data.ownerUid || fUnblocked(resource.data.ownerUid, request.auth.uid)));
+      allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && resource.data.ownerUid == request.auth.uid;
+      allow create: if digest(token) && fOwnLive(request.resource.data.ownerUid) && fInviteShape(request.resource.data)
+        && request.resource.data.state == 'active' && request.resource.data.createdAt == request.time
+        && request.resource.data.displayName == get(/databases/$(database)/documents/friendIdentities/$(request.auth.uid)).data.displayName
+        && request.resource.data.avatar == get(/databases/$(database)/documents/friendIdentities/$(request.auth.uid)).data.avatar
+        && getAfter(/databases/$(database)/documents/friendInviteSlots/$(request.auth.uid)/slots/$(string(request.resource.data.slot))).data.token == token;
+      allow update: if resource.data.state != 'closed' && (
+        (own(resource.data.ownerUid) && fKeys(request.resource.data, ['ownerUid', 'state'])
+          && request.resource.data.ownerUid == resource.data.ownerUid && request.resource.data.state == 'closed')
+        || (fInviteShape(request.resource.data)
+          && ((fOwnLive(resource.data.ownerUid) && resource.data.state == 'active'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state']) && request.resource.data.state == 'revoked')
+            || fConsumeInvite(resource.data, request.resource.data, token))));
+      allow delete: if false;
+    }
+    function fSlotNext(uid, slot, data) {
+      let invite = getAfter(/databases/$(database)/documents/friendInvites/$(data.token)).data;
+      return slot.matches('^([0-9]|1[0-9])$') && fKeys(data, ['token']) && digest(data.token)
+        && invite.ownerUid == uid && string(invite.slot) == slot && invite.state == 'active' && invite.createdAt == request.time;
+    }
+    function fSlotReleased(token) {
+      let invite = get(/databases/$(database)/documents/friendInvites/$(token)).data;
+      return invite.state != 'active' || request.time >= invite.createdAt + duration.value(7, 'd')
+        || getAfter(/databases/$(database)/documents/friendInvites/$(token)).data.state == 'closed';
+    }
+    match /friendInviteSlots/{uid}/slots/{slot} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow create: if fOwnLive(uid) && fSlotNext(uid, slot, request.resource.data);
+      allow update: if fOwnLive(uid) && fSlotNext(uid, slot, request.resource.data) && fSlotReleased(resource.data.token);
+      allow delete: if own(uid) && fDeleted(uid);
+    }
+    function fSource(source) {
+      return source is map && fKeys(source, ['syncEpoch', 'remoteRevision'])
+        && fInt(source.syncEpoch, 1, 9007199254740991) && fInt(source.remoteRevision, 0, 9007199254740991);
+    }
+    function fPublish(uid, epoch, revision, source) {
+      let control = fSettings(uid);
+      let sync = head(uid);
+      return fOwnLive(uid) && control.enabled && control.epoch == epoch && control.revision == revision
+        && fSource(source) && sync.enabled && !sync.deleted && sync.epoch == source.syncEpoch && sync.revision == source.remoteRevision;
+    }
+    function fManifest(data) {
+      return data is map && fKeys(data, ['generation', 'digest', 'count'])
+        && uuid(data.generation) && digest(data.digest) && fInt(data.count, 0, 200);
+    }
+    function fShareHead(uid) { return get(/databases/$(database)/documents/friendShareHeads/$(uid)).data; }
+    function fShareCurrent(uid, generationId) {
+      let control = fSettings(uid);
+      let pointer = fShareHead(uid);
+      return fConnected(uid, false) && control.enabled && !control.deleted
+        && pointer.epoch == control.epoch && pointer.settingsRevision == control.revision && pointer.current.generation == generationId;
+    }
+    function fRetained(uid, id) {
+      let control = fSettings(uid);
+      return control.enabled && !control.deleted && exists(/databases/$(database)/documents/friendShareHeads/$(uid))
+        && fShareHead(uid).epoch == control.epoch && fShareHead(uid).settingsRevision == control.revision
+        && ((fShareHead(uid).current != null && fShareHead(uid).current.generation == id)
+          || (fShareHead(uid).previous != null && fShareHead(uid).previous.generation == id));
+    }
+    function fGeneration(uid, id) { return get(/databases/$(database)/documents/friendShares/$(uid)/generations/$(id)).data; }
+    function fHeadWrite(uid, data) {
+      let gen = fGeneration(uid, data.current.generation);
+      return fKeys(data, ['format', 'epoch', 'settingsRevision', 'source', 'revision', 'current', 'previous', 'updatedAt'])
+        && data.format == 1 && fManifest(data.current) && (data.previous == null || fManifest(data.previous))
+        && fInt(data.revision, 1, 9007199254740991) && data.updatedAt == request.time
+        && fPublish(uid, data.epoch, data.settingsRevision, data.source)
+        && gen.status == 'ready' && gen.epoch == data.epoch && gen.settingsRevision == data.settingsRevision && gen.source == data.source
+        && data.current.count == gen.count && data.current.digest == gen.digest
+        && getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(data.current.generation)).data.status == 'published';
+    }
+    match /friendShareHeads/{uid} {
+      allow get: if own(uid) || (resource != null && fShareCurrent(uid, resource.data.current.generation));
+      allow list: if false;
+      allow create: if fHeadWrite(uid, request.resource.data) && request.resource.data.revision == 1 && request.resource.data.previous == null;
+      allow update: if fHeadWrite(uid, request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.previous == resource.data.current && request.resource.data.current.generation != resource.data.current.generation;
+      allow delete: if own(uid) && fDeleted(uid);
+    }
+    function fRegistry(data) {
+      return fKeys(data, ['ids', 'revision']) && data.ids is list && data.ids.size() <= 3
+        && data.ids.toSet().size() == data.ids.size() && fInt(data.revision, 1, 9007199254740991);
+    }
+    function fRegistryAdded(uid, id) {
+      let gen = getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(id)).data;
+      return fOwnLive(uid) && uuid(id) && gen.createdAt == request.time && gen.status in ['staging', 'ready'];
+    }
+    match /friendShareRegistry/{uid} {
+      allow get: if own(uid);
+      allow list: if false;
+      allow create: if own(uid) && fRegistry(request.resource.data) && request.resource.data.ids.size() == 1
+        && request.resource.data.revision == 1 && fRegistryAdded(uid, request.resource.data.ids[0]);
+      allow update: if own(uid) && fRegistry(request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && ((request.resource.data.ids.size() == resource.data.ids.size() + 1
+            && request.resource.data.ids == resource.data.ids.concat([request.resource.data.ids[request.resource.data.ids.size() - 1]])
+            && fRegistryAdded(uid, request.resource.data.ids[request.resource.data.ids.size() - 1]))
+          || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
+            && !existsAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(resource.data.ids.removeAll(request.resource.data.ids)[0]))));
+      allow delete: if own(uid) && fDeleted(uid) && (resource == null || resource.data.ids.size() == 0);
+    }
+    function fGenerationShape(data) {
+      return fKeys(data, ['epoch', 'settingsRevision', 'source', 'count', 'digest', 'uploaded', 'ids', 'status', 'createdAt'])
+        && fInt(data.epoch, 1, 9007199254740991) && fInt(data.settingsRevision, 1, 9007199254740991) && fSource(data.source)
+        && fInt(data.count, 0, 200) && digest(data.digest) && fInt(data.uploaded, 0, 20)
+        && data.ids is list && data.ids.size() <= data.count && data.ids.toSet().size() == data.ids.size()
+        && data.status in ['staging', 'ready', 'published', 'deleting'] && data.createdAt is timestamp;
+    }
+    function fGenerationProgress(uid, id, before, after) {
+      let chunk = getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(id)/chunks/$(string(before.uploaded))).data;
+      return before.status == 'staging' && after.diff(before).affectedKeys().hasOnly(['uploaded', 'ids', 'status'])
+        && fPublish(uid, before.epoch, before.settingsRevision, before.source)
+        && after.uploaded == before.uploaded + 1 && chunk.index == before.uploaded
+        && after.ids == before.ids.concat(chunk.ids)
+        && after.status == (after.ids.size() == before.count ? 'ready' : 'staging');
+    }
+    function fCanRetire(uid, id, gen) {
+      let control = fSettings(uid);
+      return own(uid) && !fRetained(uid, id)
+        && (gen.status in ['published', 'deleting'] || control.deleted || !control.enabled
+          || gen.epoch != control.epoch || gen.settingsRevision != control.revision
+          || request.time >= gen.createdAt + duration.value(5, 'm'));
+    }
+    match /friendShares/{uid}/generations/{id} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 3;
+      allow create: if uuid(id) && fGenerationShape(request.resource.data)
+        && fPublish(uid, request.resource.data.epoch, request.resource.data.settingsRevision, request.resource.data.source)
+        && request.resource.data.uploaded == 0 && request.resource.data.ids == [] && request.resource.data.createdAt == request.time
+        && request.resource.data.status == (request.resource.data.count == 0 ? 'ready' : 'staging')
+        && getAfter(/databases/$(database)/documents/friendShareRegistry/$(uid)).data.ids.hasAny([id]);
+      allow update: if own(uid) && fGenerationShape(request.resource.data)
+        && ((resource.data.status == 'staging' && request.resource.data.status in ['staging', 'ready']
+            && fGenerationProgress(uid, id, resource.data, request.resource.data))
+          || (resource.data.status == 'ready' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && request.resource.data.status == 'published'
+            && fPublish(uid, resource.data.epoch, resource.data.settingsRevision, resource.data.source)
+            && getAfter(/databases/$(database)/documents/friendShareHeads/$(uid)).data.current.generation == id)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'deleting'
+            && fCanRetire(uid, id, resource.data)));
+      allow delete: if own(uid) && resource.data.status == 'deleting' && !fRetained(uid, id)
+        && !getAfter(/databases/$(database)/documents/friendShareRegistry/$(uid)).data.ids.hasAny([id]);
+    }
+    function fChunkEntry(data, index, offset) {
+      return offset >= data.entries.size() || (publicEntry(data.entries[offset])
+        && data.entries[offset].position == index * 10 + offset + 1 && data.ids[offset] == data.entries[offset].id);
+    }
+    function fChunkShape(data, count) {
+      return fKeys(data, ['index', 'entries', 'ids']) && fInt(data.index, 0, 19)
+        && data.entries is list && data.entries.size() >= 1
+        && data.entries.size() == (count - data.index * 10 < 10 ? count - data.index * 10 : 10)
+        && data.ids is list && data.ids.size() == data.entries.size() && data.ids.toSet().size() == data.ids.size()
+        && fChunkEntry(data, data.index, 0) && fChunkEntry(data, data.index, 1) && fChunkEntry(data, data.index, 2)
+        && fChunkEntry(data, data.index, 3) && fChunkEntry(data, data.index, 4) && fChunkEntry(data, data.index, 5)
+        && fChunkEntry(data, data.index, 6) && fChunkEntry(data, data.index, 7) && fChunkEntry(data, data.index, 8) && fChunkEntry(data, data.index, 9);
+    }
+    match /friendShares/{uid}/generations/{generationId}/chunks/{chunkId} {
+      allow get: if fOwnLive(uid) || fShareCurrent(uid, generationId);
+      allow list: if false;
+      allow create: if own(uid) && string(request.resource.data.index) == chunkId
+        && fChunkShape(request.resource.data, fGeneration(uid, generationId).count)
+        && fGeneration(uid, generationId).status == 'staging' && fGeneration(uid, generationId).uploaded == request.resource.data.index
+        && fPublish(uid, fGeneration(uid, generationId).epoch, fGeneration(uid, generationId).settingsRevision, fGeneration(uid, generationId).source)
+        && fSettings(uid).selection.split('[|]').hasAll(request.resource.data.ids)
+        && getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(generationId)).data.uploaded == request.resource.data.index + 1;
+      allow update: if false;
+      allow delete: if own(uid) && fGeneration(uid, generationId).status == 'deleting' && !fRetained(uid, generationId);
+    }
+    function fGroup(data) {
+      return fKeys(data, ['format', 'name', 'participantUids', 'revision', 'createdAt', 'updatedAt'])
+        && data.format == 1 && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.participantUids is list && data.participantUids.size() >= 2 && data.participantUids.size() <= 6
+        && data.participantUids.toSet().size() == data.participantUids.size()
+        && fUid(data.participantUids[0]) && fUid(data.participantUids[1])
+        && (data.participantUids.size() < 3 || fUid(data.participantUids[2]))
+        && (data.participantUids.size() < 4 || fUid(data.participantUids[3]))
+        && (data.participantUids.size() < 5 || fUid(data.participantUids[4]))
+        && (data.participantUids.size() < 6 || fUid(data.participantUids[5]))
+        && fInt(data.revision, 1, 9007199254740991) && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    match /friendGroups/{uid}/items/{id} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow create: if fOwnLive(uid) && uuid(id) && fGroup(request.resource.data)
+        && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time;
+      allow update: if fOwnLive(uid) && fGroup(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if own(uid);
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

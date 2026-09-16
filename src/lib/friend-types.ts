@@ -51,7 +51,7 @@ export interface FriendExportPage {
 export interface FriendCleanupResult { deleted: number; done: boolean }
 export interface FriendGeneration {
   epoch: number; settingsRevision: number; count: number; digest: string; uploaded: number;
-  source: FriendSourceRevision; ids: string[]; status: 'staging' | 'ready' | 'deleting'; createdAt: number;
+  source: FriendSourceRevision; ids: string[]; status: 'staging' | 'ready' | 'published' | 'deleting'; createdAt: number;
 }
 
 function invalid(message = 'Friend data has an unsupported format. Reload before continuing.'): never {
@@ -117,7 +117,7 @@ export function parseFriendPair(value: unknown): FriendPair {
   const row = object(value, 'format,a,b,participants,from,state,epoch,inviteSlot,createdAt,updatedAt');
   const a = friendUid(row.a); const b = friendUid(row.b); const from = friendUid(row.from);
   if (a >= b || !Array.isArray(row.participants) || row.participants.length !== 2 || row.participants[0] !== a || row.participants[1] !== b ||
-    ![a, b].includes(from) || !['pending', 'accepted', 'declined', 'cancelled', 'removed'].includes(String(row.state))) invalid();
+    ![a, b].includes(from) || typeof row.state !== 'string' || !['pending', 'accepted', 'declined', 'cancelled', 'removed'].includes(row.state)) invalid();
   return {
     format: version(row.format), a, b, participants: [a, b], from, state: row.state as FriendPairState, epoch: integer(row.epoch, 1),
     inviteSlot: row.inviteSlot === null ? null : integer(row.inviteSlot, 0, 19), createdAt: time(row.createdAt), updatedAt: time(row.updatedAt),
@@ -145,7 +145,7 @@ export function parseFriendBlock(uid: string, value: unknown): FriendBlock {
 }
 export function parseFriendInvite(token: string, value: unknown): FriendInvitation {
   const row = object(value, 'format,ownerUid,slot,displayName,avatar,createdAt,state,acceptedBy');
-  if (row.format !== 1 || !['active', 'consumed', 'revoked'].includes(String(row.state)) ||
+  if (row.format !== 1 || typeof row.state !== 'string' || !['active', 'consumed', 'revoked'].includes(row.state) ||
     (row.state === 'consumed' ? typeof row.acceptedBy !== 'string' : row.acceptedBy !== null)) invalid();
   if (row.acceptedBy !== null) friendUid(row.acceptedBy);
   const createdAt = time(row.createdAt);
@@ -156,9 +156,9 @@ export function parseFriendInvite(token: string, value: unknown): FriendInvitati
 }
 export function parseFriendGeneration(value: unknown): FriendGeneration {
   const row = object(value, 'epoch,settingsRevision,count,digest,uploaded,ids,status,createdAt,source');
-  if (!['staging', 'ready', 'deleting'].includes(String(row.status))) invalid();
+  if (typeof row.status !== 'string' || !['staging', 'ready', 'published', 'deleting'].includes(row.status)) invalid();
   const count = integer(row.count, 0, 200); const uploaded = integer(row.uploaded, 0, 20); const ids = friendSelection(row.ids);
-  if (uploaded > Math.ceil(count / 10) || ids.length !== Math.min(uploaded * 10, count) || (row.status === 'ready' && ids.length !== count)) invalid();
+  if (uploaded > Math.ceil(count / 10) || ids.length !== Math.min(uploaded * 10, count) || ((row.status === 'ready' || row.status === 'published') && ids.length !== count)) invalid();
   return { epoch: integer(row.epoch, 1), settingsRevision: integer(row.settingsRevision, 1), source: parseFriendSource(row.source), count, digest: friendToken(row.digest), uploaded, ids, status: row.status as FriendGeneration['status'], createdAt: time(row.createdAt) };
 }
 export function parseFriendSource(value: unknown): FriendSourceRevision {

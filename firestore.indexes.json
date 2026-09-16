@@ -9,9 +9,37 @@
         { "fieldPath": "hidden", "order": "ASCENDING" },
         { "fieldPath": "handle", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "friendPairs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "friendPairs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "friendInvites",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid", "order": "ASCENDING" },
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
-    { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] }
+    { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "chunks", "fieldPath": "entries", "indexes": [] },
+    { "collectionGroup": "friendSettings", "fieldPath": "selection", "indexes": [] }
   ]
 }
