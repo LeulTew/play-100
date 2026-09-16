@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import type { SyncHead } from './cloud-types';
 import { closePersonalLibrary, loadPersonalLibrary, commitPersonalAction, subscribePersonalLibrary } from './personal-db';
-import { acknowledgeScopedUpload, adoptScopedRemote, cacheScopedProfile, commitScopedAction, connectScopedLibrary, loadScopedLibrary, parseScopedLibrary, pauseScopedLibrary } from './scoped-library';
+import { acknowledgeScopedUpload, adoptScopedRemote, cacheScopedProfile, commitScopedAction, connectScopedLibrary, loadScopedLibrary, parseScopedLibrary, pauseScopedLibrary, rebaseScopedLibrary } from './scoped-library';
 import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
@@ -163,5 +163,27 @@ describe('explicit account scopes in the existing local database', () => {
     const initial = await connect();
     await expect(adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, initial.state.revision, false, () => false)).rejects.toThrow(/changed/);
     expect(await loadScopedLibrary(alice)).toEqual(initial);
+  });
+
+  it('does not apply an old session acknowledgement or profile callback to a later account lifetime', async () => {
+    const before = await connect(head, true);
+    await expect(acknowledgeScopedUpload(alice, before.sync.dataRevision, { ...head, revision: 1 }, () => false)).rejects.toThrow(/session changed/);
+    await expect(rebaseScopedLibrary(alice, { ...head, revision: 1 }, before.state.revision, () => false)).rejects.toThrow(/permission changed/);
+    expect(await loadScopedLibrary(alice)).toEqual(before);
+    await expect(cacheScopedProfile(alice, {
+      uid: 'alice', displayName: 'Old session', avatar: { version: 1, seed: 'a'.repeat(32), palette: 'lime' },
+      createdAt: 1, updatedAt: 2, consentVersion: 1, gameCount: 0, rankCount: 0,
+    }, () => false)).rejects.toThrow(/account changed/);
+    expect(await loadScopedLibrary(alice)).toEqual(before);
+  });
+
+  it('keeps manual stop and a newer consent epoch protected from delayed adoption and pause', async () => {
+    const connected = await connect();
+    const stopped = await pauseScopedLibrary(alice);
+    await expect(adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, connected.state.revision)).rejects.toThrow(/permission changed/);
+    expect(await loadScopedLibrary(alice)).toEqual(stopped);
+    const reconnected = await connect({ ...head, epoch: 3 }, true);
+    await expect(pauseScopedLibrary(alice, 1)).rejects.toThrow(/session changed/);
+    expect(await loadScopedLibrary(alice)).toEqual(reconnected);
   });
 });

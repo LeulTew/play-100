@@ -58,6 +58,7 @@ export default function App() {
   const library = online?.controller ?? guestLibrary;
   const libraryBusy = library.busy || onlineOpening;
   const libraryScope = online?.scope ?? 'guest';
+  const headerIdentity = online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
   const activeScope = useRef(libraryScope);
   activeScope.current = libraryScope;
   const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account...' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
@@ -164,7 +165,7 @@ export default function App() {
           <button className="saved-nav" onClick={() => navigate('library', { list: 'later' })}><Icon name="bookmark" width="19" height="19" /><span className="saved-nav-label">Play later</span><CountUp to={savedCount} animate={capabilities.animate} className="saved-count" /><span className="sr-only"> games in your queue</span></button>
           <a className="icon-button header-download" href="/downloads/Play-100-Collection.xlsx" download aria-label="Download enhanced Excel workbook" title="Download Excel"><Icon name="download" /></a>
           <button className="icon-button settings-nav" aria-label="Settings and visual experience" onClick={() => setPanel('settings')}><Icon name="sliders" /></button>
-          {ONLINE_AVAILABLE && <a className={`account-nav sync-${online?.status ?? 'device'}`} href="/account" aria-label={`Account: ${libraryMode.label}`} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); void accountEntry(); } }}><Icon name="user" width="20" height="20" /><span className="account-nav-copy"><strong>Account:</strong>{' '}<small>{libraryMode.label}</small></span></a>}
+          {ONLINE_AVAILABLE && <a className={`account-nav sync-${online?.status ?? 'device'}`} href="/account" aria-label={`Account${headerIdentity ? ` for ${headerIdentity.name}` : ''}: ${libraryMode.label}`} title={libraryMode.label} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); void accountEntry(); } }}><span className="account-nav-avatar" aria-hidden="true">{headerIdentity ? <img src={headerIdentity.avatarSrc} width="32" height="32" alt="" draggable={false} /> : <Icon name="user" width="20" height="20" />}</span><span className="account-nav-copy"><strong>{headerIdentity?.name ?? 'Account'}</strong><small>{libraryMode.label}</small></span></a>}
         </div>
       </header>
       {warning && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{warning}</p><button className="text-button" onClick={() => setPanel('settings')}>Settings<Icon name="arrow" width="18" height="18" /></button></div></div>}

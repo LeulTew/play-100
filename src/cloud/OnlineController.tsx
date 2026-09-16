@@ -13,7 +13,8 @@ import type { SyncHead } from '../lib/cloud-types';
 import { accountScope, SYNC_LABELS } from '../lib/cloud-types';
 import { cacheScopedProfile, connectScopedLibrary, deleteScopedLibrary, loadScopedLibrary, pauseScopedLibrary } from '../lib/scoped-library';
 import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-library';
-import { createAvatarDescriptor } from '../lib/avatar';
+import { createAvatarDescriptor, generateAvatarDataUri } from '../lib/avatar';
+import type { AvatarDescriptor } from '../lib/avatar';
 import { EMULATOR_MODE, rememberOnlineRequest } from '../lib/online-availability';
 import { useAccountLibrary } from '../hooks/useAccountLibrary';
 import { flushPendingEdits, hasPendingEdits } from '../hooks/useExitSave';
@@ -25,6 +26,7 @@ import { creatorAccess, deleteOwnMember } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
 import { onlineError, popupCancelled } from './errors';
+import { syncFailure } from '../lib/sync-retry';
 import { finishGoogleRedirect, startGoogleRedirect } from './google-auth';
 import type { GoogleReturn } from './google-auth';
 import { readGoogleIntent } from '../lib/google-intent';
@@ -42,6 +44,7 @@ interface GoogleDeletionApproval {
   requestId: string; uid: string; target: 'copy' | 'account'; epoch: number;
   sessionEpoch: number; startedAt: number; expiresAt: number;
 }
+const loadingAvatar: AvatarDescriptor = { version: 1, seed: '00000000000000000000000000000000', palette: 'moss' };
 
 function identityOf(user: User, verified: boolean): AccountIdentity {
   return { uid: user.uid, email: user.email ?? '', displayName: user.displayName ?? '', verified, providers: user.providerData.map((provider) => provider.providerId) };
@@ -61,6 +64,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
 }) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
   const [memberSnapshot, setMember] = useState<Member | null>(null);
+  const memberReadVersion = useRef(0);
   const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
   const [headSnapshot, setHeadSnapshot] = useState<{ uid: string; value: SyncHead | null } | null>(null);
   const [creatorUid, setCreatorUid] = useState<string | null>(null);
@@ -80,6 +84,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   navigation.current = { page, onCloseSheet, onNavigate };
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState(() => createAvatarDescriptor());
+  const defaultAvatarUid = useRef<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [now, setNow] = useState(Date.now());
   const running = useRef(false);
@@ -99,6 +104,10 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   const restoring = identity === undefined || Boolean(identity && !account.snapshot && !account.error);
   const cacheUnavailable = Boolean(identity && account.error && !account.snapshot);
   const canCacheProfile = Boolean(account.snapshot && !account.error);
+  const cacheNow = useRef(account.snapshot);
+  cacheNow.current = account.snapshot;
+  const cacheReady = useRef(canCacheProfile);
+  cacheReady.current = canCacheProfile;
   const protectedController = useMemo(() => cacheUnavailable ? { ...account.controller, busy: true } : active ? account.controller : null, [cacheUnavailable, active, account.controller]);
   const activeController = protectedController ?? guest;
   const currentEpoch = useRef(account.snapshot?.sync.epoch ?? 0);
@@ -146,8 +155,12 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     return () => { alive = false; settled(); unsubscribe(); window.removeEventListener('pageshow', restorePage); };
   }, [reconcileIdentity]);
   useEffect(() => {
-    setMember(null); setProfile(null); setHeadSnapshot(null); setCreatorUid(null); setError(''); setMessage(''); setAvatarOpen(false); setDefaultAvatar(createAvatarDescriptor()); setDeletionApproval(null);
+    setMember(null); setProfile(null); setHeadSnapshot(null); setCreatorUid(null); setError(''); setMessage(''); setAvatarOpen(false); setDeletionApproval(null);
   }, [identity?.uid]);
+  useLayoutEffect(() => {
+    defaultAvatarUid.current = uid ?? null;
+    setDefaultAvatar(createAvatarDescriptor());
+  }, [uid]);
   useEffect(() => {
     const returned = googleReturn;
     if (!returned?.completed || !returned.intent || !identity || identity.uid !== returned.uid || cloudAuth.currentUser?.uid !== returned.uid) return;
@@ -184,30 +197,65 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [cooldown, now]);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (includeMember = true) => {
     const user = identityRef.current;
     if (!user?.verified || !sync.store) return;
-    const [nextMember, nextProfile, nextHead, allowed] = await Promise.all([social.member(user.uid), social.ownProfile(user.uid), sync.store.head(), creatorAccess(cloudDb)]);
+    const version = memberReadVersion.current;
+    const [nextMember, nextProfile, nextHead, allowed] = await Promise.all([includeMember ? social.member(user.uid) : Promise.resolve(undefined), social.ownProfile(user.uid), cacheNow.current?.sync.enabled ? Promise.resolve(undefined) : sync.store.head(), creatorAccess(cloudDb)]);
     if (identityRef.current?.uid !== user.uid) return;
-    setMember(nextMember); setProfile(nextProfile); setHeadSnapshot({ uid: user.uid, value: nextHead }); setCreatorUid(allowed ? user.uid : null);
-    if (nextMember && scope && canCacheProfile) {
-      try { await cacheScopedProfile(scope, nextMember); }
+    if (nextMember !== undefined && version === memberReadVersion.current) setMember(nextMember);
+    setProfile(nextProfile); if (nextHead !== undefined) setHeadSnapshot({ uid: user.uid, value: nextHead }); setCreatorUid(allowed ? user.uid : null);
+    if (nextMember && scope && cacheReady.current && version === memberReadVersion.current) {
+      try { await cacheScopedProfile(scope, nextMember, () => cloudAuth.currentUser?.uid === user.uid && version === memberReadVersion.current); }
       catch (cause) { if (identityRef.current?.uid === user.uid) setError(`Online profile loaded, but its device cache could not update. ${onlineError(cause)}`); }
     }
-  }, [social, sync.store, scope, canCacheProfile]);
+  }, [social, sync.store, scope]);
+  const accountReady = Boolean(account.snapshot || account.error);
   useEffect(() => {
-    if (!identity?.verified) return;
-    void refresh().catch((cause) => { setError(onlineError(cause)); });
-  }, [identity?.uid, identity?.verified, refresh]);
+    if (!identity?.verified || !accountReady || !sync.profileAvailable) return;
+    let alive = true;
+    const uid = identity.uid;
+    void refresh(false).catch((cause) => {
+      if (!alive || cloudAuth.currentUser?.uid !== uid) return;
+      if (syncFailure(cause) !== 'blocked') sync.reportProfileError(cause);
+      else setError(onlineError(cause));
+    });
+    return () => { alive = false; };
+  }, [identity?.uid, identity?.verified, accountReady, refresh, sync.profileAvailable, sync.profileConnection, sync.reportProfileError]);
   useEffect(() => { if (sync.remote && uid) setHeadSnapshot({ uid, value: sync.remote }); }, [sync.remote, uid]);
+  useEffect(() => {
+    if (!uid || !scope || !identity?.verified || !sync.profileAvailable) return;
+    let alive = true;
+    let caching = '';
+    const unsubscribe = social.watchMember(uid, (next) => {
+      if (!alive || cloudAuth.currentUser?.uid !== uid) return;
+      memberReadVersion.current += 1;
+      setMember((previous) => previous?.uid === uid && next && previous.updatedAt > next.updatedAt ? previous : next);
+      if (!next || !cacheReady.current) return;
+      const cached = cacheNow.current?.profile;
+      const fingerprint = `${next.displayName}:${next.avatar.version}:${next.avatar.seed}:${next.avatar.palette}`;
+      if (caching === fingerprint || (cached?.displayName === next.displayName && cached.avatar.version === next.avatar.version && cached.avatar.seed === next.avatar.seed && cached.avatar.palette === next.avatar.palette)) return;
+      caching = fingerprint;
+      void cacheScopedProfile(scope, next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
+        if (alive && cloudAuth.currentUser?.uid === uid) { caching = ''; setError(`Your online profile loaded, but its device cache could not update. ${onlineError(cause)}`); }
+      });
+    }, (cause) => { if (alive && cloudAuth.currentUser?.uid === uid) sync.reportProfileError(cause); });
+    return () => { alive = false; unsubscribe(); };
+  }, [uid, scope, identity?.verified, sync.profileAvailable, sync.profileConnection, sync.reportProfileError, social]);
 
+  const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? (defaultAvatarUid.current === uid ? defaultAvatar : loadingAvatar);
+  const headerIdentity = useMemo(() => identity ? {
+    uid: identity.uid, name: member?.displayName || account.snapshot?.profile?.displayName || identity.displayName || 'Account',
+    avatarSrc: generateAvatarDataUri(avatar),
+  } : null, [identity, member?.displayName, account.snapshot?.profile?.displayName, avatar]);
   const bridge = useMemo<OnlineBridge>(() => ({
     loading: restoring, identity: identity ?? null,
     controller: protectedController, scope: (active || cacheUnavailable) && scope ? scope : 'guest',
     enabled: active && Boolean(account.snapshot?.sync.enabled && identity?.verified),
     status: cacheUnavailable ? 'error' : active ? sync.status : 'device', label: cacheUnavailable ? 'Account cache unavailable' : active ? (sync.pendingEdits ? 'Finishing local edits...' : SYNC_LABELS[sync.status]) : 'Device only',
     creator: isCreator,
-  }), [identity, restoring, active, protectedController, cacheUnavailable, account.snapshot?.sync.enabled, scope, sync.status, sync.pendingEdits, isCreator]);
+    headerIdentity,
+  }), [identity, restoring, active, protectedController, cacheUnavailable, account.snapshot?.sync.enabled, scope, sync.status, sync.pendingEdits, isCreator, headerIdentity]);
   useLayoutEffect(() => { onBridge(bridge); }, [bridge, onBridge]);
 
   const run = async (operation: () => Promise<void>, identityChange = false): Promise<boolean> => {
@@ -300,12 +348,14 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   });
   const signOutAccount = () => run(async () => {
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before signing out.');
+    sync.suspend();
     await account.waitForWrites();
     await signOut(cloudAuth); rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
   const pause = () => run(async () => {
     const { scope: target, store } = verifiedIdentity();
     if (!navigator.onLine) throw new Error('Connect before stopping online saving on all devices. Offline edits are retained here.');
+    sync.suspend();
     const current = await store.head();
     if (current) await store.revoke(current);
     await pauseScopedLibrary(target); await account.refresh(); await refresh();
@@ -364,6 +414,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
         if (typeof token.claims.auth_time !== 'number' || token.claims.auth_time * 1000 < approval.startedAt - 5000) throw new Error('Google confirmation is no longer current. Review the account and confirm again.');
       }
       if (cloudAuth.currentUser?.uid !== signedIn.uid || identityRef.current?.uid !== signedIn.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Nothing was deleted.');
+      sync.suspend();
       if (removeAccount && !identityRef.current.verified) {
         const token = await getIdTokenResult(signedIn, true);
         if (token.claims.email_verified === true) {
@@ -394,7 +445,6 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     }, removeAccount);
   };
 
-  const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? defaultAvatar;
   const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
   const visibleError = error || googleReturn?.error || '';
   const visibleMessage = message || googleReturn?.message || '';
@@ -417,7 +467,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
           onAvatar={() => setAvatarOpen(true)} onName={(name) => run(async () => { const { user } = verifiedIdentity(); await social.saveMemberName(user.uid, name, avatar); await refresh(); setMessage('Account name saved. Published snapshots change only when explicitly updated.'); })}
           onConnect={connect} onVerify={sendVerification} onRefreshIdentity={() => run(async () => { const user = cloudAuth.currentUser; if (!user) return; await reload(user); refreshedMismatch.current.delete(user.uid); const next = await reconcileIdentity(user, true); setMessage(next.verified ? 'Email verified. You can choose online saving or publishing.' : 'Verification is not confirmed yet. Open the latest email link, then try again.'); })}
           onSignOut={signOutAccount} onLinkGoogle={linkGoogle}
-          onRetry={() => run(async () => { await sync.retry(); await refresh(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
+          onRetry={() => run(async () => { await sync.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
           onPause={pause} onDownload={downloadData}
           onUseRemote={(reviewed, revision) => run(async () => { await sync.useRemote(reviewed, revision); await account.refresh(); })}
           onUseLocal={(reviewed, revision) => run(async () => { await sync.useLocal(reviewed, revision); })}

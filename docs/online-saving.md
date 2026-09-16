@@ -87,6 +87,21 @@ last-write-wins behavior are not used as the account outbox or conflict policy.
 Private head listeners are detached while hidden/offline. Cloud work is
 coalesced after local edits, rather than issued on every keystroke.
 
+For an already-enabled account, edits automatically save after a 2.5-second
+quiet period. A single scope/consent-owned queue retries transient transport
+failures with jittered exponential backoff (2 seconds to 1 minute). Quota
+failures use a 1-minute to 30-minute cooldown that extra edits, focus events and
+manual checks cannot bypass. Successful reconciliation resets backoff. Idle,
+clean libraries are not polled. Online, visible, focus and page-return signals
+coalesce recovery, including reattaching failed head/profile listeners.
+
+Conflicts, revoked consent, manual stop, unverified identity, invalid snapshots
+and permission errors do not become automatic overwrite attempts. Signing out,
+stopping or changing account/consent lifetime cancels retry work and rejects old
+results. A closed browser cannot sync, and free quotas can still delay saving.
+First-time/new-device connection choices and separate publication consent are
+unchanged by this recovery policy.
+
 ## Conflicts
 
 A clean client can adopt a fully validated newer snapshot. A dirty client, or
@@ -201,6 +216,11 @@ definition from styles **10.6.0**. The descriptor is version 1, a random
 32-character lowercase hexadecimal seed, and one of five palette names.
 Seeds are not derived from UID or email. SVG is generated locally and rendered
 as an image; arbitrary SVG, HTML and URLs are not accepted descriptors.
+The header uses the same current account creature and chosen name as Account,
+with a UID-validated device cache while the profile loads. Rendering stays in
+the lazy online bundle; fresh guest browsing does not load DiceBear or Firebase.
+The header clears on sign-out/identity changes and follows committed profile
+updates without importing a Google photo or overwriting another profile field.
 The six-choice picker is a draft until Save. Its completion is bound to the
 submitted identity session, not whichever account happens to be visible later.
 

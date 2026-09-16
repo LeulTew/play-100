@@ -1,4 +1,4 @@
-import { collection, doc, getDocFromServer, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
 import { normalizeHandle, parseAvatar, parsePublicEntry, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
@@ -36,7 +36,19 @@ export class SocialStore {
   constructor(readonly db: Firestore) {}
   async member(uid: string): Promise<Member | null> {
     const value = await getDocFromServer(doc(this.db, 'members', uid));
-    return value.exists() ? parseMember(value.data()) : null;
+    const member = value.exists() ? parseMember(value.data()) : null;
+    if (member && member.uid !== uid) throw new Error('The online profile does not match this account.');
+    return member;
+  }
+  watchMember(uid: string, onMember: (member: Member | null) => void, onError: (cause: Error) => void): () => void {
+    return onSnapshot(doc(this.db, 'members', uid), { includeMetadataChanges: true }, (value) => {
+      if (value.metadata.fromCache || value.metadata.hasPendingWrites) return;
+      try {
+        const member = value.exists() ? parseMember(value.data()) : null;
+        if (member && member.uid !== uid) throw new Error('The online profile does not match this account.');
+        onMember(member);
+      } catch (cause) { onError(cause instanceof Error ? cause : new Error('This account profile is unreadable.')); }
+    }, onError);
   }
   async saveMember(uid: string, name: string, avatar: AvatarValue): Promise<void> {
     return this.changeMember(uid, name, avatar, 'create');

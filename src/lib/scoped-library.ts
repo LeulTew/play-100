@@ -107,8 +107,9 @@ export function connectScopedLibrary(scope: LibraryScope, state: PersonalLibrary
   });
 }
 
-export function acknowledgeScopedUpload(scope: LibraryScope, uploadedDataRevision: number, head: SyncHead): Promise<ScopedLibrary> {
+export function acknowledgeScopedUpload(scope: LibraryScope, uploadedDataRevision: number, head: SyncHead, isCurrent: () => boolean = () => true): Promise<ScopedLibrary> {
   return update(scope, (current) => {
+    if (!isCurrent()) throw conflict('The account session changed before acknowledging the upload. Its pending copy is retained.');
     if (!current.sync.enabled || current.sync.epoch !== head.epoch || head.revision < current.sync.baseRemoteRevision) return current;
     return {
       ...current,
@@ -121,7 +122,7 @@ export function acknowledgeScopedUpload(scope: LibraryScope, uploadedDataRevisio
 export function adoptScopedRemote(scope: LibraryScope, state: PersonalLibraryState, head: SyncHead, expectedLocalRevision: number, replace = false, canAdopt: () => boolean = () => true): Promise<ScopedLibrary> {
   const validated = parsePersonalLibrary(state);
   return update(scope, (current) => {
-    if (!canAdopt() || current.state.revision !== expectedLocalRevision || (!replace && current.sync.dirty) || head.revision < current.sync.baseRemoteRevision) throw conflict('Your local library changed while the online copy was loading. Both copies are safe; review them again.');
+    if (!canAdopt() || !current.sync.enabled || current.sync.epoch !== head.epoch || !head.enabled || head.deleted || current.state.revision !== expectedLocalRevision || (!replace && current.sync.dirty) || head.revision < current.sync.baseRemoteRevision) throw conflict('Your local library or online permission changed while the online copy was loading. Both copies are safe; review them again.');
     return {
       ...current, state: { ...validated, revision: current.state.revision + 1, motion: current.state.motion },
       sync: { ...current.sync, enabled: head.enabled, epoch: head.epoch, baseRemoteRevision: head.revision, remoteGeneration: head.current?.generation ?? null, dirty: false, dataRevision: current.sync.dataRevision + 1, lastSyncedAt: Date.now() },
@@ -130,13 +131,16 @@ export function adoptScopedRemote(scope: LibraryScope, state: PersonalLibrarySta
   });
 }
 
-export function pauseScopedLibrary(scope: LibraryScope): Promise<ScopedLibrary> {
-  return update(scope, (current) => ({ ...current, sync: { ...current.sync, enabled: false } }));
+export function pauseScopedLibrary(scope: LibraryScope, expectedEpoch?: number, isCurrent: () => boolean = () => true): Promise<ScopedLibrary> {
+  return update(scope, (current) => {
+    if (!isCurrent() || (expectedEpoch !== undefined && current.sync.epoch !== expectedEpoch)) throw conflict('The online session changed before it could be paused. Its current state is retained.');
+    return { ...current, sync: { ...current.sync, enabled: false } };
+  });
 }
 
-export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expectedLocalRevision: number): Promise<ScopedLibrary> {
+export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expectedLocalRevision: number, isCurrent: () => boolean = () => true): Promise<ScopedLibrary> {
   return update(scope, (current) => {
-    if (current.state.revision !== expectedLocalRevision) throw conflict('Your device copy changed. Review the replacement again.');
+    if (!isCurrent() || !current.sync.enabled || !head.enabled || head.deleted || current.sync.epoch !== head.epoch || current.state.revision !== expectedLocalRevision) throw conflict('Your device copy or online permission changed. Review the replacement again.');
     return { ...current, sync: { ...current.sync, enabled: true, epoch: head.epoch, baseRemoteRevision: head.revision, dirty: true } };
   });
 }
@@ -147,7 +151,10 @@ export async function deleteScopedLibrary(scope: LibraryScope): Promise<void> {
   publishLibraryChange(scope);
 }
 
-export function cacheScopedProfile(scope: LibraryScope, member: Member): Promise<ScopedLibrary> {
+export function cacheScopedProfile(scope: LibraryScope, member: Member, isCurrent: () => boolean = () => true): Promise<ScopedLibrary> {
   if (scopeUid(scope) !== member.uid) return Promise.reject(conflict('A profile from another account cannot be cached here.'));
-  return update(scope, (current) => ({ ...current, profile: { displayName: member.displayName, avatar: parseAvatarDescriptor(member.avatar) } }));
+  return update(scope, (current) => {
+    if (!isCurrent()) throw conflict('The account changed before its profile could be cached.');
+    return { ...current, profile: { displayName: member.displayName, avatar: parseAvatarDescriptor(member.avatar) } };
+  });
 }

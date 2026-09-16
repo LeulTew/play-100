@@ -126,9 +126,14 @@ export class CloudStore {
     });
   }
 
-  async upload(state: PersonalLibraryState, expected: SyncHead, afterChunk?: () => Promise<void>): Promise<SyncHead> {
+  async upload(state: PersonalLibraryState, expected: SyncHead, afterChunk?: () => Promise<void>, isCurrent: () => boolean = () => true): Promise<SyncHead> {
+    const guard = () => {
+      if (!isCurrent()) { const error = new Error('This online session ended. Its local copy remains pending.'); error.name = 'SyncSessionEnded'; throw error; }
+    };
+    guard();
     await ensureAccountActivity(this.db, this.uid);
     const [snapshot, summary] = await Promise.all([packLibrary(state), packSnapshot(creatorRanks(state))]);
+    guard();
     summary.manifest.generation = snapshot.manifest.generation;
     if (expected.current?.digest === snapshot.manifest.digest) {
       const fresh = await this.head();
@@ -143,6 +148,7 @@ export class CloudStore {
     }
     for (const [kind, chunks] of [['private', snapshot.chunks], ['ranking', summary.chunks]] as const) {
       for (let index = 0; index < chunks.length; index += 3) {
+        guard();
         await Promise.all(chunks.slice(index, index + 3).map((chunk) => this.putChunk(kind, chunk, snapshot.manifest.generation)));
         if (afterChunk) await afterChunk();
       }
@@ -151,6 +157,7 @@ export class CloudStore {
       const [head, generation] = await Promise.all([tx.get(this.headRef()), tx.get(this.generationRef(snapshot.manifest.generation))]);
       if (!head.exists() || !generation.exists() || generation.data().status !== 'staging') throw new Error('The staged online snapshot is no longer available. Your local copy remains pending.');
       sameHead(parseHead(head.data()), expected);
+      guard();
       tx.update(this.generationRef(snapshot.manifest.generation), { status: 'ready' });
     });
     return runTransaction(this.db, async (tx) => {
@@ -160,6 +167,7 @@ export class CloudStore {
       const current = parseHead(head.data());
       if (current.enabled && current.epoch === expected.epoch && current.current?.digest === snapshot.manifest.digest) return current;
       sameHead(current, expected);
+      guard();
       if (!generation.exists() || generation.data().status !== 'ready') throw new Error('The complete snapshot could not be committed. Retry online saving.');
       const next = { ...current, revision: current.revision + 1, current: snapshot.manifest, previous: current.current, updatedAt: Date.now() };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });

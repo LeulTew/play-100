@@ -2,78 +2,110 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryScope, ScopedLibrary, SyncHead, SyncStatus } from '../lib/cloud-types';
 import { scopeUid } from '../lib/cloud-types';
 import { acknowledgeScopedUpload, adoptScopedRemote, loadScopedLibrary, pauseScopedLibrary, rebaseScopedLibrary } from '../lib/scoped-library';
+import { syncFailure, SyncWorkQueue } from '../lib/sync-retry';
 import { hasPendingEdits, usePendingEdits } from '../hooks/useExitSave';
 import { CloudStore, RemoteConflict, SyncRevoked } from './cloud-store';
 import { cloudAuth, cloudDb } from './firebase-client';
 import { onlineError } from './errors';
 
+type Block = 'transient' | 'quota' | 'terminal' | 'conflict' | 'revoked' | null;
+interface Lifetime {
+  active: boolean; block: Block; queue: SyncWorkQueue | null;
+  detach: () => void; restart: () => void; watchAlive: boolean;
+}
+const hardBlocked = (block: Block) => block === 'terminal' || block === 'conflict' || block === 'revoked';
+
 export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary | null, verified: boolean) {
   const store = useMemo(() => scope ? new CloudStore(cloudDb, scopeUid(scope)) : null, [scope]);
+  const enabled = Boolean(snapshot?.sync.enabled && verified);
+  const epoch = snapshot?.sync.epoch ?? 0;
+  const lifetime = useMemo<Lifetime>(() => ({ active: false, block: null, queue: null, detach: () => {}, restart: () => {}, watchAlive: false }), [scope, enabled, epoch, verified]);
   const [status, setStatus] = useState<SyncStatus>('device');
   const [remoteSnapshot, setRemoteSnapshot] = useState<{ scope: LibraryScope | null; value: SyncHead | null }>({ scope: null, value: null });
   const remote = remoteSnapshot.scope === scope ? remoteSnapshot.value : null;
   const setRemote = useCallback((value: SyncHead | null) => setRemoteSnapshot({ scope, value }), [scope]);
+  const [observation, setObservation] = useState({ scope: null as LibraryScope | null, available: false, version: 0 });
   const [error, setError] = useState('');
   const [cleanupWarning, setCleanupWarning] = useState('');
-  const [connection, setConnection] = useState(0);
   const pendingEdits = usePendingEdits();
-  const uploading = useRef<{ scope: LibraryScope; id: symbol } | null>(null);
-  const blocked = useRef(false);
+  const uploading = useRef<{ lifetime: Lifetime; id: symbol } | null>(null);
   const sequence = useRef(0);
   const scopeNow = useRef(scope);
+  const snapshotNow = useRef(snapshot);
   const latestRemote = useRef<SyncHead | null>(null);
-  scopeNow.current = scope;
-  const enabled = Boolean(snapshot?.sync.enabled && verified);
+  scopeNow.current = scope; snapshotNow.current = snapshot;
+  const owns = useCallback(() => Boolean(lifetime.active && scope && scopeNow.current === scope && cloudAuth.currentUser?.uid === scopeUid(scope)), [lifetime, scope]);
+
+  const failed = useCallback((cause: unknown) => {
+    if (!owns() || lifetime.block === 'revoked') return;
+    if (cause instanceof Error && cause.name === 'SyncSessionEnded') { setStatus(navigator.onLine ? 'pending' : 'offline'); return; }
+    sequence.current += 1;
+    if (cause instanceof RemoteConflict || (cause instanceof Error && cause.name === 'PersonalLibraryConflictError')) {
+      lifetime.block = 'conflict'; lifetime.queue?.failed('blocked'); setStatus('conflict');
+      if (cause instanceof RemoteConflict) { setRemote(cause.head); latestRemote.current = cause.head; }
+    } else if (cause instanceof SyncRevoked) {
+      lifetime.block = 'revoked'; lifetime.queue?.failed('blocked'); lifetime.detach(); setStatus('paused');
+      if (scope) void pauseScopedLibrary(scope, epoch, owns).catch((failure) => { if (owns()) setError(onlineError(failure)); });
+    } else {
+      const kind = syncFailure(cause);
+      if (hardBlocked(lifetime.block)) return;
+      lifetime.block = kind === 'blocked' || !enabled ? 'terminal' : kind;
+      lifetime.queue?.failed(lifetime.block === 'terminal' ? 'blocked' : kind);
+      lifetime.detach();
+      setStatus(!navigator.onLine ? 'offline' : lifetime.block === 'transient' ? 'retrying' : lifetime.block === 'quota' ? 'quota' : 'error');
+    }
+    setError(`${onlineError(cause)}${lifetime.block === 'transient' ? ' Retrying automatically while this page is visible and connected.' : lifetime.block === 'quota' ? ' Automatic recovery uses a longer cooldown to protect the free quota.' : ''}`);
+  }, [owns, lifetime, scope, epoch, enabled, setRemote]);
+  const succeeded = useCallback((next: SyncStatus) => {
+    if (!owns() || hardBlocked(lifetime.block)) return;
+    if (!lifetime.watchAlive && (lifetime.block === 'transient' || lifetime.block === 'quota')) {
+      setStatus(navigator.onLine ? lifetime.block === 'quota' ? 'quota' : 'retrying' : 'offline');
+      return;
+    }
+    lifetime.block = null; lifetime.queue?.succeeded(next === 'saved' && !snapshotNow.current?.sync.dirty && !hasPendingEdits()); setError(''); setStatus(next);
+  }, [owns, lifetime]);
 
   const receive = useCallback(async (head: SyncHead | null) => {
-    if (!scope || !store) return;
-    latestRemote.current = head;
-    setRemote(head);
-    if (uploading.current?.scope === scope) return;
+    if (!scope || !store || !owns()) return;
+    const known = latestRemote.current;
+    if (head && known && (head.epoch < known.epoch || (head.epoch === known.epoch && head.revision < known.revision))) return;
+    latestRemote.current = head; setRemote(head);
+    if (uploading.current?.lifetime === lifetime) return;
     const operation = ++sequence.current;
     try {
-      const local = await loadScopedLibrary(scope);
-      if (scopeNow.current !== scope || operation !== sequence.current) return;
+      let local = await loadScopedLibrary(scope);
+      if (!owns() || operation !== sequence.current) return;
       if (!local.sync.enabled) { setStatus('paused'); return; }
-      if (!head || !head.enabled || head.deleted || head.epoch !== local.sync.epoch) {
-        await pauseScopedLibrary(scope);
-        setStatus('paused');
-        setError('Online saving changed or was stopped in another session. This account copy is kept here; reconnect explicitly.');
-        blocked.current = true;
-        return;
-      }
-      if (head.revision < local.sync.baseRemoteRevision) return;
+      if (!head || !head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
+      if (hardBlocked(lifetime.block) || head.revision < local.sync.baseRemoteRevision) return;
       if (head.revision > local.sync.baseRemoteRevision) {
-        if (local.sync.dirty || hasPendingEdits()) { blocked.current = true; setStatus('conflict'); setError('Another device saved a different online copy. Your local edits have not been replaced.'); return; }
+        if (local.sync.dirty || hasPendingEdits()) throw new RemoteConflict(head);
         const incoming = await store.download(head);
         if (!incoming) throw new Error('The newer online head has no library snapshot. Your local copy is retained.');
-        if (scopeNow.current !== scope || operation !== sequence.current) return;
-        await adoptScopedRemote(scope, incoming, head, local.state.revision, false, () => !hasPendingEdits());
+        if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
+        local = await adoptScopedRemote(scope, incoming, head, local.state.revision, false, () => owns() && !hardBlocked(lifetime.block) && !hasPendingEdits());
       }
-      if (blocked.current) { setStatus(navigator.onLine ? 'error' : 'offline'); return; }
-      setStatus(local.sync.dirty ? (navigator.onLine ? 'saving' : 'offline') : 'saved');
-      if (!blocked.current) setError('');
-    } catch (cause) {
-      if (scopeNow.current !== scope) return;
-      blocked.current = true;
-      setStatus(hasPendingEdits() || (cause instanceof Error && cause.name === 'PersonalLibraryConflictError') ? 'conflict' : 'error');
-      setError(onlineError(cause));
-    }
-  }, [scope, store, setRemote]);
+      if (!owns()) return;
+      if (!local.sync.dirty && !hasPendingEdits()) succeeded('saved');
+      else if (lifetime.block === 'transient' || lifetime.block === 'quota') setStatus(navigator.onLine ? lifetime.block === 'quota' ? 'quota' : 'retrying' : 'offline');
+      else { setStatus(navigator.onLine ? 'pending' : 'offline'); lifetime.queue?.request(2500); }
+    } catch (cause) { if (owns() && operation === sequence.current) failed(cause); }
+  }, [scope, store, owns, lifetime, setRemote, failed, succeeded]);
 
-  const sync = useCallback(async (manual = false) => {
-    if (!scope || !store || !verified || uploading.current?.scope === scope || document.hidden) return;
-    if (manual) { blocked.current = false; setError(''); }
-    if (blocked.current) return;
+  const sync = useCallback(async () => {
+    if (!scope || !store || !verified || !enabled || !owns() || uploading.current?.lifetime === lifetime || document.hidden) return;
+    if (hardBlocked(lifetime.block)) return;
     if (!navigator.onLine) { setStatus('offline'); return; }
+    lifetime.restart();
     if (hasPendingEdits()) return;
-    const lease = { scope, id: Symbol('online-upload') };
+    const lease = { lifetime, id: Symbol('online-upload') };
     uploading.current = lease;
-    const identity = scope;
     try {
+      // A retry reattaches failed listeners before checking the latest committed device revision.
       const local = await loadScopedLibrary(scope);
-      if (!local.sync.enabled || scopeNow.current !== identity) return;
+      if (!local.sync.enabled || local.sync.epoch !== epoch || !owns()) return;
       const head = await store.head();
+      if (!owns()) return;
       if (!head || !head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
       setRemote(head); latestRemote.current = head;
       if (head.revision !== local.sync.baseRemoteRevision) {
@@ -81,78 +113,113 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
         await receive(head);
         return;
       }
-      if (!local.sync.dirty) { setStatus('saved'); return; }
+      if (!local.sync.dirty) { succeeded('saved'); return; }
       setStatus('saving');
-      const confirmed = await store.upload(local.state, head);
-      const acknowledged = await acknowledgeScopedUpload(scope, local.sync.dataRevision, confirmed);
-      if (scopeNow.current !== identity) return;
+      const confirmed = await store.upload(local.state, head, undefined, () => owns() && navigator.onLine && !document.hidden && !hardBlocked(lifetime.block));
+      if (!owns()) return;
+      const acknowledged = await acknowledgeScopedUpload(scope, local.sync.dataRevision, confirmed, () => owns() && !hardBlocked(lifetime.block));
+      if (!owns() || !acknowledged.sync.enabled || acknowledged.sync.epoch !== epoch) return;
       if (!latestRemote.current || (latestRemote.current.epoch <= confirmed.epoch && latestRemote.current.revision <= confirmed.revision)) latestRemote.current = confirmed;
       setRemote(confirmed);
-      setStatus(acknowledged.sync.dirty ? 'saving' : 'saved');
-      try { await store.cleanup(); setCleanupWarning(''); }
-      catch (cleanupError) { setCleanupWarning(`The library is saved, but old snapshot cleanup needs retry. ${onlineError(cleanupError)}`); }
-    } catch (cause) {
-      if (scopeNow.current !== identity) return;
-      blocked.current = true;
-      if (cause instanceof RemoteConflict) { setRemote(cause.head); latestRemote.current = cause.head; setStatus('conflict'); }
-      else if (cause instanceof SyncRevoked) { await pauseScopedLibrary(scope); setStatus('paused'); }
-      else setStatus(navigator.onLine ? 'error' : 'offline');
-      setError(onlineError(cause));
-    } finally {
+      succeeded(acknowledged.sync.dirty ? 'pending' : 'saved');
+      try { await store.cleanup(); if (owns()) setCleanupWarning(''); }
+      catch (cleanupError) { if (owns()) setCleanupWarning(`The library is saved, but old snapshot cleanup needs retry. ${onlineError(cleanupError)}`); }
+    } catch (cause) { failed(cause); }
+    finally {
       if (uploading.current === lease) uploading.current = null;
-      if (scopeNow.current === identity && cloudAuth.currentUser?.uid === scopeUid(identity)) {
+      if (owns()) {
         try {
           const after = await loadScopedLibrary(scope);
+          if (!owns() || !after.sync.enabled) return;
           const observed = latestRemote.current;
           if (observed && (observed.epoch !== after.sync.epoch || observed.revision > after.sync.baseRemoteRevision)) await receive(observed);
-          if (!blocked.current && after.sync.dirty) setConnection((value) => value + 1);
-        } catch (cause) { blocked.current = true; setStatus('error'); setError(onlineError(cause)); }
+          if (!hardBlocked(lifetime.block) && after.sync.dirty) lifetime.queue?.request(2500);
+        } catch (cause) { failed(cause); }
       }
     }
-  }, [scope, store, verified, receive, setRemote]);
+  }, [scope, store, verified, enabled, owns, lifetime, epoch, setRemote, receive, succeeded, failed]);
+  const syncNow = useRef(sync);
+  syncNow.current = sync;
 
   useEffect(() => {
-    blocked.current = false; latestRemote.current = null; setRemote(null); setError(''); setStatus(enabled ? 'loading' : scope ? 'paused' : 'device');
-    return () => { sequence.current += 1; };
-  }, [scope, enabled, setRemote]);
-  useEffect(() => {
-    if (!enabled || !store) return;
+    lifetime.active = true;
+    const queue = new SyncWorkQueue(() => syncNow.current(), failed);
+    lifetime.queue = queue;
+    latestRemote.current = null; setRemote(null); setError(''); setCleanupWarning('');
+    setStatus(enabled ? 'loading' : scope ? 'paused' : 'device');
     let unsubscribe: (() => void) | undefined;
-    const observe = () => {
-      unsubscribe?.(); unsubscribe = undefined;
-      if (document.hidden || !navigator.onLine) { if (!navigator.onLine) setStatus('offline'); return; }
-      unsubscribe = store.watch((head) => { void receive(head); }, (cause) => { blocked.current = true; setStatus('error'); setError(onlineError(cause)); });
-      if (!blocked.current) setConnection((value) => value + 1);
+    let watchVersion = 0;
+    const detach = () => {
+      watchVersion += 1; unsubscribe?.(); unsubscribe = undefined; lifetime.watchAlive = false;
+      if (owns()) setObservation((old) => ({ scope, available: false, version: old.version + 1 }));
     };
+    const observe = (recover = false) => {
+      if (!owns()) return;
+      const available = verified && navigator.onLine && !document.hidden;
+      queue.setAvailable(available);
+      if (!available) { detach(); if (!navigator.onLine && enabled) setStatus('offline'); return; }
+      if (!recover && (lifetime.block === 'transient' || lifetime.block === 'quota')) { queue.wake(); return; }
+      if (lifetime.block === 'terminal' || lifetime.block === 'revoked') return;
+      if (enabled && store && !unsubscribe) {
+        const version = ++watchVersion;
+        unsubscribe = store.watch((head) => { if (owns() && version === watchVersion) void receive(head); }, (cause) => { if (owns() && version === watchVersion) failed(cause); });
+        lifetime.watchAlive = true;
+        setObservation((old) => ({ scope, available: true, version: old.version + 1 }));
+      } else setObservation((old) => old.scope === scope && old.available ? old : { scope, available: true, version: old.version + 1 });
+      if (!recover && enabled && snapshotNow.current?.sync.dirty && !hasPendingEdits()) queue.wake();
+    };
+    lifetime.detach = detach;
+    lifetime.restart = () => observe(true);
+    const wake = () => observe();
     observe();
-    window.addEventListener('online', observe); window.addEventListener('offline', observe); document.addEventListener('visibilitychange', observe);
-    return () => { unsubscribe?.(); window.removeEventListener('online', observe); window.removeEventListener('offline', observe); document.removeEventListener('visibilitychange', observe); };
-  }, [enabled, store, receive]);
+    window.addEventListener('online', wake); window.addEventListener('offline', wake);
+    window.addEventListener('focus', wake); window.addEventListener('pageshow', wake);
+    document.addEventListener('visibilitychange', wake);
+    return () => {
+      lifetime.active = false; queue.dispose(); unsubscribe?.(); sequence.current += 1;
+      window.removeEventListener('online', wake); window.removeEventListener('offline', wake);
+      window.removeEventListener('focus', wake); window.removeEventListener('pageshow', wake);
+      document.removeEventListener('visibilitychange', wake);
+    };
+  }, [lifetime, failed, setRemote, enabled, scope, owns, verified, store, receive]);
   useEffect(() => {
-    if (!enabled || blocked.current || pendingEdits || !snapshot?.sync.dirty || document.hidden) return;
-    const timer = window.setTimeout(() => { void sync(); }, 2500);
-    return () => window.clearTimeout(timer);
-  }, [enabled, snapshot?.sync.dataRevision, snapshot?.sync.dirty, pendingEdits, connection, sync]);
+    if (enabled && !pendingEdits && snapshot?.sync.dirty) lifetime.queue?.request(2500, true);
+  }, [enabled, pendingEdits, snapshot?.sync.dataRevision, snapshot?.sync.dirty, lifetime]);
 
   const useRemote = async (expected: SyncHead, expectedLocalRevision: number) => {
-    if (!store || !scope) throw new Error('Sign in before resolving a cloud conflict.');
+    if (!store || !scope || !owns()) throw new Error('Sign in before resolving a cloud conflict.');
     const latest = await store.head();
-    if (!latest || latest.revision !== expected.revision || latest.epoch !== expected.epoch) throw new Error('The online copy changed again. Review the fresh versions before choosing.');
+    if (!latest || latest.revision !== expected.revision || latest.epoch !== expected.epoch || !latest.enabled || latest.deleted) throw new Error('The online copy changed again. Review the fresh versions before choosing.');
     const state = await store.download(latest);
     if (!state) throw new Error('There is no online snapshot to adopt.');
-    await adoptScopedRemote(scope, state, latest, expectedLocalRevision, true, () => !hasPendingEdits());
-    blocked.current = false; setError(''); setStatus('saved');
+    await adoptScopedRemote(scope, state, latest, expectedLocalRevision, true, () => owns() && lifetime.block !== 'revoked' && lifetime.block !== 'terminal' && !hasPendingEdits());
+    if (!owns()) return;
+    lifetime.block = null; succeeded('saved');
   };
   const useLocal = async (expected: SyncHead, expectedLocalRevision: number) => {
-    if (!store || !scope) throw new Error('Sign in before resolving a cloud conflict.');
+    if (!store || !scope || !owns()) throw new Error('Sign in before resolving a cloud conflict.');
     const latest = await store.head();
     if (!latest || latest.revision !== expected.revision || latest.epoch !== expected.epoch || !latest.enabled || latest.deleted) throw new Error('Online saving changed. Review the current state before replacing anything.');
-    await rebaseScopedLibrary(scope, latest, expectedLocalRevision);
-    blocked.current = false; setError(''); setConnection((value) => value + 1);
+    await rebaseScopedLibrary(scope, latest, expectedLocalRevision, () => owns() && lifetime.block !== 'revoked' && lifetime.block !== 'terminal');
+    if (!owns()) return;
+    lifetime.block = null; succeeded('pending'); lifetime.queue?.request();
   };
+  const retry = () => {
+    if (lifetime.block === 'conflict' || lifetime.block === 'revoked') return Promise.reject(new Error('Review the available copies or reconnect explicitly before resuming online saving.'));
+    if (lifetime.block === 'terminal') lifetime.block = null;
+    if (!navigator.onLine) setStatus('offline');
+    return lifetime.queue?.retry() ?? Promise.resolve();
+  };
+  const suspend = () => { lifetime.block = 'revoked'; lifetime.queue?.failed('blocked'); lifetime.detach(); setStatus('paused'); };
   const visibleStatus: SyncStatus = !verified && scope ? 'paused'
-    : blocked.current && (status === 'saved' || status === 'saving') ? (navigator.onLine ? 'error' : 'offline')
-      : status === 'saved' && (snapshot?.sync.dirty || pendingEdits) ? (navigator.onLine ? 'saving' : 'offline') : status;
-  return { store, status: visibleStatus, remote, error, cleanupWarning, pendingEdits,
-    retry: () => sync(true), useRemote, useLocal, syncing: uploading.current?.scope === scope };
+    : lifetime.block === 'conflict' ? 'conflict'
+      : lifetime.block === 'revoked' ? 'paused'
+        : enabled && !navigator.onLine ? 'offline'
+          : lifetime.block === 'terminal' ? 'error'
+            : status === 'saved' && lifetime.block === 'quota' ? 'quota'
+              : status === 'saved' && lifetime.block === 'transient' ? 'retrying'
+                : status === 'saved' && (snapshot?.sync.dirty || pendingEdits) ? 'pending' : status;
+  return { store, status: visibleStatus, remote, error, cleanupWarning, pendingEdits, retry, useRemote, useLocal, suspend,
+    profileAvailable: observation.scope === scope && observation.available, profileConnection: observation.version, reportProfileError: failed,
+    syncing: uploading.current?.lifetime === lifetime };
 }

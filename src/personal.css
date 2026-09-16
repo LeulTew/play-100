@@ -1,9 +1,11 @@
 .header-download { border: 1px solid var(--line); }
 .account-nav { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 5px 9px; border-radius: 4px; border: 1px solid var(--line); }
 .account-nav:hover { background: #e6e9dc; border-color: var(--ink); }
-.account-nav-copy { display: flex; flex-direction: column; gap: 1px; }
-.account-nav-copy strong { font-size: 12px; font-weight: 650; }
-.account-nav-copy small { font-size: 10px; color: var(--muted); max-width: 150px; }
+.account-nav-avatar { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; }
+.account-nav-avatar img { display: block; border-radius: 4px; }
+.account-nav-copy { display: flex; flex-direction: column; gap: 1px; width: 150px; min-width: 0; }
+.account-nav-copy strong { font-size: 12px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-nav-copy small { font-size: 10px; color: var(--muted); max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .settings-account { padding-block: 16px; border-block: 1px solid var(--line); margin-block: 20px; }
 .settings-account p { font-size: 13px; line-height: 1.5; color: var(--muted); }
 .settings-account strong { color: var(--ink); }

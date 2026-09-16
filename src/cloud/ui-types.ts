@@ -17,4 +17,5 @@ export interface OnlineBridge {
   status: SyncStatus;
   label: string;
   creator: boolean;
+  headerIdentity: { uid: string; name: string; avatarSrc: string } | null;
 }

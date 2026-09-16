@@ -85,7 +85,7 @@ test('a guest inline rating keeps its original save target while another tab res
   } finally { await page.clock.resume(); await peer.close(); }
 });
 
-test('an interrupted upload stays honestly paused after reconnect until an explicit retry succeeds', async ({ page, context, request }) => {
+test('an interrupted upload recovers automatically after reconnect without a manual sync click', async ({ page, context, request }) => {
   const email = emailFor('upload-interruption');
   await page.goto('/?game=red-dead-redemption-2');
   await seedGuestRating(page, '5');
@@ -100,15 +100,14 @@ test('an interrupted upload stays honestly paused after reconnect until an expli
     } else await route.continue();
   });
   await page.getByRole('spinbutton').fill('6.9'); await page.getByRole('spinbutton').press('Tab');
-  await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/, { timeout: 45000 });
+  await expect(page.locator('.account-nav')).toHaveAccessibleName(/Retrying automatically/, { timeout: 45000 });
   expect((await readAccount(page, uid)).sync.dirty).toBe(true);
   await page.unroute('**/documents:commit*');
   await context.setOffline(true); await context.setOffline(false);
-  await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/);
-  await page.getByRole('link', { name: /Account:/ }).click();
-  await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
-  await expect(page.locator('.sync-state')).toHaveText('Saved online', { timeout: 30000 });
+  await expect(page.locator('.account-nav')).toHaveAccessibleName(/Saved online/, { timeout: 30000 });
+  expect((await readAccount(page, uid)).sync.dirty).toBe(false);
   expect((await readAccount(page, uid)).state.ranking[0]?.score).toBe(6.9);
+  expect((await readLibrary(page)).ranking[0]?.score).toBe(5);
 });
 
 test('the creator can inspect and hide a reported public profile even without a members document', async ({ page, browser, request, isMobile, viewport }) => {
@@ -184,7 +183,7 @@ test('a clean failed online check stays paused after a fresh unchanged head and 
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score).toBe(7.4);
     await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/);
     expect((await readAccount(page, uid)).sync.dirty).toBe(true);
-    await page.getByRole('link', { name: /Account:/ }).click();
+    await page.locator('.account-nav').click();
     await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
     await expect(page.locator('.sync-state')).toHaveText('Saved online', { timeout: 30000 });
     expect((await readAccount(page, uid)).sync.dirty).toBe(false);

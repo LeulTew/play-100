@@ -23,7 +23,8 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
 }) {
   const [choice, setChoice] = useState<ConnectionChoice>(head?.current ? 'online' : Object.keys(guest.records).length ? 'guest' : 'empty');
   const [choiceTouched, setChoiceTouched] = useState(false);
-  const [name, setName] = useState(member?.displayName || identity.displayName || 'Player');
+  const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
+  const [name, setName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
   const [consent, setConsent] = useState(false);
   const [confirmation, setConfirmation] = useState<'pause' | 'remote' | 'local' | 'delete-copy' | 'delete-account' | null>(null);
@@ -51,8 +52,8 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
     lastPreview.current = previewSignature;
   }, [previewSignature, consent]);
   useEffect(() => {
-    if (!nameEdited) setName(member?.displayName || identity.displayName || 'Player');
-  }, [member?.displayName, identity.displayName, nameEdited]);
+    if (!nameEdited) setName(currentName);
+  }, [currentName, nameEdited]);
   const choose = (value: ConnectionChoice) => { setChoiceTouched(true); setChoice(value); };
   const closeConfirmation = () => { setConfirmation(null); setPassword(''); onDismissDeletion(); };
   const googleConfirmation = confirmation?.startsWith('delete') && !identity.providers.includes('password');
@@ -63,7 +64,7 @@ export function AccountPage({ identity, member, cache, guest, head, remoteReady,
   };
   return (
     <section className="app-page account-page" aria-labelledby="account-title">
-      <div className="account-heading"><div className="account-avatar">{avatar}</div><div><h1 id="account-title" data-page-heading tabIndex={-1}>Your list. Anywhere.</h1><p>{member?.displayName || identity.displayName || 'Your account'}<span>{identity.email}</span></p></div><button className="text-button" disabled={busy} onClick={() => { void onSignOut(); }}>Sign out<Icon name="arrow" width="17" height="17" /></button></div>
+      <div className="account-heading"><div className="account-avatar">{avatar}</div><div><h1 id="account-title" data-page-heading tabIndex={-1}>Your list. Anywhere.</h1><p>{currentName}<span>{identity.email}</span></p></div><button className="text-button" disabled={busy} onClick={() => { void onSignOut(); }}>Sign out<Icon name="arrow" width="17" height="17" /></button></div>
       <div className="account-columns"><div className="account-primary">
         <section className="sync-panel" aria-labelledby="sync-title"><div className="section-title-line"><h2 id="sync-title">Online saving</h2><span className={`sync-state sync-${status}`} role="status">{identity.verified ? SYNC_LABELS[status] : 'Verify your email'}</span></div>
           {!identity.verified ? <><p>Verify this email before uploading or publishing anything. Your device library remains available and unchanged.</p><div className="button-row"><button className="button button-dark" disabled={busy || resendIn > 0} onClick={() => { void onVerify(); }}>{resendIn ? `Resend in ${resendIn}s` : 'Send verification email'}</button><button className="button button-outline" disabled={busy} onClick={() => { void onRefreshIdentity(); }}>I verified my email</button></div></> : !active ? <>
