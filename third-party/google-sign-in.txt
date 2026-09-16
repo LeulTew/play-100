@@ -1,0 +1,8 @@
+Google sign-in mark
+
+Source: https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg
+Used locally in the Firebase Authentication Google sign-in button.
+Google and its logo are trademarks of Google LLC.
+Brand usage guidance: https://developers.google.com/identity/branding-guidelines
+
+No Google profile photos or remote avatar/image service is loaded.

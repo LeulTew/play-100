@@ -24,12 +24,16 @@ original genre and entered critic-score snapshot.
 
 ## Operating Context
 
-Public, no account, no analytics and no Supabase. A read-only, stateless Vercel
-function looks up public catalog metadata; there is no server-side personal
-database. Private library records, play order, played/completed states, personal
-rankings, scores, notes and preferences live in IndexedDB on this device.
-Export/import backups support deliberate transfer between browsers, not cloud
-sync. Shareable collection URLs never contain private progress or opinions.
+Public and device-only by default, with no analytics or Supabase. A read-only,
+stateless Vercel function looks up public catalog metadata. Optional Firebase
+Google or verified email accounts enable explicitly consented cross-device
+saving, while keeping the original guest library intact and separate.
+IndexedDB remains the first durable write; account scopes add an atomic outbox,
+versioned chunk snapshots, consent epochs and explicit conflict choices.
+Export/import backups remain independent recovery tools. Motion preferences
+stay per-device and are excluded from cloud transport.
+Shareable collection URLs never contain private progress or opinions. A
+separate, previewed publication creates a public profile/ranking snapshot.
 
 ## Capabilities and Constraints
 
@@ -66,6 +70,17 @@ sync. Shareable collection URLs never contain private progress or opinions.
   moved game retains a persisted position until explicitly returned to automatic
   order. Existing orders are preserved during schema upgrades.
 - One Played value is shared by every view; author notes never set visitor state.
+- Sign-in does not upload or publish existing device data. Online saving
+  requires reviewed source selection and creator-visibility consent.
+- Public profiles contain only explicitly selected rankings and chosen
+  identity metadata. Directory listing is opt-in; public snapshots do not
+  automatically follow later private edits.
+- The creator can inspect consenting member profiles/ranking summaries and
+  moderate public reports, with server-enforced authorization. The creator UI
+  does not load private notes or play queues.
+- Account creatures use stable random descriptors and locally generated
+  DiceBear Critters. No uploaded image, remote avatar API or Google photo is
+  fetched; preview/re-roll never commits before Save.
 - Original and imported details share the visitor's private rating editor.
   Valid pending rating/note edits flush when leaving their field's page or
   dialog; game changes never transfer a draft to a different record.

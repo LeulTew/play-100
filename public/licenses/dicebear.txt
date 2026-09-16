@@ -1,0 +1,45 @@
+Play 100 avatar credits
+
+JavaScript renderer: @dicebear/core 10.7.0
+Source: https://github.com/dicebear/dicebear
+Package: https://www.npmjs.com/package/@dicebear/core/v/10.7.0
+License: MIT (complete notice below).
+
+Artwork: Critters by DiceBear
+Source and creator: https://www.dicebear.com
+Style: https://www.dicebear.com/styles/critters/
+Definition: @dicebear/styles 10.6.0, dist/critters.min.json, schema 1.4.0
+Package: https://www.npmjs.com/package/@dicebear/styles/v/10.6.0
+License: CC0 1.0
+https://creativecommons.org/publicdomain/zero/1.0/
+https://creativecommons.org/publicdomain/zero/1.0/legalcode.en
+
+Play 100 customizes the body/accent palette, limits the shape/expression
+variants, uses restrained markings/blush and disables all animation.
+Only Critters is used. Other DiceBear styles may have different licenses.
+The original source/creator/license metadata is retained in generated SVGs.
+See third-party/dicebear/README.md in the source for the versioned recipe.
+
+---
+
+MIT License
+
+Copyright (c) 2026 Florian Körner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

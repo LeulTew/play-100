@@ -4,6 +4,7 @@ import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import BackupPanel from './personal/BackupPanel';
+import { useLibraryMode } from '../lib/library-mode';
 
 interface SettingsDialogProps {
   motion: MotionPreference;
@@ -19,16 +20,19 @@ interface SettingsDialogProps {
   busy: boolean;
   onRestore: (state: PersonalLibraryState) => Promise<boolean>;
   onAbout: () => void;
+  onAccount?: () => void;
   onClose: () => void;
 }
 
-export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout }: SettingsDialogProps) {
+export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount }: SettingsDialogProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
+  const mode = useLibraryMode();
   return (
     <Dialog open titleId="settings-title" onClose={onClose} className="info-dialog settings-dialog">
       <h2 id="settings-title" data-autofocus tabIndex={-1}>Make it<br />your speed.</h2>
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
+      {onAccount && <div className="settings-account"><p><strong>{mode.label}</strong>{mode.scope === 'guest' ? ' — this guest library has not been uploaded.' : ' — you are using a separate account library.'}</p><button className="text-button" onClick={onAccount}>Account, saving &amp; privacy<Icon name="user" width="18" height="18" /></button></div>}
       <fieldset className="motion-options">
         <legend>Visual experience</legend>
         {([
@@ -45,16 +49,16 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
       {reducedMotion ? <p className="preference-note"><Icon name="info" />Your system requests reduced motion. Static art is used in every mode, even Full.</p> : constrained && motion === 'auto' ? <p className="preference-note"><Icon name="info" />Auto is using static art because this browser reports limited device resources or data saving.</p> : <p className="section-help">Auto uses available device and connection hints. Offscreen and hidden-tab animation stops. Full still respects your system's reduced-motion setting.</p>}
       <BackupPanel state={state} busy={busy} persistent={persistent} onRestore={onRestore} />
       <section className="device-settings">
-        <h3>Only on this device</h3>
+        <h3>{mode.scope === 'guest' ? 'Only on this device' : 'This account library'}</h3>
         <p>{saved} saved for later. {completed} marked completed.</p>
-        <p>No account, cloud backup or sync. Clearing this browser's site data also clears this list. Saving and completion are independent, so a favorite can stay on your replay list.</p>
+        <p>{mode.scope === 'guest' ? 'This guest copy is device-only. Online saving is optional and requires a separate sign-in and consent. Clearing site data can remove this local copy.' : 'Account edits save locally first and upload only while online saving is enabled. Sign out to return to the untouched guest library; manage cloud deletion from Account.'} Saving and completion are independent, so a favorite can stay on your replay list.</p>
         {warning && <p className="storage-warning" role="alert">{warning}</p>}
         {confirmReset ? (
           <div className="reset-confirmation">
-            <p><strong>Reset this browser's library, queue, personal rankings and preferences?</strong> This cannot be undone. Export a backup first if needed. The public collection is not affected.</p>
-            <div className="button-row"><button className="button button-danger" disabled={busy} onClick={() => { void onReset().then((success) => { setConfirmReset(false); setResetMessage(success ? 'Your device list and preferences have been reset.' : 'Reset failed. Your saved data has not been removed.'); }); }}>Yes, reset device data</button><button className="button button-outline" disabled={busy} onClick={() => setConfirmReset(false)}>Keep my data</button></div>
+            <p><strong>Reset the active library, queue, personal rankings and preferences?</strong> {mode.scope !== 'guest' && 'If online saving is enabled, this empty account library will sync online. The guest library stays untouched.'} This cannot be undone. Export a backup first if needed. The public collection is not affected.</p>
+            <div className="button-row"><button className="button button-danger" disabled={busy} onClick={() => { void onReset().then((success) => { setConfirmReset(false); setResetMessage(success ? 'Your device list and preferences have been reset.' : 'Reset failed. Your saved data has not been removed.'); }); }}>{mode.scope === 'guest' ? 'Yes, reset device data' : 'Yes, reset this account library'}</button><button className="button button-outline" disabled={busy} onClick={() => setConfirmReset(false)}>Keep my data</button></div>
           </div>
-        ) : <button className="text-button danger-text" onClick={() => setConfirmReset(true)}>Reset device data</button>}
+        ) : <button className="text-button danger-text" onClick={() => setConfirmReset(true)}>{mode.scope === 'guest' ? 'Reset device data' : 'Reset this account library'}</button>}
         {resetMessage && <p role="status">{resetMessage}</p>}
       </section>
       <button className="text-button" onClick={onAbout}>Source, methodology &amp; credits<Icon name="arrow" width="17" height="17" /></button>

@@ -58,5 +58,11 @@ export function useUrlState() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [navigate]);
 
-  return { page, filters, game, updateFilters, openGame, closeGame, goToPage };
+  const openProfile = useCallback((handle: string) => {
+    if (!/^[a-z][a-z0-9_]{2,23}$/.test(handle)) throw new Error('This profile handle is invalid.');
+    navigate('', 'push', null, `/u/${handle}`);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [navigate]);
+
+  return { page, filters, game, publicHandle: page === 'profile' ? path.split('/')[2] ?? '' : '', updateFilters, openGame, closeGame, goToPage, openProfile };
 }

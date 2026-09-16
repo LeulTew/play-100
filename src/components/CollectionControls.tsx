@@ -43,7 +43,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
         <button className={filters.list === 'completed' ? 'is-active' : ''} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed' })}>Completed<span>{completedCount}</span></button>
         <button className={filters.list === 'unplayed' ? 'is-active' : ''} aria-pressed={filters.list === 'unplayed'} onClick={() => onChange({ list: 'unplayed' })}>Not completed</button>
       </div>
-      {filters.list !== 'all' && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your device-only progress, including games you added beyond the 100. Public ranks never change.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
+      {filters.list !== 'all' && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your active library's progress, including games you added beyond the 100. Public ranks never change.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
       <div className="search-and-filters">
         <div className="collection-search">
           <label className="field-label" htmlFor="game-search">Search games, studios or genres</label>

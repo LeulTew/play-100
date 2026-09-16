@@ -1,4 +1,18 @@
 .header-download { border: 1px solid var(--line); }
+.account-nav { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 5px 9px; border-radius: 4px; border: 1px solid var(--line); }
+.account-nav:hover { background: #e6e9dc; border-color: var(--ink); }
+.account-nav-copy { display: flex; flex-direction: column; gap: 1px; }
+.account-nav-copy strong { font-size: 12px; font-weight: 650; }
+.account-nav-copy small { font-size: 10px; color: var(--muted); max-width: 150px; }
+.settings-account { padding-block: 16px; border-block: 1px solid var(--line); margin-block: 20px; }
+.settings-account p { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.settings-account strong { color: var(--ink); }
+.ranking-sharing { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ranking-sharing .text-button { font-size: 13px; }
+.discover-community { display: flex; gap: 24px; align-items: center; justify-content: space-between; border-block: 1px solid var(--line); padding-block: 20px; margin-bottom: 28px; }
+.discover-community h2 { font-size: 20px; }
+.discover-community p { font-size: 14px; line-height: 1.6; color: var(--muted); margin-top: 8px; max-width: 65ch; }
+.discover-community .button { flex-shrink: 0; }
 .desktop-nav a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 7px; }
 .page-loading { padding: 44px var(--gutter); min-height: 360px; max-width: 1600px; margin-inline: auto; }
 .page-loading h2 { font: 700 40px/1.1 var(--display); }
@@ -267,6 +281,7 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
 .catalog-intro p { font-size: 15px; line-height: 1.6; max-width: 54ch; }
 
 @media (max-width: 1100px) {
+  .account-nav-copy { display: none; }
   .ranking-row-content { grid-template-columns: minmax(150px, 1fr) 90px 44px; gap: 10px 15px; }
   .played-check { grid-column: 1; }
   .ranking-row-content > .icon-button { grid-column: 3; grid-row: 1; }
@@ -282,6 +297,10 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
   .saved-nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 @media (max-width: 760px) {
+  .site-header-online .header-download { display: none; }
+  .site-header-online .account-nav { padding: 0; }
+  .ranking-sharing { align-items: flex-start; }
+  .discover-community { align-items: flex-start; flex-direction: column; gap: 16px; }
   .author-footer { gap: 6px; }
   .author-footer nav { gap: 8px 15px; }
   .author-footer p, .author-footer a { font-size: 11px; }

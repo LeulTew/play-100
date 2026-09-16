@@ -70,7 +70,7 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
           ))}</tbody>
         </table>
       </div>
-      <p className="table-footnote">The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s original cached ratings and source notes are preserved, not recalculated. Your editable device-only ratings live on My rankings.</p>
+      <p className="table-footnote">The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s original cached ratings and source notes are preserved, not recalculated. Your editable personal ratings live on My rankings and are separate from these source values.</p>
     </div>
   );
 }

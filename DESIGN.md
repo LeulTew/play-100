@@ -190,6 +190,32 @@ and private data; **Keep games** receives initial focus. Failed removal remains
 in the dialog with a recovery message. No visitor action removes the public
 100 or changes its authored ratings.
 
+### Account and community surfaces
+
+Account, publication, Community and the creator desk extend the existing
+Operate layout: short display headings, Hanken Grotesk body copy, native
+48px fields, open ruled lists and clear state-specific actions. Account uses
+a primary sync/recovery column and a smaller identity/sharing column; these
+collapse to one column on mobile. Public rankings lead with the chosen
+identity and useful game rows, not another animated hero.
+
+The Google sign-in control is a deliberate provider-brand exception:
+the official Google mark, white background, neutral border and a familiar
+sans-serif label follow Google's button guidance. It is not a new site-wide
+typeface or palette. All remaining interface typography stays in the existing
+system.
+
+The compact header Account entry exposes saving status without adding a sixth
+mobile navigation item. Community is reachable through Discover and Account.
+Public sharing is secondary to editing, with an exact frozen preview and
+independent directory consent. Routine sync does not generate toast spam.
+
+Creature avatars use a pinned, static Critters recipe with rounded silhouettes
+and selected flat palettes. Six choices, Shuffle, palette and Save are enough;
+there is no upload control, remote photo dependency or perpetual animation.
+Rendered avatar images have fixed dimensions. A published profile keeps its
+snapshot identity until explicitly updated.
+
 Buttons, links, inputs, selects and summaries use a visible **3px `#426515` outline with 4px offset**. Preserve semantic controls, the skip link and keyboard access; do not substitute hover-only affordances.
 
 ### Numbered jackets and collection rows

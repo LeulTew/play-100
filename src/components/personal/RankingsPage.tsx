@@ -8,11 +8,14 @@ import AddGamesPanel from './AddGamesPanel';
 import { PlayedToggle } from '../PlayedToggle';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { useExitSave } from '../../hooks/useExitSave';
+import { useLibraryMode } from '../../lib/library-mode';
 
-export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover }: {
+export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover, onPublish }: {
   state: PersonalLibraryState; availableRecords: LibraryRecord[]; busy: boolean; persistent: boolean; animate: boolean;
   onAction: (action: PersonalAction) => Promise<boolean>; onOpen: (id: string) => void; onDiscover: () => void;
+  onPublish?: () => void;
 }) {
+  const mode = useLibraryMode();
   const [query, setQuery] = useState('');
   const [playedOnly, setPlayedOnly] = useState(false);
   const rankingById = useMemo(() => new Map(state.ranking.map((entry, index) => [entry.id, { entry, position: index + 1 }])), [state.ranking]);
@@ -29,7 +32,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
   const manualCount = state.ranking.filter((entry) => entry.manualPosition !== null).length;
   return (
     <section className="app-page" aria-labelledby="rankings-title">
-      <div className="page-heading"><div><h1 id="rankings-title" data-page-heading tabIndex={-1}>YOUR RANKING.<br /><span>NO CONSENSUS NEEDED.</span></h1><p>Played it or not, put it where you want. This is your order, not a change to the author's 100.</p></div><div className="private-label"><Icon name="bookmark" width="17" height="17" />{persistent ? 'Private · saved on this device' : 'Private · temporary tab data'}</div></div>
+      <div className="page-heading"><div><h1 id="rankings-title" data-page-heading tabIndex={-1}>YOUR RANKING.<br /><span>NO CONSENSUS NEEDED.</span></h1><p>Played it or not, put it where you want. This is your order, not a change to the author's 100.</p></div><div className="ranking-sharing"><div className="private-label"><Icon name="bookmark" width="17" height="17" />{persistent ? mode.scope === 'guest' ? 'Private · saved on this device' : mode.label : 'Private · temporary tab data'}</div>{onPublish && <button className="text-button" onClick={onPublish}><Icon name="share" width="18" height="18" />Publish a ranking</button>}</div></div>
       <AddGamesPanel records={availableRecords} existingIds={rankedIds} onAdd={(recordsToAdd) => onAction({ type: 'add-ranking', records: recordsToAdd })} onDiscover={onDiscover} busy={busy} />
       {state.ranking.length > 0 && <>
         <div className="ranking-order-info"><p><strong>Highest ratings first.</strong> {manualCount ? `${manualCount} manually positioned ${manualCount === 1 ? 'game keeps its place' : 'games keep their places'}; the rest follow your scores. Previously saved orders are preserved until you choose automatic ordering.` : 'Unrated games follow rated games. Dragging a game fixes its position until you release it.'}</p>{manualCount > 0 && <button className="button button-outline" disabled={busy} onClick={() => { void onAction({ type: 'use-rating-order' }); }}>Use rating order for all</button>}</div>
@@ -43,7 +46,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
           return <RankingRow record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} onOpen={onOpen} onAction={onAction} />;
         }}
       </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No ranked games match this view.' : 'What comes first is up to you.'}</h2><p>{state.ranking.length ? 'Clear the search or include games not marked played. Your full ranking is still saved.' : 'Open Add games to build your ranking. Include titles you have not played, add an optional score and notes, then arrange your own order.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); setPlayedOnly(false); }}>Show my full ranking</button>}</div>}
-      <p className="personal-storage-footnote">{persistent ? "Stored in this browser's IndexedDB, never Supabase." : 'Device storage is unavailable; export these temporary changes before closing this tab.'} Use Settings to download a backup or restore one on another device. This URL opens each visitor's own private ranking, not yours.</p>
+      <p className="personal-storage-footnote">{persistent ? mode.scope === 'guest' ? "Stored in this browser's guest IndexedDB library, never Supabase." : 'Stored in this account cache first; online saving follows only while enabled.' : 'Device storage is unavailable; export these temporary changes before closing this tab.'} Use Settings to download or restore a backup. This URL opens each visitor's own ranking, not yours; only an explicitly published snapshot has a public profile link.</p>
     </section>
   );
 }
@@ -55,8 +58,9 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
   const [note, setNote] = useState(entry.note);
   const [noteError, setNoteError] = useState('');
   const [noteEdited, setNoteEdited] = useState(false);
-  const noteSaving = useRef(false);
+  const noteSaving = useRef<Promise<boolean> | null>(null);
   const noteEdits = useRef(0);
+  const committedNote = useRef(-1);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (!noteEdited) setNote(entry.note); }, [entry.note, noteEdited]);
   useEffect(() => {
@@ -65,19 +69,25 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, [noteEdited]);
-  const saveNote = async () => {
-    if (!noteEdited || noteSaving.current) return;
+  const saveNote = (): Promise<boolean> => {
+    if (noteSaving.current) return noteSaving.current;
+    if (!noteEdited || committedNote.current === noteEdits.current) return Promise.resolve(true);
     setNoteError('');
-    if (note === entry.note) { setNoteEdited(false); return; }
+    if (note === entry.note) { committedNote.current = noteEdits.current; setNoteEdited(false); return Promise.resolve(true); }
     const version = noteEdits.current;
-    noteSaving.current = true;
-    try {
+    const task = (async () => {
       if (await onAction({ type: 'edit-ranking', id: entry.id, note })) {
-        if (version === noteEdits.current) setNoteEdited(false);
-      } else setNoteError('The note could not be saved. Keep this field open to retry or copy your text.');
-    } finally { noteSaving.current = false; }
+        if (version === noteEdits.current) { committedNote.current = version; setNoteEdited(false); }
+        return version === noteEdits.current;
+      }
+      setNoteError('The note could not be saved. Keep this field open to retry or copy your text.');
+      return false;
+    })();
+    noteSaving.current = task;
+    void task.finally(() => { if (noteSaving.current === task) noteSaving.current = null; });
+    return task;
   };
-  useExitSave(() => { if (!noteError) void saveNote(); });
+  useExitSave(() => noteError ? Promise.resolve(false) : saveNote(), noteEdited);
   return (
     <div className="ranking-row-content">
       <RecordIdentity record={record} onOpen={onOpen} />
@@ -85,7 +95,7 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
       <div className="played-check"><PlayedToggle id={record.id} title={record.title} played={played} completed={completed} busy={busy} onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} /></div>
       <button className="icon-button" aria-label={`Remove ${record.title} from my ranking`} disabled={busy} onClick={() => { void onAction({ type: 'remove-ranking', ids: [entry.id] }); }}><Icon name="close" width="18" height="18" /></button>
       {entry.manualPosition !== null && <div className="manual-rank"><span>Fixed at #{entry.manualPosition}</span><button className="text-button" disabled={busy} aria-label={`Use rating order for ${record.title}`} onClick={() => { void onAction({ type: 'use-rating-order', id: entry.id }); }}>Use rating order<Icon name="rank" width="16" height="16" /></button></div>}
-      <details className="ranking-note"><summary>{entry.note ? 'Your note' : 'Add a note'}<Icon name="plus" width="15" height="15" /></summary><label htmlFor={`note-${entry.id}`} className="sr-only">Your note for {record.title}</label><textarea ref={noteRef} id={`note-${entry.id}`} rows={3} maxLength={2000} value={note} disabled={busy} aria-invalid={Boolean(noteError)} aria-describedby={noteError ? `note-error-${entry.id}` : undefined} onChange={(event) => { noteEdits.current += 1; setNoteEdited(true); setNoteError(''); setNote(event.target.value); }} onBlur={() => { void saveNote(); }} placeholder="Why this game belongs here..." /><span>Saved when you leave the field or this page. Only on this device.</span></details>
+      <details className="ranking-note"><summary>{entry.note ? 'Your note' : 'Add a note'}<Icon name="plus" width="15" height="15" /></summary><label htmlFor={`note-${entry.id}`} className="sr-only">Your note for {record.title}</label><textarea ref={noteRef} id={`note-${entry.id}`} rows={3} maxLength={2000} value={note} disabled={busy} aria-invalid={Boolean(noteError)} aria-describedby={noteError ? `note-error-${entry.id}` : undefined} onChange={(event) => { noteEdits.current += 1; setNoteEdited(true); setNoteError(''); setNote(event.target.value); }} onBlur={() => { void saveNote(); }} placeholder="Why this game belongs here..." /><span>Saved when you leave the field or this page. Never included in a published ranking.</span></details>
       {noteError && <p id={`note-error-${entry.id}`} className="inline-error" role="alert">{noteError}</p>}
     </div>
   );

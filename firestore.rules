@@ -1,0 +1,373 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function own(uid) { return verified() && request.auth.uid == uid; }
+    function accountActive(uid) {
+      return own(uid) && get(/databases/$(database)/documents/accountLifecycle/$(uid)).data.state == 'active';
+    }
+    function creator() {
+      return verified() && request.auth.token.email == get(/databases/$(database)/documents/_owner/config).data.email;
+    }
+    function head(uid) { return get(/databases/$(database)/documents/syncHeads/$(uid)).data; }
+    function retained(uid, generation) {
+      let h = head(uid);
+      return (h.current != null && h.current.generation == generation)
+        || (h.previous != null && h.previous.generation == generation);
+    }
+    function generation(uid, id) {
+      return get(/databases/$(database)/documents/accounts/$(uid)/generations/$(id)).data;
+    }
+    function active(uid, epoch) {
+      let h = head(uid);
+      return accountActive(uid) && h.enabled && !h.deleted && h.epoch == epoch;
+    }
+    function uuid(value) { return value is string && value.matches('^[a-f0-9-]{36}$'); }
+    function digest(value) { return value is string && value.matches('^[a-f0-9]{64}$'); }
+    function manifest(value) {
+      return value is map && value.keys().hasOnly(['format', 'generation', 'digest', 'bytes', 'chunks'])
+        && value.keys().hasAll(['format', 'generation', 'digest', 'bytes', 'chunks'])
+        && value.format == 1 && uuid(value.generation) && digest(value.digest)
+        && value.bytes is int && value.bytes > 0 && value.bytes <= 20971520
+        && value.chunks is list && value.chunks.size() > 0 && value.chunks.size() <= 107
+        && value.bytes > (value.chunks.size() - 1) * 196608 && value.bytes <= value.chunks.size() * 196608;
+    }
+    function headShape(data) {
+      return data.keys().hasOnly(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
+        && data.keys().hasAll(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
+        && data.format == 1 && data.epoch is int && data.epoch >= 1
+        && data.revision is int && data.revision >= 0
+        && data.enabled is bool && data.deleted is bool
+        && (data.current == null || manifest(data.current))
+        && (data.previous == null || manifest(data.previous))
+        && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.current == null && data.previous == null));
+    }
+    function avatar(value) {
+      return value is map && value.keys().hasOnly(['version', 'seed', 'palette'])
+        && value.keys().hasAll(['version', 'seed', 'palette']) && value.version == 1
+        && value.seed is string && value.seed.matches('^[a-f0-9]{32}$')
+        && value.palette in ['lime', 'moss', 'clay', 'sky', 'lilac'];
+    }
+    function member(data, uid) {
+      return data.keys().hasOnly(['uid', 'displayName', 'avatar', 'createdAt', 'updatedAt', 'consentVersion', 'rankCount', 'gameCount'])
+        && data.keys().hasAll(['uid', 'displayName', 'avatar', 'createdAt', 'updatedAt', 'consentVersion', 'rankCount', 'gameCount'])
+        && data.uid == uid && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && avatar(data.avatar) && data.consentVersion == 1
+        && data.createdAt is timestamp && data.updatedAt == request.time
+        && data.rankCount is int && data.rankCount >= 0 && data.rankCount <= 10000
+        && data.gameCount is int && data.gameCount >= 0 && data.gameCount <= 10000;
+    }
+    match /_owner/{document} { allow read, write: if false; }
+    match /ownerAccess/status { allow get: if creator(); allow list, write: if false; }
+    match /accountLifecycle/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, update, delete: if false;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['state']) && request.resource.data.keys().hasAll(['state'])
+        && (
+          (verified() && request.resource.data.state == 'active')
+          || (request.auth.token.email is string && request.auth.token.email_verified != true
+            && request.resource.data.state == 'cancelled'
+            && !exists(/databases/$(database)/documents/members/$(uid))
+            && !exists(/databases/$(database)/documents/syncHeads/$(uid))
+            && !exists(/databases/$(database)/documents/publicControls/$(uid)))
+        );
+    }
+    match /members/{uid} {
+      allow get: if own(uid) || creator();
+      allow list: if creator() && request.query.limit != null && request.query.limit <= 20;
+      allow create: if accountActive(uid) && member(request.resource.data, uid) && request.resource.data.createdAt == request.time
+        && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted);
+      allow update: if accountActive(uid) && member(request.resource.data, uid) && request.resource.data.createdAt == resource.data.createdAt
+        && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted);
+      allow delete: if own(uid) && head(uid).deleted;
+    }
+    match /syncHeads/{uid} {
+      allow get: if own(uid);
+      allow list, delete: if false;
+      allow create: if accountActive(uid) && headShape(request.resource.data)
+        && request.resource.data.epoch == 1 && request.resource.data.revision == 0
+        && request.resource.data.current == null && request.resource.data.previous == null
+        && ((request.resource.data.enabled && !request.resource.data.deleted && get(/databases/$(database)/documents/members/$(uid)).data.consentVersion == 1)
+          || (request.resource.data.deleted && !request.resource.data.enabled));
+      allow update: if accountActive(uid) && headShape(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1
+        && (
+          (resource.data.enabled && !resource.data.deleted && request.resource.data.enabled && !request.resource.data.deleted
+            && request.resource.data.epoch == resource.data.epoch && request.resource.data.previous == resource.data.current
+            && request.resource.data.current != null
+            && generation(uid, request.resource.data.current.generation).status == 'ready'
+            && generation(uid, request.resource.data.current.generation).epoch == resource.data.epoch
+            && generation(uid, request.resource.data.current.generation).private == request.resource.data.current
+            && getAfter(/databases/$(database)/documents/creatorRanks/$(uid)).data.revision == request.resource.data.revision
+            && getAfter(/databases/$(database)/documents/creatorRanks/$(uid)).data.current == generation(uid, request.resource.data.current.generation).ranking)
+          || (!request.resource.data.enabled && request.resource.data.epoch == resource.data.epoch + 1
+            && (request.resource.data.deleted || (request.resource.data.current == resource.data.current && request.resource.data.previous == resource.data.previous)))
+          || (!resource.data.enabled && request.resource.data.enabled && !request.resource.data.deleted
+            && request.resource.data.epoch == resource.data.epoch + 1
+            && request.resource.data.current == resource.data.current && request.resource.data.previous == resource.data.previous
+            && (!resource.data.deleted || timestamp.value(request.auth.token.auth_time * 1000) > resource.data.updatedAt))
+        );
+    }
+    match /accounts/{uid}/metadata/registry {
+      allow get: if own(uid);
+      allow list, delete: if false;
+      allow create: if own(uid) && head(uid).enabled && !head(uid).deleted
+        && request.resource.data.keys().hasOnly(['ids', 'revision'])
+        && request.resource.data.ids is list && request.resource.data.ids.size() == 1 && request.resource.data.revision == 1
+        && getAfter(/databases/$(database)/documents/accounts/$(uid)/generations/$(request.resource.data.ids[0])).data.status == 'staging';
+      allow update: if own(uid) && request.resource.data.keys().hasOnly(['ids', 'revision'])
+        && request.resource.data.ids is list && request.resource.data.ids.size() <= 128
+        && request.resource.data.ids.toSet().size() == request.resource.data.ids.size()
+        && request.resource.data.revision == resource.data.revision + 1
+        && (
+          (head(uid).enabled && !head(uid).deleted && request.resource.data.ids.size() == resource.data.ids.size() + 1
+            && request.resource.data.ids == resource.data.ids.concat([request.resource.data.ids[request.resource.data.ids.size() - 1]])
+            && getAfter(/databases/$(database)/documents/accounts/$(uid)/generations/$(request.resource.data.ids[request.resource.data.ids.size() - 1])).data.status == 'staging')
+          || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
+            && !existsAfter(/databases/$(database)/documents/accounts/$(uid)/generations/$(resource.data.ids.removeAll(request.resource.data.ids)[0])))
+        );
+    }
+    match /accounts/{uid}/generations/{id} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow create: if own(uid) && request.resource.data.keys().hasOnly(['private', 'ranking', 'epoch', 'status', 'createdAt'])
+        && manifest(request.resource.data.private) && manifest(request.resource.data.ranking)
+        && request.resource.data.private.generation == id && request.resource.data.ranking.generation == id
+        && active(uid, request.resource.data.epoch) && request.resource.data.status == 'staging'
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/accounts/$(uid)/metadata/registry).data.ids.hasAny([id]);
+      allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && ((resource.data.status == 'staging' && request.resource.data.status == 'ready' && active(uid, resource.data.epoch))
+          || (request.resource.data.status == 'deleting' && !retained(uid, id)));
+      allow delete: if own(uid) && resource.data.status == 'deleting' && !retained(uid, id);
+    }
+    function validChunk(data, id) {
+      return data.keys().hasOnly(['digest', 'data', 'bytes', 'createdAt', 'holders', 'holder'])
+        && data.keys().hasAll(['digest', 'data', 'bytes', 'createdAt', 'holders', 'holder'])
+        && data.digest == id && digest(id) && data.data is string && data.data.size() > 0 && data.data.size() <= 262144
+        && data.data.matches('^[A-Za-z0-9+/]*={0,2}$') && data.bytes is int && data.bytes > 0 && data.bytes <= 196608
+        && data.holders is list && data.holders.size() > 0 && data.holders.size() <= 128
+        && data.holders.toSet().size() == data.holders.size() && uuid(data.holder) && data.createdAt is timestamp;
+    }
+    function chunkCreate(uid, id, kind) {
+      let data = request.resource.data;
+      let gen = generation(uid, data.holder);
+      return own(uid) && validChunk(data, id) && active(uid, gen.epoch) && gen.status == 'staging'
+        && gen[kind].chunks.hasAny([id]) && data.holders == [data.holder] && data.createdAt == request.time;
+    }
+    function chunkUpdate(uid, id, kind) {
+      let next = request.resource.data;
+      let gen = generation(uid, next.holder);
+      return own(uid) && validChunk(next, id)
+        && next.diff(resource.data).affectedKeys().hasOnly(['holders', 'holder'])
+        && (
+          (active(uid, gen.epoch) && gen.status == 'staging' && gen[kind].chunks.hasAny([id])
+            && next.holders == resource.data.holders.concat([next.holder]))
+          || (gen.status == 'deleting' && !retained(uid, next.holder)
+            && next.holders == resource.data.holders.removeAll([next.holder]))
+        );
+    }
+    function chunkDelete(uid) {
+      return own(uid) && (head(uid).deleted || (resource.data.holders.size() == 1
+        && generation(uid, resource.data.holders[0]).status == 'deleting'
+        && !retained(uid, resource.data.holders[0])));
+    }
+    match /accounts/{uid}/chunks/{id} {
+      allow get: if own(uid) && !head(uid).deleted;
+      allow list: if false;
+      allow create: if chunkCreate(uid, id, 'private');
+      allow update: if chunkUpdate(uid, id, 'private');
+      allow delete: if chunkDelete(uid);
+    }
+    match /creatorRanks/{uid} {
+      allow get: if own(uid) || creator();
+      allow list: if false;
+      allow create, update: if own(uid) && request.resource.data.keys().hasOnly(['format', 'epoch', 'revision', 'current', 'previous', 'updatedAt'])
+        && request.resource.data.format == 1 && manifest(request.resource.data.current)
+        && (request.resource.data.previous == null || manifest(request.resource.data.previous))
+        && request.resource.data.epoch == getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.epoch
+        && request.resource.data.revision == getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.revision
+        && request.resource.data.current == generation(uid, request.resource.data.current.generation).ranking
+        && generation(uid, request.resource.data.current.generation).status == 'ready'
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if own(uid) && getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.deleted;
+    }
+    match /creatorRanks/{uid}/chunks/{id} {
+      allow get: if (own(uid) || creator()) && !head(uid).deleted;
+      allow list: if false;
+      allow create: if chunkCreate(uid, id, 'ranking');
+      allow update: if chunkUpdate(uid, id, 'ranking');
+      allow delete: if chunkDelete(uid);
+    }
+    match /catalog/author { allow get: if true; allow list, write: if false; }
+    function publicControl(uid) { return get(/databases/$(database)/documents/publicControls/$(uid)).data; }
+    function profile(uid) { return get(/databases/$(database)/documents/publicProfiles/$(uid)).data; }
+    function canPublish(uid) {
+      let control = publicControl(uid);
+      return accountActive(uid) && !control.hidden && !control.deleted
+        && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted);
+    }
+    function liveProfile(uid) {
+      let data = profile(uid);
+      return data.published && !data.hidden;
+    }
+    function validHandle(handle) {
+      return handle is string && handle.matches('^[a-z][a-z0-9_]{2,23}$')
+        && !(handle in ['admin', 'administrator', 'creator', 'leul', 'leultew', 'play100', 'play-100', 'support', 'system', 'moderator', 'firebase', 'account', 'community', 'settings', 'official']);
+    }
+    function publicGeneration(uid, id) {
+      return get(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(id)).data;
+    }
+    function safeSource(entry) {
+      return (entry.source == 'collection' && entry.id == entry.sourceId && entry.sourceUrl == null
+          && get(/databases/$(database)/documents/catalog/author).data.records.keys().hasAll([entry.id])
+          && get(/databases/$(database)/documents/catalog/author).data.records[entry.id].title == entry.title
+          && get(/databases/$(database)/documents/catalog/author).data.records[entry.id].year == entry.year)
+        || (entry.source == 'wikidata' && entry.sourceId.matches('^Q[1-9][0-9]*$') && entry.id == 'wikidata:' + entry.sourceId && entry.sourceUrl == 'https://www.wikidata.org/wiki/' + entry.sourceId)
+        || (entry.source == 'steam' && entry.sourceId.matches('^[1-9][0-9]*$') && entry.id == 'steam:' + entry.sourceId && entry.sourceUrl == 'https://store.steampowered.com/app/' + entry.sourceId + '/')
+        || (entry.source == 'freetogame' && entry.sourceId.matches('^[1-9][0-9]*$') && entry.id == 'freetogame:' + entry.sourceId
+          && (entry.sourceUrl == null || (entry.sourceUrl is string && entry.sourceUrl.matches('^https://www[.]freetogame[.]com/[a-z0-9/-]+$'))))
+        || (entry.source == 'manual' && entry.id == 'manual:' + entry.sourceId && entry.sourceUrl == null);
+    }
+    function publicEntry(data) {
+      return data.keys().hasOnly(['position', 'id', 'title', 'year', 'source', 'sourceId', 'sourceUrl', 'score'])
+        && data.keys().hasAll(['position', 'id', 'title', 'year', 'source', 'sourceId', 'sourceUrl', 'score'])
+        && data.position is int && data.position >= 1 && data.position <= 200
+        && data.id is string && data.id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && (data.year == null || (data.year is int && data.year >= 1900 && data.year <= 2100))
+        && data.source is string && data.sourceId is string && data.sourceId.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
+        && (data.score == null || (data.score is number && data.score >= 0 && data.score <= 10))
+        && safeSource(data);
+    }
+    function profileShape(data, uid) {
+      return data.keys().hasOnly(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
+        && data.keys().hasAll(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
+        && data.uid == uid && validHandle(data.handle) && avatar(data.avatar)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
+        && data.count is int && data.count >= 1 && data.count <= 200
+        && data.preview is list && data.preview.size() >= 1 && data.preview.size() <= 3
+        && data.preview[0] is string && data.preview[0].size() <= 200
+        && (data.preview.size() < 2 || (data.preview[1] is string && data.preview[1].size() <= 200))
+        && (data.preview.size() < 3 || (data.preview[2] is string && data.preview[2].size() <= 200))
+        && uuid(data.generation) && data.epoch is int && data.epoch >= 1
+        && data.published is bool && data.listed is bool && data.hidden is bool && data.creator is bool
+        && data.updatedAt == request.time;
+    }
+    match /publicControls/{uid} {
+      allow get: if own(uid) || creator();
+      allow list, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['epoch', 'hidden', 'deleted'])
+        && request.resource.data.deleted is bool && request.resource.data.hidden is bool
+        && request.resource.data.epoch is int
+        && ((accountActive(uid) && !request.resource.data.hidden && request.resource.data.epoch in [0, 1])
+          || (creator() && request.resource.data.epoch == 1));
+      allow update: if request.resource.data.keys().hasOnly(['epoch', 'hidden', 'deleted'])
+        && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.deleted is bool
+        && ((own(uid) && request.resource.data.hidden == resource.data.hidden
+          && (!resource.data.deleted || (head(uid).enabled && !head(uid).deleted)))
+          || (creator() && request.resource.data.hidden is bool && request.resource.data.deleted == resource.data.deleted));
+    }
+    match /publicProfiles/{uid} {
+      allow get: if (resource == null) || own(uid) || creator() || (resource.data.published && !resource.data.hidden);
+      allow list: if request.query.limit != null && request.query.limit <= 20
+        && (creator() || (resource.data.published && resource.data.listed && !resource.data.hidden));
+      allow create, update: if own(uid) && canPublish(uid) && profileShape(request.resource.data, uid)
+        && request.resource.data.published && !request.resource.data.hidden
+        && request.resource.data.creator == creator()
+        && request.resource.data.epoch == publicControl(uid).epoch + 1
+        && getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch == request.resource.data.epoch
+        && getAfter(/databases/$(database)/documents/handles/$(request.resource.data.handle)).data.uid == uid
+        && publicGeneration(uid, request.resource.data.generation).epoch == publicControl(uid).epoch
+        && publicGeneration(uid, request.resource.data.generation).status == 'ready'
+        && publicGeneration(uid, request.resource.data.generation).uploaded == request.resource.data.count;
+      allow update: if (own(uid) || creator()) && profileShape(request.resource.data, uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published', 'listed', 'hidden', 'epoch', 'updatedAt'])
+        && !request.resource.data.published && !request.resource.data.listed
+        && request.resource.data.hidden == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.hidden
+        && request.resource.data.epoch == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch
+        && request.resource.data.epoch == resource.data.epoch + 1;
+      allow delete: if own(uid) && publicControl(uid).deleted && !resource.data.published;
+    }
+    match /handles/{handle} {
+      allow get: if resource == null || (verified() && resource.data.uid == request.auth.uid) || liveProfile(resource.data.uid);
+      allow list: if false;
+      allow create, update: if verified() && validHandle(handle) && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && (resource == null || resource.data.uid == request.auth.uid)
+        && getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.handle == handle
+        && getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.published
+        && !getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.hidden;
+      allow delete: if own(resource.data.uid)
+        && (!existsAfter(/databases/$(database)/documents/publicProfiles/$(resource.data.uid))
+          || getAfter(/databases/$(database)/documents/publicProfiles/$(resource.data.uid)).data.handle != handle);
+    }
+    function uploadedEntry(uid, generation, position, end) {
+      return position > end || getAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(generation)/entries/$(string(position))).data.position == position;
+    }
+    match /publicProfiles/{uid}/generations/{id} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow create: if accountActive(uid) && uuid(id)
+        && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted)
+        && request.resource.data.keys().hasOnly(['epoch', 'count', 'uploaded', 'status', 'createdAt'])
+        && request.resource.data.epoch == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch
+        && !getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.hidden
+        && !getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.deleted
+        && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 200
+        && request.resource.data.uploaded == 0 && request.resource.data.status == 'staging' && request.resource.data.createdAt == request.time;
+      allow update: if canPublish(uid) && resource.data.epoch == publicControl(uid).epoch
+        && resource.data.status == 'staging'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uploaded', 'status'])
+        && request.resource.data.uploaded is int && request.resource.data.uploaded > resource.data.uploaded
+        && request.resource.data.uploaded <= resource.data.uploaded + 8 && request.resource.data.uploaded <= resource.data.count
+        && request.resource.data.status == (request.resource.data.uploaded == resource.data.count ? 'ready' : 'staging')
+        && uploadedEntry(uid, id, resource.data.uploaded + 1, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 2, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 3, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 4, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 5, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 6, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 7, request.resource.data.uploaded)
+        && uploadedEntry(uid, id, resource.data.uploaded + 8, request.resource.data.uploaded);
+      allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'deleting'
+        && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != id);
+      allow delete: if own(uid) && resource.data.status == 'deleting'
+        && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != id);
+    }
+    match /publicProfiles/{uid}/generations/{generationId}/entries/{position} {
+      allow get: if own(uid) || ((creator() || liveProfile(uid)) && profile(uid).generation == generationId);
+      allow list: if request.query.limit != null && request.query.limit <= 200
+        && (own(uid) || ((creator() || liveProfile(uid)) && profile(uid).generation == generationId));
+      allow create: if canPublish(uid) && publicEntry(request.resource.data)
+        && string(request.resource.data.position) == position
+        && publicGeneration(uid, generationId).status == 'staging'
+        && publicGeneration(uid, generationId).epoch == publicControl(uid).epoch
+        && request.resource.data.position > publicGeneration(uid, generationId).uploaded
+        && request.resource.data.position <= getAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(generationId)).data.uploaded;
+      allow update: if false;
+      allow delete: if own(uid) && publicGeneration(uid, generationId).status == 'deleting'
+        && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != generationId);
+    }
+    match /reports/{reportId} {
+      allow get: if verified() && (resource == null || resource.data.reporterUid == request.auth.uid || creator());
+      allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && (creator() || resource.data.reporterUid == request.auth.uid);
+      allow create: if accountActive(request.auth.uid)
+        && (!exists(/databases/$(database)/documents/syncHeads/$(request.auth.uid)) || !head(request.auth.uid).deleted)
+        && request.resource.data.keys().hasOnly(['reporterUid', 'targetUid', 'reason', 'status', 'createdAt'])
+        && request.resource.data.reporterUid == request.auth.uid && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid && reportId == request.resource.data.targetUid + '_' + request.auth.uid
+        && request.resource.data.reason is string && request.resource.data.reason.size() >= 1 && request.resource.data.reason.size() <= 400
+        && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time
+        && liveProfile(request.resource.data.targetUid);
+      allow update: if creator() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'resolved';
+      allow delete: if own(resource.data.reporterUid) && head(request.auth.uid).deleted;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

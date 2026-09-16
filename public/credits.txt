@@ -8,7 +8,7 @@ Telegram: https://t.me/fabbin (@fabbin)
 This is a personal curated collection, not an official game ranking.
 Leul's original ratings are preserved from the original workbook column headed
 "my rating(based on rank)", including its actual rounded/text caches and notes.
-They are public creator metadata, never a seed for visitor/device-only ratings.
+They are public creator metadata, never a seed for visitor ratings.
 The 100 entries and 100 supplied cover images come from the user's original
 AAA_games_u_have_to_play_list_top_100.xlsx workbook. Cover artwork remains the
 property of its respective rights holders. Original abstract numbered jackets,
@@ -42,12 +42,37 @@ https://github.com/jpt/barlow - /licenses/barlow-condensed.txt
 Hanken Grotesk - The Hanken Grotesk Project Authors - SIL Open Font License 1.1
 https://github.com/marcologous/hanken-grotesk - /licenses/hanken-grotesk.txt
 
-No analytics or tracking scripts are installed. Vercel provides hosting and may
-process standard request/access information under its own infrastructure policy.
-Private games, play queue, play history, personal ranks/scores/notes and visual
-preferences stay in the current browser's IndexedDB. Legacy Play 100 localStorage
-lists migrate after an atomic IndexedDB commit. Backups are downloaded/imported
-locally. No Supabase or server-side personal database is used.
+No analytics or ad-tracking scripts are installed. Vercel provides hosting and
+may process standard request/access information under its infrastructure policy.
+Guest libraries stay in the current browser's IndexedDB. Optional verified
+Firebase accounts save locally first, then upload only after explicit online
+saving consent. Guest data is not automatically adopted or published.
+Legacy lists migrate after an atomic IndexedDB commit. Backups remain available
+locally. No Supabase, paid Firebase features or remote avatar API is used.
+Public profiles contain only an explicitly previewed snapshot; notes, email,
+queue and play history are excluded. Directory listing is separately opt-in.
+The creator can inspect consenting account profiles and ranking summaries.
+The creator UI does not load private notes, but the database operator can
+technically access stored private data.
+
+Firebase JavaScript SDK 12.19.0 - Google LLC
+Apache License 2.0, with the bundled protobuf BSD notice.
+https://github.com/firebase/firebase-js-sdk
+Pinned source revision: 9045b759b70e9d19b8cf007d69d988893d845a1e
+/licenses/firebase.txt
+Only the app, authentication and Firestore SDKs are used. No Firebase Analytics,
+Performance, Messaging, AI, paid Functions or Storage feature is initialized.
+
+DiceBear core 10.7.0 - MIT; Critters from styles 10.6.0 - CC0 1.0
+https://www.dicebear.com/styles/critters/
+/licenses/dicebear.txt
+Avatars are generated locally from versioned random descriptors, not uploaded
+images, Google photos or remote API responses.
+
+Google sign-in mark - Google LLC trademark
+Used according to the Google Identity branding guidance.
+https://developers.google.com/identity/branding-guidelines
+Local source: https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg
 
 dnd kit - Copyright (c) 2021 Clauderic Demers - MIT
 https://dndkit.com

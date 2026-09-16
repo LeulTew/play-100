@@ -1,0 +1,188 @@
+import { expect, test } from '@playwright/test';
+import { createAccount, emailFor, enableSync, googlePopup, password, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
+import { readLibrary } from '../tests/library-helpers';
+
+test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });
+
+test('verified unused email registration can delete without first enabling sync or creating a profile', async ({ page, request }) => {
+  const email = emailFor('unused-verified');
+  await createAccount(page, email); await verifyEmail(page, request, email);
+  await page.locator('.account-danger summary').click();
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+  await page.getByLabel('Confirm your password', { exact: true }).fill(password);
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  expect((await readLibrary(page)).records).toEqual({});
+});
+
+test('verified unused Google registration can reauthenticate and delete without a private library', async ({ page }) => {
+  const email = emailFor('unused-google');
+  await page.goto('/account');
+  await googlePopup(page, () => page.getByRole('button', { name: 'Continue with Google', exact: true }).click(), email, true);
+  await expect(page.locator('.account-heading')).toContainText(email);
+  await page.locator('.account-danger summary').click();
+  await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+  await googlePopup(page, () => page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click(), email);
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test('corrupt account cache does not trap sign-out or prevent a network-only account export', async ({ page, request }) => {
+  const email = emailFor('cache-failure');
+  await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page, 'empty');
+  const uid = await uidFor(request, email);
+  await page.evaluate((key) => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('play100-personal', 2);
+    open.onsuccess = () => {
+      const db = open.result; const tx = db.transaction('library', 'readwrite');
+      tx.objectStore('library').put({ broken: 'deliberate scoped cache fixture' }, key);
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
+    };
+    open.onerror = () => reject(open.error);
+  }), `account:demo-play100:${uid}`);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeEnabled();
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export account data', exact: true }).click();
+  const backup = await downloaded;
+  expect(backup.suggestedFilename()).toBe('Play-100-account-export.json');
+  await expect(page.getByRole('status').filter({ hasText: 'unreadable device cache' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  expect((await readLibrary(page)).records).toEqual({});
+});
+
+test('a guest inline rating keeps its original save target while another tab restores an account', async ({ page, context, request }) => {
+  const email = emailFor('inline-scope');
+  await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page, 'empty');
+  const uid = await uidFor(request, email);
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await expect(page).toHaveURL(/\/$/);
+  await page.getByRole('link', { name: /Account:/ }).click();
+  await page.getByRole('button', { name: 'Keep using this device', exact: true }).click();
+  const nav = page.locator('.desktop-nav:visible, .mobile-nav:visible');
+  const libraryLink = nav.getByRole('link', { name: 'My library', exact: true });
+  if (await libraryLink.count()) await libraryLink.click();
+  else await nav.getByRole('button', { name: /Play later/ }).click();
+  const title = `Guest draft ${crypto.randomUUID().slice(0, 8)}`;
+  await page.locator('.manual-add summary').click();
+  await page.getByLabel('Game title', { exact: true }).fill(title);
+  await page.locator('.manual-add form').getByRole('button').click();
+  await expect.poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === title)).toBe(true);
+  await page.locator('.wordmark').first().click();
+  await expect(page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeVisible();
+  const peer = await context.newPage();
+  try {
+    await page.clock.install({ time: new Date('2026-09-14T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-09-14T12:00:10Z'));
+    await page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true }).fill('7.2');
+    await signIn(peer, email);
+    await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(7.2);
+    expect((await readAccount(peer, uid)).state.records).toEqual({});
+    await expect(page.locator('.games, .unranked-list')).not.toContainText(title);
+  } finally { await page.clock.resume(); await peer.close(); }
+});
+
+test('an interrupted upload stays honestly paused after reconnect until an explicit retry succeeds', async ({ page, context, request }) => {
+  const email = emailFor('upload-interruption');
+  await page.goto('/?game=red-dead-redemption-2');
+  await seedGuestRating(page, '5');
+  await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page);
+  const uid = await uidFor(request, email);
+  await page.goto('/my-rankings');
+  await expect(page.getByRole('spinbutton')).toBeEnabled();
+  await page.route('**/documents:commit*', async (route) => {
+    const body = route.request().postDataJSON() as { writes?: Array<{ update?: { name?: string } }> };
+    if (body.writes?.some((write) => write.update?.name?.endsWith(`/syncHeads/${uid}`))) {
+      await route.fulfill({ status: 503, json: { error: { code: 503, status: 'UNAVAILABLE', message: 'Isolated upload interruption fixture' } } });
+    } else await route.continue();
+  });
+  await page.getByRole('spinbutton').fill('6.9'); await page.getByRole('spinbutton').press('Tab');
+  await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/, { timeout: 45000 });
+  expect((await readAccount(page, uid)).sync.dirty).toBe(true);
+  await page.unroute('**/documents:commit*');
+  await context.setOffline(true); await context.setOffline(false);
+  await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/);
+  await page.getByRole('link', { name: /Account:/ }).click();
+  await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
+  await expect(page.locator('.sync-state')).toHaveText('Saved online', { timeout: 30000 });
+  expect((await readAccount(page, uid)).state.ranking[0]?.score).toBe(6.9);
+});
+
+test('the creator can inspect and hide a reported public profile even without a members document', async ({ page, browser, request, isMobile, viewport }) => {
+  const publisherEmail = emailFor('public-only');
+  const creatorEmail = emailFor('moderator');
+  const handle = `qa_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
+  await page.goto('/?game=red-dead-redemption-2');
+  await seedGuestRating(page, '8');
+  await createAccount(page, publisherEmail); await verifyEmail(page, request, publisherEmail);
+  const publisherUid = await uidFor(request, publisherEmail);
+  await page.goto('/publish');
+  await page.getByLabel('Public name', { exact: true }).fill('Public-only publisher');
+  await page.locator('input[name="public-handle"]').fill(handle);
+  await page.getByRole('button', { name: 'Preview public snapshot', exact: true }).click();
+  await page.getByRole('dialog').getByRole('checkbox').check();
+  await page.getByRole('dialog').getByRole('button', { name: 'Publish this ranking', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/u/${handle}$`));
+  const removed = await request.delete(`http://127.0.0.1:8188/v1/projects/demo-play100/databases/(default)/documents/members/${publisherUid}`, { headers: { Authorization: 'Bearer owner' } });
+  expect(removed.ok()).toBe(true);
+  const moderator = await browser.newContext({ baseURL: 'http://127.0.0.1:4187', viewport, isMobile, hasTouch: isMobile, reducedMotion: 'reduce' });
+  const ownerConfig = 'http://127.0.0.1:8188/v1/projects/demo-play100/databases/(default)/documents/_owner/config';
+  try {
+    const admin = await moderator.newPage();
+    await createAccount(admin, creatorEmail); await verifyEmail(admin, request, creatorEmail);
+    await admin.goto(`/u/${handle}`);
+    await admin.getByRole('button', { name: 'Report this profile', exact: true }).click();
+    await admin.getByLabel('What needs attention?', { exact: true }).fill(`Review member-less profile ${handle}`);
+    await admin.getByRole('button', { name: 'Submit report', exact: true }).click();
+    await expect(admin.getByRole('dialog')).toHaveCount(0);
+    const bootstrapped = await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { email: { stringValue: creatorEmail } } } });
+    expect(bootstrapped.ok()).toBe(true);
+    await admin.goto('/creator');
+    await expect(admin.getByRole('heading', { name: 'Creator desk.', exact: true })).toBeVisible();
+    await admin.getByRole('button', { name: 'Reports', exact: true }).click();
+    const report = admin.locator('.creator-reports > li').filter({ hasText: handle });
+    await report.getByRole('button', { name: 'Inspect profile', exact: true }).click();
+    await expect(admin.getByRole('dialog').getByRole('heading', { name: 'Public-only publisher', exact: true })).toBeVisible();
+    await expect(admin.getByRole('dialog')).toContainText('Red Dead Redemption 2');
+    await admin.getByRole('dialog').getByRole('button', { name: 'Hide public profile', exact: true }).click();
+    await admin.getByRole('dialog').getByRole('button', { name: 'Hide and pause publishing', exact: true }).click();
+    await expect(admin.getByRole('dialog')).toContainText('Publishing is paused');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'This ranking is not available.', exact: true })).toBeVisible();
+  } finally {
+    await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { email: { stringValue: 'creator@play100.test' } } } });
+    await moderator.close();
+  }
+});
+
+test('a clean failed online check stays paused after a fresh unchanged head and a later edit until manual retry', async ({ page, request, isMobile }) => {
+  const email = emailFor('clean-check');
+  await page.goto('/?game=red-dead-redemption-2');
+  await seedGuestRating(page, '5');
+  await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page);
+  const uid = await uidFor(request, email);
+  const url = `http://127.0.0.1:8188/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`;
+  const headers = { Authorization: 'Bearer owner' };
+  const saved = await (await request.get(url, { headers })).json() as { fields: Record<string, unknown> };
+  let needsRestore = false;
+  try {
+    const invalid = await request.patch(url, { headers, data: { fields: { ...saved.fields, format: { integerValue: '99' } } } });
+    expect(invalid.ok()).toBe(true);
+    needsRestore = true;
+    await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
+    await expect(page.locator('.sync-state')).toHaveText('Online saving paused');
+    expect((await readAccount(page, uid)).sync.dirty).toBe(false);
+    const restored = await request.patch(url, { headers, data: { fields: saved.fields } });
+    expect(restored.ok()).toBe(true);
+    needsRestore = false;
+    await expect(page.locator('.sync-state')).toHaveText('Online saving paused');
+    await page.locator(isMobile ? '.mobile-nav' : '.desktop-nav').getByRole(isMobile ? 'button' : 'link', { name: 'My rankings', exact: true }).click();
+    await page.getByRole('spinbutton').fill('7.4'); await page.getByRole('spinbutton').press('Tab');
+    await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score).toBe(7.4);
+    await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/);
+    expect((await readAccount(page, uid)).sync.dirty).toBe(true);
+    await page.getByRole('link', { name: /Account:/ }).click();
+    await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
+    await expect(page.locator('.sync-state')).toHaveText('Saved online', { timeout: 30000 });
+    expect((await readAccount(page, uid)).sync.dirty).toBe(false);
+  } finally { if (needsRestore) await request.patch(url, { headers, data: { fields: saved.fields } }); }
+});

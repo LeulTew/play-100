@@ -1,13 +1,18 @@
 import type { AppPage, Filters, SortOrder } from './types';
 
 export const SORT_ORDERS = ['rank', 'title', 'newest', 'oldest', 'score', 'metacritic', 'metacriticPc', 'ign', 'gamespot', 'pcGamer', 'rank-index', 'author-rating'] as const satisfies readonly SortOrder[];
-export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', library: '/my-library', rankings: '/my-rankings', discover: '/discover' };
+export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator' };
 
 export function pageFromPath(path: string): AppPage {
   const normalized = path.replace(/\/+$/, '') || '/';
   if (normalized === '/my-library') return 'library';
   if (normalized === '/my-rankings') return 'rankings';
   if (normalized === '/discover') return 'discover';
+  if (normalized === '/account') return 'account';
+  if (normalized === '/publish') return 'publish';
+  if (normalized === '/community') return 'community';
+  if (/^\/u\/[^/]+$/.test(normalized)) return 'profile';
+  if (normalized === '/creator') return 'creator';
   return 'collection';
 }
 

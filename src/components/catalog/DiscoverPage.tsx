@@ -9,8 +9,9 @@ import type { SelectionAction } from '../SelectionBar';
 import ManualGameForm from '../personal/ManualGameForm';
 import { PlayedToggle } from '../PlayedToggle';
 
-export default function DiscoverPage({ state, busy, onAction, onLibrary }: {
+export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommunity }: {
   state: PersonalLibraryState; busy: boolean; onAction: (action: PersonalAction) => Promise<boolean>; onLibrary: () => void;
+  onCommunity?: () => void;
 }) {
   const [source, setSource] = useState<CatalogSource>('wikidata');
   const [query, setQuery] = useState('');
@@ -64,11 +65,12 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary }: {
   return (
     <section className="app-page" aria-labelledby="discover-title">
       <div className="page-heading"><div><h1 id="discover-title" tabIndex={-1} data-page-heading>BEYOND THE 100.<br /><span>MAKE ROOM FOR MORE.</span></h1><p>Browse public game catalogs, then bring your picks into your private library. Nothing here changes the author's original collection.</p></div><button className="button button-outline" onClick={onLibrary}>Open my library<Icon name="arrow" width="17" height="17" /></button></div>
+      {onCommunity && <div className="discover-community"><div><h2>Find a different perspective.</h2><p>Explore rankings people explicitly chose to share, without a feed or popularity contest.</p></div><button className="button button-outline" onClick={onCommunity}>Explore Community<Icon name="arrow" width="18" height="18" /></button></div>}
       <form className="catalog-search-form" onSubmit={submit}>
         <div className="catalog-source-options" role="group" aria-label="Catalog source"><button type="button" aria-pressed={source === 'wikidata'} onClick={() => changeSource('wikidata')}>Wikidata<span>Broad, open game data</span></button><button type="button" aria-pressed={source === 'freetogame'} onClick={() => changeSource('freetogame')}>FreeToGame<span>Free-to-play catalog</span></button></div>
         <label htmlFor="catalog-search">Find a title, or leave blank to browse this source</label>
         <div className="catalog-query"><div className="search-field"><Icon name="search" /><input id="catalog-search" type="search" value={query} maxLength={80} onChange={(event) => setQuery(event.target.value)} placeholder={source === 'wikidata' ? 'Try Hades, Halo or Baldur’s Gate...' : 'Search the FreeToGame catalog'} /></div><button className="button button-dark" type="submit" disabled={loading}>{loading ? 'Searching...' : query.trim() ? 'Search catalog' : 'Browse catalog'}<Icon name="arrow" width="18" height="18" /></button></div>
-        <p className="catalog-privacy">Online lookup sends only your catalog query to the selected source. Your library, notes and rankings stay on your device. Pages load on request; there is no background mass crawler.</p>
+        <p className="catalog-privacy">Catalog lookup sends only your query to the selected source, never your library or opinions. Optional account saving is a separate Firebase connection. Pages load on request; there is no background mass crawler.</p>
       </form>
       {error && <div className="catalog-error" role="alert"><Icon name="info" /><div><strong>That catalog request couldn't finish.</strong><p>{error}{result ? ' The last successful results are still shown below.' : ''}</p></div><button className="text-button" disabled={loading} onClick={() => { void search(); }}>Try again</button></div>}
       {loading && <p className="catalog-loading" role="status">Looking up public game records...</p>}

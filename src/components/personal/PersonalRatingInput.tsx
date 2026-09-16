@@ -9,11 +9,12 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
   const [error, setError] = useState('');
   const [editVersion, setEditVersion] = useState(0);
   const edits = useRef(0);
-  const saving = useRef(false);
+  const committedEdit = useRef(-1);
+  const saving = useRef<Promise<boolean> | null>(null);
   const badInput = useRef(false);
   const commit = useRef(onCommit);
   const errorId = useId();
-  commit.current = onCommit;
+  if (!edited) commit.current = onCommit;
   useEffect(() => { if (!edited) setDraft(value === null ? '' : String(value)); }, [value, edited]);
   useEffect(() => {
     if (!edited) return;
@@ -21,20 +22,26 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, [edited]);
-  const save = useCallback(async () => {
-    if (!edited || saving.current) return;
-    if (badInput.current) { setError('Enter a valid rating from 0 to 10, or deliberately clear the field. Your saved rating is unchanged.'); return; }
+  const save = useCallback((): Promise<boolean> => {
+    if (saving.current) return saving.current;
+    if (!edited || committedEdit.current === edits.current) return Promise.resolve(true);
+    if (badInput.current) { setError('Enter a valid rating from 0 to 10, or deliberately clear the field. Your saved rating is unchanged.'); return Promise.resolve(false); }
     const next = draft.trim() === '' ? null : Number(draft);
-    if (next !== null && (!Number.isFinite(next) || next < 0 || next > 10)) { setError('Use a rating from 0 to 10, or leave it blank.'); return; }
+    if (next !== null && (!Number.isFinite(next) || next < 0 || next > 10)) { setError('Use a rating from 0 to 10, or leave it blank.'); return Promise.resolve(false); }
     setError('');
-    if (next === value) { setEdited(false); return; }
+    if (next === value) { committedEdit.current = edits.current; setEdited(false); return Promise.resolve(true); }
     const version = edits.current;
-    saving.current = true;
-    try {
+    const task = (async () => {
       if (await commit.current(next)) {
-        if (version === edits.current) setEdited(false);
-      } else setError('The rating could not be saved. Your previous rating is unchanged.');
-    } finally { saving.current = false; }
+        if (version === edits.current) { committedEdit.current = version; setEdited(false); }
+        return version === edits.current;
+      }
+      setError('The rating could not be saved. Your previous rating is unchanged.');
+      return false;
+    })();
+    saving.current = task;
+    void task.finally(() => { if (saving.current === task) saving.current = null; });
+    return task;
   }, [edited, draft, value]);
   useEffect(() => {
     if (!edited || busy || error || badInput.current) return;
@@ -43,13 +50,14 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
     const timer = window.setTimeout(() => { void save(); }, 650);
     return () => window.clearTimeout(timer);
   }, [edited, draft, editVersion, busy, error, save]);
-  useExitSave(() => { if (!error) void save(); });
+  useExitSave(() => error ? Promise.resolve(false) : save(), edited);
   return (
     <>
       <label className="personal-score">Your rating / 10<input type="number" inputMode="decimal" min="0" max="10" step="any"
         value={draft} placeholder="—" disabled={busy} aria-label={`Your rating for ${title}`}
         aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
         onChange={(event) => {
+          if (!edited) commit.current = onCommit;
           badInput.current = event.currentTarget.validity.badInput;
           edits.current += 1;
           setEditVersion(edits.current);

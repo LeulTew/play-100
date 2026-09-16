@@ -14,7 +14,7 @@ let generation = 0;
 let closed = false;
 let channel: BroadcastChannel | null = null;
 let legacyNotice: string | null = null;
-const listeners = new Set<() => void>();
+const listeners = new Set<{ scope: string; listener: () => void }>();
 
 function namedError(name: string, message: string, cause?: unknown): Error {
   const error = new Error(message, { cause });
@@ -37,10 +37,11 @@ function storageError(cause: unknown): Error {
   return namedError('PersonalLibraryStorageError', 'Your device library could not be opened or saved. No pending changes were saved. Check storage permissions and retry.', cause);
 }
 
-function notifyListeners(): void {
-  for (const listener of [...listeners]) {
+function notifyListeners(scope?: string): void {
+  for (const entry of [...listeners]) {
+    if (scope !== undefined && entry.scope !== scope) continue;
     try {
-      listener();
+      entry.listener();
     } catch {
       // A subscriber failure cannot undo a completed database transaction.
     }
@@ -55,7 +56,7 @@ function getChannel(): BroadcastChannel | null {
       channel.onmessage = (event: MessageEvent<unknown>) => {
         const value = event.data;
         if (typeof value === 'object' && value !== null && 'type' in value && value.type === 'library-changed') {
-          notifyListeners();
+          notifyListeners('scope' in value && typeof value.scope === 'string' ? value.scope : 'guest');
         }
       };
     } catch {
@@ -65,11 +66,11 @@ function getChannel(): BroadcastChannel | null {
   return channel;
 }
 
-function publish(): void {
+export function publishLibraryChange(scope = 'guest'): void {
   if (closed) return;
-  notifyListeners();
+  notifyListeners(scope);
   try {
-    getChannel()?.postMessage({ type: 'library-changed' });
+    getChannel()?.postMessage(scope === 'guest' ? { type: 'library-changed' } : { type: 'library-changed', scope });
   } catch {
     // Visibility refresh still works when cross-tab notifications are unavailable.
   }
@@ -147,7 +148,7 @@ function openDatabase(): Promise<IDBDatabase> {
   return pending;
 }
 
-async function transaction<T>(work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
+async function transaction<T>(work: (current: unknown, store: IDBObjectStore) => T, key = STATE_KEY): Promise<T> {
   const connection = await openDatabase();
   return new Promise<T>((resolve, reject) => {
     let tx: IDBTransaction;
@@ -174,7 +175,7 @@ async function transaction<T>(work: (current: unknown, store: IDBObjectStore) =>
     };
     try {
       const store = tx.objectStore(STORE_NAME);
-      const request = store.get(STATE_KEY);
+      const request = store.get(key);
       request.onerror = () => { failure = request.error; };
       request.onsuccess = () => {
         try {
@@ -232,10 +233,10 @@ export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Pr
   });
   if (result.initialized) {
     legacyNotice = result.legacy === null ? null : removeLegacy(result.legacy);
-    publish();
+    publishLibraryChange();
   }
   if (result.upgraded) {
-    publish();
+    publishLibraryChange();
   }
   return { state: result.state, notice: legacyNotice, migrated: result.legacy !== null || result.upgraded };
 }
@@ -249,7 +250,7 @@ export async function commitPersonalAction(action: PersonalAction): Promise<Pers
     store.put(updated, STATE_KEY);
     return updated;
   });
-  publish();
+  publishLibraryChange();
   return state;
 }
 
@@ -271,7 +272,7 @@ export async function restorePersonalLibrary(state: PersonalLibraryState): Promi
     store.put(updated, STATE_KEY);
     return updated;
   });
-  publish();
+  publishLibraryChange();
   return restored;
 }
 
@@ -282,15 +283,23 @@ export async function resetPersonalLibrary(): Promise<PersonalLibraryLoad> {
     return empty;
   });
   legacyNotice = removeLegacy();
-  publish();
+  publishLibraryChange();
   return { state, notice: legacyNotice, migrated: false };
 }
 
-export function subscribePersonalLibrary(listener: () => void): () => void {
+export function subscribePersonalLibrary(listener: () => void, scope = 'guest'): () => void {
   closed = false;
-  listeners.add(listener);
+  const entry = { scope, listener };
+  listeners.add(entry);
   getChannel();
-  return () => { listeners.delete(listener); };
+  return () => { listeners.delete(entry); };
+}
+
+export function accountStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) {
+    return Promise.reject(namedError('PersonalLibraryValidationError', 'The requested account storage scope is invalid.'));
+  }
+  return transaction(work, scope);
 }
 
 export function closePersonalLibrary(): void {

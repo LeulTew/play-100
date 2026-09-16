@@ -3,8 +3,9 @@
 A public, responsive collection of 100 games with an authored order, a sortable
 ratings table, private libraries and personal rankings. Built with React,
 TypeScript, Vite, native IndexedDB, dnd kit and one lazy Three.js sculpture.
-A stateless Vercel function looks up public catalogs; private data never uses a
-server database, accounts, analytics or Supabase.
+A stateless Vercel function looks up public catalogs. Guest data stays in
+IndexedDB; optional verified Firebase accounts add consented cross-device
+saving and deliberately published rankings. No analytics or Supabase is used.
 
 **Live:** https://play-100-collection.vercel.app  
 **Curated by:** Leul Tewodros Agonafer  
@@ -16,6 +17,16 @@ server database, accounts, analytics or Supabase.
 **Private library:** https://play-100-collection.vercel.app/my-library  
 **Personal rankings:** https://play-100-collection.vercel.app/my-rankings  
 **Discover:** https://play-100-collection.vercel.app/discover
+**Account:** https://play-100-collection.vercel.app/account
+
+**Community:** https://play-100-collection.vercel.app/community
+
+**Creator desk:** https://play-100-collection.vercel.app/creator (authorized owner only)
+
+Account sync, public sharing, scopes, rules, cleanup and local emulator setup
+are documented in [Online saving](docs/online-saving.md). The
+[approved implementation contract](docs/online-community-plan.md) records the
+privacy and release gates.
 
 ## Run locally
 
@@ -151,6 +162,11 @@ Source updates must still contain the intended 100 author-ordered records.
 | `src\components` | Controls, game jackets, game details, settings and methodology |
 | `src\components\personal` | Ordered queue, personal rankings, manual entry and backups |
 | `src\components\catalog` | Main-search catalog results and explicit discovery/import |
+| `src\cloud` | Lazy managed identity, scoped sync, account/public/community/creator surfaces |
+| `src\lib\scoped-library.ts` | Account keys, atomic pending metadata and local recovery in the existing DB |
+| `src\lib\snapshot-transport.ts` | Deterministic bounded chunk transport and integrity checks |
+| `firestore.rules`, `tests-cloud` | Server-enforced data boundaries and actual emulator regression gates |
+| `src\components\avatar` | Locally generated, version-pinned Critters and controlled avatar picker |
 | `api\catalog.ts` | Fixed-host, bounded, read-only catalog adapters |
 | `src\components\scene` | Authored Three.js folios, static SVG, lifecycle and frame budget |
 | `src\components\bits` | Customized, attributed React Bits components |
@@ -164,7 +180,9 @@ Public collection state is query-string based: `q`, `genre`, `year`, `tier`,
 view filter and is stripped from shared URLs. Separate `/my-library`,
 `/my-rankings` and `/discover` routes are rewritten to the app entry on Vercel.
 Private library/ranking search stays out of URLs. A private-page URL opens each
-visitor's own local data; it does not publish the original visitor's ranking.
+visitor's active guest or authenticated account data, not another person's
+library. Public `/u/<handle>` URLs expose only explicitly published snapshots;
+Community includes only people who separately opted into directory listing.
 Game dialogs preserve direct entry and Back/Forward behavior.
 Unsaved catalog previews are held only in the current page session, not silently
 imported. Save or rate an external entry before closing the page to retain its
@@ -175,7 +193,8 @@ the browser rather than requiring a server renderer.
 ## Private library durability
 
 Database `play100-personal`, version 2, contains the `library` object store and
-one `state` record with application schema version 3. A complete snapshot keeps
+the original guest `state` record with application schema version 3. Account
+keys coexist without renaming or overwriting it. A complete domain snapshot keeps
 queue order, record metadata, independent played/completed/later flags, personal
 rank order, optional 0-10 scores, notes and preferences in one atomic transaction.
 Writes read the latest snapshot inside a read-write transaction and report
@@ -208,6 +227,10 @@ IndexedDB denial can leave the UI in an explicitly labeled temporary-tab mode;
 it never claims cloud or durable saving. Later quota/transaction failures retain
 the previously committed state and surface an error. BroadcastChannel plus
 focus/visibility refresh synchronize tabs of the same origin, not devices.
+For a connected account, the separate sync adapter uploads immutable bounded
+chunks and publishes a revision/consent-epoch-checked head. A conflict never
+silently chooses a winner. See the detailed online-saving guide for account
+isolation, recovery, free quotas and deletion markers.
 Temporary edits are not discarded by a later successful collection reload;
 save a backup and explicitly restore or reset when storage becomes available.
 Focused ranking fields follow peer-tab updates unless the user actually edited

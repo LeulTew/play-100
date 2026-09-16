@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { createLibraryBackup, parseLibraryBackup } from '../../lib/personal-library';
 import type { PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
+import { useLibraryMode } from '../../lib/library-mode';
 
 export default function BackupPanel({ state, busy, persistent, onRestore }: {
   state: PersonalLibraryState; busy: boolean; persistent: boolean; onRestore: (state: PersonalLibraryState) => Promise<boolean>;
 }) {
+  const mode = useLibraryMode();
   const input = useRef<HTMLInputElement>(null);
   const [incoming, setIncoming] = useState<PersonalLibraryState | null>(null);
   const [message, setMessage] = useState('');
@@ -50,10 +52,10 @@ export default function BackupPanel({ state, busy, persistent, onRestore }: {
   return (
     <section className="backup-panel">
       <h3>Keep a copy. Keep your order.</h3>
-      <p>{persistent ? 'Your library uses IndexedDB on this device. It does not sync or use Supabase.' : 'Device storage is unavailable. Your current changes are temporary: export them before closing this tab.'} Download a backup to move your library to another browser or recover it later.</p>
+      <p>{persistent ? mode.scope === 'guest' ? 'This guest library uses IndexedDB on this device. It is not uploaded without a separate account connection and consent.' : 'This account library uses a separate IndexedDB cache. Online saving follows your Account settings; Supabase is not used.' : 'Device storage is unavailable. Your current changes are temporary: export them before closing this tab.'} Download a backup to move or recover your library.</p>
       <div className="button-row"><button className="button button-dark" onClick={exportBackup} disabled={busy}><Icon name="download" width="17" height="17" />Export my library</button><button className="button button-outline" disabled={busy || reading} onClick={() => input.current?.click()}><Icon name="upload" width="17" height="17" />{reading ? 'Reading backup...' : 'Import backup'}</button></div>
       <input ref={input} className="sr-only" type="file" accept=".json,application/json" tabIndex={-1} aria-label="Import personal library backup file" onChange={(event) => { void readBackup(event.target.files?.[0]); }} />
-      {incoming && <div className="restore-preview"><p><strong>{Object.keys(incoming.records).length} games, {incoming.queueOrder.length} queued, {incoming.ranking.length} ranked.</strong></p><p>Restoring replaces this browser's current library and preferences. Export your current library first if you want to keep both.</p><div className="button-row"><button className="button button-dark" disabled={busy} onClick={() => { void onRestore(incoming).then((success) => { if (success) { setIncoming(null); setMessage('Your backup was restored and saved in IndexedDB on this device.'); } else setError('Restore failed. Your existing library was not replaced.'); }); }}>Replace with this backup</button><button className="button button-outline" disabled={busy} onClick={() => setIncoming(null)}>Cancel import</button></div></div>}
+      {incoming && <div className="restore-preview"><p><strong>{Object.keys(incoming.records).length} games, {incoming.queueOrder.length} queued, {incoming.ranking.length} ranked.</strong></p><p>Restoring replaces the active library and device preferences. {mode.scope !== 'guest' && 'This replacement will sync to the account if online saving is enabled. The guest library stays separate.'} Export your current library first if you want to keep both.</p><div className="button-row"><button className="button button-dark" disabled={busy} onClick={() => { void onRestore(incoming).then((success) => { if (success) { setIncoming(null); setMessage('Your backup was restored and saved in IndexedDB on this device.'); } else setError('Restore failed. Your existing library was not replaced.'); }); }}>Replace with this backup</button><button className="button button-outline" disabled={busy} onClick={() => setIncoming(null)}>Cancel import</button></div></div>}
       {persistent && <><p className="storage-info-line">{storageStatus === 'granted' ? 'Browser eviction protection is enabled.' : 'Storage can be removed by the browser or by clearing site data.'}</p>{storageStatus !== 'granted' && <button className="text-button" onClick={() => { void protectStorage(); }}>Ask browser to protect saved data<Icon name="arrow" width="16" height="16" /></button>}</>}
       {message && <p className="storage-info-line" role="status">{message}</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}

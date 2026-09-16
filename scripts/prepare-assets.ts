@@ -26,6 +26,8 @@ const notices = path.join(project, 'public', 'licenses');
 await mkdir(notices, { recursive: true });
 for (const [source, target] of [
   ['third-party/react-bits/LICENSE.md', 'react-bits.txt'],
+  ['third-party/firebase/sdk-LICENSE.txt', 'firebase.txt'],
+  ['third-party/google-sign-in.txt', 'google-sign-in.txt'],
   ['node_modules/@fontsource/barlow-condensed/LICENSE', 'barlow-condensed.txt'],
   ['node_modules/@fontsource-variable/hanken-grotesk/LICENSE', 'hanken-grotesk.txt'],
   ['node_modules/react/LICENSE', 'react.txt'],

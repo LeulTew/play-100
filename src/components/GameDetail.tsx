@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 import { PlayedToggle } from './PlayedToggle';
 import { author, authorRatingText } from '../lib/author';
 import { PersonalRatingInput } from './personal/PersonalRatingInput';
+import { useLibraryMode } from '../lib/library-mode';
 
 interface GameDetailProps {
   game: Game;
@@ -28,6 +29,7 @@ interface GameDetailProps {
 }
 
 export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank, personalRating, onRate }: GameDetailProps) {
+  const mode = useLibraryMode();
   const topRef = useRef<HTMLDivElement>(null);
   const lastSlug = useRef(game.slug);
   useEffect(() => {
@@ -57,7 +59,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
           </button>
           <button className="icon-button share-detail" aria-label={`Share ${game.title}`} onClick={onShare}><Icon name="share" /></button>
         </div>
-        <p className="device-note">Your progress stays in this browser. No account. No sync.</p>
+        <p className="device-note">{mode.scope === 'guest' ? 'Device-only guest progress. Online saving is optional and never uploads this copy without your choice.' : 'Account progress saves locally first. Your online status is shown in Account; it is not publicly shared.'}</p>
         {onRank && <div className="personal-detail-actions">{onPlayed && <PlayedToggle id={game.slug} title={game.title} played={Boolean(played)} completed={state?.completed} busy={busy} onChange={onPlayed} />}<button className="text-button" disabled={busy} onClick={onRank}><Icon name="rank" width="18" height="18" />{rankingPosition ? `Your rank: #${rankingPosition}` : 'Add to my ranking'}</button></div>}
         <div className="catalog-detail-rating"><PersonalRatingInput key={game.slug} title={game.title} value={personalRating} busy={Boolean(busy)} onCommit={onRate} /><p>Your opinion, separate from {author.shortName}'s original rating. Saves to My rankings without marking the game played or changing a fixed position.</p></div>
         {shareFeedback && <p className="detail-share-notice" role="status">{shareFeedback}</p>}
@@ -79,7 +81,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
           <summary>How to read these numbers<Icon name="down" width="18" height="18" /></summary>
           <p>The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications.</p>
           <p>{author.shortName}'s original rating is preserved separately from those critics. The source column was headed "my rating(based on rank)"; its actual cached number is used, including any rounded text result, not a reconstructed curve. {game.authorRating && <>Original cached value: <strong>{game.authorRating.rawValue}</strong>.</>}</p>
-          <p>Your editable rating here and on My rankings is private to this device and is never prefilled from {author.shortName}'s rating.</p>
+          <p>Your editable rating here and on My rankings belongs to the active guest or account library and is never prefilled from {author.shortName}'s rating. Public sharing requires a separate preview and publish action.</p>
         </details>
       </section>
       <nav className="detail-pagination" aria-label="Games in the collection">
