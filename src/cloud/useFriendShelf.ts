@@ -21,6 +21,7 @@ interface Recovery {
 export function useFriendShelf(uid: string | undefined, scope: LibraryScope | null, snapshot: ScopedLibrary | null, verified: boolean, games: Game[], visibleTools: boolean, authGeneration: number, journal: FriendShelfJournal) {
   const store = useMemo(() => new FriendShelfStore(cloudDb), []);
   const key = `${scope ?? ''}:${uid ?? ''}:${authGeneration}`;
+  const snapshotReady = Boolean(scope && snapshot?.scope === scope);
   const [value, setValue] = useState<{ key: string; config: FriendShelfConfig | null } | null>(null);
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
   const [status, setStatus] = useState<FriendShelfStatus>('checking');
@@ -73,7 +74,7 @@ export function useFriendShelf(uid: string | undefined, scope: LibraryScope | nu
     setFailure(null);
   }, [owns, uid, key, store, acceptConfig]);
   useEffect(() => {
-    if (!uid || !verified || !scope) return;
+    if (!uid || !verified || !scope || !snapshotReady) return;
     let alive = true; let release: (() => void) | undefined;
     const failed = (cause: unknown) => {
       if (!alive || !owns()) return;
@@ -93,7 +94,7 @@ export function useFriendShelf(uid: string | undefined, scope: LibraryScope | nu
     window.addEventListener('online', refresh); window.addEventListener('offline', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => { alive = false; release?.(); window.removeEventListener('online', refresh); window.removeEventListener('offline', refresh); document.removeEventListener('visibilitychange', refresh); };
-  }, [uid, scope, verified, owns, key, visibleTools, config?.enabled, store, acceptConfig, reload]);
+  }, [uid, scope, verified, snapshotReady, owns, key, visibleTools, config?.enabled, store, acceptConfig, reload]);
   useEffect(() => {
     if (!uid || !scope || !config || !snapshot) return;
     void journal.update(scope, config.revision, config.selectedIds, undefined, snapshot.state.revision).catch((cause) => {
