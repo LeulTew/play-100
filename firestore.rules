@@ -748,6 +748,149 @@ service cloud.firestore {
         && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if own(uid);
     }
+    // Independent selected-library shelf. Legacy ranking and identity grants stay unchanged.
+    function sConfig(uid) { return get(/databases/$(database)/documents/friendShelfSettings/$(uid)).data; }
+    function sHead(uid) { return get(/databases/$(database)/documents/friendShelfHeads/$(uid)).data; }
+    function sGen(uid, id) { return get(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)).data; }
+    function sPublish(uid, epoch, revision, source) {
+      let control = sConfig(uid);
+      let sync = head(uid);
+      return fOwnLive(uid) && control.enabled && !control.deleted && control.epoch == epoch && control.revision == revision
+        && fSource(source) && sync.enabled && !sync.deleted && sync.epoch == source.syncEpoch && sync.revision == source.remoteRevision;
+    }
+    function sCurrent(uid, id) {
+      let control = sConfig(uid);
+      let pointer = sHead(uid);
+      return fConnected(uid, false) && control.enabled && !control.deleted
+        && pointer.epoch == control.epoch && pointer.settingsRevision == control.revision && pointer.current.generation == id;
+    }
+    function sRetained(uid, id) {
+      let control = sConfig(uid);
+      return control.enabled && !control.deleted && exists(/databases/$(database)/documents/friendShelfHeads/$(uid))
+        && sHead(uid).epoch == control.epoch && sHead(uid).settingsRevision == control.revision
+        && ((sHead(uid).current != null && sHead(uid).current.generation == id)
+          || (sHead(uid).previous != null && sHead(uid).previous.generation == id));
+    }
+    match /friendShelfSettings/{uid} {
+      allow get: if own(uid);
+      allow list, delete: if false;
+      allow create: if own(uid) && fSettingsShape(request.resource.data)
+        && request.resource.data.epoch == 1 && request.resource.data.revision == 1 && !request.resource.data.enabled
+        && (fOwnLive(uid) || request.resource.data.deleted);
+      allow update: if own(uid) && !resource.data.deleted && fSettingsShape(request.resource.data)
+        && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.revision == resource.data.revision + 1
+        && (fOwnLive(uid) || request.resource.data.deleted);
+    }
+    function sHeadWrite(uid, data) {
+      let gen = sGen(uid, data.current.generation);
+      return fKeys(data, ['format', 'epoch', 'settingsRevision', 'source', 'revision', 'current', 'previous', 'updatedAt'])
+        && data.format == 1 && fManifest(data.current) && (data.previous == null || fManifest(data.previous))
+        && fInt(data.revision, 1, 9007199254740991) && data.updatedAt == request.time
+        && sPublish(uid, data.epoch, data.settingsRevision, data.source)
+        && gen.status == 'ready' && gen.epoch == data.epoch && gen.settingsRevision == data.settingsRevision && gen.source == data.source
+        && gen.ids.size() == gen.count && data.current.count == gen.count && data.current.digest == gen.digest
+        && getAfter(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(data.current.generation)).data.status == 'published';
+    }
+    match /friendShelfHeads/{uid} {
+      allow get: if own(uid) || (resource != null && sCurrent(uid, resource.data.current.generation));
+      allow list: if false;
+      allow create: if sHeadWrite(uid, request.resource.data) && request.resource.data.revision == 1 && request.resource.data.previous == null;
+      allow update: if sHeadWrite(uid, request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.previous == resource.data.current && request.resource.data.current.generation != resource.data.current.generation;
+      allow delete: if own(uid) && sConfig(uid).deleted;
+    }
+    function sRegistryAdded(uid, id) {
+      let gen = getAfter(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)).data;
+      return fOwnLive(uid) && fUuid(id) && gen.createdAt == request.time && gen.status in ['staging', 'ready'];
+    }
+    match /friendShelfRegistry/{uid} {
+      allow get: if own(uid);
+      allow list: if false;
+      allow create: if own(uid) && fRegistry(request.resource.data) && request.resource.data.ids.size() == 1
+        && request.resource.data.revision == 1 && sRegistryAdded(uid, request.resource.data.ids[0]);
+      allow update: if own(uid) && fRegistry(request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && ((request.resource.data.ids.size() == resource.data.ids.size() + 1
+            && request.resource.data.ids == resource.data.ids.concat([request.resource.data.ids[request.resource.data.ids.size() - 1]])
+            && sRegistryAdded(uid, request.resource.data.ids[request.resource.data.ids.size() - 1]))
+          || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
+            && !existsAfter(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(resource.data.ids.removeAll(request.resource.data.ids)[0]))));
+      allow delete: if own(uid) && sConfig(uid).deleted && (resource == null || resource.data.ids.size() == 0);
+    }
+    function sProgress(uid, id, before, after) {
+      let chunk = getAfter(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)/chunks/$(string(before.uploaded))).data;
+      let count = before.count - before.uploaded * 2 < 2 ? before.count - before.uploaded * 2 : 2;
+      return before.status == 'staging' && after.diff(before).affectedKeys().hasOnly(['uploaded', 'ids', 'status'])
+        && sPublish(uid, before.epoch, before.settingsRevision, before.source)
+        && after.uploaded == before.uploaded + 1 && after.uploaded <= 100 && chunk.index == before.uploaded
+        && chunk.entries.size() == count && chunk.ids.size() == count
+        && after.ids == before.ids.concat(chunk.ids) && after.ids.size() <= before.count
+        && after.ids.toSet().size() == after.ids.size()
+        && after.status == (after.ids.size() == before.count ? 'ready' : 'staging');
+    }
+    function sCanRetire(uid, id, gen) {
+      let control = sConfig(uid);
+      return own(uid) && !sRetained(uid, id)
+        && (gen.status in ['published', 'deleting'] || control.deleted || !control.enabled
+          || gen.epoch != control.epoch || gen.settingsRevision != control.revision
+          || request.time >= gen.createdAt + duration.value(5, 'm'));
+    }
+    match /friendShelves/{uid}/generations/{id} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 3;
+      allow create: if fUuid(id) && fGenerationShape(request.resource.data)
+        && sPublish(uid, request.resource.data.epoch, request.resource.data.settingsRevision, request.resource.data.source)
+        && request.resource.data.count == (sConfig(uid).selection == '' ? 0 : sConfig(uid).selection.split('[|]').size())
+        && request.resource.data.uploaded == 0 && request.resource.data.ids == [] && request.resource.data.createdAt == request.time
+        && request.resource.data.status == (request.resource.data.count == 0 ? 'ready' : 'staging')
+        && getAfter(/databases/$(database)/documents/friendShelfRegistry/$(uid)).data.ids.hasAny([id]);
+      allow update: if own(uid)
+        && ((resource.data.status == 'staging' && request.resource.data.status in ['staging', 'ready']
+            && sProgress(uid, id, resource.data, request.resource.data))
+          || (resource.data.status == 'ready' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && request.resource.data.status == 'published'
+            && sPublish(uid, resource.data.epoch, resource.data.settingsRevision, resource.data.source)
+            && getAfter(/databases/$(database)/documents/friendShelfHeads/$(uid)).data.current.generation == id)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'deleting'
+            && sCanRetire(uid, id, resource.data)));
+      allow delete: if own(uid) && resource.data.status == 'deleting' && !sRetained(uid, id)
+        && !getAfter(/databases/$(database)/documents/friendShelfRegistry/$(uid)).data.ids.hasAny([id]);
+    }
+    function sEntry(entry, expectedId) {
+      let keys = entry.keys();
+      let id = entry.id;
+      let title = entry.title;
+      let year = entry.year;
+      let source = entry.source;
+      let sourceId = entry.sourceId;
+      let url = entry.sourceUrl;
+      return keys.size() == 6 && keys.hasOnly(['id', 'title', 'year', 'source', 'sourceId', 'sourceUrl'])
+        && id is string && id == expectedId && id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
+        && title is string && title.size() >= 1 && title.size() <= 200
+        && (year == null || (year is int && year >= 1900 && year <= 2100))
+        && source is string && sourceId is string && sourceId.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
+        && fPackedSource(source, sourceId, id, url, title, year);
+    }
+    function sChunkEntry(data, offset) {
+      return offset >= data.entries.size() || sEntry(data.entries[offset], data.ids[offset]);
+    }
+    function sChunkCreate(uid, id, chunkId, data) {
+      let gen = sGen(uid, id);
+      let after = getAfter(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)).data;
+      let size = gen.count - data.index * 2 < 2 ? gen.count - data.index * 2 : 2;
+      return own(uid) && string(data.index) == chunkId && fChunkShape(data, size)
+        && gen.status == 'staging' && gen.uploaded == data.index
+        && sPublish(uid, gen.epoch, gen.settingsRevision, gen.source)
+        && sConfig(uid).selection.split('[|]').hasAll(data.ids) && !gen.ids.hasAny(data.ids)
+        && sChunkEntry(data, 0) && sChunkEntry(data, 1) && after.uploaded == data.index + 1;
+    }
+    match /friendShelves/{uid}/generations/{id}/chunks/{chunkId} {
+      allow get: if fOwnLive(uid) || sCurrent(uid, id);
+      allow list: if request.query.limit != null && request.query.limit <= 100 && (fOwnLive(uid) || sCurrent(uid, id));
+      allow create: if sChunkCreate(uid, id, chunkId, request.resource.data);
+      allow update: if false;
+      allow delete: if own(uid) && ((resource == null && !exists(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)))
+        || (sGen(uid, id).status == 'deleting' && !sRetained(uid, id)));
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }
