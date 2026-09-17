@@ -6,6 +6,7 @@ export const DB_NAME = 'play100-personal';
 export const DB_VERSION = 2;
 export const STORE_NAME = 'library';
 export const STATE_KEY = 'state';
+const ONLINE_HINT_KEY = 'online-hint:v1';
 
 let database: IDBDatabase | null = null;
 let opening: Promise<IDBDatabase> | null = null;
@@ -300,6 +301,44 @@ export function accountStorageTransaction<T>(scope: string, work: (current: unkn
     return Promise.reject(namedError('PersonalLibraryValidationError', 'The requested account storage scope is invalid.'));
   }
   return transaction(work, scope);
+}
+
+export function friendSelectionStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) return Promise.reject(namedError('PersonalLibraryValidationError', 'The friends selection scope is invalid.'));
+  return transaction(work, `friends-selection:v1:${scope}`);
+}
+
+export function saveOnlineLoadHint(requested: boolean): Promise<void> {
+  return transaction((_, store) => { store.put({ version: 1, requested }, ONLINE_HINT_KEY); }, ONLINE_HINT_KEY);
+}
+
+export async function readOnlineLoadHint(project: string): Promise<boolean> {
+  if (!/^(play100-online-48823b32|demo-play100)$/.test(project)) throw namedError('PersonalLibraryValidationError', 'Unknown online account project.');
+  const connection = await openDatabase();
+  return new Promise<boolean>((resolve, reject) => {
+    const tx = connection.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const hint = store.get(ONLINE_HINT_KEY);
+    let result = false;
+    let failure: unknown;
+    tx.oncomplete = () => resolve(result);
+    tx.onabort = () => reject(storageError(failure ?? tx.error));
+    hint.onsuccess = () => {
+      const value: unknown = hint.result;
+      if (value === undefined) {
+        // Legacy releases had no marker. Only inspect our own account keys, never Firebase's private database.
+        const keys = store.getAllKeys();
+        keys.onsuccess = () => { result = keys.result.some((key) => typeof key === 'string' && key.startsWith(`account:${project}:`)); };
+        keys.onerror = () => { failure = keys.error; };
+      } else if (value && typeof value === 'object' && 'version' in value && value.version === 1 && 'requested' in value && typeof value.requested === 'boolean') {
+        result = value.requested;
+      } else {
+        failure = namedError('PersonalLibraryValidationError', 'The remembered account marker is unreadable. Open Account to recover it.');
+        tx.abort();
+      }
+    };
+    hint.onerror = () => { failure = hint.error; };
+  });
 }
 
 export function closePersonalLibrary(): void {

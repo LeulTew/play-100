@@ -61,6 +61,22 @@ describe('scope-owned automatic sync recovery', () => {
     expect(work).toHaveBeenCalledTimes(2);
     expect(q.nextAttemptAt).toBe(Date.now() + 120000);
   });
+  it('keeps increasing restore backoff when metadata succeeds but the copy download keeps failing', async () => {
+    const metadata = vi.fn(async () => ({ enabled: true }));
+    const download = vi.fn(async () => { throw { code: 'resource-exhausted' }; });
+    const q = queue(async () => { await metadata(); await download(); q.succeeded(); });
+    q.request(); await vi.advanceTimersByTimeAsync(0);
+    expect(q.nextAttemptAt).toBe(Date.now() + 60000);
+    await metadata();
+    q.wake(); await q.retry();
+    expect(q.nextAttemptAt).toBe(Date.now() + 60000);
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(q.nextAttemptAt).toBe(Date.now() + 120000);
+    await metadata(); q.wake();
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(download).toHaveBeenCalledTimes(3);
+    expect(q.nextAttemptAt).toBe(Date.now() + 240000);
+  });
   it('uses no timer while hidden/offline and coalesces the reconnect signal burst', async () => {
     const work = vi.fn(async () => { if (work.mock.calls.length === 1) throw network; q.succeeded(); });
     const q = queue(work);

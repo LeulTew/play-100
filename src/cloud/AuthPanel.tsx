@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { EMULATOR_MODE } from '../lib/online-availability';
+import { DataUseLink } from '../components/DataUseLink';
 
 export function AuthPanel({ busy, error, message, onGoogle, onEmail, onReset, onDevice }: {
   busy: boolean; error: string; message: string;
@@ -18,9 +19,8 @@ export function AuthPanel({ busy, error, message, onGoogle, onEmail, onReset, on
   return (
     <div className="auth-panel">
       {EMULATOR_MODE && <p className="emulator-note">Local test preview: use synthetic accounts only. Authentication and cloud data stay in the local emulators.</p>}
-      <p className="account-intro">Keep this device's library, or connect an account to save across devices. Signing in does not upload or publish your games.</p>
       <button className="google-signin" disabled={busy} onClick={() => { void onGoogle(); }}><img src="/provider/google.svg" width="20" height="20" alt="" />Continue with Google</button>
-      <p className="google-continuation" role={busy ? 'status' : undefined}>{busy ? 'Finishing your request...' : "Google opens in this tab. You'll return here; no pop-up needed."}</p>
+      {busy && <p className="google-continuation" role="status">Connecting...</p>}
       {!emailMode ? <button className="button button-outline auth-email-toggle" onClick={() => setEmailMode(true)}>Use email<Icon name="arrow" width="18" height="18" /></button> : <form onSubmit={(event) => {
         event.preventDefault();
         if (resetMode) void onReset(email.trim());
@@ -34,7 +34,7 @@ export function AuthPanel({ busy, error, message, onGoogle, onEmail, onReset, on
       </form>}
       {error && <p className="inline-error" role="alert">{error}</p>}
       {message && <p className="account-notice" role="status">{message}</p>}
-      <p className="account-privacy">Your sign-in email is not public. Before online saving, you choose which library to use and consent to the creator seeing your account profile and ranking summary. Public sharing is a separate choice.</p>
+      <p className="account-privacy">Signing in does not publish your library. <DataUseLink /></p>
       <button className="text-button" onClick={onDevice} disabled={busy}>Keep using this device<Icon name="back" width="17" height="17" /></button>
     </div>
   );

@@ -42,14 +42,14 @@ export function CommunityPage({ social, onOpen, onPublish }: { social: SocialSto
   }, [social, initial]);
   return (
     <section className="app-page community-page" aria-labelledby="community-title">
-      <div className="page-heading"><div><h1 id="community-title" data-page-heading tabIndex={-1}>Different players.<br /><span>New perspectives.</span></h1><p>Explore rankings people chose to share. Personal taste, not an algorithm or an official best-games chart.</p></div><button className="button button-outline" onClick={onPublish}>Share your ranking<Icon name="share" width="18" height="18" /></button></div>
+      <div className="page-heading"><div><h1 id="community-title" data-page-heading tabIndex={-1}>Community</h1></div><button className="button button-outline" onClick={onPublish}>Publish ranking<Icon name="share" width="18" height="18" /></button></div>
       <form className="community-search" onSubmit={(event) => {
         event.preventDefault();
         const trimmed = query.trim().toLowerCase();
         const url = new URL(location.href); if (trimmed) url.searchParams.set('q', trimmed); else url.searchParams.delete('q');
         history.replaceState(history.state, '', url);
         void load(trimmed);
-      }}><label htmlFor="community-handle">Find a handle</label><div className="catalog-query"><div className="search-field"><Icon name="search" /><input id="community-handle" name="handle-prefix" type="search" autoComplete="off" spellCheck={false} value={query} maxLength={24} onChange={(event) => setQuery(event.target.value)} placeholder="Start of a handle..." /></div><button className="button button-dark" disabled={busy}>Find handles</button></div><p className="section-help">Matches the start of a handle, not a full-text search of everyone. Only people who opted into the directory appear here.</p></form>
+      }}><label htmlFor="community-handle">Handle prefix</label><div className="catalog-query"><div className="search-field"><Icon name="search" /><input id="community-handle" name="handle-prefix" type="search" autoComplete="off" spellCheck={false} value={query} maxLength={24} onChange={(event) => setQuery(event.target.value)} placeholder="Start of a handle..." /></div><button className="button button-dark" disabled={busy}>Find handles</button></div><p className="section-help">Search listed handles.</p></form>
       {error && <div className="catalog-error" role="alert"><p>{error}</p><button className="text-button" disabled={busy} onClick={() => { void load(term); }}>Try again</button></div>}
       {busy && <p className="catalog-loading" role="status">Opening shared rankings...</p>}
       {results.length > 0 && <ul className="community-profiles">{results.map((profile) => <li key={profile.uid}>
@@ -57,15 +57,16 @@ export function CommunityPage({ social, onOpen, onPublish }: { social: SocialSto
         <div className="community-profile-copy"><a href={`/u/${profile.handle}`} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onOpen(profile.handle); } }}><h2>{profile.displayName}</h2><span>@{profile.handle}{profile.creator ? ' · Collection creator' : ''}</span></a><h3>{profile.title}</h3><p>{profile.preview.join(' · ')}</p></div>
         <a className="text-button" href={`/u/${profile.handle}`} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onOpen(profile.handle); } }}>{profile.count} ranked<Icon name="arrow" width="18" height="18" /><span className="sr-only">Open {profile.displayName}'s ranking</span></a>
       </li>)}</ul>}
-      {!busy && !error && !results.length && <div className="empty-state"><Icon name="rank" width="40" height="40" /><h2>{term ? 'No listed handles match yet.' : 'Be the first to share a ranking.'}</h2><p>{term ? 'Try a shorter handle prefix, or clear the search.' : 'Publish a selected snapshot, then choose Show in Community. Device-only and private online libraries never appear automatically.'}</p><button className="button button-dark" onClick={term ? () => { setQuery(''); void load(''); } : onPublish}>{term ? 'Show listed profiles' : 'Publish a ranking'}</button></div>}
+      {!busy && !error && !results.length && <div className="empty-state"><Icon name="rank" width="40" height="40" /><h2>{term ? 'No matching handles' : 'No listed rankings'}</h2>{term && <p>Try a shorter prefix.</p>}<button className="button button-dark" onClick={term ? () => { setQuery(''); void load(''); } : onPublish}>{term ? 'Show listed profiles' : 'Publish a ranking'}</button></div>}
       {cursor && <div className="extended-more"><span>{results.length} listed profiles loaded</span><button className="button button-outline" disabled={busy} onClick={() => { void load(term, true); }}>Load next 20<Icon name="down" width="17" height="17" /></button></div>}
     </section>
   );
 }
 
-export function PublicProfilePage({ social, handle, games, library, identity, onOpenRecord, onShare, onAccount }: {
+export function PublicProfilePage({ social, handle, games, library, identity, onOpenRecord, onShare, onAccount, onFriend }: {
   social: SocialStore; handle: string; games: Game[]; library: LibraryController; identity: AccountIdentity | null;
   onOpenRecord: (record: LibraryRecord) => void; onShare: (title: string, url: string) => void; onAccount: () => void;
+  onFriend: (uid: string) => void;
 }) {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [entries, setEntries] = useState<PublicEntry[]>([]);
@@ -111,7 +112,7 @@ export function PublicProfilePage({ social, handle, games, library, identity, on
         <button className="icon-button" disabled={library.busy || Boolean(library.state.progress[entry.id]?.later)} aria-label={`${library.state.progress[entry.id]?.later ? 'Already saved' : 'Save for later'}: ${entry.title}`} onClick={() => { void save([entry]); }}><Icon name={library.state.progress[entry.id]?.later ? 'check' : 'bookmark'} width="20" height="20" /></button>
       </li>)}</ol>
       {visible < entries.length && <button className="button button-outline public-more" onClick={() => setVisible((value) => value + 30)}>Show {Math.min(30, entries.length - visible)} more games<Icon name="down" width="17" height="17" /></button>}
-      <div className="public-profile-footer"><p>Published snapshots do not update automatically. Unpublishing stops new server reads, not copies already saved by others.</p>{identity?.uid !== profile.uid && <button className="text-button" onClick={() => { if (identity?.verified) setReporting(true); else onAccount(); }}>Report this profile</button>}</div>
+      <div className="public-profile-footer"><p>Published snapshots update only when their owner chooses.</p>{identity?.uid !== profile.uid && <div className="button-row"><button className="text-button" onClick={() => onFriend(profile.uid)}>Connect with this player</button><button className="text-button" onClick={() => { if (identity?.verified) setReporting(true); else onAccount(); }}>Report profile</button></div>}</div>
       {reporting && <Dialog open titleId="report-profile-title" onClose={() => setReporting(false)} className="info-dialog"><h2 id="report-profile-title" data-autofocus tabIndex={-1}>Report this profile</h2><p>The creator can review one report per account and profile. A report does not automatically hide anyone.</p><form onSubmit={(event) => {
         event.preventDefault();
         if (!identity?.verified) return;

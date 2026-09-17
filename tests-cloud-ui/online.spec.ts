@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, enableSync, readAccount, seedGuestRating, signIn, uidFor, verifyByEmailReturn, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, expectRestoredSync, readAccount, seedGuestRating, signIn, uidFor, verifyByEmailReturn, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
 const game = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
@@ -30,7 +30,7 @@ test('verified opt-in copies a guest library and a second browser loads the acco
   try {
     const peer = await second.newPage();
     await signIn(peer, email);
-    await enableSync(peer, 'online');
+    await expectRestoredSync(peer);
     expect((await readAccount(peer, uid)).state.ranking[0]?.score).toBe(8.4);
     expect((await readLibrary(peer)).ranking).toEqual([]);
     await peer.goto('/my-rankings');
@@ -51,7 +51,7 @@ test('guest browsing does not load Firebase and closing the sign-in sheet leaves
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   expect(requests).toEqual([]);
-  await page.getByRole('link', { name: /Account:/ }).click();
+  await page.locator('.account-nav').click();
   await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Keep using this device', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -68,23 +68,18 @@ test('verification-email return refreshes signed claims before immediate online 
   await expect(page.locator('.inline-error')).toHaveCount(0);
 });
 
-test('existing online data hydrates the untouched first-connect name and safe default choice', async ({ page, browser, request, isMobile, viewport }) => {
+test('an active prior-consented account restores on a new device without another enable click', async ({ page, browser, request, isMobile, viewport }) => {
   const email = emailFor('hydrate');
   await createAccount(page, email); await verifyEmail(page, request, email);
-  await page.getByLabel('Account name', { exact: false }).first().fill('Hydrated account name');
+  await page.getByLabel('Name', { exact: true }).fill('Hydrated account name');
   await enableSync(page, 'empty');
   const second = await browser.newContext({ baseURL: 'http://127.0.0.1:4187', viewport, isMobile, hasTouch: isMobile, reducedMotion: 'reduce' });
   try {
     const peer = await second.newPage();
     await signIn(peer, email);
-    const onlineChoice = peer.locator('input[name="connection-copy"][value="online"]');
-    await expect(onlineChoice).toBeVisible();
-    await expect(onlineChoice).toBeChecked();
-    await expect(peer.locator('input[name="connection-copy"][value="empty"]')).toHaveCount(0);
-    await expect(peer.locator('#online-display-name')).toHaveValue('Hydrated account name');
-    await peer.locator('.sync-consent input[type="checkbox"]').check();
-    await peer.getByRole('button', { name: 'Enable online saving', exact: true }).click();
-    await expect(peer.locator('.sync-state')).toHaveText('Saved online');
+    await expectRestoredSync(peer);
+    await expect(peer.getByLabel('Name', { exact: true })).toHaveValue('Hydrated account name');
+    await expect(peer.locator('input[name="connection-copy"]')).toHaveCount(0);
   } finally { await second.close(); }
 });
 

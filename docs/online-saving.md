@@ -99,8 +99,24 @@ Conflicts, revoked consent, manual stop, unverified identity, invalid snapshots
 and permission errors do not become automatic overwrite attempts. Signing out,
 stopping or changing account/consent lifetime cancels retry work and rejects old
 results. A closed browser cannot sync, and free quotas can still delay saving.
-First-time/new-device connection choices and separate publication consent are
-unchanged by this recovery policy.
+First-time consent, manual stop and conflict choices remain explicit. The newer
+continuity flow can restore a verified owner's complete, active, previously
+consented cloud copy into an atomically unchanged empty/clean initial account
+cache. It does not infer consent from a profile or checkbox, upload a guest copy,
+overwrite pending/recovery data or restart an intentionally stopped connection.
+Public and friends-only sharing still require their separate choices.
+
+The Firebase app/project and library namespaces remain stable across deploys.
+SDK IndexedDB persistence has a supported localStorage fallback. An owned
+IndexedDB loading marker lets a retained account be discovered when localStorage
+is unavailable; no Firebase private storage format is inspected. Marker durability
+is not represented as proof of authentication durability.
+
+For [friends sharing](friendships-data-contract.md), an account-scoped removal
+journal is updated in the same device transaction as ranked-game removals.
+Rapid removal/re-addition cannot automatically reselect a formerly shared game.
+Writes from older tabs that skip the journal require refreshing and reviewing
+only the optional sharing selection; they do not disable private saving.
 
 ## Conflicts
 

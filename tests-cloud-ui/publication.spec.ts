@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, enableSync, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, expectRestoredSync, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
 const title = 'Red Dead Redemption 2';
@@ -29,7 +29,7 @@ test('an explicitly published snapshot stays frozen, keeps private fields out, a
   const other = await browser.newContext({ baseURL: 'http://127.0.0.1:4187', viewport, isMobile, hasTouch: isMobile });
   try {
     const peer = await other.newPage();
-    await signIn(peer, email); await enableSync(peer, 'online'); await peer.goto('/my-rankings');
+    await signIn(peer, email); await expectRestoredSync(peer); await peer.goto('/my-rankings');
     await peer.getByRole('spinbutton').fill('9.4'); await peer.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(peer, uid)).sync.dirty, { timeout: 30000 }).toBe(false);
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score, { timeout: 30000 }).toBe(9.4);
@@ -51,7 +51,7 @@ test('an explicitly published snapshot stays frozen, keeps private fields out, a
     expect((await readLibrary(guest)).ranking).toEqual([]);
     expect((await readLibrary(guest)).progress[id]?.played).toBe(false);
     await guest.goto(`/community?q=${handle}`);
-    await expect(guest.getByRole('heading', { name: 'No listed handles match yet.', exact: true })).toBeVisible();
+    await expect(guest.getByRole('heading', { name: 'No matching handles', exact: true })).toBeVisible();
   } finally { await visitor.close(); }
 });
 

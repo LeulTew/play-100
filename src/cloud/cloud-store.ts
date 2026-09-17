@@ -55,10 +55,11 @@ export class CloudStore {
     }, onError);
   }
 
-  async download(head: SyncHead, previous = false): Promise<PersonalLibraryState | null> {
+  async download(head: SyncHead, previous = false, isCurrent: () => boolean = () => true): Promise<PersonalLibraryState | null> {
     const manifest = previous ? head.previous : head.current;
     if (!manifest) return null;
     return unpackLibrary(manifest, async (digest) => {
+      if (!isCurrent()) { const error = new Error('The account session changed before downloading.'); error.name = 'SyncSessionEnded'; throw error; }
       const snapshot = await getDocFromServer(this.chunkRef('private', digest));
       return snapshot.exists() ? snapshot.data() : undefined;
     });

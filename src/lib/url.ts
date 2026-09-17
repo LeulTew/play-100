@@ -1,7 +1,7 @@
 import type { AppPage, Filters, SortOrder } from './types';
 
 export const SORT_ORDERS = ['rank', 'title', 'newest', 'oldest', 'score', 'metacritic', 'metacriticPc', 'ign', 'gamespot', 'pcGamer', 'rank-index', 'author-rating'] as const satisfies readonly SortOrder[];
-export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator' };
+export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator', friends: '/friends', friend: '/friends', invite: '/invite', compare: '/compare', 'friend-sharing': '/friends/sharing' };
 
 export function pageFromPath(path: string): AppPage {
   const normalized = path.replace(/\/+$/, '') || '/';
@@ -13,6 +13,11 @@ export function pageFromPath(path: string): AppPage {
   if (normalized === '/community') return 'community';
   if (/^\/u\/[^/]+$/.test(normalized)) return 'profile';
   if (normalized === '/creator') return 'creator';
+  if (normalized === '/friends') return 'friends';
+  if (normalized === '/friends/sharing') return 'friend-sharing';
+  if (/^\/friends\/[A-Za-z0-9_-]{1,128}$/.test(normalized)) return 'friend';
+  if (normalized === '/invite') return 'invite';
+  if (normalized === '/compare') return 'compare';
   return 'collection';
 }
 

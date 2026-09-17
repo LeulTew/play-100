@@ -24,7 +24,7 @@ test('verified unused Google registration returns from reauthentication without 
   await page.locator('.account-danger summary').click();
   await page.getByRole('button', { name: 'Delete account', exact: true }).click();
   await googleRedirect(page, () => page.getByRole('dialog').getByRole('button', { name: 'Continue in this tab', exact: true }).click(), email);
-  await expect(page.getByRole('dialog')).toContainText('Nothing has been deleted');
+  await expect(page.getByRole('dialog')).toContainText('Google confirmed this account. Confirm below to delete.');
   expect(await uidFor(request, email)).toBe(uid);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -60,7 +60,7 @@ test('a guest inline rating keeps its original save target while another tab res
   await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page, 'empty');
   const uid = await uidFor(request, email);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await expect(page).toHaveURL(/\/$/);
-  await page.getByRole('link', { name: /Account:/ }).click();
+  await page.locator('.account-nav').click();
   await page.getByRole('button', { name: 'Keep using this device', exact: true }).click();
   const nav = page.locator('.desktop-nav:visible, .mobile-nav:visible');
   const libraryLink = nav.getByRole('link', { name: 'My library', exact: true });
@@ -133,14 +133,14 @@ test('the creator can inspect and hide a reported public profile even without a 
     const admin = await moderator.newPage();
     await createAccount(admin, creatorEmail); await verifyEmail(admin, request, creatorEmail);
     await admin.goto(`/u/${handle}`);
-    await admin.getByRole('button', { name: 'Report this profile', exact: true }).click();
+    await admin.getByRole('button', { name: 'Report profile', exact: true }).click();
     await admin.getByLabel('What needs attention?', { exact: true }).fill(`Review member-less profile ${handle}`);
     await admin.getByRole('button', { name: 'Submit report', exact: true }).click();
     await expect(admin.getByRole('dialog')).toHaveCount(0);
     const bootstrapped = await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { email: { stringValue: creatorEmail } } } });
     expect(bootstrapped.ok()).toBe(true);
     await admin.goto('/creator');
-    await expect(admin.getByRole('heading', { name: 'Creator desk.', exact: true })).toBeVisible();
+    await expect(admin.getByRole('heading', { name: 'Creator desk', exact: true })).toBeVisible();
     await admin.getByRole('button', { name: 'Reports', exact: true }).click();
     const report = admin.locator('.creator-reports > li').filter({ hasText: handle });
     await report.getByRole('button', { name: 'Inspect profile', exact: true }).click();
@@ -171,7 +171,7 @@ test('a clean failed online check stays paused after a fresh unchanged head and 
     const invalid = await request.patch(url, { headers, data: { fields: { ...saved.fields, format: { integerValue: '99' } } } });
     expect(invalid.ok()).toBe(true);
     needsRestore = true;
-    await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
+    await page.getByRole('button', { name: 'Sync now', exact: true }).click();
     await expect(page.locator('.sync-state')).toHaveText('Online saving paused');
     expect((await readAccount(page, uid)).sync.dirty).toBe(false);
     const restored = await request.patch(url, { headers, data: { fields: saved.fields } });
@@ -184,7 +184,7 @@ test('a clean failed online check stays paused after a fresh unchanged head and 
     await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/);
     expect((await readAccount(page, uid)).sync.dirty).toBe(true);
     await page.locator('.account-nav').click();
-    await page.getByRole('button', { name: 'Check and sync now', exact: true }).click();
+    await page.getByRole('button', { name: 'Sync now', exact: true }).click();
     await expect(page.locator('.sync-state')).toHaveText('Saved online', { timeout: 30000 });
     expect((await readAccount(page, uid)).sync.dirty).toBe(false);
   } finally { if (needsRestore) await request.patch(url, { headers, data: { fields: saved.fields } }); }

@@ -29,7 +29,7 @@ test('shared creator footer links are present on every route', async ({ page }) 
     await page.goto(route);
     const footer = page.locator('.author-footer');
     await expect(footer).toContainText(author.fullName);
-    await expect(footer.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute('href', author.githubUrl);
+    await expect(footer.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute('href', author.githubUrl);
     await expect(footer.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', author.linkedinUrl);
     await expect(footer.getByRole('link', { name: 'Telegram @fabbin' })).toHaveAttribute('href', author.telegramUrl);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

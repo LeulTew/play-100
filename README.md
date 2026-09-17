@@ -5,7 +5,8 @@ ratings table, private libraries and personal rankings. Built with React,
 TypeScript, Vite, native IndexedDB, dnd kit and one lazy Three.js sculpture.
 A stateless Vercel function looks up public catalogs. Guest data stays in
 IndexedDB; optional verified Firebase accounts add consented cross-device
-saving and deliberately published rankings. No analytics or Supabase is used.
+saving, optional selected friends-only rankings, private comparison groups and
+deliberately published public snapshots. No analytics or Supabase is used.
 
 **Live:** https://play-100-collection.vercel.app  
 **Curated by:** Leul Tewodros Agonafer  
@@ -18,6 +19,9 @@ saving and deliberately published rankings. No analytics or Supabase is used.
 **Personal rankings:** https://play-100-collection.vercel.app/my-rankings  
 **Discover:** https://play-100-collection.vercel.app/discover
 **Account:** https://play-100-collection.vercel.app/account
+**Friends:** https://play-100-collection.vercel.app/friends  
+**Compare:** https://play-100-collection.vercel.app/compare  
+**Data use:** https://play-100-collection.vercel.app/data-use
 
 **Community:** https://play-100-collection.vercel.app/community
 
@@ -27,6 +31,14 @@ Account sync, public sharing, scopes, rules, cleanup and local emulator setup
 are documented in [Online saving](docs/online-saving.md). The
 [approved implementation contract](docs/online-community-plan.md) records the
 privacy and release gates.
+
+[Friendships](docs/friendships-plan.md) and the
+[datastore contract](docs/friendships-data-contract.md) cover requests, single-use
+invitations, blocking, selected sharing and private groups. Friends sharing starts
+off and requires its own preview and consent; public snapshots remain manual.
+The existing local creature picker is available through **Change icon**.
+Normal session restoration preserves account and guest separation. Storage
+restrictions, revocation and intentional stops remain explicit conditions.
 
 ## Run locally
 
@@ -47,7 +59,10 @@ npm run preview -- --port 4187 --strictPort
 The preview is at `http://127.0.0.1:4187`. A strict port avoids accidentally
 replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
-## Checks
+## Targeted checks
+
+Choose the relevant commands and selectors for a change. The current delivery
+contract does not run an aggregate local CI pipeline or GitHub Actions.
 
 ```powershell
 npm run validate:data
@@ -80,6 +95,8 @@ npm run test:e2e
 
 No benchmark score is implied by passing these checks. Synthetic browsers are not
 a substitute for testing on physical low-end devices.
+Test definitions are not evidence that a particular release ran them. Release
+receipts distinguish executed focused cases, emulator journeys and omissions.
 
 ## Data, images and source truth
 

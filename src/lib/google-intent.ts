@@ -14,9 +14,12 @@ const storageError = 'Google needs temporary storage in this tab to return safel
 export function googleReturnPath(value: string): string {
   if (!value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u0020]/.test(value) || value.length > 1024) return '/account';
   const url = new URL(value, 'https://play-100-collection.vercel.app');
-  if (!Object.values(PAGE_PATHS).includes(url.pathname) && !/^\/u\/[a-z][a-z0-9_]{2,23}$/.test(url.pathname)) return '/account';
+  if (!Object.values(PAGE_PATHS).includes(url.pathname) && !/^\/u\/[a-z][a-z0-9_]{2,23}$/.test(url.pathname) && !/^\/friends\/[A-Za-z0-9_-]{1,128}$/.test(url.pathname)) return '/account';
   const { filters, game } = parseUrl(url.search);
-  return `${url.pathname}${createSearch(filters, game && /^[a-zA-Z0-9:_-]{1,240}$/.test(game) ? game : null)}`;
+  const search = new URLSearchParams(createSearch(filters, game && /^[a-zA-Z0-9:_-]{1,240}$/.test(game) ? game : null));
+  const group = url.searchParams.get('group');
+  if (url.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) search.set('group', group);
+  return `${url.pathname}${search.size ? `?${search}` : ''}`;
 }
 
 export function parseGoogleIntent(raw: string | null, now = Date.now()): GoogleRedirectIntent | null {

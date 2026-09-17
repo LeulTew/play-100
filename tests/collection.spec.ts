@@ -255,7 +255,7 @@ test('Lite and live system reduced-motion settings always retain functional brow
   await page.getByRole('searchbox').fill('mass effect 2');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.locator('.footer-bottom').getByRole('button', { name: /Experience:/ }).click();
+  await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
   await page.getByRole('radio', { name: /Full/ }).click();
   await expect(page.getByRole('radio', { name: /Full/ })).toBeChecked();
   await expect(page.locator('.preference-note')).toContainText('Your system requests reduced motion');

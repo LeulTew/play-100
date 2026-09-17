@@ -6,6 +6,7 @@ import { scopeUid } from './cloud-types';
 import type { MotionPreference } from './types';
 import { parseAvatarDescriptor } from './avatar';
 import type { Member } from './community';
+import { recordFriendRemovals } from './friend-selection-cache';
 
 function conflict(message: string): Error {
   const error = new Error(message);
@@ -60,6 +61,9 @@ async function update(scope: LibraryScope, change: (current: ScopedLibrary) => S
   const saved = await accountStorageTransaction(scope, (value, store) => {
     const current = value === undefined ? initial(scope) : parseScopedLibrary(value, scope);
     const next = parseScopedLibrary(change(current), scope);
+    const ranked = new Set(next.state.ranking.map((entry) => entry.id));
+    const removed = current.state.ranking.filter((entry) => !ranked.has(entry.id)).map((entry) => entry.id);
+    recordFriendRemovals(store, scope, removed, current.state.revision, next.state.revision);
     store.put(next, scope);
     return next;
   });
@@ -107,6 +111,34 @@ export function connectScopedLibrary(scope: LibraryScope, state: PersonalLibrary
   });
 }
 
+export function isInitialAccountCache(current: ScopedLibrary | null): boolean {
+  return Boolean(current && !current.sync.enabled && current.sync.epoch === 0 && !current.sync.dirty && current.sync.dataRevision === 0 &&
+    Object.keys(current.state.records).length === 0 && current.state.ranking.length === 0 && current.state.queueOrder.length === 0 && current.recovery === null);
+}
+
+export function restoreConsentedAccount(scope: LibraryScope, state: PersonalLibraryState, head: SyncHead, member: Member, isCurrent: () => boolean): Promise<ScopedLibrary> {
+  const validated = parsePersonalLibrary(state);
+  if (member.uid !== scopeUid(scope) || member.consentVersion !== 1 || !head.enabled || head.deleted || !head.current) {
+    return Promise.reject(conflict('An active, previously saved online copy is required before restoring this account.'));
+  }
+  const generation = head.current.generation;
+  return update(scope, (current) => {
+    if (!isCurrent() || !isInitialAccountCache(current)) {
+      throw conflict('This account copy changed or was previously connected. Its data and connection choice are retained.');
+    }
+    return {
+      ...current,
+      state: { ...validated, revision: current.state.revision + 1, motion: current.state.motion },
+      sync: {
+        enabled: true, epoch: head.epoch, baseRemoteRevision: head.revision, remoteGeneration: generation,
+        dirty: false, dataRevision: current.sync.dataRevision + 1,
+        displayName: current.profile?.displayName || member.displayName, lastSyncedAt: Date.now(),
+      },
+      profile: current.profile ?? { displayName: member.displayName, avatar: parseAvatarDescriptor(member.avatar) },
+    };
+  });
+}
+
 export function acknowledgeScopedUpload(scope: LibraryScope, uploadedDataRevision: number, head: SyncHead, isCurrent: () => boolean = () => true): Promise<ScopedLibrary> {
   return update(scope, (current) => {
     if (!isCurrent()) throw conflict('The account session changed before acknowledging the upload. Its pending copy is retained.');
@@ -147,7 +179,7 @@ export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expecte
 
 export async function deleteScopedLibrary(scope: LibraryScope): Promise<void> {
   scopeUid(scope);
-  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); });
+  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); });
   publishLibraryChange(scope);
 }
 

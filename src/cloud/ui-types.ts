@@ -6,6 +6,7 @@ export interface AccountIdentity {
   email: string;
   displayName: string;
   verified: boolean;
+  verificationPending?: boolean;
   providers: string[];
 }
 export interface OnlineBridge {

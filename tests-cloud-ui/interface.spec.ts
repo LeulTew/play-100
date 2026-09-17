@@ -20,14 +20,14 @@ test('account, creature chooser and publication controls stay accessible at mobi
   expect(account.violations).toEqual([]);
   const labels = await new AxeBuilder({ page }).withRules(['label-content-name-mismatch']).analyze();
   expect(labels.violations).toEqual([]);
-  await page.getByRole('button', { name: 'Choose your creature', exact: true }).click();
+  await page.getByRole('button', { name: 'Change icon', exact: true }).click();
   const picker = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(picker.violations).toEqual([]);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Publish a ranking', exact: true }).click();
+  await page.getByRole('button', { name: 'Public ranking', exact: true }).click();
   const publication = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(publication.violations).toEqual([]);
-  await page.getByRole('link', { name: /Account:/ }).click();
+  await page.locator('.account-nav').click();
   await page.locator('.account-danger summary').click();
   await page.getByRole('button', { name: 'Delete account', exact: true }).click();
   const deletion = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();

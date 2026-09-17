@@ -37,6 +37,18 @@ function sourceUrl(record: Pick<LibraryRecord, 'source' | 'sourceId' | 'sourceUr
   return null;
 }
 
+export function projectOwnRanking(state: PersonalLibraryState, games: Game[]): PublicEntry[] {
+  const canonical = new Map(games.map((game) => [game.slug, game]));
+  return state.ranking.map((entry, index): PublicEntry => {
+    const saved = state.records[entry.id];
+    if (!saved) throw new Error('A ranked game is missing its metadata.');
+    const trusted = canonical.get(saved.id);
+    if (saved.source === 'collection' && !trusted) throw new Error('This ranking references an unknown original game.');
+    const record = trusted ? recordFromGame(trusted) : saved;
+    return { position: index + 1, id: record.id, title: record.title, year: record.year, source: record.source, sourceId: record.sourceId, sourceUrl: sourceUrl(record), score: entry.score };
+  });
+}
+
 export function projectPublicRanking(state: PersonalLibraryState, selected: ReadonlySet<string>, games: Game[]): PublicEntry[] {
   if (!selected.size || selected.size > PUBLIC_LIMIT) throw new Error('Choose between 1 and 200 ranked games. Nothing is automatically left out.');
   const canonical = new Map(games.map((game) => [game.slug, game]));

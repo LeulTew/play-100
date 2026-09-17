@@ -34,6 +34,9 @@ Export/import backups remain independent recovery tools. Motion preferences
 stay per-device and are excluded from cloud transport.
 Shareable collection URLs never contain private progress or opinions. A
 separate, previewed publication creates a public profile/ranking snapshot.
+Optional friendships add selected friends-only ranking projections and private
+comparison groups. Friendship, friends sharing and public publication are
+separate choices; creating a connection does not share scores.
 
 ## Capabilities and Constraints
 
@@ -53,8 +56,9 @@ separate, previewed publication creates a public profile/ranking snapshot.
   rating imports metadata and private state atomically; provider failures do
   not remove already saved games. Online lookup has a URL-persisted opt-out,
   requires 2-80 characters and pauses in curated-tier or saved/completed scopes.
-- Public catalog queries leave the device, while private ratings, notes and
-  progress never do. Empty searches do not launch background catalog crawls.
+- Public catalog queries leave the device; they never include private ratings,
+  notes or progress. Account data leaves the device only through its consented
+  saving/sharing flows. Empty searches do not launch background catalog crawls.
 - Existing localStorage lists migrate only after IndexedDB commits. Corrupt data
   is preserved with an explicit recovery path. Failed writes are not reported as
   durable success. Backups are validated before atomic replacement.
@@ -81,6 +85,24 @@ separate, previewed publication creates a public profile/ranking snapshot.
 - Account creatures use stable random descriptors and locally generated
   DiceBear Critters. No uploaded image, remote avatar API or Google photo is
   fetched; preview/re-roll never commits before Save.
+- Sign-in can restore an active, prior-consented own cloud copy into an unchanged
+  empty account cache. It never merges guests, replaces pending local work or
+  restarts a stopped/deleted connection.
+- Friend requests and invitations support acceptance, decline, cancellation,
+  removal, private blocking and unblocking. Invitation links are one-use,
+  revocable and expire after seven days; their capability stays in a fragment.
+- Friends-only sharing starts off, previews at most 200 selected ranked games
+  and automatically follows their saved edits only after consent. Notes, email,
+  queue and play history are excluded. New games are not automatically selected.
+- Comparisons use exact game identities for two to six participants. Unrated
+  differs from zero; unavailable rankings remain explicit. Named comparison
+  groups are private participant selections, not chat or access grants.
+- An older writer that cannot maintain the optional sharing-removal journal
+  requires a refreshed selection review before friend updates. Private saving
+  remains available and its established schema/keys stay unchanged.
+- Account uses concise actions, one name editor and a visible Change icon entry.
+  Full storage/sharing disclosures are available at Data use without interrupting
+  the current form. Creator credit and both spreadsheet downloads remain visible.
 - Original and imported details share the visitor's private rating editor.
   Valid pending rating/note edits flush when leaving their field's page or
   dialog; game changes never transfer a draft to a different record.

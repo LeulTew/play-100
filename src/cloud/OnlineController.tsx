@@ -11,7 +11,7 @@ import type { LibraryController } from '../lib/library-controller';
 import type { Member, PublicProfile } from '../lib/community';
 import type { SyncHead } from '../lib/cloud-types';
 import { accountScope, SYNC_LABELS } from '../lib/cloud-types';
-import { cacheScopedProfile, connectScopedLibrary, deleteScopedLibrary, loadScopedLibrary, pauseScopedLibrary } from '../lib/scoped-library';
+import { cacheScopedProfile, connectScopedLibrary, deleteScopedLibrary, isInitialAccountCache, loadScopedLibrary, pauseScopedLibrary, restoreConsentedAccount } from '../lib/scoped-library';
 import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-library';
 import { createAvatarDescriptor, generateAvatarDataUri } from '../lib/avatar';
 import type { AvatarDescriptor } from '../lib/avatar';
@@ -21,8 +21,9 @@ import { flushPendingEdits, hasPendingEdits } from '../hooks/useExitSave';
 import { Avatar } from '../components/avatar/Avatar';
 import { AvatarPicker } from '../components/avatar/AvatarPicker';
 import { Dialog } from '../components/Dialog';
-import { cloudAuth, cloudDb, firebaseApp } from './firebase-client';
+import { cloudAuth, cloudDb, firebaseApp, initialAuthUser } from './firebase-client';
 import { creatorAccess, deleteOwnMember } from './cloud-store';
+import type { CloudStore } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
 import { onlineError, popupCancelled } from './errors';
@@ -38,7 +39,13 @@ import type { AccountIdentity, OnlineBridge } from './ui-types';
 import { CommunityPage, PublicProfilePage } from './CommunityPages';
 import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
+import { useFriendSharing } from './useFriendSharing';
+import { FriendComparisonPage } from './FriendComparisonPage';
+import { FriendDetailPage, FriendsPage, FriendSharingPage, InvitationPage, navigateFriend } from './FriendPages';
+import type { FriendCursor } from '../lib/friend-types';
+import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import './cloud-ui.css';
+import './friends-ui.css';
 
 interface GoogleDeletionApproval {
   requestId: string; uid: string; target: 'copy' | 'account'; epoch: number;
@@ -46,8 +53,8 @@ interface GoogleDeletionApproval {
 }
 const loadingAvatar: AvatarDescriptor = { version: 1, seed: '00000000000000000000000000000000', palette: 'moss' };
 
-function identityOf(user: User, verified: boolean): AccountIdentity {
-  return { uid: user.uid, email: user.email ?? '', displayName: user.displayName ?? '', verified, providers: user.providerData.map((provider) => provider.providerId) };
+function identityOf(user: User, verified: boolean, verificationPending = !verified && user.emailVerified): AccountIdentity {
+  return { uid: user.uid, email: user.email ?? '', displayName: user.displayName ?? '', verified, verificationPending, providers: user.providerData.map((provider) => provider.providerId) };
 }
 function download(value: unknown, name: string) {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
@@ -57,8 +64,8 @@ function download(value: unknown, name: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function OnlineController({ page, publicHandle, showSheet, guest, games, onBridge, onCloseSheet, onNavigate, onProfile, onOpenRecord, onShare }: {
-  page: AppPage; publicHandle: string; showSheet: boolean; guest: LibraryController; games: Game[];
+export default function OnlineController({ page, publicHandle, invitation, showSheet, guest, games, onBridge, onCloseSheet, onNavigate, onProfile, onOpenRecord, onShare }: {
+  page: AppPage; publicHandle: string; invitation: { capability: string | null; error: string }; showSheet: boolean; guest: LibraryController; games: Game[];
   onBridge: (bridge: OnlineBridge) => void; onCloseSheet: () => void; onNavigate: (page: AppPage) => void;
   onProfile: (handle: string) => void; onOpenRecord: (record: LibraryRecord) => void; onShare: (title: string, url: string) => void;
 }) {
@@ -75,6 +82,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [sessionUnconfirmed, setSessionUnconfirmed] = useState(false);
   const [googleReturn, setGoogleReturn] = useState<GoogleReturn | null>(null);
   const [returnSheet, setReturnSheet] = useState(false);
   const [startupError, setStartupError] = useState('');
@@ -98,10 +106,32 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   const scope = useMemo(() => uid ? accountScope(uid, firebaseApp.options.projectId) : null, [uid]);
   const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
   const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
-  const sync = useCloudSync(scope, account.snapshot, Boolean(identity?.verified));
   const social = useMemo(() => new SocialStore(cloudDb), []);
+  const friendToolsVisible = ['account', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page);
+  const friends = useFriendSharing(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current);
+  const restoreInitial = useCallback(async (store: CloudStore, isCurrent: () => boolean) => {
+    if (!scope || !uid || !isCurrent()) return;
+    const local = await loadScopedLibrary(scope);
+    if (!isCurrent() || !isInitialAccountCache(local)) return;
+    const [savedMember, savedHead] = await Promise.all([social.member(uid), store.head()]);
+    if (!isCurrent()) return;
+    setMember(savedMember); setHeadSnapshot({ uid, value: savedHead });
+    if (!savedMember || savedMember.consentVersion !== 1 || !savedHead?.enabled || savedHead.deleted || !savedHead.current) return;
+    const incoming = await store.download(savedHead, false, isCurrent);
+    if (!incoming) throw new Error('The online copy is incomplete. Choose a copy or try again.');
+    const fresh = await store.head();
+    if (!isCurrent()) return;
+    if (!fresh?.enabled || fresh.deleted || fresh.epoch !== savedHead.epoch || fresh.revision !== savedHead.revision || fresh.current?.digest !== savedHead.current.digest) {
+      setHeadSnapshot({ uid, value: fresh });
+      if (!fresh?.enabled || fresh.deleted) return;
+      throw Object.assign(new Error('The online copy changed during restoration. Checking again automatically.'), { code: 'aborted' });
+    }
+    await restoreConsentedAccount(scope, incoming, fresh, savedMember, () => isCurrent() && !hasPendingEdits());
+    if (isCurrent()) { setMessage('Online library restored.'); await account.refresh(); }
+  }, [scope, uid, social, account.refresh]);
+  const sync = useCloudSync(scope, account.snapshot, Boolean(identity?.verified), restoreInitial, authSessionEpoch.current);
   const active = Boolean(scope && account.snapshot && account.snapshot.sync.epoch > 0);
-  const restoring = identity === undefined || Boolean(identity && !account.snapshot && !account.error);
+  const restoring = identity === undefined || Boolean(identity && !account.snapshot && !account.error) || sync.restoringInitial;
   const cacheUnavailable = Boolean(identity && account.error && !account.snapshot);
   const canCacheProfile = Boolean(account.snapshot && !account.error);
   const cacheNow = useRef(account.snapshot);
@@ -122,7 +152,10 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
         token = await getIdTokenResult(user, true);
       }
       const next = identityOf(user, token.claims.email_verified === true);
-      if (cloudAuth.currentUser?.uid === user.uid) setIdentity(next);
+      if (cloudAuth.currentUser?.uid === user.uid) {
+        setIdentity(next);
+        void rememberOnlineRequest(true);
+      }
       return next;
     })();
     const entry = { uid: user.uid, promise: task };
@@ -137,14 +170,18 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
       if (alive) setStartupError('Account restoration timed out. Reload when connected, or keep using the device library.');
     }, 45000);
     const settled = () => window.clearTimeout(timeout);
-    void finishGoogleRedirect(cloudAuth).then((outcome) => {
+    void Promise.all([finishGoogleRedirect(cloudAuth), initialAuthUser]).then(([outcome, restoredUid]) => {
       if (!alive) return;
+      setSessionUnconfirmed(!restoredUid || outcome.completed);
       if (outcome.attempted) { setGoogleReturn(outcome); setReturnSheet(!outcome.completed); }
       unsubscribe = onIdTokenChanged(cloudAuth, (user) => {
-        if ((user?.uid ?? null) !== authSessionUid.current) { authSessionUid.current = user?.uid ?? null; authSessionEpoch.current += 1; }
+        if ((user?.uid ?? null) !== authSessionUid.current) {
+          authSessionUid.current = user?.uid ?? null; authSessionEpoch.current += 1;
+          if (user) setIdentity(undefined);
+        }
         if (!user) { identityRead.current = null; refreshedMismatch.current.clear(); setIdentity(null); settled(); return; }
         void reconcileIdentity(user).catch((cause) => {
-          if (alive && cloudAuth.currentUser?.uid === user.uid) { setIdentity(identityOf(user, false)); setError(onlineError(cause)); }
+          if (alive && cloudAuth.currentUser?.uid === user.uid) { setIdentity(identityOf(user, false, true)); setError(onlineError(cause)); }
         }).finally(settled);
       }, (cause) => { setIdentity(null); setError(onlineError(cause)); settled(); });
     }).catch((cause) => { if (alive) { setStartupError(onlineError(cause)); settled(); } });
@@ -172,7 +209,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     if (intent.kind === 'sign-in') {
       rememberOnlineRequest(true);
       navigation.current.onCloseSheet();
-      if (navigation.current.page !== 'publish' && navigation.current.page !== 'creator') navigation.current.onNavigate('account');
+      if (!['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(navigation.current.page)) navigation.current.onNavigate('account');
     } else if (intent.kind === 'link') setMessage('Google is linked to this existing account.');
     else if (intent.epoch !== (account.snapshot?.sync.epoch ?? 0)) {
       setError('This account changed while Google was open. Nothing was deleted. Review the account before confirming again.');
@@ -201,7 +238,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     const user = identityRef.current;
     if (!user?.verified || !sync.store) return;
     const version = memberReadVersion.current;
-    const [nextMember, nextProfile, nextHead, allowed] = await Promise.all([includeMember ? social.member(user.uid) : Promise.resolve(undefined), social.ownProfile(user.uid), cacheNow.current?.sync.enabled ? Promise.resolve(undefined) : sync.store.head(), creatorAccess(cloudDb)]);
+    const [nextMember, nextProfile, nextHead, allowed] = await Promise.all([includeMember ? social.member(user.uid) : Promise.resolve(undefined), social.ownProfile(user.uid), cacheNow.current?.sync.enabled || isInitialAccountCache(cacheNow.current) ? Promise.resolve(undefined) : sync.store.head(), creatorAccess(cloudDb)]);
     if (identityRef.current?.uid !== user.uid) return;
     if (nextMember !== undefined && version === memberReadVersion.current) setMember(nextMember);
     setProfile(nextProfile); if (nextHead !== undefined) setHeadSnapshot({ uid: user.uid, value: nextHead }); setCreatorUid(allowed ? user.uid : null);
@@ -245,9 +282,26 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
 
   const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? (defaultAvatarUid.current === uid ? defaultAvatar : loadingAvatar);
   const headerIdentity = useMemo(() => identity ? {
-    uid: identity.uid, name: member?.displayName || account.snapshot?.profile?.displayName || identity.displayName || 'Account',
+    uid: identity.uid, name: member?.displayName || account.snapshot?.profile?.displayName || identity.displayName || 'Player',
     avatarSrc: generateAvatarDataUri(avatar),
   } : null, [identity, member?.displayName, account.snapshot?.profile?.displayName, avatar]);
+  const friendIdentity = identity && headerIdentity ? { uid: identity.uid, verified: identity.verified, displayName: headerIdentity.name, avatar } : null;
+  const committedFriendIdentity = useRef(friendIdentity);
+  committedFriendIdentity.current = friendIdentity;
+  useEffect(() => {
+    if (!uid || !identity?.verified || !friends.settings || friends.settings.deleted || !member) return;
+    let alive = true;
+    const source = `${member.displayName}:${JSON.stringify(member.avatar)}`;
+    void (async () => {
+      const old = await friends.store.identity(uid);
+      if (!alive || !old || cloudAuth.currentUser?.uid !== uid) return;
+      if (old.displayName === member.displayName && JSON.stringify(old.avatar) === JSON.stringify(member.avatar)) return;
+      const current = committedFriendIdentity.current;
+      if (!current || `${current.displayName}:${JSON.stringify(current.avatar)}` !== source) return;
+      await friends.store.saveIdentity(uid, { displayName: member.displayName, avatar: member.avatar }, old.revision);
+    })().catch((cause) => { if (alive && cloudAuth.currentUser?.uid === uid) setError(`Friend profile update pending. ${onlineError(cause)}`); });
+    return () => { alive = false; };
+  }, [uid, identity?.verified, friends.settings?.deleted, Boolean(friends.settings), friends.store, member?.displayName, member?.avatar]);
   const bridge = useMemo<OnlineBridge>(() => ({
     loading: restoring, identity: identity ?? null,
     controller: protectedController, scope: (active || cacheUnavailable) && scope ? scope : 'guest',
@@ -265,7 +319,11 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     try { await operation(); return true; }
     catch (cause) {
       if (identityChange || identityRef.current?.uid === startedUid) {
-        if (!popupCancelled(cause)) setError(onlineError(cause));
+        const committed = startedUid ? committedFriendChange(cause, startedUid) : null;
+        if (committed) {
+          setMessage(committedFriendMessage(committed));
+          setError('The remaining steps have not finished. Refresh before continuing this action.');
+        } else if (!popupCancelled(cause)) setError(onlineError(cause));
       }
       return false;
     } finally { running.current = false; setBusy(false); }
@@ -274,7 +332,7 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     await reconcileIdentity(user);
     if (cloudAuth.currentUser?.uid !== user.uid) return;
     rememberOnlineRequest(true); onCloseSheet();
-    if (page !== 'publish' && page !== 'creator') onNavigate('account');
+    if (!['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page)) onNavigate('account');
   };
   const google = () => run(async () => {
     const session = authSessionEpoch.current;
@@ -344,18 +402,20 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     await connectScopedLibrary(target, chosen, connectedHead, name.trim(), choice !== 'online', expected);
     await social.restorePublicationPermission(user.uid);
     await account.refresh(); await refresh();
-    setMessage('Online saving is enabled for this account. The original guest library is still intact.');
+    setMessage('Online saving enabled.');
   });
   const signOutAccount = () => run(async () => {
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before signing out.');
     sync.suspend();
+    friends.stop();
     await account.waitForWrites();
-    await signOut(cloudAuth); rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
+    await signOut(cloudAuth); await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
   const pause = () => run(async () => {
     const { scope: target, store } = verifiedIdentity();
     if (!navigator.onLine) throw new Error('Connect before stopping online saving on all devices. Offline edits are retained here.');
     sync.suspend();
+    friends.stop();
     const current = await store.head();
     if (current) await store.revoke(current);
     await pauseScopedLibrary(target); await account.refresh(); await refresh();
@@ -384,10 +444,27 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
     }
     const publicCopy = await social.ownProfile(identity.uid);
     const entries = publicCopy ? await social.entries(publicCopy) : [];
+    const relationships: unknown[] = []; const groups: unknown[] = []; const blocks: unknown[] = [];
+    let cursors: { relations?: FriendCursor; groups?: FriendCursor; blocks?: FriendCursor } | undefined;
+    let ownSocial: Awaited<ReturnType<typeof friends.store.exportPage>> | null = null;
+    const done = { relations: false, groups: false, blocks: false };
+    for (let index = 0; index < 100; index += 1) {
+      const data = await friends.store.exportPage(identity.uid, cursors);
+      if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
+      ownSocial = data;
+      if (!done.relations) relationships.push(...data.relations.items);
+      if (!done.groups) groups.push(...data.groups.items);
+      if (!done.blocks) blocks.push(...data.blocks.items);
+      done.relations ||= !data.relations.cursor; done.groups ||= !data.groups.cursor; done.blocks ||= !data.blocks.cursor;
+      if (done.relations && done.groups && done.blocks) break;
+      if (index === 99) throw new Error('This account export is larger than one download operation. Contact the creator before deleting it.');
+      cursors = { relations: data.relations.cursor, groups: data.groups.cursor, blocks: data.blocks.cursor };
+    }
     download({ app: 'Play 100', formatVersion: 1, exportedAt: new Date().toISOString(), identity, member,
       deviceLibrary: local ? createLibraryBackup(local.state) : null, deviceCacheError: cacheError,
       onlineLibrary: remoteLibrary ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }) : null,
-      recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries }, 'Play-100-account-export.json');
+      recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries,
+      friends: { identity: ownSocial?.identity, settings: ownSocial?.settings, relationships, groups, blocks } }, 'Play-100-account-export.json');
     if (cacheError) setMessage('Online account data was exported. The unreadable device cache is explicitly marked unavailable in the export; it was not replaced or deleted.');
   });
   const deleteOnline = (removeAccount: boolean, password: string) => {
@@ -423,11 +500,21 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
         }
         await cancelUnusedRegistration(cloudDb, signedIn.uid);
         await deleteUser(signedIn); await deleteScopedLibrary(scope);
-        rememberOnlineRequest(false); setIdentity(null); onNavigate('collection');
+        await rememberOnlineRequest(false); setIdentity(null); onNavigate('collection');
         return;
       }
       if (!identityRef.current?.verified || !sync.store) throw new Error('Verify this account before deleting existing online data.');
       const user = signedIn; const target = scope; const store = sync.store;
+      friends.stop();
+      if (removeAccount) await friends.store.revokeForDeletion(user.uid);
+      else {
+        const settings = await friends.store.settings(user.uid);
+        if (settings && !settings.deleted) {
+          const stopped = await friends.store.saveSettings(user.uid, { enabled: false, selectedIds: [] }, settings);
+          friends.acceptSettings(stopped);
+          await friends.store.cleanupSharing(user.uid);
+        }
+      }
       await account.waitForWrites();
       if (cloudAuth.currentUser?.uid !== user.uid || identityRef.current?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before cleanup. Nothing was deleted.');
       if (account.snapshot) await pauseScopedLibrary(target);
@@ -436,8 +523,13 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
       await store.revoke(await store.head(), true);
       await store.cleanup(true); await social.deleteProfile(user.uid); await deleteOwnMember(cloudDb, user.uid);
       if (removeAccount) {
+        for (let index = 0; index < 100; index += 1) {
+          const cleaned = await friends.store.cleanupDeleted(user.uid);
+          if (cleaned.done) break;
+          if (index === 99) throw new Error('Some connections still need cleanup. Retry account deletion to continue.');
+        }
         await deleteUser(user); await deleteScopedLibrary(target);
-        rememberOnlineRequest(false); setIdentity(null); onNavigate('collection');
+        await rememberOnlineRequest(false); setIdentity(null); onNavigate('collection');
       } else {
         await account.refresh(); await refresh();
         setMessage('Online content was deleted. This account device copy is retained. A minimal content-free revocation marker prevents stale tabs from recreating deleted data.');
@@ -451,35 +543,58 @@ export default function OnlineController({ page, publicHandle, showSheet, guest,
   const currentDeletionApproval = deletionApproval?.uid === identity?.uid &&
     deletionApproval?.sessionEpoch === authSessionEpoch.current && deletionApproval.epoch === currentEpoch.current ? deletionApproval : null;
   const closeSignin = () => { setReturnSheet(false); onCloseSheet(); };
-  const authPanel = <AuthPanel busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (page === 'account' || page === 'publish' || page === 'creator') onNavigate('collection'); }} />;
-  const cloudPage = ['account', 'publish', 'community', 'profile', 'creator'].includes(page);
+  const authPanel = <AuthPanel busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page)) onNavigate('collection'); }} />;
+  const cloudPage = ['account', 'publish', 'community', 'profile', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page);
   if (startupError) throw new Error(startupError);
   return (
     <>
+      {page === 'invite' && invitation.error && <p className="inline-error" role="alert">{invitation.error}</p>}
       {cloudPage && EMULATOR_MODE && <p className="emulator-note emulator-page-note">Local emulator preview — no production account or cloud data connection.</p>}
-      {cloudPage && (restoring ? <div className="page-loading" role="status"><h1>Opening your account...</h1><p>The device library is not being uploaded.</p></div> :
+      {cloudPage && identity && sessionUnconfirmed && <p className="account-notice" role="status">Signed in. Persistence across refresh has not yet been confirmed.</p>}
+      {cloudPage && (restoring ? <div className="page-loading" role="status"><h1>Restoring account...</h1></div> :
         page === 'community' ? <CommunityPage social={social} onOpen={onProfile} onPublish={() => onNavigate('publish')} /> :
-        page === 'profile' ? <PublicProfilePage social={social} handle={publicHandle} games={games} library={activeController} identity={identity} onOpenRecord={onOpenRecord} onShare={onShare} onAccount={() => onNavigate('account')} /> :
-        !identity ? <section className="app-page auth-page"><h1 data-page-heading tabIndex={-1}>Your list.<br />Wherever you play.</h1>{authPanel}</section> :
+        page === 'profile' ? <PublicProfilePage social={social} handle={publicHandle} games={games} library={activeController} identity={identity} onOpenRecord={onOpenRecord} onShare={onShare} onAccount={() => onNavigate('account')} onFriend={navigateFriend} /> :
+        page === 'invite' ? <InvitationPage store={friends.store} invitation={invitation} identity={friendIdentity} authPanel={authPanel} onAccount={() => onNavigate('account')} onFriends={() => onNavigate('friends')} onSettings={friends.acceptSettings} /> :
+        !identity ? <section className="app-page auth-page"><h1 data-page-heading tabIndex={-1}>Sign in</h1>{authPanel}</section> :
+        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={() => onNavigate('compare')} /> :
+        page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={() => onNavigate('compare')} games={games} onOpen={onOpenRecord} /> :
+        (page === 'compare' || page === 'friend-sharing') && !games.length ? <div className="page-loading" role="status"><h1>Loading games...</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
+        page === 'compare' && friendIdentity ? <FriendComparisonPage key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`} store={friends.store} uid={identity.uid} identity={friendIdentity} ownState={activeController.state} games={games} onOpen={onOpenRecord} onFriends={() => onNavigate('friends')} /> :
+        page === 'friend-sharing' && friendIdentity ? <FriendSharingPage key={uid} store={friends.store} identity={friendIdentity} settings={friends.settings} ownState={account.snapshot?.state ?? emptyPersonalLibrary()} connected={Boolean(account.snapshot?.sync.enabled)} games={games} onSettings={friends.acceptSettings} onAccount={() => onNavigate('account')} status={friends.status} error={friends.error} /> :
         page === 'creator' ? <CreatorPage key={identity.uid} social={social} allowed={isCreator} verified={identity.verified} onAccount={() => onNavigate('account')} /> :
         page === 'publish' ? <PublishPage key={identity.uid} social={social} identity={identity} member={member} avatar={avatar} state={activeController.state} games={games} existing={profile} isCreator={isCreator} onAccount={() => onNavigate('account')} onPublished={(next) => { if (cloudAuth.currentUser?.uid === next.uid) { setProfile(next); onProfile(next.handle); } }} /> :
         <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
-          onAvatar={() => setAvatarOpen(true)} onName={(name) => run(async () => { const { user } = verifiedIdentity(); await social.saveMemberName(user.uid, name, avatar); await refresh(); setMessage('Account name saved. Published snapshots change only when explicitly updated.'); })}
+          onAvatar={() => setAvatarOpen(true)} onName={(name) => run(async () => {
+            const { user } = verifiedIdentity();
+            await social.saveMemberName(user.uid, name, avatar);
+            if (cloudAuth.currentUser?.uid !== user.uid) return;
+            setMember((current) => current?.uid === user.uid ? { ...current, displayName: name } : current);
+            setMessage('Name saved.');
+            try { await refresh(); }
+            catch (cause) { if (cloudAuth.currentUser?.uid === user.uid) setMessage(`Name saved. Reconnect to refresh the profile. ${onlineError(cause)}`); }
+          })}
           onConnect={connect} onVerify={sendVerification} onRefreshIdentity={() => run(async () => { const user = cloudAuth.currentUser; if (!user) return; await reload(user); refreshedMismatch.current.delete(user.uid); const next = await reconcileIdentity(user, true); setMessage(next.verified ? 'Email verified. You can choose online saving or publishing.' : 'Verification is not confirmed yet. Open the latest email link, then try again.'); })}
           onSignOut={signOutAccount} onLinkGoogle={linkGoogle}
-          onRetry={() => run(async () => { await sync.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
+          onRetry={() => run(async () => { await sync.retry(); await friends.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
           onPause={pause} onDownload={downloadData}
           onUseRemote={(reviewed, revision) => run(async () => { await sync.useRemote(reviewed, revision); await account.refresh(); })}
           onUseLocal={(reviewed, revision) => run(async () => { await sync.useLocal(reviewed, revision); })}
           googleDeletion={currentDeletionApproval} onDismissDeletion={() => setDeletionApproval(null)}
+          onFriends={() => onNavigate('friends')} onCompare={() => onNavigate('compare')}
+          friendsSharing={<><button className="text-button" onClick={() => onNavigate('friend-sharing')}>Friends sharing: {friends.status}</button>{friends.error && <p className="inline-error" role="alert">{friends.error}<button className="text-button" onClick={() => { void friends.retry(); }}>Retry sharing</button></p>}</>}
           onDelete={deleteOnline} onPublish={() => onNavigate('publish')} onCommunity={() => onNavigate('community')} onCreator={() => onNavigate('creator')} />)}
-      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Your list.<br />Wherever you play.</h2>{authPanel}</Dialog>}
-      {avatarOpen && identity && <Dialog open titleId="account-avatar-title" className="info-dialog" onClose={() => { if (!busy) setAvatarOpen(false); }}><p className="section-help">Saving updates your account creature, visible to the creator. A published profile keeps its existing snapshot until you update it.</p><AvatarPicker value={avatar} identityKey={identityKey} titleId="account-avatar-title" onCancel={() => setAvatarOpen(false)} onSave={async (next) => {
+      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{authPanel}</Dialog>}
+      {avatarOpen && identity && <Dialog open titleId="account-avatar-title" className="info-dialog" onClose={() => { if (!busy) setAvatarOpen(false); }}><AvatarPicker value={avatar} identityKey={identityKey} titleId="account-avatar-title" onCancel={() => setAvatarOpen(false)} onSave={async (next) => {
         const uid = identity.uid; const epoch = currentEpoch.current; const sessionEpoch = authSessionEpoch.current;
         const saved = await run(async () => {
           if (cloudAuth.currentUser?.uid !== uid || !identityRef.current?.verified || currentEpoch.current !== epoch || authSessionEpoch.current !== sessionEpoch) throw new Error('The account changed. Your new account was not modified.');
           await social.saveMemberAvatar(uid, next, member?.displayName || identity.displayName || 'Player');
-          if (identityRef.current?.uid === uid && currentEpoch.current === epoch && authSessionEpoch.current === sessionEpoch) { setDefaultAvatar(next); await refresh(); }
+          if (identityRef.current?.uid === uid && currentEpoch.current === epoch && authSessionEpoch.current === sessionEpoch) {
+            setDefaultAvatar(next);
+            setMember((current) => current?.uid === uid ? { ...current, avatar: next } : current);
+            try { await refresh(); }
+            catch (cause) { if (cloudAuth.currentUser?.uid === uid) setMessage(`Icon saved. Reconnect to refresh the profile. ${onlineError(cause)}`); }
+          }
         });
         if (!saved) throw new Error('The creature could not be saved. Your previous choice is unchanged.');
         if (identityRef.current?.uid === uid && currentEpoch.current === epoch && authSessionEpoch.current === sessionEpoch) setAvatarOpen(false);

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, enableSync, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, expectRestoredSync, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
 
 const id = 'red-dead-redemption-2';
 const title = 'Red Dead Redemption 2';
@@ -14,7 +14,7 @@ test('offline edits survive a newer online head and conflict replacement is boun
   const peerContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4187', viewport, isMobile, hasTouch: isMobile, reducedMotion: 'reduce' });
   try {
     const peer = await peerContext.newPage();
-    await signIn(peer, email); await enableSync(peer, 'online'); await peer.goto('/my-rankings');
+    await signIn(peer, email); await expectRestoredSync(peer); await peer.goto('/my-rankings');
     await page.goto('/my-rankings');
     await expect(page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeVisible();
     await expect(page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeEnabled();
@@ -26,17 +26,17 @@ test('offline edits survive a newer online head and conflict replacement is boun
     await peer.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(peer, uid)).sync.dirty, { timeout: 30000 }).toBe(false);
     await context.setOffline(false);
-    await page.getByRole('link', { name: /Account:/ }).click();
+    await page.locator('.account-nav').click();
     await expect(page.locator('.sync-state')).toHaveText('Needs a choice');
     expect((await readAccount(page, uid)).state.ranking[0]?.score).toBe(6);
-    await page.getByRole('button', { name: 'Use the online copy', exact: true }).click();
+    await page.getByRole('button', { name: 'Use online copy', exact: true }).click();
     await peer.getByRole('spinbutton').fill('9.5'); await peer.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(peer, uid)).sync.dirty, { timeout: 30000 }).toBe(false);
     await page.getByRole('dialog').getByRole('button', { name: 'Confirm this choice', exact: true }).click();
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText('changed again');
     expect((await readAccount(page, uid)).state.ranking[0]?.score).toBe(6);
     await page.getByRole('dialog').getByRole('button', { name: 'Keep my data', exact: true }).click();
-    await page.getByRole('button', { name: 'Use the online copy', exact: true }).click();
+    await page.getByRole('button', { name: 'Use online copy', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Confirm this choice', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const chosen = await readAccount(page, uid);

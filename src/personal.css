@@ -1,4 +1,13 @@
 .header-download { border: 1px solid var(--line); }
+.site-footer.compact-footer { padding-block: 24px; }
+.footer-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; }
+.footer-tools > a, .footer-tools > button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; background: none; color: var(--muted); font-size: 13px; }
+.footer-tools > a:hover, .footer-tools > button:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.data-use-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; font-size: 13px; color: var(--muted); }
+.data-use-page { max-width: 850px; padding-block: 48px 64px; }
+.data-use-page h1 { font: 700 48px/1.1 var(--display); }
+.data-use-page h2 { font-size: 22px; margin-block: 32px 12px; }
+.data-use-page p { font-size: 16px; line-height: 1.7; margin-block: 16px; max-width: 72ch; }
 .account-nav { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 5px 9px; border-radius: 4px; border: 1px solid var(--line); }
 .account-nav:hover { background: #e6e9dc; border-color: var(--ink); }
 .account-nav-avatar { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; }

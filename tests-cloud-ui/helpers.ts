@@ -51,7 +51,7 @@ export async function verifyEmail(page: Page, request: APIRequestContext, email:
   const confirmed = await request.post(`${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key`, { data: { oobCode: code } });
   expect(confirmed.ok()).toBe(true);
   await page.getByRole('button', { name: 'I verified my email', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Enable online saving', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Agree & enable', exact: true })).toBeVisible();
 }
 export async function verifyByEmailReturn(page: Page, request: APIRequestContext, email: string) {
   await page.getByRole('button', { name: 'Send verification email', exact: true }).click();
@@ -62,7 +62,7 @@ export async function verifyByEmailReturn(page: Page, request: APIRequestContext
   if (!link || new URL(link).origin !== authOrigin) throw new Error('The local verification link is missing or points outside the emulator.');
   await page.goto(link);
   await expect(page).toHaveURL(/127\.0\.0\.1:4187\/account/, { timeout: 20000 });
-  await expect(page.getByRole('button', { name: 'Enable online saving', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Agree & enable', exact: true })).toBeVisible();
 }
 export async function readAccount(page: Page, uid: string): Promise<ScopedLibrary> {
   return page.evaluate((key) => new Promise<ScopedLibrary>((resolve, reject) => {
@@ -79,12 +79,21 @@ export async function readAccount(page: Page, uid: string): Promise<ScopedLibrar
   }), `account:demo-play100:${uid}`);
 }
 export async function enableSync(page: Page, choice: 'guest' | 'online' | 'empty' | 'cached' = 'guest') {
-  const selector = page.locator(`input[name="connection-copy"][value="${choice}"]`);
-  await expect(selector).toBeVisible();
-  await selector.check();
-  await page.locator('.sync-consent input[type="checkbox"]').check();
-  await page.getByRole('button', { name: 'Enable online saving', exact: true }).click();
+  const choices = page.locator('input[name="connection-copy"]');
+  if (await choices.count()) {
+    const selector = page.locator(`input[name="connection-copy"][value="${choice}"]`);
+    await expect(selector).toBeVisible(); await selector.check();
+  } else {
+    const label = { guest: 'Device-only library', online: 'Online library', empty: 'Empty library', cached: 'Account copy on this device' }[choice];
+    await expect(page.locator('.connection-source strong')).toHaveText(label);
+  }
+  await page.getByRole('button', { name: /Agree & (enable|replace online)/ }).click();
   await expect(page.locator('.sync-panel .sync-state')).toHaveText('Saved online', { timeout: 30000 });
+}
+
+export async function expectRestoredSync(page: Page) {
+  await expect(page.locator('.sync-panel .sync-state')).toHaveText('Saved online', { timeout: 30000 });
+  await expect(page.getByRole('button', { name: /Agree & (enable|replace online)/ })).toHaveCount(0);
 }
 
 export async function googleRedirect(page: Page, trigger: () => Promise<void>, email: string, create = false) {

@@ -5,6 +5,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/data-use", "destination": "/index.html" },
+    { "source": "/friends", "destination": "/index.html" },
+    { "source": "/friends/sharing", "destination": "/index.html" },
+    { "source": "/friends/:uid", "destination": "/index.html" },
+    { "source": "/invite", "destination": "/index.html" },
+    { "source": "/compare", "destination": "/index.html" },
     { "source": "/__/auth/handler", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/handler" },
     { "source": "/__/auth/handler.js", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/handler.js" },
     { "source": "/__/auth/iframe", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/iframe" },

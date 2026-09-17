@@ -25,7 +25,7 @@ async function seedLegacy(page: Page) {
 }
 
 async function openSettings(page: Page) {
-  await page.locator('.footer-bottom').getByRole('button', { name: /Experience:/ }).click();
+  await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 }
 
@@ -147,7 +147,7 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
 test('personal rankings accept unplayed and historical games, scores and notes', async ({ page }) => {
   await page.goto('/my-rankings');
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
-  await page.getByText("Can't find it? Add a game yourself.", { exact: true }).click();
+  await page.getByText('Add a game manually', { exact: true }).click();
   await page.getByLabel('Game title', { exact: true }).fill('My historical game');
   await page.getByLabel('Year (optional)', { exact: false }).fill('1962');
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
@@ -227,7 +227,7 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await page.route('**/api/catalog?**', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }) }));
   await page.getByRole('button', { name: 'Browse catalog', exact: true }).click();
   await expect(page.locator('.catalog-error')).toContainText('The catalog is busy');
-  await expect(page.getByText("Can't find it? Add a game yourself.", { exact: true })).toBeVisible();
+  await expect(page.getByText('Add a game manually', { exact: true })).toBeVisible();
 });
 
 test('IndexedDB denial is explicit and never claims a durable save', async ({ page }) => {

@@ -93,7 +93,7 @@ test('temporary user edits survive a later successful author-data retry', async 
   await page.route('**/data/collection.json', (route) => route.fulfill({ status: 503, body: 'Temporarily unavailable' }));
   await page.goto('/discover');
   await expect(page.locator('.storage-banner')).toContainText('this tab only');
-  await page.getByText("Can't find it? Add a game yourself.", { exact: true }).click();
+  await page.getByText('Add a game manually', { exact: true }).click();
   await page.getByLabel('Game title', { exact: true }).fill('Temporary game to retain');
   await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
   await page.getByRole('button', { name: 'Open my library', exact: true }).click();

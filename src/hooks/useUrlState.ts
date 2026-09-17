@@ -38,7 +38,10 @@ export function useUrlState() {
 
   const openGame = useCallback((slug: string) => {
     const current = parseUrl(window.location.search);
-    navigate(createSearch(current.filters, slug), current.game ? 'replace' : 'push', {
+    const params = new URLSearchParams(createSearch(current.filters, slug));
+    const group = new URLSearchParams(window.location.search).get('group');
+    if (window.location.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) params.set('group', group);
+    navigate(`?${params}`, current.game ? 'replace' : 'push', {
       play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
     });
   }, [navigate]);
@@ -48,7 +51,10 @@ export function useUrlState() {
       window.history.back();
     } else {
       const current = parseUrl(window.location.search);
-      navigate(createSearch(current.filters), 'replace');
+      const params = new URLSearchParams(createSearch(current.filters));
+      const group = new URLSearchParams(window.location.search).get('group');
+      if (window.location.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) params.set('group', group);
+      navigate(params.size ? `?${params}` : '', 'replace');
     }
   }, [navigate]);
 
