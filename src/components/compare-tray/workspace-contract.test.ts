@@ -71,6 +71,17 @@ describe('workspace embedding contract', () => {
     expect(html).toContain('Pin Beta game for comparison');
     expect(onAction).not.toHaveBeenCalled();
   });
+  it('mounts one optional drag slot per record beside Pin in both editors, never inside a button', () => {
+    const renderDragHandle = vi.fn((record: LibraryRecord) => h('button', { type: 'button', 'data-compare-drag': record.id }, 'Drag to tray'));
+    const html = renderToStaticMarkup(h(MyGamesPage, { ...props, scope: 'guest', view: 'queue', onViewChange: vi.fn(), onPin: vi.fn(), renderDragHandle }));
+    expect(html.match(/data-compare-drag="/g)).toHaveLength(3);
+    expect(renderDragHandle.mock.calls.map(([record]) => record.id)).toEqual(['beta', 'alpha', 'alpha']);
+    expect(html).toContain('Drag Beta game to reorder your queue');
+    expect(html).toContain('Drag Alpha game to reorder your ranking');
+    expect(html).not.toMatch(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
+    const legacy = renderToStaticMarkup(h(LibraryPage, props));
+    expect(legacy).not.toContain('data-compare-drag');
+  });
 });
 
 describe('tray and image rendering contract', () => {

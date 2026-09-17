@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { searchText } from '../../lib/collection';
@@ -27,9 +28,10 @@ export interface LibraryPageProps {
   onPin?: (record: LibraryRecord) => void;
   onUnpin?: (id: string) => void;
   pinnedIds?: ReadonlySet<string>;
+  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }
 
-export default function LibraryPage({ state, filters, busy, animate, onFilters, onAction, onOpen, onDiscover, onBrowse, embedded = false, workspaceView, completedOnly = false, onPin, onUnpin, pinnedIds }: LibraryPageProps) {
+export default function LibraryPage({ state, filters, busy, animate, onFilters, onAction, onOpen, onDiscover, onBrowse, embedded = false, workspaceView, completedOnly = false, onPin, onUnpin, pinnedIds, renderDragHandle }: LibraryPageProps) {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
@@ -59,6 +61,7 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
     <RecordIdentity record={record} onOpen={onOpen} />
     <div className="record-actions">
       {onPin && <button className="icon-button" disabled={pinnedIds?.has(record.id) && !onUnpin} aria-pressed={pinnedIds?.has(record.id) ?? false} aria-label={`${pinnedIds?.has(record.id) ? 'Unpin' : 'Pin'} ${record.title} ${pinnedIds?.has(record.id) ? 'from' : 'for'} comparison`} title="Compare tray" onClick={() => { if (pinnedIds?.has(record.id)) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="19" height="19" /></button>}
+      {renderDragHandle?.(record)}
       <PlayedToggle id={record.id} title={record.title} played={Boolean(state.progress[record.id]?.played)} completed={state.progress[record.id]?.completed} busy={busy} compact onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} />
       <button className="icon-button" disabled={busy} aria-pressed={Boolean(state.progress[record.id]?.later)} aria-label={`${state.progress[record.id]?.later ? 'Remove' : 'Add'} ${record.title} ${state.progress[record.id]?.later ? 'from' : 'to'} play later`} onClick={() => { void onAction({ type: 'toggle-progress', record, key: 'later' }); }}><Icon name="bookmark" width="19" height="19" /></button>
       <button className="icon-button" disabled={busy} aria-pressed={Boolean(state.progress[record.id]?.completed)} aria-label={`${state.progress[record.id]?.completed ? 'Unmark' : 'Mark'} ${record.title} completed`} onClick={() => { void onAction({ type: 'toggle-progress', record, key: 'completed' }); }}><Icon name="check" width="20" height="20" /></button>
