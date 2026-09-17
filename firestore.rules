@@ -865,10 +865,10 @@ service cloud.firestore {
       let url = entry.sourceUrl;
       return keys.size() == 6 && keys.hasOnly(['id', 'title', 'year', 'source', 'sourceId', 'sourceUrl'])
         && id is string && id == expectedId && id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
-        && title is string && title.size() >= 1 && title.size() <= 200
+        && title is string && title.size() >= 1 && title.size() <= 200 && title.matches('^[^\\x00-\\x1f\\x7f]+$') && !title.matches('^\\s+$')
         && (year == null || (year is int && year >= 1900 && year <= 2100))
         && source is string && sourceId is string && sourceId.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
-        && fPackedSource(source, sourceId, id, url, title, year);
+        && (url == null || (url is string && url.size() <= 2048)) && fPackedSource(source, sourceId, id, url, title, year);
     }
     function sChunkEntry(data, offset) {
       return offset >= data.entries.size() || sEntry(data.entries[offset], data.ids[offset]);

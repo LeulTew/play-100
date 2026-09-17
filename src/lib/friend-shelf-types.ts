@@ -45,6 +45,7 @@ export function parseFriendShelfEntry(value: unknown): FriendShelfEntry {
   shelfSelection([row.id]); shelfSelection([row.sourceId]);
   const id = row.id as string; const sourceId = row.sourceId as string;
   const source = row.source; const url = row.sourceUrl;
+  if (url !== null && (typeof url !== 'string' || url.length > 2048)) invalid();
   const valid = source === 'collection' ? id === sourceId && url === null
     : source === 'wikidata' ? /^Q[1-9][0-9]*$/.test(sourceId) && id === `wikidata:${sourceId}` && url === `https://www.wikidata.org/wiki/${sourceId}`
     : source === 'steam' ? /^[1-9][0-9]*$/.test(sourceId) && id === `steam:${sourceId}` && url === `https://store.steampowered.com/app/${sourceId}/`

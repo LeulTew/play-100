@@ -82,19 +82,20 @@ async function stage(a: Client, config: FriendShelfConfig, count: number) {
   });
   return id;
 }
-async function rawChunk(a: Client, id: string, entries: unknown[], ids: string[], extra: Record<string, unknown> = {}) {
+async function rawChunk(a: Client, id: string, entries: unknown[], ids: string[], extra: Record<string, unknown> = {}, status = 'ready') {
   const gen = doc(a.db, 'friendShelves', a.uid, 'generations', id); const batch = writeBatch(a.db);
   batch.set(doc(gen, 'chunks', '0'), { index: 0, entries, ids, ...extra });
-  batch.update(gen, { uploaded: 1, ids, status: 'ready' });
+  batch.update(gen, { uploaded: 1, ids, status });
   return batch.commit();
 }
 function worstEntries(sourceName: FriendShelfEntry['source']): FriendShelfEntry[] {
   return Array.from({ length: 200 }, (_, i) => {
-    const suffix = `${'8'.repeat(175)}${String(i + 1).padStart(4, '0')}`;
-    const sourceId = sourceName === 'wikidata' ? `Q${suffix}` : sourceName === 'collection' ? `canonical-${suffix}` : suffix;
+    const length = sourceName === 'collection' ? 200 : 200 - sourceName.length - 1;
+    const suffix = `${'8'.repeat(length - 4 - Number(sourceName === 'wikidata'))}${String(i + 1).padStart(4, '0')}`;
+    const sourceId = sourceName === 'wikidata' ? `Q${suffix}` : suffix;
     return {
       id: sourceName === 'collection' ? sourceId : `${sourceName}:${sourceId}`, sourceId, source: sourceName, title: 'T'.repeat(200), year: 2100,
-      sourceUrl: sourceName === 'wikidata' ? `https://www.wikidata.org/wiki/${sourceId}` : sourceName === 'steam' ? `https://store.steampowered.com/app/${sourceId}/` : sourceName === 'freetogame' ? `https://www.freetogame.com/${'a'.repeat(400)}/${suffix}` : null,
+      sourceUrl: sourceName === 'wikidata' ? `https://www.wikidata.org/wiki/${sourceId}` : sourceName === 'steam' ? `https://store.steampowered.com/app/${sourceId}/` : sourceName === 'freetogame' ? `https://www.freetogame.com/${'a'.repeat(2048 - 'https://www.freetogame.com/'.length)}` : null,
     };
   });
 }
@@ -148,7 +149,7 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     const a = await client(); const config = await select(a, [entry]); const id = await stage(a, config, 1);
     const bad: Record<string, unknown>[] = [
       { position: 1 }, { score: null }, { note: 'private' }, { email: 'private@example.test' }, { played: true }, { completed: false }, { queue: [] },
-      { imageUrl: 'https://example.test/art.svg' }, { sourceUrl: 'data:image/svg+xml,<svg/>' }, { title: '' }, { title: 'T'.repeat(201) }, { year: 1899 }, { year: 2101 },
+      { imageUrl: 'https://example.test/art.svg' }, { sourceUrl: 'data:image/svg+xml,<svg/>' }, { title: '' }, { title: '  ' }, { title: 'bad\nname' }, { title: 'T'.repeat(201) }, { year: 1899 }, { year: 2101 },
       { source: 'other' }, { sourceId: 'not-the-id' }, { id: 'manual:unselected' },
     ];
     for (const patch of bad) await assertFails(rawChunk(a, id, [{ ...entry, ...patch }], [entry.id]));
@@ -219,7 +220,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     const a = await client(); const entries = worstEntries('manual').slice(0, 4); const config = await select(a, entries);
     const id = await stage(a, config, entries.length);
     await seed(`syncHeads/${a.uid}`, { format: 1, epoch: 1, revision: 1, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
-    await assertFails(rawChunk(a, id, entries.slice(0, 2), entries.slice(0, 2).map((item) => item.id)));
+    await assertFails(rawChunk(a, id, entries.slice(0, 2), entries.slice(0, 2).map((item) => item.id), {}, 'staging'));
     await expect(a.store.publish(a.uid, entries, config, source, 0, () => true)).rejects.toThrow(/private/);
     let checks = 0;
     await expect(a.store.publish(a.uid, entries, config, { syncEpoch: 1, remoteRevision: 1 }, 0, () => ++checks < 8)).rejects.toThrow(/cancelled/);

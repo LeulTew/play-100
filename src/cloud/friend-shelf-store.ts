@@ -17,7 +17,7 @@ import { parseHead } from './cloud-store';
 
 function conflict(message = 'Shared games changed elsewhere. Refresh before trying again.'): never { throw new FriendStoreError('conflict', message); }
 function online(): void {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) throw new FriendStoreError('offline', 'Reconnect before changing shared games.');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new FriendStoreError('offline', 'Reconnect before changing shared games.');
 }
 function active(value: FriendShelfConfig | null): FriendShelfConfig {
   if (!value) throw new FriendStoreError('unavailable', 'Preview shared games before enabling the shelf.');
