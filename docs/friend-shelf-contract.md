@@ -158,6 +158,9 @@ quota cooldown, no idle polling/friend fanout. It checks exact current UID, Fire
 app/project, scope, auth generation, saving epoch, clean source and selection at
 asynchronous boundaries. Pending field editors/private saves wait independently.
 Its error/status is optional-sharing status, not a failure of private saving.
+The initial config read explicitly depends on the primitive matching-cache-ready
+state, so a verified account arriving before IndexedDB hydration does not remain
+stuck checking. Ordinary private edits do not rebind that bootstrap subscription.
 
 ## ACK versus recovery
 
@@ -261,15 +264,34 @@ than mixing `exists` and `get` for those same documents; the first actual SDK ru
 exposed that redundant legacy checks exceeded the read budget. The existing
 legacy predicate is unchanged.
 
-Local focused validation covers 21 DTO/projection/journal, SSR UI, offline guard,
-retry classification/cooldown and cancellation primitive cases, plus TypeScript
-and scoped ESLint. These are not browser or live-account approval.
+Local focused validation covers 23 DTO/projection/journal, SSR UI, offline guard,
+retry classification/cooldown, cancellation primitive and delayed-cache bootstrap
+cases, plus TypeScript and scoped ESLint. The bootstrap cases run the actual hook
+through a dependency-driven effect harness; they do not claim real browser
+hydration coverage. These checks are not browser or live-account approval.
 `tests-cloud/friend-shelf.test.ts` supplies raw SDK denials, every full-200 source
 branch at maximum IDs/titles/URL bounds, real public-100 plus 100 additions,
 bounded queries/cleanup, legacy deletion/re-enable, current-generation revocation,
-ACK/readback, lifecycle and listener cases. **The integrator owns execution of
-this file on its single local emulator runtime and records the measured result;
-do not claim expression-budget proof from source inspection alone.**
+ACK/readback, lifecycle and listener cases.
+
+**Measured SDK result, 2026-09-17:** the sole integrator ran
+`vitest run --config vitest.cloud.config.ts tests-cloud/friend-shelf.test.ts`
+against its fresh, owned local Auth/Firestore emulator group. **28/28 cases
+passed in 27.67 seconds**, including all five maximum-200 source branches,
+100-chunk reads, atomic Stop pulses, pair revocation, old-client copy deletion
+and re-enable consent, ACK recovery and bounded cleanup. Tested backend commit:
+`f98677e2b5b608fa6ba89f6363343b24ca5cc9e2`. Exact `firestore.rules` SHA-256:
+`CEF64B284486093420D9DEDD86327109DF17A8A0A556245056AD747B9302C65E`.
+The worker read the integrator's `overnight-shelf-sdk-final.log` and independently
+matched this hash. This demonstrates the tested read/access and expression
+budgets with the actual SDK, not source inspection or mocked authorization.
+
+The earlier dependency-only head-listener test exposed a provider timing
+assumption; it was replaced with actual pair-target revocation plus fresh-read
+denial, and a separate target-pulse Stop test. A timed-out prior listener also
+caused emulator `clearFirestore` infrastructure failure before any test case;
+the integrator restarted only its owned group rather than changing policy to
+mask that failure. The final receipt above is from the fresh successful run.
 
 Main must additionally execute the real atomic IDB adapter cases (rollback,
 backup/adoption, stale tabs, ACKs, remove/re-add, account isolation and deletion),
