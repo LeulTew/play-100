@@ -293,7 +293,7 @@ describe('single-use, fixed-slot invitation capabilities', () => {
 });
 
 describe('bounded strict friends-only ranking generations', () => {
-  it('publishes 200 games as 20 chunks within actual atomic access budgets and preserves zero/null', async () => {
+  it('publishes 200 games as 40 immutable five-entry chunks within rule budgets and preserves zero/null', async () => {
     const a = await client(); const b = await client(); const outsider = await client();
     await connect(a, b);
     const entries = Array.from({ length: 200 }, (_, i): PublicEntry => ({
@@ -302,9 +302,15 @@ describe('bounded strict friends-only ranking generations', () => {
     const result = await share(a, entries);
     expect((await b.store.ranking(a.uid)).entries).toEqual(entries);
     await assertFails(outsider.store.ranking(a.uid));
-    await assertFails(getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks'), limit(21))));
+    await assertFails(getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks'), limit(41))));
     await assertFails(getDocsFromServer(collection(b.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks')));
     await expect(a.store.publishRanking(a.uid, entries, await settings(a), source, result.head.revision)).resolves.toMatchObject({ changed: false });
+    const rewrite = writeBatch(a.db);
+    rewrite.update(doc(a.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks', '39'), { entries: entries.slice(195).map((row) => ({ ...row, score: 7 })) });
+    await assertFails(rewrite.commit());
+    await a.store.saveSettings(a.uid, { enabled: false, selectedIds: [] }, await settings(a));
+    expect(await a.store.cleanupSharing(a.uid)).toBe(1);
+    expect((await getDocsFromServer(query(collection(a.db, 'friendShares', a.uid, 'generations', result.head.current!.generation, 'chunks'), limit(40)))).size).toBe(0);
   }, 60000);
   it('publishes 100 canonical plus 100 Wikidata games through catalog-checked chunks and a bounded friend query', async () => {
     const { games } = parseCollection(JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8')));
@@ -324,12 +330,12 @@ describe('bounded strict friends-only ranking generations', () => {
     if (!manifest) throw new Error('The mixed-source publication did not create a current generation.');
     expect(manifest.count).toBe(200);
     const generation = await getDocFromServer(doc(a.db, 'friendShares', a.uid, 'generations', manifest.generation));
-    expect(generation.data()).toMatchObject({ count: 200, uploaded: 20, status: 'published', ids: entries.map((row) => row.id) });
-    const chunks = await getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', manifest.generation, 'chunks'), orderBy('index'), limit(20)));
-    expect(chunks.size).toBe(20);
+    expect(generation.data()).toMatchObject({ count: 200, uploaded: 40, status: 'published', ids: entries.map((row) => row.id) });
+    const chunks = await getDocsFromServer(query(collection(b.db, 'friendShares', a.uid, 'generations', manifest.generation, 'chunks'), orderBy('index'), limit(40)));
+    expect(chunks.size).toBe(40);
     chunks.docs.forEach((chunk, index) => {
       expect(chunk.id).toBe(String(index));
-      expect(chunk.data()).toEqual({ index, entries: entries.slice(index * 10, index * 10 + 10), ids: entries.slice(index * 10, index * 10 + 10).map((row) => row.id) });
+      expect(chunk.data()).toEqual({ index, entries: entries.slice(index * 5, index * 5 + 5), ids: entries.slice(index * 5, index * 5 + 5).map((row) => row.id) });
     });
     expect((await b.store.ranking(a.uid)).entries).toEqual(entries);
   }, 60000);
@@ -346,6 +352,13 @@ describe('bounded strict friends-only ranking generations', () => {
     head = (await a.store.publishRanking(a.uid, [], control, source, head.revision)).head;
     expect(head.current?.count).toBe(0);
     expect((await b.store.ranking(a.uid)).entries).toEqual([]);
+    for (const count of [4, 5, 6]) {
+      const rows = Array.from({ length: count }, (_, index): PublicEntry => ({
+        ...entry, position: index + 1, id: `wikidata:Q${index + 1}`, sourceId: `Q${index + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${index + 1}`,
+      }));
+      await share(a, rows);
+      expect((await b.store.ranking(a.uid)).entries).toEqual(rows);
+    }
   });
   it('retries cleanup alone after a published ACK and preserves both head generations even after consent stops', async () => {
     const a = await client();
@@ -403,7 +416,7 @@ describe('bounded strict friends-only ranking generations', () => {
     expect((await getDocFromServer(doc(a.db, 'friendShares', a.uid, 'generations', winner.current.generation))).data()?.status).toBe('published');
     expect((await b.store.ranking(a.uid)).entries).toEqual(published.status === 'fulfilled' ? [] : [entry]);
   });
-  it('rejects private projection fields, bad sources, unchecked tenth entries and forged progress', async () => {
+  it('rejects private projection fields, bad sources and forged progress', async () => {
     const a = await client(); const control = await a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, await settings(a));
     const generation = crypto.randomUUID(); const ref = doc(a.db, 'friendShares', a.uid, 'generations', generation);
     const registry = doc(a.db, 'friendShareRegistry', a.uid);
@@ -431,9 +444,9 @@ describe('bounded strict friends-only ranking generations', () => {
     await expect(a.store.publishRanking(a.uid, [{ ...entry, score: 1 }], control, source, published.head.revision)).rejects.toThrow(/copy changed/);
     await expect(a.store.publishRanking(a.uid, [{ ...entry, position: 2 }], control, source, published.head.revision)).rejects.toThrow(/ranking changed/);
   });
-  it('validates the tenth packed entry and prevents duplicate or unselected IDs in later chunks', async () => {
+  it('validates all five packed entries, rejects incomplete or mutable chunks and prevents cross-chunk duplicate IDs', async () => {
     const a = await client();
-    const entries = Array.from({ length: 10 }, (_, i): PublicEntry => ({
+    const entries = Array.from({ length: 5 }, (_, i): PublicEntry => ({
       ...entry, position: i + 1, id: `wikidata:Q${i + 1}`, sourceId: `Q${i + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${i + 1}`,
     }));
     const control = await a.store.saveSettings(a.uid, { enabled: true, selectedIds: entries.map((row) => row.id) }, await settings(a));
@@ -441,18 +454,35 @@ describe('bounded strict friends-only ranking generations', () => {
     const digest = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
     const stage = writeBatch(a.db);
     stage.set(doc(a.db, 'friendShareRegistry', a.uid), { ids: [generation], revision: 1 });
-    stage.set(ref, { epoch: control.epoch, settingsRevision: control.revision, source, count: 11, digest, uploaded: 0, ids: [], status: 'staging', createdAt: serverTimestamp() });
+    stage.set(ref, { epoch: control.epoch, settingsRevision: control.revision, source, count: 6, digest, uploaded: 0, ids: [], status: 'staging', createdAt: serverTimestamp() });
     await assertSucceeds(stage.commit());
     const invalid = writeBatch(a.db);
-    invalid.set(doc(ref, 'chunks', '0'), { index: 0, entries: entries.map((row, i) => i === 9 ? { ...row, notes: 'private tenth entry' } : row), ids: entries.map((row) => row.id) });
+    invalid.set(doc(ref, 'chunks', '0'), { index: 0, entries: entries.map((row, i) => i === 4 ? { ...row, notes: 'private fifth entry' } : row), ids: entries.map((row) => row.id) });
     invalid.update(ref, { uploaded: 1, ids: entries.map((row) => row.id), status: 'staging' });
     await assertFails(invalid.commit());
+    const incomplete = writeBatch(a.db);
+    incomplete.set(doc(ref, 'chunks', '0'), { index: 0, entries: entries.slice(0, 4), ids: entries.slice(0, 4).map((row) => row.id) });
+    incomplete.update(ref, { uploaded: 1, ids: entries.slice(0, 4).map((row) => row.id), status: 'staging' });
+    await assertFails(incomplete.commit());
+    const legacy = writeBatch(a.db);
+    const legacyEntries = Array.from({ length: 10 }, (_, i) => ({ ...entry, position: i + 1, id: `wikidata:Q${i + 1}`, sourceId: `Q${i + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${i + 1}` }));
+    legacy.set(doc(ref, 'chunks', '0'), { index: 0, entries: legacyEntries, ids: legacyEntries.map((row) => row.id) });
+    legacy.update(ref, { uploaded: 1, ids: legacyEntries.map((row) => row.id), status: 'ready' });
+    await assertFails(legacy.commit());
     const first = writeBatch(a.db);
     first.set(doc(ref, 'chunks', '0'), { index: 0, entries, ids: entries.map((row) => row.id) });
     first.update(ref, { uploaded: 1, ids: entries.map((row) => row.id), status: 'staging' });
     await assertSucceeds(first.commit());
-    const duplicate: PublicEntry = { ...entries[0]!, position: 11 };
-    const unselected: PublicEntry = { ...entry, position: 11, id: 'wikidata:Q999', sourceId: 'Q999', sourceUrl: 'https://www.wikidata.org/wiki/Q999' };
+    const mutate = writeBatch(a.db);
+    mutate.update(doc(ref, 'chunks', '0'), { entries: entries.map((row, i) => i === 0 ? { ...row, score: 7 } : row) });
+    await assertFails(mutate.commit());
+    const prematureHead = writeBatch(a.db);
+    prematureHead.update(ref, { status: 'published' });
+    prematureHead.set(doc(a.db, 'friendShareHeads', a.uid), { format: 1, epoch: control.epoch, settingsRevision: control.revision, source, revision: 1,
+      current: { generation, digest, count: 6 }, previous: null, updatedAt: serverTimestamp() });
+    await assertFails(prematureHead.commit());
+    const duplicate: PublicEntry = { ...entries[0]!, position: 6 };
+    const unselected: PublicEntry = { ...entry, position: 6, id: 'wikidata:Q999', sourceId: 'Q999', sourceUrl: 'https://www.wikidata.org/wiki/Q999' };
     for (const row of [duplicate, unselected]) {
       const second = writeBatch(a.db);
       second.set(doc(ref, 'chunks', '1'), { index: 1, entries: [row], ids: [row.id] });

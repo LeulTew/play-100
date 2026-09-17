@@ -6,7 +6,7 @@ import type { DocumentData, DocumentReference, Firestore, Query, QueryDocumentSn
 import { parseAvatar } from '../lib/community';
 import type { AvatarValue, PublicEntry } from '../lib/community';
 import {
-  FriendCommittedError, FriendStoreError, friendName, friendPairId, friendParticipants, friendSelection,
+  FRIEND_CHUNK_LIMIT, FRIEND_CHUNK_SIZE, FriendCommittedError, FriendStoreError, friendName, friendPairId, friendParticipants, friendSelection,
   friendToken, friendUid, friendUuid, parseFriendBlock, parseFriendChunk, parseFriendGeneration, parseFriendGroup,
   parseFriendHead, parseFriendIdentity, parseFriendInvite, parseFriendPair, parseFriendRegistry, parseFriendSettings,
   parseFriendSlot, parseFriendSource, retainsFriendGeneration, validateFriendEntries,
@@ -303,8 +303,8 @@ export class FriendStore {
     const current = head.current;
     const entries: PublicEntry[] = [];
     if (current.count) {
-      const chunks = await getDocsFromServer(query(collection(this.db, 'friendShares', ownerUid, 'generations', current.generation, 'chunks'), orderBy('index'), limit(20)));
-      if (chunks.size !== Math.ceil(current.count / 10)) throw new FriendStoreError('unavailable', 'This shared ranking is incomplete. Reload it.');
+      const chunks = await getDocsFromServer(query(collection(this.db, 'friendShares', ownerUid, 'generations', current.generation, 'chunks'), orderBy('index'), limit(FRIEND_CHUNK_LIMIT)));
+      if (chunks.size !== Math.ceil(current.count / FRIEND_CHUNK_SIZE)) throw new FriendStoreError('unavailable', 'This shared ranking is incomplete. Reload it.');
       chunks.docs.forEach((snap, index) => {
         if (snap.id !== String(index)) throw new FriendStoreError('invalid', 'This shared ranking has inconsistent chunk positions.');
         entries.push(...parseFriendChunk(snap.data(), index, current.count));
@@ -352,12 +352,13 @@ export class FriendStore {
       tx.set(generationRef, { epoch: expected.epoch, settingsRevision: expected.revision, source, count: entries.length, digest, uploaded: 0, ids: [],
         status: entries.length ? 'staging' : 'ready', createdAt: serverTimestamp() });
     });
-    for (let index = 0; index < Math.ceil(entries.length / 10); index += 1) {
+    for (let index = 0; index < Math.ceil(entries.length / FRIEND_CHUNK_SIZE); index += 1) {
       guard();
-      const chunkEntries = entries.slice(index * 10, index * 10 + 10); const batch = writeBatch(this.db);
+      const chunkEntries = entries.slice(index * FRIEND_CHUNK_SIZE, (index + 1) * FRIEND_CHUNK_SIZE);
+      const batch = writeBatch(this.db);
       batch.set(doc(generationRef, 'chunks', String(index)), { index, entries: chunkEntries, ids: chunkEntries.map((entry) => entry.id) });
-      batch.update(generationRef, { uploaded: index + 1, ids: entries.slice(0, (index + 1) * 10).map((entry) => entry.id),
-        status: (index + 1) * 10 >= entries.length ? 'ready' : 'staging' });
+      batch.update(generationRef, { uploaded: index + 1, ids: entries.slice(0, (index + 1) * FRIEND_CHUNK_SIZE).map((entry) => entry.id),
+        status: (index + 1) * FRIEND_CHUNK_SIZE >= entries.length ? 'ready' : 'staging' });
       await batch.commit();
     }
     await runTransaction(this.db, async (tx) => {
@@ -450,7 +451,7 @@ export class FriendStore {
       });
       if (!removable) continue;
       const batch = writeBatch(this.db);
-      for (let index = 0; index < 20; index += 1) batch.delete(doc(ref, 'chunks', String(index)));
+      for (let index = 0; index < FRIEND_CHUNK_LIMIT; index += 1) batch.delete(doc(ref, 'chunks', String(index)));
       await batch.commit();
       await runTransaction(this.db, async (tx) => {
         const current = await tx.get(registryRef);

@@ -7,7 +7,8 @@ import type { Game } from './types';
 
 export const FRIEND_PAGE_SIZE = 20;
 export const FRIEND_SELECTION_LIMIT = 200;
-export const FRIEND_CHUNK_SIZE = 10;
+export const FRIEND_CHUNK_SIZE = 5;
+export const FRIEND_CHUNK_LIMIT = FRIEND_SELECTION_LIMIT / FRIEND_CHUNK_SIZE;
 export const FRIEND_INVITE_LIMIT = 20;
 export const FRIEND_INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 export type FriendCursor = QueryDocumentSnapshot<DocumentData>;
@@ -172,8 +173,8 @@ export function parseFriendInvite(token: string, value: unknown): FriendInvitati
 export function parseFriendGeneration(value: unknown): FriendGeneration {
   const row = object(value, 'epoch,settingsRevision,count,digest,uploaded,ids,status,createdAt,source');
   if (typeof row.status !== 'string' || !['staging', 'ready', 'published', 'deleting'].includes(row.status)) invalid();
-  const count = integer(row.count, 0, 200); const uploaded = integer(row.uploaded, 0, 20); const ids = friendSelection(row.ids);
-  if (uploaded > Math.ceil(count / 10) || ids.length !== Math.min(uploaded * 10, count) || ((row.status === 'ready' || row.status === 'published') && ids.length !== count)) invalid();
+  const count = integer(row.count, 0, FRIEND_SELECTION_LIMIT); const uploaded = integer(row.uploaded, 0, FRIEND_CHUNK_LIMIT); const ids = friendSelection(row.ids);
+  if (uploaded > Math.ceil(count / FRIEND_CHUNK_SIZE) || ids.length !== Math.min(uploaded * FRIEND_CHUNK_SIZE, count) || ((row.status === 'ready' || row.status === 'published') && ids.length !== count)) invalid();
   return { epoch: integer(row.epoch, 1), settingsRevision: integer(row.settingsRevision, 1), source: parseFriendSource(row.source), count, digest: friendToken(row.digest), uploaded, ids, status: row.status as FriendGeneration['status'], createdAt: time(row.createdAt) };
 }
 export function parseFriendSource(value: unknown): FriendSourceRevision {
@@ -182,9 +183,10 @@ export function parseFriendSource(value: unknown): FriendSourceRevision {
 }
 export function parseFriendChunk(value: unknown, index: number, count: number): PublicEntry[] {
   const row = object(value, 'index,entries,ids');
-  if (row.index !== index || !Array.isArray(row.entries) || row.entries.length !== Math.min(10, count - index * 10) || row.entries.length < 1) invalid();
+  integer(index, 0, FRIEND_CHUNK_LIMIT - 1); integer(count, 1, FRIEND_SELECTION_LIMIT);
+  if (row.index !== index || !Array.isArray(row.entries) || row.entries.length !== Math.min(FRIEND_CHUNK_SIZE, count - index * FRIEND_CHUNK_SIZE) || row.entries.length < 1) invalid();
   const entries = row.entries.map(parsePublicEntry); const ids = friendSelection(row.ids);
-  if (entries.some((entry, offset) => entry.position !== index * 10 + offset + 1 || entry.id !== ids[offset]) || ids.length !== entries.length) invalid();
+  if (entries.some((entry, offset) => entry.position !== index * FRIEND_CHUNK_SIZE + offset + 1 || entry.id !== ids[offset]) || ids.length !== entries.length) invalid();
   return entries;
 }
 export function parseFriendRegistry(value: unknown): string[] {
