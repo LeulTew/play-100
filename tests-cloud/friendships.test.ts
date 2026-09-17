@@ -416,25 +416,54 @@ describe('bounded strict friends-only ranking generations', () => {
     expect((await getDocFromServer(doc(a.db, 'friendShares', a.uid, 'generations', winner.current.generation))).data()?.status).toBe('published');
     expect((await b.store.ranking(a.uid)).entries).toEqual(published.status === 'fulfilled' ? [] : [entry]);
   });
-  it('rejects private projection fields, bad sources and forged progress', async () => {
-    const a = await client(); const control = await a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, await settings(a));
+  it('strictly validates all five source branches, private fields, numeric bounds and forged progress', async () => {
+    const { games } = parseCollection(JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8')));
+    const canonical = games[0];
+    if (!canonical) throw new Error('The canonical collection fixture is missing.');
+    await seed('catalog/author', { records: { [canonical.slug]: { title: canonical.title, year: canonical.year } } });
+    const rows: PublicEntry[] = [
+      { position: 1, id: canonical.slug, title: canonical.title, year: canonical.year, source: 'collection', sourceId: canonical.slug, sourceUrl: null, score: 0 },
+      { ...entry, position: 2, score: null },
+      { position: 3, id: 'steam:10', title: 'Steam fixture', year: 2000, source: 'steam', sourceId: '10', sourceUrl: 'https://store.steampowered.com/app/10/', score: 10 },
+      { position: 4, id: 'freetogame:10', title: 'FreeToGame fixture', year: null, source: 'freetogame', sourceId: '10', sourceUrl: 'https://www.freetogame.com/example-game', score: null },
+      { position: 5, id: 'manual:exact-fixture', title: 'Manual fixture', year: 2020, source: 'manual', sourceId: 'exact-fixture', sourceUrl: null, score: 0 },
+    ];
+    const a = await client(); const control = await a.store.saveSettings(a.uid, { enabled: true, selectedIds: rows.map((row) => row.id) }, await settings(a));
     const generation = crypto.randomUUID(); const ref = doc(a.db, 'friendShares', a.uid, 'generations', generation);
     const registry = doc(a.db, 'friendShareRegistry', a.uid);
     const digest = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
     const stage = writeBatch(a.db);
     stage.set(registry, { ids: [generation], revision: 1 });
-    stage.set(ref, { epoch: control.epoch, settingsRevision: control.revision, source, count: 1, digest, uploaded: 0, ids: [], status: 'staging', createdAt: serverTimestamp() });
+    stage.set(ref, { epoch: control.epoch, settingsRevision: control.revision, source, count: 5, digest, uploaded: 0, ids: [], status: 'staging', createdAt: serverTimestamp() });
     await assertSucceeds(stage.commit());
-    for (const invalid of [{ ...entry, notes: 'private' }, { ...entry, sourceUrl: 'https://example.test/' }, { ...entry, email: 'private@example.test' }]) {
+    const invalidChanges: Array<{ index: number; change: Record<string, unknown> }> = [
+      { index: 0, change: { title: 'Forged canonical title' } }, { index: 0, change: { year: canonical.year + 1 } },
+      { index: 0, change: { sourceUrl: 'https://example.test/' } }, { index: 1, change: { sourceUrl: 'https://example.test/' } },
+      { index: 1, change: { sourceId: 'Q0' } }, { index: 2, change: { sourceUrl: 'https://example.test/' } },
+      { index: 3, change: { sourceUrl: 'https://www.freetogame.com.evil.invalid/game' } },
+      { index: 4, change: { source: 'unknown' } }, { index: 4, change: { sourceUrl: 'https://example.test/' } },
+      { index: 4, change: { sourceId: 'different-identity' } }, { index: 4, change: { position: '5' } },
+      { index: 4, change: { position: 5.5 } }, { index: 4, change: { id: 'manual:bad/id' } },
+      { index: 4, change: { title: '' } }, { index: 4, change: { title: 'x'.repeat(201) } },
+      { index: 4, change: { year: 1899 } }, { index: 4, change: { score: -1 } },
+      { index: 4, change: { score: 11 } }, { index: 4, change: { score: '0' } },
+      { index: 4, change: { notes: 'private' } }, { index: 4, change: { email: 'private@example.test' } },
+    ];
+    for (const { index, change } of invalidChanges) {
       const batch = writeBatch(a.db);
-      batch.set(doc(ref, 'chunks', '0'), { index: 0, entries: [invalid], ids: [entry.id] });
-      batch.update(ref, { uploaded: 1, ids: [entry.id], status: 'ready' });
+      batch.set(doc(ref, 'chunks', '0'), { index: 0, entries: rows.map((row, i) => i === index ? { ...row, ...change } : row), ids: rows.map((row) => row.id) });
+      batch.update(ref, { uploaded: 1, ids: rows.map((row) => row.id), status: 'ready' });
       await assertFails(batch.commit());
     }
-    const progress = writeBatch(a.db); progress.update(ref, { uploaded: 1, ids: [entry.id], status: 'ready' });
+    const progress = writeBatch(a.db); progress.update(ref, { uploaded: 1, ids: rows.map((row) => row.id), status: 'ready' });
     await assertFails(progress.commit());
     expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
-  });
+    const valid = writeBatch(a.db);
+    valid.set(doc(ref, 'chunks', '0'), { index: 0, entries: rows, ids: rows.map((row) => row.id) });
+    valid.update(ref, { uploaded: 1, ids: rows.map((row) => row.id), status: 'ready' });
+    await assertSucceeds(valid.commit());
+    expect((await getDocFromServer(ref)).data()?.uploaded).toBe(1);
+  }, 60000);
   it('rejects duplicate/unselected IDs across chunks and source/settings stale publication', async () => {
     const a = await client();
     const published = await share(a);

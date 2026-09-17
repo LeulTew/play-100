@@ -665,8 +665,40 @@ service cloud.firestore {
       allow delete: if own(uid) && resource.data.status == 'deleting' && !fRetained(uid, id)
         && !getAfter(/databases/$(database)/documents/friendShareRegistry/$(uid)).data.ids.hasAny([id]);
     }
-    function fPackedEntry(entry, id, position) {
-      return publicEntry(entry) && entry.position == position && entry.id == id;
+    function fPackedCanonical(id, title, year) {
+      let canonical = get(/databases/$(database)/documents/catalog/author).data.records[id];
+      return canonical.title == title && canonical.year == year;
+    }
+    function fPackedSource(source, sourceId, id, url, title, year) {
+      return source == 'wikidata'
+        ? sourceId.matches('^Q[1-9][0-9]*$') && id == 'wikidata:' + sourceId && url == 'https://www.wikidata.org/wiki/' + sourceId
+        : source == 'collection'
+          ? id == sourceId && url == null && fPackedCanonical(id, title, year)
+          : source == 'steam'
+            ? sourceId.matches('^[1-9][0-9]*$') && id == 'steam:' + sourceId && url == 'https://store.steampowered.com/app/' + sourceId + '/'
+            : source == 'freetogame'
+              ? sourceId.matches('^[1-9][0-9]*$') && id == 'freetogame:' + sourceId
+                && (url == null || (url is string && url.matches('^https://www[.]freetogame[.]com/[a-z0-9/-]+$')))
+              : source == 'manual' && id == 'manual:' + sourceId && url == null;
+    }
+    function fPackedEntry(entry, expectedId, expectedPosition) {
+      let keys = entry.keys();
+      let id = entry.id;
+      let position = entry.position;
+      let title = entry.title;
+      let year = entry.year;
+      let score = entry.score;
+      let source = entry.source;
+      let sourceId = entry.sourceId;
+      let url = entry.sourceUrl;
+      return keys.size() == 8 && keys.hasOnly(['position', 'id', 'title', 'year', 'source', 'sourceId', 'sourceUrl', 'score'])
+        && position is int && position == expectedPosition
+        && id is string && id == expectedId && id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
+        && title is string && title.size() >= 1 && title.size() <= 200
+        && (year == null || (year is int && year >= 1900 && year <= 2100))
+        && (score == null || (score is number && score >= 0 && score <= 10))
+        && source is string && sourceId is string && sourceId.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
+        && fPackedSource(source, sourceId, id, url, title, year);
     }
     function fChunkEntry(data, offset) {
       return offset >= data.entries.size() || fPackedEntry(data.entries[offset], data.ids[offset], data.index * 5 + offset + 1);

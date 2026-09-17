@@ -288,6 +288,19 @@ been deployed, so there is no production friend-data migration; old ten-entry
 friend writes fail the new exact chunk-size/position rules rather than silently
 truncating content.
 
+The five-entry diagnostic also failed on **chunk zero** (`uploaded: 0`), ruling
+out a failure that only grows with previously uploaded IDs. Its expression
+coverage reported evaluation across the legacy source-validation OR branches.
+Friend chunks now use a separate conditional source dispatcher so only the
+matching source predicate executes, cache canonical metadata once, and cache
+entry fields before validation. Legacy `publicEntry` / `safeSource` are unchanged.
+The friend predicate still requires exactly the same eight keys, strict numeric
+types/ranges, source identities and URLs, and canonical title/year matches.
+Position equality is against the validated chunk index and offset, which yields
+an integer from 1 through 200. This removes redundant range checks, not the bound.
+The full-capacity and mixed-source runtime cases remain the required budget
+proof; static source parity alone is not a runtime-limit measurement.
+
 ## Focused verification
 
 `src/lib/friend-types.test.ts` covers strict projection/identity/source parsers,
