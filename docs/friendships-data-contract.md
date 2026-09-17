@@ -40,6 +40,16 @@ an acknowledgement when the SDK did not receive one. Network loss during a commi
 can have an uncertain outcome; reconcile server state before manually retrying.
 Void-returning graph helpers have no post-commit reads and resolve only on ACK.
 
+Post-ACK document refreshes use a separate **read-only transaction**, bounded to
+three SDK attempts. Its `tx.get` reads directly through the Datastore RPC path,
+not the RemoteStore listener cache that may still report a previously missing
+document. It writes nothing and returns only strictly parsed server metadata.
+If this read fails, the same `FriendCommittedError` contract applies; the original
+mutation is not replayed. This applies to settings initialization/update,
+identity, request/response/invite metadata, groups and the publication head.
+Public reads/listeners and `graphReady` retain their server-stream preflight,
+so an explicitly disabled SDK network still blocks graph changes before writes.
+
 ```ts
 initialize(uid: string): Promise<FriendSettings>
 settings(uid: string): Promise<FriendSettings | null>
@@ -349,6 +359,6 @@ The exact pinned Firebase 12.19.0 source explains the observed behavior:
 `friend-mutations.test.ts` tests preflight rejection, acknowledgement timing,
 raw transaction failure and typed post-ACK failures across graph, invitations,
 settings, identity, groups and sharing. The cloud suite separately injects only
-readback failures after real SDK graph/settings commits, then verifies their
+read-only transaction failures after real SDK graph/settings commits, then verifies their
 server state from a fresh store. Explicit browser-offline coverage is additional,
 not a replacement or weakening of the SDK-disable test.

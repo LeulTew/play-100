@@ -16,6 +16,11 @@ import { friendPairId } from '../src/lib/friend-types';
 import type { FriendPair, FriendSettings } from '../src/lib/friend-types';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
 
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
+  return { ...actual, runTransaction: vi.fn(actual.runTransaction) };
+});
+
 const [firestoreHost, firestorePort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
 const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
 const projectId = 'demo-play100';
@@ -30,7 +35,11 @@ beforeAll(async () => {
   setLogLevel('silent');
   environment = await initializeTestEnvironment({ projectId, firestore: { host: firestoreHost, port: Number(firestorePort), rules: readFileSync('firestore.rules', 'utf8') } });
 });
-beforeEach(async () => { await environment.clearFirestore(); });
+beforeEach(async () => {
+  const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+  vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
+  await environment.clearFirestore();
+});
 afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); await Promise.all(apps.splice(0).map((app) => deleteApp(app))); });
 afterAll(async () => { await environment.cleanup(); });
 
@@ -60,6 +69,10 @@ async function client(anonymous = false, prepareFriends = true) {
   return { uid: user.uid, db, store };
 }
 type Client = Awaited<ReturnType<typeof client>>;
+async function failNextReadback(cause: Error): Promise<void> {
+  const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+  vi.mocked(runTransaction).mockImplementationOnce(actual.runTransaction).mockRejectedValueOnce(cause);
+}
 async function settings(owner: Client): Promise<FriendSettings> {
   const current = await owner.store.settings(owner.uid);
   if (!current) throw new Error('Missing isolated friend settings.');
@@ -80,6 +93,20 @@ function pairData(a: string, b: string, from: string, state = 'accepted') {
 }
 
 describe('canonical friendship requests and private relationship metadata', () => {
+  it('returns authoritative initialized settings while a prior missing-document watch remains active', async () => {
+    const a = await client(false, false);
+    let stop: (() => void) | undefined;
+    const missing = new Promise<void>((resolve, reject) => {
+      stop = a.store.watchSettings(a.uid, (value) => { if (value === null) resolve(); }, reject);
+    });
+    try {
+      await missing;
+      const initialized = await a.store.initialize(a.uid);
+      expect(initialized).toMatchObject({ format: 1, enabled: false, deleted: false, epoch: 1, revision: 1 });
+      expect(initialized.updatedAt).toBeGreaterThan(0);
+      expect(await a.store.initialize(a.uid)).toEqual(initialized);
+    } finally { stop?.(); }
+  });
   it('starts sharing off and rejects stranger identities, private data, forged edges and half-edges', async () => {
     const a = await client(); const b = await client(); const stranger = await client();
     expect((await settings(a)).enabled).toBe(false);
@@ -184,16 +211,17 @@ describe('canonical friendship requests and private relationship metadata', () =
     const a = await client(); const b = await client();
     const fresh = new FriendStore(b.db);
     const disconnected = new Error('Readback disconnected after commit acknowledgement.');
-    vi.spyOn(a.store, 'pair').mockRejectedValue(disconnected);
+    await failNextReadback(disconnected);
     await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toMatchObject({
       code: 'committed-refresh-failed', committed: true, receipt: { operation: 'send-request', epoch: 1 },
     });
     expect((await fresh.pair(b.uid, a.uid))?.state).toBe('pending');
-    vi.spyOn(b.store, 'pair').mockRejectedValue(disconnected);
+    await failNextReadback(disconnected);
     await expect(b.store.respond(b.uid, a.uid, 'accept', 1)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'respond', epoch: 2 },
     });
     expect((await fresh.pair(b.uid, a.uid))?.state).toBe('accepted');
+    await failNextReadback(disconnected);
     await expect(a.store.respond(a.uid, b.uid, 'remove', 2)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'respond', epoch: 3 },
     });
@@ -201,13 +229,15 @@ describe('canonical friendship requests and private relationship metadata', () =
   });
   it('preserves a successful sharing-stop acknowledgement when its settings readback fails', async () => {
     const a = await client(); const control = await settings(a);
-    vi.spyOn(a.store, 'settings').mockRejectedValue(new Error('Settings stream disconnected after commit.'));
+    const disconnected = new Error('Read-only settings transaction disconnected after commit.');
+    await failNextReadback(disconnected);
     await expect(a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, control)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'save-settings', uid: a.uid },
     });
     const saved = await new FriendStore(a.db).settings(a.uid);
     expect(saved).toMatchObject({ enabled: true, selectedIds: [entry.id], revision: control.revision + 1 });
     if (!saved) throw new Error('The acknowledged sharing settings are missing.');
+    await failNextReadback(disconnected);
     await expect(a.store.saveSettings(a.uid, { enabled: false, selectedIds: [] }, saved)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'save-settings', uid: a.uid },
     });
