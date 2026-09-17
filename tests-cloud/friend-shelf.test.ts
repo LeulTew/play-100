@@ -116,6 +116,12 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     await assertFails(getDocsFromServer(peerChunks));
     await assertFails(getDocsFromServer(query(peerChunks, limit(101))));
     await assertFails(setDoc(doc(a.db, 'friendShelves', a.uid, 'generations', id, 'chunks', '0'), { index: 0, entries: entries.slice(0, 2), ids: entries.slice(0, 2).map((item) => item.id) }));
+    if (sourceName === 'manual') {
+      await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, (await a.store.config(a.uid))!);
+      expect(await a.store.cleanupSharing(a.uid)).toBe(1);
+      expect((await getDocsFromServer(query(chunks, limit(100)))).size).toBe(0);
+      expect(await a.store.cleanupSharing(a.uid)).toBe(0);
+    }
   }, 120000);
   it('uses the actual public 100 canonical facts without modifying public/ranking consent', async () => {
     const a = await client();
@@ -197,7 +203,8 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config);
     await assertFails(b.store.shelf(a.uid));
     expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
-    await assertFails(a.store.publish(a.uid, [entry], config, source, second.head.revision, () => true));
+    await expect(a.store.publish(a.uid, [entry], config, source, second.head.revision, () => true)).rejects.toMatchObject({ code: 'conflict' });
+    await assertFails(stage(a, config, 1));
     await a.store.cleanupSharing(a.uid); expect(await a.store.cleanupSharing(a.uid)).toBe(0);
     await publish(a); expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
   });
@@ -299,6 +306,31 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await expect(a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, recovered)).rejects.not.toBeInstanceOf(FriendShelfCommittedError);
     await enableNetwork(a.db);
     expect((await a.store.config(a.uid))?.enabled).toBe(true);
+  });
+  it('recovers an acknowledged publication readback failure without replaying any write', async () => {
+    const a = await client(); const config = await select(a, [entry]);
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    vi.mocked(runTransaction).mockImplementationOnce(actual.runTransaction).mockImplementationOnce(actual.runTransaction).mockImplementationOnce(actual.runTransaction).mockRejectedValueOnce(new Error('Readback unavailable'));
+    const publication = vi.spyOn(a.store, 'publish');
+    await expect(a.store.publish(a.uid, [entry], config, source, 0, () => true)).rejects.toMatchObject({ committed: true, receipt: { operation: 'publish-shelf', uid: a.uid, revision: 1 }, phase: 'refresh' });
+    const recovered = (await a.store.head(a.uid))!;
+    expect(recovered.revision).toBe(1); expect(recovered.updatedAt).toBeGreaterThan(0);
+    await a.store.prune(a.uid);
+    expect(publication).toHaveBeenCalledOnce();
+    expect(await a.store.head(a.uid)).toEqual(recovered);
+    expect((await a.store.shelf(a.uid)).entries).toEqual([entry]);
+  });
+  it('retains acknowledged head generations during cleanup-only retries, even after consent changes', async () => {
+    const a = await client(); const config = await select(a, [entry]);
+    const cleanup = vi.spyOn(a.store, 'prune').mockResolvedValueOnce(0).mockRejectedValueOnce(new Error('Cleanup unavailable'));
+    await expect(a.store.publish(a.uid, [entry], config, source, 0, () => true)).rejects.toMatchObject({ committed: true, receipt: { operation: 'publish-shelf' }, phase: 'cleanup' });
+    cleanup.mockRestore();
+    const head = (await a.store.head(a.uid))!;
+    await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config);
+    expect(await a.store.prune(a.uid)).toBe(0);
+    expect(await a.store.head(a.uid)).toEqual(head);
+    expect((await getDocFromServer(doc(a.db, 'friendShelfRegistry', a.uid))).data()?.ids).toContain(head.current!.generation);
+    expect(await a.store.cleanupSharing(a.uid)).toBe(1);
   });
   it('invalidates active head listeners on a peer block; identity remains a separate read path', async () => {
     const a = await client(); const b = await client(); await connect(a, b); await publish(a);
