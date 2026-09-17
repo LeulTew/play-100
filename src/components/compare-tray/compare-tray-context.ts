@@ -1,11 +1,14 @@
 import { createContext, useContext } from 'react';
-import type { CompareTraySnapshot, CompareTrayStore } from '../../lib/compare-tray';
+import type { CompareDragSession, CompareTraySnapshot, CompareTrayStore } from '../../lib/compare-tray';
 
 export interface CompareTrayContextValue extends CompareTraySnapshot {
   currentScope: string;
   pin: CompareTrayStore['pin'];
   unpin: CompareTrayStore['unpin'];
   clear: CompareTrayStore['clear'];
+  beginDrag: CompareDragSession['beginDrag'];
+  cancelDrag: CompareDragSession['cancelDrag'];
+  dropGame: CompareDragSession['dropGame'];
 }
 
 export const CompareTrayContext = createContext<CompareTrayContextValue | null>(null);

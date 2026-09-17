@@ -10,6 +10,7 @@ import RankingsPage from '../personal/RankingsPage';
 import { GameArtwork } from '../games/GameArtwork';
 import { CompareTray } from './CompareTray';
 import { ComparePinButton } from './ComparePinButton';
+import { CompareDragHandle } from './CompareDragHandle';
 import { CompareTrayContext } from './compare-tray-context';
 
 const alpha: LibraryRecord = { id: 'alpha', source: 'collection', sourceId: 'alpha', title: 'Alpha game', year: 2020, collectionRank: 1, sourceUrl: null, studio: null, genre: null };
@@ -73,7 +74,7 @@ describe('workspace embedding contract', () => {
 });
 
 describe('tray and image rendering contract', () => {
-  const value = { currentScope: 'guest', items: [alpha], persistent: true, warning: null, error: null, status: '', pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true) };
+  const value = { currentScope: 'guest', items: [alpha], persistent: true, warning: null, error: null, status: '', dragging: false, pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), beginDrag: vi.fn(() => null), cancelDrag: vi.fn(), dropGame: vi.fn(() => true) };
   it('exposes button and keyboard-native pin controls, a dock and an explicitly named chooser', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value }, h(ComparePinButton, { record: alpha }), h(CompareTray, { onCompare: vi.fn() })));
     expect(html).toContain('aria-pressed="true"');
@@ -89,6 +90,13 @@ describe('tray and image rendering contract', () => {
       expect(html).not.toContain('<aside');
       expect(html).not.toContain('compare-tray-reserve');
     }
+  });
+  it('offers an optional semantic handle and a drop target even before the first pin', () => {
+    const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, items: [], dragging: true } }, h(CompareDragHandle, { record: alpha }), h(CompareTray, { onCompare: vi.fn() })));
+    expect(html).toContain('Pin Alpha game for comparison, or drag to the tray');
+    expect(html).toContain('draggable="false"');
+    expect(html).toContain('data-dragging="true"');
+    expect(html).toContain('Drop to pin for comparison');
   });
   it('loads only local artwork and exposes fixed dimensions and lazy loading', () => {
     const artwork = { src: `/images/discovery/${'a'.repeat(64)}.webp`, width: 120, height: 80, alt: '', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Example.webp', credit: 'Example creator', license: 'CC BY', licenseUrl: 'https://creativecommons.org/licenses/by/4.0/' };

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
+import { COMPARE_DRAG_TYPE } from '../../lib/compare-tray';
 import { Dialog } from '../Dialog';
 import { Icon } from '../Icon';
 import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
@@ -22,14 +23,14 @@ export function CompareTray(props: CompareTrayProps) {
 }
 
 function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = false, hidden = false }: CompareTrayProps) {
-  const { items, unpin, clear, warning, error, persistent } = useCompareTray();
+  const { items, unpin, clear, warning, error, persistent, dragging, dropGame } = useCompareTray();
   const [open, setOpen] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
   const id = useId();
   const expand = useRef<HTMLButtonElement>(null);
   const sheetTitle = useRef<HTMLHeadingElement>(null);
   const list = useRef<HTMLUListElement>(null);
-  const hasTray = items.length > 0 || Boolean(warning) || Boolean(error);
+  const hasTray = items.length > 0 || Boolean(warning) || Boolean(error) || dragging;
   useEffect(() => {
     const onVisibility = () => setDocumentVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
@@ -50,7 +51,20 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   };
   return <>
     {hasTray && !hidden && <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />}
-    {hasTray && !hidden && <aside className="compare-tray-dock" aria-label="Pinned games for comparison" data-animate={animate && documentVisible ? 'true' : 'false'}>
+    {hasTray && !hidden && <aside className="compare-tray-dock" aria-label="Pinned games for comparison" data-animate={animate && documentVisible ? 'true' : 'false'} data-dragging={dragging}
+      onDragOver={(event) => {
+        if (dragging && event.dataTransfer.types.includes(COMPARE_DRAG_TYPE)) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }
+      }}
+      onDrop={(event) => {
+        if (!dragging || !event.dataTransfer.types.includes(COMPARE_DRAG_TYPE)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        dropGame(event.dataTransfer.getData(COMPARE_DRAG_TYPE));
+      }}>
+      {dragging && <span className="compare-tray-drop-label"><Icon name="plus" width="20" height="20" />Drop to pin for comparison</span>}
       <button ref={expand} type="button" className="compare-tray-expand" aria-label={`Open Compare tray, ${items.length} ${items.length === 1 ? 'game' : 'games'}${persistent ? '' : ', temporary pins'}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <span className="compare-tray-stack" aria-hidden="true">{items.slice(-3).map((record) => <span className="compare-tray-jacket" key={record.id}><GameArtwork record={record} artwork={resolveArtwork?.(record)} /></span>)}</span>
         <span><strong>{items.length} {items.length === 1 ? 'game' : 'games'}</strong><span>{persistent ? 'Compare tray' : 'Temporary tray'}</span></span>
