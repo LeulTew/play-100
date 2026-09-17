@@ -558,7 +558,14 @@ describe('bounded strict friends-only ranking generations', () => {
     await assertFails(getDocFromServer(doc(b.db, 'friendShares', a.uid, 'generations', published.head.current!.generation, 'chunks', '0')));
     await a.store.revokeForDeletion(a.uid);
     await assertFails(b.store.identity(a.uid));
-    await assertFails(b.store.sendRequest(b.uid, a.uid));
+    await expect(b.store.sendRequest(b.uid, a.uid)).rejects.toThrow(/already friends/);
+    const retained = await b.store.pair(b.uid, a.uid);
+    if (!retained) throw new Error('The retained relationship fixture is missing.');
+    await b.store.respond(b.uid, a.uid, 'remove', retained.epoch);
+    const pairRef = doc(b.db, 'friendPairs', friendPairId(b.uid, a.uid));
+    const removed = await getDocFromServer(pairRef);
+    if (!removed.exists()) throw new Error('The removed relationship fixture is missing.');
+    await assertFails(setDoc(pairRef, { ...removed.data(), from: b.uid, state: 'pending', epoch: removed.data().epoch + 1, inviteSlot: null, updatedAt: serverTimestamp() }));
   });
 });
 
