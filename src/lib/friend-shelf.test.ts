@@ -75,10 +75,13 @@ describe('selected saved-library shelf, not a ranking projection', () => {
     expect(await friendShelfDigest(entries)).not.toBe(await friendShelfDigest([...entries].reverse()));
   });
   it('starts off with strict independent control metadata and ACK-only error shape', () => {
-    const config = { format: 1, enabled: false, deleted: false, selection: '', epoch: 1, revision: 1, updatedAt: Timestamp.fromMillis(1000) };
+    const config = { format: 1, enabled: false, deleted: false, consentSyncEpoch: null, selection: '', epoch: 1, revision: 1, updatedAt: Timestamp.fromMillis(1000) };
     expect(parseFriendShelfConfig(config)).toMatchObject({ enabled: false, selectedIds: [], updatedAt: 1000 });
     expect(() => parseFriendShelfConfig({ ...config, updatedAt: Date.now() })).toThrow();
     expect(() => parseFriendShelfConfig({ ...config, deleted: true, enabled: true })).toThrow();
+    expect(() => parseFriendShelfConfig({ ...config, enabled: true, consentSyncEpoch: null })).toThrow();
+    expect(() => parseFriendShelfConfig({ ...config, consentSyncEpoch: 1 })).toThrow();
+    expect(parseFriendShelfConfig({ ...config, enabled: true, consentSyncEpoch: 1 }).consentSyncEpoch).toBe(1);
     const error = new FriendShelfCommittedError({ uid: 'owner', operation: 'publish-shelf', generation: crypto.randomUUID(), revision: 3 }, new Error('Readback unavailable'));
     expect(error).toMatchObject({ committed: true, code: 'committed-refresh-failed', phase: 'refresh' });
     expect(error.receipt).not.toHaveProperty('updatedAt');

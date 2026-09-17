@@ -756,13 +756,27 @@ service cloud.firestore {
       let control = sConfig(uid);
       let sync = head(uid);
       return fOwnLive(uid) && control.enabled && !control.deleted && control.epoch == epoch && control.revision == revision
-        && fSource(source) && sync.enabled && !sync.deleted && sync.epoch == source.syncEpoch && sync.revision == source.remoteRevision;
+        && fSource(source) && sync.enabled && !sync.deleted && control.consentSyncEpoch == source.syncEpoch
+        && sync.epoch == source.syncEpoch && sync.revision == source.remoteRevision;
     }
     function sCurrent(uid, id) {
       let control = sConfig(uid);
       let pointer = sHead(uid);
-      return fConnected(uid, false) && control.enabled && !control.deleted && !head(uid).deleted
+      let sync = head(uid);
+      return fConnected(uid, false) && control.enabled && !control.deleted && !sync.deleted
+        && pointer.source.syncEpoch == control.consentSyncEpoch && (!sync.enabled || control.consentSyncEpoch == sync.epoch)
         && pointer.epoch == control.epoch && pointer.settingsRevision == control.revision && pointer.current.generation == id;
+    }
+    function sConfigShape(data) {
+      return fKeys(data, ['format', 'enabled', 'deleted', 'consentSyncEpoch', 'selection', 'epoch', 'revision', 'updatedAt'])
+        && data.format == 1 && data.enabled is bool && data.deleted is bool && fSelection(data.selection)
+        && fInt(data.epoch, 1, 9007199254740991) && fInt(data.revision, 1, 9007199254740991)
+        && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.selection == ''))
+        && (data.enabled ? fInt(data.consentSyncEpoch, 1, 9007199254740991) : data.consentSyncEpoch == null);
+    }
+    function sConfigConsent(uid, data) {
+      let sync = head(uid);
+      return !data.enabled || (sync.enabled && !sync.deleted && data.consentSyncEpoch == sync.epoch);
     }
     function sRetained(uid, id) {
       let control = sConfig(uid);
@@ -774,10 +788,10 @@ service cloud.firestore {
     match /friendShelfSettings/{uid} {
       allow get: if own(uid);
       allow list, delete: if false;
-      allow create: if own(uid) && fSettingsShape(request.resource.data)
+      allow create: if own(uid) && sConfigShape(request.resource.data)
         && request.resource.data.epoch == 1 && request.resource.data.revision == 1 && !request.resource.data.enabled
         && (fOwnLive(uid) || request.resource.data.deleted);
-      allow update: if own(uid) && !resource.data.deleted && fSettingsShape(request.resource.data)
+      allow update: if own(uid) && !resource.data.deleted && sConfigShape(request.resource.data) && sConfigConsent(uid, request.resource.data)
         && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.revision == resource.data.revision + 1
         && (fOwnLive(uid) || request.resource.data.deleted);
     }

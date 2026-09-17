@@ -8,7 +8,7 @@ import {
 } from '../lib/friend-types';
 import type { FriendSourceRevision } from '../lib/friend-types';
 import {
-  FRIEND_SHELF_CHUNK_LIMIT, FRIEND_SHELF_CHUNK_SIZE, FriendShelfCommittedError, friendShelfDigest,
+  FRIEND_SHELF_CHUNK_LIMIT, FRIEND_SHELF_CHUNK_SIZE, FriendShelfCommittedError, FriendShelfConsentError, friendShelfDigest,
   parseFriendShelfChunk, parseFriendShelfConfig, parseFriendShelfHead, shelfSelection, validateFriendShelfEntries,
 } from '../lib/friend-shelf-types';
 import type { FriendShelf, FriendShelfConfig, FriendShelfEntry, FriendShelfHead, FriendShelfReceipt } from '../lib/friend-shelf-types';
@@ -67,21 +67,25 @@ export class FriendShelfStore {
       online();
       const snapshot = await tx.get(ref);
       if (snapshot.exists()) { active(parseFriendShelfConfig(snapshot.data())); return; }
-      tx.set(ref, { format: 1, enabled: false, deleted: false, selection: '', epoch: 1, revision: 1, updatedAt: serverTimestamp() });
+      tx.set(ref, { format: 1, enabled: false, deleted: false, consentSyncEpoch: null, selection: '', epoch: 1, revision: 1, updatedAt: serverTimestamp() });
     });
     return this.afterCommit({ operation: 'initialize-shelf', uid }, async () => active(await this.confirmed(ref, parseFriendShelfConfig)));
   }
-  async saveConfig(uid: string, input: { enabled: boolean; selectedIds: string[] }, expected: FriendShelfConfig): Promise<FriendShelfConfig> {
+  async saveConfig(uid: string, input: { enabled: boolean; selectedIds: string[]; consentSyncEpoch: number | null }, expected: FriendShelfConfig): Promise<FriendShelfConfig> {
     const selectedIds = shelfSelection(input.selectedIds);
     if (typeof input.enabled !== 'boolean') throw new FriendStoreError('invalid', 'Choose whether to share these games.');
     online(); await this.config(uid);
     const ref = this.ref('friendShelfSettings', uid);
     await runTransaction(this.db, async (tx) => {
       online();
-      const snapshot = await tx.get(ref);
+      const [snapshot, sync] = await Promise.all([tx.get(ref), tx.get(this.ref('syncHeads', uid))]);
       const current = expectedConfig(snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null, expected);
-      if (current.enabled === input.enabled && current.selectedIds.join('|') === selectedIds.join('|')) return;
-      tx.update(ref, { enabled: input.enabled, selection: selectedIds.join('|'), epoch: current.epoch + 1, revision: current.revision + 1, updatedAt: serverTimestamp() });
+      if (input.enabled) {
+        const source = sync.exists() ? parseHead(sync.data()) : null;
+        if (!source?.enabled || source.deleted || input.consentSyncEpoch !== source.epoch) throw new FriendShelfConsentError();
+      } else if (input.consentSyncEpoch !== null) throw new FriendStoreError('invalid', 'Stopped sharing must clear its saving consent.');
+      if (current.enabled === input.enabled && current.consentSyncEpoch === input.consentSyncEpoch && current.selectedIds.join('|') === selectedIds.join('|')) return;
+      tx.update(ref, { enabled: input.enabled, consentSyncEpoch: input.consentSyncEpoch, selection: selectedIds.join('|'), epoch: current.epoch + 1, revision: current.revision + 1, updatedAt: serverTimestamp() });
     });
     return this.afterCommit({ operation: 'save-shelf-config', uid }, async () => active(await this.confirmed(ref, parseFriendShelfConfig)));
   }
@@ -109,6 +113,7 @@ export class FriendShelfStore {
   async publish(uid: string, input: FriendShelfEntry[], expected: FriendShelfConfig, sourceInput: FriendSourceRevision, expectedHeadRevision: number, isCurrent: () => boolean): Promise<{ changed: boolean; head: FriendShelfHead }> {
     if (!active(expected).enabled) throw new FriendStoreError('unavailable', 'Preview and enable shared games first.');
     const entries = validateFriendShelfEntries(input, expected.selectedIds); const source = parseFriendSource(sourceInput);
+    if (expected.consentSyncEpoch !== source.syncEpoch) throw new FriendShelfConsentError();
     const guard = () => { online(); if (!isCurrent()) conflict('This account or selection changed. The shelf update was cancelled.'); };
     const checkSource = (data: DocumentData | undefined) => {
       const sync = data ? parseHead(data) : null;
@@ -209,7 +214,7 @@ export class FriendShelfStore {
     await runTransaction(this.db, async (tx) => {
       const snapshot = await tx.get(ref); const current = snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null;
       if (current?.deleted) return;
-      tx.set(ref, { format: 1, enabled: false, deleted: true, selection: '', epoch: (current?.epoch ?? 0) + 1, revision: (current?.revision ?? 0) + 1, updatedAt: serverTimestamp() });
+      tx.set(ref, { format: 1, enabled: false, deleted: true, consentSyncEpoch: null, selection: '', epoch: (current?.epoch ?? 0) + 1, revision: (current?.revision ?? 0) + 1, updatedAt: serverTimestamp() });
     });
   }
   async cleanupDeleted(uid: string): Promise<{ deleted: number; done: boolean }> {

@@ -3,7 +3,7 @@ import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebas
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteApp, initializeApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
-import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, initializeAuth, inMemoryPersistence, reload } from 'firebase/auth';
+import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, initializeAuth, inMemoryPersistence, reload, signInWithEmailAndPassword } from 'firebase/auth';
 import {
   collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, setLogLevel, Timestamp, writeBatch,
@@ -48,7 +48,7 @@ async function client(anonymous = false) {
   const auth = initializeAuth(app, { persistence: inMemoryPersistence }); connectAuthEmulator(auth, `http://${authAddress}`, { disableWarnings: true });
   const db = getFirestore(app); connectFirestoreEmulator(db, host, Number(port));
   const store = new FriendShelfStore(db); const friends = new FriendStore(db);
-  if (anonymous) return { uid: '', db, store, friends };
+  if (anonymous) return { uid: '', db, store, friends, auth };
   const user = (await createUserWithEmailAndPassword(auth, `shelf-${crypto.randomUUID()}@example.test`, 'Emulator-only-passphrase-4382')).user;
   const response = await fetch(`http://${authAddress}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' }, body: JSON.stringify({ localId: user.uid, emailVerified: true }),
@@ -58,7 +58,7 @@ async function client(anonymous = false) {
   await friends.initialize(user.uid); await friends.saveIdentity(user.uid, { displayName: 'Shelf test nickname', avatar }, 0);
   await seed(`publicProfiles/${user.uid}`, { uid: user.uid, published: true, hidden: false });
   await seed(`syncHeads/${user.uid}`, { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
-  return { uid: user.uid, db, store, friends };
+  return { uid: user.uid, db, store, friends, auth };
 }
 type Client = Awaited<ReturnType<typeof client>>;
 async function connect(a: Client, b: Client) {
@@ -67,18 +67,18 @@ async function connect(a: Client, b: Client) {
 }
 async function select(a: Client, entries: FriendShelfEntry[]) {
   const config = await a.store.config(a.uid) ?? await a.store.initialize(a.uid);
-  return a.store.saveConfig(a.uid, { enabled: true, selectedIds: entries.map((item) => item.id) }, config);
+  return a.store.saveConfig(a.uid, { enabled: true, selectedIds: entries.map((item) => item.id), consentSyncEpoch: 1 }, config);
 }
 async function publish(a: Client, entries = [entry]) {
   const config = await select(a, entries); const head = await a.store.head(a.uid);
   return a.store.publish(a.uid, entries, config, source, head?.revision ?? 0, () => true);
 }
-async function stage(a: Client, config: FriendShelfConfig, count: number) {
+async function stage(a: Client, config: FriendShelfConfig, count: number, sourceInput = source) {
   const id = crypto.randomUUID(); const registry = doc(a.db, 'friendShelfRegistry', a.uid);
   await runTransaction(a.db, async (tx) => {
     const current = await tx.get(registry); const ids: string[] = current.exists() ? current.data().ids : [];
     tx.set(registry, { ids: [...ids, id], revision: current.exists() ? current.data().revision + 1 : 1 });
-    tx.set(doc(a.db, 'friendShelves', a.uid, 'generations', id), { epoch: config.epoch, settingsRevision: config.revision, source, count, digest: '0'.repeat(64), uploaded: 0, ids: [], status: count ? 'staging' : 'ready', createdAt: serverTimestamp() });
+    tx.set(doc(a.db, 'friendShelves', a.uid, 'generations', id), { epoch: config.epoch, settingsRevision: config.revision, source: sourceInput, count, digest: '0'.repeat(64), uploaded: 0, ids: [], status: count ? 'staging' : 'ready', createdAt: serverTimestamp() });
   });
   return id;
 }
@@ -132,7 +132,7 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     const a = await client(); const b = await client(); const stranger = await client(); const anonymous = await client(true);
     expect(await a.store.config(a.uid)).toBeNull();
     const config = await a.store.initialize(a.uid); expect(config.enabled).toBe(false); expect(config.selectedIds).toEqual([]);
-    await assertFails(setDoc(doc(b.db, 'friendShelfSettings', b.uid), { format: 1, enabled: true, deleted: false, selection: entry.id, epoch: 1, revision: 1, updatedAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(b.db, 'friendShelfSettings', b.uid), { format: 1, enabled: true, deleted: false, consentSyncEpoch: 1, selection: entry.id, epoch: 1, revision: 1, updatedAt: serverTimestamp() }));
     const result = await publish(a); const id = result.head.current!.generation;
     for (const viewer of [b, stranger, anonymous]) {
       await assertFails(viewer.store.head(a.uid));
@@ -168,13 +168,13 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     { source: 'freetogame', id: 'freetogame:12', sourceId: '12', sourceUrl: 'https://www.freetogame.com.evil.test/game' },
     { source: 'manual', id: 'manual:saved', sourceId: 'saved', sourceUrl: 'https://example.test/image.svg' },
   ])('denies malformed $source source identity through raw SDK writes', async (patch) => {
-    const a = await client(); const config = await a.store.saveConfig(a.uid, { enabled: true, selectedIds: [patch.id] }, await a.store.initialize(a.uid)); const id = await stage(a, config, 1);
+    const a = await client(); const config = await a.store.saveConfig(a.uid, { enabled: true, selectedIds: [patch.id], consentSyncEpoch: 1 }, await a.store.initialize(a.uid)); const id = await stage(a, config, 1);
     await assertFails(rawChunk(a, id, [{ ...entry, ...patch }], [patch.id]));
   });
   it('denies malformed selection/control/generation mutations and incomplete publication', async () => {
     const a = await client(); const config = await a.store.initialize(a.uid);
-    const wire = { format: 1, enabled: true, deleted: false, selection: entry.id, epoch: config.epoch + 1, revision: config.revision + 1, updatedAt: serverTimestamp() };
-    for (const patch of [{ selection: `${entry.id}|${entry.id}` }, { selection: Array.from({ length: 201 }, (_, i) => `manual:x${i}`).join('|') }, { selectedIds: [entry.id] }, { epoch: 999 }, { email: 'private' }]) {
+    const wire = { format: 1, enabled: true, deleted: false, consentSyncEpoch: 1, selection: entry.id, epoch: config.epoch + 1, revision: config.revision + 1, updatedAt: serverTimestamp() };
+    for (const patch of [{ selection: `${entry.id}|${entry.id}` }, { selection: Array.from({ length: 201 }, (_, i) => `manual:x${i}`).join('|') }, { selectedIds: [entry.id] }, { epoch: 999 }, { email: 'private' }, { consentSyncEpoch: null }, { consentSyncEpoch: 3 }]) {
       await assertFails(setDoc(doc(a.db, 'friendShelfSettings', a.uid), { ...wire, ...patch }));
     }
     const selected = await select(a, [entry]);
@@ -194,14 +194,14 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await assertFails(getDocFromServer(doc(b.db, 'friendShelves', a.uid, 'generations', first.head.current!.generation, 'chunks', '0')));
     expect((await b.store.shelf(a.uid)).head.revision).toBe(second.head.revision);
     const config = (await a.store.config(a.uid))!;
-    await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [] }, config);
+    await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config);
     await assertFails(b.store.shelf(a.uid));
     expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
     await assertFails(a.store.publish(a.uid, [entry], config, source, second.head.revision, () => true));
     await a.store.cleanupSharing(a.uid); expect(await a.store.cleanupSharing(a.uid)).toBe(0);
     await publish(a); expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
   });
-  it('revokes an old-client online-copy deletion without shelf API calls, while ordinary pause keeps the last shared shelf', async () => {
+  it('revokes old-client online deletion and re-enable until fresh epoch-bound consent; ordinary pause keeps the last shelf', async () => {
     const a = await client(); const b = await client(); await connect(a, b);
     const shared = await publish(a);
     const headRef = doc(a.db, 'syncHeads', a.uid);
@@ -214,6 +214,20 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await assertFails(b.store.head(a.uid));
     await assertFails(getDocFromServer(doc(b.db, 'friendShelves', a.uid, 'generations', shared.head.current!.generation, 'chunks', '0')));
     expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const signedIn = await signInWithEmailAndPassword(a.auth, a.auth.currentUser!.email!, 'Emulator-only-passphrase-4382');
+    await getIdToken(signedIn.user, true);
+    const deleted = (await getDocFromServer(headRef)).data()!;
+    await assertSucceeds(setDoc(headRef, { ...deleted, enabled: true, deleted: false, epoch: deleted.epoch + 1, revision: deleted.revision + 1, updatedAt: serverTimestamp() }));
+    const resumed = (await getDocFromServer(headRef)).data()!;
+    const newSource = { syncEpoch: resumed.epoch, remoteRevision: resumed.revision };
+    const previousConsent = (await a.store.config(a.uid))!;
+    await assertFails(b.store.head(a.uid));
+    await assertFails(stage(a, previousConsent, 1, newSource));
+    await expect(a.store.publish(a.uid, [entry], previousConsent, newSource, shared.head.revision, () => true)).rejects.toMatchObject({ name: 'FriendShelfConsentError' });
+    const reviewed = await a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id], consentSyncEpoch: resumed.epoch }, previousConsent);
+    await a.store.publish(a.uid, [entry], reviewed, newSource, shared.head.revision, () => true);
+    expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
   });
   it.each(['remove', 'block', 'legacy-delete', 'lifecycle-cancel', 'shelf-delete'] as const)('denies current head/chunk reads after %s', async (action) => {
     const a = await client(); const b = await client(); const pair = await connect(a, b);
@@ -239,7 +253,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     let checks = 0;
     await expect(a.store.publish(a.uid, entries, config, { syncEpoch: 1, remoteRevision: 1 }, 0, () => ++checks < 8)).rejects.toThrow(/cancelled/);
     expect(await a.store.head(a.uid)).toBeNull();
-    await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [] }, config);
+    await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config);
     await a.store.cleanupSharing(a.uid);
     const fresh = await select(a, entries);
     await assertSucceeds(a.store.publish(a.uid, entries, fresh, { syncEpoch: 1, remoteRevision: 1 }, 0, () => true));
@@ -266,7 +280,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     expect(await a.store.cleanupDeleted(a.uid)).toMatchObject({ done: true });
     expect(await a.store.cleanupDeleted(a.uid)).toEqual({ deleted: 0, done: true });
     const tombstone = (await a.store.config(a.uid))!; expect(tombstone.deleted).toBe(true);
-    await assertFails(setDoc(doc(a.db, 'friendShelfSettings', a.uid), { format: 1, enabled: true, deleted: false, selection: entry.id, epoch: tombstone.epoch + 1, revision: tombstone.revision + 1, updatedAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(a.db, 'friendShelfSettings', a.uid), { format: 1, enabled: true, deleted: false, consentSyncEpoch: 1, selection: entry.id, epoch: tombstone.epoch + 1, revision: tombstone.revision + 1, updatedAt: serverTimestamp() }));
     await assertFails(b.store.head(a.uid));
     expect((await b.friends.pair(b.uid, a.uid))?.state).toBe('accepted');
   });
@@ -274,15 +288,15 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     const a = await client(); const config = await a.store.initialize(a.uid);
     const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
     vi.mocked(runTransaction).mockRejectedValueOnce(new Error('Commit not acknowledged'));
-    await expect(a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id] }, config)).rejects.not.toBeInstanceOf(FriendShelfCommittedError);
+    await expect(a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id], consentSyncEpoch: 1 }, config)).rejects.not.toBeInstanceOf(FriendShelfCommittedError);
     vi.mocked(runTransaction).mockImplementationOnce(actual.runTransaction).mockRejectedValueOnce(new Error('Readback unavailable'));
-    await expect(a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id] }, config)).rejects.toMatchObject({ committed: true, receipt: { operation: 'save-shelf-config', uid: a.uid }, phase: 'refresh' });
+    await expect(a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id], consentSyncEpoch: 1 }, config)).rejects.toMatchObject({ committed: true, receipt: { operation: 'save-shelf-config', uid: a.uid }, phase: 'refresh' });
     const recovered = (await a.store.config(a.uid))!;
     expect(recovered).toMatchObject({ enabled: true, revision: config.revision + 1 });
     const prior = await a.store.head(a.uid); expect(prior).toBeNull();
     expect(recovered.updatedAt).toBeGreaterThan(0);
     await disableNetwork(a.db);
-    await expect(a.store.saveConfig(a.uid, { enabled: false, selectedIds: [] }, recovered)).rejects.not.toBeInstanceOf(FriendShelfCommittedError);
+    await expect(a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, recovered)).rejects.not.toBeInstanceOf(FriendShelfCommittedError);
     await enableNetwork(a.db);
     expect((await a.store.config(a.uid))?.enabled).toBe(true);
   });

@@ -13,7 +13,7 @@ export interface FriendShelfEntry {
   id: string; title: string; year: number | null;
   source: LibraryRecord['source']; sourceId: string; sourceUrl: string | null;
 }
-export type FriendShelfConfig = FriendSettings;
+export interface FriendShelfConfig extends FriendSettings { consentSyncEpoch: number | null }
 export type FriendShelfHead = FriendShareHead;
 export interface FriendShelf { head: FriendShelfHead; entries: FriendShelfEntry[] }
 export interface FriendShelfReceipt {
@@ -27,7 +27,19 @@ export class FriendShelfCommittedError extends FriendStoreError {
     this.name = 'FriendShelfCommittedError';
   }
 }
-export const parseFriendShelfConfig = parseFriendSettings;
+export class FriendShelfConsentError extends FriendStoreError {
+  constructor() {
+    super('conflict', 'Account saving restarted. Preview shared games again before updating this shelf.');
+    this.name = 'FriendShelfConsentError';
+  }
+}
+export function parseFriendShelfConfig(value: unknown): FriendShelfConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) invalid();
+  const { consentSyncEpoch, ...rest } = value as Record<string, unknown>;
+  const config = parseFriendSettings(rest);
+  if (config.enabled ? typeof consentSyncEpoch !== 'number' || !Number.isSafeInteger(consentSyncEpoch) || consentSyncEpoch < 1 : consentSyncEpoch !== null) invalid();
+  return { ...config, consentSyncEpoch: consentSyncEpoch as number | null };
+}
 export const parseFriendShelfHead = parseFriendHead;
 function invalid(message = 'Shared games contain unsupported metadata. Review the selection before sharing.'): never {
   throw new FriendStoreError('invalid', message);
