@@ -5,6 +5,7 @@ import {
   FriendStoreError, parseFriendSettings, parseFriendHead, friendSelection,
 } from './friend-types';
 import type { FriendSettings, FriendShareHead, FriendSourceRevision } from './friend-types';
+import { syncFailure } from './sync-retry';
 
 export const FRIEND_SHELF_LIMIT = 200;
 export const FRIEND_SHELF_CHUNK_SIZE = 2;
@@ -32,6 +33,11 @@ export class FriendShelfConsentError extends FriendStoreError {
     super('conflict', 'Account saving restarted. Preview shared games again before updating this shelf.');
     this.name = 'FriendShelfConsentError';
   }
+}
+export function friendShelfFailure(cause: unknown) {
+  if (cause instanceof FriendShelfConsentError) return 'blocked';
+  const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';
+  return code === 'limit' ? 'quota' : code === 'conflict' || code === 'offline' ? 'transient' : syncFailure(cause);
 }
 export function parseFriendShelfConfig(value: unknown): FriendShelfConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) invalid();

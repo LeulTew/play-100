@@ -1,0 +1,38 @@
+.friend-shelf-editor, .friend-shelf-cards { margin-block: 32px; border-top: 1px solid var(--ink); padding-top: 24px; }
+.friend-shelf-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.friend-shelf-heading h2, .friend-shelf-preview h2 { font: 700 32px/1.1 var(--display); margin: 0; }
+.friend-shelf-heading > span, .friend-shelf-metadata, .friend-shelf-selection small { color: var(--muted); font-size: 14px; }
+.friend-shelf-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 16px 24px; margin-block: 24px 12px; }
+.friend-shelf-controls > label { display: grid; gap: 8px; flex: 1 1 220px; max-width: 440px; }
+.friend-shelf-controls input { min-width: 0; width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); color: var(--ink); font: inherit; font-size: 16px; }
+.friend-shelf-selection, .friend-shelf-preview-list, .friend-shelf-grid { list-style: none; padding: 0; margin-block: 16px 24px; }
+.friend-shelf-selection > li { border-bottom: 1px solid var(--line); }
+.friend-shelf-selection label { display: flex; align-items: center; gap: 16px; padding-block: 12px; min-height: 56px; cursor: pointer; }
+.friend-shelf-selection input { flex: 0 0 20px; width: 20px; height: 20px; accent-color: var(--ink); }
+.friend-shelf-selection label > span { min-width: 0; overflow-wrap: anywhere; }
+.friend-shelf-selection small, .friend-shelf-metadata { display: block; margin-top: 4px; }
+.friend-shelf-editor .button-row, .friend-shelf-cards .button-row, .friend-shelf-preview .button-row { flex-wrap: wrap; gap: 8px 16px; }
+.friend-shelf-preview { width: min(720px, calc(100vw - 24px)); }
+.friend-shelf-preview p { max-width: 65ch; line-height: 1.5; }
+.friend-shelf-person { display: flex; align-items: center; gap: 12px; margin-block: 24px 16px; overflow-wrap: anywhere; }
+.friend-shelf-preview-list { max-height: 45vh; overflow: auto; overscroll-behavior: contain; }
+.friend-shelf-preview-list > li { display: flex; align-items: center; gap: 16px; padding-block: 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.friend-shelf-preview-list .friend-shelf-art { width: 64px; flex: 0 0 64px; }
+.friend-shelf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.friend-shelf-grid > li { display: flex; align-items: flex-start; gap: 16px; padding-block: 16px; border-bottom: 1px solid var(--line); }
+.friend-shelf-grid .friend-shelf-art { width: 96px; flex: 0 0 96px; }
+.friend-shelf-art { aspect-ratio: 3 / 4; overflow: hidden; background: var(--line); }
+.friend-shelf-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.friend-shelf-game { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.friend-shelf-game h3 { font-size: 20px; line-height: 1.3; margin: 0 0 6px; }
+.friend-shelf-game h3 button { font: inherit; text-align: left; justify-content: flex-start; padding: 0; }
+.friend-shelf-source { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--ink); text-underline-offset: 3px; }
+.friend-shelf-game .button-row { margin-top: 12px; }
+.friend-shelf-editor button, .friend-shelf-cards button, .friend-shelf-preview button { min-height: 44px; }
+.friend-shelf-editor :focus-visible, .friend-shelf-cards :focus-visible, .friend-shelf-preview :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+@media (max-width: 760px) {
+  .friend-shelf-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .friend-shelf-heading h2, .friend-shelf-preview h2 { font-size: 28px; }
+  .friend-shelf-controls { align-items: center; gap: 12px; }
+  .friend-shelf-controls > label { max-width: none; flex-basis: 100%; }
+}
