@@ -71,23 +71,27 @@ export class FriendShelfStore {
     });
     return this.afterCommit({ operation: 'initialize-shelf', uid }, async () => active(await this.confirmed(ref, parseFriendShelfConfig)));
   }
-  async saveConfig(uid: string, input: { enabled: boolean; selectedIds: string[]; consentSyncEpoch: number | null }, expected: FriendShelfConfig): Promise<FriendShelfConfig> {
+  async saveConfig(uid: string, input: { enabled: boolean; selectedIds: string[]; consentSyncEpoch: number | null }, expected: FriendShelfConfig, isCurrent: () => boolean = () => true): Promise<FriendShelfConfig> {
     const selectedIds = shelfSelection(input.selectedIds);
     if (typeof input.enabled !== 'boolean') throw new FriendStoreError('invalid', 'Choose whether to share these games.');
-    online(); await this.config(uid);
+    const guard = () => { online(); if (!isCurrent()) conflict('This shelf action was cancelled because its account or consent changed.'); };
+    guard(); await this.config(uid);
     const ref = this.ref('friendShelfSettings', uid);
     await runTransaction(this.db, async (tx) => {
-      online();
-      const [snapshot, sync] = await Promise.all([tx.get(ref), tx.get(this.ref('syncHeads', uid))]);
+      guard();
+      const headRef = this.ref('friendShelfHeads', uid);
+      const [snapshot, sync, head] = await Promise.all([tx.get(ref), tx.get(this.ref('syncHeads', uid)), tx.get(headRef)]);
       const current = expectedConfig(snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null, expected);
       if (input.enabled) {
         const source = sync.exists() ? parseHead(sync.data()) : null;
         if (!source?.enabled || source.deleted || input.consentSyncEpoch !== source.epoch) throw new FriendShelfConsentError();
       } else if (input.consentSyncEpoch !== null) throw new FriendStoreError('invalid', 'Stopped sharing must clear its saving consent.');
       if (current.enabled === input.enabled && current.consentSyncEpoch === input.consentSyncEpoch && current.selectedIds.join('|') === selectedIds.join('|')) return;
+      guard();
       tx.update(ref, { enabled: input.enabled, consentSyncEpoch: input.consentSyncEpoch, selection: selectedIds.join('|'), epoch: current.epoch + 1, revision: current.revision + 1, updatedAt: serverTimestamp() });
+      if (head.exists()) tx.update(headRef, { revision: parseFriendShelfHead(head.data()).revision + 1, updatedAt: serverTimestamp() });
     });
-    return this.afterCommit({ operation: 'save-shelf-config', uid }, async () => active(await this.confirmed(ref, parseFriendShelfConfig)));
+    return this.afterCommit({ operation: 'save-shelf-config', uid }, async () => { guard(); return active(await this.confirmed(ref, parseFriendShelfConfig)); });
   }
   head(uid: string): Promise<FriendShelfHead | null> { return this.read(this.ref('friendShelfHeads', uid), parseFriendShelfHead); }
   watchHead(uid: string, next: (value: FriendShelfHead | null) => void, error: (cause: Error) => void): () => void {
@@ -165,11 +169,12 @@ export class FriendShelfStore {
     });
     const receipt: FriendShelfReceipt = { operation: 'publish-shelf', uid, generation: id, epoch: expected.epoch, revision: expectedHeadRevision + 1 };
     const head = await this.afterCommit(receipt, async () => {
+      guard();
       const current = await this.confirmed(headRef, parseFriendShelfHead);
       if (!current || current.current?.generation !== id) conflict();
       return current;
     });
-    await this.afterCommit(receipt, () => this.prune(uid), 'cleanup');
+    await this.afterCommit(receipt, () => { guard(); return this.prune(uid); }, 'cleanup');
     return { changed: true, head };
   }
   prune(uid: string): Promise<number> { return this.cleanupGenerations(uid, true); }
@@ -212,9 +217,12 @@ export class FriendShelfStore {
     online(); await this.config(uid);
     const ref = this.ref('friendShelfSettings', uid);
     await runTransaction(this.db, async (tx) => {
-      const snapshot = await tx.get(ref); const current = snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null;
+      const headRef = this.ref('friendShelfHeads', uid);
+      const [snapshot, head] = await Promise.all([tx.get(ref), tx.get(headRef)]);
+      const current = snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null;
       if (current?.deleted) return;
       tx.set(ref, { format: 1, enabled: false, deleted: true, consentSyncEpoch: null, selection: '', epoch: (current?.epoch ?? 0) + 1, revision: (current?.revision ?? 0) + 1, updatedAt: serverTimestamp() });
+      if (head.exists()) tx.update(headRef, { revision: parseFriendShelfHead(head.data()).revision + 1, updatedAt: serverTimestamp() });
     });
   }
   async cleanupDeleted(uid: string): Promise<{ deleted: number; done: boolean }> {

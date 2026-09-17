@@ -790,6 +790,17 @@ service cloud.firestore {
       let sync = head(uid);
       return !data.enabled || (sync.enabled && !sync.deleted && data.consentSyncEpoch == sync.epoch);
     }
+    function sPulseRequired(uid) {
+      return !exists(/databases/$(database)/documents/friendShelfHeads/$(uid))
+        || getAfter(/databases/$(database)/documents/friendShelfHeads/$(uid)).data.revision == sHead(uid).revision + 1;
+    }
+    function sPulse(uid, before, after) {
+      let config = sConfig(uid);
+      let next = getAfter(/databases/$(database)/documents/friendShelfSettings/$(uid)).data;
+      return own(uid) && after.diff(before).affectedKeys().hasOnly(['revision', 'updatedAt'])
+        && after.revision == before.revision + 1 && after.updatedAt == request.time
+        && next.epoch == config.epoch + 1 && next.revision == config.revision + 1;
+    }
     function sRetained(uid, id) {
       let control = sConfig(uid);
       return control.enabled && !control.deleted && exists(/databases/$(database)/documents/friendShelfHeads/$(uid))
@@ -803,7 +814,7 @@ service cloud.firestore {
       allow create: if own(uid) && sConfigShape(request.resource.data)
         && request.resource.data.epoch == 1 && request.resource.data.revision == 1 && !request.resource.data.enabled
         && (fOwnLive(uid) || request.resource.data.deleted);
-      allow update: if own(uid) && !resource.data.deleted && sConfigShape(request.resource.data) && sConfigConsent(uid, request.resource.data)
+      allow update: if own(uid) && !resource.data.deleted && sConfigShape(request.resource.data) && sConfigConsent(uid, request.resource.data) && sPulseRequired(uid)
         && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.revision == resource.data.revision + 1
         && (fOwnLive(uid) || request.resource.data.deleted);
     }
@@ -821,8 +832,9 @@ service cloud.firestore {
       allow get: if own(uid) || (resource != null && sCurrent(uid, resource.data.current.generation));
       allow list: if false;
       allow create: if sHeadWrite(uid, request.resource.data) && request.resource.data.revision == 1 && request.resource.data.previous == null;
-      allow update: if sHeadWrite(uid, request.resource.data) && request.resource.data.revision == resource.data.revision + 1
-        && request.resource.data.previous == resource.data.current && request.resource.data.current.generation != resource.data.current.generation;
+      allow update: if sPulse(uid, resource.data, request.resource.data)
+        || (sHeadWrite(uid, request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+          && request.resource.data.previous == resource.data.current && request.resource.data.current.generation != resource.data.current.generation);
       allow delete: if own(uid) && sConfig(uid).deleted;
     }
     function sRegistryAdded(uid, id) {

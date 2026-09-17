@@ -233,7 +233,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await assertFails(stage(a, previousConsent, 1, newSource));
     await expect(a.store.publish(a.uid, [entry], previousConsent, newSource, shared.head.revision, () => true)).rejects.toMatchObject({ name: 'FriendShelfConsentError' });
     const reviewed = await a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id], consentSyncEpoch: resumed.epoch }, previousConsent);
-    await a.store.publish(a.uid, [entry], reviewed, newSource, shared.head.revision, () => true);
+    await a.store.publish(a.uid, [entry], reviewed, newSource, (await a.store.head(a.uid))!.revision, () => true);
     expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
   });
   it.each(['remove', 'block', 'legacy-delete', 'lifecycle-cancel', 'shelf-delete'] as const)('denies current head/chunk reads after %s', async (action) => {
@@ -327,21 +327,43 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     cleanup.mockRestore();
     const head = (await a.store.head(a.uid))!;
     await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config);
+    const stoppedHead = (await a.store.head(a.uid))!;
+    expect(stoppedHead.current).toEqual(head.current);
     expect(await a.store.prune(a.uid)).toBe(0);
-    expect(await a.store.head(a.uid)).toEqual(head);
+    expect(await a.store.head(a.uid)).toEqual(stoppedHead);
     expect((await getDocFromServer(doc(a.db, 'friendShelfRegistry', a.uid))).data()?.ids).toContain(head.current!.generation);
     expect(await a.store.cleanupSharing(a.uid)).toBe(1);
   });
-  it('invalidates active head listeners on a peer block; identity remains a separate read path', async () => {
+  it('receives a pair-target revocation on block and denies fresh shelf reads independently of head listener timing', async () => {
+    const a = await client(); const b = await client(); await connect(a, b); await publish(a);
+    let releaseHead: (() => void) | undefined; let releasePair: (() => void) | undefined;
+    let accepted!: () => void; const pairReady = new Promise<void>((resolve) => { accepted = resolve; });
+    const ready = new Promise<void>((resolve, reject) => { releaseHead = b.store.watchHead(a.uid, (head) => { if (head?.current) resolve(); }, reject); });
+    const removed = new Promise<void>((resolve, reject) => {
+      releasePair = b.friends.watchPair(b.uid, a.uid, (pair) => {
+        if (pair?.state === 'accepted') accepted();
+        if (pair?.state === 'removed') { releaseHead?.(); resolve(); }
+      }, reject);
+    });
+    try {
+      await ready; await pairReady; await b.friends.block(b.uid, a.uid); await removed;
+      await assertFails(b.store.shelf(a.uid));
+      await assertFails(getDocFromServer(doc(b.db, 'friendShelfSettings', a.uid)));
+    } finally { releaseHead?.(); releasePair?.(); }
+    expect(friendPairId(a.uid, b.uid)).toBe([a.uid, b.uid].sort().join('~'));
+  });
+  it('pulses the head atomically on Stop so an open shelf subscription is actually revoked', async () => {
     const a = await client(); const b = await client(); await connect(a, b); await publish(a);
     let release: (() => void) | undefined; let allowed!: () => void;
     const ready = new Promise<void>((resolve) => { allowed = resolve; });
     const denied = new Promise<Error>((resolve) => { release = b.store.watchHead(a.uid, (head) => { if (head?.current) allowed(); }, resolve); });
     try {
-      await ready; await b.friends.block(b.uid, a.uid);
+      await ready;
+      const config = (await a.store.config(a.uid))!;
+      await assertFails(setDoc(doc(a.db, 'friendShelfSettings', a.uid), { format: 1, enabled: false, deleted: false, consentSyncEpoch: null, selection: '', epoch: config.epoch + 1, revision: config.revision + 1, updatedAt: serverTimestamp() }));
+      await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config);
       expect(await denied).toMatchObject({ code: 'permission-denied' });
-      await assertFails(getDocFromServer(doc(b.db, 'friendShelfSettings', a.uid)));
+      expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
     } finally { release?.(); }
-    expect(friendPairId(a.uid, b.uid)).toBe([a.uid, b.uid].sort().join('~'));
   });
 });
