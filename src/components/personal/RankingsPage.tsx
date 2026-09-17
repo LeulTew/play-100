@@ -9,12 +9,20 @@ import { PlayedToggle } from '../PlayedToggle';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { useExitSave } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
+import './my-games.css';
 
-export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover, onPublish }: {
+export interface RankingsPageProps {
   state: PersonalLibraryState; availableRecords: LibraryRecord[]; busy: boolean; persistent: boolean; animate: boolean;
   onAction: (action: PersonalAction) => Promise<boolean>; onOpen: (id: string) => void; onDiscover: () => void;
   onPublish?: () => void;
-}) {
+  embedded?: boolean;
+  completedOnly?: boolean;
+  onPin?: (record: LibraryRecord) => void;
+  onUnpin?: (id: string) => void;
+  pinnedIds?: ReadonlySet<string>;
+}
+
+export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover, onPublish, embedded = false, completedOnly = false, onPin, onUnpin, pinnedIds }: RankingsPageProps) {
   const mode = useLibraryMode();
   const [query, setQuery] = useState('');
   const [playedOnly, setPlayedOnly] = useState(false);
@@ -24,35 +32,36 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
     const term = searchText(query);
     return state.ranking.flatMap((entry) => {
       const record = state.records[entry.id];
-      if (!record || (playedOnly && !state.progress[entry.id]?.played) || !searchText(record.title).includes(term)) return [];
+      if (!record || (playedOnly && !state.progress[entry.id]?.played) || (completedOnly && !state.progress[entry.id]?.completed) || !searchText(record.title).includes(term)) return [];
       return [record];
     });
-  }, [state, query, playedOnly]);
-  const canReorder = !query && !playedOnly;
+  }, [state, query, playedOnly, completedOnly]);
+  const canReorder = !query && !playedOnly && !completedOnly;
   const manualCount = state.ranking.filter((entry) => entry.manualPosition !== null).length;
   return (
-    <section className="app-page" aria-labelledby="rankings-title">
-      <div className="page-heading"><div><h1 id="rankings-title" data-page-heading tabIndex={-1}>My rankings</h1></div><div className="ranking-sharing"><div className="private-label"><Icon name="bookmark" width="17" height="17" />{persistent ? mode.scope === 'guest' ? 'Private · saved on this device' : mode.label : 'Private · temporary tab data'}</div>{onPublish && <button className="text-button" onClick={onPublish}><Icon name="share" width="18" height="18" />Publish a ranking</button>}</div></div>
+    <section className={embedded ? 'my-games-editor' : 'app-page'} aria-labelledby="rankings-title">
+      <div className={embedded ? 'my-games-ranking-heading' : 'page-heading'}><div>{embedded ? <h2 id="rankings-title" className="sr-only">Ranking</h2> : <h1 id="rankings-title" data-page-heading tabIndex={-1}>My rankings</h1>}</div><div className="ranking-sharing"><div className="private-label"><Icon name="bookmark" width="17" height="17" />{persistent ? mode.scope === 'guest' ? 'Private · saved on this device' : mode.label : 'Private · temporary tab data'}</div>{onPublish && <button className="text-button" onClick={onPublish}><Icon name="share" width="18" height="18" />Publish a ranking</button>}</div></div>
       <AddGamesPanel records={availableRecords} existingIds={rankedIds} onAdd={(recordsToAdd) => onAction({ type: 'add-ranking', records: recordsToAdd })} onDiscover={onDiscover} busy={busy} />
       {state.ranking.length > 0 && <>
-        <div className="ranking-order-info"><p><strong>Unpinned games follow scores, highest first.</strong> Unrated comes last, not zero. {manualCount ? `${manualCount} manual ${manualCount === 1 ? 'position stays' : 'positions stay'} fixed until released.` : 'Manual positions stay fixed until released.'} {canReorder ? 'Drag or use arrows to set a position.' : 'Clear search and the played filter to reorder.'} Scores save automatically. Ranking or rating never marks a game played.</p>{manualCount > 0 && <button className="button button-outline" disabled={busy} onClick={() => { void onAction({ type: 'use-rating-order' }); }}>Use rating order for all</button>}</div>
+        <div className="ranking-order-info"><p><strong>Games without a fixed position follow scores, highest first.</strong> Unrated comes last, not zero. {manualCount ? `${manualCount} manual ${manualCount === 1 ? 'position stays' : 'positions stay'} fixed until released.` : 'Manual positions stay fixed until released.'} {canReorder ? 'Drag or use arrows to set a position.' : 'Clear search and filters to reorder.'} Scores save automatically. Ranking or rating never marks a game played.</p>{manualCount > 0 && <button className="button button-outline" disabled={busy} onClick={() => { void onAction({ type: 'use-rating-order' }); }}>Use rating order for all</button>}</div>
         <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a game in your ranking" /></div><label className="check-control"><input type="checkbox" checked={playedOnly} onChange={(event) => setPlayedOnly(event.target.checked)} />Only games I've marked played</label></div>
       </>}
       {records.length ? <ReorderList records={records} kind="ranking" canReorder={canReorder} busy={busy} animate={animate} positionFor={(id) => rankingById.get(id)?.position ?? null} onMove={(id, overId) => { void onAction({ type: 'move-item', list: 'ranking', id, overId }); }}>
         {(record) => {
           const entry = rankingById.get(record.id)?.entry;
           if (!entry) return null;
-          return <RankingRow record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} onOpen={onOpen} onAction={onAction} />;
+          return <RankingRow key={record.id} record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} onOpen={onOpen} onAction={onAction} onPin={onPin} onUnpin={onUnpin} pinned={pinnedIds?.has(record.id)} />;
         }}
-      </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or turn off the played filter.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); setPlayedOnly(false); }}>Show my full ranking</button>}</div>}
+      </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or turn off the active filters.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); setPlayedOnly(false); }}>{completedOnly ? 'Clear ranking search and played filter' : 'Show my full ranking'}</button>}</div>}
       {!persistent && <p className="personal-storage-footnote" role="alert"><strong>Device storage is unavailable.</strong> Export these temporary changes from Settings before closing this tab.</p>}
     </section>
   );
 }
 
-function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }: {
+function RankingRow({ record, entry, played, completed, busy, onOpen, onAction, onPin, onUnpin, pinned = false }: {
   record: LibraryRecord; entry: PersonalRanking; played: boolean; completed: boolean; busy: boolean;
   onOpen: (id: string) => void; onAction: (action: PersonalAction) => Promise<boolean>;
+  onPin?: (record: LibraryRecord) => void; onUnpin?: (id: string) => void; pinned?: boolean;
 }) {
   const [note, setNote] = useState(entry.note);
   const [noteError, setNoteError] = useState('');
@@ -89,7 +98,7 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction }
   useExitSave(() => noteError ? Promise.resolve(false) : saveNote(), noteEdited);
   return (
     <div className="ranking-row-content">
-      <RecordIdentity record={record} onOpen={onOpen} />
+      <div className="ranking-game-identity"><RecordIdentity record={record} onOpen={onOpen} />{onPin && <button className="text-button" disabled={pinned && !onUnpin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${record.title} ${pinned ? 'from' : 'for'} comparison`} onClick={() => { if (pinned) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="17" height="17" />{pinned ? 'Pinned for comparison' : 'Pin for comparison'}</button>}</div>
       <PersonalRatingInput title={record.title} value={entry.score} busy={busy} onCommit={(score) => onAction({ type: 'edit-ranking', id: entry.id, score })} />
       <div className="played-check"><PlayedToggle id={record.id} title={record.title} played={played} completed={completed} busy={busy} onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} /></div>
       <button className="icon-button" aria-label={`Remove ${record.title} from my ranking`} disabled={busy} onClick={() => { void onAction({ type: 'remove-ranking', ids: [entry.id] }); }}><Icon name="close" width="18" height="18" /></button>
