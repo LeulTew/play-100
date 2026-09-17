@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
@@ -19,10 +20,11 @@ export interface DiscoveryCardProps {
   onSelect?: (id: string) => void;
   onPreview?: (record: LibraryRecord) => void;
   onPin?: (record: LibraryRecord) => void;
+  renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
 }
 
-export function DiscoveryCard({ record, artwork, state, busy, eager = false, selecting, selected, pinned, onSelect, onPreview, onPin, onAction }: DiscoveryCardProps) {
+export function DiscoveryCard({ record, artwork, state, busy, eager = false, selecting, selected, pinned, onSelect, onPreview, onPin, renderDragHandle, onAction }: DiscoveryCardProps) {
   const [failedSrc, setFailedSrc] = useState('');
   const saved = Boolean(state.records[record.id]);
   const progress = state.progress[record.id];
@@ -43,6 +45,7 @@ export function DiscoveryCard({ record, artwork, state, busy, eager = false, sel
             <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />{saved ? 'Saved' : 'Save'}
           </button>
           {onPin && <button className="button button-outline" aria-label={`${pinned ? 'Pinned' : 'Pin'} ${record.title} for comparison`} aria-pressed={Boolean(pinned)} disabled={pinned} onClick={() => onPin(record)}><Icon name="stack" width="16" height="16" />{pinned ? 'Pinned' : 'Pin'}</button>}
+          {renderDragHandle?.(record)}
         </div>
         <details className="discovery-card-details">
           <summary aria-label={`Actions and source for ${record.title}`}>Actions &amp; source</summary>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE } from '../../lib/discovery-search';
 import type { DiscoveryFilters } from '../../lib/discovery-search';
@@ -12,10 +13,11 @@ import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
 import './discover.css';
 
-export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommunity, onPreview, onPin, pinnedIds }: {
+export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommunity, onPreview, onPin, pinnedIds, renderDragHandle }: {
   state: PersonalLibraryState; busy: boolean; onAction: (action: PersonalAction) => Promise<boolean>; onLibrary: () => void;
   onCommunity?: () => void; onPreview?: (record: LibraryRecord) => void;
   onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
+  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
   const { filters, update } = useDiscoveryUrl();
   const search = useDiscoverSearch(filters);
@@ -64,7 +66,7 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommu
       {records.length > 0 && <ul className={`discovery-cards discovery-cards-${filters.view}`} aria-label="Discovered games">
         {records.map((record, index) => <DiscoveryCard key={record.id} record={record} artwork={artwork.get(record.id)} state={state} busy={busy} eager={index < 4} selecting={selecting} selected={selected.has(record.id)} pinned={pinnedIds?.has(record.id)} onSelect={(id) => setSelected((prior) => {
           const next = new Set(prior); if (next.has(id)) next.delete(id); else next.add(id); return next;
-        })} onPreview={onPreview} onPin={onPin} onAction={onAction} />)}
+        })} onPreview={onPreview} onPin={onPin} renderDragHandle={renderDragHandle} onAction={onAction} />)}
       </ul>}
       {!initialLoading && !records.length && <div className="discovery-empty"><h2>{remote.loading ? 'Looking online…' : failed ? 'Online search is incomplete' : seed.error ? 'The catalog could not load' : filters.offset > 0 ? 'No games on this page' : 'No matching games'}</h2><p>{failed ? 'Retry a provider below or change your search.' : 'Try a shorter title, clear a filter, or add a game manually.'}</p><button className="text-button" onClick={() => change({ ...defaultDiscoveryFilters, catalogs: filters.catalogs, view: filters.view })}>Reset search and filters</button></div>}
       {filters.online === 'auto' && (local.length > DISCOVERY_PAGE_SIZE || filters.offset > 0) && <nav className="discovery-pagination" aria-label="Catalog pages"><button className="button button-outline" disabled={filters.offset === 0} onClick={() => change({ offset: Math.max(0, filters.offset - DISCOVERY_PAGE_SIZE) })}>Previous</button><span>{Math.min(filters.offset + 1, local.length)}–{Math.min(filters.offset + DISCOVERY_PAGE_SIZE, local.length)} of {local.length} catalog games</span><button className="button button-outline" disabled={filters.offset + DISCOVERY_PAGE_SIZE >= local.length} onClick={() => change({ offset: filters.offset + DISCOVERY_PAGE_SIZE })}>Next</button></nav>}

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { useExtendedSearch } from '../../hooks/useExtendedSearch';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
 
-export default function ExtendedResults({ records, online, state, queryKey, busy, selecting, selected, onSelect, onPreview, onPin, pinnedIds, onAction }: {
+export default function ExtendedResults({ records, online, state, queryKey, busy, selecting, selected, onSelect, onPreview, onPin, pinnedIds, renderDragHandle, onAction }: {
   records: LibraryRecord[]; online: ReturnType<typeof useExtendedSearch>; state: PersonalLibraryState; queryKey: string;
   busy: boolean; selecting: boolean; selected: Set<string>; onSelect: (id: string) => void;
   onPreview?: (record: LibraryRecord) => void; onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
+  renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
 }) {
   const [localLimit, setLocalLimit] = useState(24);
@@ -19,7 +21,7 @@ export default function ExtendedResults({ records, online, state, queryKey, busy
     <section className="extended-results discovery-extended" aria-labelledby="extended-results-title">
       <div className="extended-heading"><h2 id="extended-results-title">{online.eligible ? 'Beyond the 100' : 'Your additions'}</h2><span>{records.length} {records.length === 1 ? 'game' : 'games'}</span></div>
       {records.length > 0 && <ul className="discovery-cards discovery-cards-list" aria-label="Unranked games in this view">
-        {records.slice(0, limit).map((record) => <DiscoveryCard key={record.id} record={record} artwork={online.artwork.get(record.id)} state={state} busy={busy} selecting={selecting} selected={selected.has(record.id)} onSelect={onSelect} onPreview={onPreview} onPin={onPin} pinned={pinnedIds?.has(record.id)} onAction={onAction} />)}
+        {records.slice(0, limit).map((record) => <DiscoveryCard key={record.id} record={record} artwork={online.artwork.get(record.id)} state={state} busy={busy} selecting={selecting} selected={selected.has(record.id)} onSelect={onSelect} onPreview={onPreview} onPin={onPin} pinned={pinnedIds?.has(record.id)} renderDragHandle={renderDragHandle} onAction={onAction} />)}
       </ul>}
       {records.length > limit && <button className="text-button" onClick={() => setLocalLimit((count) => count + 24)}>Show {Math.min(24, records.length - limit)} more games</button>}
       {online.eligible && <div className="discovery-online">

@@ -37,4 +37,14 @@ describe('compact catalog card markup', () => {
     expect(html).toContain('&lt;script&gt;unsafe&lt;/script&gt;');
     expect(html).not.toContain('<script>');
   });
+  it('renders one optional drag handle beside Pin, never nested inside an interactive control', () => {
+    const renderDragHandle = vi.fn(() => createElement('button', { type: 'button', 'data-drag-handle': true }, 'Drag to compare'));
+    const html = renderToStaticMarkup(createElement(DiscoveryCard, {
+      record: discoveryFixture.record, state: emptyPersonalLibrary(), busy: false,
+      onAction: vi.fn(), onPin: vi.fn(), renderDragHandle,
+    }));
+    expect(renderDragHandle).toHaveBeenCalledExactlyOnceWith(discoveryFixture.record);
+    expect(html).toContain('Pin</button><button type="button" data-drag-handle="true">Drag to compare</button></div>');
+    expect(html.match(/data-drag-handle/g)).toHaveLength(1);
+  });
 });
