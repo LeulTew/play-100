@@ -201,6 +201,20 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await a.store.cleanupSharing(a.uid); expect(await a.store.cleanupSharing(a.uid)).toBe(0);
     await publish(a); expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
   });
+  it('revokes an old-client online-copy deletion without shelf API calls, while ordinary pause keeps the last shared shelf', async () => {
+    const a = await client(); const b = await client(); await connect(a, b);
+    const shared = await publish(a);
+    const headRef = doc(a.db, 'syncHeads', a.uid);
+    const old = (await getDocFromServer(headRef)).data()!;
+    await assertSucceeds(setDoc(headRef, { ...old, enabled: false, epoch: old.epoch + 1, revision: old.revision + 1, updatedAt: serverTimestamp() }));
+    expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
+    const paused = (await getDocFromServer(headRef)).data()!;
+    await assertSucceeds(setDoc(headRef, { ...paused, enabled: false, deleted: true, current: null, previous: null, epoch: paused.epoch + 1, revision: paused.revision + 1, updatedAt: serverTimestamp() }));
+    expect((await a.store.config(a.uid))?.enabled).toBe(true);
+    await assertFails(b.store.head(a.uid));
+    await assertFails(getDocFromServer(doc(b.db, 'friendShelves', a.uid, 'generations', shared.head.current!.generation, 'chunks', '0')));
+    expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
+  });
   it.each(['remove', 'block', 'legacy-delete', 'lifecycle-cancel', 'shelf-delete'] as const)('denies current head/chunk reads after %s', async (action) => {
     const a = await client(); const b = await client(); const pair = await connect(a, b);
     const shared = await publish(a); const path = doc(b.db, 'friendShelves', a.uid, 'generations', shared.head.current!.generation, 'chunks', '0');

@@ -761,7 +761,7 @@ service cloud.firestore {
     function sCurrent(uid, id) {
       let control = sConfig(uid);
       let pointer = sHead(uid);
-      return fConnected(uid, false) && control.enabled && !control.deleted
+      return fConnected(uid, false) && control.enabled && !control.deleted && !head(uid).deleted
         && pointer.epoch == control.epoch && pointer.settingsRevision == control.revision && pointer.current.generation == id;
     }
     function sRetained(uid, id) {
