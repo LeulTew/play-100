@@ -65,7 +65,7 @@ test('an invitation resumes after email sign-in, sharing stays opt-in, selected 
     await expect(receiving.getByRole('heading', { name: "You're connected", exact: true })).toBeVisible();
     expect(await receiving.evaluate(() => sessionStorage.getItem('play100.invitation-return.v1'))).toBeNull();
     await page.goto('/friends');
-    await expect(page.getByRole('button', { name: 'QA Receiver', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View QA Receiver', exact: true })).toBeVisible();
     await receiving.goto(`/friends/${sender}`);
     await expect(receiving.locator('.friend-ranking-list')).toBeEmpty();
     await enableSelectedSharing(page);
@@ -96,10 +96,11 @@ test('an invitation resumes after email sign-in, sharing stays opt-in, selected 
     await expect(receiving.locator('.friend-matrix')).toContainText('8.8', { timeout: 30000 });
     await page.goto('/friends');
     const row = page.locator('.friend-list > li').filter({ hasText: 'QA Receiver' });
-    await row.getByRole('button', { name: 'Remove friend', exact: true }).click();
+    await row.getByRole('button', { name: 'More actions for QA Receiver', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Remove friend', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Remove friend', exact: true }).click();
-    await expect(receiving.locator('.friend-matrix')).not.toContainText('8.8', { timeout: 15000 });
-    await expect(receiving.getByRole('status').filter({ hasText: 'unavailable or unshared' })).toBeVisible();
+    await expect(receiving.locator('.friend-matrix')).toHaveCount(0, { timeout: 15000 });
+    await expect(receiving.getByRole('status').filter({ hasText: 'removed from this comparison' })).toBeVisible();
     await receiving.goto(`/friends/${sender}`);
     await expect(receiving.locator('.friend-ranking-list')).toBeEmpty();
     expect((await readLibrary(receiving)).records).toEqual({});
@@ -115,6 +116,7 @@ test('revoked invites show no inviter snapshot and a cancelled sharing preview d
   const link = await inviteFrom(page);
   await page.getByRole('button', { name: 'Invite links', exact: true }).click();
   await page.getByRole('button', { name: 'Revoke', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Revoke invitation', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Invitation revoked.' })).toBeVisible();
   const context = await browser.newContext({ reducedMotion: 'reduce' });
   try {

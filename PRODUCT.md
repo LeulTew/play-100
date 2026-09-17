@@ -97,6 +97,11 @@ separate choices; creating a connection does not share scores.
 - Comparisons use exact game identities for two to six participants. Unrated
   differs from zero; unavailable rankings remain explicit. Named comparison
   groups are private participant selections, not chat or access grants.
+- Friends management separates Incoming/Sent requests and filters only explicitly
+  loaded names. Pagination never loses later rows on a live update. Shortcuts
+  carry at most five selected friends plus self in account-bound private tab
+  state, not public participant URLs. Named confirmations protect Remove/Block
+  and invite revocation; only still-active links can be copied or shared.
 - An older writer that cannot maintain the optional sharing-removal journal
   requires a refreshed selection review before friend updates. Private saving
   remains available and its established schema/keys stay unchanged.

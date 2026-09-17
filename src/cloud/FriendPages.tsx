@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { FriendBlock, FriendCursor, FriendIdentity, FriendInvitation, FriendInvitePreview, FriendPair, FriendSettings } from '../lib/friend-types';
+import type { FriendIdentity, FriendInvitePreview, FriendPair, FriendSettings } from '../lib/friend-types';
 import type { Game } from '../lib/types';
 import type { PersonalLibraryState, LibraryRecord } from '../lib/personal-types';
 import { projectFriendRanking } from '../lib/friend-types';
-import { clearInviteContinuation, createInviteUrl, saveInviteContinuation } from '../lib/invite-continuation';
+import { clearInviteContinuation, saveInviteContinuation } from '../lib/invite-continuation';
 import { projectOwnRanking, recordFromPublic } from '../lib/community';
 import type { PublicEntry } from '../lib/community';
 import type { FriendStore } from './friend-store';
@@ -100,121 +100,9 @@ export function InvitationPage({ store, invitation, identity, authPanel, onAccou
   </section>;
 }
 
-export function FriendsPage({ store, identity, onSettings, onCommunity, onCompare }: {
-  store: FriendStore; identity: OwnFriendIdentity; onSettings: (settings: FriendSettings) => void; onCommunity: () => void; onCompare: () => void;
-}) {
-  const uid = identity.uid;
-  const [tab, setTab] = useState<'accepted' | 'pending' | 'invites' | 'blocked'>('accepted');
-  const [pairs, setPairs] = useState<FriendPair[]>([]);
-  const [names, setNames] = useState<Record<string, FriendIdentity>>({});
-  const [invites, setInvites] = useState<FriendInvitation[]>([]);
-  const [blocks, setBlocks] = useState<FriendBlock[]>([]);
-  const [cursor, setCursor] = useState<FriendCursor>();
-  const [working, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [confirmation, setConfirmation] = useState<{ peer: string; action: 'remove' | 'block'; epoch?: number } | null>(null);
-  const [link, setLink] = useState<string | null>(null);
-  const [copyState, setCopyState] = useState('');
-  const [refreshRequired, setRefreshRequired] = useState(false);
-  const busy = working || refreshRequired;
-  const generation = useRef(0);
-  const running = useRef(false);
-  const load = async (next?: FriendCursor) => {
-    const version = ++generation.current;
-    setBusy(true); setError('');
-    try {
-      if (tab === 'invites') {
-        const result = await store.listInvites(uid, next); if (version !== generation.current) return;
-        setInvites((old) => next ? [...old, ...result.items] : result.items); setCursor(result.cursor);
-      } else if (tab === 'blocked') {
-        const result = await store.listBlocks(uid, next); if (version !== generation.current) return;
-        setBlocks((old) => next ? [...old, ...result.items] : result.items); setCursor(result.cursor);
-      } else {
-        const result = await store.listRelations(uid, tab, next); if (version !== generation.current) return;
-        setPairs((old) => next ? [...old, ...result.items] : result.items); setCursor(result.cursor);
-        const profiles = await Promise.all(result.items.map(async (pair) => {
-          const peer = pair.a === uid ? pair.b : pair.a;
-          try { return await store.identity(peer); } catch { return null; }
-        }));
-        if (version === generation.current) setNames((old) => Object.fromEntries([...Object.entries(old), ...profiles.filter((value): value is FriendIdentity => Boolean(value)).map((value) => [value.uid, value])]));
-      }
-      if (version === generation.current) setRefreshRequired(false);
-    } catch (cause) { if (version === generation.current) setError(onlineError(cause)); }
-    finally { if (version === generation.current) setBusy(false); }
-  };
-  useEffect(() => {
-    setCursor(undefined); setPairs([]); setInvites([]); setBlocks([]); setNames({}); setBusy(true);
-    if (tab === 'invites' || tab === 'blocked') void load();
-    return () => { generation.current += 1; };
-  }, [uid, tab, store]);
-  useEffect(() => {
-    if (tab !== 'accepted' && tab !== 'pending') return;
-    let alive = true; let release: (() => void) | undefined;
-    const bind = () => {
-      release?.(); release = undefined;
-      if (document.hidden || !navigator.onLine) return;
-      release = store.watchRelations(uid, tab, (result) => {
-        if (!alive) return;
-        setPairs(result.items); setCursor(result.cursor); setBusy(false);
-        void Promise.all(result.items.map((pair) => store.identity(pair.a === uid ? pair.b : pair.a))).then((profiles) => {
-          if (alive) setNames(Object.fromEntries(profiles.filter((value): value is FriendIdentity => Boolean(value)).map((value) => [value.uid, value])));
-        }).catch((cause) => { if (alive) setError(`A friend profile is unavailable. ${onlineError(cause)}`); });
-      }, (cause) => { if (alive) { setPairs([]); setBusy(false); setError(onlineError(cause)); } });
-    };
-    bind(); window.addEventListener('online', bind); document.addEventListener('visibilitychange', bind);
-    return () => { alive = false; release?.(); window.removeEventListener('online', bind); document.removeEventListener('visibilitychange', bind); };
-  }, [uid, tab, store]);
-  const run = async (operation: () => Promise<void>, success: string) => {
-    if (running.current || refreshRequired) return; running.current = true; setBusy(true); setError(''); setMessage('');
-    try {
-      onSettings(await prepareFriendIdentity(store, identity));
-      if (cloudAuth.currentUser?.uid !== uid) throw new Error('The account changed.');
-      await operation(); setMessage(success); setConfirmation(null); await load();
-    } catch (cause) {
-      const committed = committedFriendChange(cause, uid);
-      if (committed) {
-        setConfirmation(null); setMessage(committedFriendMessage(committed)); setRefreshRequired(true);
-        setError(onlineError(committed.cause));
-        if (committed.receipt.operation === 'create-invite') setTab('invites');
-      } else setError(friendMutationError(cause));
-    }
-    finally { running.current = false; setBusy(false); }
-  };
-  const shareLink = async (native: boolean) => {
-    if (!link) return;
-    try {
-      if (native && navigator.share) await navigator.share({ title: 'Play 100 invitation', url: link });
-      else { await navigator.clipboard.writeText(link); setCopyState('Link copied.'); }
-    } catch (cause) {
-      if (cause instanceof Error && cause.name === 'AbortError') return;
-      setCopyState('Copy this link from the field below.');
-    }
-  };
-  return <section className="app-page friends-page">
-    <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Friends</h1><div className="button-row"><button className="button button-dark" disabled={busy || !identity.verified} onClick={() => { void run(async () => { const invite = await store.createInvite(uid); setLink(createInviteUrl(invite.token)); setCopyState(''); }, 'Invitation created.'); }}>Invite someone<Icon name="share" /></button><button className="text-button" onClick={onCompare}>Compare</button></div></div>
-    <div className="personal-tabs" role="group" aria-label="Friends view">{(['accepted', 'pending', 'invites', 'blocked'] as const).map((value) => <button key={value} aria-pressed={tab === value} onClick={() => setTab(value)}>{({ accepted: 'Friends', pending: 'Requests', invites: 'Invite links', blocked: 'Blocked' })[value]}</button>)}</div>
-    {working && <p role="status">Loading...</p>}{error && <p className="inline-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    {refreshRequired && <button className="button button-outline" disabled={working} onClick={() => { void load(); }}>Refresh Friends</button>}
-    {(tab === 'accepted' || tab === 'pending') && <ul className="friend-list">{pairs.map((pair) => {
-      const peer = pair.a === uid ? pair.b : pair.a; const person = names[peer];
-      return <li key={`${pair.a}~${pair.b}`}><div className="friend-identity">{person && <Avatar descriptor={person.avatar} size={48} />}<div><button className="text-button" onClick={() => navigateFriend(peer)}>{person?.displayName ?? 'Unavailable player'}</button>{pair.state === 'pending' && <small>{pair.from === uid ? 'Request sent' : 'Wants to connect'}</small>}</div></div>
-        <div className="button-row">{pair.state === 'pending' ? pair.from === uid ? <button className="text-button" disabled={busy} onClick={() => { void run(() => store.respond(uid, peer, 'cancel', pair.epoch).then(() => {}), 'Request cancelled.'); }}>Cancel request</button> : <><button className="button button-outline" disabled={busy} onClick={() => { void run(() => store.respond(uid, peer, 'accept', pair.epoch).then(() => {}), 'Friend added.'); }}>Accept</button><button className="text-button" disabled={busy} onClick={() => { void run(() => store.respond(uid, peer, 'decline', pair.epoch).then(() => {}), 'Request declined.'); }}>Decline</button></> : <button className="text-button" disabled={busy} onClick={() => setConfirmation({ peer, action: 'remove', epoch: pair.epoch })}>Remove friend</button>}
-          <button className="text-button" disabled={busy} onClick={() => setConfirmation({ peer, action: 'block' })}>Block</button>
-        </div></li>;
-    })}</ul>}
-    {tab === 'invites' && <ul className="friend-list">{invites.map((invite) => <li key={invite.slot}><div><strong>{invite.state === 'active' && invite.expiresAt > Date.now() ? 'Active invitation' : 'Unavailable invitation'}</strong><p>Expires {new Date(invite.expiresAt).toLocaleString()}</p></div><div className="button-row"><button className="text-button" disabled={busy || invite.state !== 'active'} onClick={() => { setLink(createInviteUrl(invite.token)); setCopyState(''); }}>Show link</button><button className="text-button danger-text" disabled={busy} onClick={() => { void run(() => store.revokeInvite(uid, invite.token), 'Invitation revoked.'); }}>Revoke</button></div></li>)}</ul>}
-    {tab === 'blocked' && <ul className="friend-list">{blocks.map((block) => <li key={block.uid}><span>Blocked account <small>…{block.uid.slice(-8)}</small></span><button className="text-button" disabled={busy} onClick={() => { void run(() => store.unblock(uid, block.uid), 'Unblocked. Friendship was not restored.'); }}>Unblock</button></li>)}</ul>}
-    {!busy && !error && !(tab === 'invites' ? invites.length : tab === 'blocked' ? blocks.length : pairs.length) && <div className="empty-state"><h2>{tab === 'accepted' ? 'No friends yet' : tab === 'pending' ? 'No requests' : tab === 'invites' ? 'No invite links' : 'No blocked accounts'}</h2>{tab === 'accepted' && <button className="text-button" onClick={onCommunity}>Find players in Community</button>}</div>}
-    {cursor && <button className="button button-outline" disabled={busy} onClick={() => { void load(cursor); }}>Load next 20</button>}
-    {confirmation && <Dialog open titleId="friend-change-title" className="info-dialog" onClose={() => { if (!busy) setConfirmation(null); }}><h2 id="friend-change-title">{confirmation.action === 'block' ? 'Block this player?' : 'Remove this friend?'}</h2><p>Friends-only rankings become unavailable in both directions. {confirmation.action === 'block' ? 'New requests and invitations will be blocked. Unblocking does not restore friendship.' : 'A new request is needed to reconnect.'}</p><div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={() => setConfirmation(null)}>Keep connection</button><button className="button button-danger" disabled={busy} onClick={() => { void run(() => confirmation.action === 'block' ? store.block(uid, confirmation.peer) : store.respond(uid, confirmation.peer, 'remove', confirmation.epoch!).then(() => {}), confirmation.action === 'block' ? 'Player blocked.' : 'Friend removed.'); }}>{confirmation.action === 'block' ? 'Block player' : 'Remove friend'}</button></div></Dialog>}
-    {link && <Dialog open titleId="invite-link-title" className="info-dialog" onClose={() => { setLink(null); setCopyState(''); }}><h2 id="invite-link-title">Invite link</h2><p>One use. Expires after seven days. Share it only with the person you want to invite.</p><label htmlFor="friend-invite-link">Invitation link</label><input id="friend-invite-link" value={link} readOnly onFocus={(event) => event.target.select()} /><div className="button-row"><button className="button button-dark" onClick={() => { void shareLink(false); }}>Copy link</button><button className="text-button" onClick={() => { void shareLink(true); }}>Share</button></div>{copyState && <p role="status">{copyState}</p>}</Dialog>}
-  </section>;
-}
-
 export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFriends, onCompare, games, onOpen }: {
   uid: string; peer: string; store: FriendStore; identity: OwnFriendIdentity; onSettings: (settings: FriendSettings) => void;
-  onFriends: () => void; onCompare: () => void; games: Game[]; onOpen: (record: LibraryRecord) => void;
+  onFriends: () => void; onCompare: (peers: string[]) => void; games: Game[]; onOpen: (record: LibraryRecord) => void;
 }) {
   const [person, setPerson] = useState<FriendIdentity | null>(null);
   const [pair, setPair] = useState<FriendPair | null>(null);
@@ -286,7 +174,7 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
   return <section className="app-page friend-detail-page"><button className="text-button" onClick={onFriends}><Icon name="back" />Friends</button>
     <h1 data-page-heading tabIndex={-1}>{person?.displayName ?? 'Player'}</h1>{person && <Avatar descriptor={person.avatar} size={80} />}
     {busy && <p role="status">Loading...</p>}{error && <p className="inline-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {pair?.state === 'accepted' ? <button className="button button-outline" onClick={onCompare}>Compare rankings</button> : pair?.state === 'pending' ? <p>{pair.from === uid ? 'Your request is pending.' : 'An incoming request is waiting in Friends.'}</p> : person && uid !== peer && <button className="button button-dark" disabled={busy || !identity.verified || requestNeedsRefresh} onClick={() => setConfirmRequest(true)}>Send friend request</button>}
+    {pair?.state === 'accepted' ? <button className="button button-outline" onClick={() => onCompare([peer])}>Compare rankings</button> : pair?.state === 'pending' ? <p>{pair.from === uid ? 'Your request is pending.' : 'An incoming request is waiting in Friends.'}</p> : person && uid !== peer && <button className="button button-dark" disabled={busy || !identity.verified || requestNeedsRefresh} onClick={() => setConfirmRequest(true)}>Send friend request</button>}
     {requestNeedsRefresh && <button className="text-button" disabled={busy} onClick={() => {
       setBusy(true); void store.pair(uid, peer).then((value) => { setPair(value); setRequestNeedsRefresh(false); }).catch((cause) => setError(onlineError(cause))).finally(() => setBusy(false));
     }}>Refresh connection</button>}

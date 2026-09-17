@@ -31,6 +31,7 @@ import { syncFailure } from '../lib/sync-retry';
 import { finishGoogleRedirect, startGoogleRedirect } from './google-auth';
 import type { GoogleReturn } from './google-auth';
 import { readGoogleIntent } from '../lib/google-intent';
+import { clearComparisonView, comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
 import { cancelUnusedRegistration, ensureAccountActivity } from './account-lifecycle';
 import { AuthPanel } from './AuthPanel';
 import { AccountPage } from './AccountPage';
@@ -41,7 +42,8 @@ import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
 import { useFriendSharing } from './useFriendSharing';
 import { FriendComparisonPage } from './FriendComparisonPage';
-import { FriendDetailPage, FriendsPage, FriendSharingPage, InvitationPage, navigateFriend } from './FriendPages';
+import { FriendDetailPage, FriendSharingPage, InvitationPage, navigateFriend } from './FriendPages';
+import { FriendsPage } from './FriendsPage';
 import type { FriendCursor } from '../lib/friend-types';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import './cloud-ui.css';
@@ -176,6 +178,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       if (outcome.attempted) { setGoogleReturn(outcome); setReturnSheet(!outcome.completed); }
       unsubscribe = onIdTokenChanged(cloudAuth, (user) => {
         if ((user?.uid ?? null) !== authSessionUid.current) {
+          if (authSessionUid.current) clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', authSessionUid.current));
           authSessionUid.current = user?.uid ?? null; authSessionEpoch.current += 1;
           if (user) setIdentity(undefined);
         }
@@ -411,6 +414,13 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     await account.waitForWrites();
     await signOut(cloudAuth); await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
+  const openComparison = (peers?: string[]) => {
+    if (!identity || cloudAuth.currentUser?.uid !== identity.uid) return;
+    const selected = peers ? initialComparison(comparisonScope(firebaseApp.options.projectId ?? '', identity.uid), identity.uid, peers) : null;
+    if (selected) rememberComparisonView(selected, false);
+    onNavigate('compare');
+    if (selected) rememberComparisonView(selected, true);
+  };
   const pause = () => run(async () => {
     const { scope: target, store } = verifiedIdentity();
     if (!navigator.onLine) throw new Error('Connect before stopping online saving on all devices. Offline edits are retained here.');
@@ -556,8 +566,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         page === 'profile' ? <PublicProfilePage social={social} handle={publicHandle} games={games} library={activeController} identity={identity} onOpenRecord={onOpenRecord} onShare={onShare} onAccount={() => onNavigate('account')} onFriend={navigateFriend} /> :
         page === 'invite' ? <InvitationPage store={friends.store} invitation={invitation} identity={friendIdentity} authPanel={authPanel} onAccount={() => onNavigate('account')} onFriends={() => onNavigate('friends')} onSettings={friends.acceptSettings} /> :
         !identity ? <section className="app-page auth-page"><h1 data-page-heading tabIndex={-1}>Sign in</h1>{authPanel}</section> :
-        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={() => onNavigate('compare')} /> :
-        page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={() => onNavigate('compare')} games={games} onOpen={onOpenRecord} /> :
+        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={openComparison} /> :
+        page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={openComparison} games={games} onOpen={onOpenRecord} /> :
         (page === 'compare' || page === 'friend-sharing') && !games.length ? <div className="page-loading" role="status"><h1>Loading games...</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
         page === 'compare' && friendIdentity ? <FriendComparisonPage key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`} store={friends.store} uid={identity.uid} identity={friendIdentity} ownState={activeController.state} games={games} onOpen={onOpenRecord} onFriends={() => onNavigate('friends')} /> :
         page === 'friend-sharing' && friendIdentity ? <FriendSharingPage key={uid} store={friends.store} identity={friendIdentity} settings={friends.settings} ownState={account.snapshot?.state ?? emptyPersonalLibrary()} connected={Boolean(account.snapshot?.sync.enabled)} games={games} onSettings={friends.acceptSettings} onAccount={() => onNavigate('account')} status={friends.status} error={friends.error} /> :

@@ -42,6 +42,7 @@ export function useUrlState() {
     const group = new URLSearchParams(window.location.search).get('group');
     if (window.location.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) params.set('group', group);
     navigate(`?${params}`, current.game ? 'replace' : 'push', {
+      ...(window.location.pathname === '/compare' ? window.history.state : {}),
       play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
     });
   }, [navigate]);
@@ -54,7 +55,7 @@ export function useUrlState() {
       const params = new URLSearchParams(createSearch(current.filters));
       const group = new URLSearchParams(window.location.search).get('group');
       if (window.location.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) params.set('group', group);
-      navigate(params.size ? `?${params}` : '', 'replace');
+      navigate(params.size ? `?${params}` : '', 'replace', window.location.pathname === '/compare' ? window.history.state : null);
     }
   }, [navigate]);
 

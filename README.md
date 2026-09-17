@@ -40,6 +40,14 @@ The existing local creature picker is available through **Change icon**.
 Normal session restoration preserves account and guest separation. Storage
 restrictions, revocation and intentional stops remain explicit conditions.
 
+The Friends manager separates Incoming/Sent, filters and sorts loaded names, and
+keeps later pages intact when live relationships change. Counts say when more
+entries remain; **Refresh loaded** updates the requested page window. Select up
+to five friends to compare with yourself, or use a person's Compare shortcut.
+Cohorts and comparison controls stay in validated account-bound tab/history
+state, never public participant URLs. Remove/Block and invite revocation require
+confirmation; expired/used/revoked links have no copy/share action.
+
 ## Run locally
 
 Use Node.js 22.12 or later.

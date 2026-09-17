@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { PersonalLibraryState, LibraryRecord } from '../lib/personal-types';
 import { compareFriendRankings, getComparisonPage } from '../lib/friend-comparison';
@@ -6,26 +6,31 @@ import type { ComparisonParticipant, ComparisonMode } from '../lib/friend-compar
 import { projectOwnRanking, recordFromPublic } from '../lib/community';
 import type { FriendGroup, FriendIdentity, FriendPair, FriendCursor } from '../lib/friend-types';
 import { FriendStore } from './friend-store';
-import { cloudAuth } from './firebase-client';
+import { cloudAuth, firebaseApp } from './firebase-client';
 import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
 import { onlineError } from './errors';
 import { committedFriendChange, committedFriendMessage, friendMutationError } from './friend-outcomes';
 import { syncFailure } from '../lib/sync-retry';
+import { friendPeer as peerOf, uniqueFriendPairs } from '../lib/friend-manager';
+import { comparisonScope, readComparisonView, rememberComparisonView } from '../lib/friend-comparison-intent';
 
-const peerOf = (pair: FriendPair, uid: string) => pair.a === uid ? pair.b : pair.a;
 export function FriendComparisonPage({ store, uid, identity, ownState, games, onOpen, onFriends }: {
   store: FriendStore; uid: string; identity: { displayName: string; avatar: FriendIdentity['avatar'] };
   ownState: PersonalLibraryState; games: Game[]; onOpen: (record: LibraryRecord) => void; onFriends: () => void;
 }) {
+  const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
+  const [restored] = useState(() => readComparisonView(scope));
+  const [requestedGroup] = useState(() => new URLSearchParams(location.search).get('group'));
+  const [viewReady, setViewReady] = useState(!requestedGroup);
   const [choices, setChoices] = useState<FriendPair[]>([]);
   const [identities, setIdentities] = useState<Record<string, FriendIdentity>>({});
   const [cursor, setCursor] = useState<FriendCursor>();
-  const [selected, setSelected] = useState<string[]>([uid]);
+  const [selected, setSelected] = useState<string[]>(() => requestedGroup ? [] : restored?.selected ?? [uid]);
   const [participants, setParticipants] = useState<Record<string, ComparisonParticipant>>({});
-  const [mode, setMode] = useState<ComparisonMode>('common-ranked');
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
+  const [mode, setMode] = useState<ComparisonMode>(restored?.mode ?? 'common-ranked');
+  const [query, setQuery] = useState(restored?.query ?? '');
+  const [page, setPage] = useState(restored?.page ?? 1);
   const [groups, setGroups] = useState<FriendGroup[]>([]);
   const [groupCursor, setGroupCursor] = useState<FriendCursor>();
   const [group, setGroup] = useState<FriendGroup | null>(null);
@@ -38,31 +43,38 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
   const generation = useRef(0);
   const running = useRef(false);
   const ownEntries = useMemo(() => projectOwnRanking(ownState, games), [ownState, games]);
-  const currentUid = useRef(uid); currentUid.current = uid;
-  const addChoices = async (next?: FriendCursor) => {
+  const currentUid = useRef<string | null>(uid); currentUid.current = uid;
+  const addChoices = useCallback(async (next?: FriendCursor) => {
     const found = await store.listRelations(uid, 'accepted', next);
-    if (currentUid.current !== uid) return;
-    setChoices((old) => next ? [...old, ...found.items] : found.items); setCursor(found.cursor);
+    if (currentUid.current !== uid || cloudAuth.currentUser?.uid !== uid) return;
+    setChoices((old) => uniqueFriendPairs(next ? [...old, ...found.items] : found.items)); setCursor(found.cursor);
     for (const pair of found.items) {
       const peer = peerOf(pair, uid);
       void store.identity(peer).then((value) => {
-        if (value && currentUid.current === uid) setIdentities((old) => ({ ...old, [peer]: value }));
-      }).catch((cause) => { if (currentUid.current === uid) setError(`A friend profile is unavailable. ${onlineError(cause)}`); });
+        if (value && currentUid.current === uid && cloudAuth.currentUser?.uid === uid) setIdentities((old) => ({ ...old, [peer]: value }));
+      }).catch((cause) => { if (currentUid.current === uid && cloudAuth.currentUser?.uid === uid) setError(`A friend profile is unavailable. ${onlineError(cause)}`); });
     }
-  };
+  }, [store, uid]);
   useEffect(() => {
     let alive = true;
-    setChoices([]); setParticipants({}); setSelected([uid]); setError('');
+    currentUid.current = uid;
+    setChoices([]); setIdentities({}); setParticipants({}); setError('');
+    const prior = readComparisonView(scope);
+    if (!requestedGroup && prior) { setSelected(prior.selected); setMode(prior.mode); setQuery(prior.query); setPage(prior.page); }
     void addChoices().catch((cause) => { if (alive) setError(onlineError(cause)); });
     void store.listGroups(uid).then((result) => { if (alive) { setGroups(result.items); setGroupCursor(result.cursor); } }).catch((cause) => { if (alive) setError(onlineError(cause)); });
-    const requested = new URLSearchParams(location.search).get('group');
-    if (requested) void store.getGroup(uid, requested).then((saved) => {
-      if (!alive) return;
+    if (requestedGroup) void store.getGroup(uid, requestedGroup).then((saved) => {
+      if (!alive || cloudAuth.currentUser?.uid !== uid) return;
       if (!saved) throw new Error('This group is no longer available.');
-      setGroup(saved); setGroupName(saved.name); setSelected(saved.participantUids);
-    }).catch((cause) => { if (alive) setError(onlineError(cause)); });
-    return () => { alive = false; generation.current += 1; };
-  }, [uid, store]);
+      setGroup(saved); setGroupName(saved.name); setSelected(prior?.groupId === saved.id ? prior.selected : saved.participantUids); setViewReady(true);
+    }).catch((cause) => { if (alive) { setError(onlineError(cause)); setSelected([uid]); setViewReady(true); } });
+    return () => { alive = false; currentUid.current = null; generation.current += 1; };
+  }, [uid, store, scope, requestedGroup, addChoices]);
+  useEffect(() => {
+    if (viewReady && currentUid.current === uid && cloudAuth.currentUser?.uid === uid) {
+      rememberComparisonView({ version: 1, scope, selected, mode, query, page, groupId: group?.id ?? null });
+    }
+  }, [viewReady, uid, scope, selected, mode, query, page, group?.id]);
   const selection = selected.join('|');
   useEffect(() => {
     const operation = ++generation.current;
@@ -77,13 +89,13 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
       let reading = false;
       let scheduled = false;
       let refreshNeeded = false;
-      let bound: Array<() => void> = [];
-      let contentWatches: Array<() => void> = [];
+      const bound: Array<() => void> = [];
+      const contentWatches: Array<() => void> = [];
       const basic = () => ({ id: peer, displayName: identityValue?.displayName ?? 'Unavailable player', kind: 'friend' as const, freshness: 'unknown' as const, updatedAt: null });
       const unavailable = (availability: 'unavailable' | 'error' | 'loading' | 'unshared') => {
         if (!current()) return;
-        if (availability === 'unavailable' || availability === 'error') {
-          identityValue = null;
+        // Sharing can be off while the separate, live friend-identity grant remains valid.
+        if ((availability === 'unavailable' || availability === 'error') && !identityValue) {
           setIdentities((old) => { const next = { ...old }; delete next[peer]; return next; });
         }
         setParticipants((old) => ({ ...old, [peer]: { ...basic(), availability } }));
@@ -114,16 +126,25 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
         queueMicrotask(() => { scheduled = false; if (current()) void load(); });
       };
       const detachContent = () => { contentWatches.splice(0).forEach((release) => release()); request += 1; expectedHead = 0; };
+      const removePeer = () => {
+        if (!current()) return;
+        paired = false; detachContent(); identityValue = null;
+        setIdentities((old) => { const next = { ...old }; delete next[peer]; return next; });
+        setParticipants((old) => { const next = { ...old }; delete next[peer]; return next; });
+        setChoices((old) => old.filter((pair) => peerOf(pair, uid) !== peer));
+        setSelected((old) => old.filter((value) => value !== peer));
+        setMessage('A player is no longer a friend and was removed from this comparison.');
+      };
       const bind = () => {
         if (!current()) return;
         bound.splice(0).forEach((release) => release()); detachContent(); paired = false;
-        if (document.hidden || !navigator.onLine) { unavailable('unavailable'); return; }
+        if (document.hidden || navigator.onLine === false) { unavailable('unavailable'); return; }
         unavailable('loading');
         bound.push(store.watchPair(uid, peer, (pair) => {
           if (!current()) return;
           detachContent();
           paired = pair?.state === 'accepted';
-          if (!paired) { identityValue = null; unavailable('unavailable'); return; }
+          if (!paired) { removePeer(); return; }
           contentWatches.push(store.watchIdentity(peer, (value) => {
             identityValue = value;
             if (!value) { request += 1; unavailable('unavailable'); }
@@ -133,7 +154,10 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
             if (!head?.current) { request += 1; expectedHead = 0; unavailable('unshared'); }
             else { expectedHead = head.revision; schedule(); }
           }, () => { request += 1; expectedHead = 0; unavailable('unavailable'); }));
-        }, () => { paired = false; detachContent(); identityValue = null; unavailable('unavailable'); }));
+        }, (cause) => {
+          if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') removePeer();
+          else { paired = false; detachContent(); identityValue = null; unavailable('error'); }
+        }));
       };
       window.addEventListener('online', bind); document.addEventListener('visibilitychange', bind);
       window.addEventListener('offline', bind);
@@ -141,15 +165,15 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
       bind();
     }
     return () => { alive = false; releases.forEach((release) => release()); };
-  }, [uid, store, selection]);
+  }, [uid, store, selection, selected]);
   const datasets = useMemo<ComparisonParticipant[]>(() => selected.map((id) => id === uid
     ? { id: uid, displayName: identity.displayName, kind: 'self', availability: 'ready', freshness: 'fresh', updatedAt: null, entries: ownEntries }
     : participants[id] ?? { id, displayName: identities[id]?.displayName ?? 'Loading player', kind: 'friend', availability: 'loading', freshness: 'unknown' }), [selected, uid, identity.displayName, ownEntries, participants, identities]);
   const comparison = useMemo(() => datasets.length >= 2 ? compareFriendRankings(datasets) : null, [datasets]);
   const result = useMemo(() => comparison ? getComparisonPage(comparison, { mode, query, page, pageSize: 25, sort: { by: 'title' } }) : null, [comparison, mode, query, page]);
-  const useGroup = (value: FriendGroup) => {
+  const chooseGroup = (value: FriendGroup) => {
     setGroup(value); setGroupName(value.name); setSelected(value.participantUids); setPage(1);
-    history.replaceState(null, '', `/compare?group=${encodeURIComponent(value.id)}`);
+    history.replaceState(history.state, '', `/compare?group=${encodeURIComponent(value.id)}`);
   };
   const run = async (operation: () => Promise<void>) => {
     if (running.current) return; running.current = true; setBusy(true); setError(''); setMessage('');
@@ -172,7 +196,7 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
       </label>)}
     </fieldset>
     {cursor && <button className="text-button" disabled={busy} onClick={() => { void run(() => addChoices(cursor)); }}>More friends</button>}
-    <div className="compare-toolbar"><label>Games<select aria-label="Games" value={mode} onChange={(event) => { setMode(event.target.value as ComparisonMode); setPage(1); }}><option value="common-ranked">Ranked by everyone</option><option value="all-shared">All available games</option></select></label><label>Search games<input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label></div>
+    <div className="compare-toolbar"><label>Games<select aria-label="Games" value={mode} onChange={(event) => { setMode(event.target.value === 'all-shared' ? 'all-shared' : 'common-ranked'); setPage(1); }}><option value="common-ranked">Ranked by everyone</option><option value="all-shared">All available games</option></select></label><label>Search games<input type="search" maxLength={160} value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label></div>
     {error && <p className="inline-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {comparison?.cohort.incomplete && <p className="inline-error" role="status">Some rankings are unavailable or unshared. Results identify only the available contributors.</p>}
     <ul className="compare-freshness">{datasets.filter((value) => value.kind !== 'self').map((value) => <li key={value.id}>{value.displayName}: {value.availability === 'ready' ? value.updatedAt ? `shared ${new Date(value.updatedAt).toLocaleString()}` : 'Available' : value.availability}</li>)}</ul>
@@ -191,20 +215,20 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
       if (!group) groupCreationId.current = id;
       const saved = await store.saveGroup(uid, { id, name: groupName, participantUids: selected }, group?.revision ?? 0);
       groupCreationId.current = null;
-      useGroup(saved); setGroups((old) => [saved, ...old.filter((item) => item.id !== saved.id)]); setMessage('Group saved.');
+      chooseGroup(saved); setGroups((old) => [saved, ...old.filter((item) => item.id !== saved.id)]); setMessage('Group saved.');
     }); }}><label>Group name<input required maxLength={80} value={groupName} onChange={(event) => setGroupName(event.target.value)} /></label><div className="button-row">
       <button className="button button-outline" disabled={busy || Boolean(refreshGroupId) || selected.length < 2 || selected.length > 6}>Save group</button>
-      {group && <button type="button" className="text-button" disabled={Boolean(refreshGroupId)} onClick={() => { setGroup(null); setGroupName(''); groupCreationId.current = null; history.replaceState(null, '', '/compare'); }}>New group</button>}
-      {group && <button type="button" className="text-button danger-text" disabled={busy || Boolean(refreshGroupId)} onClick={() => { void run(async () => { await store.deleteGroup(uid, group.id, group.revision); setGroups((old) => old.filter((item) => item.id !== group.id)); setGroup(null); setGroupName(''); history.replaceState(null, '', '/compare'); setMessage('Group deleted.'); }); }}>Delete group</button>}
+      {group && <button type="button" className="text-button" disabled={Boolean(refreshGroupId)} onClick={() => { setGroup(null); setGroupName(''); groupCreationId.current = null; history.replaceState(history.state, '', '/compare'); }}>New group</button>}
+      {group && <button type="button" className="text-button danger-text" disabled={busy || Boolean(refreshGroupId)} onClick={() => { void run(async () => { await store.deleteGroup(uid, group.id, group.revision); setGroups((old) => old.filter((item) => item.id !== group.id)); setGroup(null); setGroupName(''); history.replaceState(history.state, '', '/compare'); setMessage('Group deleted.'); }); }}>Delete group</button>}
     </div></form>
     {refreshGroupId && <button className="button button-outline" disabled={busy} onClick={() => { void run(async () => {
       const saved = refreshGroupId === 'pending' ? null : await store.getGroup(uid, refreshGroupId);
       const listed = await store.listGroups(uid);
       setGroups(listed.items); setGroupCursor(listed.cursor);
-      if (saved) { useGroup(saved); groupCreationId.current = null; }
+      if (saved) { chooseGroup(saved); groupCreationId.current = null; }
       setRefreshGroupId(null); setMessage('Groups refreshed.');
     }); }}>Refresh groups</button>}
-    <ul className="friend-groups">{groups.map((item) => <li key={item.id}><button className="text-button" onClick={() => useGroup(item)}>{item.name}<Icon name="arrow" /></button></li>)}</ul>
+    <ul className="friend-groups">{groups.map((item) => <li key={item.id}><button className="text-button" onClick={() => chooseGroup(item)}>{item.name}<Icon name="arrow" /></button></li>)}</ul>
     {groupCursor && <button className="text-button" disabled={busy} onClick={() => { void run(async () => { const more = await store.listGroups(uid, groupCursor); setGroups((old) => [...old, ...more.items]); setGroupCursor(more.cursor); }); }}>More groups</button>}
     </section>
   </section>;

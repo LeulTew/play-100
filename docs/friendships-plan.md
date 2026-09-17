@@ -8,6 +8,46 @@ contracts. Decisions below were selected under the user's autonomous delegation.
 Friend-sharing starts OFF: implementing the capability is not permission to
 enable it on anyone's existing account.
 
+## Next slice: established friend management
+
+The next manager iteration builds on release `ec55286`, without changing the
+relationship schema, Rules, indexes or two-entry/100-chunk sharing transport.
+
+- URL-backed Friends, Incoming, Sent, Invite links and Blocked views preserve
+  name filtering and recent/A-Z ordering. Filtering is explicitly over loaded
+  rows, not a global directory. Incoming and Sent share bounded pending pages;
+  an empty filtered first page still offers the next 20 requests.
+- Explicitly loaded pages remain stable. A first-page stream signals changes
+  instead of truncating later pages. Loaded relationship streams remove revoked
+  rows immediately; Refresh reloads the same number of requested pages.
+  New entries do not silently move a pagination boundary. Every SDK list query
+  remains capped at 20, with no automatic background crawl or ranking fetch.
+- Identities resolve independently, at most four reads concurrently, only for
+  loaded authorized relationships. Missing/denied/failed profiles have row-level
+  states and recovery. Account, view and read generations discard stale results.
+  Hidden/offline manager streams pause. Blocked labels use an honest identifier
+  fallback, never a privacy-bypassing profile lookup.
+  Retrying a failed row reattaches its relationship stream as well as its profile
+  read, so later revocation still removes it.
+- Up to five accepted friends can be selected for comparison with self. Row and
+  detail shortcuts preselect their peer. Validated account-bound tab/history
+  state preserves the cohort, filters and pagination through reload/Back/game
+  details; public URLs contain neither participant lists nor invite capabilities.
+  Relationship revocation removes unauthorized selections. Existing private
+  groups remain the only named cohort system.
+  Transient selected-connection failures retain the cohort and comparison
+  settings but block Compare until checked again. Every navigation invalidates
+  an in-flight comparison launch, including Back/Forward to the same view.
+- Native accessible More menus contain Remove/Block, with named confirmations.
+  Invite links distinguish Active/Used/Expired/Revoked and show localized dates;
+  only active links can be copied/shared, and revocation needs confirmation.
+  One visible-page deadline timer updates expiry, without polling or regeneration.
+
+The manager retains chalk/ink/lime typography, concise copy and 44px controls.
+No chat, feed, presence, contact import, bulk destruction, new paid service or
+implicit saving/sharing consent is introduced. Proof uses synthetic relations
+over the first-page boundary and a bounded desktop/mobile journey batch.
+
 ## 1. Outcomes and priority
 
 | Priority | Outcome | Acceptance |

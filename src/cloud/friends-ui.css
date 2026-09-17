@@ -29,6 +29,31 @@
 .friend-matrix td > span { font-size: 13px; color: var(--muted); }
 .friend-compare-page .account-section form { max-width: 640px; }
 .friend-compare-page .account-section label { display: block; margin-block: 16px 12px; }
+.friends-page .page-heading { align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+.friends-page .page-heading h1 { margin-bottom: 0; }
+.friends-page .text-button { min-width: 44px; }
+.friend-view-tabs { display: flex; overflow-x: auto; max-width: 100%; padding-bottom: 6px; }
+.friends-page .friend-view-tabs { flex-wrap: nowrap; gap: 12px; }
+.friends-page .friend-view-tabs > button { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding-inline: 4px; font-size: 14px; white-space: nowrap; }
+.friend-manager-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 240px); gap: 20px; margin-top: 24px; max-width: 780px; }
+.friend-manager-toolbar label { display: grid; gap: 8px; font-weight: 600; }
+.friend-manager-toolbar input, .friend-manager-toolbar select { width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); color: var(--ink); font: inherit; font-size: 16px; }
+.friend-list-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-block: 12px; }
+.friend-list-summary p, .friend-update-notice { color: var(--muted); font-size: 14px; }
+.friend-list-summary .text-button { flex-shrink: 0; }
+.friend-selection-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; position: sticky; top: 88px; z-index: 3; background: var(--paper); border-block: 1px solid var(--ink); padding: 12px 0; }
+.friend-selection-bar > span { font-weight: 650; }
+.friend-selection-bar > p { flex-basis: 100%; margin: 0; }
+.friend-row-person { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.friend-row-person .friend-identity { margin-block: 0; }
+.friend-select { flex: 0 0 44px; min-width: 44px; min-height: 44px; justify-content: center; }
+.friend-row-person strong { font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
+.friend-avatar-placeholder { width: 48px; height: 48px; display: grid; place-items: center; background: var(--line); border-radius: 50%; flex-shrink: 0; }
+.friend-more-menu { position: fixed; inset: auto; margin: 0; padding: 6px; min-width: 184px; max-width: calc(100vw - 16px); border: 1px solid var(--ink); border-radius: 4px; background: var(--white); color: var(--ink); }
+.friend-more-menu:popover-open { display: grid; }
+.friend-more-menu .text-button { justify-content: flex-start; padding-inline: 12px; }
+.friend-invite-status { font-size: 18px; }
+.friend-invite-dates { color: var(--muted); font-size: 14px; line-height: 1.6; margin-block: 8px 0; }
 @media (max-width: 760px) {
   .friends-page h1, .friend-detail-page h1, .friends-sharing-page h1, .friend-compare-page h1, .invitation-page h1 { font-size: 38px; }
   .friend-list > li { align-items: flex-start; flex-direction: column; gap: 4px; }
@@ -36,4 +61,13 @@
   .friend-matrix th, .friend-matrix td { padding: 12px; min-width: 120px; }
   .friend-matrix th:first-child { min-width: 156px; max-width: 190px; }
   .friend-compare-page .page-heading { flex-wrap: wrap; }
+  .friend-manager-toolbar { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .friend-manager-toolbar label:last-child { max-width: 260px; }
+  .friend-list > .friend-manager-row { gap: 12px; padding-block: 20px; align-items: stretch; }
+  .friend-manager-row .friend-row-actions { justify-content: flex-end; gap: 8px 16px; }
+  .friend-selection-bar { top: 72px; gap: 8px; }
+  .friend-selection-bar .button-row { flex-wrap: wrap; gap: 8px 16px; }
+  .friend-selection-bar .button { padding-inline: 14px; }
+  .friend-row-person { gap: 4px; }
+  .friend-row-person .friend-identity { gap: 12px; }
 }
