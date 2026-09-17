@@ -207,9 +207,9 @@ no name, avatar, recipient or timestamps. Tombstones prevent capability replay.
 `friendShareHeads/{uid}` has current/previous manifests and monotonic revision.
 `friendShareRegistry/{uid}` bounds generations to three (current, previous, one
 staging/retiring). `friendShares/{uid}/generations/{uuid}` tracks strict incremental
-upload progress and globally unique IDs; its `chunks/{0..66}` each contains at
-most three individually validated `PublicEntry` values, ordered positions and IDs.
-`FRIEND_CHUNK_SIZE = 3`, `FRIEND_CHUNK_LIMIT = 67`, and the selected-game maximum
+upload progress and globally unique IDs; its `chunks/{0..99}` each contains at
+most two individually validated `PublicEntry` values, ordered positions and IDs.
+`FRIEND_CHUNK_SIZE = 2`, `FRIEND_CHUNK_LIMIT = 100`, and the selected-game maximum
 remains 200. Every chunk is complete and immutable from creation; there is no
 partial chunk or append protocol. The last chunk contains the exact remainder.
 All selected entries are explicit, including zero scores and null scores.
@@ -227,10 +227,10 @@ to members, private chunks, creator ranks or raw library state.
 ## Cost and operational limits
 
 No Functions, paid TTL, polling, global presence or per-friend write fanout.
-One ranking costs a head plus up to 67 packed chunk documents in one
+One ranking costs a head plus up to 100 packed chunk documents in one
 generation-scoped query and a final head check. Rules authorize the whole known
-owner/generation path and cap the query at 67; they do not filter documents.
-This avoids repeating relationship authorization for 67 separate get requests.
+owner/generation path and cap the query at 100; they do not filter documents.
+This avoids repeating relationship authorization for 100 separate get requests.
 Page size is 20. Invite allocation reads at most 20 slots plus their occupied
 invites; fixed slots, not an unchecked counter, enforce the active limit.
 Publishing stages one chunk and its progress record per atomic write and uses a
@@ -257,15 +257,15 @@ They are not a claim that a rules test ran when an execution slot is unavailable
 | Friend identity get | 7 | Not applicable |
 | Friend head / bounded current-chunk query | 8 | Not applicable |
 | Stage generation + registry | 4 | 5 |
-| Write three-entry chunk + progress (including canonical catalog) | 6 | 7 |
+| Write two-entry chunk + progress (including canonical catalog) | 6 | 7 |
 | Publish head + mark generation published | 5 | 6 |
-| Delete one generation's 67 chunks | 3 | 3 |
+| Delete one generation's 100 chunks | 3 | 3 |
 | List 20 own relationship metadata rows | 0 | Not applicable |
 
 Content reads do not perform a lookup for each shared entry. The canonical
 collection source uses the existing single trusted `catalog/author` document.
 The default 200-selection limit is enforced on the encoded string by regex plus
-uniqueness; generation upload adds three strictly validated IDs at a time and
+uniqueness; generation upload adds two strictly validated IDs at a time and
 requires global uniqueness, so duplicate identities across chunks cannot commit.
 
 The earlier ten-entry target exceeded Firestore's separate 1,000-expression
@@ -273,9 +273,12 @@ evaluation ceiling in an actual full-capacity publication, even after strict
 aliasing/immutable-field optimizations. A subsequent five-entry attempt also
 failed, including after conditional source dispatch. Its coverage reached about
 three complete row validations before the next row exceeded the ceiling, with
-the generation still at `uploaded: 0`. Three-entry immutable chunks therefore
-trade up to 47 additional document reads per full ranking and up to 47 additional
-chunk/progress write batches compared with the original ten-entry target. The same
+the generation still at `uploaded: 0`. Three-entry immutable chunks subsequently
+passed full 200-game Wikidata publication (6.89 seconds), but the mixed canonical /
+Wikidata case exceeded the ceiling in its first chunk (2.4 seconds). The canonical
+record checks must also fit, so two-entry immutable chunks trade up to 80
+additional document reads per full ranking and up to 80 additional chunk/progress
+write batches compared with the original ten-entry target. The same
 200 games, all strict source/private-field checks, source/settings/lifecycle CAS
 and atomic final head remain required. This is a measured failure motivating
 the new shape, not a claim that the new expression budget has passed before its
@@ -303,6 +306,11 @@ Position equality is against the validated chunk index and offset, which yields
 an integer from 1 through 200. This removes redundant range checks, not the bound.
 The full-capacity and mixed-source runtime cases remain the required budget
 proof; static source parity alone is not a runtime-limit measurement.
+
+The mixed 200-game case places all 100 canonical records first, followed by 100
+Wikidata records. Its first 50 chunks each validate two canonical entries, rather
+than only exercising one canonical lookup branch paired with a cheaper source.
+The 199-game case separately verifies an odd one-entry final chunk.
 
 ## Focused verification
 

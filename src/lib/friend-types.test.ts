@@ -109,8 +109,8 @@ describe('strict friend types and selected projection', () => {
     expect(() => parseFriendChunk({ index: 0, entries: [entry], ids: ['manual:wrong'] }, 0, 1)).toThrow();
     expect(() => parseFriendChunk({ index: 0, entries: [entry], ids: [entry.id], notes: 'private' }, 0, 1)).toThrow();
     expect(() => parseFriendGeneration({ epoch: 1, settingsRevision: 1, source: { syncEpoch: 1, remoteRevision: 0 }, count: 2, digest: token, uploaded: 1, ids: [entry.id], status: 'ready', createdAt: time })).toThrow();
-    expect(FRIEND_CHUNK_SIZE).toBe(3);
-    expect(FRIEND_CHUNK_LIMIT).toBe(67);
+    expect(FRIEND_CHUNK_SIZE).toBe(2);
+    expect(FRIEND_CHUNK_LIMIT).toBe(100);
     for (const count of [1, 2, 3, 4, 5, 6, 7, 199, 200]) {
       const rows = Array.from({ length: count }, (_, index): PublicEntry => ({
         ...entry, position: index + 1, id: `wikidata:Q${index + 1}`, sourceId: `Q${index + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${index + 1}`,
@@ -123,7 +123,7 @@ describe('strict friend types and selected projection', () => {
       expect(parseFriendGeneration({ epoch: 1, settingsRevision: 1, source: { syncEpoch: 1, remoteRevision: 0 }, count, digest: token, uploaded,
         ids: rows.map((row) => row.id), status: 'ready', createdAt: time }).uploaded).toBe(uploaded);
     }
-    expect(() => parseFriendChunk({ index: 67, entries: [entry], ids: [entry.id] }, 67, 200)).toThrow();
+    expect(() => parseFriendChunk({ index: 100, entries: [entry], ids: [entry.id] }, 100, 200)).toThrow();
     expect(() => parseFriendChunk({ index: 0, entries: Array(10).fill(entry), ids: Array(10).fill(entry.id) }, 0, 200)).toThrow();
   });
 });

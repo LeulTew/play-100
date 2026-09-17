@@ -7,7 +7,7 @@ import type { Game } from './types';
 
 export const FRIEND_PAGE_SIZE = 20;
 export const FRIEND_SELECTION_LIMIT = 200;
-export const FRIEND_CHUNK_SIZE = 3;
+export const FRIEND_CHUNK_SIZE = 2;
 export const FRIEND_CHUNK_LIMIT = Math.ceil(FRIEND_SELECTION_LIMIT / FRIEND_CHUNK_SIZE);
 export const FRIEND_INVITE_LIMIT = 20;
 export const FRIEND_INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
