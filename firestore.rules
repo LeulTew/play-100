@@ -759,11 +759,23 @@ service cloud.firestore {
         && fSource(source) && sync.enabled && !sync.deleted && control.consentSyncEpoch == source.syncEpoch
         && sync.epoch == source.syncEpoch && sync.revision == source.remoteRevision;
     }
+    function sConnected(uid) {
+      let viewer = request.auth.uid;
+      let pair = get(fPairPath(uid, viewer)).data;
+      let ownerSettings = get(/databases/$(database)/documents/friendSettings/$(uid)).data;
+      let viewerSettings = get(/databases/$(database)/documents/friendSettings/$(viewer)).data;
+      return verified() && uid != viewer && pair.state == 'accepted'
+        && ownerSettings.deleted == false && viewerSettings.deleted == false
+        && get(/databases/$(database)/documents/accountLifecycle/$(uid)).data.state == 'active'
+        && get(/databases/$(database)/documents/accountLifecycle/$(viewer)).data.state == 'active'
+        && !exists(/databases/$(database)/documents/friendBlocks/$(uid)/items/$(viewer))
+        && !exists(/databases/$(database)/documents/friendBlocks/$(viewer)/items/$(uid));
+    }
     function sCurrent(uid, id) {
       let control = sConfig(uid);
       let pointer = sHead(uid);
       let sync = head(uid);
-      return fConnected(uid, false) && control.enabled && !control.deleted && !sync.deleted
+      return sConnected(uid) && control.enabled && !control.deleted && !sync.deleted
         && pointer.source.syncEpoch == control.consentSyncEpoch && (!sync.enabled || control.consentSyncEpoch == sync.epoch)
         && pointer.epoch == control.epoch && pointer.settingsRevision == control.revision && pointer.current.generation == id;
     }
