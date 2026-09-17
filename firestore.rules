@@ -623,16 +623,16 @@ service cloud.firestore {
     function fGenerationShape(data) {
       return fKeys(data, ['epoch', 'settingsRevision', 'source', 'count', 'digest', 'uploaded', 'ids', 'status', 'createdAt'])
         && fInt(data.epoch, 1, 9007199254740991) && fInt(data.settingsRevision, 1, 9007199254740991) && fSource(data.source)
-        && fInt(data.count, 0, 200) && digest(data.digest) && fInt(data.uploaded, 0, 40)
+        && fInt(data.count, 0, 200) && digest(data.digest) && fInt(data.uploaded, 0, 67)
         && data.ids is list && data.ids.size() <= data.count && data.ids.toSet().size() == data.ids.size()
         && data.status in ['staging', 'ready', 'published', 'deleting'] && data.createdAt is timestamp;
     }
     function fGenerationProgress(uid, id, before, after) {
       let chunk = getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(id)/chunks/$(string(before.uploaded))).data;
-      let count = before.count - before.uploaded * 5 < 5 ? before.count - before.uploaded * 5 : 5;
+      let count = before.count - before.uploaded * 3 < 3 ? before.count - before.uploaded * 3 : 3;
       return before.status == 'staging' && after.diff(before).affectedKeys().hasOnly(['uploaded', 'ids', 'status'])
         && fPublish(uid, before.epoch, before.settingsRevision, before.source)
-        && after.uploaded == before.uploaded + 1 && after.uploaded <= 40 && chunk.index == before.uploaded
+        && after.uploaded == before.uploaded + 1 && after.uploaded <= 67 && chunk.index == before.uploaded
         && chunk.entries.size() == count && chunk.ids.size() == count
         && after.ids == before.ids.concat(chunk.ids) && after.ids.size() <= before.count
         && after.ids.toSet().size() == after.ids.size()
@@ -701,27 +701,27 @@ service cloud.firestore {
         && fPackedSource(source, sourceId, id, url, title, year);
     }
     function fChunkEntry(data, offset) {
-      return offset >= data.entries.size() || fPackedEntry(data.entries[offset], data.ids[offset], data.index * 5 + offset + 1);
+      return offset >= data.entries.size() || fPackedEntry(data.entries[offset], data.ids[offset], data.index * 3 + offset + 1);
     }
     function fChunkShape(data, size) {
-      return fKeys(data, ['index', 'entries', 'ids']) && fInt(data.index, 0, 39)
-        && data.entries is list && size >= 1 && size <= 5 && data.entries.size() == size
+      return fKeys(data, ['index', 'entries', 'ids']) && fInt(data.index, 0, 66)
+        && data.entries is list && size >= 1 && size <= 3 && data.entries.size() == size
         && data.ids is list && data.ids.size() == size && data.ids.toSet().size() == size;
     }
     function fChunkCreate(uid, generationId, chunkId, data) {
       let gen = fGeneration(uid, generationId);
       let after = getAfter(/databases/$(database)/documents/friendShares/$(uid)/generations/$(generationId)).data;
-      let size = gen.count - data.index * 5 < 5 ? gen.count - data.index * 5 : 5;
+      let size = gen.count - data.index * 3 < 3 ? gen.count - data.index * 3 : 3;
       return own(uid) && string(data.index) == chunkId && fChunkShape(data, size)
         && gen.status == 'staging' && gen.uploaded == data.index
         && fPublish(uid, gen.epoch, gen.settingsRevision, gen.source)
         && fSettings(uid).selection.split('[|]').hasAll(data.ids) && !gen.ids.hasAny(data.ids)
-        && fChunkEntry(data, 0) && fChunkEntry(data, 1) && fChunkEntry(data, 2) && fChunkEntry(data, 3) && fChunkEntry(data, 4)
+        && fChunkEntry(data, 0) && fChunkEntry(data, 1) && fChunkEntry(data, 2)
         && after.uploaded == data.index + 1;
     }
     match /friendShares/{uid}/generations/{generationId}/chunks/{chunkId} {
       allow get: if fOwnLive(uid) || fShareCurrent(uid, generationId);
-      allow list: if request.query.limit != null && request.query.limit <= 40
+      allow list: if request.query.limit != null && request.query.limit <= 67
         && (fOwnLive(uid) || fShareCurrent(uid, generationId));
       allow create: if fChunkCreate(uid, generationId, chunkId, request.resource.data);
       allow update: if false;
