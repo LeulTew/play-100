@@ -12,7 +12,7 @@ describe('shared catalog transport', () => {
     vi.stubGlobal('fetch', fetcher);
     const cancellation = signal();
     expect(await fetchCatalogPage('wikidata', ' Atlas ', 0, cancellation)).toEqual(page);
-    expect(fetcher).toHaveBeenCalledExactlyOnceWith('/api/catalog?source=wikidata&q=Atlas&offset=0', { signal: cancellation });
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith('/api/catalog?source=wikidata&q=Atlas&offset=0', { signal: expect.any(AbortSignal), headers: { Accept: 'application/json' } });
   });
 
   it.each([{ query: 'Different' }, { source: 'freetogame' }, { offset: 5 }])('rejects a response for the wrong request: %j', async (change) => {

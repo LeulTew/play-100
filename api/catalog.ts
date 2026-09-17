@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { LibraryRecord } from '../src/lib/personal-types.ts';
 import type { CatalogPage, CatalogSource } from '../src/lib/catalog-types.ts';
+import { matchesCatalogQuery } from '../src/lib/catalog-query.ts';
 
 const WIKIDATA = 'https://www.wikidata.org/w/api.php';
 const FREE_TO_GAME = 'https://www.freetogame.com/api/games';
@@ -12,7 +13,7 @@ type JsonObject = Record<string, unknown>;
 
 export class CatalogError extends Error {
   readonly status: number;
-  constructor(message: string, status = 502) { super(message); this.status = status; }
+  constructor(message: string, status = 502, readonly code = 'unavailable', readonly retryAfter = 0) { super(message); this.status = status; }
 }
 
 function object(value: unknown): JsonObject | null {
@@ -25,7 +26,11 @@ function text(value: unknown): string | null {
 
 async function upstreamJson(url: URL | string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }, signal, redirect: 'error' });
-  if (response.status === 429) throw new CatalogError('This catalog is rate-limiting requests. Please wait a minute and try again.', 503);
+  if (response.status === 429) {
+    await response.body?.cancel();
+    const retryAfter = Math.min(60, Math.max(1, Number(response.headers.get('retry-after')) || 30));
+    throw new CatalogError('This catalog is rate-limiting requests. Please wait a moment and try again.', 429, 'rate-limited', retryAfter);
+  }
   if (!response.ok) throw new CatalogError(`The source catalog is unavailable (${response.status}). Try again later or add a game manually.`, 503);
   if (!response.body) throw new CatalogError('The catalog returned no data.');
   const reader = response.body.getReader();
@@ -190,8 +195,7 @@ async function freeToGamePage(query: string, offset: number, signal: AbortSignal
     if (payload.length && !records.length) throw new CatalogError('FreeToGame did not return usable game records.');
     freeCatalog = { expires: Date.now() + 10 * 60_000, records };
   }
-  const terms = query.toLocaleLowerCase('en').split(/\s+/).filter(Boolean);
-  const matches = freeCatalog.records.filter((record) => terms.every((term) => `${record.title} ${record.genre ?? ''} ${record.studio ?? ''}`.toLocaleLowerCase('en').includes(term))).sort((a, b) => a.title.localeCompare(b.title, 'en'));
+  const matches = freeCatalog.records.filter((record) => matchesCatalogQuery(`${record.title} ${record.genre ?? ''} ${record.studio ?? ''}`, query)).sort((a, b) => a.title.localeCompare(b.title, 'en'));
   return {
     source: 'freetogame', query, items: matches.slice(offset, offset + FREE_PAGE_SIZE), total: matches.length,
     offset, nextOffset: offset + FREE_PAGE_SIZE < matches.length ? offset + FREE_PAGE_SIZE : null,
@@ -206,6 +210,7 @@ export async function getCatalogPage(source: CatalogSource, query: string, offse
 export default async function handler(request: IncomingMessage, response: ServerResponse) {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('Cache-Control', 'no-store');
   if (request.method !== 'GET') {
     response.setHeader('Allow', 'GET');
     response.writeHead(405).end(JSON.stringify({ error: 'Only catalog lookup GET requests are supported.' }));
@@ -219,7 +224,7 @@ export default async function handler(request: IncomingMessage, response: Server
   if (
     (source !== 'wikidata' && source !== 'freetogame') || query.length > 80 || [...query].some((character) => character.charCodeAt(0) < 32) ||
     !/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset < 0 || offset > 10000 ||
-    [...url.searchParams.keys()].some((key) => !['source', 'q', 'offset'].includes(key))
+    [...url.searchParams.keys()].some((key) => !['source', 'q', 'offset'].includes(key) || url.searchParams.getAll(key).length !== 1)
   ) {
     response.writeHead(400).end(JSON.stringify({ error: 'Choose a supported source, a search of up to 80 characters and a valid page offset.' }));
     return;
@@ -231,8 +236,10 @@ export default async function handler(request: IncomingMessage, response: Server
     response.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=600');
     response.writeHead(200).end(JSON.stringify(page));
   } catch (error: unknown) {
-    response.setHeader('Cache-Control', 'no-store');
     const message = controller.signal.aborted ? 'The source took too long to reply. Try again later or add a game manually.' : error instanceof CatalogError ? error.message : 'The public catalog could not be reached. Please try again later.';
-    response.writeHead(error instanceof CatalogError ? error.status : 503).end(JSON.stringify({ error: message }));
+    if (error instanceof CatalogError && error.retryAfter) response.setHeader('Retry-After', error.retryAfter);
+    response.writeHead(controller.signal.aborted ? 504 : error instanceof CatalogError ? error.status : 503).end(JSON.stringify({
+      error: message, code: controller.signal.aborted ? 'timeout' : error instanceof CatalogError ? error.code : 'unavailable',
+    }));
   } finally { clearTimeout(timeout); }
 }

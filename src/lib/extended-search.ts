@@ -1,6 +1,7 @@
 import type { Filters, Game } from './types';
 import type { LibraryRecord, PersonalProgress } from './personal-types';
-import { searchText, sortDirection } from './collection';
+import { sortDirection } from './collection';
+import { matchesCatalogQuery } from './catalog-query';
 
 export function unrankedRecords(games: Game[], saved: Record<string, LibraryRecord>, online: LibraryRecord[]): LibraryRecord[] {
   const curated = new Set(games.map((game) => game.slug));
@@ -10,7 +11,6 @@ export function unrankedRecords(games: Game[], saved: Record<string, LibraryReco
 
 export function filterUnranked(records: LibraryRecord[], filters: Filters, progress: Record<string, PersonalProgress>, onlineMatches: ReadonlySet<string> = new Set()): LibraryRecord[] {
   if (filters.tier !== 'all') return [];
-  const terms = searchText(filters.q).split(' ').filter(Boolean);
   const result = records.filter((record) => {
     if (filters.genre && record.genre !== filters.genre) return false;
     if (filters.year && record.year !== Number(filters.year)) return false;
@@ -20,9 +20,7 @@ export function filterUnranked(records: LibraryRecord[], filters: Filters, progr
     if (filters.list === 'unplayed' && state?.completed) return false;
     // Source searches can match an alias that is not included in the imported title.
     if (onlineMatches.has(record.id)) return true;
-    const searchable = searchText(`${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''}`);
-    const words = searchable.split(' ');
-    return terms.every((term) => /^\d+$/.test(term) ? words.includes(term) : searchable.includes(term));
+    return matchesCatalogQuery(`${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''}`, filters.q);
   });
   if (filters.sort === 'rank') return result;
   const direction = sortDirection(filters) === 'asc' ? 1 : -1;

@@ -39,6 +39,11 @@ describe('saved and live unranked search', () => {
     expect(filterUnranked(records, { ...defaultFilters, q: '2024' }, {})).toEqual([b]);
     expect(filterUnranked(records, { ...defaultFilters, q: 'not present' }, {})).toEqual([]);
   });
+  it('matches compact and accented titles in returning-profile records just as in the public seed', () => {
+    const record = { ...a, title: 'Kingdom Come: Deliverance' };
+    expect(filterUnranked([record], { ...defaultFilters, q: 'Kingdomcome' }, {})).toEqual([record]);
+    expect(filterUnranked([record], { ...defaultFilters, q: 'Kíngdom Côme' }, {})).toEqual([record]);
+  });
 
   it('keeps provider alias matches while still applying year and genre filters', () => {
     const aliases = new Set([a.id]);

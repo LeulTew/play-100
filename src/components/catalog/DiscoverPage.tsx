@@ -1,91 +1,82 @@
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import type { PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
-import type { CatalogPage, CatalogSource } from '../../lib/catalog-types';
-import { fetchCatalogPage } from '../../lib/catalog-client';
+import { useRef, useState } from 'react';
+import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
+import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE } from '../../lib/discovery-search';
+import type { DiscoveryFilters } from '../../lib/discovery-search';
+import { useDiscoverSearch } from '../../hooks/useDiscoverSearch';
+import { useDiscoveryUrl } from '../../hooks/useDiscoveryUrl';
 import { Icon } from '../Icon';
 import { SelectionBar } from '../SelectionBar';
 import type { SelectionAction } from '../SelectionBar';
 import ManualGameForm from '../personal/ManualGameForm';
-import { PlayedToggle } from '../PlayedToggle';
+import { DiscoveryCard } from './DiscoveryCard';
+import { CatalogSourceStatus } from './CatalogSourceStatus';
+import './discover.css';
 
-export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommunity }: {
+export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommunity, onPreview, onPin, pinnedIds }: {
   state: PersonalLibraryState; busy: boolean; onAction: (action: PersonalAction) => Promise<boolean>; onLibrary: () => void;
-  onCommunity?: () => void;
+  onCommunity?: () => void; onPreview?: (record: LibraryRecord) => void;
+  onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
 }) {
-  const [source, setSource] = useState<CatalogSource>('wikidata');
-  const [query, setQuery] = useState('');
-  const [result, setResult] = useState<CatalogPage | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { filters, update } = useDiscoveryUrl();
+  const search = useDiscoverSearch(filters);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const request = useRef<AbortController | null>(null);
-  const cooldown = useRef(0);
-  useEffect(() => () => request.current?.abort(), []);
-  useEffect(() => {
-    if (!result) return;
-    const heading = document.getElementById('catalog-results-title');
-    heading?.scrollIntoView({ block: 'start', behavior: 'instant' });
-    heading?.focus({ preventScroll: true });
-  }, [result]);
-
-  const search = async (offset = 0, searchQuery = query.trim(), searchSource = source) => {
-    if (Date.now() - cooldown.current < 900) { setError('Give the catalog a moment before another request.'); return; }
-    cooldown.current = Date.now();
-    request.current?.abort();
-    const controller = new AbortController();
-    request.current = controller;
-    setError(''); setLoading(true); setSelected(new Set());
-    const timeout = window.setTimeout(() => controller.abort('timeout'), 15000);
-    try {
-      const parsed = await fetchCatalogPage(searchSource, searchQuery, offset, controller.signal);
-      if (!controller.signal.aborted) setResult(parsed);
-    } catch (cause: unknown) {
-      if (controller.signal.aborted && controller.signal.reason !== 'timeout') return;
-      setError(controller.signal.reason === 'timeout' ? 'The catalog took too long to respond. Try again or add a game manually.' : cause instanceof Error ? cause.message : 'The catalog could not be loaded.');
-    } finally {
-      window.clearTimeout(timeout);
-      if (request.current === controller) setLoading(false);
-    }
+  const editing = useRef(false);
+  const { seed, records, local, artwork, remote, remoteEnabled } = search;
+  const selection = records.filter((record) => selected.has(record.id));
+  const change = (patch: Partial<DiscoveryFilters>, method: 'push' | 'replace' = 'push') => {
+    setSelected(new Set());
+    update(patch, method);
   };
-  const submit = (event: FormEvent) => { event.preventDefault(); void search(); };
-  const changeSource = (next: CatalogSource) => {
-    request.current?.abort();
-    setLoading(false); setSource(next); setResult(null); setError(''); setSelected(new Set());
-  };
-  const toggleSelection = (id: string) => setSelected((prior) => {
-    const next = new Set(prior); if (next.has(id)) next.delete(id); else next.add(id); return next;
-  });
   const bulk = async (action: SelectionAction) => {
-    const records = result?.items.filter((record) => selected.has(record.id)) ?? [];
-    if (!records.length) return;
-    if (await onAction(action === 'ranking' ? { type: 'add-ranking', records } : { type: 'set-progress', records, key: action === 'completed' ? 'completed' : 'later', value: true })) setSelected(new Set());
+    if (!selection.length) return;
+    if (await onAction(action === 'ranking' ? { type: 'add-ranking', records: selection } : {
+      type: 'set-progress', records: selection, key: action === 'completed' ? 'completed' : 'later', value: true,
+    })) setSelected(new Set());
   };
+  const genres = [...new Set(seed.catalog?.items.flatMap(({ record }) => record.genre ? [record.genre] : []) ?? [])].sort();
+  const years = [...new Set(seed.catalog?.items.flatMap(({ record }) => record.year ? [record.year] : []) ?? [])].sort((a, b) => b - a);
+  const initialLoading = seed.status === 'idle' || seed.status === 'loading';
+  const failed = remote.sources.some((source) => source.status === 'error');
   return (
-    <section className="app-page" aria-labelledby="discover-title">
-      <div className="page-heading"><div><h1 id="discover-title" tabIndex={-1} data-page-heading>Discover</h1></div><button className="button button-outline" onClick={onLibrary}>Open my library<Icon name="arrow" width="17" height="17" /></button></div>
-      <form className="catalog-search-form" onSubmit={submit}>
-        <div className="catalog-source-options" role="group" aria-label="Catalog source"><button type="button" aria-pressed={source === 'wikidata'} onClick={() => changeSource('wikidata')}>Wikidata<span>Broad, open game data</span></button><button type="button" aria-pressed={source === 'freetogame'} onClick={() => changeSource('freetogame')}>FreeToGame<span>Free-to-play catalog</span></button></div>
-        <label htmlFor="catalog-search">Search titles or leave blank to browse</label>
-        <div className="catalog-query"><div className="search-field"><Icon name="search" /><input id="catalog-search" type="search" value={query} maxLength={80} onChange={(event) => setQuery(event.target.value)} placeholder={source === 'wikidata' ? 'Try Hades, Halo or Baldur’s Gate...' : 'Search the FreeToGame catalog'} /></div><button className="button button-dark" type="submit" disabled={loading}>{loading ? 'Searching...' : query.trim() ? 'Search catalog' : 'Browse catalog'}<Icon name="arrow" width="18" height="18" /></button></div>
-        <p className="catalog-privacy">Only your query is sent to the selected provider.</p>
+    <section className="app-page discovery-page" aria-labelledby="discover-title">
+      <header className="discovery-heading"><h1 id="discover-title" tabIndex={-1} data-page-heading>Discover</h1><button className="text-button" onClick={onLibrary}>My games<Icon name="arrow" width="17" height="17" /></button></header>
+      <form className="discovery-search" onSubmit={(event) => { event.preventDefault(); editing.current = false; }}>
+        <label htmlFor="catalog-search">Find a game</label>
+        <div className="search-field"><Icon name="search" /><input id="catalog-search" type="search" value={filters.q} maxLength={80} placeholder="Search games, studios or aliases" onFocus={() => { editing.current = false; }} onBlur={() => { editing.current = false; }} onChange={(event) => {
+          change({ q: event.target.value, offset: 0, online: 'auto' }, editing.current ? 'replace' : 'push');
+          editing.current = true;
+        }} />{filters.q && <button className="icon-button" type="button" aria-label="Clear search" onClick={() => change({ q: '', offset: 0, online: 'auto' })}><Icon name="close" /></button>}</div>
       </form>
-      {onCommunity && <div className="discover-community"><div><h2>Shared rankings</h2></div><button className="button button-outline" onClick={onCommunity}>Explore Community<Icon name="arrow" width="18" height="18" /></button></div>}
-      {error && <div className="catalog-error" role="alert"><Icon name="info" /><div><strong>Catalog request failed.</strong><p>{error}{result ? ' Previous results are shown below.' : ''}</p></div><button className="text-button" disabled={loading} onClick={() => { void search(); }}>Try again</button></div>}
-      {loading && <p className="catalog-loading" role="status">Looking up public game records...</p>}
-      {result && <>
-        <div className="catalog-results-title"><h2 id="catalog-results-title" tabIndex={-1}>{result.query ? `Results for “${result.query}”` : `${result.source === 'wikidata' ? 'Wikidata' : 'FreeToGame'} catalog`}</h2><span>{result.total.toLocaleString()} source matches</span><button className="text-button" aria-pressed={selecting} onClick={() => { setSelecting((value) => !value); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Exit selection' : 'Select games'}</button></div>
-        {selecting && <SelectionBar context="discover" count={selected.size} total={result.items.length} busy={busy || loading} onSelectAll={() => setSelected(new Set(result.items.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
-        {result.items.length ? <ul className="catalog-results">{result.items.map((record) => <li key={record.id} data-catalog-id={record.id}>
-          {selecting && <label className="select-control"><input type="checkbox" checked={selected.has(record.id)} onChange={() => toggleSelection(record.id)} aria-label={`Select ${record.title}`} /></label>}
-          <div className="catalog-record-copy"><h3>{record.title}</h3><p>{[record.year, record.studio, record.genre].filter((value) => value !== null).join(' · ') || 'Metadata unavailable.'}</p>{record.sourceUrl && <a href={record.sourceUrl} target="_blank" rel="noreferrer">View on {result.source === 'wikidata' ? 'Wikidata' : 'FreeToGame'}<Icon name="up-right" width="14" height="14" /></a>}</div>
-          <div className="catalog-record-actions"><PlayedToggle id={record.id} title={record.title} played={Boolean(state.progress[record.id]?.played)} completed={state.progress[record.id]?.completed} busy={busy} compact onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} /><button className="button button-outline" disabled={busy || Boolean(state.progress[record.id]?.later)} onClick={() => { void onAction({ type: 'set-progress', records: [record], key: 'later', value: true }); }}><Icon name="bookmark" width="17" height="17" />{state.progress[record.id]?.later ? 'In your queue' : 'Play later'}</button><button className="icon-button" disabled={busy || state.ranking.some((entry) => entry.id === record.id)} aria-label={`Add ${record.title} to my ranking`} onClick={() => { void onAction({ type: 'add-ranking', records: [record] }); }}><Icon name="rank" width="20" height="20" /></button><button className="icon-button" disabled={busy || Boolean(state.records[record.id])} aria-label={`Import ${record.title} to my library`} onClick={() => { void onAction({ type: 'add-records', records: [record] }); }}><Icon name={state.records[record.id] ? 'check' : 'plus'} width="20" height="20" /></button></div>
-        </li>)}</ul> : <div className="empty-state"><h2>No matches from this source</h2><p>Try a shorter title, switch sources or add a game manually.</p></div>}
-        <div className="catalog-pagination"><button className="button button-outline" disabled={loading || result.offset === 0} onClick={() => { void search(Math.max(0, result.offset - (result.source === 'wikidata' ? 5 : 20)), result.query, result.source); }}><Icon name="back" width="17" height="17" />Previous page</button><span>Source results {result.offset + (result.items.length ? 1 : 0)}–{result.offset + result.items.length}</span><button className="button button-outline" disabled={loading || result.nextOffset === null} onClick={() => { if (result.nextOffset !== null) void search(result.nextOffset, result.query, result.source); }}>Next page<Icon name="arrow" width="17" height="17" /></button></div>
-        <div className="catalog-provenance">{result.source === 'freetogame' && <p>Game data from <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">FreeToGame</a>.</p>}{result.notices.map((notice) => <p key={notice}>{notice}</p>)}<a href={result.source === 'wikidata' ? 'https://www.wikidata.org/wiki/Wikidata:Data_access' : 'https://www.freetogame.com/api-doc'} target="_blank" rel="noreferrer">{result.source === 'wikidata' ? 'Wikidata data access and CC0 notice' : 'FreeToGame API and attribution'}<Icon name="up-right" width="14" height="14" /></a></div>
-      </>}
+      <div className="discovery-toolbar">
+        <label>Genre<select value={filters.genre} onChange={(event) => change({ genre: event.target.value, offset: 0, online: 'auto' })}><option value="">All genres</option>{filters.genre && !genres.includes(filters.genre) && <option>{filters.genre}</option>}{genres.map((genre) => <option key={genre}>{genre}</option>)}</select></label>
+        <label>Year<select value={filters.year} onChange={(event) => change({ year: event.target.value, offset: 0, online: 'auto' })}><option value="">Any year</option>{filters.year && !years.includes(Number(filters.year)) && <option>{filters.year}</option>}{years.map((year) => <option key={year}>{year}</option>)}</select></label>
+        <label>Source<select value={filters.source} onChange={(event) => change({ source: event.target.value === 'wikidata' ? 'wikidata' : event.target.value === 'freetogame' ? 'freetogame' : 'all', offset: 0, online: 'auto' })}><option value="all">All sources</option><option value="wikidata">Wikidata</option><option value="freetogame">FreeToGame</option></select></label>
+        <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
+      </div>
+      <div className="discovery-results-heading">
+        <p role="status">{initialLoading ? 'Loading catalog...' : seed.status === 'error' ? 'Online results' : filters.q.trim() ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}` : `${local.length} games · Illustrated first`}</p>
+        <button className="text-button" aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
+      </div>
+      {selecting && <SelectionBar context="discover" count={selection.length} total={records.length} busy={busy} onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
+      {seed.error && <div className="discovery-notice" role="alert"><p>Local catalog unavailable. {seed.error} {filters.catalogs === 'off' ? 'Online lookup is off.' : 'Trying online catalogs instead.'}</p><button className="text-button" onClick={seed.retry}>Reload local catalog</button></div>}
+      {initialLoading && !records.length && <div className="discovery-skeleton" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <div key={index} />)}</div>}
+      {records.length > 0 && <ul className={`discovery-cards discovery-cards-${filters.view}`} aria-label="Discovered games">
+        {records.map((record, index) => <DiscoveryCard key={record.id} record={record} artwork={artwork.get(record.id)} state={state} busy={busy} eager={index < 4} selecting={selecting} selected={selected.has(record.id)} pinned={pinnedIds?.has(record.id)} onSelect={(id) => setSelected((prior) => {
+          const next = new Set(prior); if (next.has(id)) next.delete(id); else next.add(id); return next;
+        })} onPreview={onPreview} onPin={onPin} onAction={onAction} />)}
+      </ul>}
+      {!initialLoading && !records.length && <div className="discovery-empty"><h2>{remote.loading ? 'Looking online…' : failed ? 'Online search is incomplete' : seed.error ? 'The catalog could not load' : filters.offset > 0 ? 'No games on this page' : 'No matching games'}</h2><p>{failed ? 'Retry a provider below or change your search.' : 'Try a shorter title, clear a filter, or add a game manually.'}</p><button className="text-button" onClick={() => change({ ...defaultDiscoveryFilters, catalogs: filters.catalogs, view: filters.view })}>Reset search and filters</button></div>}
+      {filters.online === 'auto' && (local.length > DISCOVERY_PAGE_SIZE || filters.offset > 0) && <nav className="discovery-pagination" aria-label="Catalog pages"><button className="button button-outline" disabled={filters.offset === 0} onClick={() => change({ offset: Math.max(0, filters.offset - DISCOVERY_PAGE_SIZE) })}>Previous</button><span>{Math.min(filters.offset + 1, local.length)}–{Math.min(filters.offset + DISCOVERY_PAGE_SIZE, local.length)} of {local.length} catalog games</span><button className="button button-outline" disabled={filters.offset + DISCOVERY_PAGE_SIZE >= local.length} onClick={() => change({ offset: filters.offset + DISCOVERY_PAGE_SIZE })}>Next</button></nav>}
+      <div className="discovery-online">
+        {filters.catalogs === 'off' ? <p>Online lookup is off. <button className="text-button" onClick={() => change({ catalogs: 'on', online: 'on', offset: 0 })}>Search online</button></p>
+          : !remoteEnabled && <button className="text-button" onClick={() => change({ online: 'on', offset: 0 })}>Search online<Icon name="arrow" width="17" height="17" /></button>}
+        {filters.online === 'on' && <button className="text-button" onClick={() => change({ online: 'auto', offset: 0 })}>Back to catalog</button>}
+        <CatalogSourceStatus sources={remote.sources} onRetry={remote.retry} onMore={(source, offset) => change({ source, offset, online: 'on' })} onPrevious={(source, offset) => change({ source, offset, online: 'on' })} />
+        <details className="discovery-help"><summary>Search options &amp; sources</summary><label className="check-control"><input type="checkbox" checked={filters.catalogs === 'on'} onChange={(event) => change({ catalogs: event.target.checked ? 'on' : 'off' })} />Look online when local matches are limited</label><p>Only your search is sent to public providers. Saved games, ratings and notes stay private. Sources and editions remain separate.</p><p>Metadata from <a href="https://www.wikidata.org/wiki/Wikidata:Data_access" target="_blank" rel="noreferrer">Wikidata (CC0)</a> and <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">FreeToGame</a>. Image credits are under each game's Actions &amp; source.</p></details>
+      </div>
       <ManualGameForm busy={busy} onAdd={(record) => onAction({ type: 'add-records', records: [record] })} actionLabel="Add to my library" />
+      {onCommunity && <footer className="discovery-footer"><button className="text-button" onClick={onCommunity}>Explore shared rankings<Icon name="arrow" width="17" height="17" /></button></footer>}
     </section>
   );
 }
