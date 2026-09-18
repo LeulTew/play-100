@@ -84,6 +84,10 @@ separate choices; creating a connection does not share scores.
   readiness. Online lookup remains a bounded fallback, not an empty-page
   prerequisite. Exact source IDs, not similar titles, identify games.
 - Original and enhanced XLSX downloads, clearly distinguished from private data.
+- Two optional collection films use first-party, content-hashed media after the
+  collection, never an autoplaying landing-page takeover. MP4 requests begin only
+  after Watch; native controls, text alternatives, captions and credits remain
+  available. One player at a time; close/navigation unloads, hidden tabs pause.
 - Broader, user-triggered catalog browsing/search/import from Wikidata and the
   documented FreeToGame API. Manual game entry is available. Coverage follows
   provider classifications and limits, not an exhaustive scrape of all sites.

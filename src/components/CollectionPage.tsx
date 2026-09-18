@@ -19,6 +19,7 @@ import { author } from '../lib/author';
 import { useExtendedSearch } from '../hooks/useExtendedSearch';
 import { filterUnranked, unrankedRecords } from '../lib/extended-search';
 import ExtendedResults from './catalog/ExtendedResults';
+import CollectionFilms from './CollectionFilms';
 
 const PAGE_SIZE = 24;
 
@@ -60,6 +61,14 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   const additions = Object.values(state.records).filter((record) => record.collectionRank === null);
   const signature = createSearch(filters);
   useEffect(() => { setVisibleCount(PAGE_SIZE); setSelected(new Set()); }, [signature]);
+  useEffect(() => {
+    if (collection.status === 'loading' || location.hash !== '#collection-films') return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById('collection-films')?.scrollIntoView({ behavior: 'instant' });
+      document.getElementById('collection-films-title')?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [collection.status]);
   const savedCount = Object.values(state.progress).filter((progress) => progress.later).length;
   const completedCount = Object.values(state.progress).filter((progress) => progress.completed).length;
   const browse = () => document.getElementById('collection')?.scrollIntoView({ behavior: animate ? 'smooth' : 'instant' });
@@ -112,6 +121,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
           {showExtended && <ExtendedResults records={extraResults} online={online} state={state} queryKey={signature} busy={busy} selecting={selecting} selected={currentSelection} onSelect={toggleSelection} onPreview={onPreview} onAction={onAction} onPin={onPin} pinnedIds={pinnedIds} renderDragHandle={renderDragHandle} />}
         </> : collection.status === 'error' ? <div className="data-error" role="alert"><h2 id="collection-title">The collection couldn't load.</h2><p>{collection.error}</p><div className="button-row"><button className="button button-dark" onClick={collection.retry}>Try again<Icon name="arrow" /></button><a className="button button-outline" href="/downloads/Play-100-Collection.xlsx" download>Download the workbook</a></div></div> : <div className="collection-loading" aria-busy="true" role="status"><h2 id="collection-title">Opening the collection...</h2><p>One hundred games. Just a moment.</p><div className="loading-jackets" aria-hidden="true"><span /><span /><span /><span /></div></div>}
       </section>
+      <CollectionFilms />
       <AnimatedContent animate={animate} className="workbook-section">
         <div className="workbook-art" aria-hidden="true"><div className="workbook-sheet sheet-back" /><div className="workbook-sheet"><div className="sheet-head"><span>PLAY 100</span><Icon name="grid" width="23" height="23" /></div><div className="sheet-rule" /><div className="sheet-row"><span>01</span><span>Red Dead Redemption 2</span><span>2018</span></div><div className="sheet-row"><span>02</span><span>Mass Effect 2</span><span>2010</span></div><div className="sheet-row"><span>03</span><span>The Witcher 3</span><span>2015</span></div><div className="sheet-lines" /><span className="sheet-footer">THE COMPLETE COLLECTION / .XLSX</span></div></div>
         <div className="workbook-copy"><h2>OFFLINE.<br />STILL ON YOUR LIST.</h2><p>Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes in one filterable collection.</p><a className="button button-dark" href="/downloads/Play-100-Collection.xlsx" download><Icon name="download" width="19" height="19" />Download the workbook<span className="file-badge">XLSX</span></a><span className="download-note">The curated collection, not your personal progress.</span><a className="original-download" href="/downloads/AAA_games_u_have_to_play_list_top_100.xlsx" download>Or download the untouched original Excel<Icon name="download" width="14" height="14" /></a></div>

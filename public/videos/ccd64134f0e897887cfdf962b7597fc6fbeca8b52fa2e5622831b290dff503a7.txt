@@ -1,0 +1,32 @@
+PLAY 100 - DISCOVER AND COMPARE
+Companion transcript for the unchanged first film, SHA256:
+42a58634237bb92b8cf67275ddf1b16d8cb99d05141694d63823af45a34a9a65
+22 seconds. Instrumental music and quiet UI clicks. No spoken narration.
+
+00:00-00:04
+"Your next game starts here. Less choosing. More playing."
+"Play 100. Bring your friends." Source-derived Hades and Hollow Knight cards.
+
+00:04-00:11
+Discover displays selected catalog entries Hades, Hollow Knight and Portal 2.
+Pin Hades, then Hollow Knight. The Compare tray changes from one to two games.
+"Pinning does not save, rate or share a game." Choose Compare.
+
+00:11-00:18
+Compare rankings for the two games from the tray. You, Alex and Sam are
+selected. The screen explicitly says "Demo friends & ratings"; no real
+accounts or private data are shown. These personal ratings are /10:
+Hades: You 9.0 (rank 2), Alex 8.0 (rank 3), Sam 9.5 (rank 1).
+Mean 8.83; three raters; spread 1.50.
+Hollow Knight: You 9.5 (rank 1), Alex 9.0 (rank 2), Sam 9.0 (rank 2).
+Mean 9.17; three raters; spread 0.50.
+"Friends choose what to share."
+
+00:18-00:22
+"Less choosing. More playing. Play 100. Find. Pin. Compare."
+play-100-collection.vercel.app
+Curated by Leul Tewodros Agonafer.
+
+Authority: the first film's delivered composition/index.html and verified
+movie, not inferred live account state. This companion file does not change
+the first MP4, poster or source bundle.

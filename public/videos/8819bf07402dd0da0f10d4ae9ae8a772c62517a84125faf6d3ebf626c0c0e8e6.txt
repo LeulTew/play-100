@@ -1,0 +1,30 @@
+PLAY 100 - THE ORIGINAL 100
+22 seconds. Instrumental music and three quiet UI clicks. No spoken narration.
+
+00:00-00:04
+"100 games. One point of view." Numbered source jackets open into a stack.
+"The Core 50. And 50 more essentials." The foreground entry is #01, Red Dead
+Redemption 2 (2018, Core 50). Credit: Leul Tewodros Agonafer.
+
+00:04-00:10
+The collection shows selected entries #01 Red Dead Redemption 2, #07 Grand
+Theft Auto IV and #51 DOOM Eternal. Genre, year and collection filters are
+available; public-catalog search is off. Searching "Grand Theft Auto IV" finds
+one game: 2008, Core 50, Leul's rating 9.8/10. Its original rank stays 07.
+"Original rank, unchanged." Reset filters, then switch to the ratings table.
+
+00:10-00:17
+"His order. His ratings." The table highlights Leul's original /10 ratings,
+separately from recorded critic scores:
+#01 Red Dead Redemption 2, 2018: Leul 10.0; Metacritic 97/100; IGN 10/10.
+#07 Grand Theft Auto IV, 2008: Leul 9.8; Metacritic 98/100; IGN unavailable.
+#51 DOOM Eternal, 2020, Essential 50: Leul 8.5; Metacritic 88/100; IGN 9/10.
+A dash means unavailable. These are workbook snapshots, not live scores.
+No play or completion state is implied.
+
+00:17-00:22
+"Play 100. Take all 100 with you." A workbook shows the same selected source
+rows in their original positions. Both the enhanced workbook and untouched
+original Excel are available.
+play-100-collection.vercel.app
+Curated by Leul Tewodros Agonafer.

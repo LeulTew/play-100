@@ -23,6 +23,8 @@ deliberately published public snapshots. No analytics or Supabase is used.
 **Compare:** https://play-100-collection.vercel.app/compare  
 **Data use:** https://play-100-collection.vercel.app/data-use
 
+**Films:** https://play-100-collection.vercel.app/#collection-films
+
 **Community:** https://play-100-collection.vercel.app/community
 
 **Creator desk:** https://play-100-collection.vercel.app/creator (authorized owner only)
@@ -81,6 +83,17 @@ identity/title/year/source metadata. Scores remain in separately consented
 ranking sharing. Removal/re-add cannot silently reselect a game; restarting
 private saving requires a fresh shelf review. See the
 [shelf contract and tested rule limits](docs/friend-shelf-contract.md).
+
+### Optional films
+
+**The 100** introduces the authored collection; **Discover & compare** shows the
+broader browsing and shortlisting workflow. The compact Watch films row comes
+after the collection and before the workbook. No MP4 is requested before Watch,
+and native Play starts the audio. One player stays open at a time; switching,
+closing or navigating unloads it. Downloads, text alternatives, audio captions
+and full media/source credits are available in the player. Demo interfaces are
+editorial illustrations, not recordings of real accounts. See the
+[playback and publication contract](docs/films.md).
 
 ## Run locally
 

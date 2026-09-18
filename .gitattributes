@@ -3,6 +3,7 @@
 /public/data/** -text
 /public/downloads/** -text
 /public/covers/** -text
+/public/videos/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 *.png -text
 *.jpg -text
 *.webp -text
