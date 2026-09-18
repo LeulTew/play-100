@@ -70,9 +70,10 @@ function MoreActions({ name, accepted, disabled, onChoose }: { name: string; acc
   </>;
 }
 
-export function FriendsPage({ store, identity, onSettings, onCommunity, onCompare }: {
+export function FriendsPage({ store, identity, onSettings, onCommunity, onCompare, onSharedGames }: {
   store: FriendStore; identity: OwnFriendIdentity; onSettings: (settings: FriendSettings) => void;
   onCommunity: () => void; onCompare: (peers?: string[]) => void;
+  onSharedGames?: () => void;
 }) {
   const uid = identity.uid;
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
@@ -304,6 +305,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       <button className="button button-dark" disabled={busy || !selectionReady} onClick={() => { void compare(selected); }}>Compare selected</button><button className="text-button" disabled={working} onClick={() => choose([])}>Clear</button>
     </div>{!selectionReady && <p className="section-help" role="status">{selectionError?.status === 'error' ? `A selected connection could not be confirmed. ${onlineError(selectionError.cause)}` : 'Checking selected connections...'}{selectionError && <button className="text-button" disabled={working} onClick={() => setSelectionRetry((value) => value + 1)}>Retry selected connections</button>}</p>}</div>}
     {view.view === 'friends' && !selected.length && <p className="section-help">Choose up to five friends to compare with you. <button className="text-button" onClick={() => onCompare()}>Open comparisons & groups</button></p>}
+    {view.view === 'friends' && onSharedGames && <button className="text-button" onClick={onSharedGames}>Choose games to share</button>}
     {relationView && <ul className="friend-list">{rows.map((pair) => {
       const peer = friendPeer(pair, uid); const profile = list.identities[peer];
       const person = profile?.status === 'ready' ? profile.value : null;

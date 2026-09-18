@@ -48,7 +48,7 @@ export function FriendShelfEditor({ state, games, config, identity, connected, s
     finally { running.current = false; setBusy(false); }
   };
   return <section className="friend-shelf-editor" aria-labelledby={`${id}-title`}>
-    <div className="friend-shelf-heading"><h2 id={`${id}-title`}>Shared games</h2><span role="status">{config?.enabled ? status : 'Off'}</span></div>
+    <div className="friend-shelf-heading"><h2 id={`${id}-title`}>Shared games</h2><span role="status">{status === 'off' ? 'Off' : status}</span></div>
     <p className="section-help">Choose saved games for accepted friends. New additions stay private. <DataUseLink /></p>
     {connected ? <>
       <div className="friend-shelf-controls">

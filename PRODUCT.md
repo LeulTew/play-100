@@ -6,6 +6,33 @@
 
 web
 
+## Spec-driven development
+
+Every expansion starts with a concrete implementation specification, including
+UI/UX, before code. Keep it in the relevant existing product/feature document;
+the operational interface remains concise.
+
+The specification states the user's problem and job, scope and non-goals;
+complete flows, navigation and loading/empty/error/offline/retry/revoked states;
+data, API, permission and backwards-compatibility contracts; actual composition,
+components, short copy, mobile/touch/keyboard behavior and reduced motion;
+acceptance examples and measurable limits; and branch ownership/dependency
+contracts when work runs in parallel.
+
+Implement against that contract, then prove the new and preserved behavior with
+focused functional/regression checks, real desktop/mobile interaction and visual
+evidence, and one independent skeptical review of the integrated result. Fix
+causal defects, record real limits, and publish only a verified candidate. Do not
+substitute an expansive checklist, passing branch tests or repeated polish loops
+for a working combined experience.
+
+Preserve original feature semantics, private data, explicit sharing consent,
+manual order, drafts and old links unless the user explicitly changes them.
+Creativity belongs in coherent art, composition and useful interactions; actions
+still need familiar labels, visible states and non-gesture alternatives. Treat
+award-level quality as an ambition, never an award, perfect-score or zero-bug
+claim.
+
 ## Users
 
 Gamers choosing their next game, browsing a personal curated collection on mobile
@@ -47,6 +74,15 @@ separate choices; creating a connection does not share scores.
   move buttons. Completed games may remain queued for replay.
 - A separate personal-ranking page with optional scores and notes. Ranking a
   game does not imply playing or completing it; unplayed entries are allowed.
+- My games brings Library, Queue and Ranking into one workspace while retaining
+  independent data and the old deep links. Tabs preserve drafts and flush valid
+  pending edits. A Compare tray holds at most six metadata-only game references;
+  Pin and optional desktop drag are equivalent, with keyboard/touch alternatives.
+- Discover starts with 810 verified provider records and 220 illustrated
+  records using licensed local images; unavailable art is labelled honestly.
+  Seed browsing/search is public and independent of account/storage/provider
+  readiness. Online lookup remains a bounded fallback, not an empty-page
+  prerequisite. Exact source IDs, not similar titles, identify games.
 - Original and enhanced XLSX downloads, clearly distinguished from private data.
 - Broader, user-triggered catalog browsing/search/import from Wikidata and the
   documented FreeToGame API. Manual game entry is available. Coverage follows
@@ -94,6 +130,10 @@ separate choices; creating a connection does not share scores.
 - Friends-only sharing starts off, previews at most 200 selected ranked games
   and automatically follows their saved edits only after consent. Notes, email,
   queue and play history are excluded. New games are not automatically selected.
+- A separately consented Shared games shelf can expose up to 200 selected saved,
+  unranked or ranked game identities and safe display metadata, never opinions or
+  private history. Removal/re-add and old-writer gaps require fresh review.
+  Restarting online saving cannot silently renew shelf consent.
 - Comparisons use exact game identities for two to six participants. Unrated
   differs from zero; unavailable rankings remain explicit. Named comparison
   groups are private participant selections, not chat or access grants.

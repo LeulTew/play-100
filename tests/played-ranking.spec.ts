@@ -85,7 +85,7 @@ test('scores automatically reorder and persist while manually moved games keep t
   await rate(page, a, '0');
   await expect.poll(async () => (await readLibrary(page)).ranking.map((entry) => entry.id)).toEqual([a.id, c.id, b.id]);
   await page.reload();
-  await expect(page.locator('.personal-row').first()).toHaveAttribute('data-record-id', a.id);
+  await expect(page.locator('.my-games-editor:visible .personal-row').first()).toHaveAttribute('data-record-id', a.id);
   await expect(page.locator(`[data-record-id="${a.id}"] .manual-rank`)).toContainText('Fixed at #1');
   await page.getByRole('button', { name: `Use rating order for ${a.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.map((entry) => entry.id)).toEqual([c.id, b.id, a.id]);
@@ -114,7 +114,7 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
     };
   }), { records, a: a.id, b: b.id });
   await page.goto('/my-rankings');
-  await expect(page.locator('.personal-row')).toHaveCount(2);
+  await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(2);
   expect((await readLibrary(page)).version).toBe(3);
   expect((await readLibrary(page)).ranking.map((entry) => [entry.id, entry.manualPosition])).toEqual([[a.id, 1], [b.id, 2]]);
   await rate(page, b, '10');
@@ -122,7 +122,7 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
   await page.getByRole('button', { name: 'Use rating order for all', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.map((entry) => entry.id)).toEqual([b.id, a.id]);
   await page.reload();
-  await expect(page.locator('.personal-row').first()).toHaveAttribute('data-record-id', b.id);
+  await expect(page.locator('.my-games-editor:visible .personal-row').first()).toHaveAttribute('data-record-id', b.id);
 });
 
 test('catalog played state follows the saved game into its library, detail and personal ranking', async ({ page }) => {

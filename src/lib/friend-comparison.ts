@@ -121,6 +121,8 @@ export interface ComparisonPageOptions {
   readonly page?: number;
   /** Defaults to 25; smaller pages are allowed, larger pages are rejected. */
   readonly pageSize?: number;
+  /** Optional UI-only filter; it never adds games or entries to a participant snapshot. */
+  readonly games?: readonly ComparisonIdentity[];
 }
 
 export interface ComparisonPage {
@@ -475,7 +477,7 @@ function sortRows(rows: ComparisonRow[], comparison: FriendComparison, value: un
 
 /** Defaults to common-ranked, title ascending, page 1, and at most 25 rows. No result arrays are mutated. */
 export function getComparisonPage(comparison: FriendComparison, options: ComparisonPageOptions = {}): ComparisonPage {
-  const input = shape(options, [], 'Page options', ['mode', 'query', 'minCoverage', 'minRaters', 'sort', 'page', 'pageSize']);
+  const input = shape(options, [], 'Page options', ['mode', 'query', 'minCoverage', 'minRaters', 'sort', 'page', 'pageSize', 'games']);
   const mode = input.mode === undefined ? 'common-ranked' : input.mode;
   if (mode !== 'common-ranked' && mode !== 'all-shared') return invalid('The comparison mode is unsupported.');
   const query = input.query === undefined ? '' : text(input.query, 'A search query', false).trim().toLowerCase();
@@ -486,7 +488,14 @@ export function getComparisonPage(comparison: FriendComparison, options: Compari
   const page = input.page === undefined ? 1 : integer(input.page, 1, Number.MAX_SAFE_INTEGER, 'A page number');
   const pageSize = input.pageSize === undefined ? FRIEND_COMPARISON_LIMITS.maxPageSize
     : integer(input.pageSize, 1, FRIEND_COMPARISON_LIMITS.maxPageSize, 'A page size');
-  const rows = comparison.rows[mode].filter((row) => row.coverage >= minCoverage && row.raterCount >= minRaters &&
+  let selectedGames: Set<string> | null = null;
+  if (input.games !== undefined) {
+    if (!Array.isArray(input.games) || input.games.length < 1 || input.games.length > 6) return invalid('Choose one to six comparison games.');
+    selectedGames = new Set();
+    for (let index = 0; index < input.games.length; index += 1) selectedGames.add(identity(object(input.games[index], 'A comparison game')).key);
+    if (selectedGames.size !== input.games.length) return invalid('Comparison games must use distinct source identities.');
+  }
+  const rows = comparison.rows[mode].filter((row) => (!selectedGames || selectedGames.has(row.key)) && row.coverage >= minCoverage && row.raterCount >= minRaters &&
     (!query || row.key.toLowerCase().includes(query) || row.cells.some((cell) =>
       cell.status === 'ranked' && cell.entry.title.toLowerCase().includes(query))));
   sortRows(rows, comparison, input.sort);

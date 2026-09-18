@@ -8,7 +8,7 @@ export function CatalogSourceStatus({ sources, onRetry, onMore, onPrevious }: {
   onMore: (source: CatalogSource, offset: number) => void;
   onPrevious?: (source: CatalogSource, offset: number) => void;
 }) {
-  return <div className="discovery-source-status" aria-label="Online catalog status">
+  return <div className="discovery-source-status" role="group" aria-label="Online catalog status">
     {sources.filter((source) => source.status !== 'idle').map((source) => <div key={source.source}>
       <p role="status"><a href={source.source === 'wikidata' ? 'https://www.wikidata.org/wiki/Wikidata:Data_access' : 'https://www.freetogame.com/'} target="_blank" rel="noreferrer">{SOURCE_LABELS[source.source]}</a>
         <span>{source.status === 'loading' ? 'Loading...' : source.status === 'error'

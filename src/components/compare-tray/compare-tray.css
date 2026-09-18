@@ -1,10 +1,10 @@
 .compare-tray-reserve { height: 108px; }
-.compare-drag-handle { display: none; }
+button.compare-drag-handle { display: none; }
 .compare-tray-dock[data-dragging="true"] { background: var(--lime); }
 .compare-tray-dock[data-dragging="true"] > .compare-tray-expand, .compare-tray-dock[data-dragging="true"] > .compare-tray-action { visibility: hidden; }
 .compare-tray-drop-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; font-size: 14px; font-weight: 650; pointer-events: none; }
 @media (hover: hover) and (pointer: fine) {
-  .compare-drag-handle { display: inline-flex; cursor: grab; }
+  button.compare-drag-handle { display: inline-flex; cursor: grab; }
   .compare-drag-handle:active { cursor: grabbing; }
 }
 .compare-tray-reserve[data-error="true"] { height: 204px; }

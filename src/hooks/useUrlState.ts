@@ -1,6 +1,8 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { createSearch, defaultFilters, PAGE_PATHS, pageFromPath, parseUrl } from '../lib/url';
 import type { AppPage, Filters } from '../lib/types';
+import { gameDetailSearch, myGamesSearch, myGamesTab } from '../lib/my-games-navigation';
+import type { MyGamesTab } from '../lib/my-games-navigation';
 
 const NAVIGATION_EVENT = 'play100:navigate';
 
@@ -23,7 +25,10 @@ export function useUrlState() {
   const path = queryAt < 0 ? location : location.slice(0, queryAt);
   const search = queryAt < 0 ? '' : location.slice(queryAt);
   const page = pageFromPath(path);
-  const { filters, game } = parseUrl(search);
+  const parsed = parseUrl(search);
+  const gamesView = myGamesTab(path, search);
+  const filters = page === 'games' && gamesView === 'queue' && parsed.filters.list === 'all' ? { ...parsed.filters, list: 'later' as const } : parsed.filters;
+  const game = parsed.game;
 
   const navigate = useCallback((nextSearch: string, method: 'push' | 'replace', state: object | null = null, nextPath = window.location.pathname) => {
     if (nextSearch === window.location.search && nextPath === window.location.pathname) return;
@@ -33,16 +38,16 @@ export function useUrlState() {
 
   const updateFilters = useCallback((patch: Partial<Filters>, method: 'push' | 'replace' = 'push') => {
     const current = parseUrl(window.location.search);
-    navigate(createSearch({ ...current.filters, ...patch }, current.game), method);
+    if (['games', 'library', 'rankings'].includes(pageFromPath(window.location.pathname))) {
+      const tab = patch.list === 'later' ? 'queue' : myGamesTab(window.location.pathname, window.location.search);
+      navigate(myGamesSearch({ ...current.filters, ...patch }, tab, current.game), method, window.history.state, PAGE_PATHS.games);
+    } else navigate(createSearch({ ...current.filters, ...patch }, current.game), method);
   }, [navigate]);
 
   const openGame = useCallback((slug: string) => {
     const current = parseUrl(window.location.search);
-    const params = new URLSearchParams(createSearch(current.filters, slug));
-    const group = new URLSearchParams(window.location.search).get('group');
-    if (window.location.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) params.set('group', group);
-    navigate(`?${params}`, current.game ? 'replace' : 'push', {
-      ...(window.location.pathname === '/compare' ? window.history.state : {}),
+    navigate(gameDetailSearch(window.location.search, slug), current.game ? 'replace' : 'push', {
+      ...window.history.state,
       play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
     });
   }, [navigate]);
@@ -51,18 +56,22 @@ export function useUrlState() {
     if (window.history.state?.play100Dialog === true) {
       window.history.back();
     } else {
-      const current = parseUrl(window.location.search);
-      const params = new URLSearchParams(createSearch(current.filters));
-      const group = new URLSearchParams(window.location.search).get('group');
-      if (window.location.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) params.set('group', group);
-      navigate(params.size ? `?${params}` : '', 'replace', window.location.pathname === '/compare' ? window.history.state : null);
+      navigate(gameDetailSearch(window.location.search, null), 'replace', window.history.state);
     }
   }, [navigate]);
 
   const goToPage = useCallback((nextPage: AppPage, patch: Partial<Filters> = {}) => {
     const { filters: current } = parseUrl(window.location.search);
-    navigate(createSearch({ ...defaultFilters, catalogs: current.catalogs, ...patch }), 'push', null, PAGE_PATHS[nextPage]);
+    const next = { ...defaultFilters, catalogs: current.catalogs, ...patch };
+    if (nextPage === 'games' || nextPage === 'library' || nextPage === 'rankings') {
+      navigate(myGamesSearch(next, nextPage === 'rankings' ? 'ranking' : patch.list === 'later' ? 'queue' : 'library'), 'push', null, PAGE_PATHS.games);
+    } else navigate(createSearch(next), 'push', null, PAGE_PATHS[nextPage]);
     window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [navigate]);
+
+  const changeGamesView = useCallback((tab: MyGamesTab) => {
+    const current = parseUrl(window.location.search);
+    navigate(myGamesSearch(current.filters, tab, current.game), 'push', null, PAGE_PATHS.games);
   }, [navigate]);
 
   const openProfile = useCallback((handle: string) => {
@@ -71,5 +80,5 @@ export function useUrlState() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [navigate]);
 
-  return { page, filters, game, publicHandle: page === 'profile' ? path.split('/')[2] ?? '' : '', updateFilters, openGame, closeGame, goToPage, openProfile };
+  return { page, filters, game, gamesView, changeGamesView, publicHandle: page === 'profile' ? path.split('/')[2] ?? '' : '', updateFilters, openGame, closeGame, goToPage, openProfile };
 }

@@ -58,6 +58,8 @@ const journal = { update: vi.fn().mockResolvedValue(undefined), pending: vi.fn()
 beforeEach(() => {
   harness.cursor = 0; harness.slots = []; harness.effects.clear(); harness.pending = [];
   vi.clearAllMocks();
+  harness.config.mockReset().mockResolvedValue(null);
+  harness.watchConfig.mockReset().mockImplementation(() => vi.fn());
   vi.stubGlobal('window', new EventTarget());
   vi.stubGlobal('document', Object.assign(new EventTarget(), { hidden: false }));
   vi.stubGlobal('navigator', { onLine: true });
@@ -94,4 +96,21 @@ it('waits for the matching account cache before attaching visible tools, then at
   expect(harness.watchConfig).toHaveBeenCalledOnce();
   await render({ ...snapshot(), state: { ...emptyPersonalLibrary(), revision: 1 } }, true);
   expect(harness.watchConfig).toHaveBeenCalledOnce();
+});
+it('does not label pending or failed initial consent as off, and reports confirmed absence separately', async () => {
+  let reject!: (cause: Error) => void;
+  harness.config.mockReturnValueOnce(new Promise((_resolve, no) => { reject = no; }));
+  const ready = snapshot();
+  expect((await render(ready)).status).toBe('checking');
+  reject(new Error('Synthetic initial consent lookup failed'));
+  await Promise.resolve(); await Promise.resolve();
+  expect((await render(ready)).status).toBe('error');
+  expect((await render(ready)).ready).toBe(false);
+});
+it('reports off only after the initial read confirms absent configuration', async () => {
+  const ready = snapshot();
+  expect((await render(ready)).status).toBe('checking');
+  const confirmed = await render(ready);
+  expect(confirmed.ready).toBe(true);
+  expect(confirmed.status).toBe('off');
 });

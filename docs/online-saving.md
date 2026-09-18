@@ -118,6 +118,29 @@ Rapid removal/re-addition cannot automatically reselect a formerly shared game.
 Writes from older tabs that skip the journal require refreshing and reviewing
 only the optional sharing selection; they do not disable private saving.
 
+The independent [Shared games shelf](friend-shelf-contract.md) uses a second
+account-scoped journal keyed `friends-shelf-selection:v1:<scope>`. Every advancing
+saved-library revision records removed **record** IDs atomically, including
+backup replacement and remote adoption. Removing only a ranking is not a shelf
+removal. Metadata-only upload acknowledgements do not advance this journal.
+Corrupt or older-writer journal state requires a shelf review without preventing
+private saving. Account-cache deletion removes both optional journals.
+
+Shelf consent binds to the private saving epoch. Only an explicit preview can
+bind a new epoch; retries and automatic selection shrink cannot silently do so.
+An ordinary pause may leave the last shelf visible, but old-client online-copy
+deletion and later re-enable do not revive it. Shelf config changes atomically
+update the head revision so an already-open friend's head listener is revoked.
+The viewer also watches the actual relationship target for removal/block events;
+it does not assume every dependent-rule change produces a head notification.
+
+Account exports include only the owner's shelf/configuration. Reversible
+online-copy deletion stops/clears shelf selection and cleans its generations,
+without the permanent social-deletion tombstone. Full deletion reserves legacy
+social and new shelf deletion first, completes both bounded cleanup paths, then
+deletes Auth. Known-ACK failures retain their receipt and recover by read/cleanup,
+never by blindly replaying the original publication.
+
 ## Conflicts
 
 A clean client can adopt a fully validated newer snapshot. A dirty client, or

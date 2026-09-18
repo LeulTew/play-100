@@ -1,10 +1,11 @@
 import type { AppPage, Filters, SortOrder } from './types';
 
 export const SORT_ORDERS = ['rank', 'title', 'newest', 'oldest', 'score', 'metacritic', 'metacriticPc', 'ign', 'gamespot', 'pcGamer', 'rank-index', 'author-rating'] as const satisfies readonly SortOrder[];
-export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator', friends: '/friends', friend: '/friends', invite: '/invite', compare: '/compare', 'friend-sharing': '/friends/sharing' };
+export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', games: '/my-games', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator', friends: '/friends', friend: '/friends', invite: '/invite', compare: '/compare', 'friend-sharing': '/friends/sharing', 'friend-shelf': '/friends/sharing/games' };
 
 export function pageFromPath(path: string): AppPage {
   const normalized = path.replace(/\/+$/, '') || '/';
+  if (normalized === '/my-games') return 'games';
   if (normalized === '/my-library') return 'library';
   if (normalized === '/my-rankings') return 'rankings';
   if (normalized === '/discover') return 'discover';
@@ -15,6 +16,7 @@ export function pageFromPath(path: string): AppPage {
   if (normalized === '/creator') return 'creator';
   if (normalized === '/friends') return 'friends';
   if (normalized === '/friends/sharing') return 'friend-sharing';
+  if (normalized === '/friends/sharing/games') return 'friend-shelf';
   if (/^\/friends\/[A-Za-z0-9_-]{1,128}$/.test(normalized)) return 'friend';
   if (normalized === '/invite') return 'invite';
   if (normalized === '/compare') return 'compare';

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { useCollection } from '../hooks/useCollection';
 import type { Filters, MotionPreference } from '../lib/types';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
@@ -38,9 +39,12 @@ interface CollectionPageProps {
   onShare: () => void;
   onFullLibrary: () => void;
   notify: (message: string) => void;
+  onPin?: (record: LibraryRecord) => void;
+  pinnedIds?: ReadonlySet<string>;
+  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }
 
-export default function CollectionPage({ collection, state, filters, busy, motion, animate, reducedMotion, coarsePointer, constrained, onFilters, onAction, onOpen, onPreview, onShare, onFullLibrary, notify }: CollectionPageProps) {
+export default function CollectionPage({ collection, state, filters, busy, motion, animate, reducedMotion, coarsePointer, constrained, onFilters, onAction, onOpen, onPreview, onShare, onFullLibrary, notify, onPin, pinnedIds, renderDragHandle }: CollectionPageProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -101,11 +105,11 @@ export default function CollectionPage({ collection, state, filters, busy, motio
           {selecting && <SelectionBar count={currentSelection.size} total={resultRecords.length} busy={busy} onSelectAll={() => setSelected(new Set(resultRecords.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
           {results.length ? <>
             {filters.view === 'table' ? <RatingsTable games={results.slice(0, visibleCount)} filters={filters} progress={state.progress} selecting={selecting} selected={selected} busy={busy} onSelect={toggleSelection} onOpen={onOpen} onToggle={toggle} onSort={onFilters} /> : <div className={`games ${filters.view === 'list' ? 'games-list' : 'games-grid'}`} aria-label="Games in this view">
-              {results.slice(0, visibleCount).map((game, index) => <GameCard key={game.slug} game={game} filters={filters} state={state.progress[game.slug]} onOpen={onOpen} onSave={(id) => toggle(id, 'later')} onPlayed={(id) => toggle(id, 'played')} eager={index < 4} selecting={selecting} selected={selected.has(game.slug)} onSelect={toggleSelection} busy={busy} />)}
+              {results.slice(0, visibleCount).map((game, index) => <GameCard key={game.slug} game={game} filters={filters} state={state.progress[game.slug]} onOpen={onOpen} onSave={(id) => toggle(id, 'later')} onPlayed={(id) => toggle(id, 'played')} eager={index < 4} selecting={selecting} selected={selected.has(game.slug)} onSelect={toggleSelection} busy={busy} compareActions={onPin && <><button className="icon-button" disabled={busy || pinnedIds?.has(game.slug)} aria-pressed={Boolean(pinnedIds?.has(game.slug))} aria-label={`${pinnedIds?.has(game.slug) ? 'Pinned' : 'Pin'} ${game.title} for comparison`} onClick={() => onPin(recordFromGame(game))}><Icon name={pinnedIds?.has(game.slug) ? 'check' : 'plus'} width="18" height="18" /></button>{renderDragHandle?.(recordFromGame(game))}</>} />)}
             </div>}
             <div className="collection-end"><p>Showing {Math.min(visibleCount, results.length)} of {results.length} games from the 100</p>{visibleCount < results.length ? <button className="button button-outline" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>Show {Math.min(PAGE_SIZE, results.length - visibleCount)} more<Icon name="down" width="18" height="18" /></button> : <span className="end-mark"><Icon name="check" width="17" height="17" />{showExtended ? 'End of the curated matches.' : "You're at the end of this view."}</span>}</div>
           </> : showExtended ? <p className="curated-empty">No matches in {author.shortName}'s original 100 for this view.</p> : <div className="empty-state"><div className="empty-jacket" aria-hidden="true"><Icon name={filters.list === 'later' ? 'bookmark' : 'search'} width="40" height="40" /></div><h3>{filters.list === 'later' && savedCount === 0 ? 'Your next great game goes here.' : filters.list === 'completed' && completedCount === 0 ? 'Every collection starts somewhere.' : 'No worlds found. Yet.'}</h3><p>{filters.list === 'later' && savedCount === 0 ? 'Tap a bookmark on any game to save it for later. Your full queue can also include games from other catalogs.' : filters.list === 'completed' && completedCount === 0 ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.' : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'}</p><button className="button button-dark" onClick={() => onFilters({ ...defaultFilters, catalogs: filters.catalogs, view: filters.view })}>Browse all 100<Icon name="arrow" width="18" height="18" /></button></div>}
-          {showExtended && <ExtendedResults records={extraResults} online={online} state={state} queryKey={signature} busy={busy} selecting={selecting} selected={currentSelection} onSelect={toggleSelection} onPreview={onPreview} onAction={onAction} />}
+          {showExtended && <ExtendedResults records={extraResults} online={online} state={state} queryKey={signature} busy={busy} selecting={selecting} selected={currentSelection} onSelect={toggleSelection} onPreview={onPreview} onAction={onAction} onPin={onPin} pinnedIds={pinnedIds} renderDragHandle={renderDragHandle} />}
         </> : collection.status === 'error' ? <div className="data-error" role="alert"><h2 id="collection-title">The collection couldn't load.</h2><p>{collection.error}</p><div className="button-row"><button className="button button-dark" onClick={collection.retry}>Try again<Icon name="arrow" /></button><a className="button button-outline" href="/downloads/Play-100-Collection.xlsx" download>Download the workbook</a></div></div> : <div className="collection-loading" aria-busy="true" role="status"><h2 id="collection-title">Opening the collection...</h2><p>One hundred games. Just a moment.</p><div className="loading-jackets" aria-hidden="true"><span /><span /><span /><span /></div></div>}
       </section>
       <AnimatedContent animate={animate} className="workbook-section">

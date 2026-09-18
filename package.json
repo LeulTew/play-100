@@ -13,7 +13,9 @@
     "test:cloud": "firebase emulators:exec --project demo-play100 --only auth,firestore \"vitest run --config vitest.cloud.config.ts\"",
     "validate:data": "tsx scripts/validate-data.ts",
     "import:data": "tsx scripts/import-data.ts",
-    "prepare:assets": "tsx scripts/prepare-assets.ts"
+    "prepare:assets": "tsx scripts/prepare-assets.ts",
+    "collect:discovery": "tsx scripts/collect-discovery-catalog.ts",
+    "validate:discovery": "tsx scripts/collect-discovery-catalog.ts --verify"
   },
   "dependencies": {
     "@dicebear/core": "10.7.0",

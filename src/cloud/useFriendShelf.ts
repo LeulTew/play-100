@@ -211,6 +211,6 @@ export function useFriendShelf(uid: string | undefined, scope: LibraryScope | nu
     catch (cause) { if (owns()) setFailure({ key, message: onlineError(cause) }); throw cause; }
   };
   const ready = value?.key === key;
-  const visibleStatus: FriendShelfStatus = !verified ? 'paused' : !ready ? 'checking' : !config?.enabled ? 'off' : !snapshot?.sync.enabled ? 'paused' : snapshot.sync.dirty || pendingEdits ? 'pending' : status;
+  const visibleStatus: FriendShelfStatus = !verified ? 'paused' : !ready ? failure?.key === key ? 'error' : 'checking' : !config?.enabled ? 'off' : !snapshot?.sync.enabled ? 'paused' : snapshot.sync.dirty || pendingEdits ? 'pending' : status;
   return { store, config, ready, status: visibleStatus, error: failure?.key === key ? failure.message : '', acceptConfig, saveSelection, stopSharing, stop, retry };
 }

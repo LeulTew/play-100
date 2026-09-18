@@ -100,9 +100,9 @@ export function InvitationPage({ store, invitation, identity, authPanel, onAccou
   </section>;
 }
 
-export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFriends, onCompare, games, onOpen }: {
+export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFriends, onCompare, games, onOpen, sharedGames }: {
   uid: string; peer: string; store: FriendStore; identity: OwnFriendIdentity; onSettings: (settings: FriendSettings) => void;
-  onFriends: () => void; onCompare: (peers: string[]) => void; games: Game[]; onOpen: (record: LibraryRecord) => void;
+  onFriends: () => void; onCompare: (peers: string[]) => void; games: Game[]; onOpen: (record: LibraryRecord) => void; sharedGames?: ReactNode;
 }) {
   const [person, setPerson] = useState<FriendIdentity | null>(null);
   const [pair, setPair] = useState<FriendPair | null>(null);
@@ -178,6 +178,8 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
     {requestNeedsRefresh && <button className="text-button" disabled={busy} onClick={() => {
       setBusy(true); void store.pair(uid, peer).then((value) => { setPair(value); setRequestNeedsRefresh(false); }).catch((cause) => setError(onlineError(cause))).finally(() => setBusy(false));
     }}>Refresh connection</button>}
+    {sharedGames}
+    {pair?.state === 'accepted' && <h2>Shared ranking</h2>}
     <ol className="friend-ranking-list">{entries.slice(0, limit).map((entry) => <li key={entry.id}><span>{entry.position}</span><button className="text-button" onClick={() => { try { onOpen(recordFromPublic(entry, games)); } catch (cause) { setError(onlineError(cause)); } }}>{entry.title}</button><strong>{entry.score === null ? 'Unrated' : entry.score}</strong></li>)}</ol>
     {limit < entries.length && <button className="text-button" onClick={() => setLimit((value) => value + 25)}>Next 25 games</button>}
     {confirmRequest && person && <Dialog open titleId="friend-request-title" className="info-dialog" onClose={() => { if (!busy) setConfirmRequest(false); }}><h2 id="friend-request-title">Connect with {person.displayName}?</h2><div className="friend-identity"><Avatar descriptor={identity.avatar} size={48} /><span>They'll see {identity.displayName}.</span></div><p>Rankings stay private until you enable friends sharing.</p><div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={() => setConfirmRequest(false)}>Cancel</button><button className="button button-dark" disabled={busy} onClick={() => { void requestFriend(); }}>Send request</button></div>{error && <p className="inline-error" role="alert">{error}</p>}</Dialog>}

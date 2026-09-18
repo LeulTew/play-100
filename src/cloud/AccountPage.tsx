@@ -22,14 +22,14 @@ export interface AccountPageProps {
   onDelete: (account: boolean, password: string) => Promise<boolean>;
   googleDeletion: { requestId: string; target: 'copy' | 'account' } | null; onDismissDeletion: () => void;
   onPublish: () => void; onCommunity: () => void; onCreator: () => void;
-  onFriends?: () => void; onCompare?: () => void; friendsSharing?: ReactNode;
+  onFriends?: () => void; onCompare?: () => void; friendsSharing?: ReactNode; sharedGames?: ReactNode;
 }
 
 export function AccountPage(props: AccountPageProps) {
   const { identity, member, cache, guest, head, remoteReady, status, error, message, cleanupWarning, busy, resendIn,
     isCreator, avatar, googleDeletion, onDismissDeletion, onAvatar, onName, onConnect, onVerify, onRefreshIdentity,
     onSignOut, onLinkGoogle, onRetry, onCleanup, onPause, onDownload, onUseRemote, onUseLocal, onDelete,
-    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing } = props;
+    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames } = props;
   const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
   const [name, setName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
@@ -121,6 +121,7 @@ export function AccountPage(props: AccountPageProps) {
         {!identity.providers.includes('google.com') && <button className="text-button" disabled={busy || !identity.verified} onClick={() => { void onLinkGoogle(); }}>Link Google</button>}
       </section>
       <section className="account-section"><h2>Sharing</h2>
+        {sharedGames}
         {friendsSharing}
         {onFriends && <button className="text-button" onClick={onFriends}>Friends<Icon name="arrow" width="17" height="17" /></button>}
         {onCompare && <button className="text-button" onClick={onCompare}>Compare rankings<Icon name="arrow" width="17" height="17" /></button>}

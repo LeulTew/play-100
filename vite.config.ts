@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => {
     assetsInlineLimit: 0,
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
   };
 });

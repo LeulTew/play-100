@@ -1,4 +1,5 @@
 import type { Filters, Game } from '../lib/types';
+import type { ReactNode } from 'react';
 import type { PersonalProgress } from '../lib/personal-types';
 import { createSearch } from '../lib/url';
 import { formatAverage } from '../lib/collection';
@@ -19,9 +20,10 @@ interface GameCardProps {
   selected?: boolean;
   busy?: boolean;
   onSelect?: (id: string) => void;
+  compareActions?: ReactNode;
 }
 
-export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, eager, selecting, selected, busy, onSelect }: GameCardProps) {
+export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, eager, selecting, selected, busy, onSelect, compareActions }: GameCardProps) {
   return (
     <article className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
       <a
@@ -44,7 +46,7 @@ export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, eager
           {state?.completed && <span className="completed-marker"><Icon name="check" width="15" height="15" /> Completed</span>}
         </div>
       </a>
-      <div className="card-played"><PlayedToggle id={game.slug} title={game.title} played={Boolean(state?.played)} completed={state?.completed} busy={busy} compact onChange={() => onPlayed(game.slug)} /></div>
+      <div className="card-played"><PlayedToggle id={game.slug} title={game.title} played={Boolean(state?.played)} completed={state?.completed} busy={busy} compact onChange={() => onPlayed(game.slug)} />{compareActions && <div className="card-compare-actions">{compareActions}</div>}</div>
       {selecting && <label className="select-control card-selection"><input type="checkbox" checked={Boolean(selected)} onChange={() => onSelect?.(game.slug)} aria-label={`Select ${game.title}`} /></label>}
       <button
         className={`save-game icon-button ${state?.later ? 'is-saved' : ''}`}

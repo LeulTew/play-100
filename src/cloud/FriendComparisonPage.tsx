@@ -14,12 +14,16 @@ import { committedFriendChange, committedFriendMessage, friendMutationError } fr
 import { syncFailure } from '../lib/sync-retry';
 import { friendPeer as peerOf, uniqueFriendPairs } from '../lib/friend-manager';
 import { comparisonScope, readComparisonView, rememberComparisonView } from '../lib/friend-comparison-intent';
+import { accountScope } from '../lib/cloud-types';
+import { useComparisonGameFilter } from '../hooks/useComparisonGameFilter';
+import { COMPARISON_GAMES_EVENT } from '../lib/comparison-game-filter';
 
 export function FriendComparisonPage({ store, uid, identity, ownState, games, onOpen, onFriends }: {
   store: FriendStore; uid: string; identity: { displayName: string; avatar: FriendIdentity['avatar'] };
   ownState: PersonalLibraryState; games: Game[]; onOpen: (record: LibraryRecord) => void; onFriends: () => void;
 }) {
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
+  const filteredGames = useComparisonGameFilter(accountScope(uid, firebaseApp.options.projectId));
   const [restored] = useState(() => readComparisonView(scope));
   const [requestedGroup] = useState(() => new URLSearchParams(location.search).get('group'));
   const [viewReady, setViewReady] = useState(!requestedGroup);
@@ -70,6 +74,16 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
     }).catch((cause) => { if (alive) { setError(onlineError(cause)); setSelected([uid]); setViewReady(true); } });
     return () => { alive = false; currentUid.current = null; generation.current += 1; };
   }, [uid, store, scope, requestedGroup, addChoices]);
+  useEffect(() => {
+    const transition = () => {
+      if (currentUid.current !== uid || cloudAuth.currentUser?.uid !== uid) return;
+      const next = readComparisonView(scope);
+      if (!next) return;
+      setSelected(next.selected); setMode(next.mode); setQuery(next.query); setPage(next.page);
+    };
+    window.addEventListener(COMPARISON_GAMES_EVENT, transition);
+    return () => window.removeEventListener(COMPARISON_GAMES_EVENT, transition);
+  }, [scope, uid]);
   useEffect(() => {
     if (viewReady && currentUid.current === uid && cloudAuth.currentUser?.uid === uid) {
       rememberComparisonView({ version: 1, scope, selected, mode, query, page, groupId: group?.id ?? null });
@@ -170,7 +184,8 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
     ? { id: uid, displayName: identity.displayName, kind: 'self', availability: 'ready', freshness: 'fresh', updatedAt: null, entries: ownEntries }
     : participants[id] ?? { id, displayName: identities[id]?.displayName ?? 'Loading player', kind: 'friend', availability: 'loading', freshness: 'unknown' }), [selected, uid, identity.displayName, ownEntries, participants, identities]);
   const comparison = useMemo(() => datasets.length >= 2 ? compareFriendRankings(datasets) : null, [datasets]);
-  const result = useMemo(() => comparison ? getComparisonPage(comparison, { mode, query, page, pageSize: 25, sort: { by: 'title' } }) : null, [comparison, mode, query, page]);
+  const result = useMemo(() => comparison ? getComparisonPage(comparison, { mode, query, page, pageSize: 25, sort: { by: 'title' },
+    ...(filteredGames.value ? { games: filteredGames.value.records } : {}) }) : null, [comparison, mode, query, page, filteredGames.value]);
   const chooseGroup = (value: FriendGroup) => {
     setGroup(value); setGroupName(value.name); setSelected(value.participantUids); setPage(1);
     history.replaceState(history.state, '', `/compare?group=${encodeURIComponent(value.id)}`);
@@ -188,6 +203,8 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
   };
   return <section className="app-page friend-compare-page">
     <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Compare rankings</h1><button className="text-button" onClick={onFriends}>Friends<Icon name="back" /></button></div>
+    {filteredGames.value && <section className="compare-game-filter" aria-label="Games chosen for comparison"><div className="button-row"><strong>{filteredGames.value.records.length} {filteredGames.value.records.length === 1 ? 'game' : 'games'} from your tray</strong><button className="text-button" onClick={() => { filteredGames.clear(); setPage(1); }}>Clear game filter</button></div><ul>{filteredGames.value.records.map((record) => <li key={record.id}><button className="text-button" onClick={() => onOpen(record)}>{record.title}</button></li>)}</ul></section>}
+    {filteredGames.warning && <p role="status">{filteredGames.warning}</p>}
     <fieldset className="compare-people"><legend>Choose 2–6 people</legend>
       {[uid, ...new Set([...choices.map((pair) => peerOf(pair, uid)), ...selected.filter((value) => value !== uid)])].map((id) => <label className="check-control" key={id}>
         <input type="checkbox" checked={selected.includes(id)} disabled={!selected.includes(id) && selected.length === 6} onChange={(event) => { setPage(1); setSelected((old) => event.target.checked ? [...old, id] : old.filter((value) => value !== id)); }} />
@@ -200,16 +217,16 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
     {error && <p className="inline-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {comparison?.cohort.incomplete && <p className="inline-error" role="status">Some rankings are unavailable or unshared. Results identify only the available contributors.</p>}
     <ul className="compare-freshness">{datasets.filter((value) => value.kind !== 'self').map((value) => <li key={value.id}>{value.displayName}: {value.availability === 'ready' ? value.updatedAt ? `shared ${new Date(value.updatedAt).toLocaleString()}` : 'Available' : value.availability}</li>)}</ul>
-    {comparison && <p className="section-help">{comparison.summary.sharedGameCount ?? 'Unknown'} games in common.{comparison.summary.pairs.length === 1 && comparison.summary.pairs[0]?.meanAbsoluteScoreGap != null ? ` Mean score gap ${comparison.summary.pairs[0].meanAbsoluteScoreGap.toFixed(2)} across ${comparison.summary.pairs[0].jointlyRatedCount} jointly rated games.` : ''}</p>}
+    {comparison && !filteredGames.value && <p className="section-help">{comparison.summary.sharedGameCount ?? 'Unknown'} games in common.{comparison.summary.pairs.length === 1 && comparison.summary.pairs[0]?.meanAbsoluteScoreGap != null ? ` Mean score gap ${comparison.summary.pairs[0].meanAbsoluteScoreGap.toFixed(2)} across ${comparison.summary.pairs[0].jointlyRatedCount} jointly rated games.` : ''}</p>}
     {result ? <><div className="comparison-scroll" tabIndex={0} role="region" aria-label="Ranking comparison table"><table className="friend-matrix"><thead><tr><th scope="col">Game</th>{datasets.map((person) => {
       const profile = identities[person.id];
       return <th scope="col" key={person.id}>{person.id === uid ? <Avatar descriptor={identity.avatar} size={32} /> : profile && person.availability === 'ready' ? <Avatar descriptor={profile.avatar} size={32} /> : null}{person.displayName}</th>;
     })}<th scope="col">Mean · spread</th></tr></thead><tbody>
       {result.rows.map((row) => <tr key={row.key}><th scope="row"><button className="text-button" onClick={() => { try { onOpen(recordFromPublic({ ...row.game, score: null, position: 1 }, games)); } catch (cause) { setError(onlineError(cause)); } }}>{row.game.title}</button><small>{row.game.source} · {row.game.year ?? 'Year unknown'}</small></th>
         {row.cells.map((cell) => <td key={cell.participantId}>{cell.status === 'ranked' ? <><strong>{cell.score === null ? 'Unrated' : cell.score.toFixed(1)}</strong><small>Rank {cell.position}</small></> : <span>{cell.status === 'absent' ? 'Not in shared list' : cell.status}</span>}</td>)}
-        <td>{row.meanScore === null ? 'Unrated' : row.meanScore.toFixed(2)}<small>{row.raterCount} raters · {row.scoreSpread === null ? 'No spread' : row.scoreSpread.toFixed(2)}{row.scoreDifference === null ? '' : ` · difference ${row.scoreDifference.toFixed(2)}`}</small></td>
+        <td>{row.meanScore === null ? 'Unrated' : row.meanScore.toFixed(2)}<small>{row.raterCount} {row.raterCount === 1 ? 'rater' : 'raters'} · {row.scoreSpread === null ? 'No spread' : row.scoreSpread.toFixed(2)}{row.scoreDifference === null ? '' : ` · difference ${row.scoreDifference.toFixed(2)}`}</small></td>
       </tr>)}
-    </tbody></table></div>{!result.rows.length && <p>No matching games in this view.</p>}<div className="button-row"><button className="text-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>{result.totalRows ? result.page : 0} / {result.pageCount}</span><button className="text-button" disabled={page >= result.pageCount} onClick={() => setPage((value) => value + 1)}>Next 25</button></div></> : <p>Choose at least two people.</p>}
+    </tbody></table></div>{!result.rows.length && <p>{filteredGames.value ? 'No chosen games match the available rankings and filters. Unshared rankings cannot contribute scores.' : 'No matching games in this view.'}</p>}<div className="button-row"><button className="text-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>{result.totalRows ? result.page : 0} / {result.pageCount}</span><button className="text-button" disabled={page >= result.pageCount} onClick={() => setPage((value) => value + 1)}>Next 25</button></div></> : <p>Choose at least two people.</p>}
     <section className="account-section"><h2>Private groups</h2><form onSubmit={(event) => { event.preventDefault(); void run(async () => {
       const id = group?.id ?? groupCreationId.current ?? crypto.randomUUID();
       if (!group) groupCreationId.current = id;

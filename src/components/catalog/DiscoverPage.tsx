@@ -57,6 +57,7 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommu
         <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
       </div>
       <div className="discovery-results-heading">
+        <h2 className="sr-only">Catalog games</h2>
         <p role="status">{initialLoading ? 'Loading catalog...' : seed.status === 'error' ? 'Online results' : filters.q.trim() ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}` : `${local.length} games · Illustrated first`}</p>
         <button className="text-button" aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
       </div>

@@ -7,6 +7,8 @@ import type { MotionPreference } from './types';
 import { parseAvatarDescriptor } from './avatar';
 import type { Member } from './community';
 import { recordFriendRemovals } from './friend-selection-cache';
+import { recordFriendShelfRemovals } from './friend-shelf-selection-cache';
+import { friendShelfSelectionKey } from './friend-shelf-selection';
 
 function conflict(message: string): Error {
   const error = new Error(message);
@@ -64,6 +66,8 @@ async function update(scope: LibraryScope, change: (current: ScopedLibrary) => S
     const ranked = new Set(next.state.ranking.map((entry) => entry.id));
     const removed = current.state.ranking.filter((entry) => !ranked.has(entry.id)).map((entry) => entry.id);
     recordFriendRemovals(store, scope, removed, current.state.revision, next.state.revision);
+    const removedRecords = Object.keys(current.state.records).filter((id) => !Object.hasOwn(next.state.records, id));
+    recordFriendShelfRemovals(store, scope, removedRecords, current.state.revision, next.state.revision);
     store.put(next, scope);
     return next;
   });
@@ -179,7 +183,7 @@ export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expecte
 
 export async function deleteScopedLibrary(scope: LibraryScope): Promise<void> {
   scopeUid(scope);
-  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); });
+  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); store.delete(friendShelfSelectionKey(scope)); });
   publishLibraryChange(scope);
 }
 

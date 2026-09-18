@@ -15,8 +15,8 @@ deliberately published public snapshots. No analytics or Supabase is used.
 **Telegram:** https://t.me/fabbin (@fabbin)
 **Workbook:** https://play-100-collection.vercel.app/downloads/Play-100-Collection.xlsx
 **Original Excel:** https://play-100-collection.vercel.app/downloads/AAA_games_u_have_to_play_list_top_100.xlsx  
-**Private library:** https://play-100-collection.vercel.app/my-library  
-**Personal rankings:** https://play-100-collection.vercel.app/my-rankings  
+**My games:** https://play-100-collection.vercel.app/my-games <br />
+**Personal rankings:** https://play-100-collection.vercel.app/my-games?tab=ranking <br />
 **Discover:** https://play-100-collection.vercel.app/discover
 **Account:** https://play-100-collection.vercel.app/account
 **Friends:** https://play-100-collection.vercel.app/friends  
@@ -47,6 +47,40 @@ to five friends to compare with yourself, or use a person's Compare shortcut.
 Cohorts and comparison controls stay in validated account-bound tab/history
 state, never public participant URLs. Remove/Block and invite revocation require
 confirmation; expired/used/revoked links have no copy/share action.
+
+### My games, discovery and selected sharing
+
+**My games** combines Library, Queue and Ranking navigation, not their data.
+Saving a game does not rank, play or share it. Scores, private notes, manual
+positions and queue replay remain independent. Existing `/my-library`,
+`/my-library?list=later` and `/my-rankings` links still work. Workspace tabs keep
+manual drafts and flush valid pending edits before switching.
+
+**Discover** starts with a public, locally served snapshot of **810** provider
+records. **220** records have licensed imagery from **215** local raster files;
+the rest use an honest missing-art fallback. Most licensed images are logos,
+not box covers. Compact title/alias search, including `Kingdomcome`, works
+without sign-in, browser storage or a successful upstream request. Bounded
+online fallback remains available with source-specific retry and explicit
+opt-out. Search/filter/view URLs and game previews round-trip through Back and
+reload. See [source, license and collection evidence](docs/discovery-sources.md);
+every displayed asset's credit/license remains accessible.
+
+The **Compare tray** holds up to six game references, separately per guest or
+account scope. Use Pin or the deliberate desktop drag handle; touch/keyboard
+never require dragging. Pins do not change private library state or permissions.
+The tray feeds a private game filter into the existing comparison of two to six
+people. It never supplies invented friend entries, scores or ranking positions.
+Guest pins are not automatically adopted by an account. Starting another tray
+comparison while Compare is already open resets its game mode/search/page as
+one explicit transition while retaining the chosen people.
+
+**Shared games** is a separate, initially-off shelf of up to 200 explicitly
+selected saved games, including unranked additions. It transports only game
+identity/title/year/source metadata. Scores remain in separately consented
+ranking sharing. Removal/re-add cannot silently reselect a game; restarting
+private saving requires a fresh shelf review. See the
+[shelf contract and tested rule limits](docs/friend-shelf-contract.md).
 
 ## Run locally
 
@@ -105,6 +139,10 @@ No benchmark score is implied by passing these checks. Synthetic browsers are no
 a substitute for testing on physical low-end devices.
 Test definitions are not evidence that a particular release ran them. Release
 receipts distinguish executed focused cases, emulator journeys and omissions.
+The reported other-PC search issue was not directly reproduced on that physical
+device. Controlled fresh/returning/restricted-storage and provider-failure
+journeys verify these specific fixes; no blanket device-compatibility claim is
+made.
 
 ## Data, images and source truth
 

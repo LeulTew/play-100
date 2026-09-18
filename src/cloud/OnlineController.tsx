@@ -7,6 +7,8 @@ import {
 import type { User } from 'firebase/auth';
 import type { AppPage, Game } from '../lib/types';
 import type { LibraryRecord } from '../lib/personal-types';
+import type { CatalogArtwork } from '../lib/discovery-catalog';
+import type { PreviewAuthority } from '../lib/preview-authority';
 import type { LibraryController } from '../lib/library-controller';
 import type { Member, PublicProfile } from '../lib/community';
 import type { SyncHead } from '../lib/cloud-types';
@@ -32,6 +34,7 @@ import { finishGoogleRedirect, startGoogleRedirect } from './google-auth';
 import type { GoogleReturn } from './google-auth';
 import { readGoogleIntent } from '../lib/google-intent';
 import { clearComparisonView, comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
+import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
 import { cancelUnusedRegistration, ensureAccountActivity } from './account-lifecycle';
 import { AuthPanel } from './AuthPanel';
 import { AccountPage } from './AccountPage';
@@ -42,8 +45,14 @@ import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
 import { useFriendSharing } from './useFriendSharing';
 import { FriendComparisonPage } from './FriendComparisonPage';
-import { FriendDetailPage, FriendSharingPage, InvitationPage, navigateFriend } from './FriendPages';
+import { FriendDetailPage, FriendSharingPage, InvitationPage, navigateFriend, prepareFriendIdentity } from './FriendPages';
 import { FriendsPage } from './FriendsPage';
+import { FriendShelfEditor } from './FriendShelf';
+import { FriendSharedGames, ShelfArtworkCredits } from './FriendSharedGames';
+import { useFriendShelf } from './useFriendShelf';
+import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
+import { recordFromFriendShelf } from '../lib/friend-shelf-types';
+import { GameArtwork } from '../components/games/GameArtwork';
 import type { FriendCursor } from '../lib/friend-types';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import './cloud-ui.css';
@@ -66,10 +75,11 @@ function download(value: unknown, name: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function OnlineController({ page, publicHandle, invitation, showSheet, guest, games, onBridge, onCloseSheet, onNavigate, onProfile, onOpenRecord, onShare }: {
+export default function OnlineController({ page, publicHandle, invitation, showSheet, guest, games, onBridge, onCloseSheet, onNavigate, onProfile, onOpenRecord, onShare, onPinRecord, artwork }: {
   page: AppPage; publicHandle: string; invitation: { capability: string | null; error: string }; showSheet: boolean; guest: LibraryController; games: Game[];
   onBridge: (bridge: OnlineBridge) => void; onCloseSheet: () => void; onNavigate: (page: AppPage) => void;
-  onProfile: (handle: string) => void; onOpenRecord: (record: LibraryRecord) => void; onShare: (title: string, url: string) => void;
+  onProfile: (handle: string) => void; onOpenRecord: (record: LibraryRecord, authority?: PreviewAuthority) => void; onShare: (title: string, url: string) => void;
+  onPinRecord?: (record: LibraryRecord) => boolean; artwork?: ReadonlyMap<string, CatalogArtwork>;
 }) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
   const [memberSnapshot, setMember] = useState<Member | null>(null);
@@ -109,8 +119,9 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
   const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
   const social = useMemo(() => new SocialStore(cloudDb), []);
-  const friendToolsVisible = ['account', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page);
+  const friendToolsVisible = ['account', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
   const friends = useFriendSharing(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current);
+  const shelf = useFriendShelf(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current, friendShelfJournal);
   const restoreInitial = useCallback(async (store: CloudStore, isCurrent: () => boolean) => {
     if (!scope || !uid || !isCurrent()) return;
     const local = await loadScopedLibrary(scope);
@@ -178,7 +189,10 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       if (outcome.attempted) { setGoogleReturn(outcome); setReturnSheet(!outcome.completed); }
       unsubscribe = onIdTokenChanged(cloudAuth, (user) => {
         if ((user?.uid ?? null) !== authSessionUid.current) {
-          if (authSessionUid.current) clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', authSessionUid.current));
+          if (authSessionUid.current) {
+            clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', authSessionUid.current));
+            clearComparisonGameFilter(accountScope(authSessionUid.current, firebaseApp.options.projectId));
+          }
           authSessionUid.current = user?.uid ?? null; authSessionEpoch.current += 1;
           if (user) setIdentity(undefined);
         }
@@ -212,7 +226,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     if (intent.kind === 'sign-in') {
       rememberOnlineRequest(true);
       navigation.current.onCloseSheet();
-      if (!['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(navigation.current.page)) navigation.current.onNavigate('account');
+      if (!['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(navigation.current.page)) navigation.current.onNavigate('account');
     } else if (intent.kind === 'link') setMessage('Google is linked to this existing account.');
     else if (intent.epoch !== (account.snapshot?.sync.epoch ?? 0)) {
       setError('This account changed while Google was open. Nothing was deleted. Review the account before confirming again.');
@@ -335,7 +349,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     await reconcileIdentity(user);
     if (cloudAuth.currentUser?.uid !== user.uid) return;
     rememberOnlineRequest(true); onCloseSheet();
-    if (!['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page)) onNavigate('account');
+    if (!['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)) onNavigate('account');
   };
   const google = () => run(async () => {
     const session = authSessionEpoch.current;
@@ -411,6 +425,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before signing out.');
     sync.suspend();
     friends.stop();
+    shelf.stop();
     await account.waitForWrites();
     await signOut(cloudAuth); await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
@@ -426,6 +441,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     if (!navigator.onLine) throw new Error('Connect before stopping online saving on all devices. Offline edits are retained here.');
     sync.suspend();
     friends.stop();
+    shelf.stop();
     const current = await store.head();
     if (current) await store.revoke(current);
     await pauseScopedLibrary(target); await account.refresh(); await refresh();
@@ -470,11 +486,13 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       if (index === 99) throw new Error('This account export is larger than one download operation. Contact the creator before deleting it.');
       cursors = { relations: data.relations.cursor, groups: data.groups.cursor, blocks: data.blocks.cursor };
     }
+    const sharedGames = await shelf.store.exportOwn(identity.uid);
+    if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
     download({ app: 'Play 100', formatVersion: 1, exportedAt: new Date().toISOString(), identity, member,
       deviceLibrary: local ? createLibraryBackup(local.state) : null, deviceCacheError: cacheError,
       onlineLibrary: remoteLibrary ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }) : null,
       recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries,
-      friends: { identity: ownSocial?.identity, settings: ownSocial?.settings, relationships, groups, blocks } }, 'Play-100-account-export.json');
+      friends: { identity: ownSocial?.identity, settings: ownSocial?.settings, relationships, groups, blocks, sharedGames } }, 'Play-100-account-export.json');
     if (cacheError) setMessage('Online account data was exported. The unreadable device cache is explicitly marked unavailable in the export; it was not replaced or deleted.');
   });
   const deleteOnline = (removeAccount: boolean, password: string) => {
@@ -516,13 +534,24 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       if (!identityRef.current?.verified || !sync.store) throw new Error('Verify this account before deleting existing online data.');
       const user = signedIn; const target = scope; const store = sync.store;
       friends.stop();
-      if (removeAccount) await friends.store.revokeForDeletion(user.uid);
+      shelf.stop();
+      if (removeAccount) {
+        await friends.store.revokeForDeletion(user.uid);
+        await shelf.store.revokeForDeletion(user.uid);
+      }
       else {
         const settings = await friends.store.settings(user.uid);
         if (settings && !settings.deleted) {
           const stopped = await friends.store.saveSettings(user.uid, { enabled: false, selectedIds: [] }, settings);
           friends.acceptSettings(stopped);
           await friends.store.cleanupSharing(user.uid);
+        }
+        const config = await shelf.store.config(user.uid);
+        if (config && !config.deleted) {
+          const stopped = await shelf.store.saveConfig(user.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config,
+            () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
+          await shelf.acceptConfig(stopped);
+          await shelf.store.cleanupSharing(user.uid);
         }
       }
       await account.waitForWrites();
@@ -533,6 +562,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       await store.revoke(await store.head(), true);
       await store.cleanup(true); await social.deleteProfile(user.uid); await deleteOwnMember(cloudDb, user.uid);
       if (removeAccount) {
+        const shelfCleanup = await shelf.store.cleanupDeleted(user.uid);
+        if (!shelfCleanup.done) throw new Error('Some shared games still need cleanup. Retry deletion before removing this account.');
         for (let index = 0; index < 100; index += 1) {
           const cleaned = await friends.store.cleanupDeleted(user.uid);
           if (cleaned.done) break;
@@ -553,8 +584,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const currentDeletionApproval = deletionApproval?.uid === identity?.uid &&
     deletionApproval?.sessionEpoch === authSessionEpoch.current && deletionApproval.epoch === currentEpoch.current ? deletionApproval : null;
   const closeSignin = () => { setReturnSheet(false); onCloseSheet(); };
-  const authPanel = <AuthPanel busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page)) onNavigate('collection'); }} />;
-  const cloudPage = ['account', 'publish', 'community', 'profile', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing'].includes(page);
+  const authPanel = <AuthPanel busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)) onNavigate('collection'); }} />;
+  const cloudPage = ['account', 'publish', 'community', 'profile', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
   if (startupError) throw new Error(startupError);
   return (
     <>
@@ -566,11 +597,28 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         page === 'profile' ? <PublicProfilePage social={social} handle={publicHandle} games={games} library={activeController} identity={identity} onOpenRecord={onOpenRecord} onShare={onShare} onAccount={() => onNavigate('account')} onFriend={navigateFriend} /> :
         page === 'invite' ? <InvitationPage store={friends.store} invitation={invitation} identity={friendIdentity} authPanel={authPanel} onAccount={() => onNavigate('account')} onFriends={() => onNavigate('friends')} onSettings={friends.acceptSettings} /> :
         !identity ? <section className="app-page auth-page"><h1 data-page-heading tabIndex={-1}>Sign in</h1>{authPanel}</section> :
-        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={openComparison} /> :
-        page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={openComparison} games={games} onOpen={onOpenRecord} /> :
-        (page === 'compare' || page === 'friend-sharing') && !games.length ? <div className="page-loading" role="status"><h1>Loading games...</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
+        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={openComparison} onSharedGames={() => onNavigate('friend-shelf')} /> :
+        page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={openComparison} games={games} onOpen={onOpenRecord}
+          sharedGames={<FriendSharedGames key={`${uid}:${location.pathname}:${authSessionEpoch.current}`} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} authGeneration={authSessionEpoch.current} verified={identity.verified} store={shelf.store} friends={friends.store} games={games} library={activeController} onOpen={onOpenRecord} onPin={onPinRecord} artwork={artwork} />} /> :
+        (page === 'compare' || page === 'friend-sharing' || page === 'friend-shelf') && !games.length ? <div className="page-loading" role="status"><h1>Loading games...</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
         page === 'compare' && friendIdentity ? <FriendComparisonPage key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`} store={friends.store} uid={identity.uid} identity={friendIdentity} ownState={activeController.state} games={games} onOpen={onOpenRecord} onFriends={() => onNavigate('friends')} /> :
         page === 'friend-sharing' && friendIdentity ? <FriendSharingPage key={uid} store={friends.store} identity={friendIdentity} settings={friends.settings} ownState={account.snapshot?.state ?? emptyPersonalLibrary()} connected={Boolean(account.snapshot?.sync.enabled)} games={games} onSettings={friends.acceptSettings} onAccount={() => onNavigate('account')} status={friends.status} error={friends.error} /> :
+        page === 'friend-shelf' && friendIdentity ? <section className="app-page shared-games-page"><div className="page-heading"><h1 data-page-heading tabIndex={-1}>Shared games</h1><button className="text-button" onClick={() => onNavigate('account')}>Account</button></div>
+          <FriendShelfEditor key={`${scope}:${authSessionEpoch.current}`} state={account.snapshot?.state ?? emptyPersonalLibrary()} games={games} config={shelf.config} identity={friendIdentity}
+            connected={Boolean(identity.verified && account.snapshot?.sync.enabled)} status={shelf.status} error={shelf.error}
+            onPrepare={async () => {
+              const session = authSessionEpoch.current;
+              const settings = await prepareFriendIdentity(friends.store, friendIdentity);
+              if (cloudAuth.currentUser?.uid !== friendIdentity.uid || authSessionEpoch.current !== session) throw new Error('The account changed. Preview these games again.');
+              friends.acceptSettings(settings);
+              const config = await shelf.store.initialize(friendIdentity.uid);
+              if (cloudAuth.currentUser?.uid !== friendIdentity.uid || authSessionEpoch.current !== session) throw new Error('The account changed. Preview these games again.');
+              return config;
+            }}
+            onSave={shelf.saveSelection} onStop={shelf.stopSharing} onRetry={shelf.retry}
+            renderArtwork={(entry) => <GameArtwork record={recordFromFriendShelf(entry, games)} artwork={artwork?.get(entry.id)} />} />
+          <ShelfArtworkCredits records={Object.values(account.snapshot?.state.records ?? {})} artwork={artwork} />
+        </section> :
         page === 'creator' ? <CreatorPage key={identity.uid} social={social} allowed={isCreator} verified={identity.verified} onAccount={() => onNavigate('account')} /> :
         page === 'publish' ? <PublishPage key={identity.uid} social={social} identity={identity} member={member} avatar={avatar} state={activeController.state} games={games} existing={profile} isCreator={isCreator} onAccount={() => onNavigate('account')} onPublished={(next) => { if (cloudAuth.currentUser?.uid === next.uid) { setProfile(next); onProfile(next.handle); } }} /> :
         <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
@@ -585,12 +633,13 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           })}
           onConnect={connect} onVerify={sendVerification} onRefreshIdentity={() => run(async () => { const user = cloudAuth.currentUser; if (!user) return; await reload(user); refreshedMismatch.current.delete(user.uid); const next = await reconcileIdentity(user, true); setMessage(next.verified ? 'Email verified. You can choose online saving or publishing.' : 'Verification is not confirmed yet. Open the latest email link, then try again.'); })}
           onSignOut={signOutAccount} onLinkGoogle={linkGoogle}
-          onRetry={() => run(async () => { await sync.retry(); await friends.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
+          onRetry={() => run(async () => { await sync.retry(); await friends.retry(); await shelf.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); await shelf.store.prune(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
           onPause={pause} onDownload={downloadData}
           onUseRemote={(reviewed, revision) => run(async () => { await sync.useRemote(reviewed, revision); await account.refresh(); })}
           onUseLocal={(reviewed, revision) => run(async () => { await sync.useLocal(reviewed, revision); })}
           googleDeletion={currentDeletionApproval} onDismissDeletion={() => setDeletionApproval(null)}
           onFriends={() => onNavigate('friends')} onCompare={() => onNavigate('compare')}
+          sharedGames={<><button className="text-button" onClick={() => onNavigate('friend-shelf')}>Shared games: {shelf.status}</button>{shelf.error && <p className="inline-error" role="alert">{shelf.error}<button className="text-button" onClick={() => { void run(shelf.retry); }}>Refresh shared games</button></p>}</>}
           friendsSharing={<><button className="text-button" onClick={() => onNavigate('friend-sharing')}>Friends sharing: {friends.status}</button>{friends.error && <p className="inline-error" role="alert">{friends.error}<button className="text-button" onClick={() => { void friends.retry(); }}>Retry sharing</button></p>}</>}
           onDelete={deleteOnline} onPublish={() => onNavigate('publish')} onCommunity={() => onNavigate('community')} onCreator={() => onNavigate('creator')} />)}
       {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{authPanel}</Dialog>}

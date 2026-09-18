@@ -9,6 +9,13 @@ export interface ShelfSelectionCache {
   version: 1; revision: number; observedStateRevision: number;
   selected: string[]; removed: Record<string, number>;
 }
+export interface ShelfReviewMarker { version: 1; blocked: true; changedAt: number }
+function reviewRevision(value: unknown): number | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  return row.version === 1 && row.blocked === true && revision(row.changedAt) &&
+    Object.keys(row).sort().join() === 'blocked,changedAt,version' ? row.changedAt : null;
+}
 export const friendShelfSelectionKey = (scope: LibraryScope): string => `friends-shelf-selection:v1:${scope}`;
 function invalid(): never {
   throw new Error('Shared games need a fresh selection review after a library change in an older tab. Private saving is unaffected.');
@@ -28,6 +35,8 @@ export function parseShelfSelectionCache(value: unknown): ShelfSelectionCache | 
 }
 export function rememberShelfSelection(value: unknown, settingsRevision: number, ids: readonly string[], initialStateRevision: number, explicitThroughRevision?: number): ShelfSelectionCache {
   if (!revision(settingsRevision) || !revision(initialStateRevision) || (explicitThroughRevision !== undefined && !revision(explicitThroughRevision))) invalid();
+  const unreviewed = reviewRevision(value);
+  if (unreviewed !== null && (explicitThroughRevision === undefined || explicitThroughRevision < unreviewed)) invalid();
   let current: ShelfSelectionCache | null;
   try { current = parseShelfSelectionCache(value); }
   catch (cause) { if (explicitThroughRevision === undefined) throw cause; current = null; }
@@ -39,10 +48,14 @@ export function rememberShelfSelection(value: unknown, settingsRevision: number,
     removed: Object.fromEntries(Object.entries(current?.removed ?? {}).filter(([id, at]) => selected.includes(id) && (explicitThroughRevision === undefined || at > explicitThroughRevision))),
   };
 }
-export function applyShelfRemovals(value: unknown, removedIds: readonly string[], previousRevision: number, nextRevision: number): ShelfSelectionCache | null {
-  const current = parseShelfSelectionCache(value);
+export function applyShelfRemovals(value: ShelfSelectionCache, removedIds: readonly string[], previousRevision: number, nextRevision: number): ShelfSelectionCache;
+export function applyShelfRemovals(value: unknown, removedIds: readonly string[], previousRevision: number, nextRevision: number): ShelfSelectionCache | ShelfReviewMarker | null;
+export function applyShelfRemovals(value: unknown, removedIds: readonly string[], previousRevision: number, nextRevision: number): ShelfSelectionCache | ShelfReviewMarker | null {
   if (!revision(previousRevision) || !revision(nextRevision) || nextRevision <= previousRevision) invalid();
-  if (!current) return null;
+  const unreviewed = reviewRevision(value);
+  if (unreviewed !== null) return { version: 1, blocked: true, changedAt: removedIds.length ? nextRevision : unreviewed };
+  const current = parseShelfSelectionCache(value);
+  if (!current) return removedIds.length ? { version: 1, blocked: true, changedAt: nextRevision } : null;
   const removed = { ...current.removed };
   for (const id of removedIds) if (current.selected.includes(id)) removed[id] = nextRevision;
   return { ...current, removed, observedStateRevision: current.observedStateRevision === previousRevision ? nextRevision : current.observedStateRevision };

@@ -145,6 +145,10 @@ the ordinary action reducer. Delete both independent journal keys with a scoped
 cache deletion.
 
 Removed IDs stay suppressed across immediate re-add and stale settings ACKs.
+If a removal happens before the first shelf configuration/journal arrives, its
+transaction stores a conservative review marker with the removal revision.
+Later configuration loading and private-save acknowledgement cannot erase it;
+only an explicit review through that revision can establish selection again.
 An older writer's observed-revision gap remains blocked across newer writes.
 Only an explicit review through the removal revision clears it. Malformed or
 missing journals block optional sharing. Main's atomic callback must catch
@@ -158,6 +162,8 @@ quota cooldown, no idle polling/friend fanout. It checks exact current UID, Fire
 app/project, scope, auth generation, saving epoch, clean source and selection at
 asynchronous boundaries. Pending field editors/private saves wait independently.
 Its error/status is optional-sharing status, not a failure of private saving.
+Before the first configuration is confirmed, status remains Checking or Error,
+never Off. Off requires a confirmed missing/disabled configuration.
 The initial config read explicitly depends on the primitive matching-cache-ready
 state, so a verified account arriving before IndexedDB hydration does not remain
 stuck checking. Ordinary private edits do not rebind that bootstrap subscription.
@@ -207,6 +213,11 @@ onOpen?, savedIds?, renderArtwork? }`.
 The callbacks receive a `FriendShelfEntry`; main calls `recordFromFriendShelf`
 before metadata-only Save/Pin/open. Key by owner/viewer scope. Existing ranking
 cards, comparison inputs and independent ranked order remain unchanged.
+Transient shelf previews also carry a typed owner/viewer/auth-generation grant.
+App subscribes to that grant and closes an unsaved, unpinned preview when the
+source shelf is stopped or the relationship is revoked. A disappearing dialog
+cannot flush an unauthorized draft into the library. Independently saved games
+and unrelated public previews retain their own authority.
 
 `renderArtwork(entry)` resolves only the main public catalog/local assets, with
 known dimensions/lazy raster loading. No artwork URL is read from cloud shelf

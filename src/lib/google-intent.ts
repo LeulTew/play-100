@@ -19,6 +19,8 @@ export function googleReturnPath(value: string): string {
   const search = new URLSearchParams(createSearch(filters, game && /^[a-zA-Z0-9:_-]{1,240}$/.test(game) ? game : null));
   const group = url.searchParams.get('group');
   if (url.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) search.set('group', group);
+  const tab = url.searchParams.get('tab');
+  if (url.pathname === '/my-games' && (tab === 'queue' || tab === 'ranking')) search.set('tab', tab);
   return `${url.pathname}${search.size ? `?${search}` : ''}`;
 }
 
