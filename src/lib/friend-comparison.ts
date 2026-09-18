@@ -14,6 +14,7 @@ export type ComparisonIdentity = Readonly<Pick<PublicEntry, 'id' | 'source' | 's
 export type ComparisonAvailability = 'ready' | 'loading' | 'unshared' | 'unavailable' | 'error';
 export type ComparisonFreshness = 'fresh' | 'stale' | 'unknown';
 type UnreadyAvailability = Exclude<ComparisonAvailability, 'ready'>;
+export type ComparisonCoverage = { kind: 'complete' | 'page'; total: number } | { kind: 'exact'; total: number; ids: readonly string[] };
 
 export interface ComparisonParticipantInfo {
   readonly id: string;
@@ -22,6 +23,7 @@ export interface ComparisonParticipantInfo {
   readonly availability: ComparisonAvailability;
   readonly freshness: ComparisonFreshness;
   readonly updatedAt: number | null;
+  readonly coverage?: ComparisonCoverage;
 }
 
 type ParticipantDetails = Omit<ComparisonParticipantInfo, 'availability' | 'updatedAt'> & {
@@ -48,7 +50,7 @@ export type ComparisonCell =
   | {
     readonly participantId: string;
     /** Absent means not in the supplied list, not necessarily unranked or unplayed. */
-    readonly status: 'absent' | UnreadyAvailability;
+    readonly status: 'absent' | 'unfetched' | UnreadyAvailability;
     readonly position: null;
     readonly score: null;
   };
@@ -261,10 +263,12 @@ function readEntry(value: unknown, limit: number) {
 interface IndexedParticipant {
   readonly info: ComparisonParticipantInfo;
   readonly entries: ReadonlyMap<string, ComparisonEntry> | null;
+  readonly complete: boolean;
+  readonly resolvedIds: ReadonlySet<string> | null;
 }
 
 function readParticipant(value: unknown): IndexedParticipant {
-  const row = shape(value, ['id', 'displayName', 'kind', 'availability', 'freshness'], 'A participant', ['updatedAt', 'entries']);
+  const row = shape(value, ['id', 'displayName', 'kind', 'availability', 'freshness'], 'A participant', ['updatedAt', 'entries', 'coverage']);
   const id = text(row.id, 'A participant ID');
   if (id !== id.trim()) return invalid('A participant ID must not have surrounding whitespace.');
   if (row.kind !== 'self' && row.kind !== 'friend') return invalid('A participant kind must be self or friend.');
@@ -280,11 +284,28 @@ function readParticipant(value: unknown): IndexedParticipant {
     updatedAt: row.updatedAt === undefined || row.updatedAt === null
       ? null : integer(row.updatedAt, 0, Number.MAX_SAFE_INTEGER, 'A snapshot timestamp'),
   };
+  let complete = true; let resolvedIds: ReadonlySet<string> | null = null;
+  if (row.coverage !== undefined) {
+    const coverage = object(row.coverage, 'Coverage');
+    if (!['complete', 'page', 'exact'].includes(String(coverage.kind))) return invalid('Unsupported loaded coverage.');
+    const total = integer(coverage.total, 0, 10_000, 'Shared total');
+    if (coverage.kind === 'exact') {
+      shape(coverage, ['kind', 'total', 'ids'], 'Exact coverage');
+      if (!Array.isArray(coverage.ids) || !coverage.ids.length || coverage.ids.length > 6) return invalid('Exact coverage requires one to six IDs.');
+      resolvedIds = new Set(coverage.ids.map(safeGameId));
+      if (resolvedIds.size !== coverage.ids.length) return invalid('Exact coverage contains duplicate IDs.');
+      Object.assign(info, { coverage: { kind: 'exact', total, ids: [...resolvedIds] } });
+    } else {
+      shape(coverage, ['kind', 'total'], 'Paged coverage');
+      Object.assign(info, { coverage: { kind: coverage.kind, total } });
+    }
+    complete = coverage.kind === 'complete';
+  }
   if (availability !== 'ready') {
     if (row.entries !== undefined) return invalid('A participant that is not ready must omit entries.');
-    return { info, entries: null };
+    return { info, entries: null, complete: false, resolvedIds: null };
   }
-  const limit = row.kind === 'self'
+  const limit = row.kind === 'self' || row.coverage !== undefined
     ? FRIEND_COMPARISON_LIMITS.maxSelfEntries : FRIEND_COMPARISON_LIMITS.maxFriendEntries;
   if (!Array.isArray(row.entries) || row.entries.length > limit) {
     return invalid(`A ${row.kind} snapshot must have an entries array of at most ${limit} rows.`);
@@ -298,8 +319,10 @@ function readParticipant(value: unknown): IndexedParticipant {
     if (positions.has(entry.position)) return invalid(`Participant ${id} has a duplicate ranked position.`);
     entries.set(key, entry);
     positions.add(entry.position);
+    if (resolvedIds && !resolvedIds.has(entry.id)) return invalid('An exact lookup returned an unresolved game.');
   }
-  return { info, entries };
+  if (info.coverage && (entries.size > info.coverage.total || complete && entries.size !== info.coverage.total)) return invalid('Loaded coverage disagrees with the shared total.');
+  return { info, entries, complete, resolvedIds };
 }
 
 function compareText(left: string, right: string): number {
@@ -314,27 +337,28 @@ function compareTitles(left: ComparisonRow, right: ComparisonRow): number {
 function makeRow(key: string, game: ComparisonRow['game'], participants: readonly IndexedParticipant[]): ComparisonRow {
   let coverage = 0;
   const scores: number[] = [];
-  const cells = participants.map(({ info, entries }): ComparisonCell => {
+  const cells = participants.map(({ info, entries, complete, resolvedIds }): ComparisonCell => {
     if (info.availability !== 'ready') {
       return { participantId: info.id, status: info.availability, position: null, score: null };
     }
     const entry = entries!.get(key);
-    if (!entry) return { participantId: info.id, status: 'absent', position: null, score: null };
+    if (!entry) return { participantId: info.id, status: complete || resolvedIds?.has(game.id) ? 'absent' : 'unfetched', position: null, score: null };
     coverage++;
     if (entry.score !== null) scores.push(entry.score);
     return { participantId: info.id, status: 'ranked', entry, position: entry.position, score: entry.score };
   });
   const first = cells[0]!;
   const second = cells[1]!;
+  const partial = cells.some(cell => cell.status === 'unfetched');
   return {
     key,
     game,
     cells,
     coverage,
     raterCount: scores.length,
-    meanScore: scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null,
-    scoreSpread: scores.length >= 2 ? Math.max(...scores) - Math.min(...scores) : null,
-    scoreDifference: cells.length === 2 && first.score !== null && second.score !== null
+    meanScore: !partial && scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null,
+    scoreSpread: !partial && scores.length >= 2 ? Math.max(...scores) - Math.min(...scores) : null,
+    scoreDifference: !partial && cells.length === 2 && first.score !== null && second.score !== null
       ? first.score - second.score : null,
   };
 }
@@ -344,10 +368,10 @@ function pairSummary(left: IndexedParticipant, right: IndexedParticipant): Compa
     participantIds: [left.info.id, right.info.id] as const,
     hasStaleData: [left, right].some(({ info }) => info.availability === 'ready' && info.freshness === 'stale'),
   };
-  if (left.entries === null || right.entries === null) {
+  if (left.entries === null || right.entries === null || !left.complete || !right.complete) {
     return { ...base, incomplete: true, sharedGameCount: null, jointlyRatedCount: null, meanAbsoluteScoreGap: null };
   }
-  // At most one self is permitted, so the smaller side of every pair is bounded by 200.
+  // Only explicitly complete bounded snapshots contribute whole-list metrics.
   const [smaller, larger] = left.entries.size <= right.entries.size
     ? [left.entries, right.entries] : [right.entries, left.entries];
   const common: { key: string; left: ComparisonEntry; right: ComparisonEntry }[] = [];
@@ -405,7 +429,7 @@ export function compareFriendRankings(input: readonly ComparisonParticipant[]): 
     availableParticipantCount: availableParticipantIds.length,
     unavailableParticipantIds: participants.filter(({ availability }) => availability !== 'ready').map(({ id }) => id),
     staleParticipantIds: participants.filter(({ availability, freshness }) => availability === 'ready' && freshness === 'stale').map(({ id }) => id),
-    incomplete: availableParticipantIds.length !== participants.length,
+    incomplete: availableParticipantIds.length !== participants.length || indexed.some(value => !value.complete),
   };
   const games = new Map<string, ComparisonRow['game']>();
   for (const { entries } of indexed) {
@@ -418,7 +442,7 @@ export function compareFriendRankings(input: readonly ComparisonParticipant[]): 
     }
   }
   const allShared = Array.from(games, ([key, game]) => makeRow(key, game, indexed)).sort(compareTitles);
-  const commonRanked = cohort.incomplete ? [] : allShared.filter((row) => row.coverage === participants.length);
+  const commonRanked = allShared.filter((row) => row.coverage === participants.length);
   const pairs: ComparisonPairSummary[] = [];
   for (let left = 0; left < indexed.length; left++) {
     for (let right = left + 1; right < indexed.length; right++) {

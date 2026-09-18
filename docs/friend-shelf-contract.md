@@ -1,9 +1,16 @@
 # Selected shared games shelf
 
+This describes the preserved v1 **selected** mode. The newer
+[automatic-All mode](friendships-data-contract.md#versioned-all-mode-approved-implementation-contract)
+has separate v2 policy/transport, includes future account additions without
+selection, and does not use this removal-review journal.
+
 This is an independent, explicitly selected **saved-library** projection for
 accepted friends. It does not add games to a ranking or change existing ranking
 sharing, public snapshots, manager groups, creator access or private version 3.
-Adding a game never selects it. A missing shelf configuration means **off**.
+Adding a game never selects it in v1. A successfully confirmed missing v1 shelf
+configuration means **off** for that selected mode; an unknown/failed read never
+establishes off or eligibility for a new All default.
 
 ## Exact data and store API
 

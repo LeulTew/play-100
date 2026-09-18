@@ -313,6 +313,11 @@ export function friendShelfSelectionStorageTransaction<T>(scope: string, work: (
   return transaction(work, `friends-shelf-selection:v1:${scope}`);
 }
 
+export function friendAllWorkStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) return Promise.reject(namedError('PersonalLibraryValidationError', 'The automatic sharing scope is invalid.'));
+  return transaction(work, `friends-all-work:v2:${scope}`);
+}
+
 export function saveOnlineLoadHint(requested: boolean): Promise<void> {
   return transaction((_, store) => { store.put({ version: 1, requested }, ONLINE_HINT_KEY); }, ONLINE_HINT_KEY);
 }

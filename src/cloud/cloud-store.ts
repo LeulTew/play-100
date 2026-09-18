@@ -5,6 +5,7 @@ import { creatorRanks } from '../lib/cloud-types';
 import type { CreatorRank, SnapshotChunk, SnapshotManifest, SyncHead } from '../lib/cloud-types';
 import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot } from '../lib/snapshot-transport';
 import { ensureAccountActivity } from './account-lifecycle';
+import { parseFriendAllHead } from '../lib/friend-all-transport';
 
 export class RemoteConflict extends Error {
   readonly head: SyncHead;
@@ -41,6 +42,9 @@ export class CloudStore {
   private registryRef() { return doc(this.db, 'accounts', this.uid, 'metadata', 'registry'); }
   private generationRef(id: string) { return doc(this.db, 'accounts', this.uid, 'generations', id); }
   private chunkRef(kind: 'private' | 'ranking', digest: string) { return doc(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks', digest); }
+  private sharingHeads(tx: Transaction) {
+    return Promise.all(['games', 'ranking'].map(kind => tx.get(doc(this.db, 'friendAllHeads', this.uid, 'views', kind))));
+  }
 
   async head(): Promise<SyncHead | null> {
     const result = await getDocFromServer(this.headRef());
@@ -87,7 +91,7 @@ export class CloudStore {
   async enable(expected: SyncHead | null): Promise<SyncHead> {
     await ensureAccountActivity(this.db, this.uid);
     return runTransaction(this.db, async (tx) => {
-      const snapshot = await tx.get(this.headRef());
+      const [snapshot, shared] = await Promise.all([tx.get(this.headRef()), this.sharingHeads(tx)]);
       const current = snapshot.exists() ? parseHead(snapshot.data()) : null;
       if ((current?.revision ?? 0) !== (expected?.revision ?? 0) || (current?.epoch ?? 0) !== (expected?.epoch ?? 0)) {
         if (current) throw new RemoteConflict(current);
@@ -99,6 +103,7 @@ export class CloudStore {
         enabled: true, deleted: false, current: current?.current ?? null, previous: current?.previous ?? null, updatedAt: Date.now(),
       };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
+      for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });
       return next;
     });
   }
@@ -163,7 +168,7 @@ export class CloudStore {
     });
     return runTransaction(this.db, async (tx) => {
       const summaryRef = doc(this.db, 'creatorRanks', this.uid);
-      const [head, previousSummary, generation] = await Promise.all([tx.get(this.headRef()), tx.get(summaryRef), tx.get(this.generationRef(snapshot.manifest.generation))]);
+      const [head, previousSummary, generation, shared] = await Promise.all([tx.get(this.headRef()), tx.get(summaryRef), tx.get(this.generationRef(snapshot.manifest.generation)), this.sharingHeads(tx)]);
       if (!head.exists()) throw new SyncRevoked();
       const current = parseHead(head.data());
       if (current.enabled && current.epoch === expected.epoch && current.current?.digest === snapshot.manifest.digest) return current;
@@ -172,6 +177,7 @@ export class CloudStore {
       if (!generation.exists() || generation.data().status !== 'ready') throw new Error('The complete snapshot could not be committed. Retry online saving.');
       const next = { ...current, revision: current.revision + 1, current: snapshot.manifest, previous: current.current, updatedAt: Date.now() };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
+      for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });
       tx.set(summaryRef, { format: 1, epoch: next.epoch, revision: next.revision, current: summary.manifest, previous: previousSummary.exists() ? previousSummary.data().current : null, updatedAt: serverTimestamp() });
       tx.update(doc(this.db, 'members', this.uid), { rankCount: state.ranking.length, gameCount: Object.keys(state.records).length, updatedAt: serverTimestamp() });
       return next;
@@ -181,7 +187,7 @@ export class CloudStore {
   async revoke(expected: SyncHead | null, remove = false): Promise<SyncHead> {
     await ensureAccountActivity(this.db, this.uid);
     return runTransaction(this.db, async (tx) => {
-      const current = await tx.get(this.headRef());
+      const [current, shared] = await Promise.all([tx.get(this.headRef()), this.sharingHeads(tx)]);
       if (!current.exists()) {
         if (!remove || expected) throw new SyncRevoked();
         const deleted: SyncHead = { format: 1, enabled: false, deleted: true, epoch: 1, revision: 0, current: null, previous: null, updatedAt: Date.now() };
@@ -193,6 +199,7 @@ export class CloudStore {
       if (!expected || head.revision !== expected.revision || head.epoch !== expected.epoch) throw new RemoteConflict(head);
       const next: SyncHead = { ...head, enabled: false, deleted: remove, epoch: head.epoch + 1, revision: head.revision + 1, current: remove ? null : head.current, previous: remove ? null : head.previous, updatedAt: Date.now() };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
+      for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });
       if (remove) tx.delete(doc(this.db, 'creatorRanks', this.uid));
       return next;
     });

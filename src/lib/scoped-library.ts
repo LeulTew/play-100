@@ -183,7 +183,7 @@ export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expecte
 
 export async function deleteScopedLibrary(scope: LibraryScope): Promise<void> {
   scopeUid(scope);
-  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); store.delete(friendShelfSelectionKey(scope)); });
+  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); store.delete(friendShelfSelectionKey(scope)); store.delete(`friends-all-work:v2:${scope}`); });
   publishLibraryChange(scope);
 }
 

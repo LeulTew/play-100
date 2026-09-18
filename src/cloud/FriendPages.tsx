@@ -5,7 +5,7 @@ import type { Game } from '../lib/types';
 import type { PersonalLibraryState, LibraryRecord } from '../lib/personal-types';
 import { projectFriendRanking } from '../lib/friend-types';
 import { clearInviteContinuation, saveInviteContinuation } from '../lib/invite-continuation';
-import { projectOwnRanking, recordFromPublic } from '../lib/community';
+import { projectOwnRanking } from '../lib/community';
 import type { PublicEntry } from '../lib/community';
 import type { FriendStore } from './friend-store';
 import { SocialStore } from './social-store';
@@ -18,6 +18,9 @@ import { Avatar } from '../components/avatar/Avatar';
 import { Dialog } from '../components/Dialog';
 import { Icon } from '../components/Icon';
 import { DataUseLink } from '../components/DataUseLink';
+import { FriendShelfStore } from './friend-shelf-store';
+import { useFriendSharedView } from './useFriendSharedView';
+import { parseFriendAllRankingEntry, recordFromFriendAll } from '../lib/friend-all';
 
 export function navigateFriend(uid: string) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) throw new Error('This player link is invalid.');
@@ -96,7 +99,7 @@ export function InvitationPage({ store, invitation, identity, authPanel, onAccou
     <h1 data-page-heading tabIndex={-1}>Invitation</h1>
     {busy ? <p role="status">Opening invitation...</p> : done ? <><h2>You're connected</h2><button className="button button-dark" onClick={onFriends}>Open Friends</button></> : preview ? <>
       <div className="friend-identity"><Avatar descriptor={preview.avatar} size={80} /><div><h2>{preview.displayName}</h2><p>Invites you to connect.</p></div></div>
-      <p className="section-help">One use. Expires {new Date(preview.expiresAt).toLocaleString()}. Rankings stay private unless separately shared.</p>
+      <p className="section-help">One use. Expires {new Date(preview.expiresAt).toLocaleString()}. Accepted friends see games and rankings allowed by your sharing mode; notes and play history stay private.</p>
       {identity ? <div className="invite-acceptance"><div className="friend-identity"><Avatar descriptor={identity.avatar} size={48} /><span>Accept as {identity.displayName}</span></div>
         {identity.uid === preview.ownerUid ? <p>This is your own invitation.</p> : identity.verified ? <button className="button button-dark" disabled={accepting} onClick={() => { void accept(); }}>{accepting ? 'Accepting...' : 'Accept invitation'}</button> : <button className="button button-dark" onClick={onAccount}>Verify your account</button>}
       </div> : <><p>Sign in, then choose whether to accept.</p>{invitation.capability && invitation.error && <button className="text-button" onClick={() => { try { saveInviteContinuation(invitation.capability!); setError(''); } catch (cause) { setError(onlineError(cause)); } }}>Retry invitation storage</button>}{authPanel}</>}
@@ -111,7 +114,6 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
 }) {
   const [person, setPerson] = useState<FriendIdentity | null>(null);
   const [pair, setPair] = useState<FriendPair | null>(null);
-  const [entries, setEntries] = useState<PublicEntry[]>([]);
   const [limit, setLimit] = useState(25);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -119,6 +121,9 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
   const [confirmRequest, setConfirmRequest] = useState(false);
   const [requestNeedsRefresh, setRequestNeedsRefresh] = useState(false);
   const [visible, setVisible] = useState(() => !document.hidden && navigator.onLine);
+  const shelfStore = useMemo(() => new FriendShelfStore(store.db), [store]);
+  const rankingView = useFriendSharedView(store, shelfStore, uid, peer, 'ranking', visible && pair?.state === 'accepted');
+  const entries = useMemo(() => rankingView.entries.map(parseFriendAllRankingEntry), [rankingView.entries]);
   const version = useRef(0);
   const access = useMemo(createFriendReadGuard, [uid, peer]);
   const requestInFlight = useRef(false);
@@ -129,7 +134,7 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
   }, []);
   useEffect(() => {
     let alive = true; const generation = ++version.current;
-    setPerson(null); setPair(null); setEntries([]); setBusy(true); setError('');
+    setPerson(null); setPair(null); setBusy(true); setError('');
     setRequestNeedsRefresh(false);
     if (!visible) { setBusy(false); setNotice('Connect to view this player.'); return; }
     void (async () => {
@@ -147,23 +152,12 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
     const release = store.watchPair(uid, peer, (value) => {
       if (!alive) return; setPair(value); setRequestNeedsRefresh(false);
       if (value?.state === 'accepted') access.accept(value.epoch);
-      else { access.revoke(); setEntries([]); }
+      else { access.revoke(); }
     }, (cause) => {
-      if (alive) { version.current += 1; access.revoke(); setPair(null); setPerson(null); setEntries([]); setError(onlineError(cause)); }
+      if (alive) { version.current += 1; access.revoke(); setPair(null); setPerson(null); setError(onlineError(cause)); }
     });
     return () => { alive = false; version.current += 1; access.revoke(); release(); };
   }, [uid, peer, store, visible, access]);
-  useEffect(() => {
-    if (!visible || pair?.state !== 'accepted') return;
-    let alive = true; let request = 0;
-    const release = store.watchShareHead(peer, (head) => {
-      const current = ++request; const authorized = access.begin(); setEntries([]);
-      if (!head?.current) { setNotice('No ranking is shared with friends.'); return; }
-      void store.ranking(peer).then((ranking) => { if (alive && current === request && access.permits(authorized)) { setEntries(ranking.entries); setNotice(`Shared ${new Date(ranking.head.updatedAt).toLocaleString()}`); } })
-        .catch((cause) => { if (alive && current === request && access.permits(authorized)) { setEntries([]); setNotice('Shared ranking unavailable.'); setError(onlineError(cause)); } });
-    }, () => { if (alive) { request += 1; setEntries([]); setNotice('Shared ranking unavailable.'); } });
-    return () => { alive = false; request += 1; release(); };
-  }, [pair?.state, pair?.epoch, peer, store, visible, access]);
   const requestFriend = async () => {
     if (requestInFlight.current || busy || !person) return; requestInFlight.current = true; setBusy(true); setError('');
     try {
@@ -185,9 +179,12 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
     }}>Refresh connection</button>}
     {sharedGames}
     {pair?.state === 'accepted' && <h2>Shared ranking</h2>}
-    <ol className="friend-ranking-list">{entries.slice(0, limit).map((entry) => <li key={entry.id}><span>{entry.position}</span><button className="text-button" onClick={() => { try { onOpen(recordFromPublic(entry, games)); } catch (cause) { setError(onlineError(cause)); } }}>{entry.title}</button><strong>{entry.score === null ? 'Unrated' : entry.score}</strong></li>)}</ol>
+    {pair?.state === 'accepted' && <p className="section-help" role="status">{rankingView.status === 'ready' ? `${entries.length} loaded / ${rankingView.total} shared rankings` : rankingView.status === 'loading' ? 'Loading shared rankings...' : 'Shared ranking unavailable.'}</p>}
+    {rankingView.error && <p className="inline-error" role="alert">{rankingView.error}<button className="text-button" onClick={rankingView.retry}>Refresh ranking</button></p>}
+    <ol className="friend-ranking-list">{entries.slice(0, limit).map((entry) => <li key={entry.id}><span>{entry.position}</span><button className="text-button" onClick={() => { try { onOpen(recordFromFriendAll(entry, games)); } catch (cause) { setError(onlineError(cause)); } }}>{entry.title}</button><strong>{entry.score === null ? 'Unrated' : entry.score}</strong></li>)}</ol>
     {limit < entries.length && <button className="text-button" onClick={() => setLimit((value) => value + 25)}>Next 25 games</button>}
-    {confirmRequest && person && <Dialog open titleId="friend-request-title" className="info-dialog" onClose={() => { if (!busy) setConfirmRequest(false); }}><h2 id="friend-request-title">Connect with {person.displayName}?</h2><div className="friend-identity"><Avatar descriptor={identity.avatar} size={48} /><span>They'll see {identity.displayName}.</span></div><p>Rankings stay private until you enable friends sharing.</p><div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={() => setConfirmRequest(false)}>Cancel</button><button className="button button-dark" disabled={busy} onClick={() => { void requestFriend(); }}>Send request</button></div>{error && <p className="inline-error" role="alert">{error}</p>}</Dialog>}
+    {!rankingView.complete && rankingView.status === 'ready' && limit >= entries.length && <button className="text-button" disabled={rankingView.loadingMore} onClick={() => { void rankingView.loadMore().then(() => setLimit(value => value + 25)); }}>Load next 25 rankings</button>}
+    {confirmRequest && person && <Dialog open titleId="friend-request-title" className="info-dialog" onClose={() => { if (!busy) setConfirmRequest(false); }}><h2 id="friend-request-title">Connect with {person.displayName}?</h2><div className="friend-identity"><Avatar descriptor={identity.avatar} size={48} /><span>They'll see {identity.displayName}.</span></div><p>Accepted friends see the games and rankings allowed by your sharing mode. Notes, email, queue and play history stay private.</p><div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={() => setConfirmRequest(false)}>Cancel</button><button className="button button-dark" disabled={busy} onClick={() => { void requestFriend(); }}>Send request</button></div>{error && <p className="inline-error" role="alert">{error}</p>}</Dialog>}
   </section>;
 }
 

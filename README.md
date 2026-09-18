@@ -5,7 +5,7 @@ ratings table, private libraries and personal rankings. Built with React,
 TypeScript, Vite, native IndexedDB, dnd kit and one lazy Three.js sculpture.
 A stateless Vercel function looks up public catalogs. Guest data stays in
 IndexedDB; optional verified Firebase accounts add consented cross-device
-saving, optional selected friends-only rankings, private comparison groups and
+saving, automatic or legacy selected friends-only sharing, private comparison groups and
 deliberately published public snapshots. No analytics or Supabase is used.
 
 **Live:** https://play-100-collection.vercel.app  
@@ -36,8 +36,11 @@ privacy and release gates.
 
 [Friendships](docs/friendships-plan.md) and the
 [datastore contract](docs/friendships-data-contract.md) cover requests, single-use
-invitations, blocking, selected sharing and private groups. Friends sharing starts
-off and requires its own preview and consent; public snapshots remain manual.
+invitations, blocking, sharing and private groups. New eligible verified account
+setups default to sharing saved game metadata and rankings with accepted friends.
+Legacy off/custom choices stay unchanged until one inline **Share all with friends**
+action in Friends, My games or Account. Public snapshots and directory listing
+remain separate choices.
 The existing local creature picker is available through **Change icon**.
 Normal session restoration preserves account and guest separation. Storage
 restrictions, revocation and intentional stops remain explicit conditions.
@@ -77,12 +80,24 @@ Guest pins are not automatically adopted by an account. Starting another tray
 comparison while Compare is already open resets its game mode/search/page as
 one explicit transition while retaining the chosen people.
 
-**Shared games** is a separate, initially-off shelf of up to 200 explicitly
-selected saved games, including unranked additions. It transports only game
-identity/title/year/source metadata. Scores remain in separately consented
-ranking sharing. Removal/re-add cannot silently reselect a game; restarting
-private saving requires a fresh shelf review. See the
-[shelf contract and tested rule limits](docs/friend-shelf-contract.md).
+**All sharing** follows the complete account library, including future additions,
+up to its 10,000-game limit. Metadata and ranking scores use separate bounded
+paths; notes, email, queue and play history stay private. Friends load25 rows at
+a time; the six-game tray uses exact lookups. Unfetched rows never become fake
+missing scores, and incomplete whole-list statistics stay unknown.
+
+The first10,000 games plus10,000 rankings require at least30,000 document writes,
+above Spark's20,000-write daily free quota. Progress and quota cooldown survive
+reload; one completed path cannot make the whole operation say up to date.
+An unchanged cold reload reads heads/controls rather than20,000 game rows.
+See the [versioned transport and acceptance evidence](docs/friendships-data-contract.md).
+
+Stopping All or private saving revokes All views; resuming requires an explicit
+action. Older clients must refresh before changing a ready All source, or use
+their existing sharing Stop first. Current clients atomically invalidate both
+views with private changes. Accounts without active All keep their previous
+private-write behavior. Legacy selected shelves retain their200-game limit,
+separate review and removal protections in the [shelf contract](docs/friend-shelf-contract.md).
 
 ### Optional films
 

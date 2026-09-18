@@ -93,6 +93,7 @@ export function AccountPage(props: AccountPageProps) {
           {!validChoice && remoteReady && <p className="inline-error" role="alert">That source changed. Choose a copy again.</p>}
           {replacing && <p className="section-help">This replaces your online library. The device original stays here.</p>}
           <p className="consent-summary">The creator can see your profile and ranking summary. <DataUseLink /></p>
+          <p className="section-help">New setups share saved games and rankings with accepted friends. Existing sharing choices stay unchanged; notes, queue and history stay private.</p>
           <button className="button button-dark" disabled={busy || !cache || !remoteReady || !validChoice} type="submit">{busy ? 'Connecting...' : replacing ? 'Agree & replace online' : 'Agree & enable'}<Icon name="arrow" width="18" height="18" /></button>
         </form> : <>
           <p className="account-counts">{localGames} {localGames === 1 ? 'game' : 'games'} · {cache?.state.queueOrder.length ?? 0} queued · {cache?.state.ranking.length ?? 0} ranked</p>

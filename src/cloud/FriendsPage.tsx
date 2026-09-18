@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import type { FriendBlock, FriendCursor, FriendInvitation, FriendSettings } from '../lib/friend-types';
 import type { FriendsView, FriendsViewState } from '../lib/friend-manager';
 import { friendPeer, friendsViewUrl, invitationStatus, nextInvitationExpiry, parseFriendsView, visibleFriendPairs } from '../lib/friend-manager';
@@ -70,10 +71,11 @@ function MoreActions({ name, accepted, disabled, onChoose }: { name: string; acc
   </>;
 }
 
-export function FriendsPage({ store, identity, onSettings, onCommunity, onCompare, onSharedGames }: {
+export function FriendsPage({ store, identity, onSettings, onCommunity, onCompare, onSharedGames, sharingSummary }: {
   store: FriendStore; identity: OwnFriendIdentity; onSettings: (settings: FriendSettings) => void;
   onCommunity: () => void; onCompare: (peers?: string[]) => void;
   onSharedGames?: () => void;
+  sharingSummary?: ReactNode;
 }) {
   const uid = identity.uid;
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
@@ -322,6 +324,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
   const selectionError = Object.values(selectionChecks).find((check) => check.status === 'error');
   return <section className="app-page friends-page">
     <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Friends</h1><button className="button button-dark" disabled={busy || !identity.verified} onClick={() => { void createInvitation(); }}>{creatingInvite ? 'Creating invite...' : 'Invite someone'}<Icon name="share" /></button></div>
+    {sharingSummary}
     <nav className="personal-tabs friend-view-tabs" aria-label="Friends view">{(Object.keys(viewLabels) as FriendsView[]).map((value) =>
       <button key={value} disabled={working} aria-current={view.view === value ? 'page' : undefined} aria-pressed={view.view === value} onClick={() => updateView({ view: value })}>{viewLabels[value]}</button>)}</nav>
     {relationView && <div className="friend-manager-toolbar">
@@ -337,7 +340,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       <button className="button button-dark" disabled={busy || !selectionReady} onClick={() => { void compare(selected); }}>Compare selected</button><button className="text-button" disabled={working} onClick={() => choose([])}>Clear</button>
     </div>{!selectionReady && <p className="section-help" role="status">{selectionError?.status === 'error' ? `A selected connection could not be confirmed. ${onlineError(selectionError.cause)}` : 'Checking selected connections...'}{selectionError && <button className="text-button" disabled={working} onClick={() => setSelectionRetry((value) => value + 1)}>Retry selected connections</button>}</p>}</div>}
     {view.view === 'friends' && !selected.length && <p className="section-help">Choose up to five friends to compare with you. <button className="text-button" onClick={() => onCompare()}>Open comparisons & groups</button></p>}
-    {view.view === 'friends' && onSharedGames && <button className="text-button" onClick={onSharedGames}>Choose games to share</button>}
+    {view.view === 'friends' && onSharedGames && <button className="text-button" onClick={onSharedGames}>Sharing details</button>}
     {relationView && <ul className="friend-list">{rows.map((pair) => {
       const peer = friendPeer(pair, uid); const profile = list.identities[peer];
       const person = profile?.status === 'ready' ? profile.value : null;

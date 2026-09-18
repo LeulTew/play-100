@@ -94,6 +94,7 @@ service cloud.firestore {
           || (request.resource.data.deleted && !request.resource.data.enabled));
       allow update: if accountActive(uid) && headShape(request.resource.data)
         && request.resource.data.revision == resource.data.revision + 1
+        && aSourcePulses(uid)
         && (
           (resource.data.enabled && !resource.data.deleted && request.resource.data.enabled && !request.resource.data.deleted
             && request.resource.data.epoch == resource.data.epoch && request.resource.data.previous == resource.data.current
@@ -411,11 +412,13 @@ service cloud.firestore {
         && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.selection == ''));
     }
     match /friendSettings/{uid} {
-      allow get: if own(uid);
+      allow get: if own(uid) || aObservableControl(uid, resource.data);
       allow list, delete: if false;
       allow create: if accountActive(uid) && fSettingsShape(request.resource.data)
-        && request.resource.data.epoch == 1 && request.resource.data.revision == 1 && !request.resource.data.enabled;
+        && request.resource.data.epoch == 1 && request.resource.data.revision == 1
+        && (!request.resource.data.enabled || aCompatibilityCreate(uid, 'ranking', request.resource.data));
       allow update: if fOwnLive(uid) && fSettingsShape(request.resource.data)
+        && (!request.resource.data.deleted || aDeleteCurrentClient(uid))
         && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.revision == resource.data.revision + 1;
     }
     function fIdentityShape(data, uid) {
@@ -809,10 +812,11 @@ service cloud.firestore {
           || (sHead(uid).previous != null && sHead(uid).previous.generation == id));
     }
     match /friendShelfSettings/{uid} {
-      allow get: if own(uid);
+      allow get: if own(uid) || aObservableControl(uid, resource.data);
       allow list, delete: if false;
       allow create: if own(uid) && sConfigShape(request.resource.data)
-        && request.resource.data.epoch == 1 && request.resource.data.revision == 1 && !request.resource.data.enabled
+        && request.resource.data.epoch == 1 && request.resource.data.revision == 1
+        && (!request.resource.data.enabled || aCompatibilityCreate(uid, 'shelf', request.resource.data))
         && (fOwnLive(uid) || request.resource.data.deleted);
       allow update: if own(uid) && !resource.data.deleted && sConfigShape(request.resource.data) && sConfigConsent(uid, request.resource.data) && sPulseRequired(uid)
         && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.revision == resource.data.revision + 1
@@ -928,6 +932,241 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if own(uid) && ((resource == null && !exists(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)))
         || (sGen(uid, id).status == 'deleting' && !sRetained(uid, id)));
+    }
+    // V2 All policies bind both unchanged legacy controls. Per-game rows contain
+    // only safe metadata (games) or metadata plus position/score (ranking).
+    // Private jobs count at most two atomic row mutations; only ready heads
+    // authorize paged reads. No selection array scales with the 10,000-game cap.
+    function aPolicy(uid) { return get(/databases/$(database)/documents/friendAllPolicies/$(uid)).data; }
+    function aBinding(value) {
+      return value is map && fKeys(value, ['epoch', 'revision'])
+        && fInt(value.epoch, 1, 9007199254740991) && fInt(value.revision, 1, 9007199254740991);
+    }
+    function aPolicyShape(uid, data) {
+      return fKeys(data, ['format', 'uid', 'enabled', 'deleted', 'origin', 'epoch', 'revision', 'syncEpoch', 'ranking', 'shelf', 'updatedAt'])
+        && data.format == 2 && data.uid == uid && data.enabled is bool && data.deleted is bool
+        && data.origin in ['default', 'explicit'] && (!data.deleted || !data.enabled)
+        && fInt(data.epoch, 1, 9007199254740991) && fInt(data.revision, 1, 9007199254740991)
+        && fInt(data.syncEpoch, 1, 9007199254740991) && aBinding(data.ranking) && aBinding(data.shelf) && data.updatedAt == request.time;
+    }
+    function aCompatibilityCreate(uid, kind, data) {
+      let policy = getAfter(/databases/$(database)/documents/friendAllPolicies/$(uid)).data;
+      return data.selection == '' && !data.deleted && policy.format == 2 && policy.uid == uid && policy.enabled && !policy.deleted
+        && data.epoch == policy[kind].epoch && data.revision == policy[kind].revision;
+    }
+    function aPolicyControls(uid, data) {
+      let ranking = getAfter(/databases/$(database)/documents/friendSettings/$(uid)).data;
+      let shelf = getAfter(/databases/$(database)/documents/friendShelfSettings/$(uid)).data;
+      let sync = head(uid);
+      return !ranking.deleted && !shelf.deleted && ranking.enabled == data.enabled && shelf.enabled == data.enabled
+        && ranking.selection == '' && shelf.selection == ''
+        && data.ranking.epoch == ranking.epoch && data.ranking.revision == ranking.revision
+        && data.shelf.epoch == shelf.epoch && data.shelf.revision == shelf.revision
+        && (!data.enabled || (sync.enabled && !sync.deleted && data.syncEpoch == sync.epoch && shelf.consentSyncEpoch == sync.epoch));
+    }
+    function aDeleteCurrentClient(uid) {
+      return !exists(/databases/$(database)/documents/friendAllPolicies/$(uid))
+        || getAfter(/databases/$(database)/documents/friendAllPolicies/$(uid)).data.deleted;
+    }
+    match /friendAllPolicies/{uid} {
+      allow get: if own(uid);
+      allow list, delete: if false;
+      allow create: if accountActive(uid) && aPolicyShape(uid, request.resource.data) && aPolicyControls(uid, request.resource.data)
+        && !request.resource.data.deleted && request.resource.data.epoch == 1 && request.resource.data.revision == 1
+        && (request.resource.data.origin == 'explicit'
+          || (request.resource.data.enabled
+            && !exists(/databases/$(database)/documents/friendSettings/$(uid))
+            && !exists(/databases/$(database)/documents/friendShelfSettings/$(uid))));
+      allow update: if own(uid) && !resource.data.deleted && aPolicyShape(uid, request.resource.data)
+        && request.resource.data.origin == 'explicit' && request.resource.data.epoch == resource.data.epoch + 1
+        && request.resource.data.revision == resource.data.revision + 1
+        && ((aPolicyControls(uid, request.resource.data) && fOwnLive(uid))
+          || (request.resource.data.deleted && !request.resource.data.enabled
+            && getAfter(/databases/$(database)/documents/friendSettings/$(uid)).data.deleted
+            && getAfter(/databases/$(database)/documents/friendShelfSettings/$(uid)).data.deleted));
+    }
+    function aConnected(uid) {
+      // Both settings can only be created under immutable active lifecycles.
+      return verified() && request.auth.uid != uid
+        && !fSettings(uid).deleted && !fSettings(request.auth.uid).deleted
+        && get(fPairPath(uid, request.auth.uid)).data.state == 'accepted' && fUnblocked(uid, request.auth.uid);
+    }
+    function aConsent(uid) {
+      let policy = aPolicy(uid);
+      let ranking = fSettings(uid);
+      let shelf = sConfig(uid);
+      return policy.enabled && !policy.deleted && ranking.enabled && !ranking.deleted && shelf.enabled && !shelf.deleted
+        && ranking.selection == '' && shelf.selection == ''
+        && ranking.epoch == policy.ranking.epoch && ranking.revision == policy.ranking.revision
+        && shelf.epoch == policy.shelf.epoch && shelf.revision == policy.shelf.revision;
+    }
+    function aActive(uid) {
+      let sync = head(uid);
+      return aConsent(uid) && sync.enabled && !sync.deleted && sync.epoch == aPolicy(uid).syncEpoch && sConfig(uid).consentSyncEpoch == sync.epoch;
+    }
+    function aObservableControl(uid, data) {
+      return aConnected(uid) && exists(/databases/$(database)/documents/friendAllPolicies/$(uid))
+        && aPolicy(uid).enabled && !aPolicy(uid).deleted
+        && data.enabled && !data.deleted && data.selection == '';
+    }
+    function aKind(kind) { return kind in ['games', 'ranking']; }
+    function aHead(uid, kind) { return get(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind)).data; }
+    function aJob(uid, kind) { return get(/databases/$(database)/documents/friendAllJobs/$(uid)/views/$(kind)).data; }
+    function aRowPath(uid, kind, id) {
+      return kind == 'games' ? /databases/$(database)/documents/friendAllGames/$(uid)/entries/$(id)
+        : /databases/$(database)/documents/friendAllRankings/$(uid)/entries/$(id);
+    }
+    function aId(id) { return id is string && id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$'); }
+    function aSourceCurrent(uid, source) {
+      let sync = head(uid);
+      return fSource(source) && sync.enabled && !sync.deleted && sync.epoch == source.syncEpoch && sync.revision == source.remoteRevision;
+    }
+    function aHeadShape(data) {
+      return fKeys(data, ['format', 'epoch', 'policyRevision', 'source', 'revision', 'status', 'count', 'digest', 'updatedAt'])
+        && data.format == 2 && fInt(data.epoch, 1, 9007199254740991) && fInt(data.policyRevision, 1, 9007199254740991)
+        && fSource(data.source) && fInt(data.revision, 1, 9007199254740991) && data.status in ['updating', 'ready']
+        && fInt(data.count, 0, 10000) && digest(data.digest) && data.updatedAt == request.time;
+    }
+    function aHeadBound(uid, data) {
+      let policy = aPolicy(uid);
+      return aActive(uid) && data.epoch == policy.epoch && data.policyRevision == policy.revision && aSourceCurrent(uid, data.source);
+    }
+    function aHeadWrite(uid, kind, data) {
+      let job = getAfter(/databases/$(database)/documents/friendAllJobs/$(uid)/views/$(kind)).data;
+      return aKind(kind) && fOwnLive(uid) && aHeadShape(data) && aHeadBound(uid, data)
+        && job.epoch == data.epoch && job.policyRevision == data.policyRevision && job.source == data.source && job.digest == data.digest
+        && (data.status == 'updating'
+          ? job.headRevision == data.revision && job.applied == 0 && data.count == 0
+          : job.headRevision == data.revision - 1 && job.applied == job.total && job.count == job.targetCount && data.count == job.count);
+    }
+    function aPeerHead(uid, kind) {
+      return aConnected(uid) && aHeadBound(uid, aHead(uid, kind));
+    }
+    function aHeadObservable(uid, data) {
+      let policy = aPolicy(uid);
+      return aActive(uid) && data.epoch == policy.epoch && data.policyRevision == policy.revision && data.source.syncEpoch == policy.syncEpoch;
+    }
+    function aCleanup(uid) {
+      return own(uid) && (!aPolicy(uid).enabled || aPolicy(uid).deleted || fDeleted(uid));
+    }
+    function aSourcePulseRequired(uid, kind) {
+      return !exists(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind))
+        || aHead(uid, kind).status != 'ready'
+        || (getAfter(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind)).data.status == 'updating'
+          && getAfter(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind)).data.revision == aHead(uid, kind).revision + 1);
+    }
+    function aSourcePulses(uid) {
+      return !exists(/databases/$(database)/documents/friendAllPolicies/$(uid)) || !aConsent(uid)
+        || (aSourcePulseRequired(uid, 'games') && aSourcePulseRequired(uid, 'ranking'));
+    }
+    function aSourcePulse(uid, before, after) {
+      let sync = head(uid);
+      let next = getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data;
+      return own(uid) && before.status == 'ready'
+        && after.diff(before).affectedKeys().hasOnly(['status', 'revision', 'updatedAt'])
+        && after.status == 'updating' && after.revision == before.revision + 1 && after.updatedAt == request.time
+        && next.revision == sync.revision + 1;
+    }
+    match /friendAllHeads/{uid}/views/{kind} {
+      allow get: if own(uid) || (aKind(kind) && aConnected(uid) && (resource == null || aHeadObservable(uid, resource.data)));
+      allow list: if false;
+      allow create: if aHeadWrite(uid, kind, request.resource.data) && request.resource.data.status == 'updating' && request.resource.data.revision == 1;
+      allow update: if aSourcePulse(uid, resource.data, request.resource.data)
+        || (aHeadWrite(uid, kind, request.resource.data) && request.resource.data.revision == resource.data.revision + 1
+        && (request.resource.data.status == 'updating' || (resource.data.status == 'updating'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'count', 'revision', 'updatedAt']))));
+      allow delete: if aCleanup(uid);
+    }
+    function aJobShape(data) {
+      return fKeys(data, ['format', 'epoch', 'policyRevision', 'source', 'token', 'digest', 'targetCount', 'count', 'total', 'applied', 'last', 'headRevision', 'updatedAt'])
+        && data.format == 2 && fInt(data.epoch, 1, 9007199254740991) && fInt(data.policyRevision, 1, 9007199254740991)
+        && fSource(data.source) && fUuid(data.token) && digest(data.digest)
+        && fInt(data.targetCount, 0, 10000) && fInt(data.count, 0, 10000)
+        && fInt(data.total, 0, 20000) && fInt(data.applied, 0, data.total)
+        && data.last is list && data.last.size() <= 2 && data.last.toSet().size() == data.last.size()
+        && (data.last.size() < 1 || aId(data.last[0])) && (data.last.size() < 2 || aId(data.last[1]))
+        && fInt(data.headRevision, 1, 9007199254740991) && data.updatedAt == request.time;
+    }
+    function aJobBegin(uid, kind, data) {
+      let nextHead = getAfter(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind)).data;
+      return fOwnLive(uid) && aKind(kind) && aJobShape(data) && aHeadBound(uid, data)
+        && data.applied == 0 && data.last == [] && nextHead.status == 'updating'
+        && nextHead.revision == data.headRevision && nextHead.epoch == data.epoch
+        && nextHead.policyRevision == data.policyRevision && nextHead.source == data.source && nextHead.digest == data.digest
+        && (!exists(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind))
+          || nextHead.revision == aHead(uid, kind).revision + 1);
+    }
+    function aBeforeActive(uid, kind, id, epoch) {
+      return exists(aRowPath(uid, kind, id)) && get(aRowPath(uid, kind, id)).data.epoch == epoch && get(aRowPath(uid, kind, id)).data.active;
+    }
+    function aMutationDelta(uid, kind, id, before, step) {
+      let after = getAfter(aRowPath(uid, kind, id)).data;
+      return after.epoch == before.epoch && after.token == before.token && after.step == step;
+    }
+    function aCountDelta(uid, kind, id, epoch) {
+      return (getAfter(aRowPath(uid, kind, id)).data.active ? 1 : 0) - (aBeforeActive(uid, kind, id, epoch) ? 1 : 0);
+    }
+    function aJobProgress(uid, kind, before, after) {
+      let size = after.last.size();
+      return own(uid) && aHeadBound(uid, before)
+        && aHead(uid, kind).status == 'updating' && aHead(uid, kind).revision == before.headRevision
+        && after.diff(before).affectedKeys().hasOnly(['count', 'applied', 'last', 'updatedAt'])
+        && after.last is list && size >= 1 && size <= 2 && after.last.toSet().size() == size
+        && aId(after.last[0]) && (size == 1 || aId(after.last[1]))
+        && fInt(after.count, 0, 10000) && after.updatedAt == request.time
+        && after.applied is int && after.applied == before.applied + size && after.applied <= before.total
+        && aMutationDelta(uid, kind, after.last[0], before, before.applied + 1)
+        && (size == 1 || aMutationDelta(uid, kind, after.last[1], before, before.applied + 2))
+        && after.count == before.count + aCountDelta(uid, kind, after.last[0], before.epoch)
+          + (size == 2 ? aCountDelta(uid, kind, after.last[1], before.epoch) : 0);
+    }
+    match /friendAllJobs/{uid}/views/{kind} {
+      allow get: if own(uid);
+      allow list: if false;
+      allow create: if aJobBegin(uid, kind, request.resource.data) && request.resource.data.count == 0;
+      allow update: if request.resource.data.token == resource.data.token
+        ? aJobProgress(uid, kind, resource.data, request.resource.data)
+        : (aJobBegin(uid, kind, request.resource.data)
+          && request.resource.data.count == (request.resource.data.epoch == resource.data.epoch ? resource.data.count : 0));
+      allow delete: if aCleanup(uid);
+    }
+    function aRowShape(id, kind, data) {
+      return fKeys(data, ['format', 'epoch', 'token', 'step', 'active', 'entry'])
+        && data.format == 2 && aId(id) && fInt(data.epoch, 1, 9007199254740991) && fUuid(data.token)
+        && fInt(data.step, 1, 20000) && data.active is bool
+        && (!data.active ? data.entry == null : data.entry is map
+          && (kind == 'games' ? sEntry(data.entry, id)
+            : fInt(data.entry.position, 1, 10000) && fPackedEntry(data.entry, id, data.entry.position)
+              && data.entry.title.matches('^[^\\x00-\\x1f\\x7f]+$') && !data.entry.title.matches('^\\s+$')
+              && (data.entry.sourceUrl == null || data.entry.sourceUrl.size() <= 2048)));
+    }
+    function aRowWrite(uid, kind, id, data) {
+      let job = aJob(uid, kind);
+      let next = getAfter(/databases/$(database)/documents/friendAllJobs/$(uid)/views/$(kind)).data;
+      return own(uid) && aRowShape(id, kind, data) && data.epoch == job.epoch && data.token == job.token
+        && next.token == job.token && next.last.hasAny([id]) && next.applied > job.applied && next.applied <= job.applied + 2
+        && data.step == job.applied + (next.last[0] == id ? 1 : 2);
+    }
+    function aRowsReadable(uid, kind, data) {
+      return aPeerHead(uid, kind) && aHead(uid, kind).status == 'ready' && data.active && data.epoch == aHead(uid, kind).epoch;
+    }
+    function aRowGet(uid, kind) {
+      return aPeerHead(uid, kind) && aHead(uid, kind).status == 'ready'
+        && (resource == null || (!resource.data.active && resource.data.entry == null) || aRowsReadable(uid, kind, resource.data));
+    }
+    match /friendAllGames/{uid}/entries/{id} {
+      allow get: if own(uid) || aRowGet(uid, 'games');
+      allow list: if request.query.limit != null
+        && ((own(uid) && request.query.limit <= 100) || (request.query.limit <= 25 && aRowsReadable(uid, 'games', resource.data)));
+      allow create, update: if aRowWrite(uid, 'games', id, request.resource.data);
+      allow delete: if aCleanup(uid) || (own(uid) && ((!resource.data.active && resource.data.entry == null) || resource.data.epoch < aPolicy(uid).epoch));
+    }
+    match /friendAllRankings/{uid}/entries/{id} {
+      allow get: if own(uid) || aRowGet(uid, 'ranking');
+      allow list: if request.query.limit != null
+        && ((own(uid) && request.query.limit <= 100) || (request.query.limit <= 25 && aRowsReadable(uid, 'ranking', resource.data)));
+      allow create, update: if aRowWrite(uid, 'ranking', id, request.resource.data);
+      allow delete: if aCleanup(uid) || (own(uid) && ((!resource.data.active && resource.data.entry == null) || resource.data.epoch < aPolicy(uid).epoch));
     }
     match /{document=**} { allow read, write: if false; }
   }

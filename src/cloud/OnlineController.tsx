@@ -44,6 +44,8 @@ import { CommunityPage, PublicProfilePage } from './CommunityPages';
 import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
 import { useFriendSharing } from './useFriendSharing';
+import { useFriendAll } from './useFriendAll';
+import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { FriendComparisonPage } from './FriendComparisonPage';
 import { FriendDetailPage, FriendSharingPage, InvitationPage, navigateFriend, prepareFriendIdentity } from './FriendPages';
 import { FriendsPage } from './FriendsPage';
@@ -120,8 +122,9 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
   const social = useMemo(() => new SocialStore(cloudDb), []);
   const friendToolsVisible = ['account', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
-  const friends = useFriendSharing(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current);
-  const shelf = useFriendShelf(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current, friendShelfJournal);
+  const automatic = useFriendAll(uid, scope, account.snapshot, Boolean(identity?.verified), games, authSessionEpoch.current);
+  const friends = useFriendSharing(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current, !automatic.ready || automatic.controlsAll);
+  const shelf = useFriendShelf(uid, scope, account.snapshot, Boolean(identity?.verified), games, friendToolsVisible, authSessionEpoch.current, friendShelfJournal, !automatic.ready || automatic.controlsAll);
   const restoreInitial = useCallback(async (store: CloudStore, isCurrent: () => boolean) => {
     if (!scope || !uid || !isCurrent()) return;
     const local = await loadScopedLibrary(scope);
@@ -319,6 +322,18 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     })().catch((cause) => { if (alive && cloudAuth.currentUser?.uid === uid) setError(`Friend profile update pending. ${onlineError(cause)}`); });
     return () => { alive = false; };
   }, [uid, identity?.verified, friends.settings?.deleted, Boolean(friends.settings), friends.store, member?.displayName, member?.avatar]);
+  const canEnableAll = 'canEnable' in automatic.eligibility && automatic.eligibility.canEnable;
+  const hasIdentity = Boolean(identity);
+  const automaticSummary = useMemo(() => hasIdentity ? <FriendSharingSummary mode={automatic.eligibility.kind} status={automatic.status}
+    canEnable={canEnableAll} enabled={Boolean(automatic.policy?.enabled)} error={automatic.error}
+    onEnable={automatic.enable} onStop={automatic.stopSharing} onRefresh={automatic.refresh}
+    progress={automatic.progress && automatic.status !== 'saved' ? <p className="section-help" role="status">
+      {(['games', 'ranking'] as const).map(kind => {
+        const progress = automatic.progress?.[kind];
+        return progress ? <span key={kind}>{kind === 'games' ? 'Saved games' : 'Rankings'}: {progress.ready ? `${progress.targetCount} ready` : `${progress.applied} / ${progress.total} changes confirmed`}. </span> : null;
+      })}
+    </p> : null} /> : null,
+  [hasIdentity, automatic.eligibility.kind, automatic.status, canEnableAll, automatic.policy?.enabled, automatic.error, automatic.enable, automatic.stopSharing, automatic.refresh, automatic.progress]);
   const bridge = useMemo<OnlineBridge>(() => ({
     loading: restoring, identity: identity ?? null,
     controller: protectedController, scope: (active || cacheUnavailable) && scope ? scope : 'guest',
@@ -326,7 +341,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     status: cacheUnavailable ? 'error' : active ? sync.status : 'device', label: cacheUnavailable ? 'Account cache unavailable' : active ? (sync.pendingEdits ? 'Finishing local edits...' : SYNC_LABELS[sync.status]) : 'Device only',
     creator: isCreator,
     headerIdentity,
-  }), [identity, restoring, active, protectedController, cacheUnavailable, account.snapshot?.sync.enabled, scope, sync.status, sync.pendingEdits, isCreator, headerIdentity]);
+    friendSharing: automaticSummary,
+  }), [identity, restoring, active, protectedController, cacheUnavailable, account.snapshot?.sync.enabled, scope, sync.status, sync.pendingEdits, isCreator, headerIdentity, automaticSummary]);
   useLayoutEffect(() => { onBridge(bridge); }, [bridge, onBridge]);
 
   const run = async (operation: () => Promise<void>, identityChange = false): Promise<boolean> => {
@@ -426,6 +442,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     sync.suspend();
     friends.stop();
     shelf.stop();
+    automatic.suspend();
     await account.waitForWrites();
     await signOut(cloudAuth); await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
@@ -442,6 +459,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     sync.suspend();
     friends.stop();
     shelf.stop();
+    automatic.suspend();
     const current = await store.head();
     if (current) await store.revoke(current);
     await pauseScopedLibrary(target); await account.refresh(); await refresh();
@@ -487,12 +505,13 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       cursors = { relations: data.relations.cursor, groups: data.groups.cursor, blocks: data.blocks.cursor };
     }
     const sharedGames = await shelf.store.exportOwn(identity.uid);
+    const automaticSharing = await automatic.store.exportOwn(identity.uid);
     if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
     download({ app: 'Play 100', formatVersion: 1, exportedAt: new Date().toISOString(), identity, member,
       deviceLibrary: local ? createLibraryBackup(local.state) : null, deviceCacheError: cacheError,
       onlineLibrary: remoteLibrary ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }) : null,
       recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries,
-      friends: { identity: ownSocial?.identity, settings: ownSocial?.settings, relationships, groups, blocks, sharedGames } }, 'Play-100-account-export.json');
+      friends: { identity: ownSocial?.identity, settings: ownSocial?.settings, relationships, groups, blocks, sharedGames, automaticSharing } }, 'Play-100-account-export.json');
     if (cacheError) setMessage('Online account data was exported. The unreadable device cache is explicitly marked unavailable in the export; it was not replaced or deleted.');
   });
   const deleteOnline = (removeAccount: boolean, password: string) => {
@@ -535,24 +554,32 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       const user = signedIn; const target = scope; const store = sync.store;
       friends.stop();
       shelf.stop();
+      automatic.suspend();
       if (removeAccount) {
+        await automatic.store.revokeForDeletion(user.uid);
         await friends.store.revokeForDeletion(user.uid);
         await shelf.store.revokeForDeletion(user.uid);
       }
       else {
-        const settings = await friends.store.settings(user.uid);
-        if (settings && !settings.deleted) {
-          const stopped = await friends.store.saveSettings(user.uid, { enabled: false, selectedIds: [] }, settings);
-          friends.acceptSettings(stopped);
-          await friends.store.cleanupSharing(user.uid);
-        }
-        const config = await shelf.store.config(user.uid);
-        if (config && !config.deleted) {
-          const stopped = await shelf.store.saveConfig(user.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config,
+        const allControls = await automatic.store.controls(user.uid);
+        if (allControls.policy && !allControls.policy.deleted) {
+          await automatic.store.setPolicy(user.uid, false, 'explicit', allControls,
             () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
-          await shelf.acceptConfig(stopped);
-          await shelf.store.cleanupSharing(user.uid);
+        } else {
+          const settings = allControls.ranking;
+          if (settings && !settings.deleted) {
+            const stopped = await friends.store.saveSettings(user.uid, { enabled: false, selectedIds: [] }, settings);
+            friends.acceptSettings(stopped);
+          }
+          const config = allControls.shelf;
+          if (config && !config.deleted) {
+            const stopped = await shelf.store.saveConfig(user.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, config,
+              () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
+            await shelf.acceptConfig(stopped);
+          }
         }
+        await friends.store.cleanupSharing(user.uid);
+        await shelf.store.cleanupSharing(user.uid);
       }
       await account.waitForWrites();
       if (cloudAuth.currentUser?.uid !== user.uid || identityRef.current?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before cleanup. Nothing was deleted.');
@@ -561,6 +588,15 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       await social.unpublish(user.uid, await social.control(user.uid), true);
       await store.revoke(await store.head(), true);
       await store.cleanup(true); await social.deleteProfile(user.uid); await deleteOwnMember(cloudDb, user.uid);
+      if (await automatic.store.policy(user.uid)) for (const kind of ['games', 'ranking'] as const) {
+        for (let index = 0; index < 250; index += 1) {
+          if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before shared-data cleanup completed.');
+          const result = await automatic.store.cleanupPage(user.uid, kind);
+          if (result.done) break;
+          setMessage(`Deleting shared ${kind === 'games' ? 'games' : 'rankings'}; confirmed batches are not repeated.`);
+          if (index === 249) throw new Error('Some shared account records still need cleanup. Retry deletion to continue.');
+        }
+      }
       if (removeAccount) {
         const shelfCleanup = await shelf.store.cleanupDeleted(user.uid);
         if (!shelfCleanup.done) throw new Error('Some shared games still need cleanup. Retry deletion before removing this account.');
@@ -597,11 +633,12 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         page === 'profile' ? <PublicProfilePage social={social} handle={publicHandle} games={games} library={activeController} identity={identity} onOpenRecord={onOpenRecord} onShare={onShare} onAccount={() => onNavigate('account')} onFriend={navigateFriend} /> :
         page === 'invite' ? <InvitationPage store={friends.store} invitation={invitation} identity={friendIdentity} authPanel={authPanel} onAccount={() => onNavigate('account')} onFriends={() => onNavigate('friends')} onSettings={friends.acceptSettings} /> :
         !identity ? <section className="app-page auth-page"><h1 data-page-heading tabIndex={-1}>Sign in</h1>{authPanel}</section> :
-        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={openComparison} onSharedGames={() => onNavigate('friend-shelf')} /> :
+        page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={openComparison} onSharedGames={() => onNavigate('friend-shelf')} sharingSummary={automaticSummary} /> :
         page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={openComparison} games={games} onOpen={onOpenRecord}
           sharedGames={<FriendSharedGames key={`${uid}:${location.pathname}:${authSessionEpoch.current}`} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} authGeneration={authSessionEpoch.current} verified={identity.verified} store={shelf.store} friends={friends.store} games={games} library={activeController} onOpen={onOpenRecord} onPin={onPinRecord} artwork={artwork} />} /> :
         (page === 'compare' || page === 'friend-sharing' || page === 'friend-shelf') && !games.length ? <div className="page-loading" role="status"><h1>Loading games...</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
         page === 'compare' && friendIdentity ? <FriendComparisonPage key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`} store={friends.store} uid={identity.uid} identity={friendIdentity} ownState={activeController.state} games={games} onOpen={onOpenRecord} onFriends={() => onNavigate('friends')} /> :
+        (page === 'friend-sharing' || page === 'friend-shelf') && automatic.controlsAll ? <section className="app-page"><h1 data-page-heading tabIndex={-1}>Shared with friends</h1>{automaticSummary}<button className="text-button" onClick={() => onNavigate('friends')}>Friends</button></section> :
         page === 'friend-sharing' && friendIdentity ? <FriendSharingPage key={uid} store={friends.store} identity={friendIdentity} settings={friends.settings} ownState={account.snapshot?.state ?? emptyPersonalLibrary()} connected={Boolean(account.snapshot?.sync.enabled)} games={games} onSettings={friends.acceptSettings} onAccount={() => onNavigate('account')} status={friends.status} error={friends.error} /> :
         page === 'friend-shelf' && friendIdentity ? <section className="app-page shared-games-page"><div className="page-heading"><h1 data-page-heading tabIndex={-1}>Shared games</h1><button className="text-button" onClick={() => onNavigate('account')}>Account</button></div>
           <FriendShelfEditor key={`${scope}:${authSessionEpoch.current}`} state={account.snapshot?.state ?? emptyPersonalLibrary()} games={games} config={shelf.config} identity={friendIdentity}
@@ -633,14 +670,14 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           })}
           onConnect={connect} onVerify={sendVerification} onRefreshIdentity={() => run(async () => { const user = cloudAuth.currentUser; if (!user) return; await reload(user); refreshedMismatch.current.delete(user.uid); const next = await reconcileIdentity(user, true); setMessage(next.verified ? 'Email verified. You can choose online saving or publishing.' : 'Verification is not confirmed yet. Open the latest email link, then try again.'); })}
           onSignOut={signOutAccount} onLinkGoogle={linkGoogle}
-          onRetry={() => run(async () => { await sync.retry(); await friends.retry(); await shelf.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); await shelf.store.prune(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
+          onRetry={() => run(async () => { await sync.retry(); await automatic.refresh(); await friends.retry(); await shelf.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); await shelf.store.prune(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
           onPause={pause} onDownload={downloadData}
           onUseRemote={(reviewed, revision) => run(async () => { await sync.useRemote(reviewed, revision); await account.refresh(); })}
           onUseLocal={(reviewed, revision) => run(async () => { await sync.useLocal(reviewed, revision); })}
           googleDeletion={currentDeletionApproval} onDismissDeletion={() => setDeletionApproval(null)}
           onFriends={() => onNavigate('friends')} onCompare={() => onNavigate('compare')}
-          sharedGames={<><button className="text-button" onClick={() => onNavigate('friend-shelf')}>Shared games: {shelf.status}</button>{shelf.error && <p className="inline-error" role="alert">{shelf.error}<button className="text-button" onClick={() => { void run(shelf.retry); }}>Refresh shared games</button></p>}</>}
-          friendsSharing={<><button className="text-button" onClick={() => onNavigate('friend-sharing')}>Friends sharing: {friends.status}</button>{friends.error && <p className="inline-error" role="alert">{friends.error}<button className="text-button" onClick={() => { void friends.retry(); }}>Retry sharing</button></p>}</>}
+          sharedGames={automaticSummary}
+          friendsSharing={!automatic.controlsAll && <><button className="text-button" onClick={() => onNavigate('friend-sharing')}>Selected ranking: {friends.status}</button><button className="text-button" onClick={() => onNavigate('friend-shelf')}>Selected saved games: {shelf.status}</button>{(friends.error || shelf.error) && <p className="inline-error" role="alert">{friends.error || shelf.error}<button className="text-button" onClick={() => { void run(async () => { await friends.retry(); await shelf.retry(); }); }}>Refresh selected sharing</button></p>}</>}
           onDelete={deleteOnline} onPublish={() => onNavigate('publish')} onCommunity={() => onNavigate('community')} onCreator={() => onNavigate('creator')} />)}
       {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{authPanel}</Dialog>}
       {avatarOpen && identity && <Dialog open titleId="account-avatar-title" className="info-dialog" onClose={() => { if (!busy) setAvatarOpen(false); }}><AvatarPicker value={avatar} identityKey={identityKey} titleId="account-avatar-title" onCancel={() => setAvatarOpen(false)} onSave={async (next) => {

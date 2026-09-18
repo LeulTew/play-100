@@ -61,9 +61,11 @@ Export/import backups remain independent recovery tools. Motion preferences
 stay per-device and are excluded from cloud transport.
 Shareable collection URLs never contain private progress or opinions. A
 separate, previewed publication creates a public profile/ranking snapshot.
-Optional friendships add selected friends-only ranking projections and private
-comparison groups. Friendship, friends sharing and public publication are
-separate choices; creating a connection does not share scores.
+Optional friendships add friends-only account projections and private comparison
+groups. New eligible verified account setups default to sharing all saved game
+metadata and rankings with accepted, nonblocked friends. Public publication and
+directory listing remain separate choices. Legacy off/custom choices are retained
+until one explicit, inline **Share all with friends** action.
 
 ## Capabilities and Constraints
 
@@ -131,16 +133,27 @@ separate choices; creating a connection does not share scores.
 - Friend requests and invitations support acceptance, decline, cancellation,
   removal, private blocking and unblocking. Invitation links are one-use,
   revocable and expire after seven days; their capability stays in a fragment.
-- Friends-only sharing starts off, previews at most 200 selected ranked games
-  and automatically follows their saved edits only after consent. Notes, email,
-  queue and play history are excluded. New games are not automatically selected.
-- A separately consented Shared games shelf can expose up to 200 selected saved,
-  unranked or ranked game identities and safe display metadata, never opinions or
-  private history. Removal/re-add and old-writer gaps require fresh review.
-  Restarting online saving cannot silently renew shelf consent.
+- All mode covers the full supported 10,000-record account library through
+  bounded, incremental publication and paginated reads. New saved/ranked games
+  are included automatically; notes, email, queue and play history stay private.
+  Metadata and rankings have separate protected transport paths.
+- New defaults apply only to eligible verified accounts with current private
+  saving consent, never to guests or an unknown bootstrap state. Existing off,
+  selected-only, deleted or revoked choices are not inferred from absent new
+  fields. One prominent Friends/My games/Account action enables All coherently,
+  without settings navigation or per-game picking.
+- A short audience statement and Stop remain visible. Stop, old-client consent
+  changes, block, unfriend, private-saving pause/deletion and account changes are
+  authoritative. Restarting private saving cannot silently renew sharing consent.
+- Legacy selected-mode sharing remains supported with its existing 200-record
+  bounds and removal-review journal. All-mode remove/re-add instead follows
+  current membership; it must not introduce a per-game review loop.
 - Comparisons use exact game identities for two to six participants. Unrated
   differs from zero; unavailable rankings remain explicit. Named comparison
   groups are private participant selections, not chat or access grants.
+- Unfetched pages are not missing or unrated games. Whole-cohort counts/statistics
+  remain unknown while coverage is incomplete. The six-game tray uses bounded
+  exact-game reads; opening Compare must not fetch six entire 10,000-game libraries.
 - Friends management separates Incoming/Sent requests and filters only explicitly
   loaded names. Pagination never loses later rows on a live update. Shortcuts
   carry at most five selected friends plus self in account-bound private tab

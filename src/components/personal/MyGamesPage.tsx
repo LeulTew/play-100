@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import { flushPendingEdits } from '../../hooks/useExitSave';
 import { Icon } from '../Icon';
@@ -17,6 +18,7 @@ export interface MyGamesPageProps extends LibraryPageProps {
   availableRecords: RankingsPageProps['availableRecords'];
   persistent: boolean;
   onPublish?: () => void;
+  friendSharing?: ReactNode;
 }
 
 export default function MyGamesPage(props: MyGamesPageProps) {
@@ -69,6 +71,7 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
         <h1 id="my-games-title" tabIndex={-1} data-page-heading>My games</h1>
         <button className="button button-dark" onClick={props.onDiscover}><Icon name="plus" width="18" height="18" />Find games</button>
       </div>
+      {props.friendSharing}
       <div className="my-games-navigation">
         <nav className="personal-tabs" aria-label="My games views">
           {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}<span>{counts[value]}</span></button>)}

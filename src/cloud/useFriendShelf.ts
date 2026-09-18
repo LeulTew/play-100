@@ -18,7 +18,7 @@ interface Recovery {
   key: string; cause: unknown; cleanup: 'prune' | 'stop' | null;
   selection?: { ids: string[]; through: number; expectedRevision: number; expectedEpoch: number; consentSyncEpoch: number };
 }
-export function useFriendShelf(uid: string | undefined, scope: LibraryScope | null, snapshot: ScopedLibrary | null, verified: boolean, games: Game[], visibleTools: boolean, authGeneration: number, journal: FriendShelfJournal) {
+export function useFriendShelf(uid: string | undefined, scope: LibraryScope | null, snapshot: ScopedLibrary | null, verified: boolean, games: Game[], visibleTools: boolean, authGeneration: number, journal: FriendShelfJournal, automaticMode = false) {
   const store = useMemo(() => new FriendShelfStore(cloudDb), []);
   const key = `${scope ?? ''}:${uid ?? ''}:${authGeneration}`;
   const snapshotReady = Boolean(scope && snapshot?.scope === scope);
@@ -102,7 +102,7 @@ export function useFriendShelf(uid: string | undefined, scope: LibraryScope | nu
     });
   }, [uid, scope, config, snapshot, journal, owns, key]);
   useEffect(() => {
-    if (!uid || !scope || !verified || !config?.enabled || config.deleted || !snapshot?.sync.enabled) return;
+    if (automaticMode || !uid || !scope || !verified || !config?.enabled || config.deleted || !snapshot?.sync.enabled) return;
     const ticket = generation.next(); const syncEpoch = snapshot.sync.epoch; let alive = true;
     let fingerprint: string | null = null;
     const isCurrent = () => alive && !mutationActive.current && generation.current(ticket) && owns() && current.current.snapshot?.sync.enabled === true &&
@@ -155,7 +155,7 @@ export function useFriendShelf(uid: string | undefined, scope: LibraryScope | nu
       alive = false; work.dispose(); if (queue.current === work) queue.current = null;
       window.removeEventListener('online', wake); window.removeEventListener('offline', wake); document.removeEventListener('visibilitychange', wake);
     };
-  }, [uid, scope, verified, key, config?.enabled, config?.deleted, snapshot?.sync.enabled, snapshot?.sync.epoch, owns, generation, journal, store, acceptConfig, recover, reload]);
+  }, [uid, scope, verified, key, config?.enabled, config?.deleted, snapshot?.sync.enabled, snapshot?.sync.epoch, owns, generation, journal, store, acceptConfig, recover, reload, automaticMode]);
   useEffect(() => {
     if (config?.enabled && snapshot?.sync.enabled && !snapshot.sync.dirty && !pendingEdits) queue.current?.request(1200, true);
   }, [config?.revision, config?.enabled, snapshot?.sync.enabled, snapshot?.sync.dirty, snapshot?.sync.dataRevision, snapshot?.state.revision, pendingEdits]);

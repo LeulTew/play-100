@@ -6,7 +6,7 @@ import type { LibraryRecord } from '../lib/personal-types';
 import { recordFromFriendShelf } from '../lib/friend-shelf-types';
 import type { FriendShelfStore } from './friend-shelf-store';
 import type { FriendStore } from './friend-store';
-import { useFriendShelfRead } from './useFriendShelfRead';
+import { useFriendSharedView } from './useFriendSharedView';
 import { FriendShelfCards } from './FriendShelf';
 import { GameArtwork, GameArtworkCredit } from '../components/games/GameArtwork';
 import { cloudAuth } from './firebase-client';
@@ -33,7 +33,7 @@ export function FriendSharedGames({ uid, peer, authGeneration, verified, store, 
   onOpen: (record: LibraryRecord, authority?: PreviewAuthority) => void; onPin?: (record: LibraryRecord) => boolean;
   artwork?: ReadonlyMap<string, CatalogArtwork>;
 }) {
-  const view = useFriendShelfRead(store, friends, uid, peer, authGeneration, verified && games.length > 0);
+  const view = useFriendSharedView(friends, store, uid, peer, 'games', verified && games.length > 0, null, authGeneration);
   const preview = useMemo(() => createShelfPreviewAuthority(accountScope(uid, store.db.app.options.projectId), peer, authGeneration), [uid, peer, store, authGeneration]);
   useLayoutEffect(() => { preview.update(view.status === 'ready' ? view.entries.map((entry) => entry.id) : []); }, [preview, view.entries, view.status]);
   useLayoutEffect(() => () => preview.update([]), [preview]);
@@ -48,7 +48,7 @@ export function FriendSharedGames({ uid, peer, authGeneration, verified, store, 
     return recordFromFriendShelf(entry, games);
   };
   return <>
-    <FriendShelfCards entries={view.entries} status={view.status} error={view.error}
+    <FriendShelfCards entries={view.entries} status={view.status} error={view.error} paged={view.mode === 'all'} total={view.total}
       savedIds={new Set(Object.keys(library.state.records))}
       onSave={async (entry) => {
         const record = currentRecord(entry.id);
@@ -59,5 +59,7 @@ export function FriendSharedGames({ uid, peer, authGeneration, verified, store, 
       renderArtwork={(entry) => <GameArtwork record={recordFromFriendShelf(entry, games)} artwork={artwork?.get(entry.id)} />} />
     {view.status === 'unavailable' && <button className="text-button" onClick={view.retry}>Refresh shared games</button>}
     {view.status === 'ready' && <ShelfArtworkCredits records={view.entries} artwork={artwork} />}
+    {view.status === 'ready' && <p className="section-help">{view.entries.length} loaded / {view.total} shared games{view.complete ? '' : ' - more available'}</p>}
+    {view.status === 'ready' && !view.complete && <button className="text-button" disabled={view.loadingMore} onClick={() => { void view.loadMore(); }}>{view.loadingMore ? 'Loading games...' : 'Load next 25 shared games'}</button>}
   </>;
 }

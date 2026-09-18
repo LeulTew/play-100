@@ -448,3 +448,7 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
   .personal-tabs { gap: 14px; }
   .personal-tabs > button { font-size: 11px; }
 }
+.friend-sharing-summary { margin-block: 16px 24px; padding-block: 16px; border-block: 1px solid var(--line); }
+.friend-sharing-summary > .button-row { justify-content: space-between; align-items: center; }
+.friend-sharing-summary p { min-width: 0; max-width: 68ch; overflow-wrap: anywhere; }
+.friend-sharing-summary > .section-help { margin-top: 8px; }

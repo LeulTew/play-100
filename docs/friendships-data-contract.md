@@ -116,6 +116,129 @@ group's real revision/timestamps, not a newly synthesized acknowledgement.
 
 ## Integration order
 
+### Versioned All mode: approved implementation contract
+
+The automatic account-sharing extension is a separate v2 policy and transport,
+not a larger selection string or a reinterpretation of existing documents.
+`src/lib/friend-all.ts` owns default eligibility, policy bindings, the complete
+10,000-record safe projections and incremental change planning. Legacy APIs and
+formats below retain their current bounds and selected-mode semantics.
+
+- Bootstrap must confirm the current verified account/cache and authoritative
+  private-saving controls. Only absent policy **and both absent legacy controls**
+  qualify for default All. Unknown reads never mean Off or consent.
+- A v2 policy records default versus explicit origin, its epoch/revision, the
+  private-saving epoch and both legacy control epoch/revision bindings. A changed
+  legacy control invalidates All; it does not silently erase that legacy choice.
+  Deleted/revoked scopes cannot be bootstrapped again. Saving restart needs an
+  explicit new All action rather than automatic re-enablement.
+- Existing users get one **Share all with friends** action on the working
+  Friends/My games/Account surfaces. It changes both scopes coherently; no
+  settings drill-down or per-game selection is required. New eligible defaults
+  get a concise audience disclosure and a visible Stop.
+- Saved-game projection permits only ID/title/year/source metadata. Ranking
+  projection additionally permits position and nullable 0-10 score. No note,
+  email, queue, played/completed value, imported studio/genre or private avatar
+  data is transported with a game.
+- The new store must use separate metadata/ranking permission paths, bounded
+  documents, cursor pages of at most25 and exact-game lookup sets of at most6.
+  Stable record identities and changed-record plans avoid a complete rewrite on
+  an ordinary score edit. Source/consent CAS, verified progress and known-ACK
+  recovery are required before reporting a complete publication.
+- All10,000 supported records must remain reachable; more than200 is not a
+  truncation point. The concrete atomic write group is gated by actual Standard
+  Firestore SDK/rules expression/access-call proof. Initial upload and free-tier
+  quotas remain explicit, resumable limits rather than false Saved states.
+- Paged comparison tracks loaded coverage separately from membership. An
+  unfetched record is not absent or unrated; full-cohort summary metrics remain
+  unknown until complete, or are explicitly restricted to an exact game scope.
+  No eager six-library fan-out is allowed merely to open Compare.
+
+#### Concrete v2 transport and compatibility
+
+`friendAllPolicies/{uid}` is owner-only and binds both unchanged v1 control
+revisions plus private-saving consent. The `friendAllHeads/{uid}/views/{kind}`
+documents carry a ready/updating state, count, digest and source revision, not a
+selection array. Private `friendAllJobs/{uid}/views/{kind}` records store progress,
+the target count, total changes (at most20,000), and only the last one or two IDs.
+`friendAllGames/{uid}/entries/{id}` and `friendAllRankings/{uid}/entries/{id}`
+hold strictly validated single-game metadata or metadata plus position/score.
+Every create and update has ownership, required/exclusive fields, source,
+length/type and mutation-progress guards.
+
+Each atomic group writes at most two records and one job. Membership counts are
+verified against the before/after rows; a ready head requires confirmed complete
+progress. Removed rows are content-free tombstones and are pruned in bounded
+owner batches. An interrupted job resumes from its server-confirmed inventory,
+including a lost response after an actual commit. An ordinary warm score edit
+uses one row mutation group rather than rewriting the inventory.
+
+A cold unchanged publication first verifies head/source/digest, the policy and
+both v1 bindings in a read-only transaction: **zero inventory queries and zero
+writes**. A cold changed or interrupted publication needs cursor inventory reads
+of at most100 rows per request; that cost is not disguised as a constant read.
+Friend pages are at most25 rows; exact lookups check at most6 document identities
+and recheck the head before returning. Composite indexes cover active epoch plus
+title/position. The nested entry payload is exempt from unused single-field
+indexes.
+
+A first10,000-game metadata projection costs15,000 row/job writes; the ranking
+projection costs another15,000, plus bounded control/head writes. This exceeds
+Spark's20,000-write daily quota. An account-bound IndexedDB cooldown and server
+progress survive reload. The UI labels each path's confirmed progress, and does
+not say Up to date until both heads match the current private ACK. Browser
+availability and the real quota still determine when unfinished work can run.
+No billing change is made.
+
+**Intentional client-version boundary:** dependency-only rule changes do not
+reliably push listener updates. Current private source commits, Pause and Delete
+atomically pulse every existing ready All head to updating. Rules require these
+pulses only while the exact All consent is active. An older private writer is
+denied before the source commit; durable local edits remain pending and a
+refreshed current client can resume. Accounts without All, legacy selected/OFF,
+disabled All and an old-client sharing Stop retain private-write compatibility.
+An already-connected v2 viewer directly watches the empty v1 control documents,
+so an unchanged old sharing Stop or control-epoch change immediately clears its
+content. Private `syncHeads` documents are never made friend-readable.
+
+All-mode private Pause intentionally revokes the shared views; it does not
+silently opt in again after a saving restart. Legacy selected Pause retains its
+previous last-snapshot semantics. Full deletion reserves v2 and v1 revocation
+atomically before cleanup; an older client must refresh to clean v2 data before
+removing Auth. Copy deletion uses the acknowledged v2 Stop once, not redundant
+v1 mutations through potentially stale listener reads. Cleanup remains retryable
+after the private head has already been deleted.
+
+#### Focused acceptance evidence
+
+These are actual scoped checks, not a full CI/performance campaign or a perfect
+security claim. The new rule prototype was exercised with separate owner, friend
+and stranger clients, malformed create/update fields, forged progress, replay,
+missing authority, stale source, live revocation and quota/ACK failures.
+
+| Requirement | Implementation boundary | Actual focused proof |
+| --- | --- | --- |
+| Default only after confirmed account readiness; preserve legacy choices | `friend-all.ts`, `useFriendAll`, atomic `setPolicy` | Fresh real browser: no All click, no guest adoption; legacy off remains off until one inline action |
+| Complete supported size; no200 truncation | Per-record v2 paths, bounded jobs/pages | SDK publishes all10,000 games and all10,000 rankings; reads final identities without a full friend download |
+| Cold unchanged and warm edits remain bounded | Transactional no-op before inventory; per-ID cache diff | Each new cold store: zero row queries/writes;205-entry warm score edit: one row group, no inventory scan |
+| Unknown consent is never Off/default | Authoritative completion flag | Delayed then failed initial read of enabled policy remains Checking/Error; retry restores the actual state |
+| Failed Stop does not strand work or replay consent | Read-confirmed Refresh and worker generation | Mounted hook: pre-ACK failure, same-policy refresh, new private ACK, both scopes ready; committed Stop stays off |
+| Late canonical data wakes work without bypassing quota | Primitive readiness scheduling, persisted cooldown | Mounted hook exhausts its first attempt with no catalog, then publishes on arrival; quota case performs no publication |
+| Partial comparisons are honest | Coverage model and exact-game loader |205 rows:25 initially loaded, Unknown whole-list metrics; tray performs bounded exact lookup, never a legacy full fetch |
+| Private changes revoke then update safely | Source pulses, direct control watches, reader leases | Real private score update reaches the mounted comparison; old sharing Stop clears both views and an unsaved preview, retaining independent saved data and identity |
+| Quota recovery survives reload | Server job and scoped IDB cooldown | Metadata52 ready/ranking50 of52 pending, no global Saved; reload retains deadline/progress and finishes remaining work |
+| Old private writes do not claim success | Narrow rules boundary and existing outbox | Synthetic old wire commit denied atomically; local score remains dirty/durable, refresh resumes without sign-out or clearing |
+| Export and cleanup remain complete | Controller/export/deletion integrations | Actual export, reversible copy deletion, fresh-Auth gate, full deletion and interrupted-cleanup retry on desktop and mobile |
+| All source formats stay strict | Shared validators plus v2 mutation guards | Maximum-size collection/Wikidata/Steam/FreeToGame/manual records pass both paths; extra/private/oversized fields fail |
+
+The parent-owned independent cross-lane review found four controller/read-cost
+corners; each was repaired and covered above. The release receipt separately
+records exact source/rule/index hashes, the scoped baseline lint limits, candidate
+and production gates, and disposable fixture cleanup. No existing production
+user's settings are bulk-migrated.
+
+### Legacy selected-mode integration
+
 On a deliberate friend action, read current settings and identity in parallel.
 Only missing settings call `initialize`; existing settings must be nondeleted.
 An independent identity read may overlap first-use lifecycle/settings creation,

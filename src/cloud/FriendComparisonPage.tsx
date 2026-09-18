@@ -17,6 +17,7 @@ import { comparisonScope, readComparisonView, rememberComparisonView } from '../
 import { accountScope } from '../lib/cloud-types';
 import { useComparisonGameFilter } from '../hooks/useComparisonGameFilter';
 import { COMPARISON_GAMES_EVENT } from '../lib/comparison-game-filter';
+import { FriendComparisonLoader } from './FriendComparisonLoader';
 
 export function FriendComparisonPage({ store, uid, identity, ownState, games, onOpen, onFriends }: {
   store: FriendStore; uid: string; identity: { displayName: string; avatar: FriendIdentity['avatar'] };
@@ -89,97 +90,20 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
       rememberComparisonView({ version: 1, scope, selected, mode, query, page, groupId: group?.id ?? null });
     }
   }, [viewReady, uid, scope, selected, mode, query, page, group?.id]);
-  const selection = selected.join('|');
-  useEffect(() => {
-    const operation = ++generation.current;
-    let alive = true;
-    const releases: Array<() => void> = [];
-    const current = () => alive && generation.current === operation && cloudAuth.currentUser?.uid === uid;
-    for (const peer of selected.filter((value) => value !== uid)) {
-      let identityValue: FriendIdentity | null = null;
-      let paired = false;
-      let request = 0;
-      let expectedHead = 0;
-      let reading = false;
-      let scheduled = false;
-      let refreshNeeded = false;
-      const bound: Array<() => void> = [];
-      const contentWatches: Array<() => void> = [];
-      const basic = () => ({ id: peer, displayName: identityValue?.displayName ?? 'Unavailable player', kind: 'friend' as const, freshness: 'unknown' as const, updatedAt: null });
-      const unavailable = (availability: 'unavailable' | 'error' | 'loading' | 'unshared') => {
-        if (!current()) return;
-        // Sharing can be off while the separate, live friend-identity grant remains valid.
-        if ((availability === 'unavailable' || availability === 'error') && !identityValue) {
-          setIdentities((old) => { const next = { ...old }; delete next[peer]; return next; });
-        }
-        setParticipants((old) => ({ ...old, [peer]: { ...basic(), availability } }));
-      };
-      const load = async () => {
-        const version = ++request;
-        if (!current() || !paired || !identityValue || !expectedHead || document.hidden || !navigator.onLine) return;
-        if (reading) { refreshNeeded = true; return; }
-        reading = true;
-        unavailable('loading');
-        try {
-          const ranking = await store.ranking(peer);
-          if (!current() || request !== version || !paired) return;
-          if (ranking.head.revision !== expectedHead) { unavailable('loading'); return; }
-          setParticipants((old) => ({ ...old, [peer]: { ...basic(), availability: 'ready', freshness: 'fresh', updatedAt: ranking.head.updatedAt, entries: ranking.entries } }));
-        } catch (cause) {
-          if (!current() || request !== version) return;
-          const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';
-          unavailable(code === 'unavailable' || code === 'permission-denied' ? 'unavailable' : 'error');
-        } finally {
-          reading = false;
-          if (refreshNeeded && current()) { refreshNeeded = false; schedule(); }
-        }
-      };
-      const schedule = () => {
-        if (scheduled || !current()) return;
-        scheduled = true;
-        queueMicrotask(() => { scheduled = false; if (current()) void load(); });
-      };
-      const detachContent = () => { contentWatches.splice(0).forEach((release) => release()); request += 1; expectedHead = 0; };
-      const removePeer = () => {
-        if (!current()) return;
-        paired = false; detachContent(); identityValue = null;
-        setIdentities((old) => { const next = { ...old }; delete next[peer]; return next; });
-        setParticipants((old) => { const next = { ...old }; delete next[peer]; return next; });
-        setChoices((old) => old.filter((pair) => peerOf(pair, uid) !== peer));
-        setSelected((old) => old.filter((value) => value !== peer));
-        setMessage('A player is no longer a friend and was removed from this comparison.');
-      };
-      const bind = () => {
-        if (!current()) return;
-        bound.splice(0).forEach((release) => release()); detachContent(); paired = false;
-        if (document.hidden || navigator.onLine === false) { unavailable('unavailable'); return; }
-        unavailable('loading');
-        bound.push(store.watchPair(uid, peer, (pair) => {
-          if (!current()) return;
-          detachContent();
-          paired = pair?.state === 'accepted';
-          if (!paired) { removePeer(); return; }
-          contentWatches.push(store.watchIdentity(peer, (value) => {
-            identityValue = value;
-            if (!value) { request += 1; unavailable('unavailable'); }
-            else if (current()) { setIdentities((old) => ({ ...old, [peer]: value })); schedule(); }
-          }, () => { request += 1; identityValue = null; unavailable('unavailable'); }));
-          contentWatches.push(store.watchShareHead(peer, (head) => {
-            if (!head?.current) { request += 1; expectedHead = 0; unavailable('unshared'); }
-            else { expectedHead = head.revision; schedule(); }
-          }, () => { request += 1; expectedHead = 0; unavailable('unavailable'); }));
-        }, (cause) => {
-          if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') removePeer();
-          else { paired = false; detachContent(); identityValue = null; unavailable('error'); }
-        }));
-      };
-      window.addEventListener('online', bind); document.addEventListener('visibilitychange', bind);
-      window.addEventListener('offline', bind);
-      releases.push(() => { bound.splice(0).forEach((release) => release()); detachContent(); window.removeEventListener('online', bind); window.removeEventListener('offline', bind); document.removeEventListener('visibilitychange', bind); });
-      bind();
-    }
-    return () => { alive = false; releases.forEach((release) => release()); };
-  }, [uid, store, selection, selected]);
+  const exactIds = useMemo(() => filteredGames.value?.records.map(record => record.id) ?? null, [filteredGames.value]);
+  const acceptParticipant = useCallback((peer: string, person: FriendIdentity | null, participant: ComparisonParticipant) => {
+    if (currentUid.current !== uid || cloudAuth.currentUser?.uid !== uid) return;
+    setParticipants(old => ({ ...old, [peer]: participant }));
+    setIdentities(old => { const next = { ...old }; if (person) next[peer] = person; else delete next[peer]; return next; });
+  }, [uid]);
+  const removeParticipant = useCallback((peer: string) => {
+    if (currentUid.current !== uid || cloudAuth.currentUser?.uid !== uid) return;
+    setIdentities(old => { const next = { ...old }; delete next[peer]; return next; });
+    setParticipants(old => { const next = { ...old }; delete next[peer]; return next; });
+    setChoices(old => old.filter(pair => peerOf(pair, uid) !== peer));
+    setSelected(old => old.filter(value => value !== peer));
+    setMessage('A player is no longer a friend and was removed from this comparison.');
+  }, [uid]);
   const datasets = useMemo<ComparisonParticipant[]>(() => selected.map((id) => id === uid
     ? { id: uid, displayName: identity.displayName, kind: 'self', availability: 'ready', freshness: 'fresh', updatedAt: null, entries: ownEntries }
     : participants[id] ?? { id, displayName: identities[id]?.displayName ?? 'Loading player', kind: 'friend', availability: 'loading', freshness: 'unknown' }), [selected, uid, identity.displayName, ownEntries, participants, identities]);
@@ -215,16 +139,16 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
     {cursor && <button className="text-button" disabled={busy} onClick={() => { void run(() => addChoices(cursor)); }}>More friends</button>}
     <div className="compare-toolbar"><label>Games<select aria-label="Games" value={mode} onChange={(event) => { setMode(event.target.value === 'all-shared' ? 'all-shared' : 'common-ranked'); setPage(1); }}><option value="common-ranked">Ranked by everyone</option><option value="all-shared">All available games</option></select></label><label>Search games<input type="search" maxLength={160} value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label></div>
     {error && <p className="inline-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    {comparison?.cohort.incomplete && <p className="inline-error" role="status">Some rankings are unavailable or unshared. Results identify only the available contributors.</p>}
-    <ul className="compare-freshness">{datasets.filter((value) => value.kind !== 'self').map((value) => <li key={value.id}>{value.displayName}: {value.availability === 'ready' ? value.updatedAt ? `shared ${new Date(value.updatedAt).toLocaleString()}` : 'Available' : value.availability}</li>)}</ul>
+    {comparison?.cohort.incomplete && <p className="section-help" role="status">{filteredGames.value ? 'This comparison checks only the games from your tray.' : 'Some shared lists are incomplete or unavailable. Search and results cover loaded games; whole-list totals remain unknown.'}</p>}
+    <ul className="compare-freshness">{selected.filter(value => value !== uid).map(peer => <FriendComparisonLoader key={`${uid}:${peer}`} store={store} uid={uid} peer={peer} exactIds={exactIds} onData={acceptParticipant} onRemove={removeParticipant} />)}</ul>
     {comparison && !filteredGames.value && <p className="section-help">{comparison.summary.sharedGameCount ?? 'Unknown'} games in common.{comparison.summary.pairs.length === 1 && comparison.summary.pairs[0]?.meanAbsoluteScoreGap != null ? ` Mean score gap ${comparison.summary.pairs[0].meanAbsoluteScoreGap.toFixed(2)} across ${comparison.summary.pairs[0].jointlyRatedCount} jointly rated games.` : ''}</p>}
     {result ? <><div className="comparison-scroll" tabIndex={0} role="region" aria-label="Ranking comparison table"><table className="friend-matrix"><thead><tr><th scope="col">Game</th>{datasets.map((person) => {
       const profile = identities[person.id];
       return <th scope="col" key={person.id}>{person.id === uid ? <Avatar descriptor={identity.avatar} size={32} /> : profile && person.availability === 'ready' ? <Avatar descriptor={profile.avatar} size={32} /> : null}{person.displayName}</th>;
     })}<th scope="col">Mean · spread</th></tr></thead><tbody>
       {result.rows.map((row) => <tr key={row.key}><th scope="row"><button className="text-button" onClick={() => { try { onOpen(recordFromPublic({ ...row.game, score: null, position: 1 }, games)); } catch (cause) { setError(onlineError(cause)); } }}>{row.game.title}</button><small>{row.game.source} · {row.game.year ?? 'Year unknown'}</small></th>
-        {row.cells.map((cell) => <td key={cell.participantId}>{cell.status === 'ranked' ? <><strong>{cell.score === null ? 'Unrated' : cell.score.toFixed(1)}</strong><small>Rank {cell.position}</small></> : <span>{cell.status === 'absent' ? 'Not in shared list' : cell.status}</span>}</td>)}
-        <td>{row.meanScore === null ? 'Unrated' : row.meanScore.toFixed(2)}<small>{row.raterCount} {row.raterCount === 1 ? 'rater' : 'raters'} · {row.scoreSpread === null ? 'No spread' : row.scoreSpread.toFixed(2)}{row.scoreDifference === null ? '' : ` · difference ${row.scoreDifference.toFixed(2)}`}</small></td>
+        {row.cells.map((cell) => <td key={cell.participantId}>{cell.status === 'ranked' ? <><strong>{cell.score === null ? 'Unrated' : cell.score.toFixed(1)}</strong><small>Rank {cell.position}</small></> : <span>{cell.status === 'absent' ? 'Not in shared list' : cell.status === 'unfetched' ? 'Not loaded yet' : cell.status}</span>}</td>)}
+        <td>{row.cells.some(cell => cell.status === 'unfetched') ? 'Incomplete' : row.meanScore === null ? 'Unrated' : row.meanScore.toFixed(2)}<small>{row.raterCount} {row.raterCount === 1 ? 'rater' : 'raters'} · {row.scoreSpread === null ? 'No spread' : row.scoreSpread.toFixed(2)}{row.scoreDifference === null ? '' : ` · difference ${row.scoreDifference.toFixed(2)}`}</small></td>
       </tr>)}
     </tbody></table></div>{!result.rows.length && <p>{filteredGames.value ? 'No chosen games match the available rankings and filters. Unshared rankings cannot contribute scores.' : 'No matching games in this view.'}</p>}<div className="button-row"><button className="text-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>{result.totalRows ? result.page : 0} / {result.pageCount}</span><button className="text-button" disabled={page >= result.pageCount} onClick={() => setPage((value) => value + 1)}>Next 25</button></div></> : <p>Choose at least two people.</p>}
     <section className="account-section"><h2>Private groups</h2><form onSubmit={(event) => { event.preventDefault(); void run(async () => {

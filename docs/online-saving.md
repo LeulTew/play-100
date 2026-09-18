@@ -104,7 +104,9 @@ continuity flow can restore a verified owner's complete, active, previously
 consented cloud copy into an atomically unchanged empty/clean initial account
 cache. It does not infer consent from a profile or checkbox, upload a guest copy,
 overwrite pending/recovery data or restart an intentionally stopped connection.
-Public and friends-only sharing still require their separate choices.
+Public sharing still requires its own choice. New eligible verified account
+setups default to All sharing with accepted friends; existing off/custom
+friend-sharing choices are retained until one inline All action.
 
 The Firebase app/project and library namespaces remain stable across deploys.
 SDK IndexedDB persistence has a supported localStorage fallback. An owned

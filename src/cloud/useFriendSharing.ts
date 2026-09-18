@@ -19,7 +19,7 @@ function sharingFailure(cause: unknown) {
   if (code === 'limit') return 'quota';
   return code === 'conflict' || code === 'offline' ? 'transient' : syncFailure(cause);
 }
-export function useFriendSharing(uid: string | undefined, scope: LibraryScope | null, snapshot: ScopedLibrary | null, verified: boolean, games: Game[], visibleTools: boolean, authGeneration = 0) {
+export function useFriendSharing(uid: string | undefined, scope: LibraryScope | null, snapshot: ScopedLibrary | null, verified: boolean, games: Game[], visibleTools: boolean, authGeneration = 0, automaticMode = false) {
   const store = useMemo(() => new FriendStore(cloudDb), []);
   const [value, setValue] = useState<{ uid: string; settings: FriendSettings | null } | null>(null);
   const [failure, setFailure] = useState<{ uid: string; message: string } | null>(null);
@@ -85,7 +85,7 @@ export function useFriendSharing(uid: string | undefined, scope: LibraryScope | 
   }, [uid, verified, authGeneration, visibleTools, settings?.enabled, reload, store, acceptSettings]);
 
   useEffect(() => {
-    if (!uid || !scope || !verified || !settings?.enabled || settings.deleted || !snapshot?.sync.enabled) return;
+    if (automaticMode || !uid || !scope || !verified || !settings?.enabled || settings.deleted || !snapshot?.sync.enabled) return;
     const owner = uid; const target = scope;
     const generation = cancellationGeneration.next();
     let alive = true;
@@ -169,7 +169,7 @@ export function useFriendSharing(uid: string | undefined, scope: LibraryScope | 
       window.removeEventListener('online', wake); window.removeEventListener('offline', wake);
       window.removeEventListener('focus', wake); document.removeEventListener('visibilitychange', wake);
     };
-  }, [uid, scope, verified, authGeneration, settings?.enabled, settings?.deleted, snapshot?.sync.enabled, snapshot?.sync.epoch, reload, store, acceptSettings]);
+  }, [uid, scope, verified, authGeneration, settings?.enabled, settings?.deleted, snapshot?.sync.enabled, snapshot?.sync.epoch, reload, store, acceptSettings, automaticMode]);
   useEffect(() => {
     if (ready && settings?.enabled && snapshot?.sync.enabled && games.length && !pendingEdits && !snapshot.sync.dirty) queue.current?.request(1200, true);
   }, [ready, settings?.enabled, settings?.revision, snapshot?.sync.enabled, snapshot?.sync.dirty, snapshot?.sync.dataRevision, pendingEdits, games.length]);

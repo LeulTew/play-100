@@ -1,6 +1,32 @@
 {
   "indexes": [
     {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "epoch", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "entry.title", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "epoch", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "entry.position", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "epoch", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "publicProfiles",
       "queryScope": "COLLECTION",
       "fields": [
@@ -38,6 +64,7 @@
     }
   ],
   "fieldOverrides": [
+    { "collectionGroup": "entries", "fieldPath": "entry", "indexes": [] },
     { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] },
     { "collectionGroup": "chunks", "fieldPath": "entries", "indexes": [] },
     { "collectionGroup": "friendSettings", "fieldPath": "selection", "indexes": [] },

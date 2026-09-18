@@ -1,12 +1,15 @@
 # Play 100: durable sessions, friends and comparisons
 
-Status: implementation specification, not a completion report.
+Status: historical selected-mode/manager specification. The user's later
+automatic-All request overrides the original new-account default only; see
+[the current v2 contract](friendships-data-contract.md#versioned-all-mode-approved-implementation-contract).
 
 This expands the existing online/community plan. It does not replace the
 private-library, consent, public-publication, deletion or account-isolation
 contracts. Decisions below were selected under the user's autonomous delegation.
-Friend-sharing starts OFF: implementing the capability is not permission to
-enable it on anyone's existing account.
+Legacy selected sharing starts OFF. Existing off/custom choices remain protected;
+the new default applies only to a confirmed eligible new account setup, not an
+administrative migration of existing accounts.
 
 ## Next slice: established friend management
 
