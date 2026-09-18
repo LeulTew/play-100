@@ -147,11 +147,11 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
 test('personal rankings accept unplayed and historical games, scores and notes', async ({ page }) => {
   await page.goto('/my-rankings');
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
-  await page.getByText('Add a game manually', { exact: true }).click();
-  await page.getByLabel('Game title', { exact: true }).fill('My historical game');
-  await page.getByLabel('Year (optional)', { exact: false }).fill('1962');
+  await page.locator('.my-games-editor:visible').getByText('Add a game manually', { exact: true }).click();
+  await page.locator('.my-games-editor:visible').getByLabel('Game title', { exact: true }).fill('My historical game');
+  await page.locator('.my-games-editor:visible').getByLabel('Year (optional)', { exact: false }).fill('1962');
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
-  await expect(page.locator('.personal-row')).toHaveCount(1);
+  await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
   await expect(page.getByRole('checkbox', { name: 'I have played it: My historical game', exact: true })).not.toBeChecked();
   const score = page.getByRole('spinbutton', { name: 'Your rating for My historical game', exact: true });
   await score.fill('9.4');
@@ -168,8 +168,8 @@ test('personal rankings accept unplayed and historical games, scores and notes',
   if (!id) throw new Error('Personal game missing.');
   expect(saved.records[id]?.year).toBe(1962);
   expect(saved.progress[id]?.played ?? false).toBe(false);
-  await page.getByLabel("Only games I've marked played").check();
-  await expect(page.locator('.personal-row')).toHaveCount(0);
+  await page.getByLabel('Progress', { exact: true }).selectOption('any-played');
+  await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(0);
   expect((await readLibrary(page)).ranking).toHaveLength(1);
 });
 
@@ -178,7 +178,7 @@ test('backup export and validated replacement restore queue and private rankings
   await page.goto('/my-rankings');
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
   await page.getByRole('button', { name: 'Add Red Dead Redemption 2 to ranking', exact: true }).click();
-  await expect(page.locator('.personal-row')).toHaveCount(1);
+  await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
   await openSettings(page);
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export my library', exact: true }).click();

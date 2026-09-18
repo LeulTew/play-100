@@ -20,6 +20,7 @@ import { useExtendedSearch } from '../hooks/useExtendedSearch';
 import { filterUnranked, unrankedRecords } from '../lib/extended-search';
 import ExtendedResults from './catalog/ExtendedResults';
 import CollectionFilms from './CollectionFilms';
+import { effectiveProgressFilter, selectionOperation } from '../lib/game-progress';
 
 const PAGE_SIZE = 24;
 
@@ -51,7 +52,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const games = collection.data?.games;
   const results = useMemo(() => filterGames(games ?? [], filters, state.progress), [games, filters, state.progress]);
-  const onlineScope = filters.tier === 'all' && filters.list !== 'later' && filters.list !== 'completed';
+  const onlineScope = filters.tier === 'all' && filters.list !== 'later' && effectiveProgressFilter(filters) === 'all';
   const online = useExtendedSearch(filters.q, Boolean(games) && onlineScope && filters.catalogs === 'on');
   const extras = unrankedRecords(games ?? [], state.records, online.records);
   const extraResults = filterUnranked(extras, filters, state.progress, new Set(online.records.map((record) => record.id)));
@@ -72,9 +73,9 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   const savedCount = Object.values(state.progress).filter((progress) => progress.later).length;
   const completedCount = Object.values(state.progress).filter((progress) => progress.completed).length;
   const browse = () => document.getElementById('collection')?.scrollIntoView({ behavior: animate ? 'smooth' : 'instant' });
-  const toggle = (id: string, key: 'later' | 'completed' | 'played') => {
+  const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
     const game = games?.find((candidate) => candidate.slug === id);
-    if (game) void onAction({ type: 'toggle-progress', record: recordFromGame(game), key });
+    if (game) void onAction(value === undefined ? { type: 'toggle-progress', record: recordFromGame(game), key } : { type: 'set-progress', records: [recordFromGame(game)], key, value });
   };
   const toggleSelection = (id: string) => setSelected((prior) => {
     const next = new Set(prior);
@@ -84,9 +85,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   const bulk = async (action: SelectionAction) => {
     const records = resultRecords.filter((record) => currentSelection.has(record.id));
     if (!records.length) { notify('Select a matching game before applying a bulk action.'); return; }
-    const change: PersonalAction = action === 'ranking' ? { type: 'add-ranking', records } : {
-      type: 'set-progress', records, key: action === 'completed' ? 'completed' : 'later', value: true,
-    };
+    const change = selectionOperation(action, records);
     if (await onAction(change)) setSelected(new Set());
   };
   const pick = () => {
@@ -114,7 +113,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
           {selecting && <SelectionBar count={currentSelection.size} total={resultRecords.length} busy={busy} onSelectAll={() => setSelected(new Set(resultRecords.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
           {results.length ? <>
             {filters.view === 'table' ? <RatingsTable games={results.slice(0, visibleCount)} filters={filters} progress={state.progress} selecting={selecting} selected={selected} busy={busy} onSelect={toggleSelection} onOpen={onOpen} onToggle={toggle} onSort={onFilters} /> : <div className={`games ${filters.view === 'list' ? 'games-list' : 'games-grid'}`} aria-label="Games in this view">
-              {results.slice(0, visibleCount).map((game, index) => <GameCard key={game.slug} game={game} filters={filters} state={state.progress[game.slug]} onOpen={onOpen} onSave={(id) => toggle(id, 'later')} onPlayed={(id) => toggle(id, 'played')} eager={index < 4} selecting={selecting} selected={selected.has(game.slug)} onSelect={toggleSelection} busy={busy} compareActions={onPin && <><button className="icon-button" disabled={busy || pinnedIds?.has(game.slug)} aria-pressed={Boolean(pinnedIds?.has(game.slug))} aria-label={`${pinnedIds?.has(game.slug) ? 'Pinned' : 'Pin'} ${game.title} for comparison`} onClick={() => onPin(recordFromGame(game))}><Icon name={pinnedIds?.has(game.slug) ? 'check' : 'plus'} width="18" height="18" /></button>{renderDragHandle?.(recordFromGame(game))}</>} />)}
+              {results.slice(0, visibleCount).map((game, index) => <GameCard key={game.slug} game={game} filters={filters} state={state.progress[game.slug]} onOpen={onOpen} onSave={(id) => toggle(id, 'later')} onPlayed={(id, value) => toggle(id, 'played', value)} onCompleted={(id, value) => toggle(id, 'completed', value)} eager={index < 4} selecting={selecting} selected={selected.has(game.slug)} onSelect={toggleSelection} busy={busy} compareActions={onPin && <><button className="icon-button" disabled={busy || pinnedIds?.has(game.slug)} aria-pressed={Boolean(pinnedIds?.has(game.slug))} aria-label={`${pinnedIds?.has(game.slug) ? 'Pinned' : 'Pin'} ${game.title} for comparison`} onClick={() => onPin(recordFromGame(game))}><Icon name={pinnedIds?.has(game.slug) ? 'check' : 'plus'} width="18" height="18" /></button>{renderDragHandle?.(recordFromGame(game))}</>} />)}
             </div>}
             <div className="collection-end"><p>Showing {Math.min(visibleCount, results.length)} of {results.length} games from the 100</p>{visibleCount < results.length ? <button className="button button-outline" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>Show {Math.min(PAGE_SIZE, results.length - visibleCount)} more<Icon name="down" width="18" height="18" /></button> : <span className="end-mark"><Icon name="check" width="17" height="17" />{showExtended ? 'End of the curated matches.' : "You're at the end of this view."}</span>}</div>
           </> : showExtended ? <p className="curated-empty">No matches in {author.shortName}'s original 100 for this view.</p> : <div className="empty-state"><div className="empty-jacket" aria-hidden="true"><Icon name={filters.list === 'later' ? 'bookmark' : 'search'} width="40" height="40" /></div><h3>{filters.list === 'later' && savedCount === 0 ? 'Your next great game goes here.' : filters.list === 'completed' && completedCount === 0 ? 'Every collection starts somewhere.' : 'No worlds found. Yet.'}</h3><p>{filters.list === 'later' && savedCount === 0 ? 'Tap a bookmark on any game to save it for later. Your full queue can also include games from other catalogs.' : filters.list === 'completed' && completedCount === 0 ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.' : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'}</p><button className="button button-dark" onClick={() => onFilters({ ...defaultFilters, catalogs: filters.catalogs, view: filters.view })}>Browse all 100<Icon name="arrow" width="18" height="18" /></button></div>}

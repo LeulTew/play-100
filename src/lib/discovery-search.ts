@@ -1,6 +1,8 @@
 import type { DiscoveryItem } from './discovery-catalog';
 import type { CatalogSource } from './catalog-types';
 import { catalogRelevance, matchesCatalogQuery } from './catalog-query';
+import { parseProgressFilter } from './game-progress';
+import type { ProgressFilter } from './game-progress';
 
 export const DISCOVERY_PAGE_SIZE = 24;
 export interface DiscoveryFilters {
@@ -12,8 +14,9 @@ export interface DiscoveryFilters {
   view: 'grid' | 'list';
   catalogs: 'on' | 'off';
   online: 'auto' | 'on';
+  progress?: ProgressFilter;
 }
-export const defaultDiscoveryFilters: DiscoveryFilters = { q: '', source: 'all', genre: '', year: '', offset: 0, view: 'grid', catalogs: 'on', online: 'auto' };
+export const defaultDiscoveryFilters: DiscoveryFilters = { q: '', source: 'all', genre: '', year: '', offset: 0, view: 'grid', catalogs: 'on', online: 'auto', progress: 'all' };
 
 export function parseDiscoverySearch(search: string): DiscoveryFilters {
   const params = new URLSearchParams(search);
@@ -29,13 +32,15 @@ export function parseDiscoverySearch(search: string): DiscoveryFilters {
     view: params.get('view') === 'list' ? 'list' : 'grid',
     catalogs: params.get('catalogs') === 'off' ? 'off' : 'on',
     online: params.get('online') === 'on' ? 'on' : 'auto',
+    progress: parseProgressFilter(params.get('progress')),
   };
 }
 
 export function createDiscoverySearch(filters: DiscoveryFilters): string {
   const params = new URLSearchParams();
   for (const key of Object.keys(defaultDiscoveryFilters) as (keyof DiscoveryFilters)[]) {
-    if (filters[key] !== defaultDiscoveryFilters[key]) params.set(key, String(filters[key]));
+    const value = filters[key] ?? defaultDiscoveryFilters[key];
+    if (value !== undefined && value !== defaultDiscoveryFilters[key]) params.set(key, String(value));
   }
   return params.size ? `?${params}` : '';
 }

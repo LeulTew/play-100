@@ -138,9 +138,7 @@ export function filterGames(games: Game[], filters: Filters, progress: Progress)
     if (filters.year && game.year !== Number(filters.year)) return false;
     if (filters.tier !== 'all' && game.tier !== filters.tier) return false;
     const state = progress[game.slug];
-    if (filters.list === 'later' && !state?.later) return false;
-    if (filters.list === 'completed' && !state?.completed) return false;
-    if (filters.list === 'unplayed' && state?.completed) return false;
+    if (!matchesProgressFilters(state, filters)) return false;
     const searchable = searchText(`${game.title} ${game.studio} ${game.genre} ${game.year}`);
     const words = searchable.split(' ');
     return terms.every((term) => /^\d+$/.test(term) ? words.includes(term) : searchable.includes(term));
@@ -180,3 +178,4 @@ export function artworkUrl(game: Game): string | null {
 export function formatAverage(score: number | null): string {
   return score === null ? 'Unavailable' : new Intl.NumberFormat('en', { maximumFractionDigits: 1 }).format(score);
 }
+import { matchesProgressFilters } from './game-progress';

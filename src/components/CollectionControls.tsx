@@ -6,6 +6,8 @@ import { criticColumns } from '../lib/collection';
 import { author } from '../lib/author';
 import { Icon } from './Icon';
 import { SelectField } from './SelectField';
+import { ProgressFilter } from './ProgressFilter';
+import { effectiveProgressFilter, progressFilterPatch } from '../lib/game-progress';
 
 interface CollectionControlsProps {
   games: Game[];
@@ -29,7 +31,8 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
   const searchSession = useRef(false);
   const genres = [...new Set([...games, ...extraRecords].map((game) => game.genre).filter((genre): genre is string => genre !== null))].sort((a, b) => a.localeCompare(b));
   const years = [...new Set([...games, ...extraRecords].map((game) => game.year).filter((year): year is number => year !== null))].sort((a, b) => b - a);
-  const activeFilters = Boolean(filters.q || filters.genre || filters.year || filters.tier !== 'all' || filters.list !== 'all');
+  const progress = effectiveProgressFilter(filters);
+  const activeFilters = Boolean(filters.q || filters.genre || filters.year || filters.tier !== 'all' || filters.list !== 'all' || progress !== 'all');
   const Heading = filters.view === 'table' ? 'h1' : 'h2';
   return (
     <>
@@ -38,12 +41,11 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
         <button className="text-button share-view" onClick={onShare}><Icon name="share" />Share this view</button>
       </div>
       <div className="collection-tabs" aria-label="Your collection views">
-        <button className={filters.list === 'all' ? 'is-active' : ''} aria-pressed={filters.list === 'all'} onClick={() => onChange({ list: 'all' })}>All games<span>{games.length + addedCount}</span></button>
+        <button className={filters.list === 'all' ? 'is-active' : ''} aria-pressed={filters.list === 'all'} onClick={() => onChange({ list: 'all', progress: 'all' })}>All games<span>{games.length + addedCount}</span></button>
         <button className={filters.list === 'later' ? 'is-active' : ''} aria-pressed={filters.list === 'later'} onClick={() => onChange({ list: 'later' })}>Play later<span>{savedCount}</span></button>
-        <button className={filters.list === 'completed' ? 'is-active' : ''} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed' })}>Completed<span>{completedCount}</span></button>
-        <button className={filters.list === 'unplayed' ? 'is-active' : ''} aria-pressed={filters.list === 'unplayed'} onClick={() => onChange({ list: 'unplayed' })}>Not completed</button>
+        <button className={filters.list === 'completed' ? 'is-active' : ''} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed', progress: 'all' })}>Completed<span>{completedCount}</span></button>
       </div>
-      {filters.list !== 'all' && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your progress, including games you added beyond the 100.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
+      {(filters.list !== 'all' || progress !== 'all') && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your progress, including games you added beyond the 100.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
       <div className="search-and-filters">
         <div className="collection-search">
           <label className="field-label" htmlFor="game-search">Search games, studios or genres</label>
@@ -86,6 +88,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
           {activeFilters && <button className="text-button clear-filters" onClick={() => onChange({ ...defaultFilters, catalogs: filters.catalogs, sort: filters.sort, view: filters.view })}>Reset filters<Icon name="close" width="15" height="15" /></button>}
         </div>
         <div className="view-controls">
+          <ProgressFilter value={progress} onChange={value => onChange(progressFilterPatch(value, filters))} />
           <SelectField id="sort-order" label="Sort" className="sort-control" value={filters.sort} onChange={(value) => {
               onChange({ sort: SORT_ORDERS.find((option) => option === value) ?? 'rank', direction: 'auto' });
             }}>

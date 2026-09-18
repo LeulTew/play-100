@@ -42,7 +42,7 @@ test('played state is one committed value across detail, grid, list, table, libr
   await rankedPlayed.click();
   await expect(rankedPlayed).not.toBeChecked();
   await page.goto('/my-library');
-  const libraryPlayed = page.locator(`[data-record-id="${a.id}"] [data-played-id] input`);
+  const libraryPlayed = page.locator(`.my-games-editor:visible [data-record-id="${a.id}"] [data-played-id] input`);
   await expect(libraryPlayed).not.toBeChecked();
   await libraryPlayed.click();
   await expect(libraryPlayed).toBeChecked();
@@ -54,11 +54,11 @@ test('played state is one committed value across detail, grid, list, table, libr
   await expect(peerPlayed).not.toBeChecked();
   await expect(libraryPlayed).not.toBeChecked();
   await page.reload();
-  await expect(page.locator(`[data-record-id="${a.id}"] [data-played-id] input`)).not.toBeChecked();
+  await expect(page.locator(`.my-games-editor:visible [data-record-id="${a.id}"] [data-played-id] input`)).not.toBeChecked();
   await peer.close();
 });
 
-test('unmarking played consistently clears completion without clearing the replay queue', async ({ page }) => {
+test('unmarking played visibly confirms completion loss and keeps the replay queue, rating and note', async ({ page }, info) => {
   await page.goto(`/?game=${a.id}`);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Play later', exact: true }).click();
@@ -66,11 +66,37 @@ test('unmarking played consistently clears completion without clearing the repla
   await expect(dialog.getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const played = dialog.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
   await expect(played).toBeChecked();
+  await dialog.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true }).fill('8.5');
+  await dialog.getByRole('spinbutton').press('Tab');
+  await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
+  await page.evaluate(async id => {
+    const modulePath = '/src/lib/personal-db.ts';
+    const source: typeof import('../src/lib/personal-db') = await import(modulePath);
+    await source.commitPersonalAction({ type: 'edit-ranking', id, note: 'Keep this replay note.' });
+  }, a.id);
+  const before = await readLibrary(page);
   await played.click();
+  const confirmation = page.getByRole('dialog', { name: `Mark ${a.title} not played?`, exact: true });
+  await expect(confirmation).toContainText('This also clears Completed.');
+  await expect(confirmation.getByRole('button', { name: 'Keep completed', exact: true })).toBeFocused();
+  await page.screenshot({ path: info.outputPath('progress-confirmation.png') });
+  await confirmation.getByRole('button', { name: 'Keep completed', exact: true }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(played).toBeFocused();
+  expect(await readLibrary(page)).toEqual(before);
+  await played.click();
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: a.title, exact: true })).toBeVisible();
+  await expect(played).toBeFocused();
+  expect(await readLibrary(page)).toEqual(before);
+  await played.click();
+  await confirmation.getByRole('button', { name: 'Mark not played', exact: true }).click();
   await expect(played).not.toBeChecked();
   const state = await readLibrary(page);
   expect(state.progress[a.id]).toEqual({ played: false, completed: false, later: true });
   expect(state.queueOrder).toEqual([a.id]);
+  expect(state.ranking).toEqual(before.ranking);
 });
 
 test('scores automatically reorder and persist while manually moved games keep their chosen slots', async ({ page }) => {

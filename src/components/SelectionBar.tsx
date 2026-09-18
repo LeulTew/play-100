@@ -1,6 +1,7 @@
 import { Icon } from './Icon';
 
-export type SelectionAction = 'later' | 'completed' | 'ranking' | 'remove-later' | 'uncomplete';
+import type { SelectionAction } from '../lib/game-progress';
+export type { SelectionAction } from '../lib/game-progress';
 
 interface SelectionBarProps {
   count: number;
@@ -24,6 +25,7 @@ export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone,
       </div>
       <div className="selection-actions">
         <button className="button button-dark" disabled={!count || busy} onClick={() => onAction('later')}><Icon name="bookmark" width="18" height="18" />Add to play later</button>
+        <button className="button button-outline" disabled={!count || busy} onClick={() => onAction('played')}>Mark played</button>
         <button className="button button-outline" disabled={!count || busy} onClick={() => onAction('completed')}><Icon name="check" width="18" height="18" />Mark completed</button>
         <button className="button button-outline" disabled={!count || busy} onClick={() => onAction('ranking')}><Icon name="rank" width="18" height="18" />Add to my ranking</button>
         {context === 'library' && <>

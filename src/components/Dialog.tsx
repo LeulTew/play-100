@@ -58,7 +58,7 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
       className={`dialog ${className}`}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onCancel={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div className="dialog-inner">

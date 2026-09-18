@@ -6,6 +6,7 @@ import { formatAverage } from '../lib/collection';
 import { GameCover } from './GameCover';
 import { Icon } from './Icon';
 import { PlayedToggle } from './PlayedToggle';
+import { CompletedToggle } from './CompletedToggle';
 import { author, authorRatingText } from '../lib/author';
 
 interface GameCardProps {
@@ -14,7 +15,8 @@ interface GameCardProps {
   state: PersonalProgress | undefined;
   onOpen: (slug: string) => void;
   onSave: (slug: string) => void;
-  onPlayed: (slug: string) => void;
+  onPlayed: (slug: string, value: boolean) => void;
+  onCompleted: (slug: string, value: boolean) => void;
   eager?: boolean;
   selecting?: boolean;
   selected?: boolean;
@@ -23,7 +25,7 @@ interface GameCardProps {
   compareActions?: ReactNode;
 }
 
-export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, eager, selecting, selected, busy, onSelect, compareActions }: GameCardProps) {
+export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCompleted, eager, selecting, selected, busy, onSelect, compareActions }: GameCardProps) {
   return (
     <article className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
       <a
@@ -46,7 +48,7 @@ export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, eager
           {state?.completed && <span className="completed-marker"><Icon name="check" width="15" height="15" /> Completed</span>}
         </div>
       </a>
-      <div className="card-played"><PlayedToggle id={game.slug} title={game.title} played={Boolean(state?.played)} completed={state?.completed} busy={busy} compact onChange={() => onPlayed(game.slug)} />{compareActions && <div className="card-compare-actions">{compareActions}</div>}</div>
+      <div className="card-played"><PlayedToggle id={game.slug} title={game.title} played={Boolean(state?.played)} completed={state?.completed} busy={busy} compact onChange={value => onPlayed(game.slug, value)} /><CompletedToggle title={game.title} completed={Boolean(state?.completed)} busy={busy} onChange={value => onCompleted(game.slug, value)} />{compareActions && <div className="card-compare-actions">{compareActions}</div>}</div>
       {selecting && <label className="select-control card-selection"><input type="checkbox" checked={Boolean(selected)} onChange={() => onSelect?.(game.slug)} aria-label={`Select ${game.title}`} /></label>}
       <button
         className={`save-game icon-button ${state?.later ? 'is-saved' : ''}`}

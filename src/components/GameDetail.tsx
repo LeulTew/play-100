@@ -16,13 +16,13 @@ interface GameDetailProps {
   next: Game | undefined;
   onClose: () => void;
   onOpen: (slug: string) => void;
-  onToggle: (slug: string, key: 'later' | 'completed') => void;
+  onToggle: (slug: string, key: 'later' | 'completed', value?: boolean) => void;
   onShare: () => void;
   shareFeedback: string;
   busy?: boolean;
   played?: boolean;
   rankingPosition?: number | null;
-  onPlayed?: () => void;
+  onPlayed?: (value: boolean) => void;
   onRank?: () => void;
   personalRating: number | null;
   onRate: (score: number | null) => Promise<boolean>;
@@ -54,7 +54,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
           <button className={`button ${state?.later ? 'button-lime' : 'button-dark'}`} disabled={busy} aria-pressed={Boolean(state?.later)} onClick={() => onToggle(game.slug, 'later')}>
             <Icon name="bookmark" />{state?.later ? 'Saved for later' : 'Play later'}
           </button>
-          <button className="button button-outline" disabled={busy} aria-pressed={Boolean(state?.completed)} onClick={() => onToggle(game.slug, 'completed')}>
+          <button className="button button-outline" disabled={busy} aria-pressed={Boolean(state?.completed)} onClick={() => onToggle(game.slug, 'completed', !state?.completed)}>
             <Icon name="check" />{state?.completed ? 'Completed' : 'Mark completed'}
           </button>
           <button className="icon-button share-detail" aria-label={`Share ${game.title}`} onClick={onShare}><Icon name="share" /></button>

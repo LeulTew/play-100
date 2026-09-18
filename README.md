@@ -61,6 +61,19 @@ positions and queue replay remain independent. Existing `/my-library`,
 `/my-library?list=later` and `/my-rankings` links still work. Workspace tabs keep
 manual drafts and flush valid pending edits before switching.
 
+**Played and Completed are different.** Played records that you tried a game;
+Completed records finishing it and also implies Played. Unmarking Completed
+keeps Played. Marking a completed game not played shows a visible confirmation
+before clearing both flags; queue/replay membership, scores, notes and manual
+positions stay unchanged. Cards, tables, details and My games expose separate
+controls, and bulk Mark played never queues or completes a game.
+
+The shared Progress filter offers Not played, Played (not completed), Completed
+and an explicitly inclusive played view. It is independent of Queue. New links
+use `progress=`; old `list=unplayed` links still mean Not completed. Public share
+links omit these private view filters, and progress-filtered catalog views do
+not send play history to providers. No stored-progress migration is needed.
+
 **Discover** starts with a public, locally served snapshot of **810** provider
 records. **220** records have licensed imagery from **215** local raster files;
 the rest use an honest missing-art fallback. Most licensed images are logos,

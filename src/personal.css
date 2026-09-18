@@ -452,3 +452,14 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
 .friend-sharing-summary > .button-row { justify-content: space-between; align-items: center; }
 .friend-sharing-summary p { min-width: 0; max-width: 68ch; overflow-wrap: anywhere; }
 .friend-sharing-summary > .section-help { margin-top: 8px; }
+.progress-filter { display: grid; gap: 6px; min-width: 0; font-size: 14px; color: var(--ink); }
+.progress-filter select { width: 100%; min-height: 44px; max-width: 250px; background: var(--white); border: 1px solid #a5ac98; border-radius: 4px; padding: 8px 30px 8px 10px; font: inherit; color: var(--ink); }
+.completed-toggle { white-space: nowrap; padding-inline: 6px; gap: 5px; }
+.completed-toggle[aria-pressed="true"] { color: var(--ink); background: var(--lime); border-radius: 4px; }
+.view-controls { flex-wrap: wrap; }
+.my-games-navigation > .progress-filter { margin-block: 8px; }
+@media (max-width: 620px) {
+  .view-controls .progress-filter { width: 100%; }
+  .progress-filter select { font-size: 16px; }
+  .table-progress { flex-wrap: wrap; }
+}

@@ -7,6 +7,9 @@ import { RecordIdentity } from './RecordIdentity';
 import ReorderList from './ReorderList';
 import AddGamesPanel from './AddGamesPanel';
 import { PlayedToggle } from '../PlayedToggle';
+import { CompletedToggle } from '../CompletedToggle';
+import { matchesProgress } from '../../lib/game-progress';
+import type { ProgressFilter } from '../../lib/game-progress';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { useExitSave } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
@@ -18,27 +21,29 @@ export interface RankingsPageProps {
   onPublish?: () => void;
   embedded?: boolean;
   completedOnly?: boolean;
+  progressFilter?: ProgressFilter;
+  onClearProgress?: () => void;
   onPin?: (record: LibraryRecord) => void;
   onUnpin?: (id: string) => void;
   pinnedIds?: ReadonlySet<string>;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }
 
-export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover, onPublish, embedded = false, completedOnly = false, onPin, onUnpin, pinnedIds, renderDragHandle }: RankingsPageProps) {
+export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover, onPublish, embedded = false, completedOnly = false, progressFilter, onClearProgress, onPin, onUnpin, pinnedIds, renderDragHandle }: RankingsPageProps) {
   const mode = useLibraryMode();
   const [query, setQuery] = useState('');
-  const [playedOnly, setPlayedOnly] = useState(false);
+  const progressView = progressFilter ?? (completedOnly ? 'completed' : 'all');
   const rankingById = useMemo(() => new Map(state.ranking.map((entry, index) => [entry.id, { entry, position: index + 1 }])), [state.ranking]);
   const rankedIds = useMemo(() => new Set(state.ranking.map((entry) => entry.id)), [state.ranking]);
   const records = useMemo(() => {
     const term = searchText(query);
     return state.ranking.flatMap((entry) => {
       const record = state.records[entry.id];
-      if (!record || (playedOnly && !state.progress[entry.id]?.played) || (completedOnly && !state.progress[entry.id]?.completed) || !searchText(record.title).includes(term)) return [];
+      if (!record || !matchesProgress(state.progress[entry.id], progressView) || !searchText(record.title).includes(term)) return [];
       return [record];
     });
-  }, [state, query, playedOnly, completedOnly]);
-  const canReorder = !query && !playedOnly && !completedOnly;
+  }, [state, query, progressView]);
+  const canReorder = !query && progressView === 'all';
   const manualCount = state.ranking.filter((entry) => entry.manualPosition !== null).length;
   return (
     <section className={embedded ? 'my-games-editor' : 'app-page'} aria-labelledby="rankings-title">
@@ -46,7 +51,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
       <AddGamesPanel records={availableRecords} existingIds={rankedIds} onAdd={(recordsToAdd) => onAction({ type: 'add-ranking', records: recordsToAdd })} onDiscover={onDiscover} busy={busy} />
       {state.ranking.length > 0 && <>
         <div className="ranking-order-info"><p><strong>Games without a fixed position follow scores, highest first.</strong> Unrated comes last, not zero. {manualCount ? `${manualCount} manual ${manualCount === 1 ? 'position stays' : 'positions stay'} fixed until released.` : 'Manual positions stay fixed until released.'} {canReorder ? 'Drag or use arrows to set a position.' : 'Clear search and filters to reorder.'} Scores save automatically. Ranking or rating never marks a game played.</p>{manualCount > 0 && <button className="button button-outline" disabled={busy} onClick={() => { void onAction({ type: 'use-rating-order' }); }}>Use rating order for all</button>}</div>
-        <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a game in your ranking" /></div><label className="check-control"><input type="checkbox" checked={playedOnly} onChange={(event) => setPlayedOnly(event.target.checked)} />Only games I've marked played</label></div>
+        <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a game in your ranking" /></div><span className="section-help" role="status">        {records.length} ranked {records.length === 1 ? 'game' : 'games'} in this view</span></div>
       </>}
       {records.length ? <ReorderList records={records} kind="ranking" canReorder={canReorder} busy={busy} animate={animate} positionFor={(id) => rankingById.get(id)?.position ?? null} onMove={(id, overId) => { void onAction({ type: 'move-item', list: 'ranking', id, overId }); }}>
         {(record) => {
@@ -54,7 +59,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
           if (!entry) return null;
           return <RankingRow key={record.id} record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} onOpen={onOpen} onAction={onAction} onPin={onPin} onUnpin={onUnpin} pinned={pinnedIds?.has(record.id)} renderDragHandle={renderDragHandle} />;
         }}
-      </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or turn off the active filters.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); setPlayedOnly(false); }}>{completedOnly ? 'Clear ranking search and played filter' : 'Show my full ranking'}</button>}</div>}
+      </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or change the progress filter.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); onClearProgress?.(); }}>Show my full ranking</button>}</div>}
       {!persistent && <p className="personal-storage-footnote" role="alert"><strong>Device storage is unavailable.</strong> Export these temporary changes from Settings before closing this tab.</p>}
     </section>
   );
@@ -103,7 +108,7 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction, 
     <div className="ranking-row-content">
       <div className="ranking-game-identity"><RecordIdentity record={record} onOpen={onOpen} />{(onPin || renderDragHandle) && <div className="ranking-compare-actions">{onPin && <button className="text-button" disabled={pinned && !onUnpin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${record.title} ${pinned ? 'from' : 'for'} comparison`} onClick={() => { if (pinned) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="17" height="17" />{pinned ? 'Pinned for comparison' : 'Pin for comparison'}</button>}{renderDragHandle?.(record)}</div>}</div>
       <PersonalRatingInput title={record.title} value={entry.score} busy={busy} onCommit={(score) => onAction({ type: 'edit-ranking', id: entry.id, score })} />
-      <div className="played-check"><PlayedToggle id={record.id} title={record.title} played={played} completed={completed} busy={busy} onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} /></div>
+      <div className="played-check"><PlayedToggle id={record.id} title={record.title} played={played} completed={completed} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [record], key: 'played', value }); }} /><CompletedToggle title={record.title} completed={completed} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [record], key: 'completed', value }); }} /></div>
       <button className="icon-button" aria-label={`Remove ${record.title} from my ranking`} disabled={busy} onClick={() => { void onAction({ type: 'remove-ranking', ids: [entry.id] }); }}><Icon name="close" width="18" height="18" /></button>
       {entry.manualPosition !== null && <div className="manual-rank"><span>Fixed at #{entry.manualPosition}</span><button className="text-button" disabled={busy} aria-label={`Use rating order for ${record.title}`} onClick={() => { void onAction({ type: 'use-rating-order', id: entry.id }); }}>Use rating order<Icon name="rank" width="16" height="16" /></button></div>}
       <details className="ranking-note"><summary>{entry.note ? 'Your note' : 'Add a note'}<Icon name="plus" width="15" height="15" /></summary><label htmlFor={`note-${entry.id}`} className="sr-only">Your note for {record.title}</label><textarea ref={noteRef} id={`note-${entry.id}`} rows={3} maxLength={2000} value={note} disabled={busy} aria-invalid={Boolean(noteError)} aria-describedby={noteError ? `note-error-${entry.id}` : undefined} onChange={(event) => { noteEdits.current += 1; setNoteEdited(true); setNoteError(''); setNote(event.target.value); }} onBlur={() => { void saveNote(); }} placeholder="Why this game belongs here..." /><span>Saves on exit. Not included in published rankings.</span></details>

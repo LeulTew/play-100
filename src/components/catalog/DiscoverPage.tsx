@@ -11,6 +11,8 @@ import type { SelectionAction } from '../SelectionBar';
 import ManualGameForm from '../personal/ManualGameForm';
 import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
+import { ProgressFilter } from '../ProgressFilter';
+import { selectionOperation } from '../../lib/game-progress';
 import './discover.css';
 
 export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommunity, onPreview, onPin, pinnedIds, renderDragHandle }: {
@@ -20,7 +22,8 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommu
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
   const { filters, update } = useDiscoveryUrl();
-  const search = useDiscoverSearch(filters);
+  const search = useDiscoverSearch(filters, state.progress);
+  const progressView = filters.progress ?? 'all';
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const editing = useRef(false);
@@ -32,9 +35,7 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommu
   };
   const bulk = async (action: SelectionAction) => {
     if (!selection.length) return;
-    if (await onAction(action === 'ranking' ? { type: 'add-ranking', records: selection } : {
-      type: 'set-progress', records: selection, key: action === 'completed' ? 'completed' : 'later', value: true,
-    })) setSelected(new Set());
+    if (await onAction(selectionOperation(action, selection))) setSelected(new Set());
   };
   const genres = [...new Set(seed.catalog?.items.flatMap(({ record }) => record.genre ? [record.genre] : []) ?? [])].sort();
   const years = [...new Set(seed.catalog?.items.flatMap(({ record }) => record.year ? [record.year] : []) ?? [])].sort((a, b) => b - a);
@@ -51,6 +52,7 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommu
         }} />{filters.q && <button className="icon-button" type="button" aria-label="Clear search" onClick={() => change({ q: '', offset: 0, online: 'auto' })}><Icon name="close" /></button>}</div>
       </form>
       <div className="discovery-toolbar">
+        <ProgressFilter value={progressView} onChange={progress => change({ progress, offset: 0, online: 'auto' })} />
         <label>Genre<select value={filters.genre} onChange={(event) => change({ genre: event.target.value, offset: 0, online: 'auto' })}><option value="">All genres</option>{filters.genre && !genres.includes(filters.genre) && <option>{filters.genre}</option>}{genres.map((genre) => <option key={genre}>{genre}</option>)}</select></label>
         <label>Year<select value={filters.year} onChange={(event) => change({ year: event.target.value, offset: 0, online: 'auto' })}><option value="">Any year</option>{filters.year && !years.includes(Number(filters.year)) && <option>{filters.year}</option>}{years.map((year) => <option key={year}>{year}</option>)}</select></label>
         <label>Source<select value={filters.source} onChange={(event) => change({ source: event.target.value === 'wikidata' ? 'wikidata' : event.target.value === 'freetogame' ? 'freetogame' : 'all', offset: 0, online: 'auto' })}><option value="all">All sources</option><option value="wikidata">Wikidata</option><option value="freetogame">FreeToGame</option></select></label>
@@ -72,11 +74,11 @@ export default function DiscoverPage({ state, busy, onAction, onLibrary, onCommu
       {!initialLoading && !records.length && <div className="discovery-empty"><h2>{remote.loading ? 'Looking online…' : failed ? 'Online search is incomplete' : seed.error ? 'The catalog could not load' : filters.offset > 0 ? 'No games on this page' : 'No matching games'}</h2><p>{failed ? 'Retry a provider below or change your search.' : 'Try a shorter title, clear a filter, or add a game manually.'}</p><button className="text-button" onClick={() => change({ ...defaultDiscoveryFilters, catalogs: filters.catalogs, view: filters.view })}>Reset search and filters</button></div>}
       {filters.online === 'auto' && (local.length > DISCOVERY_PAGE_SIZE || filters.offset > 0) && <nav className="discovery-pagination" aria-label="Catalog pages"><button className="button button-outline" disabled={filters.offset === 0} onClick={() => change({ offset: Math.max(0, filters.offset - DISCOVERY_PAGE_SIZE) })}>Previous</button><span>{Math.min(filters.offset + 1, local.length)}–{Math.min(filters.offset + DISCOVERY_PAGE_SIZE, local.length)} of {local.length} catalog games</span><button className="button button-outline" disabled={filters.offset + DISCOVERY_PAGE_SIZE >= local.length} onClick={() => change({ offset: filters.offset + DISCOVERY_PAGE_SIZE })}>Next</button></nav>}
       <div className="discovery-online">
-        {filters.catalogs === 'off' ? <p>Online lookup is off. <button className="text-button" onClick={() => change({ catalogs: 'on', online: 'on', offset: 0 })}>Search online</button></p>
+        {progressView !== 'all' ? <p>Online lookup is paused for this progress view. Your play history is not sent to providers.</p> : filters.catalogs === 'off' ? <p>Online lookup is off. <button className="text-button" onClick={() => change({ catalogs: 'on', online: 'on', offset: 0 })}>Search online</button></p>
           : !remoteEnabled && <button className="text-button" onClick={() => change({ online: 'on', offset: 0 })}>Search online<Icon name="arrow" width="17" height="17" /></button>}
-        {filters.online === 'on' && <button className="text-button" onClick={() => change({ online: 'auto', offset: 0 })}>Back to catalog</button>}
+        {filters.online === 'on' && progressView === 'all' && <button className="text-button" onClick={() => change({ online: 'auto', offset: 0 })}>Back to catalog</button>}
         <CatalogSourceStatus sources={remote.sources} onRetry={remote.retry} onMore={(source, offset) => change({ source, offset, online: 'on' })} onPrevious={(source, offset) => change({ source, offset, online: 'on' })} />
-        <details className="discovery-help"><summary>Search options &amp; sources</summary><label className="check-control"><input type="checkbox" checked={filters.catalogs === 'on'} onChange={(event) => change({ catalogs: event.target.checked ? 'on' : 'off' })} />Look online when local matches are limited</label><p>Only your search is sent to public providers. Saved games, ratings and notes stay private. Sources and editions remain separate.</p><p>Metadata from <a href="https://www.wikidata.org/wiki/Wikidata:Data_access" target="_blank" rel="noreferrer">Wikidata (CC0)</a> and <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">FreeToGame</a>. Image credits are under each game's Actions &amp; source.</p></details>
+        <details className="discovery-help"><summary>Search options &amp; sources</summary><label className="check-control"><input type="checkbox" checked={filters.catalogs === 'on'} disabled={progressView !== 'all'} onChange={(event) => change({ catalogs: event.target.checked ? 'on' : 'off' })} />Look online when local matches are limited</label><p>Only your search is sent to public providers, not your saved progress, ratings or notes. Sources and editions remain separate.</p><p>Metadata from <a href="https://www.wikidata.org/wiki/Wikidata:Data_access" target="_blank" rel="noreferrer">Wikidata (CC0)</a> and <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">FreeToGame</a>. Image credits are under each game's Actions &amp; source.</p></details>
       </div>
       <ManualGameForm busy={busy} onAdd={(record) => onAction({ type: 'add-records', records: [record] })} actionLabel="Add to my library" />
       {onCommunity && <footer className="discovery-footer"><button className="text-button" onClick={onCommunity}>Explore shared rankings<Icon name="arrow" width="17" height="17" /></button></footer>}

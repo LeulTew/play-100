@@ -63,11 +63,13 @@ export interface Filters {
   direction: SortDirection;
   view: ViewMode;
   catalogs: 'on' | 'off';
+  progress?: import('./game-progress').ProgressFilter;
 }
 
 export interface GameProgress {
   later: boolean;
   completed: boolean;
+  played?: boolean;
 }
 
 export type Progress = Record<string, GameProgress>;

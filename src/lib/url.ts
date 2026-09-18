@@ -1,4 +1,5 @@
 import type { AppPage, Filters, SortOrder } from './types';
+import { parseProgressFilter } from './game-progress';
 
 export const SORT_ORDERS = ['rank', 'title', 'newest', 'oldest', 'score', 'metacritic', 'metacriticPc', 'ign', 'gamespot', 'pcGamer', 'rank-index', 'author-rating'] as const satisfies readonly SortOrder[];
 export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', games: '/my-games', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator', friends: '/friends', friend: '/friends', invite: '/invite', compare: '/compare', 'friend-sharing': '/friends/sharing', 'friend-shelf': '/friends/sharing/games' };
@@ -24,7 +25,7 @@ export function pageFromPath(path: string): AppPage {
 }
 
 export const defaultFilters: Filters = {
-  q: '', genre: '', year: '', tier: 'all', list: 'all', sort: 'rank', direction: 'auto', view: 'grid', catalogs: 'on',
+  q: '', genre: '', year: '', tier: 'all', list: 'all', sort: 'rank', direction: 'auto', view: 'grid', catalogs: 'on', progress: 'all',
 };
 
 export function parseUrl(search: string): { filters: Filters; game: string | null } {
@@ -46,6 +47,7 @@ export function parseUrl(search: string): { filters: Filters; game: string | nul
       direction: direction === 'asc' || direction === 'desc' ? direction : 'auto',
       view: view === 'list' || view === 'table' ? view : 'grid',
       catalogs: params.get('catalogs') === 'off' ? 'off' : 'on',
+      progress: parseProgressFilter(params.get('progress')),
     },
     game: params.get('game'),
   };
@@ -54,7 +56,8 @@ export function parseUrl(search: string): { filters: Filters; game: string | nul
 export function createSearch(filters: Filters, game: string | null = null): string {
   const params = new URLSearchParams();
   for (const key of Object.keys(defaultFilters) as (keyof Filters)[]) {
-    if (filters[key] !== defaultFilters[key]) params.set(key, filters[key]);
+    const value = filters[key] ?? defaultFilters[key];
+    if (value !== undefined && value !== defaultFilters[key]) params.set(key, value);
   }
   if (game) params.set('game', game);
   const query = params.toString();
@@ -62,5 +65,5 @@ export function createSearch(filters: Filters, game: string | null = null): stri
 }
 
 export function createShareUrl(origin: string, filters: Filters, game: string | null): string {
-  return `${origin}/${createSearch({ ...filters, list: 'all' }, game)}`;
+  return `${origin}/${createSearch({ ...filters, list: 'all', progress: 'all' }, game)}`;
 }

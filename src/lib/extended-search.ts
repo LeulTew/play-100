@@ -2,6 +2,7 @@ import type { Filters, Game } from './types';
 import type { LibraryRecord, PersonalProgress } from './personal-types';
 import { sortDirection } from './collection';
 import { matchesCatalogQuery } from './catalog-query';
+import { matchesProgressFilters } from './game-progress';
 
 export function unrankedRecords(games: Game[], saved: Record<string, LibraryRecord>, online: LibraryRecord[]): LibraryRecord[] {
   const curated = new Set(games.map((game) => game.slug));
@@ -15,9 +16,7 @@ export function filterUnranked(records: LibraryRecord[], filters: Filters, progr
     if (filters.genre && record.genre !== filters.genre) return false;
     if (filters.year && record.year !== Number(filters.year)) return false;
     const state = progress[record.id];
-    if (filters.list === 'later' && !state?.later) return false;
-    if (filters.list === 'completed' && !state?.completed) return false;
-    if (filters.list === 'unplayed' && state?.completed) return false;
+    if (!matchesProgressFilters(state, filters)) return false;
     // Source searches can match an alias that is not included in the imported title.
     if (onlineMatches.has(record.id)) return true;
     return matchesCatalogQuery(`${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''}`, filters.q);

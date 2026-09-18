@@ -48,7 +48,7 @@ describe('workspace embedding contract', () => {
     const completed = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue', completedOnly: true }));
     expect(completed).not.toContain('Beta game');
     expect(completed).toContain('Alpha game');
-    expect(completed).toContain('Clear search, Completed only and selection to reorder.');
+    expect(completed).toContain('Clear search, progress filters and selection to reorder.');
     expect(completed).toContain('disabled=""');
   });
   it('keeps both editor trees present but hides the inactive one without nested page headings', () => {
@@ -57,7 +57,8 @@ describe('workspace embedding contract', () => {
       expect(html.match(/<h1\b/g)).toHaveLength(1);
       expect(html).toContain('>My games</h1>');
       expect(html).toContain('aria-label="My games views"');
-      expect(html).toContain('Completed only');
+      expect(html).toContain('class="filter-select progress-filter"');
+      expect(html).toContain('Played (not completed)');
       expect(html).toContain('A private note');
       expect(html).toContain('Add a game manually');
       expect(html.match(/<div hidden=""/g)).toHaveLength(1);

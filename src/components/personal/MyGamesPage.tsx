@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import { flushPendingEdits } from '../../hooks/useExitSave';
 import { Icon } from '../Icon';
+import { ProgressFilter } from '../ProgressFilter';
+import { effectiveProgressFilter, progressFilterPatch } from '../../lib/game-progress';
 import LibraryPage from './LibraryPage';
 import type { LibraryPageProps } from './LibraryPage';
 import RankingsPage from './RankingsPage';
@@ -32,7 +34,8 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
   const [error, setError] = useState('');
   const mounted = useRef(true);
   const changing = useRef(false);
-  const completedOnly = props.filters.list === 'completed';
+  const progressView = effectiveProgressFilter(props.filters);
+  const completedOnly = progressView === 'completed';
   const lastLibraryView = useRef<'library' | 'queue'>(view === 'queue' ? 'queue' : 'library');
   if (view !== 'ranking') lastLibraryView.current = view;
   useEffect(() => {
@@ -76,14 +79,14 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
         <nav className="personal-tabs" aria-label="My games views">
           {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}<span>{counts[value]}</span></button>)}
         </nav>
-        <label className="check-control"><input type="checkbox" checked={completedOnly} disabled={switching} onChange={(event) => onFilters({ list: event.target.checked ? 'completed' : view === 'queue' ? 'later' : 'all' })} />Completed only</label>
+        <ProgressFilter value={progressView} disabled={switching} onChange={value => onFilters(progressFilterPatch(value, props.filters))} />
       </div>
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div hidden={view === 'ranking'}>
-        <LibraryPage {...props} busy={editorBusy} embedded workspaceView={lastLibraryView.current} completedOnly={completedOnly} onFilters={onFilters} />
+        <LibraryPage {...props} busy={editorBusy} embedded workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} />
       </div>
       <div hidden={view !== 'ranking'}>
-        <RankingsPage {...props} busy={editorBusy} embedded completedOnly={completedOnly} />
+        <RankingsPage {...props} busy={editorBusy} embedded progressFilter={progressView} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
       </div>
       <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view.' : ''}</span>
     </section>

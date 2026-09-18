@@ -5,6 +5,7 @@ import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
+import { CompletedToggle } from '../CompletedToggle';
 import { PersonalRatingInput } from '../personal/PersonalRatingInput';
 import './discover.css';
 
@@ -50,7 +51,8 @@ export function DiscoveryCard({ record, artwork, state, busy, eager = false, sel
         <details className="discovery-card-details">
           <summary aria-label={`Actions and source for ${record.title}`}>Actions &amp; source</summary>
           <div className="discovery-card-secondary">
-            <PlayedToggle id={record.id} title={record.title} played={Boolean(progress?.played)} completed={progress?.completed} busy={busy} onChange={() => { void onAction({ type: 'toggle-progress', record, key: 'played' }); }} />
+            <PlayedToggle id={record.id} title={record.title} played={Boolean(progress?.played)} completed={progress?.completed} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [record], key: 'played', value }); }} />
+            <CompletedToggle title={record.title} completed={Boolean(progress?.completed)} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [record], key: 'completed', value }); }} />
             <button className="button button-outline" disabled={busy} aria-pressed={Boolean(progress?.later)} onClick={() => { void onAction({ type: 'toggle-progress', record, key: 'later' }); }}><Icon name="bookmark" width="16" height="16" />{progress?.later ? 'In your queue' : 'Play later'}</button>
             <button className="button button-outline" disabled={busy || Boolean(ranking)} onClick={() => { void onAction({ type: 'add-ranking', records: [record] }); }}><Icon name="rank" width="16" height="16" />{ranking ? 'In your ranking' : 'Add to ranking'}</button>
             <PersonalRatingInput title={record.title} value={ranking?.score ?? null} busy={busy} onCommit={(score) => onAction({ type: 'rate-game', record, score })} />

@@ -116,6 +116,17 @@ until one explicit, inline **Share all with friends** action.
   moved game retains a persisted position until explicitly returned to automatic
   order. Existing orders are preserved during schema upgrades.
 - One Played value is shared by every view; author notes never set visitor state.
+- Played means tried/spent time, not finished. Completed implies Played, but
+  marking Played never completes a game; clearing Completed retains Played.
+  Clearing Played on a completed game requires a visible confirmation and keeps
+  queue, scores, notes and manual positions. Private schema3 and existing data
+  remain unchanged.
+- Progress filters distinguish Not played, Played (not completed) and Completed,
+  separately from Queue. An inclusive played filter names that inclusion. The
+  historical `list=unplayed` URL retains its old Not completed meaning; new
+  controls use `progress=`. Public share URLs omit private progress filters.
+- Bulk Mark played and Mark completed are separate actions in collection,
+  library and Discover. Save, Pin, rating and import never imply played.
 - Sign-in does not upload or publish existing device data. Online saving
   requires reviewed source selection and creator-visibility consent.
 - Public profiles contain only explicitly selected rankings and chosen
