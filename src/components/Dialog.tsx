@@ -45,7 +45,7 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
     return () => {
       dialog.close();
       unlock();
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected && !previousFocus.matches(':disabled')) {
         previousFocus.focus({ preventScroll: true });
       } else {
         document.querySelector<HTMLElement>('[data-page-heading], #collection-title')?.focus({ preventScroll: true });

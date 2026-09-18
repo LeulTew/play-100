@@ -116,8 +116,12 @@ group's real revision/timestamps, not a newly synthesized acknowledgement.
 
 ## Integration order
 
-On a deliberate friend action, call `initialize`, then project the committed
-member name/avatar through `saveIdentity`; do not independently edit two names.
+On a deliberate friend action, read current settings and identity in parallel.
+Only missing settings call `initialize`; existing settings must be nondeleted.
+An independent identity read may overlap first-use lifecycle/settings creation,
+but `saveIdentity` always waits for confirmed initialization and a current UID.
+Project the committed member name/avatar only when it differs; do not
+independently edit two names or repeat no-op initialization on warm actions.
 Save the identity again after a committed account name/avatar edit, using its
 revision. A request requires an already published target profile; the recipient
 can initialize Friends before responding. Invitations need no public publication.
@@ -146,6 +150,22 @@ hex characters, used directly as the opaque capability document ID. It is NOT a
 public identifier. UI puts it in the URL fragment only and never logs it, exports
 it, forwards it through OAuth, or puts it in analytics/query parameters. Expiry is
 seven days from server creation; preview hides all consumed recipient information.
+
+Invite creation immediately opens an honest pending dialog, not a usable link.
+The UI waits for the real commit and authoritative timestamp readback. Duplicate
+clicks are locked; close/navigation cannot reopen a late result. Readback failures
+require a successful Invite links refresh (including when already on that tab),
+never an automatic replacement creation. The store reads identity and all 20 slots
+in parallel, prefers a vacant slot, and reads occupied invitations only when all
+slots are occupied. Full-capacity expiry/revocation reuse remains transactional.
+
+A controlled synthetic-browser check adding 300 ms per Firestore HTTP request
+measured warm confirmed-link time at 3,975 ms before and 1,639 ms after this path
+change; first-use times were 4,634 ms and 4,466 ms. The pending dialog appeared
+after 6 ms in the final run. These are single fixture observations, not production
+latency guarantees. `invite-latency.spec.ts` preserves the measurement recipe;
+`invite-feedback.spec.ts` covers first-use ordering, duplicate prevention, pending
+close/focus, navigation cancellation and acknowledged-failure read recovery.
 
 Before **full Auth account deletion**, call `revokeForDeletion` as the very first
 reservation, before any social or legacy cleanup, then repeatedly call

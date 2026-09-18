@@ -97,6 +97,9 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
   const [message, setMessage] = useState('');
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [link, setLink] = useState<FriendInvitation | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const inviteVisible = useRef(false);
   const [copyState, setCopyState] = useState('');
   const [refreshRequired, setRefreshRequired] = useState(false);
   const [now, setNow] = useState(Date.now);
@@ -110,6 +113,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
   useEffect(() => { alive.current = true; return () => { alive.current = false; auxVersion.current += 1; }; }, [uid]);
   useEffect(() => subscribeUrl(() => {
     navigationVersion.current += 1;
+    if (inviteVisible.current) { inviteVisible.current = false; setInviteOpen(false); setLink(null); }
     if (comparisonOperation.current) {
       comparisonOperation.current = null; running.current = false;
       if (current()) setWorking(false);
@@ -181,6 +185,8 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
         if (!cursor) { pages += 1; break; }
       }
       setAux({ view: target, invites, blocks, cursor, pages: (append ? old.pages : 0) + pages, ready: true, loading: false, error: null });
+      setRefreshRequired(false);
+      setError('');
       return true;
     } catch (cause) {
       if (current() && operation === auxVersion.current) setAux((state) => ({ ...state, loading: false, error: cause }));
@@ -237,6 +243,35 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       } else setError(friendMutationError(cause));
     } finally { running.current = false; if (current()) setWorking(false); }
   };
+  const createInvitation = async () => {
+    if (running.current || refreshRequired || !current()) return;
+    const navigation = navigationVersion.current;
+    running.current = true; inviteVisible.current = true;
+    setInviteOpen(true); setCreatingInvite(true); setLink(null); setCopyState('');
+    setWorking(true); setError(''); setMessage('');
+    try {
+      const settings = await prepareFriendIdentity(store, identity);
+      if (!current() || navigationVersion.current !== navigation || !inviteVisible.current) return;
+      onSettings(settings);
+      const invite = await store.createInvite(uid);
+      if (!current() || navigationVersion.current !== navigation) return;
+      if (inviteVisible.current) setLink(invite);
+      else setMessage('Invitation created. Find it in Invite links.');
+      if (currentView.current === 'invites') void loadAux();
+    } catch (cause) {
+      if (!current() || navigationVersion.current !== navigation) return;
+      const committed = committedFriendChange(cause, uid);
+      setError(committed ? committedFriendMessage(committed) : friendMutationError(cause));
+      setRefreshRequired(true);
+    } finally {
+      running.current = false;
+      if (current()) { setWorking(false); setCreatingInvite(false); }
+    }
+  };
+  const closeInvite = () => {
+    inviteVisible.current = false; setInviteOpen(false); setLink(null); setCopyState('');
+    if (creatingInvite) setMessage('Creation may still finish. Check Invite links before making another.');
+  };
   const compare = async (peers: string[]) => {
     if (running.current || !current()) return;
     const operation = Symbol('manager-comparison');
@@ -270,7 +305,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       else { await navigator.clipboard.writeText(url); if (current()) setCopyState('Link copied.'); }
     } catch (cause) {
       if (!current() || cause instanceof Error && cause.name === 'AbortError') return;
-      setLink(invite); setCopyState('Copy the invitation from the field below.');
+      setLink(invite); setInviteOpen(true); inviteVisible.current = true; setCopyState('Copy the invitation from the field below.');
     }
   };
   const loading = relationView ? list.loading : aux.loading || aux.view !== view.view;
@@ -286,10 +321,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
   const selectionReady = selected.every((peer) => selectionChecks[peer]?.status === 'ready');
   const selectionError = Object.values(selectionChecks).find((check) => check.status === 'error');
   return <section className="app-page friends-page">
-    <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Friends</h1><button className="button button-dark" disabled={busy || !identity.verified} onClick={() => { void run(async () => {
-      const invite = await store.createInvite(uid);
-      if (current()) { setLink(invite); setCopyState(''); }
-    }, 'Invitation created.'); }}>Invite someone<Icon name="share" /></button></div>
+    <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Friends</h1><button className="button button-dark" disabled={busy || !identity.verified} onClick={() => { void createInvitation(); }}>{creatingInvite ? 'Creating invite...' : 'Invite someone'}<Icon name="share" /></button></div>
     <nav className="personal-tabs friend-view-tabs" aria-label="Friends view">{(Object.keys(viewLabels) as FriendsView[]).map((value) =>
       <button key={value} disabled={working} aria-current={view.view === value ? 'page' : undefined} aria-pressed={view.view === value} onClick={() => updateView({ view: value })}>{viewLabels[value]}</button>)}</nav>
     {relationView && <div className="friend-manager-toolbar">
@@ -360,8 +392,10 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       }, confirmation.action === 'revoke' ? 'Invitation revoked.' : confirmation.action === 'block' ? 'Player blocked.' : 'Friend removed.'); }}>{confirmation.action === 'revoke' ? 'Revoke invitation' : confirmation.action === 'block' ? 'Block player' : 'Remove friend'}</button></div>
       {error && <p className="inline-error" role="alert">{error}</p>}
     </Dialog>}
-    {link && <Dialog open titleId="invite-link-title" className="info-dialog" onClose={() => { setLink(null); setCopyState(''); }}><h2 id="invite-link-title">{invitationStatus(link, now) === 'Active' ? 'Invite link' : 'Invitation expired'}</h2>
-      {invitationStatus(link, now) === 'Active' ? <><p>One use. Expires {dateFormat.format(link.expiresAt)}. Share only with the person you want to invite.</p><label htmlFor="friend-invite-link">Invitation link</label><input id="friend-invite-link" value={createInviteUrl(link.token)} readOnly onFocus={(event) => event.target.select()} /><div className="button-row"><button className="button button-dark" onClick={() => { void shareLink(link, false); }}>Copy link</button><button className="text-button" onClick={() => { void shareLink(link, true); }}>Share</button></div>{copyState && <p role="status">{copyState}</p>}</> : <p>This link is no longer active. Create a new invitation when you need one.</p>}
+    {inviteOpen && <Dialog open titleId="invite-link-title" className="info-dialog" onClose={closeInvite}><h2 id="invite-link-title" data-autofocus tabIndex={-1}>{creatingInvite ? 'Creating invite...' : link ? invitationStatus(link, now) === 'Active' ? 'Invite link' : 'Invitation expired' : 'Check invite links'}</h2>
+      {creatingInvite ? <p role="status">Making your one-use link. It appears after the server confirms it.</p> : link ?
+        invitationStatus(link, now) === 'Active' ? <><p>One use. Expires {dateFormat.format(link.expiresAt)}. Share only with the person you want to invite.</p><label htmlFor="friend-invite-link">Invitation link</label><input id="friend-invite-link" value={createInviteUrl(link.token)} readOnly onFocus={(event) => event.target.select()} /><div className="button-row"><button className="button button-dark" onClick={() => { void shareLink(link, false); }}>Copy link</button><button className="text-button" onClick={() => { void shareLink(link, true); }}>Share</button></div>{copyState && <p role="status">{copyState}</p>}</> : <p>This link is no longer active. Create a new invitation when you need one.</p> :
+        <><p className="inline-error" role="alert">{error || 'The result could not be confirmed. Refresh your links before trying again.'}</p><button className="button button-outline" onClick={() => { closeInvite(); if (view.view === 'invites') void refresh(); else updateView({ view: 'invites' }); }}>Open invite links</button></>}
     </Dialog>}
   </section>;
 }

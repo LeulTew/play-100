@@ -2,7 +2,7 @@ import {
   collection, doc, documentId, getDocFromServer, getDocsFromServer, limit, onSnapshot, orderBy,
   query, runTransaction, serverTimestamp, startAfter, where, writeBatch,
 } from 'firebase/firestore';
-import type { DocumentData, DocumentReference, Firestore, Query, QueryDocumentSnapshot } from 'firebase/firestore';
+import type { DocumentData, DocumentReference, DocumentSnapshot, Firestore, Query, QueryDocumentSnapshot } from 'firebase/firestore';
 import { parseAvatar } from '../lib/community';
 import type { AvatarValue, PublicEntry } from '../lib/community';
 import {
@@ -220,19 +220,22 @@ export class FriendStore {
       const [identity, ...slots] = await Promise.all([tx.get(this.ref('friendIdentities', uid)), ...slotRefs.map((slot) => tx.get(slot))]);
       if (!identity.exists()) throw new FriendStoreError('unavailable', 'Save your friend-facing name and icon before creating a link.');
       const chosen = parseFriendIdentity(identity.data());
-      const occupied = await Promise.all(slots.map((slot) => slot.exists() ? tx.get(doc(this.db, 'friendInvites', parseFriendSlot(slot.data()))) : null));
-      const index = slots.findIndex((slot, i) => {
-        if (!slot.exists()) return true;
-        const invite = occupied[i];
-        if (!invite?.exists()) throw new FriendStoreError('invalid', 'An invitation slot is inconsistent. Revoke its link before retrying.');
-        if (invite.data().state === 'closed') return true;
-        const value = parseFriendInvite(slot.data().token, invite.data());
-        return value.state !== 'active' || value.expiresAt <= Date.now();
-      });
+      const tokens = slots.map((slot) => slot.exists() ? parseFriendSlot(slot.data()) : null);
+      let index = tokens.indexOf(null);
+      let prior: DocumentSnapshot<DocumentData> | null = null;
+      if (index < 0) {
+        const occupied = await Promise.all(tokens.map((token) => tx.get(doc(this.db, 'friendInvites', token!))));
+        index = occupied.findIndex((invite, slot) => {
+          if (!invite.exists()) throw new FriendStoreError('invalid', 'An invitation slot is inconsistent. Revoke its link before retrying.');
+          if (invite.data().state === 'closed') return true;
+          const value = parseFriendInvite(tokens[slot]!, invite.data());
+          return value.state !== 'active' || value.expiresAt <= Date.now();
+        });
+        prior = occupied[index] ?? null;
+      }
       if (index < 0) throw new FriendStoreError('limit', 'You already have 20 active invitation links. Revoke one before creating another.');
       const slotRef = slotRefs[index];
       if (!slotRef) throw new FriendStoreError('invalid', 'The invitation slot is invalid.');
-      const prior = occupied[index];
       if (prior?.exists() && prior.data().state !== 'closed') tx.set(prior.ref, { ownerUid: uid, state: 'closed' });
       tx.set(slotRef, { token });
       tx.set(ref, { format: 1, ownerUid: uid, slot: index, displayName: chosen.displayName, avatar: chosen.avatar, createdAt: serverTimestamp(), state: 'active', acceptedBy: null });

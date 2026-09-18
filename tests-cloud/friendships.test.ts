@@ -196,16 +196,24 @@ describe('canonical friendship requests and private relationship metadata', () =
   it('fails offline graph changes rather than reporting a locally accepted request', async () => {
     const a = await client(); const b = await client();
     await disableNetwork(a.db);
-    try { await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toThrow(); }
+    try {
+      await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toThrow();
+      await expect(a.store.createInvite(a.uid)).rejects.toThrow();
+    }
     finally { await enableNetwork(a.db); }
     expect(await b.store.pair(b.uid, a.uid)).toBeNull();
+    expect((await a.store.listInvites(a.uid)).items).toHaveLength(0);
   });
   it('also prevents graph writes when the browser explicitly reports offline', async () => {
     const a = await client(); const b = await client();
     vi.stubGlobal('navigator', { onLine: false });
-    try { await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toMatchObject({ code: 'offline' }); }
+    try {
+      await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toMatchObject({ code: 'offline' });
+      await expect(a.store.createInvite(a.uid)).rejects.toMatchObject({ code: 'offline' });
+    }
     finally { vi.unstubAllGlobals(); }
     expect(await b.store.pair(b.uid, a.uid)).toBeNull();
+    expect((await a.store.listInvites(a.uid)).items).toHaveLength(0);
   });
   it('reports acknowledged request, acceptance and removal separately from post-commit readback failure', async () => {
     const a = await client(); const b = await client();
@@ -284,6 +292,23 @@ describe('single-use, fixed-slot invitation capabilities', () => {
     await expect(b.store.acceptInvite(b.uid, invite.token)).rejects.toMatchObject({ code: 'invite-unavailable' });
     expect((await a.store.listRelations(a.uid, 'accepted')).items).toHaveLength(1);
   });
+  it('allocates distinct vacant slots under concurrent invitation creators', async () => {
+    const a = await client();
+    const invites = await Promise.all([a.store.createInvite(a.uid), a.store.createInvite(a.uid)]);
+    expect(new Set(invites.map((invite) => invite.token)).size).toBe(2);
+    expect(new Set(invites.map((invite) => invite.slot)).size).toBe(2);
+    expect((await a.store.listInvites(a.uid)).items).toHaveLength(2);
+    for (const invite of invites) expect(await a.store.previewInvite(invite.token)).toMatchObject({ ownerUid: a.uid, singleUse: true });
+  });
+  it('retains one actual invitation when its committed timestamp readback fails', async () => {
+    const a = await client();
+    await failNextReadback(new Error('Synthetic invitation readback failure'));
+    await expect(a.store.createInvite(a.uid)).rejects.toMatchObject({ code: 'committed-refresh-failed', committed: true, receipt: { operation: 'create-invite', uid: a.uid } });
+    const links = await a.store.listInvites(a.uid);
+    expect(links.items).toHaveLength(1);
+    expect(links.items[0]?.state).toBe('active');
+    expect(links.items[0]!.expiresAt - links.items[0]!.createdAt).toBe(7 * 86400000);
+  });
   it('enforces server expiry, revoke, blocked acceptance and lifecycle revocation', async () => {
     const a = await client(); const b = await client(); const guest = await client(true);
     const invite = await a.store.createInvite(a.uid);
@@ -305,9 +330,11 @@ describe('single-use, fixed-slot invitation capabilities', () => {
   it('caps allocation at 20 slots on the server and retains a content-free anti-replay tombstone', async () => {
     const a = await client();
     let firstToken = '';
+    let expiredToken = '';
     for (let index = 0; index < 20; index += 1) {
       const invite = await a.store.createInvite(a.uid);
       if (index === 0) firstToken = invite.token;
+      if (index === 1) expiredToken = invite.token;
     }
     await expect(a.store.createInvite(a.uid)).rejects.toMatchObject({ code: 'limit' });
     const unauthorizedSlot = writeBatch(a.db);
@@ -319,6 +346,13 @@ describe('single-use, fixed-slot invitation capabilities', () => {
     expect(Object.keys(closed.data() ?? {}).sort()).toEqual(['ownerUid', 'state']);
     expect(closed.data()?.state).toBe('closed');
     await assertFails(setDoc(closed.ref, { ownerUid: a.uid, state: 'active' }));
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`friendInvites/${expiredToken}`).update({ createdAt: Timestamp.fromMillis(Date.now() - 8 * 86400000) });
+    });
+    const replacement = await a.store.createInvite(a.uid);
+    expect(replacement.slot).toBe(1);
+    expect((await getDocFromServer(doc(a.db, 'friendInvites', expiredToken))).data()).toEqual({ ownerUid: a.uid, state: 'closed' });
+    await expect(a.store.createInvite(a.uid)).rejects.toMatchObject({ code: 'limit' });
   }, 60000);
 });
 
