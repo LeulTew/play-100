@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { LibraryRecord } from '../src/lib/personal-types.ts';
 import type { CatalogPage, CatalogSource } from '../src/lib/catalog-types.ts';
-import { matchesCatalogQuery } from '../src/lib/catalog-query.ts';
+import { matchesCatalogQuery } from '../src/lib/catalog-query.js';
 
 const WIKIDATA = 'https://www.wikidata.org/w/api.php';
 const FREE_TO_GAME = 'https://www.freetogame.com/api/games';
