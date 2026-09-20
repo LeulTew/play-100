@@ -3,11 +3,11 @@ import type { LibraryRecord, PersonalProgress } from './personal-types';
 import { sortDirection } from './collection';
 import { matchesCatalogQuery } from './catalog-query';
 import { matchesProgressFilters } from './game-progress';
+import { collectionGameForId } from './catalog-identity';
 
 export function unrankedRecords(games: Game[], saved: Record<string, LibraryRecord>, online: LibraryRecord[]): LibraryRecord[] {
-  const curated = new Set(games.map((game) => game.slug));
   return [...new Map([...online, ...Object.values(saved)].map((record) => [record.id, record])).values()]
-    .filter((record) => !curated.has(record.id));
+    .filter((record) => !collectionGameForId(games, record.id));
 }
 
 export function filterUnranked(records: LibraryRecord[], filters: Filters, progress: Record<string, PersonalProgress>, onlineMatches: ReadonlySet<string> = new Set()): LibraryRecord[] {

@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import type { Filters, Game, SortOrder } from '../lib/types';
 import type { PersonalProgress } from '../lib/personal-types';
 import { criticColumns, formatAverage, sortDirection } from '../lib/collection';
@@ -19,9 +19,10 @@ interface RatingsTableProps {
   onOpen: (id: string) => void;
   onToggle: (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => void;
   onSort: (patch: Partial<Filters>) => void;
+  savedCopies?: (game: Game) => ReactNode;
 }
 
-export default function RatingsTable({ games, filters, progress, selecting, selected, busy, onSelect, onOpen, onToggle, onSort }: RatingsTableProps) {
+export default function RatingsTable({ games, filters, progress, selecting, selected, busy, onSelect, onOpen, onToggle, onSort, savedCopies }: RatingsTableProps) {
   const direction = sortDirection(filters);
   const sortedHeader = (label: string, sort: SortOrder, scale?: string) => {
     const active = filters.sort === sort || (sort === 'newest' && filters.sort === 'oldest');
@@ -61,7 +62,7 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
             <tr key={game.slug} data-game={game.slug} className={selected.has(game.slug) ? 'row-selected' : ''}>
               {selecting && <td className="selection-column"><label className="select-control"><input type="checkbox" checked={selected.has(game.slug)} onChange={() => onSelect(game.slug)} aria-label={`Select ${game.title}`} /></label></td>}
               <td className="table-rank">{String(game.rank).padStart(2, '0')}</td>
-              <th scope="row" className="table-game"><a href={`/${createSearch(filters, game.slug)}`} onClick={(event) => open(event, game.slug)}>{game.title}</a><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span></th>
+              <th scope="row" className="table-game"><a href={`/${createSearch(filters, game.slug)}`} onClick={(event) => open(event, game.slug)}>{game.title}</a><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
               <td>{game.year}</td>
               <td className="numeric-score table-author-rating" title={game.authorRating?.rawValue}>{game.authorRating ? authorRatingText(game.authorRating) : <span aria-label="Original author rating unavailable">—</span>}</td>
               {criticColumns.map(({ key }) => <td key={key} className="numeric-score">{game.critics[key] === null ? <span aria-label="Unavailable">—</span> : game.critics[key]}</td>)}

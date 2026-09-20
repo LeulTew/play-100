@@ -85,6 +85,16 @@ until one explicit, inline **Share all with friends** action.
   Seed browsing/search is public and independent of account/storage/provider
   readiness. Online lookup remains a bounded fallback, not an empty-page
   prerequisite. Exact source IDs, not similar titles, identify games.
+- The 100 is authoritative when a Discover result has a reviewed matching
+  provider identity. Discover includes all 100 even without a seed match;
+  matches reuse the original title/year/rank/author rating/cover, details and
+  canonical action ID. Deduplicate before local pagination and remote append,
+  retaining search aliases and explicit source provenance. Different games,
+  remakes and unverified editions stay separate. The reviewed crosswalk lives
+  outside the immutable collection/workbooks; it is not a fuzzy title merge.
+  Existing saved provider copies, private scores, notes, order and progress
+  remain intact and accessible, without migration or cloud/profile backfill.
+  See `docs/discovery-sources.md` for the bounded implementation and evidence.
 - Original and enhanced XLSX downloads, clearly distinguished from private data.
 - Two optional collection films use first-party, content-hashed media after the
   collection, never an autoplaying landing-page takeover. MP4 requests begin only

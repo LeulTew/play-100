@@ -131,7 +131,7 @@ export function searchText(text: string): string {
   return text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-export function filterGames(games: Game[], filters: Filters, progress: Progress): Game[] {
+export function filterGames(games: Game[], filters: Filters, progress: Progress, catalogMatches: ReadonlySet<string> = new Set()): Game[] {
   const terms = searchText(filters.q).split(' ').filter(Boolean);
   const selected = games.filter((game) => {
     if (filters.genre && game.genre !== filters.genre) return false;
@@ -141,7 +141,7 @@ export function filterGames(games: Game[], filters: Filters, progress: Progress)
     if (!matchesProgressFilters(state, filters)) return false;
     const searchable = searchText(`${game.title} ${game.studio} ${game.genre} ${game.year}`);
     const words = searchable.split(' ');
-    return terms.every((term) => /^\d+$/.test(term) ? words.includes(term) : searchable.includes(term));
+    return catalogMatches.has(game.slug) || terms.every((term) => /^\d+$/.test(term) ? words.includes(term) : searchable.includes(term));
   });
   const sign = sortDirection(filters) === 'asc' ? 1 : -1;
   return selected.sort((a, b) => {

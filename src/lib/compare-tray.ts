@@ -1,5 +1,6 @@
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
+import { canonicalCatalogId } from './catalog-identity';
 
 export const COMPARE_TRAY_LIMIT = 6;
 export const COMPARE_TRAY_MAX_BYTES = 24_576;
@@ -150,7 +151,7 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
         publish({ ...snapshot, error: message(error), status: message(error) });
         return false;
       }
-      if (snapshot.items.some((item) => item.id === valid.id)) {
+      if (snapshot.items.some((item) => canonicalCatalogId(item.id) === canonicalCatalogId(valid.id))) {
         if (!snapshot.persistent && !protectedStorage) return save(snapshot.items, `${valid.title} is already pinned.`);
         publish({ ...snapshot, error: null, status: `${valid.title} is already pinned.` });
         return true;
@@ -164,9 +165,10 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
     },
     unpin(id: string): boolean {
       if (!isCurrent()) return false;
-      const record = snapshot.items.find((item) => item.id === id);
+      const record = snapshot.items.find((item) => item.id === id) ??
+        snapshot.items.find((item) => canonicalCatalogId(item.id) === canonicalCatalogId(id));
       if (!record) return false;
-      return save(snapshot.items.filter((item) => item.id !== id), `${record.title} unpinned from comparison.`);
+      return save(snapshot.items.filter((item) => item.id !== record.id), `${record.title} unpinned from comparison.`);
     },
     clear(): boolean {
       if (!isCurrent()) return false;

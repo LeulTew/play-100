@@ -23,9 +23,10 @@ interface GameCardProps {
   busy?: boolean;
   onSelect?: (id: string) => void;
   compareActions?: ReactNode;
+  savedCopies?: ReactNode;
 }
 
-export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCompleted, eager, selecting, selected, busy, onSelect, compareActions }: GameCardProps) {
+export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCompleted, eager, selecting, selected, busy, onSelect, compareActions, savedCopies }: GameCardProps) {
   return (
     <article className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
       <a
@@ -49,6 +50,7 @@ export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCom
         </div>
       </a>
       <div className="card-played"><PlayedToggle id={game.slug} title={game.title} played={Boolean(state?.played)} completed={state?.completed} busy={busy} compact onChange={value => onPlayed(game.slug, value)} /><CompletedToggle title={game.title} completed={Boolean(state?.completed)} busy={busy} onChange={value => onCompleted(game.slug, value)} />{compareActions && <div className="card-compare-actions">{compareActions}</div>}</div>
+      {savedCopies}
       {selecting && <label className="select-control card-selection"><input type="checkbox" checked={Boolean(selected)} onChange={() => onSelect?.(game.slug)} aria-label={`Select ${game.title}`} /></label>}
       <button
         className={`save-game icon-button ${state?.later ? 'is-saved' : ''}`}

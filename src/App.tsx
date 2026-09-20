@@ -30,6 +30,8 @@ import type { CatalogArtwork } from './lib/discovery-catalog';
 import { createComparisonGameFilter, rememberComparisonGameFilter } from './lib/comparison-game-filter';
 import { comparisonScope, initialComparison, readComparisonView, rememberComparisonView } from './lib/friend-comparison-intent';
 import type { PreviewAuthority } from './lib/preview-authority';
+import { canonicalCatalogId, catalogActionRecord, catalogOwnership, catalogPinnedIds, collectionGameForId, resolveCatalogRecord } from './lib/catalog-identity';
+import { SavedCatalogCopies } from './components/catalog/SavedCatalogCopies';
 
 const MyGamesPage = lazy(() => import('./components/personal/MyGamesPage'));
 const CatalogDetail = lazy(() => import('./components/personal/CatalogDetail'));
@@ -91,7 +93,7 @@ export default function App() {
   const currentOnline = useRef(online); currentOnline.current = online;
   const onlineOpening = ONLINE_AVAILABLE && (hintChecking || Boolean(hintError) || (onlineRequested && online === null) || Boolean(online?.loading));
   const library = online?.controller ?? guestLibrary;
-  const libraryBusy = library.busy || onlineOpening;
+  const libraryBusy = library.busy || library.status === 'loading' || onlineOpening;
   const libraryScope = online?.scope ?? 'guest';
   const headerIdentity = online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
   const activeScope = useRef(libraryScope);
@@ -118,15 +120,20 @@ export default function App() {
   const { share, manualLink, closeManualLink, sharing } = useShare(notify);
   const games = collection.data?.games;
   const allRecords = useMemo(() => new Map([...Object.values(library.state.records), ...canonicalRecords].map((record) => [record.id, record])), [library.state.records, canonicalRecords]);
-  const selectedGame = games?.find((game) => game.slug === selectedSlug);
+  const ownership = useMemo(() => catalogOwnership(library.state.records), [library.state.records]);
   const transientPreview = selectedSlug && previewedRecords.scope === libraryScope ? previewedRecords.records.get(selectedSlug) : undefined;
+  const publicCatalogAlias = Boolean(selectedSlug && ['collection', 'discover'].includes(page) && !library.state.records[selectedSlug] && !transientPreview?.authority);
+  const selectedGame = games?.find((game) => game.slug === selectedSlug) ??
+    (selectedSlug && publicCatalogAlias ? collectionGameForId(games ?? [], selectedSlug) : undefined);
   const previewPermitted = useSyncExternalStore(transientPreview?.authority?.subscribe ?? noPreviewSubscription,
     () => !transientPreview?.authority || transientPreview.authority.scope === libraryScope && transientPreview.authority.permits(transientPreview.record.id),
     () => false);
-  const selectedRecord = selectedSlug ? allRecords.get(selectedSlug) ?? (previewPermitted ? transientPreview?.record : undefined) : undefined;
+  const awaitingCanonicalPreview = Boolean(publicCatalogAlias && selectedSlug && canonicalCatalogId(selectedSlug) !== selectedSlug && collection.status !== 'ready');
+  const selectedRecord = selectedGame ? recordFromGame(selectedGame) : !awaitingCanonicalPreview && selectedSlug ? allRecords.get(selectedSlug) ?? (previewPermitted ? transientPreview?.record : undefined) : undefined;
+  const selectedPersonalRecord = selectedGame && selectedRecord ? catalogActionRecord(selectedRecord, ownership) : selectedRecord;
   const savedCount = library.state.queueOrder.length;
   const completedCount = Object.values(library.state.progress).filter((value) => value.completed).length;
-  const rankingPosition = selectedSlug ? library.state.ranking.findIndex((entry) => entry.id === selectedSlug) + 1 : 0;
+  const rankingPosition = selectedPersonalRecord ? library.state.ranking.findIndex((entry) => entry.id === selectedPersonalRecord.id) + 1 : 0;
   const saveAction = library.perform;
   const storageStatus = library.status;
   useEffect(() => {
@@ -160,9 +167,10 @@ export default function App() {
   }, [libraryScope]);
   const preview = useCallback((record: LibraryRecord, authority?: PreviewAuthority) => {
     if (authority && (authority.scope !== libraryScope || !authority.permits(record.id))) { notify('This shared game is no longer available.'); return; }
-    rememberPreview(record, authority);
-    openGame(record.id);
-  }, [openGame, rememberPreview, libraryScope, notify]);
+    const resolved = !authority && !library.state.records[record.id] ? resolveCatalogRecord(record, games ?? []) : record;
+    rememberPreview(resolved, authority);
+    openGame(resolved.id);
+  }, [openGame, rememberPreview, libraryScope, notify, games, library.state.records]);
   useEffect(() => {
     if (!transientPreview?.authority || previewPermitted) return;
     setPreviewedRecords((previous) => {
@@ -218,13 +226,14 @@ export default function App() {
     void share(title, createShareUrl(window.location.origin, filters, slug), filters.list !== 'all');
   };
   const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
-    const record = allRecords.get(id);
+    const target = allRecords.get(id);
+    const record = target && catalogActionRecord(target, ownership);
     if (record) void perform(value === undefined ? { type: 'toggle-progress', record, key } : { type: 'set-progress', records: [record], key, value });
   };
   const rankSelected = () => {
-    if (!selectedRecord) return;
+    if (!selectedPersonalRecord) return;
     if (rankingPosition) navigate('rankings');
-    else void perform({ type: 'add-ranking', records: [selectedRecord] });
+    else void perform({ type: 'add-ranking', records: [selectedPersonalRecord] });
   };
   const compareGames = async (records: LibraryRecord[]) => {
     const startedScope = scopeGeneration.current;
@@ -255,7 +264,7 @@ export default function App() {
 
   return (
     <CompareTrayProvider scope={libraryScope}><CompareTrayBindings needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)} previewId={selectedSlug} onResolvePreview={rememberPreview}>{(tray, artwork, previewLoading) => {
-      const pinnedIds = new Set(tray.items.map((record) => record.id));
+      const pinnedIds = catalogPinnedIds(tray.items);
       const pin = (record: LibraryRecord) => {
         if (onlineOpening || activeScope.current !== libraryScope) { notify('Wait for the correct account before pinning a game.'); return false; }
         return tray.pin(record);
@@ -285,7 +294,7 @@ export default function App() {
       <main id="page-main">
         {ONLINE_AVAILABLE && (onlineRequested || cloudPage) && <OnlineBoundary onDevice={() => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); }}><Suspense fallback={cloudPage ? <div className="page-loading" role="status"><h1>Loading...</h1></div> : panel === 'account' ? <Dialog open titleId="loading-account-title" onClose={() => setPanel(null)} className="info-dialog"><h2 id="loading-account-title" data-autofocus tabIndex={-1}>Opening sign-in...</h2></Dialog> : null}><OnlineController page={page} publicHandle={publicHandle} invitation={invitation} showSheet={panel === 'account'} guest={guestLibrary} games={games ?? []} onBridge={setOnline} onCloseSheet={() => setPanel(null)} onNavigate={navigate} onProfile={openProfile} onOpenRecord={preview} onShare={(title, url) => { void share(title, url, false); }} onPinRecord={pin} artwork={artwork} /></Suspense></OnlineBoundary>}
         {cloudPage && !ONLINE_AVAILABLE ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : !cloudPage && <Suspense fallback={<div className="page-loading" role="status"><h2>Opening your page...</h2><p>Your games stay right where you left them.</p></div>}><div key={libraryScope}>
-          {privateLoading ? <div className="page-loading" role="status"><h2>Opening your saved library...</h2><p>Waiting for the correct guest or account scope before allowing edits.</p></div> : personalPage === 'library' || personalPage === 'rankings' ? <MyGamesPage friendSharing={libraryScope !== 'guest' ? online?.friendSharing : undefined} scope={libraryScope} view={gamesView} onViewChange={changeGamesView} state={library.state} filters={filters} busy={libraryBusy} animate={capabilities.animate} onFilters={updateFilters} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} onBrowse={() => navigate('collection')} availableRecords={[...allRecords.values()]} persistent={library.status === 'ready'} onPublish={ONLINE_AVAILABLE ? () => navigate('publish') : undefined} onPin={pin} onUnpin={tray.unpin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : page === 'discover' ? <DiscoverPage state={library.state} busy={libraryBusy} onAction={perform} onLibrary={() => navigate('games')} onCommunity={ONLINE_AVAILABLE ? () => navigate('community') : undefined} onPreview={preview} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : <CollectionPage collection={collection} state={library.state} filters={filters} busy={libraryBusy} motion={effectiveMotion} animate={capabilities.animate} reducedMotion={capabilities.reducedMotion} coarsePointer={capabilities.coarsePointer} constrained={capabilities.constrained} onFilters={updateFilters} onAction={perform} onOpen={openGame} onPreview={preview} onShare={() => shareView()} onFullLibrary={() => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' })} notify={notify} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} />}
+          {privateLoading ? <div className="page-loading" role="status"><h2>Opening your saved library...</h2><p>Waiting for the correct guest or account scope before allowing edits.</p></div> : personalPage === 'library' || personalPage === 'rankings' ? <MyGamesPage friendSharing={libraryScope !== 'guest' ? online?.friendSharing : undefined} scope={libraryScope} view={gamesView} onViewChange={changeGamesView} state={library.state} filters={filters} busy={libraryBusy} animate={capabilities.animate} onFilters={updateFilters} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} onBrowse={() => navigate('collection')} availableRecords={[...allRecords.values()]} persistent={library.status === 'ready'} onPublish={ONLINE_AVAILABLE ? () => navigate('publish') : undefined} onPin={pin} onUnpin={tray.unpin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : page === 'discover' ? <DiscoverPage collection={collection} state={library.state} busy={libraryBusy} onAction={perform} onLibrary={() => navigate('games')} onCommunity={ONLINE_AVAILABLE ? () => navigate('community') : undefined} onPreview={preview} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : <CollectionPage collection={collection} state={library.state} filters={filters} busy={libraryBusy} motion={effectiveMotion} animate={capabilities.animate} reducedMotion={capabilities.reducedMotion} coarsePointer={capabilities.coarsePointer} constrained={capabilities.constrained} onFilters={updateFilters} onAction={perform} onOpen={openGame} onPreview={preview} onShare={() => shareView()} onFullLibrary={() => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' })} notify={notify} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} />}
         </div></Suspense>}
       </main>
       <SiteFooter onAbout={() => setPanel('about')} onEffects={() => setPanel('settings')} effects={library.state.motion} />
@@ -297,10 +306,11 @@ export default function App() {
         <button onClick={() => setPanel('settings')}><Icon name="sliders" width="20" height="20" /><span>Settings</span></button>
       </nav>
       <CompareTray onCompare={(records) => { void compareGames(records); }} onPreview={preview} resolveArtwork={(record) => artwork.get(record.id)} animate={capabilities.animate} hidden={onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink)} />
-      {selectedGame && !onlineOpening && <GameDetail key={libraryScope} game={selectedGame} state={library.state.progress[selectedGame.slug]} previous={games?.[selectedGame.rank - 2]} next={games?.[selectedGame.rank]} onClose={closeGame} onOpen={openGame} onToggle={toggle} onShare={() => shareView(selectedGame.slug)} shareFeedback={notice || library.error || ''} busy={libraryBusy} played={library.state.progress[selectedGame.slug]?.played}       onPlayed={value => toggle(selectedGame.slug, 'played', value)} rankingPosition={rankingPosition || null} onRank={rankSelected} personalRating={library.state.ranking.find((entry) => entry.id === selectedGame.slug)?.score ?? null} onRate={(score) => perform({ type: 'rate-game', record: recordFromGame(selectedGame), score })} />}
+      {selectedGame && selectedPersonalRecord && !onlineOpening && <GameDetail key={`${libraryScope}:${selectedPersonalRecord.id}`} game={selectedGame} state={library.state.progress[selectedPersonalRecord.id]} previous={games?.[selectedGame.rank - 2]} next={games?.[selectedGame.rank]} onClose={closeGame} onOpen={openGame} onToggle={toggle} onShare={() => shareView(selectedGame.slug)} shareFeedback={notice || library.error || ''} busy={libraryBusy} played={library.state.progress[selectedPersonalRecord.id]?.played} onPlayed={value => toggle(selectedGame.slug, 'played', value)} rankingPosition={rankingPosition || null} onRank={rankSelected} personalRating={library.state.ranking.find((entry) => entry.id === selectedPersonalRecord.id)?.score ?? null} onRate={(score) => perform({ type: 'rate-game', record: selectedPersonalRecord, score })} savedCopies={<SavedCatalogCopies canonicalId={selectedGame.slug} copies={ownership.get(selectedGame.slug)} onOpen={record => openGame(record.id)} />} />}
       {!selectedGame && selectedRecord && !onlineOpening && <Suspense fallback={null}><CatalogDetail key={`${libraryScope}:${selectedRecord.id}`} record={selectedRecord} saved={Boolean(library.state.records[selectedRecord.id])} progress={library.state.progress[selectedRecord.id]} rankingPosition={rankingPosition || null} rating={library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null} busy={libraryBusy} onClose={closeGame} onAction={performDetailAction} onRankings={() => navigate('rankings')} /></Suspense>}
-      {selectedSlug && previewLoading && !selectedRecord && !onlineOpening && <Dialog open titleId="loading-game-title" onClose={closeGame} className="info-dialog"><h2 id="loading-game-title" data-autofocus tabIndex={-1}>Opening game...</h2><p role="status">Looking up its public catalog metadata.</p></Dialog>}
-      {selectedSlug && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
+      {selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening && <Dialog open titleId="loading-game-title" onClose={closeGame} className="info-dialog"><h2 id="loading-game-title" data-autofocus tabIndex={-1}>Opening game...</h2><p role="status">Looking up its public catalog metadata.</p></Dialog>}
+      {awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening && <Dialog open titleId="canonical-game-error-title" onClose={closeGame} className="info-dialog"><h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>The original game could not load.</h2><p>{collection.error} Your saved records have not changed.</p><button className="button button-dark" onClick={collection.retry}>Reload The 100</button></Dialog>}
+      {selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
       {panel === 'about' && <AboutDialog onClose={() => {
         setPanel(null);
         const params = new URLSearchParams(location.search);

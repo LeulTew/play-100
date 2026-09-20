@@ -5,6 +5,7 @@ import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { author } from '../../lib/author';
+import { CATALOG_EDITION_HINTS } from '../../lib/collection-identities';
 
 export default function CatalogDetail({ record, saved, progress, rankingPosition, rating, busy, onClose, onAction, onRankings }: {
   record: LibraryRecord; saved: boolean; progress: PersonalProgress | undefined; rankingPosition: number | null; rating: number | null; busy: boolean;
@@ -14,6 +15,7 @@ export default function CatalogDetail({ record, saved, progress, rankingPosition
     <Dialog open titleId="catalog-game-title" onClose={onClose} className="info-dialog">
       <h2 id="catalog-game-title" data-autofocus tabIndex={-1}>{record.title}</h2>
       <p className="dialog-lead">{SOURCE_LABELS[record.source]}{record.collectionRank !== null ? ` · original rank #${record.collectionRank}` : ` · Unranked in ${author.shortName}'s collection`}</p>
+      {CATALOG_EDITION_HINTS.has(record.id) && <p className="section-help">{CATALOG_EDITION_HINTS.get(record.id)}</p>}
       <div className="catalog-art" aria-hidden="true"><Icon name="stack" width="47" height="47" /><span>Game details</span></div>
       <dl className="catalog-facts"><div><dt>Year</dt><dd>{record.year ?? 'Not provided'}</dd></div><div><dt>Studio</dt><dd>{record.studio ?? 'Not provided'}</dd></div><div><dt>Genre</dt><dd>{record.genre ?? 'Not provided'}</dd></div></dl>
       {record.sourceUrl && <a className="catalog-source-link" href={record.sourceUrl} target="_blank" rel="noreferrer">View on {SOURCE_LABELS[record.source]}<Icon name="up-right" width="17" height="17" /></a>}

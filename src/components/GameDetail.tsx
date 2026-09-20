@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import type { Game, GameProgress } from '../lib/types';
 import { criticColumns, formatAverage } from '../lib/collection';
 import { Dialog } from './Dialog';
@@ -26,9 +27,10 @@ interface GameDetailProps {
   onRank?: () => void;
   personalRating: number | null;
   onRate: (score: number | null) => Promise<boolean>;
+  savedCopies?: ReactNode;
 }
 
-export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank, personalRating, onRate }: GameDetailProps) {
+export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank, personalRating, onRate, savedCopies }: GameDetailProps) {
   const mode = useLibraryMode();
   const topRef = useRef<HTMLDivElement>(null);
   const lastSlug = useRef(game.slug);
@@ -50,6 +52,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
         {game.slug === 'hitman-world-of-assassination' && <p className="source-note">Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.</p>}
         <p className="detail-genre">{game.genre}</p>
+        {savedCopies}
         <div className="detail-actions">
           <button className={`button ${state?.later ? 'button-lime' : 'button-dark'}`} disabled={busy} aria-pressed={Boolean(state?.later)} onClick={() => onToggle(game.slug, 'later')}>
             <Icon name="bookmark" />{state?.later ? 'Saved for later' : 'Play later'}

@@ -61,6 +61,92 @@ separate; no original is enlarged.
   lazily with the supplied intrinsic dimensions; missing or failed art needs an
   honest fallback. Artwork and provenance never enter personal/cloud records.
 
+## Canonical-first browsing contract
+
+User request (2026-09-20): searching Discover for a game in The 100 should bring
+the entry from The 100, not another saveable provider copy. This is an identity
+correction, not a new collection or a private-library migration.
+
+- `src/lib/collection-identities.ts` separately lists reviewed Wikidata
+  game-entity IDs and canonical slugs. `catalog-identity.ts` resolves public
+  catalog records before filtering, local pagination, counts, selection and
+  remote append. It does not rewrite the provider wire format or seed manifest.
+- Discover searches all 100 canonical records, including titles absent from
+  the seed. Provider titles/aliases continue to find verified canonical entries.
+  The canonical record supplies its title, year, original genre/studio, rank,
+  original author rating, workbook cover and full GameDetail. Source filtering
+  identifies where a match was found, not permission to replace authored facts.
+- One result per resolved identity. New Save, Played, Completed, Play later,
+  rating, ranking, bulk selection, Pin/drag and Preview use the same canonical
+  ID as The 100. Provider page offsets/status still describe the provider
+  response; deduplication is not a fabricated exhaustive remote count.
+- Cards use the existing responsive discovery grid/list and original GameCover,
+  a short "From The 100" rank/rating line, and existing labelled actions.
+  Unknown games retain provider artwork/credits and explicit missing-art state.
+  No new modal stack, gesture requirement, animation or full-size art preload.
+- Existing saved provider records are never rekeyed, deleted, merged, or given
+  copied scores/progress. They remain in My games/backups under their original
+  IDs; a saved-copy link distinguishes an old private copy from the public
+  canonical result. Old saved-record links continue to open that record.
+  Unsaved verified provider preview links can open canonical details.
+  When only a verified provider copy is owned, the canonical presentation says
+  Saved and its personal controls/bulk actions bind to that existing record.
+  This applies to canonical details and main cards/table too: no implicit
+  second private record from Played, Queue, rating or ranking. If both copies
+  exist, canonical controls use the canonical record, with a separate explicit
+  saved-copy link for the old opinion. This is a derived view, not value merging.
+  Pin/drag recognizes either known identity already in the scoped tray and does
+  not spend another slot; persisted pins are not silently rekeyed or deleted.
+- Unknown IDs and distinct originals/remakes/editions/sequels remain separate.
+  Friends/public projections, authorization, comparison exact-ID semantics,
+  private schema3, backup/import formats, All rules and invitations are unchanged.
+  Canonical resolution must not turn a revoked friend-shelf preview into a
+  public or writable record.
+- Canonical loading/error and seed/provider loading/offline/retry states remain
+  explicit. Public discovery never guesses a match while the canonical data is
+  unavailable. A source failure must not replace authored metadata or mutate a
+  saved library. Query, filters, paging, Back and reload keep their URL contract.
+
+### Reviewed identity evidence and deliberate exclusions
+
+On 2026-09-20, bounded public Wikidata `wbgetentities` requests verified the
+English game article, entity classification, description and release claims for
+99 canonical entries. Each row's source is
+`https://www.wikidata.org/wiki/<Q-id>`; the registry is the complete enumeration.
+Raw API receipts are retained with the release evidence, not deployed.
+English article lookup alone is insufficient: The Last of Us, Mass Effect,
+Control and Knights of the Old Republic initially returned franchises or
+disambiguation pages and were replaced with the verified **game** entities.
+Null/multiple provider release years do not replace the author's original year.
+
+Explicit examples: Resident Evil 4 (2023) `Q112231148`, not original `Q275950`;
+Tomb Raider (2013) `Q1757876`, not 1996 `Q317620`; Battlefront II (2017)
+`Q29154231`, not 2005 `Q54865`; Overwatch (2016) `Q18515944`, **not**
+FreeToGame540's 2022 game. The sheet's Hitman World of Assassination (2016)
+has no asserted provider mapping because its title/year do not unambiguously
+identify a single edition. It remains directly searchable as an original100
+entry. No FreeToGame equivalence is asserted without reviewed evidence.
+
+The 65 verified seed overlaps yield **845 public identities** (100+810-65), not
+910 cards and not a claim of exhaustive provider coverage. The classic RE4
+entity's English article/description and 2005 release claims were checked
+separately; its "2005 original" card/detail hint distinguishes it from the
+curated 2023 remake. This is presentation-only: its source year remains null
+because the provider has multiple release years, and no saved metadata changes.
+
+| Requirement | Code boundary | Actual evidence |
+| --- | --- | --- |
+| Verified identity, editions preserved | Separate registry and pure resolver | 99 actual Q7889/article matches, 65 seed overlaps; pure all-100 findability and exact edition exclusions |
+| Canonical facts/actions, deduped paging | Public search hooks/cards | 16 desktop/mobile compiled-client journeys: canonical facts/actions/bulks, source aliases, paging, late replies, cold loading, error/retry and seed outage |
+| Private copies and restricted previews preserved | Public-only resolution, existing private paths | Legacy-only and conflicting-copy runtime mutations preserve old IDs/notes; nested confirmation/focus and equivalent Pin/Unpin; 226 focused pure cases including unchanged shelf/preview contracts |
+
+TypeScript and all touched-file lint pass. The first cold-owned-copy browser
+case exposed sibling React keys reused for Played/rating; distinct stable keys
+fixed the duplicate control. Fixture selectors were scoped to the actual bulk,
+combobox and modal controls without weakening final state assertions. The
+existing font/cover system is preserved; stale design-sidecar font-ramp warnings
+do not justify an unrelated visual redesign. No new SDK/rules rollout is needed.
+
 ## Explicit commands
 
 Run from the isolated checkout with the existing `tsx`, `sharp` and TypeScript

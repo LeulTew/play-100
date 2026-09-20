@@ -4,24 +4,27 @@ import { DISCOVERY_PAGE_SIZE, searchDiscoveryItems, shouldSearchOnline } from '.
 import { useDiscoveryCatalog } from './useDiscoveryCatalog';
 import { useCatalogSearch } from './useCatalogSearch';
 import { matchesProgress } from '../lib/game-progress';
-import type { PersonalProgress } from '../lib/personal-types';
+import type { PersonalLibraryState } from '../lib/personal-types';
+import type { Game } from '../lib/types';
+import { catalogOwnership, catalogPageRecords, catalogProgress, catalogSearchItems, resolveCatalogRecords } from '../lib/catalog-identity';
 
-export function useDiscoverSearch(filters: DiscoveryFilters, progress: Record<string, PersonalProgress>) {
+export function useDiscoverSearch(filters: DiscoveryFilters, games: readonly Game[], canonicalReady: boolean, state: PersonalLibraryState) {
   const seed = useDiscoveryCatalog(true);
   const { q, source, genre, year } = filters;
   const progressView = filters.progress ?? 'all';
-  const local = useMemo(() => seed.catalog ? searchDiscoveryItems(seed.catalog.items, { q, source, genre, year }).filter(item => matchesProgress(progress[item.record.id], progressView)) : [],
-    [seed.catalog, q, source, genre, year, progress, progressView]);
-  const remoteEnabled = shouldSearchOnline(filters.q, filters.catalogs === 'on' && progressView === 'all', seed.status, local.length, filters.online === 'on');
-  const remote = useCatalogSearch(filters.q, remoteEnabled, filters.source, filters.offset);
-  const remoteRecords = remote.records.filter((record) =>
+  const ownership = useMemo(() => catalogOwnership(state.records), [state.records]);
+  const progress = useMemo(() => catalogProgress(state, ownership), [state, ownership]);
+  const items = useMemo(() => canonicalReady ? catalogSearchItems(games, seed.catalog?.items ?? []) : [], [canonicalReady, games, seed.catalog]);
+  const local = useMemo(() => searchDiscoveryItems(items, { q, source, genre, year }).filter(item => matchesProgress(progress[item.record.id], progressView)),
+    [items, q, source, genre, year, progress, progressView]);
+  const remoteEnabled = shouldSearchOnline(filters.q, canonicalReady && source !== 'collection' && filters.catalogs === 'on' && progressView === 'all', seed.status, local.length, filters.online === 'on');
+  const remote = useCatalogSearch(filters.q, remoteEnabled, source === 'collection' ? 'all' : source, filters.offset);
+  const remoteRecords = (canonicalReady ? resolveCatalogRecords(remote.records, games) : []).filter((record) =>
     matchesProgress(progress[record.id], progressView) && (!filters.genre || record.genre === filters.genre) && (!filters.year || record.year === Number(filters.year)));
   const localOffset = filters.online === 'on' ? 0 : filters.offset;
-  const localPage = local.slice(localOffset, localOffset + DISCOVERY_PAGE_SIZE);
-  const visibleLocalIds = new Set(localPage.map((item) => item.record.id));
-  const records = [...localPage.map((item) => item.record), ...remoteRecords.filter((record) => !visibleLocalIds.has(record.id))];
+  const records = catalogPageRecords(local, remoteRecords, localOffset, DISCOVERY_PAGE_SIZE);
   const artwork = useMemo(() => new Map(seed.catalog?.items.map((item) => [item.record.id, item.artwork]) ?? []), [seed.catalog]);
   return {
-    seed, local, records, artwork, remote, remoteEnabled,
+    seed, local, records, artwork, remote, remoteEnabled, items, ownership,
   };
 }
