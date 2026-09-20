@@ -29,8 +29,8 @@ test.use({ baseURL: origin, trace: 'off', serviceWorkers: 'block' });
 test.setTimeout(90_000);
 
 function fixture() {
-  if (origin !== 'http://127.0.0.1:4199' || manifest?.status !== 'READY' || !lane?.ready || lane.actors.length !== 6 || lane.actors.some(actor => !actor.verified)) {
-    throw new Error('Use only the verified six-actor B cohort on the owned loopback port4199.');
+  if (!['http://127.0.0.1:4187', 'http://127.0.0.1:4199'].includes(origin) || manifest?.status !== 'READY' || !lane?.ready || lane.actors.length !== 6 || lane.actors.some(actor => !actor.verified)) {
+    throw new Error('Use only the verified six-actor B cohort on the allocated primary4187 or worker4199 loopback app.');
   }
   const owner = lane.actors.find(actor => actor.label === 'B-owner');
   if (!owner) throw new Error('The allocated B owner is missing.');
@@ -38,8 +38,9 @@ function fixture() {
 }
 
 async function guard(context: BrowserContext) {
+  fixture();
   const blocked: string[] = [];
-  const allowed = (url: URL) => ['127.0.0.1', 'localhost'].includes(url.hostname) && ['4199', '8188', '9199'].includes(url.port);
+  const allowed = (url: URL) => ['127.0.0.1', 'localhost'].includes(url.hostname) && [new URL(origin).port, '8188', '9199'].includes(url.port);
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     if (allowed(url)) return route.continue();
