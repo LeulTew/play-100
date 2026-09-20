@@ -97,6 +97,15 @@ correction, not a new collection or a private-library migration.
   saved-copy link for the old opinion. This is a derived view, not value merging.
   Pin/drag recognizes either known identity already in the scoped tray and does
   not spend another slot; persisted pins are not silently rekeyed or deleted.
+  The private Ranking Add games picker follows the same owned-record binding.
+  It offers one choice per effective add target before search/result limits,
+  preserves the owned record's metadata, and searches both its saved title and
+  the reviewed canonical title. Already-ranked targets are labelled and
+  disabled. A saved unranked provider copy is ranked under its existing ID.
+  Both already-owned copies remain independently available; unknown same-title
+  manual games remain distinct. Late canonical data cannot hide owned choices
+  or implicitly create another record. No private migration or global action
+  remapping is involved.
 - Unknown IDs and distinct originals/remakes/editions/sequels remain separate.
   Friends/public projections, authorization, comparison exact-ID semantics,
   private schema3, backup/import formats, All rules and invitations are unchanged.
@@ -139,6 +148,7 @@ because the provider has multiple release years, and no saved metadata changes.
 | Verified identity, editions preserved | Separate registry and pure resolver | 99 actual Q7889/article matches, 65 seed overlaps; pure all-100 findability and exact edition exclusions |
 | Canonical facts/actions, deduped paging | Public search hooks/cards | 16 desktop/mobile compiled-client journeys: canonical facts/actions/bulks, source aliases, paging, late replies, cold loading, error/retry and seed outage |
 | Private copies and restricted previews preserved | Public-only resolution, existing private paths | Legacy-only and conflicting-copy runtime mutations preserve old IDs/notes; nested confirmation/focus and equivalent Pin/Unpin; 226 focused pure cases including unchanged shelf/preview contracts |
+| Private Ranking picker reuses an owned identity | `catalogPickerChoices`, `AddGamesPanel`, current scoped records | 7 new projection cases within 250 focused identity/private-model tests; 12 desktop/touch picker cases (including controlled late-prop boundaries) plus 12 affected public-ownership/P1/Menu regressions. No SDK or production-data mutation needed. |
 
 TypeScript and all touched-file lint pass. The first cold-owned-copy browser
 case exposed sibling React keys reused for Played/rating; distinct stable keys

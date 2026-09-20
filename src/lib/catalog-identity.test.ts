@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { parseCollection } from './collection';
 import { parseDiscoveryCatalog } from './discovery-catalog';
 import { CATALOG_EDITION_HINTS, COLLECTION_IDENTITIES } from './collection-identities';
-import { canonicalCatalogId, catalogActionRecord, catalogOwnership, catalogPageRecords, catalogPinnedIds, catalogProgress, catalogSearchItems, collectionGameForId, resolveCatalogRecord, resolveCatalogRecords } from './catalog-identity';
+import { canonicalCatalogId, catalogActionRecord, catalogOwnership, catalogPageRecords, catalogPickerChoices, catalogPinnedIds, catalogProgress, catalogSearchItems, collectionGameForId, resolveCatalogRecord, resolveCatalogRecords } from './catalog-identity';
 import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch, searchDiscoveryItems } from './discovery-search';
 import { recordFromGame } from './personal-types';
 import type { LibraryRecord, PersonalAction } from './personal-types';
@@ -172,5 +172,62 @@ describe('bounded tray identity without migration or opinion fields', () => {
     expect(store.getSnapshot().items).toHaveLength(2);
     expect(store.unpin(second.id)).toBe(true);
     expect(store.getSnapshot().items).toEqual([unknown]);
+  });
+
+  describe('private ranking picker effective identities', () => {
+    it('offers the canonical target once for fresh known duplicates before a consumer applies result limits', () => {
+      expect(catalogPickerChoices([canonical, provider, canonical, ...games.slice(1).map(recordFromGame)], {}))
+        .toHaveLength(100);
+      expect(catalogPickerChoices([provider, canonical], {}).map(choice => choice.record)).toEqual([canonical]);
+    });
+    it('keeps the unique owned alias as the single already-ranked candidate without changing an opinion', () => {
+      let state = applyPersonalAction(initial(), { type: 'add-ranking', records: [provider] });
+      state = applyPersonalAction(state, { type: 'edit-ranking', id: provider.id, score: 8.5, note: 'Keep this existing opinion.' });
+      const before = JSON.stringify(state);
+      const choices = catalogPickerChoices([canonical, provider], state.records);
+      expect(choices.map(choice => choice.record.id)).toEqual([provider.id]);
+      expect(state.ranking.some(entry => entry.id === choices[0]?.record.id)).toBe(true);
+      expect(choices[0]?.record).toBe(state.records[provider.id]);
+      expect(JSON.stringify(state)).toBe(before);
+    });
+    it('adds only the existing alias opinion when the owned game is not ranked', () => {
+      const before = applyPersonalAction(initial(), { type: 'set-progress', records: [provider], key: 'later', value: true });
+      const target = catalogPickerChoices([canonical], before.records)[0]!.record;
+      const after = applyPersonalAction(before, { type: 'add-ranking', records: [target] });
+      expect(after.records).toEqual(before.records);
+      expect(after.progress).toEqual(before.progress);
+      expect(after.queueOrder).toEqual(before.queueOrder);
+      expect(after.ranking).toEqual([{ id: provider.id, score: null, note: '', manualPosition: null }]);
+      expect(after.records[canonical.id]).toBeUndefined();
+    });
+    it('preserves both explicitly owned copies, including their own metadata, instead of merging them', () => {
+      const legacy = { ...provider, title: 'Saved Western Adventure', studio: 'Saved source studio' };
+      const owned = { [canonical.id]: canonical, [legacy.id]: legacy };
+      const choices = catalogPickerChoices([canonical, provider], owned);
+      expect(choices.map(choice => choice.record)).toEqual([canonical, legacy]);
+      for (const choice of choices) expect(choice.titles).toEqual(expect.arrayContaining([canonical.title, legacy.title]));
+      expect(owned[legacy.id]).toBe(legacy);
+    });
+    it('keeps unknown same-title manual records and genuine distinct editions separate', () => {
+      expect(catalogPickerChoices([canonical], { [unknown.id]: unknown }).map(choice => choice.record.id)).toEqual([unknown.id, canonical.id]);
+      const remake = recordFromGame(games.find(game => game.slug === 'resident-evil-4')!);
+      const original = seed.items.find(item => item.record.id === 'wikidata:Q275950')!.record;
+      expect(catalogPickerChoices([remake], { [original.id]: original }).map(choice => choice.record.id)).toEqual([original.id, remake.id]);
+    });
+    it('retains owned metadata before and after late canonical availability, with both search titles', () => {
+      const legacy = { ...provider, title: 'Saved Western Adventure', studio: 'Historical saved studio' };
+      const owned = { [legacy.id]: legacy };
+      const cold = catalogPickerChoices([], owned);
+      const ready = catalogPickerChoices([canonical], owned);
+      expect(cold).toEqual([{ record: legacy, titles: [legacy.title] }]);
+      expect(ready).toEqual([{ record: legacy, titles: [legacy.title, canonical.title] }]);
+      expect(ready[0]?.record).toBe(cold[0]?.record);
+      expect(owned).toEqual({ [legacy.id]: legacy });
+    });
+    it('does not overwrite an owned record when available metadata changes under the same exact ID', () => {
+      const saved = { ...canonical, title: 'Historical collection title' };
+      const choices = catalogPickerChoices([canonical], { [saved.id]: saved });
+      expect(choices).toEqual([{ record: saved, titles: [saved.title, canonical.title] }]);
+    });
   });
 });

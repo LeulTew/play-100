@@ -55,7 +55,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
   return (
     <section className={embedded ? 'my-games-editor' : 'app-page'} aria-labelledby="rankings-title">
       <div className={embedded ? 'my-games-ranking-heading' : 'page-heading'}><div>{embedded ? <h2 id="rankings-title" className="sr-only">Ranking</h2> : <h1 id="rankings-title" data-page-heading tabIndex={-1}>My rankings</h1>}</div><div className="ranking-sharing"><div className="private-label"><Icon name="bookmark" width="17" height="17" />{persistent ? mode.scope === 'guest' ? 'Private · saved on this device' : mode.label : 'Private · temporary tab data'}</div>{onPublish && <button className="text-button" onClick={onPublish}><Icon name="share" width="18" height="18" />Publish a ranking</button>}</div></div>
-      <AddGamesPanel records={availableRecords} existingIds={rankedIds} onAdd={(recordsToAdd) => onAction({ type: 'add-ranking', records: recordsToAdd })} onDiscover={onDiscover} busy={busy} />
+      <AddGamesPanel records={availableRecords} ownedRecords={state.records} existingIds={rankedIds} onAdd={(recordsToAdd) => onAction({ type: 'add-ranking', records: recordsToAdd })} onDiscover={onDiscover} busy={busy} />
       {state.ranking.length > 0 && <>
         <div className="ranking-order-info">
           <div className="ranking-order-copy">
