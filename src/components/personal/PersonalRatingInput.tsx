@@ -13,6 +13,7 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
   const saving = useRef<Promise<boolean> | null>(null);
   const badInput = useRef(false);
   const commit = useRef(onCommit);
+  const input = useRef<HTMLInputElement>(null);
   const errorId = useId();
   if (!edited) commit.current = onCommit;
   useEffect(() => { if (!edited) setDraft(value === null ? '' : String(value)); }, [value, edited]);
@@ -50,10 +51,10 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
     const timer = window.setTimeout(() => { void save(); }, 650);
     return () => window.clearTimeout(timer);
   }, [edited, draft, editVersion, busy, error, save]);
-  useExitSave(() => error ? Promise.resolve(false) : save(), edited);
+  useExitSave(() => error ? Promise.resolve(false) : save(), edited, input);
   return (
     <>
-      <label className="personal-score">Your rating / 10<input type="number" inputMode="decimal" min="0" max="10" step="any"
+      <label className="personal-score">Your rating / 10<input ref={input} type="number" inputMode="decimal" min="0" max="10" step="any"
         value={draft} placeholder="—" disabled={busy} aria-label={`Your rating for ${title}`}
         aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
         onChange={(event) => {

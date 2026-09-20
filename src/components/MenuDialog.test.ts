@@ -9,7 +9,7 @@ import type { MyGamesTab } from '../lib/my-games-navigation';
 function render(onlineAvailable: boolean, creator: boolean, page: AppPage = 'collection', gamesView: MyGamesTab = 'library') {
   return renderToStaticMarkup(createElement(MenuDialog, {
     page, gamesView, filters: defaultFilters, onlineAvailable, creator,
-    onNavigate: vi.fn(), onSettings: vi.fn(), onAbout: vi.fn(), onClose: vi.fn(),
+    onNavigate: vi.fn(), onSettings: vi.fn(), onAbout: vi.fn(), onClose: vi.fn(), captureFocusGuard: () => () => true,
   }));
 }
 

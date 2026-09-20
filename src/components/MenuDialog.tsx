@@ -17,14 +17,22 @@ interface MenuDialogProps {
   onSettings: () => void;
   onAbout: () => void;
   onClose: () => void;
+  captureFocusGuard: () => () => boolean;
 }
 
-export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onAbout, onClose }: MenuDialogProps) {
+function visibleFocusTarget(target: HTMLElement | null): target is HTMLElement {
+  return Boolean(target?.isConnected && !target.matches(':disabled') && !target.closest('[hidden], [inert], dialog:not([open])') &&
+    target.getClientRects().length > 0 && getComputedStyle(target).visibility === 'visible');
+}
+
+export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onAbout, onClose, captureFocusGuard }: MenuDialogProps) {
   const active = useRef(true);
   const changing = useRef(false);
+  const recovery = useRef<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
+  const returnToEditor = useRef(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const close = useCallback(() => { active.current = false; onClose(); }, [onClose]);
+  const close = useCallback(() => { returnToEditor.current = false; active.current = false; onClose(); }, [onClose]);
   useEffect(() => {
     active.current = true;
     window.addEventListener('popstate', close);
@@ -41,18 +49,32 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
     changing.current = true;
     setSaving(true);
     setError('');
+    recovery.current = null;
+    const isCurrent = captureFocusGuard();
+    let blockedTarget: HTMLElement | null = null;
     try {
-      const saved = await flushPendingEdits();
-      if (!active.current) return;
+      const saved = await flushPendingEdits(target => { blockedTarget = target; recovery.current = { target, isCurrent }; });
+      if (!active.current || !isCurrent()) return;
       if (saved) commit();
-      else setError('Your edit has not saved. Return to the highlighted rating or note to correct it or retry.');
+      else setError(visibleFocusTarget(blockedTarget)
+        ? 'Your edit has not saved. Return to the highlighted rating or note to correct it or retry.'
+        : 'Your edit has not saved. Its editor is not visible in this view. Return to the original editor to correct it or retry.');
     } catch (cause) {
       console.error('Menu could not save pending edits before navigation.', cause);
-      if (active.current) setError('Your edit could not be saved. Return to your edit and retry before leaving this page.');
+      if (active.current && isCurrent()) {
+        recovery.current ??= { target: null, isCurrent };
+        setError('Your edit could not be saved. Return to your edit and retry before leaving this page.');
+      }
     } finally {
       changing.current = false;
       if (active.current) setSaving(false);
     }
+  };
+  const getReturnFocus = () => {
+    const failed = recovery.current;
+    if (!returnToEditor.current || !failed?.isCurrent()) return null;
+    if (visibleFocusTarget(failed.target)) return failed.target;
+    return [...document.querySelectorAll<HTMLElement>('[data-page-heading], #collection-title')].find(visibleFocusTarget) ?? null;
   };
   const personalPage = ['games', 'library', 'rankings'].includes(page);
   const link = (label: string, next: AppPage, patch: Partial<Filters> = {}, current = page === next) => {
@@ -64,11 +86,15 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
     }}><span>{label}</span>{current && <small aria-hidden="true">Current</small>}</a></li>;
   };
 
-  return <Dialog open titleId="menu-title" onClose={close} className="menu-dialog">
+  return <Dialog open titleId="menu-title" onClose={close} className="menu-dialog" getReturnFocus={getReturnFocus}>
     <h2 id="menu-title" data-autofocus tabIndex={-1}>Menu</h2>
     <div className="menu-feedback">
       <p role="status">{saving ? 'Saving your open edit...' : ''}</p>
-      {error && <div role="alert"><p>{error}</p><button className="text-button" onClick={close}>Return to edit<Icon name="back" width="17" height="17" /></button></div>}
+      {error && <div role="alert"><p>{error}</p><button className="text-button" onClick={() => {
+        returnToEditor.current = true;
+        active.current = false;
+        onClose();
+      }}>Return to edit<Icon name="back" width="17" height="17" /></button></div>}
     </div>
     <nav className="menu-scroll" aria-label="All navigation" aria-busy={saving}>
       <div className="menu-groups">

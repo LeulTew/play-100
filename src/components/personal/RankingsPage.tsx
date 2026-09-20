@@ -121,7 +121,7 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction, 
     void task.finally(() => { if (noteSaving.current === task) noteSaving.current = null; });
     return task;
   };
-  useExitSave(() => noteError ? Promise.resolve(false) : saveNote(), noteEdited);
+  useExitSave(() => noteError ? Promise.resolve(false) : saveNote(), noteEdited, noteRef);
   return (
     <div className="ranking-row-content">
       <div className="ranking-game-identity"><RecordIdentity record={record} onOpen={onOpen} />{(onPin || renderDragHandle) && <div className="ranking-compare-actions">{onPin && <button className="text-button" disabled={pinned && !onUnpin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${record.title} ${pinned ? 'from' : 'for'} comparison`} onClick={() => { if (pinned) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="17" height="17" />{pinned ? 'Pinned for comparison' : 'Pin for comparison'}</button>}{renderDragHandle?.(record)}</div>}</div>

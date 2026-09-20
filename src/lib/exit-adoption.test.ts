@@ -1,6 +1,6 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { hasPendingEdits, registerPendingEditor } from '../hooks/useExitSave';
+import { flushPendingEdits, hasPendingEdits, registerPendingEditor } from '../hooks/useExitSave';
 import { accountScope } from './cloud-types';
 import type { SyncHead } from './cloud-types';
 import { adoptScopedRemote, commitScopedAction, connectScopedLibrary, loadScopedLibrary } from './scoped-library';
@@ -9,6 +9,33 @@ import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
 afterEach(() => { closePersonalLibrary(); vi.unstubAllGlobals(); });
+describe('optional failed-editor focus metadata', () => {
+  it('reports only the blocking editor and preserves the boolean save contract', async () => {
+    let pending = true;
+    const target = vi.fn(() => null);
+    const blocked = vi.fn();
+    const release = registerPendingEditor({ pending: () => pending, flush: async () => false, focusTarget: target });
+    try {
+      expect(await flushPendingEdits(blocked)).toBe(false);
+      expect(blocked).toHaveBeenCalledExactlyOnceWith(null);
+      expect(target).toHaveBeenCalledTimes(1);
+      expect(hasPendingEdits()).toBe(true);
+      expect(await flushPendingEdits()).toBe(false);
+    } finally { pending = false; await release(); }
+    expect(await flushPendingEdits(blocked)).toBe(true);
+    expect(blocked).toHaveBeenCalledTimes(1);
+  });
+  it('preserves thrown save errors while reporting the matching recovery target', async () => {
+    let pending = true;
+    const cause = new Error('Synthetic blocked editor');
+    const blocked = vi.fn();
+    const release = registerPendingEditor({ pending: () => pending, flush: async () => { throw cause; }, focusTarget: () => null });
+    try {
+      await expect(flushPendingEdits(blocked)).rejects.toBe(cause);
+      expect(blocked).toHaveBeenCalledExactlyOnceWith(null);
+    } finally { pending = false; await release(); }
+  });
+});
 describe('closing editor protection during a queued remote adoption', () => {
   it('keeps the exit flush registered until its local commit settles, blocking earlier adoption', async () => {
     vi.stubGlobal('indexedDB', new IDBFactory());

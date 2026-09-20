@@ -66,7 +66,9 @@ async function pauseAutosave(page: Page) {
 async function holdPendingEditor(page: Page) {
   await page.evaluate(async () => {
     const path = '/src/hooks/useExitSave.ts';
-    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(path);
+    const loaded = performance.getEntriesByType('resource').map(entry => entry.name).findLast(value => new URL(value).pathname === path);
+    if (!loaded) throw new Error('The active app editor registry was not loaded.');
+    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
     let dirty = true;
     let finish: (saved: boolean) => void = () => { throw new Error('Pending editor is not initialized.'); };
     const waiting = new Promise<boolean>(resolve => { finish = resolve; });
@@ -89,7 +91,9 @@ async function finishPendingEditor(page: Page) {
   await page.evaluate(() => { window.dispatchEvent(new Event('ranking-safety:finish-edit')); });
   await expect.poll(() => page.evaluate(async () => {
     const path = '/src/hooks/useExitSave.ts';
-    const { hasPendingEdits }: typeof import('../src/hooks/useExitSave') = await import(path);
+    const loaded = performance.getEntriesByType('resource').map(entry => entry.name).findLast(value => new URL(value).pathname === path);
+    if (!loaded) throw new Error('The active app editor registry was not loaded.');
+    const { hasPendingEdits }: typeof import('../src/hooks/useExitSave') = await import(loaded);
     return hasPendingEdits();
   })).toBe(false);
 }

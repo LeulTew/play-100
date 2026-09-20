@@ -112,6 +112,11 @@ export default function App() {
   const capabilities = useCapabilities(effectiveMotion);
   const [panel, setPanel] = useState<'menu' | 'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
   const closePanel = useCallback(() => setPanel(null), []);
+  const captureMenuFocusGuard = useCallback(() => {
+    const startedScope = scopeGeneration.current;
+    const startedNavigation = navigationGeneration.current;
+    return () => scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation;
+  }, []);
   const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({ scope: 'guest', records: new Map() });
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -328,7 +333,7 @@ export default function App() {
       {selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening && <Dialog open titleId="loading-game-title" onClose={closeGame} className="info-dialog"><h2 id="loading-game-title" data-autofocus tabIndex={-1}>Opening game...</h2><p role="status">Looking up its public catalog metadata.</p></Dialog>}
       {awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening && <Dialog open titleId="canonical-game-error-title" onClose={closeGame} className="info-dialog"><h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>The original game could not load.</h2><p>{collection.error} Your saved records have not changed.</p><button className="button button-dark" onClick={collection.retry}>Reload The 100</button></Dialog>}
       {selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
-      {panel === 'menu' && <MenuDialog key={libraryScope} page={page} gamesView={gamesView} filters={filters} onlineAvailable={ONLINE_AVAILABLE} creator={Boolean(!onlineOpening && online?.identity?.verified && online.creator)} onNavigate={navigate} onSettings={() => setPanel('settings')} onAbout={() => setPanel('about')} onClose={closePanel} />}
+      {panel === 'menu' && <MenuDialog key={libraryScope} page={page} gamesView={gamesView} filters={filters} onlineAvailable={ONLINE_AVAILABLE} creator={Boolean(!onlineOpening && online?.identity?.verified && online.creator)} onNavigate={navigate} onSettings={() => setPanel('settings')} onAbout={() => setPanel('about')} onClose={closePanel} captureFocusGuard={captureMenuFocusGuard} />}
       {panel === 'about' && <AboutDialog onClose={() => {
         setPanel(null);
         const params = new URLSearchParams(location.search);

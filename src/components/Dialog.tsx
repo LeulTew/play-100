@@ -31,10 +31,13 @@ interface DialogProps {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  getReturnFocus?: () => HTMLElement | null;
 }
 
-export function Dialog({ open, titleId, descriptionId, onClose, children, className = '' }: DialogProps) {
+export function Dialog({ open, titleId, descriptionId, onClose, children, className = '', getReturnFocus }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const returnFocus = useRef(getReturnFocus);
+  returnFocus.current = getReturnFocus;
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
@@ -45,7 +48,12 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
     return () => {
       dialog.close();
       unlock();
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected && !previousFocus.matches(':disabled')) {
+      const preferred = returnFocus.current?.();
+      if (preferred?.isConnected && !preferred.matches(':disabled') && preferred.getClientRects().length > 0 &&
+        !preferred.closest('[hidden], [inert]') && getComputedStyle(preferred).visibility === 'visible') {
+        preferred.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+        preferred.focus({ preventScroll: true });
+      } else if (previousFocus instanceof HTMLElement && previousFocus.isConnected && !previousFocus.matches(':disabled')) {
         previousFocus.focus({ preventScroll: true });
       } else {
         document.querySelector<HTMLElement>('[data-page-heading], #collection-title')?.focus({ preventScroll: true });

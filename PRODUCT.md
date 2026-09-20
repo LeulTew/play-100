@@ -94,6 +94,11 @@ until one explicit, inline **Share all with friends** action.
 - Menu links retain real hrefs and modified-click behavior. In-tab destination
   changes and Settings/About actions first flush pending editors; invalid or
   rejected writes keep the current page and draft, with a return-to-edit action.
+  Return to edit focuses the exact visible failed editor after the dialog closes,
+  including a rejected write without a validation marker. A hidden or unavailable
+  target uses a visible page-heading fallback, never another game's input.
+  Scope/navigation changes invalidate this focus request; ordinary Close/Escape
+  still restores the Menu opener.
   Closing Menu cancels a pending navigation, not an already-started local save.
   Opening Menu itself requests no save, account bootstrap, publication or sharing.
   Data use keeps its separate-tab, no-private-bootstrap boundary; workbook
