@@ -366,13 +366,23 @@ test('query changes and a workspace remount invalidate an awaited page change', 
   await releaseEditor(page);
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await expect(query(page)).toBeFocused();
+  await page.locator('.wordmark').click();
+  await expect(page).toHaveURL(url => url.pathname === '/' && url.searchParams.get('catalogs') === 'off');
+  await page.goBack();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await heldEditor(page);
   await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
   await page.locator('.wordmark').click();
+  await expect(page).toHaveURL(url => url.pathname === '/my-games');
+  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await page.goForward();
   await expect(page).toHaveURL(url => url.pathname === '/' && url.searchParams.get('catalogs') === 'off');
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  await menu.focus();
   await finishEditor(page);
   await releaseEditor(page);
   await expect(page.getByRole('heading', { name: 'Your library results', exact: true })).toHaveCount(0);
+  await expect(menu).toBeFocused();
   expect(await readLibrary(page)).toEqual(JSON.parse(JSON.stringify(libraryFixture())));
 });
 
