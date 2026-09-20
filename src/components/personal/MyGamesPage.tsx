@@ -86,7 +86,7 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
         <LibraryPage {...props} busy={editorBusy} embedded workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} />
       </div>
       <div hidden={view !== 'ranking'}>
-        <RankingsPage {...props} busy={editorBusy} embedded progressFilter={progressView} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
+        <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
       </div>
       <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view.' : ''}</span>
     </section>

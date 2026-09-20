@@ -154,6 +154,31 @@ describe('personal library actions', () => {
     expect(state.records[a.id]).toEqual(a);
   });
 
+  it('removes only the exact saved opinion and re-adds it empty without affecting a provider copy', () => {
+    const provider = { ...game('wikidata:Q123', 'wikidata'), title: a.title };
+    const before = apply(emptyPersonalLibrary(),
+      { type: 'add-ranking', records: [a, b, provider] },
+      { type: 'edit-ranking', id: a.id, score: 8.5, note: 'Only remove after confirmation.' },
+      { type: 'edit-ranking', id: provider.id, score: 9, note: 'Independent provider opinion.' },
+      { type: 'move-item', list: 'ranking', id: a.id, overId: provider.id },
+      { type: 'set-progress', records: [a, provider], key: 'completed', value: true },
+      { type: 'set-progress', records: [b, a, provider], key: 'later', value: true },
+    );
+    expect(before.ranking[0]).toEqual({ id: a.id, score: 8.5, note: 'Only remove after confirmation.', manualPosition: 1 });
+    const after = apply(before, { type: 'remove-ranking', ids: [a.id] });
+    expect(after).toEqual({
+      ...before, revision: before.revision + 1,
+      ranking: before.ranking.filter(entry => entry.id !== a.id),
+    });
+    const readded = apply(parsePersonalLibrary(after), { type: 'add-ranking', records: [a] });
+    expect(readded.ranking.find(entry => entry.id === a.id)).toEqual({ id: a.id, score: null, note: '', manualPosition: null });
+    expect(readded.ranking.find(entry => entry.id === provider.id)).toEqual(before.ranking.find(entry => entry.id === provider.id));
+    expect(readded.records).toEqual(before.records);
+    expect(readded.progress).toEqual(before.progress);
+    expect(readded.queueOrder).toEqual(before.queueOrder);
+    expect(readded.version).toBe(3);
+  });
+
   it('removes only selected private records and their memberships while retaining remaining manual order', () => {
     const before = apply(emptyPersonalLibrary(),
       { type: 'set-progress', records: [a, b, c], key: 'later', value: true },

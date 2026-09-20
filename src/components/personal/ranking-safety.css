@@ -1,0 +1,5 @@
+.ranking-order-copy { flex: 1; min-width: 0; }
+.ranking-order-help > summary { width: fit-content; max-width: 100%; min-height: 44px; padding-block: 12px; font-size: 14px; cursor: pointer; }
+.ranking-order-help > p { max-width: 70ch; margin-bottom: 12px; }
+.ranking-removal-dialog h2 { overflow-wrap: anywhere; }
+.ranking-removal-dialog .removal-warning { margin-top: 16px; }

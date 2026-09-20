@@ -316,6 +316,23 @@ Other manually positioned entries shift only when an explicit drag/removal
 displaces them. Per-game and whole-list **Use rating order** controls release
 these overrides. Valid ratings save after a 650ms pause or on field exit; failed
 autosaves retain the prior value and do not retry in a background loop.
+The ranking page summarizes the current order; **How ranking order works**
+opens the full instructions without hiding fixed-position recovery controls.
+
+Removing a ranking requires a named confirmation: its rating, private note and
+ranking position are deleted, but Library membership, Played, Completed and Queue
+stay unchanged. **Keep ranking** receives initial focus; cancel or Escape keeps
+the opinion and returns focus to its removal control before removal starts.
+The pending-edit check remains cancellable; an already-submitted write waits
+for its result. Confirmation flushes
+pending editors, including retained hidden tabs, before removing that exact saved
+ID once. Invalid or failed drafts block removal without discarding their input;
+failed storage writes leave the confirmation open for retry. Navigation,
+account/view changes and a removed target invalidate the pending confirmation.
+Canonical games and saved provider copies retain independent opinions. Re-adding
+an explicitly removed ranking starts with no score, note or fixed position;
+there is no hidden archive, undo journal or schema change. Ranking has no bulk
+removal control; selected private-library deletion remains a separate action.
 
 Earlier version-two snapshots/backups did not record drag intent. Their saved
 orders are therefore preserved as manual positions, never guessed or silently
