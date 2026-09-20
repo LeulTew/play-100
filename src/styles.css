@@ -66,6 +66,8 @@ svg { flex-shrink: 0; }
 .desktop-nav a, .desktop-nav button { display: flex; align-items: center; gap: 8px; background: transparent; min-height: 44px; padding: 6px 0; font-size: 14px; font-weight: 550; text-underline-offset: 5px; }
 .desktop-nav a:hover, .desktop-nav button:hover { text-decoration: underline; }
 .header-actions { display: flex; align-items: center; gap: 9px; }
+.menu-nav { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 10px; border-radius: 4px; background: transparent; font-size: 14px; font-weight: 600; }
+.menu-nav:hover, .menu-nav[aria-expanded="true"] { background: #e6e9dc; }
 .saved-nav { min-height: 44px; background: transparent; display: flex; align-items: center; gap: 9px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 4px; font-weight: 600; font-size: 14px; }
 .saved-nav:hover { border-color: var(--ink); }
 .saved-count { min-width: 24px; display: inline-grid; place-items: center; height: 24px; font-size: 12px; font-variant-numeric: tabular-nums; border-radius: 2px; background: var(--lime); }
@@ -230,6 +232,21 @@ svg { flex-shrink: 0; }
 .info-dialog h3 { font-size: 18px; line-height: 1.3; margin-bottom: 9px; }
 .info-dialog section > p { font-size: 14px; margin-top: 12px; color: #535948; }
 .info-dialog .credits a:not(.text-button) { text-decoration: underline; text-underline-offset: 3px; }
+.menu-dialog { width: min(100% - 36px, 680px); overflow: hidden; border: 1px solid var(--line); border-radius: 4px; box-shadow: none; }
+.menu-dialog .dialog-inner { display: flex; flex-direction: column; min-height: 0; max-height: inherit; padding: 0; }
+.menu-dialog h2 { flex: 0 0 auto; margin: 0; padding: 24px 76px 20px 28px; font-size: 36px; }
+.menu-feedback { flex: 0 0 auto; padding-inline: 28px; font-size: 14px; }
+.menu-feedback:has(p:not(:empty)) { padding-bottom: 16px; }
+.menu-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 28px 28px; scroll-padding-block: 8px; }
+.menu-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
+.menu-groups section { min-width: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+.menu-groups h3 { font-size: 14px; line-height: 1.4; font-weight: 650; color: var(--muted); }
+.menu-links { list-style: none; padding: 0; margin: 8px 0 0; }
+.menu-links a, .menu-links button { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; width: 100%; padding: 10px 8px; border-radius: 4px; background: transparent; font-size: 15px; font-weight: 550; line-height: 1.4; text-align: left; overflow-wrap: anywhere; }
+.menu-links a:hover, .menu-links button:hover { background: #e6e9dc; }
+.menu-links a[aria-current="page"] { background: var(--lime); font-weight: 650; }
+.menu-links small { flex-shrink: 0; font-size: 11px; font-weight: 550; }
+.menu-links a[aria-disabled="true"] { cursor: wait; }
 .source-filename { overflow-wrap: anywhere; }
 .game-dialog { inset: 0 0 0 auto; margin: 0; height: 100dvh; max-height: 100dvh; width: min(100%, 660px); border-radius: 0; }
 .game-dialog .dialog-inner { padding: 32px 38px 22px; }
@@ -323,6 +340,7 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   .desktop-nav { gap: 21px; }
   .desktop-nav a, .desktop-nav button { font-size: 13px; }
   .desktop-nav a:last-child { display: none; }
+  .header-download { display: none; }
   .hero { gap: 12px; grid-template-columns: 1.05fr 1fr; }
   .hero-copy h1 { font-size: clamp(62px, 7.5vw, 83px); }
   .hero-copy > p:not(.hero-footnote) { font-size: 16px; }
@@ -372,7 +390,7 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   .desktop-nav { display: none; }
   .header-actions { margin-left: auto; gap: 5px; }
   .saved-nav { min-height: 44px; padding: 7px 9px; font-size: 12px; gap: 8px; }
-  .settings-nav { display: none; }
+  .menu-nav { display: none; }
   .hero { grid-template-columns: 1fr; padding-block: 18px 8px; gap: 4px; }
   .hero-copy h1 { font-size: clamp(44px, 13vw, 60px); }
   .hero-copy > p:not(.hero-footnote) { font-size: 16px; max-width: 46ch; margin-top: 14px; }
@@ -453,11 +471,17 @@ html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="
   .footer-bottom > div { flex-direction: row; flex-wrap: wrap; gap: 0 22px; }
   .footer-bottom button { font-size: 11px; }
   .mobile-nav { display: flex; align-items: center; justify-content: space-around; position: fixed; bottom: 0; left: 0; right: 0; z-index: 35; min-height: 66px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--paper); border-top: 1px solid #bec6af; box-shadow: 0 -3px 16px #29331709; }
-  .mobile-nav > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 51px; min-width: 65px; background: transparent; font-size: 10px; font-weight: 600; color: var(--muted); border-radius: 4px; }
-  .mobile-nav > button[aria-pressed="true"] { color: var(--ink); background: #e5ecd9; }
+  .mobile-nav > a, .mobile-nav > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 51px; min-width: 65px; background: transparent; font-size: 10px; font-weight: 600; color: var(--muted); border-radius: 4px; }
+  .mobile-nav > a[aria-current="page"], .mobile-nav > button[aria-expanded="true"] { color: var(--ink); background: #e5ecd9; }
   .dialog { width: calc(100% - 20px); max-height: calc(100dvh - 30px); }
   .dialog-inner { padding: 49px 25px 30px; }
   .dialog h2 { font-size: 43px; }
+  .menu-dialog { width: calc(100% - max(20px, env(safe-area-inset-left, 0px)) - max(20px, env(safe-area-inset-right, 0px))); max-height: calc(100dvh - max(24px, env(safe-area-inset-top, 0px)) - max(24px, env(safe-area-inset-bottom, 0px))); }
+  .menu-dialog h2 { font-size: 32px; padding: 24px 68px 20px 20px; }
+  .menu-dialog .dialog-close { top: 16px; right: 12px; }
+  .menu-feedback { padding-inline: 20px; }
+  .menu-scroll { padding: 4px 20px 24px; }
+  .menu-groups { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .dialog .dialog-lead { font-size: 16px; }
   .game-dialog { width: 100%; height: 100dvh; max-height: 100dvh; }
   .game-dialog .dialog-inner { padding: max(24px, env(safe-area-inset-top)) 23px calc(23px + env(safe-area-inset-bottom, 0px)); }

@@ -5,7 +5,8 @@ import { useLibrary } from './hooks/useLibrary';
 import { useUrlState } from './hooks/useUrlState';
 import { useCapabilities } from './hooks/useCapabilities';
 import { useShare } from './hooks/useShare';
-import { createShareUrl, PAGE_PATHS } from './lib/url';
+import { createShareUrl } from './lib/url';
+import { pageDestination } from './lib/page-navigation';
 import type { AppPage, Filters } from './lib/types';
 import type { LibraryRecord, PersonalAction } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
@@ -14,6 +15,7 @@ import CollectionPage from './components/CollectionPage';
 import { GameDetail } from './components/GameDetail';
 import { AboutDialog } from './components/AboutDialog';
 import { SettingsDialog } from './components/SettingsDialog';
+import { MenuDialog } from './components/MenuDialog';
 import { Dialog } from './components/Dialog';
 import CountUp from './components/bits/CountUp';
 import { SiteFooter } from './components/SiteFooter';
@@ -108,7 +110,8 @@ export default function App() {
   const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account...' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
   const effectiveMotion = library.status === 'loading' ? 'lite' : library.state.motion;
   const capabilities = useCapabilities(effectiveMotion);
-  const [panel, setPanel] = useState<'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
+  const [panel, setPanel] = useState<'menu' | 'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
+  const closePanel = useCallback(() => setPanel(null), []);
   const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({ scope: 'guest', records: new Map() });
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -212,10 +215,24 @@ export default function App() {
     if (online?.identity || page === 'account') navigate('account');
     else setPanel('account');
   };
-  const navigateLink = (event: MouseEvent<HTMLAnchorElement>, next: AppPage, patch: Partial<Filters> = {}) => {
-    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+  const pageHref = (next: AppPage, patch: Partial<Filters> = {}) => {
+    const destination = pageDestination(next, filters, patch);
+    return `${destination.path}${destination.search}`;
+  };
+  const navigateLink = async (event: MouseEvent<HTMLAnchorElement>, next: AppPage, patch: Partial<Filters> = {}, commit = () => navigate(next, patch)) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
-    navigate(next, patch);
+    const startedScope = scopeGeneration.current;
+    const startedNavigation = navigationGeneration.current;
+    try {
+      const saved = await flushPendingEdits();
+      if (scopeGeneration.current !== startedScope || navigationGeneration.current !== startedNavigation) return;
+      if (saved) commit();
+      else notify('Finish or correct the open rating or note before leaving this page.');
+    } catch (cause) {
+      console.error('Navigation could not save pending edits.', cause);
+      if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation) notify('Your edit could not be saved. Keep this page open and retry.');
+    }
   };
   const browse = () => {
     if (page !== 'collection') navigate('collection');
@@ -274,17 +291,17 @@ export default function App() {
     <LibraryModeContext.Provider value={libraryMode}>
       <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>Skip to {page === 'collection' ? 'the collection' : 'page content'}</a>
       <header className={`site-header ${ONLINE_AVAILABLE ? 'site-header-online' : ''}`}>
-        <a className="wordmark" href="/" onClick={(event) => navigateLink(event, 'collection')}><span className="logo-symbol" aria-hidden="true"><span /></span>PLAY<span>100</span><i aria-hidden="true">.</i><span className="sr-only"> Home</span></a>
+        <a className="wordmark" href={pageHref('collection')} onClick={(event) => { void navigateLink(event, 'collection'); }}><span className="logo-symbol" aria-hidden="true"><span /></span>PLAY<span>100</span><i aria-hidden="true">.</i><span className="sr-only"> Home</span></a>
         <nav className="desktop-nav" aria-label="Main navigation">
-          <a href="/" aria-current={page === 'collection' ? 'page' : undefined} onClick={(event) => navigateLink(event, 'collection')}>The 100</a>
-          <a href={PAGE_PATHS.discover} aria-current={page === 'discover' ? 'page' : undefined} onClick={(event) => navigateLink(event, 'discover')}>Discover</a>
-          <a href={PAGE_PATHS.games} aria-current={['games', 'library', 'rankings'].includes(page) ? 'page' : undefined} onClick={(event) => navigateLink(event, 'games')}>My games</a>
-          {ONLINE_AVAILABLE && <a href={PAGE_PATHS.friends} aria-current={['friends', 'friend', 'compare', 'friend-sharing', 'friend-shelf'].includes(page) ? 'page' : undefined} onClick={(event) => navigateLink(event, 'friends')}>Friends</a>}
+          <a href={pageHref('collection')} aria-current={page === 'collection' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'collection'); }}>The 100</a>
+          <a href={pageHref('discover')} aria-current={page === 'discover' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'discover'); }}>Discover</a>
+          <a href={pageHref('games')} aria-current={['games', 'library', 'rankings'].includes(page) ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'games'); }}>My games</a>
+          {ONLINE_AVAILABLE && <a href={pageHref('friends')} aria-current={['friends', 'friend', 'compare', 'friend-sharing', 'friend-shelf'].includes(page) ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'friends'); }}>Friends</a>}
         </nav>
         <div className="header-actions">
           <button className="saved-nav" onClick={() => navigate('library', { list: 'later' })}><Icon name="bookmark" width="19" height="19" /><span className="saved-nav-label">Play later</span><CountUp to={savedCount} animate={capabilities.animate} className="saved-count" /><span className="sr-only"> games in your queue</span></button>
           <a className="icon-button header-download" href="/downloads/Play-100-Collection.xlsx" download aria-label="Download enhanced Excel workbook" title="Download Excel"><Icon name="download" /></a>
-          <button className="icon-button settings-nav" aria-label="Settings and visual experience" onClick={() => setPanel('settings')}><Icon name="sliders" /></button>
+          <button className="menu-nav" aria-haspopup="dialog" aria-expanded={panel === 'menu'} onClick={() => setPanel('menu')}><Icon name="menu" width="20" height="20" />Menu</button>
           {ONLINE_AVAILABLE && <a className={`account-nav sync-${online?.status ?? 'device'}`} href="/account" aria-label={`Account${headerIdentity ? ` for ${headerIdentity.name}` : ''} ${libraryMode.label}`} title={libraryMode.label} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); void accountEntry(); } }}><span className="account-nav-avatar" aria-hidden="true">{headerIdentity ? <img src={headerIdentity.avatarSrc} width="32" height="32" alt="" draggable={false} /> : <Icon name="user" width="20" height="20" />}</span><span className="account-nav-copy"><strong>{headerIdentity?.name ?? 'Account'}</strong>{' '}<small>{libraryMode.label}</small></span></a>}
         </div>
       </header>
@@ -299,11 +316,11 @@ export default function App() {
       </main>
       <SiteFooter onAbout={() => setPanel('about')} onEffects={() => setPanel('settings')} effects={library.state.motion} />
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        <button aria-pressed={page === 'collection'} onClick={browse}><Icon name="grid" width="20" height="20" /><span>The 100</span></button>
-        <button aria-pressed={page === 'discover'} onClick={() => navigate('discover')}><Icon name="search" width="20" height="20" /><span>Discover</span></button>
-        <button aria-pressed={['games', 'library', 'rankings'].includes(page)} onClick={() => navigate('games')}><Icon name="bookmark" width="20" height="20" /><span>My games</span></button>
-        {ONLINE_AVAILABLE ? <button aria-pressed={['friends', 'friend', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)} onClick={() => navigate('friends')}><Icon name="user" width="20" height="20" /><span>Friends</span></button> : <button aria-pressed={personalPage === 'rankings'} onClick={() => navigate('rankings')}><Icon name="rank" width="20" height="20" /><span>Ranking</span></button>}
-        <button onClick={() => setPanel('settings')}><Icon name="sliders" width="20" height="20" /><span>Settings</span></button>
+        <a href={pageHref('collection')} aria-current={page === 'collection' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'collection', {}, browse); }}><Icon name="grid" width="20" height="20" /><span>The 100</span></a>
+        <a href={pageHref('discover')} aria-current={page === 'discover' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'discover'); }}><Icon name="search" width="20" height="20" /><span>Discover</span></a>
+        <a href={pageHref('games')} aria-current={['games', 'library', 'rankings'].includes(page) && (ONLINE_AVAILABLE || gamesView !== 'ranking') ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'games'); }}><Icon name="bookmark" width="20" height="20" /><span>My games</span></a>
+        {ONLINE_AVAILABLE ? <a href={pageHref('friends')} aria-current={['friends', 'friend', 'compare', 'friend-sharing', 'friend-shelf'].includes(page) ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'friends'); }}><Icon name="user" width="20" height="20" /><span>Friends</span></a> : <a href={pageHref('rankings')} aria-current={personalPage === 'rankings' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'rankings'); }}><Icon name="rank" width="20" height="20" /><span>Ranking</span></a>}
+        <button aria-haspopup="dialog" aria-expanded={panel === 'menu'} onClick={() => setPanel('menu')}><Icon name="menu" width="20" height="20" /><span>Menu</span></button>
       </nav>
       <CompareTray onCompare={(records) => { void compareGames(records); }} onPreview={preview} resolveArtwork={(record) => artwork.get(record.id)} animate={capabilities.animate} hidden={onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink)} />
       {selectedGame && selectedPersonalRecord && !onlineOpening && <GameDetail key={`${libraryScope}:${selectedPersonalRecord.id}`} game={selectedGame} state={library.state.progress[selectedPersonalRecord.id]} previous={games?.[selectedGame.rank - 2]} next={games?.[selectedGame.rank]} onClose={closeGame} onOpen={openGame} onToggle={toggle} onShare={() => shareView(selectedGame.slug)} shareFeedback={notice || library.error || ''} busy={libraryBusy} played={library.state.progress[selectedPersonalRecord.id]?.played} onPlayed={value => toggle(selectedGame.slug, 'played', value)} rankingPosition={rankingPosition || null} onRank={rankSelected} personalRating={library.state.ranking.find((entry) => entry.id === selectedPersonalRecord.id)?.score ?? null} onRate={(score) => perform({ type: 'rate-game', record: selectedPersonalRecord, score })} savedCopies={<SavedCatalogCopies canonicalId={selectedGame.slug} copies={ownership.get(selectedGame.slug)} onOpen={record => openGame(record.id)} />} />}
@@ -311,6 +328,7 @@ export default function App() {
       {selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening && <Dialog open titleId="loading-game-title" onClose={closeGame} className="info-dialog"><h2 id="loading-game-title" data-autofocus tabIndex={-1}>Opening game...</h2><p role="status">Looking up its public catalog metadata.</p></Dialog>}
       {awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening && <Dialog open titleId="canonical-game-error-title" onClose={closeGame} className="info-dialog"><h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>The original game could not load.</h2><p>{collection.error} Your saved records have not changed.</p><button className="button button-dark" onClick={collection.retry}>Reload The 100</button></Dialog>}
       {selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
+      {panel === 'menu' && <MenuDialog key={libraryScope} page={page} gamesView={gamesView} filters={filters} onlineAvailable={ONLINE_AVAILABLE} creator={Boolean(!onlineOpening && online?.identity?.verified && online.creator)} onNavigate={navigate} onSettings={() => setPanel('settings')} onAbout={() => setPanel('about')} onClose={closePanel} />}
       {panel === 'about' && <AboutDialog onClose={() => {
         setPanel(null);
         const params = new URLSearchParams(location.search);

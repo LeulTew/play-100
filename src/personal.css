@@ -403,7 +403,7 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
   .app-page .empty-state { padding: 32px 17px; }
   .app-page .empty-state h2 { font-size: 32px; }
   .app-page .empty-state .button { font-size: 13px; }
-  .mobile-nav > button { min-width: 48px; flex: 1; font-size: 9px; }
+  .mobile-nav > a, .mobile-nav > button { min-width: 48px; flex: 1; font-size: 9px; }
   .compact-download { gap: 4px 18px; }
   .compact-download .text-button { font-size: 12px; }
   .catalog-facts > div { grid-template-columns: 75px 1fr; font-size: 13px; }

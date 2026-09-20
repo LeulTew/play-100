@@ -1,8 +1,9 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { createSearch, defaultFilters, PAGE_PATHS, pageFromPath, parseUrl } from '../lib/url';
+import { createSearch, PAGE_PATHS, pageFromPath, parseUrl } from '../lib/url';
 import type { AppPage, Filters } from '../lib/types';
 import { gameDetailSearch, myGamesSearch, myGamesTab } from '../lib/my-games-navigation';
 import type { MyGamesTab } from '../lib/my-games-navigation';
+import { pageDestination } from '../lib/page-navigation';
 
 const NAVIGATION_EVENT = 'play100:navigate';
 
@@ -62,10 +63,8 @@ export function useUrlState() {
 
   const goToPage = useCallback((nextPage: AppPage, patch: Partial<Filters> = {}) => {
     const { filters: current } = parseUrl(window.location.search);
-    const next = { ...defaultFilters, catalogs: current.catalogs, ...patch };
-    if (nextPage === 'games' || nextPage === 'library' || nextPage === 'rankings') {
-      navigate(myGamesSearch(next, nextPage === 'rankings' ? 'ranking' : patch.list === 'later' ? 'queue' : 'library'), 'push', null, PAGE_PATHS.games);
-    } else navigate(createSearch(next), 'push', null, PAGE_PATHS[nextPage]);
+    const destination = pageDestination(nextPage, current, patch);
+    navigate(destination.search, 'push', null, destination.path);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [navigate]);
 

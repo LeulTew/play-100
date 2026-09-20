@@ -2,7 +2,7 @@ import type { SVGProps } from 'react';
 
 type IconName = 'arrow' | 'up-right' | 'down' | 'back' | 'download' | 'bookmark' | 'check' |
   'search' | 'close' | 'sliders' | 'grid' | 'list' | 'shuffle' | 'share' | 'info' | 'stack' | 'copy' |
-  'table' | 'select' | 'grip' | 'up' | 'plus' | 'upload' | 'rank' | 'trash' | 'user';
+  'table' | 'select' | 'grip' | 'up' | 'plus' | 'upload' | 'rank' | 'trash' | 'user' | 'menu';
 
 export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -18,6 +18,7 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
     sliders: <><path d="M4 7h8m4 0h4M4 17h3m4 0h9" /><circle cx="14" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></>,
     grid: <><rect x="4" y="4" width="6" height="6" /><rect x="14" y="4" width="6" height="6" /><rect x="4" y="14" width="6" height="6" /><rect x="14" y="14" width="6" height="6" /></>,
     list: <><path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1" /></>,
+    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
     shuffle: <><path d="M3 6h3l12 12h3M3 18h3L18 6h3m-4-4 4 4-4 4m0 4 4 4-4 4" /></>,
     share: <><path d="M12 16V3m-4 4 4-4 4 4M5 11v10h14V11" /></>,
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10v.1" /></>,

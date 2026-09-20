@@ -80,6 +80,30 @@ until one explicit, inline **Share all with friends** action.
   independent data and the old deep links. Tabs preserve drafts and flush valid
   pending edits. A Compare tray holds at most six metadata-only game references;
   Pin and optional desktop drag are equivalent, with keyboard/touch alternatives.
+- A secondary Menu makes existing destinations findable without replacing the
+  direct The 100, Discover, My games, Friends or Account/status entries. It uses
+  the fifth mobile navigation slot, not a sixth item. Browse, My games, People
+  & sharing, Account & tools, and Workbooks group ordinary links and actions.
+  Library, Queue and Ranking use canonical `/my-games` links; legacy aliases
+  remain valid but are not duplicate destinations. Person, profile and invite
+  links still require their original context.
+- Primary desktop and mobile destinations also use canonical anchors and
+  `aria-current`, preserving modified clicks and the mobile The 100 scroll
+  shortcut. In-tab primary navigation flushes pending edits before leaving and
+  cancels an obsolete transition if the active scope or route changes.
+- Menu links retain real hrefs and modified-click behavior. In-tab destination
+  changes and Settings/About actions first flush pending editors; invalid or
+  rejected writes keep the current page and draft, with a return-to-edit action.
+  Closing Menu cancels a pending navigation, not an already-started local save.
+  Opening Menu itself requests no save, account bootstrap, publication or sharing.
+  Data use keeps its separate-tab, no-private-bootstrap boundary; workbook
+  downloads remain public files, not private backups.
+- Online Menu destinations appear only in a configured build. Creator desk
+  appears only when the already-loaded UI bridge confirms the current verified
+  creator; Menu never performs a role read. Unknown roles use the existing
+  Account destination. Settings & backups invokes the existing scoped dialog,
+  retaining its confirmation, recovery and persistence behavior. Inline sharing
+  audience, Stop and recovery controls remain in their existing pages.
 - Discover starts with 810 verified provider records and 220 illustrated
   records using licensed local images; unavailable art is labelled honestly.
   Seed browsing/search is public and independent of account/storage/provider

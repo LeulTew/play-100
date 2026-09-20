@@ -165,6 +165,27 @@ Dark, lime, outline, quiet and destructive variants use the extracted assignment
 
 Keep search, original-data filters, sorting and device-list controls legible and directly operable. Do not imply that changing the view changes authored ranks. Desktop navigation is direct; mobile prioritizes reachable controls rather than decorative navigation chrome.
 
+The secondary **Menu** is an Operate navigation surface, not an application
+command menu or dashboard. A labelled desktop control replaces the Settings
+icon; mobile replaces only the fifth Settings slot. Direct primary navigation
+and the Account/status entry remain. Settings & backups stays a real dialog
+action inside Menu.
+
+Use the existing native Dialog with a quiet, ruled, two-column directory on
+desktop and one scrollable column on mobile. Browse, My games, People & sharing,
+Account & tools, and Workbooks provide short task-based groups. The title and
+close control stay reachable while entries scroll. Preserve 44px targets,
+safe-area clearance at 320px, ordinary Tab navigation, Escape and return focus.
+Navigation uses real links, `aria-current="page"` and a visible Current label;
+dialogs use buttons. There is no `role="menu"` or arrow-key command model.
+Chalk, ink, flat lime, Barlow headings and Hanken labels remain unchanged, with
+no new decorative art, shadow or animation. Menu uses a 36px desktop / 32px mobile
+heading, 15px links, 14px group and feedback labels, and an 11px Current marker;
+these are scoped utility roles, not a change to the site's display scale.
+Pending-navigation and save-error
+feedback belongs inside the dialog; the underlying editor stays mounted until
+its valid edits commit. Escape cancels the transition without discarding work.
+
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, not on
 the combined label/control height. On mobile, search and genre occupy full
