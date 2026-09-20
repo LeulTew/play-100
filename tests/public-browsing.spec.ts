@@ -184,7 +184,9 @@ test('a pending page intent cannot replace a newer Back navigation after its del
   await expect(page).toHaveURL(/offset=24/);
   await page.evaluate(async () => {
     const path = '/src/hooks/useExitSave.ts';
-    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(path);
+    const loaded = performance.getEntriesByType('resource').map(entry => entry.name).findLast(value => new URL(value).pathname === path);
+    if (!loaded) throw new Error('The active app editor registry was not loaded.');
+    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
     let pending = true;
     const flush = new Promise<boolean>(resolve => { window.releaseBrowsingNavigation = () => { pending = false; resolve(true); }; });
     window.removeBrowsingEditor = registerPendingEditor({ pending: () => pending, flush: () => flush });
@@ -267,6 +269,66 @@ test('focused mobile recovery clears the fixed bar and retries through ordinary 
   await page.unroute('**/data/collection.json');
   await retry.press('Enter');
   await expect(page.locator('.game-card')).toHaveCount(24);
+});
+
+test('a pinned tray leaves the first explored game identity unobscured at 320px without changing target sizes or saved data', async ({ page, isMobile }, info) => {
+  test.skip(!isMobile, 'This is the actual coarse-pointer narrow mobile dock intersection.');
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/?catalogs=off');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await page.evaluate(() => document.fonts.ready);
+  const before = await readLibrary(page);
+  const measure = () => page.locator('.game-card h3').first().evaluate(element => {
+    const title = element.getBoundingClientRect();
+    const link = element.closest('a');
+    const hits = [0.15, 0.5, 0.85].map(fraction => {
+      const hit = document.elementFromPoint(title.left + title.width * fraction, title.bottom - 2);
+      return { intendedGame: Boolean(hit && (element.contains(hit) || link?.contains(hit))), tag: hit?.tagName, className: hit?.getAttribute('class') };
+    });
+    return {
+      title: title.toJSON(),
+      nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON(),
+      dock: document.querySelector('.compare-tray-dock')?.getBoundingClientRect().toJSON() ?? null,
+      header: document.querySelector('.site-header')!.getBoundingClientRect().toJSON(),
+      collection: document.querySelector('#collection')!.getBoundingClientRect().toJSON(),
+      hits, coarse: matchMedia('(pointer: coarse)').matches, touch: navigator.maxTouchPoints,
+      targets: [...document.querySelectorAll('.compare-tray-dock button')].map(button => ({
+        label: button.getAttribute('aria-label') ?? button.textContent,
+        width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height,
+      })),
+    };
+  });
+  await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
+  const empty = await measure();
+  expect(empty.coarse).toBe(true); expect(empty.touch).toBeGreaterThan(0);
+  expect(empty.dock).toBeNull();
+  expect(empty.title.bottom).toBeLessThanOrEqual(empty.nav.top);
+  expect(empty.hits.every(hit => hit.intendedGame)).toBe(true);
+  await page.locator('.mobile-nav').getByRole('link', { name: 'Discover', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill(credited.record.title);
+  const card = page.locator(`[data-catalog-id="${credited.record.id}"]`);
+  await expect(card).toBeVisible();
+  await card.getByRole('button', { name: `Pin ${credited.record.title} for comparison`, exact: true }).click();
+  const targetsBefore = await page.locator('.compare-tray-dock button').evaluateAll(buttons => buttons.map(button => ({
+    label: button.getAttribute('aria-label') ?? button.textContent,
+    width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height,
+  })));
+  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).click();
+  await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
+  const pinned = await measure();
+  await writeFile(info.outputPath('pinned-explore-geometry.json'), JSON.stringify({ empty, pinned, targetsBefore, pinnedGame: credited.record.id }, null, 2));
+  await page.screenshot({ path: info.outputPath('pinned-explore-320.png'), scale: 'css' });
+  expect(pinned.dock).not.toBeNull();
+  expect(pinned.title.bottom).toBeLessThanOrEqual(pinned.dock!.top);
+  expect(pinned.hits.every(hit => hit.intendedGame)).toBe(true);
+  expect(pinned.targets).toEqual(targetsBefore);
+  expect(pinned.targets.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
+  expect(pinned.collection.top).toBeGreaterThanOrEqual(pinned.header.bottom);
+  expect(await readLibrary(page)).toEqual(before);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map((record: { id: string }) => record.id))).toEqual([credited.record.id]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('batched desktop and mobile pixels keep games before secondary filters and bound native chevrons', async ({ browser, isMobile, baseURL }, info) => {
