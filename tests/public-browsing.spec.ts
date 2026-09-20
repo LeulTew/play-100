@@ -273,6 +273,9 @@ test('focused mobile recovery clears the fixed bar and retries through ordinary 
 
 test('a pinned tray leaves the first explored game identity unobscured at 320px without changing target sizes or saved data', async ({ page, isMobile }, info) => {
   test.skip(!isMobile, 'This is the actual coarse-pointer narrow mobile dock intersection.');
+  const pinnedGame = seed.items.find(item => item.record.id === 'wikidata:Q161234')?.record;
+  if (!pinnedGame) throw new Error('The local 0 A.D. fixture is required for the reported cross-flow.');
+  expect(pinnedGame.title).toBe('0 A.D.');
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/?catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
@@ -305,10 +308,10 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   expect(empty.title.bottom).toBeLessThanOrEqual(empty.nav.top);
   expect(empty.hits.every(hit => hit.intendedGame)).toBe(true);
   await page.locator('.mobile-nav').getByRole('link', { name: 'Discover', exact: true }).click();
-  await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill(credited.record.title);
-  const card = page.locator(`[data-catalog-id="${credited.record.id}"]`);
+  await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill(pinnedGame.title);
+  const card = page.locator(`[data-catalog-id="${pinnedGame.id}"]`);
   await expect(card).toBeVisible();
-  await card.getByRole('button', { name: `Pin ${credited.record.title} for comparison`, exact: true }).click();
+  await card.getByRole('button', { name: `Pin ${pinnedGame.title} for comparison`, exact: true }).click();
   const targetsBefore = await page.locator('.compare-tray-dock button').evaluateAll(buttons => buttons.map(button => ({
     label: button.getAttribute('aria-label') ?? button.textContent,
     width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height,
@@ -318,7 +321,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).click();
   await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
   const pinned = await measure();
-  await writeFile(info.outputPath('pinned-explore-geometry.json'), JSON.stringify({ empty, pinned, targetsBefore, pinnedGame: credited.record.id }, null, 2));
+  await writeFile(info.outputPath('pinned-explore-geometry.json'), JSON.stringify({ empty, pinned, targetsBefore, pinnedGame: pinnedGame.id }, null, 2));
   await page.screenshot({ path: info.outputPath('pinned-explore-320.png'), scale: 'css' });
   expect(pinned.dock).not.toBeNull();
   expect(pinned.title.bottom).toBeLessThanOrEqual(pinned.dock!.top);
@@ -327,7 +330,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   expect(pinned.targets.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
   expect(pinned.collection.top).toBeGreaterThanOrEqual(pinned.header.bottom);
   expect(await readLibrary(page)).toEqual(before);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map((record: { id: string }) => record.id))).toEqual([credited.record.id]);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map((record: { id: string }) => record.id))).toEqual([pinnedGame.id]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
