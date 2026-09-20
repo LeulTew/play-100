@@ -24,10 +24,31 @@
 .compare-game-filter li { min-width: 0; max-width: 100%; }
 .compare-game-filter li button { text-align: left; overflow-wrap: anywhere; }
 .compare-freshness { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; color: var(--muted); }
-.comparison-scroll { overflow: auto; max-width: 100%; border-block: 1px solid var(--ink); margin-block: 24px; }
-.friend-matrix { border-collapse: collapse; min-width: 650px; width: 100%; font-variant-numeric: tabular-nums; }
+.friend-compare-page .page-heading { flex-direction: row; align-items: center; gap: 12px; margin-bottom: 10px; }
+.friend-compare-page .page-heading h1 { margin: 0; }
+.friend-compare-page .page-heading > .text-button { flex-shrink: 0; }
+.compare-chosen-people { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.compare-chosen-people strong { font-weight: 650; }
+.compare-people-disclosure, .compare-coverage-disclosure { border-bottom: 1px solid var(--line); }
+.compare-people-disclosure > summary, .compare-coverage-disclosure > summary { min-height: 44px; align-content: center; cursor: pointer; font-size: 14px; font-weight: 600; padding-block: 8px; }
+.compare-people-disclosure > summary:hover, .compare-coverage-disclosure > summary:hover { text-decoration: underline; text-underline-offset: 4px; }
+.compare-people-disclosure > p, .compare-opening { font-size: 14px; line-height: 1.5; color: var(--muted); }
+.friend-compare-page .compare-toolbar { margin-block: 12px; gap: 12px; }
+.friend-compare-page .compare-toolbar label { min-width: 0; gap: 6px; font-size: 13px; }
+.friend-compare-page .compare-toolbar label:first-child { flex: 0 1 240px; }
+.compare-coverage-summary { display: block; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--muted); margin-top: 2px; }
+.compare-problems { margin-block: 12px; font-size: 14px; line-height: 1.5; color: #8c3026; }
+.compare-problems ul { list-style: none; padding: 0; margin: 0; }
+.compare-problems .text-button { color: var(--ink); }
+.comparison-scroll { overflow: auto; max-width: 100%; max-height: min(62dvh, 620px); border-block: 1px solid var(--ink); margin-block: 12px 20px; }
+.comparison-scroll:focus-visible { outline: 3px solid #426515; outline-offset: 4px; }
+.friend-matrix { border-collapse: separate; border-spacing: 0; min-width: 650px; width: 100%; font-variant-numeric: tabular-nums; }
 .friend-matrix th, .friend-matrix td { text-align: left; vertical-align: middle; padding: 14px 16px; border-bottom: 1px solid var(--line); min-width: 132px; }
 .friend-matrix th:first-child { min-width: 190px; max-width: 260px; position: sticky; left: 0; background: var(--paper); z-index: 1; }
+.friend-matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--paper); box-shadow: 0 1px 0 var(--line); overflow-wrap: anywhere; }
+.friend-matrix thead th:first-child { z-index: 3; }
+.compare-participant-heading { display: flex; align-items: center; gap: 8px; }
+.compare-participant-heading > span { min-width: 0; overflow-wrap: anywhere; }
 .friend-matrix th:first-child button { text-align: left; justify-content: flex-start; line-height: 1.4; }
 .friend-matrix small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 6px; }
 .friend-matrix td > span { font-size: 13px; color: var(--muted); }
@@ -72,7 +93,16 @@
   .friend-list .button-row { flex-wrap: wrap; }
   .friend-matrix th, .friend-matrix td { padding: 12px; min-width: 120px; }
   .friend-matrix th:first-child { min-width: 156px; max-width: 190px; }
-  .friend-compare-page .page-heading { flex-wrap: wrap; }
+  .friend-compare-page { padding-top: 6px; }
+  .friend-compare-page .page-heading { flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+  .friend-compare-page .page-heading > .text-button { gap: 6px; }
+  .friend-compare-page .compare-toolbar label:first-child { flex: 1; }
+  .friend-compare-page .compare-toolbar { margin-block: 8px; }
+  .friend-compare-page .compare-toolbar input, .friend-compare-page .compare-toolbar select { padding-inline: 8px; }
+  .compare-chosen-people { font-size: 13px; }
+  .friend-compare-page .comparison-scroll { max-height: 58dvh; margin-top: 6px; }
+  .friend-compare-page .friend-matrix thead th { padding-block: 6px; }
+  .friend-compare-page .friend-matrix th:not(:first-child), .friend-compare-page .friend-matrix td { min-width: 176px; }
   .friend-manager-toolbar { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .friend-manager-toolbar label:last-child { max-width: 260px; }
   .friend-list > .friend-manager-row { gap: 12px; padding-block: 20px; align-items: stretch; }
@@ -82,4 +112,7 @@
   .friend-selection-bar .button { padding-inline: 14px; }
   .friend-row-person { gap: 4px; }
   .friend-row-person .friend-identity { gap: 12px; }
+}
+@media (max-width: 380px) {
+  .friend-compare-page .page-heading h1 { font-size: 32px; }
 }

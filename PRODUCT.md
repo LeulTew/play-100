@@ -213,6 +213,15 @@ until one explicit, inline **Share all with friends** action.
 - Comparisons use exact game identities for two to six participants. Unrated
   differs from zero; unavailable rankings remain explicit. Named comparison
   groups are private participant selections, not chat or access grants.
+- A resolved two-to-six-person comparison shows the chosen names and starts
+  with its native Change people editor collapsed. An unresolved saved group
+  is not an empty selection; a chooser opened deliberately stays open while
+  people are checked. Falling below two reveals the chooser again.
+  Coverage & loading keeps the existing participant readers mounted, with
+  truthful partial/exact scope and named failures visible outside the
+  disclosure. The single bounded comparison table retains both game identity
+  and participant headers during native two-axis scrolling. Disclosure state
+  is transient and never saves a group or alters its name draft.
 - Unfetched pages are not missing or unrated games. Whole-cohort counts/statistics
   remain unknown while coverage is incomplete. The six-game tray uses bounded
   exact-game reads; opening Compare must not fetch six entire 10,000-game libraries.

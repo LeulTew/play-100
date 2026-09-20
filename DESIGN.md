@@ -242,6 +242,20 @@ there is no upload control, remote photo dependency or perpetual animation.
 Rendered avatar images have fixed dimensions. A published profile keeps its
 snapshot identity until explicitly updated.
 
+Compare starts with a compact heading and readable chosen names, then the
+native Change people disclosure. Once a saved cohort resolves, its editor
+starts collapsed; deliberate editing is never interrupted by checking the
+second person. Search/mode controls and a truthful coverage statement lead
+into the existing single matrix. Coverage & loading holds detailed counts
+and actions without unmounting readers; named errors and revocations remain
+visible outside it. The bounded, keyboard-focusable table scrolls on both
+axes with an opaque sticky participant header row and sticky Game corner.
+Private-group naming remains a separate explicit editor below the table.
+At 380px and below the Compare heading uses the existing 32px compact display
+scale so the labelled Friends return action stays on its heading row. Body and
+matrix text are not reduced to fit participants; the native horizontal region
+keeps their complete names and separate score columns.
+
 Buttons, links, inputs, selects and summaries use a visible **3px `#426515` outline with 4px offset**. Preserve semantic controls, the skip link and keyboard access; do not substitute hover-only affordances.
 
 ### Numbered jackets and collection rows
