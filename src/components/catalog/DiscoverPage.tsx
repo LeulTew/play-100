@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE } from '../../lib/discovery-search';
@@ -15,6 +15,8 @@ import { ProgressFilter } from '../ProgressFilter';
 import { selectionOperation } from '../../lib/game-progress';
 import type { useCollection } from '../../hooks/useCollection';
 import { catalogActionRecord, collectionGameForId } from '../../lib/catalog-identity';
+import { LocalPager } from '../LocalPager';
+import { BrowseFilters } from '../BrowseFilters';
 import './discover.css';
 
 export default function DiscoverPage({ collection, state, busy, onAction, onLibrary, onCommunity, onPreview, onPin, pinnedIds, renderDragHandle }: {
@@ -24,19 +26,36 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
   onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
-  const { filters, update } = useDiscoveryUrl();
+  const { filters, update, error: navigationError, saving, search: locationSearch } = useDiscoveryUrl();
   const games = collection.data?.games ?? [];
   const search = useDiscoverSearch(filters, games, collection.status === 'ready', state);
   const progressView = filters.progress ?? 'all';
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const editing = useRef(false);
-  const { seed, records, local, artwork, remote, remoteEnabled, items, ownership } = search;
+  const resultsHeading = useRef<HTMLHeadingElement>(null);
+  const [pageRequest, setPageRequest] = useState<{ search: string; remote: boolean } | null>(null);
+  const focusedRequest = useRef(pageRequest);
+  const { seed, records, local, artwork, remote, remoteEnabled, items, ownership, localReady, localPage } = search;
   const selection = records.filter((record) => selected.has(record.id)).map(record => catalogActionRecord(record, ownership));
-  const change = (patch: Partial<DiscoveryFilters>, method: 'push' | 'replace' = 'push') => {
-    setSelected(new Set());
-    update(patch, method);
-  };
+  const change = useCallback((patch: Partial<DiscoveryFilters>, method: 'push' | 'replace' = 'push', focusResults = false) => {
+    void update(patch, method).then((changed) => {
+      if (!changed) return;
+      setSelected(new Set());
+      if (focusResults) setPageRequest({ search: window.location.search, remote: patch.online === 'on' });
+    });
+  }, [update]);
+  useEffect(() => {
+    if (localReady && filters.online === 'auto' && filters.offset !== localPage.offset) change({ offset: localPage.offset }, 'replace');
+  }, [localReady, filters.online, filters.offset, localPage.offset, change]);
+  useEffect(() => {
+    if (!pageRequest || focusedRequest.current === pageRequest) return;
+    if (pageRequest.search !== locationSearch) { focusedRequest.current = pageRequest; return; }
+    if (pageRequest.remote && remote.loading) return;
+    focusedRequest.current = pageRequest;
+    resultsHeading.current?.focus({ preventScroll: true });
+    resultsHeading.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [pageRequest, locationSearch, remote.loading]);
   const bulk = async (action: SelectionAction) => {
     if (!selection.length) return;
     if (await onAction(selectionOperation(action, selection))) setSelected(new Set());
@@ -45,6 +64,10 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
   const years = [...new Set(items.flatMap(({ record }) => record.year ? [record.year] : []))].sort((a, b) => b - a);
   const initialLoading = collection.status === 'loading';
   const failed = remote.sources.some((source) => source.status === 'error');
+  const activeFilters = [progressView !== 'all', Boolean(filters.genre), Boolean(filters.year), filters.source !== 'all'].filter(Boolean).length;
+  const localRange = localReady && filters.online === 'auto' && local.length > DISCOVERY_PAGE_SIZE
+    ? `${localPage.start}–${localPage.end} of ${local.length} catalog games`
+    : filters.q.trim() ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}` : `${local.length} games · Illustrated first`;
   return (
     <section className="app-page discovery-page" aria-labelledby="discover-title">
       <header className="discovery-heading"><h1 id="discover-title" tabIndex={-1} data-page-heading>Discover</h1><button className="text-button" onClick={onLibrary}>My games<Icon name="arrow" width="17" height="17" /></button></header>
@@ -55,34 +78,38 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
           editing.current = true;
         }} />{filters.q && <button className="icon-button" type="button" aria-label="Clear search" onClick={() => change({ q: '', offset: 0, online: 'auto' })}><Icon name="close" /></button>}</div>
       </form>
-      <div className="discovery-toolbar">
+      <BrowseFilters activeCount={activeFilters} className="discovery-filters">
+        <div className="discovery-toolbar">
         <ProgressFilter value={progressView} onChange={progress => change({ progress, offset: 0, online: 'auto' })} />
         <label>Genre<select value={filters.genre} onChange={(event) => change({ genre: event.target.value, offset: 0, online: 'auto' })}><option value="">All genres</option>{filters.genre && !genres.includes(filters.genre) && <option>{filters.genre}</option>}{genres.map((genre) => <option key={genre}>{genre}</option>)}</select></label>
         <label>Year<select value={filters.year} onChange={(event) => change({ year: event.target.value, offset: 0, online: 'auto' })}><option value="">Any year</option>{filters.year && !years.includes(Number(filters.year)) && <option>{filters.year}</option>}{years.map((year) => <option key={year}>{year}</option>)}</select></label>
         <label>Source<select value={filters.source} onChange={(event) => change({ source: event.target.value === 'collection' ? 'collection' : event.target.value === 'wikidata' ? 'wikidata' : event.target.value === 'freetogame' ? 'freetogame' : 'all', offset: 0, online: 'auto' })}><option value="all">All sources</option><option value="collection">The 100</option><option value="wikidata">Wikidata</option><option value="freetogame">FreeToGame</option></select></label>
-        <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
-      </div>
+        </div>
+      </BrowseFilters>
       <div className="discovery-results-heading">
-        <h2 className="sr-only">Catalog games</h2>
-        <p role="status">{initialLoading ? 'Loading The 100...' : filters.q.trim() ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}` : `${local.length} games · Illustrated first`}{!initialLoading && (seed.status === 'idle' || seed.status === 'loading') ? ' · Loading more catalog games...' : ''}</p>
+        <div><h2 ref={resultsHeading} id="discovery-results-title" tabIndex={-1}>Catalog games</h2><p role="status" aria-atomic="true">{initialLoading ? 'Loading The 100...' : localRange}{!initialLoading && (seed.status === 'idle' || seed.status === 'loading') ? ' · Loading more catalog games...' : ''}</p></div>
+        <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
         <button className="text-button" aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
       </div>
+      {navigationError && <p className="inline-error" role="alert">{navigationError}</p>}
+      {saving && <p className="section-help" role="status">Saving your rating before changing results...</p>}
+      {selecting && <p className="section-help">Selection applies to this page. Changing pages or filters clears the selection.</p>}
       {selecting && <SelectionBar context="discover" count={selection.length} total={records.length} busy={busy} onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
       {collection.status === 'error' && <div className="discovery-notice" role="alert"><p>The 100 could not load. {collection.error} Reload it before browsing so matching catalog games use the original entry.</p><button className="text-button" onClick={collection.retry}>Reload The 100</button></div>}
       {seed.error && <div className="discovery-notice" role="alert"><p>Local catalog unavailable. {seed.error} The 100 remains searchable. {filters.catalogs === 'off' ? 'Online lookup is off.' : 'Trying online catalogs instead.'}</p><button className="text-button" onClick={seed.retry}>Reload local catalog</button></div>}
-      {initialLoading && !records.length && <div className="discovery-skeleton" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <div key={index} />)}</div>}
+      {(initialLoading || collection.status === 'ready' && !localReady) && !records.length && <div className="discovery-skeleton" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <div key={index} />)}</div>}
       {records.length > 0 && <ul className={`discovery-cards discovery-cards-${filters.view}`} aria-label="Discovered games">
         {records.map((record, index) => <DiscoveryCard key={record.id} record={record} game={collectionGameForId(games, record.id)} actionRecord={catalogActionRecord(record, ownership)} ownedCopies={ownership.get(record.id)} artwork={artwork.get(record.id)} state={state} busy={busy} eager={index < 4} selecting={selecting} selected={selected.has(record.id)} pinned={pinnedIds?.has(record.id)} onSelect={(id) => setSelected((prior) => {
           const next = new Set(prior); if (next.has(id)) next.delete(id); else next.add(id); return next;
         })} onPreview={onPreview} onPin={onPin} renderDragHandle={renderDragHandle} onAction={onAction} />)}
       </ul>}
-      {collection.status === 'ready' && !records.length && <div className="discovery-empty"><h2>{remote.loading ? 'Looking online…' : failed ? 'Online search is incomplete' : seed.error ? 'The catalog could not load' : filters.offset > 0 ? 'No games on this page' : 'No matching games'}</h2><p>{failed ? 'Retry a provider below or change your search.' : 'Try a shorter title, clear a filter, or add a game manually.'}</p><button className="text-button" onClick={() => change({ ...defaultDiscoveryFilters, catalogs: filters.catalogs, view: filters.view })}>Reset search and filters</button></div>}
-      {filters.online === 'auto' && (local.length > DISCOVERY_PAGE_SIZE || filters.offset > 0) && <nav className="discovery-pagination" aria-label="Catalog pages"><button className="button button-outline" disabled={filters.offset === 0} onClick={() => change({ offset: Math.max(0, filters.offset - DISCOVERY_PAGE_SIZE) })}>Previous</button><span>{Math.min(filters.offset + 1, local.length)}–{Math.min(filters.offset + DISCOVERY_PAGE_SIZE, local.length)} of {local.length} catalog games</span><button className="button button-outline" disabled={filters.offset + DISCOVERY_PAGE_SIZE >= local.length} onClick={() => change({ offset: filters.offset + DISCOVERY_PAGE_SIZE })}>Next</button></nav>}
+      {collection.status === 'ready' && localReady && !records.length && <div className="discovery-empty"><h2>{remote.loading ? 'Looking online…' : failed ? 'Online search is incomplete' : seed.error ? 'The catalog could not load' : filters.offset > 0 ? 'No games on this page' : 'No matching games'}</h2><p>{failed ? 'Retry a provider below or change your search.' : 'Try a shorter title, clear a filter, or add a game manually.'}</p><button className="text-button" onClick={() => change({ ...defaultDiscoveryFilters, catalogs: filters.catalogs, view: filters.view })}>Reset search and filters</button></div>}
+      {filters.online === 'auto' && localReady && localPage.pageCount > 1 && <LocalPager label="Catalog pages" itemLabel="catalog games" total={local.length} offset={localPage.offset} pageSize={DISCOVERY_PAGE_SIZE} disabled={saving} onOffsetChange={offset => change({ offset }, 'push', true)} />}
       <div className="discovery-online">
         {filters.source === 'collection' ? <p>Showing entries from The 100. Choose another source to look beyond the collection.</p> : progressView !== 'all' ? <p>Online lookup is paused for this progress view. Your play history is not sent to providers.</p> : filters.catalogs === 'off' ? <p>Online lookup is off. <button className="text-button" onClick={() => change({ catalogs: 'on', online: 'on', offset: 0 })}>Search online</button></p>
           : !remoteEnabled && <button className="text-button" onClick={() => change({ online: 'on', offset: 0 })}>Search online<Icon name="arrow" width="17" height="17" /></button>}
         {filters.online === 'on' && progressView === 'all' && <button className="text-button" onClick={() => change({ online: 'auto', offset: 0 })}>Back to catalog</button>}
-        <CatalogSourceStatus sources={remote.sources} onRetry={remote.retry} onMore={(source, offset) => change({ source, offset, online: 'on' })} onPrevious={(source, offset) => change({ source, offset, online: 'on' })} />
+        <CatalogSourceStatus sources={remote.sources} onRetry={remote.retry} onMore={(source, offset) => change({ source, offset, online: 'on' }, 'push', true)} onPrevious={(source, offset) => change({ source, offset, online: 'on' }, 'push', true)} />
         <details className="discovery-help"><summary>Search options &amp; sources</summary><label className="check-control"><input type="checkbox" checked={filters.catalogs === 'on'} disabled={progressView !== 'all'} onChange={(event) => change({ catalogs: event.target.checked ? 'on' : 'off' })} />Look online when local matches are limited</label><p>Verified matches use the original entry from The 100, including when found through Wikidata. Other editions stay separate. Provider counts describe their responses, before matching duplicates are removed.</p><p>Only your search is sent to public providers, not your saved progress, ratings or notes. Metadata from <a href="https://www.wikidata.org/wiki/Wikidata:Data_access" target="_blank" rel="noreferrer">Wikidata (CC0)</a> and <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">FreeToGame</a>. Image credits are under each game's Actions &amp; source.</p></details>
       </div>
       <ManualGameForm busy={busy} onAdd={(record) => onAction({ type: 'add-records', records: [record] })} actionLabel="Add to my library" />

@@ -70,13 +70,13 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
         <span><strong>{items.length} {items.length === 1 ? 'game' : 'games'}</strong><span>{persistent ? 'Compare tray' : 'Temporary tray'}</span></span>
         <Icon name="up" width="16" height="16" />
       </button>
-      <button type="button" className="button button-lime compare-tray-action" disabled={!items.length} onClick={compare}>Compare<Icon name="arrow" width="18" height="18" /></button>
+      <button type="button" className="button button-lime compare-tray-action" aria-label="Compare rankings with friends" disabled={!items.length} onClick={compare}>Compare rankings<Icon name="arrow" width="18" height="18" /></button>
       {warning && <span className="compare-tray-storage-mark" aria-label="Tray storage needs attention" title="Open the tray to review its storage warning"><Icon name="info" width="17" height="17" /></span>}
       {error && <p className="compare-tray-error">{error}</p>}
     </aside>}
     <Dialog open={open && !hidden} titleId={`${id}-title`} descriptionId={`${id}-description`} onClose={close} className="compare-tray-sheet">
       <h2 ref={sheetTitle} id={`${id}-title`} tabIndex={-1} data-autofocus>Compare tray</h2>
-      <p id={`${id}-description`} className="compare-tray-description">{items.length ? `${items.length} of 6 games. Choose friends next.` : 'Pin a game while browsing to hold it here.'} Pinning does not save, rate or share a game.</p>
+      <p id={`${id}-description`} className="compare-tray-description">{items.length ? `${items.length} of 6 games. Choose friends to compare their rankings of these games.` : 'Pin a game while browsing to hold it here.'} Pinning does not save, rate or share a game.</p>
       {warning && <div className="compare-tray-warning" role="alert"><p>{warning}</p><button type="button" className="text-button" onClick={() => { clear(); sheetTitle.current?.focus(); }}>Reset saved tray</button></div>}
       {error && <p className="inline-error" role="alert">{error}</p>}
       <ul ref={list} className="compare-tray-games" aria-label="Pinned games">
@@ -85,7 +85,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
           <div className="compare-tray-game-copy">
             {onPreview ? <button type="button" className="text-button compare-tray-game-title" onClick={() => { close(); onPreview(record); }}>{record.title}</button> : <strong className="compare-tray-game-title">{record.title}</strong>}
             <span>{SOURCE_LABELS[record.source]}{record.year !== null ? ` / ${record.year}` : ''}</span>
-            <GameArtworkCredit artwork={resolveArtwork?.(record)} />
+            <GameArtworkCredit artwork={resolveArtwork?.(record)} disclosureLabel={`Artwork credits for ${record.title}`} />
           </div>
           <button data-unpin type="button" className="icon-button" aria-label={`Unpin ${record.title} from comparison`} onClick={() => remove(record)}><Icon name="close" width="19" height="19" /></button>
         </li>)}

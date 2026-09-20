@@ -5,6 +5,7 @@ import { parseCollection } from '../src/lib/collection';
 import { recordFromGame } from '../src/lib/personal-types';
 import type { LibraryRecord } from '../src/lib/personal-types';
 import { readLibrary } from './library-helpers';
+import { openBrowsingFilters } from './browsing-helpers';
 
 const editor = (page: Page) => page.locator('.my-games-editor:visible');
 test.beforeEach(async ({ page }) => {
@@ -43,9 +44,11 @@ test('clear progress views roundtrip for the100, additions, Queue and Ranking wi
   await expect(page.locator('[data-unranked-id]')).toHaveCount(1);
   await expect(page.locator('.result-summary strong')).toHaveText('2');
   await expect(page.getByLabel('Progress', { exact: true })).toHaveValue('unfinished');
+  await openBrowsingFilters(page);
   await page.getByLabel('Progress', { exact: true }).selectOption('completed');
   await expect(page.locator('.result-summary strong')).toHaveText('3');
   await page.reload(); await expect(page.locator('.result-summary strong')).toHaveText('3');
+  await openBrowsingFilters(page);
   await page.getByLabel('Progress', { exact: true }).selectOption('not-played');
   await expect(page.locator('.result-summary strong')).toHaveText('97');
   await page.goBack();
@@ -93,6 +96,7 @@ test('bulk Mark played is independent on collection, imported Discovery and save
   await card.getByRole('checkbox', { name: 'Select Kingdom Come: Deliverance', exact: true }).check();
   await page.getByRole('button', { name: 'Mark played', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress['wikidata:Q15408545']).toEqual({ played: true, completed: false, later: false });
+  await openBrowsingFilters(page);
   await page.getByLabel('Progress', { exact: true }).selectOption('unfinished');
   await expect(card).toBeVisible();
   await page.getByLabel('Progress', { exact: true }).selectOption('completed');

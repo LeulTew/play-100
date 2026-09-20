@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { LibraryRecord } from '../src/lib/personal-types';
 import { readLibrary } from './library-helpers';
 import { catalogRecord, respondWithCatalog } from './catalog-helpers';
+import { openBrowsingFilters } from './browsing-helpers';
 
 const a = catalogRecord('wikidata', 'Q990001', 'Mass Atlas');
 const b = catalogRecord('freetogame', '990001', 'Mass Meridian');
@@ -170,6 +171,7 @@ test('online search is debounced, length bounded, scoped and URL reversible with
   expect(queries).toEqual([]);
   await page.clock.runFor(1);
   await expect.poll(() => queries).toEqual(['mass', 'mass']);
+  await openBrowsingFilters(page);
   await page.getByLabel('Collection', { exact: true }).selectOption('core');
   await input.fill('another query');
   await page.clock.runFor(1000);
@@ -305,11 +307,13 @@ test('external metadata, ratings and queue survive a full browser restart even w
 
 test('native selects have aligned labels, values and chevrons across viewports with accessible unranked actions', async ({ page, viewport }, testInfo) => {
   await mockGames(page);
-  await page.goto('/?q=mass&view=table');
+  await page.goto('/?q=Mass%20Atlas&view=table');
   await expect(row(page, a)).toBeVisible();
+  await openBrowsingFilters(page);
   await page.getByLabel('Genre', { exact: true }).selectOption('Action RPG');
   for (const width of [1440, 800, 393, 320]) {
     await page.setViewportSize({ width, height: 1000 });
+    await openBrowsingFilters(page);
     const geometry = await page.evaluate(() => {
       const fields = [...document.querySelectorAll('.filter-select')].map((field) => {
         const select = field.querySelector('select');
@@ -328,7 +332,7 @@ test('native selects have aligned labels, values and chevrons across viewports w
       return { fields, noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth };
     });
     expect(geometry.noOverflow).toBe(true);
-    expect(geometry.fields).toHaveLength(4);
+    expect(geometry.fields).toHaveLength(5);
     for (const field of geometry.fields) {
       expect(field.native).toBe('SELECT');
       expect(field.height).toBeGreaterThanOrEqual(44);
@@ -339,6 +343,7 @@ test('native selects have aligned labels, values and chevrons across viewports w
     }
   }
   await page.setViewportSize(viewport ?? { width: 1440, height: 1000 });
+  await openBrowsingFilters(page);
   const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(accessibility.violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('unified-search.png'), fullPage: true });

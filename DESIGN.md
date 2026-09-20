@@ -133,7 +133,9 @@ Use the extracted display roles rather than an oversized generic hero: desktop t
 - Use the extracted fluid gutter; at the narrowest breakpoint (380px and below), the implemented gutter is 17px.
 - Preserve the compact mobile introduction: its contextual artifact stage is 185px high and its artifact root minimum is 236px. Retain the tightened gaps and the **Explore all 100** CTA.
 - Those contextual values override the reusable artifact's standalone mobile defaults: a 220px stage and 274px root minimum at 640px and below. The standalone desktop stage is `clamp(245px, 27vw, 320px)` with a 245px minimum and a 292px root minimum.
-- Keep mobile search, filters and sorting thumb-friendly. At 380px and below, the result summary and view controls each occupy a full row; the sort label remains visible.
+- Keep mobile search and the compact result/view row primary. Secondary filters
+  and sorting live in a labelled native disclosure with an active count; the
+  same labelled fields stay expanded on desktop, without duplicate controls.
 - Collection focus mode prioritizes the working index without introducing another visual theme. The game-detail drawer stays in the same chalk-and-ink system, with focus management, readable actions and mobile safe-area clearance.
 
 ## Elevation & Depth
@@ -187,11 +189,14 @@ feedback belongs inside the dialog; the underlying editor stays mounted until
 its valid edits commit. Escape cancels the transition without discarding work.
 
 Search and native selects use visible labels above 48px controls. A shared
-select shell centers its noninteractive SVG chevron on the value row, not on
-the combined label/control height. On mobile, search and genre occupy full
-rows, followed by year/collection columns; sort and layout controls align along
-their control bottoms. Native menus, keyboard behavior and focus outlines stay
-intact. Online search scope is explicit beneath the fields.
+select shell centers its noninteractive SVG chevron on the value row, with the
+same width bounds as the actual select, not on the combined label/control
+height. Search and result/view controls remain visible on mobile; the native
+Filters & sort disclosure groups the existing private-view, genre/year/tier,
+progress, sort and public-lookup controls. Genre and sort occupy full rows
+inside it. Native menus, keyboard behavior and focus outlines stay intact.
+Online search scope is explicit beneath the fields and is never reset by
+opening the disclosure.
 
 Unranked matches and saved additions use an open ruled list below the original
 100, not fake numbered jackets or empty critic-score cells. Source attribution
@@ -249,7 +254,10 @@ The extension keeps the same visual world. Dense ratings data uses Hanken body
 type, tabular numerals, explicit native score scales and unavailable-value
 dashes. The author rank stays distinct from the optional personal score.
 Table headings carry real sort state; horizontal scrolling is deliberate,
-keyboard reachable, and limited to the table rather than the page.
+keyboard reachable, and limited to the table rather than the page. On mobile,
+a compact sticky game cell includes its original rank while scores scroll.
+It leaves room for a useful numeric column rather than pinning a wide desktop
+identity block; sort buttons retain the 44px inline target floor.
 Table mode omits the decorative introduction so the spreadsheet-like working
 surface leads. The default grid/list browsing introduction remains unchanged.
 
@@ -260,8 +268,12 @@ existing dense utility scale; they are not additional display faces or a new
 palette. Active tab underlines indicate navigation, not decorative card edges.
 Mobile omits the redundant second headline line on private/catalog pages and
 groups ranking controls more densely without reducing their touch targets.
-An explicit catalog search or page change brings its new results heading into
-view and focuses it; typing alone never moves the page.
+An explicit catalog page change brings its new results heading into
+view and focuses it; typing alone never moves the page. Known local Discover
+pages use the existing 24-item slice with First/Previous, one native direct-page
+choice, Next/Last and a truthful range. Provider pagination remains separate.
+Late catalog loading does not clamp a valid URL to a temporary count; pending
+rating edits are saved or visibly retained before results can change.
 
 Drag handles are 44px, touch scrolling remains normal outside them, and up/down
 buttons are equivalent controls. Disabled reordering explains the active
@@ -287,6 +299,12 @@ The outlined **Fan out / Stack up** control has a 112px minimum width and 44px m
 Retain the actual customized React Bits **CountUp**, **Magnet** and **AnimatedContent** implementations; attribution is maintained elsewhere in the project. Their role is feedback and restrained arrival, not a prerequisite to browsing.
 
 Keep drawer focus management and mobile safe areas intact. The narrow-screen detail actions share available width; supplementary details must not push the primary controls out of reach.
+
+The six-game comparison tray keeps identities and actions ahead of long artwork
+attribution. Only that tray opts into the native Artwork credits disclosure;
+its full source credit and license/source links remain unchanged. Compare is
+labelled as rankings with friends. Root mobile focus scrolling reserves the
+fixed bottom navigation and safe area, including on recovery controls.
 
 ## Do's and Don'ts
 

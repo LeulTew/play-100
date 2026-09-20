@@ -259,7 +259,7 @@ test('an explicit unranked shelf stays independent, updates after removal, stops
     await expect(peer.locator('.friend-shelf-cards')).not.toContainText('8.4');
     await peer.locator('.friend-shelf-cards').getByRole('button', { name: `Pin ${title}`, exact: true }).click();
     expect((await readAccount(peer, viewer.uid)).state.records).toEqual({});
-    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare', exact: true }).click();
+    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
     await expect(peer).toHaveURL(/\/compare$/);
     await expect(peer.locator('.compare-game-filter')).toContainText(title);
     await peer.getByLabel('QA Shelf Owner', { exact: true }).check();
@@ -416,12 +416,12 @@ test('tray Compare resets the mounted comparison filters and page without changi
     }, viewer.uid);
     await peer.goto('/my-games');
     await workspace(peer).getByRole('button', { name: 'Pin Red Dead Redemption 2 for comparison', exact: true }).click();
-    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare', exact: true }).click();
+    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
     await peer.getByLabel('QA Comparison Owner', { exact: true }).check();
     await peer.getByLabel('Games', { exact: true }).selectOption('common-ranked');
     await peer.getByLabel('Search games', { exact: true }).fill('Impossible previous filter');
     const before = await peer.locator('.account-nav').getAttribute('aria-label');
-    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare', exact: true }).click();
+    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
     await expect(peer.getByLabel('Search games', { exact: true })).toHaveValue('');
     await expect(peer.getByLabel('Games', { exact: true })).toHaveValue('all-shared');
     await expect(peer.getByLabel('QA Comparison Owner', { exact: true })).toBeChecked();
@@ -432,7 +432,7 @@ test('tray Compare resets the mounted comparison filters and page without changi
     await peer.getByRole('button', { name: 'Clear game filter', exact: true }).click();
     await peer.getByRole('button', { name: 'Next 25', exact: true }).click();
     await expect(peer.locator('.friend-compare-page')).toContainText('2 / 2');
-    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare', exact: true }).click();
+    await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
     await expect(peer.locator('.friend-matrix tbody')).toContainText('Red Dead Redemption 2');
     await expect(peer.locator('.friend-compare-page')).toContainText('1 / 1');
     await expect(peer.getByLabel('QA Comparison Owner', { exact: true })).toBeChecked();

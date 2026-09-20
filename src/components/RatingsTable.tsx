@@ -62,7 +62,7 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
             <tr key={game.slug} data-game={game.slug} className={selected.has(game.slug) ? 'row-selected' : ''}>
               {selecting && <td className="selection-column"><label className="select-control"><input type="checkbox" checked={selected.has(game.slug)} onChange={() => onSelect(game.slug)} aria-label={`Select ${game.title}`} /></label></td>}
               <td className="table-rank">{String(game.rank).padStart(2, '0')}</td>
-              <th scope="row" className="table-game"><a href={`/${createSearch(filters, game.slug)}`} onClick={(event) => open(event, game.slug)}>{game.title}</a><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
+              <th scope="row" className="table-game"><a href={`/${createSearch(filters, game.slug)}`} onClick={(event) => open(event, game.slug)}><span className="table-inline-rank" aria-hidden="true">#{String(game.rank).padStart(2, '0')}</span><span className="table-game-title">{game.title}</span></a><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
               <td>{game.year}</td>
               <td className="numeric-score table-author-rating" title={game.authorRating?.rawValue}>{game.authorRating ? authorRatingText(game.authorRating) : <span aria-label="Original author rating unavailable">—</span>}</td>
               {criticColumns.map(({ key }) => <td key={key} className="numeric-score">{game.critics[key] === null ? <span aria-label="Unavailable">—</span> : game.critics[key]}</td>)}

@@ -92,16 +92,18 @@
 .ratings-table th, .ratings-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; background: var(--paper); }
 .ratings-table th { text-align: left; }
 .ratings-table thead th { position: sticky; top: 0; z-index: 3; background: #e5e9dc; border-bottom: 1px solid #aab39b; white-space: nowrap; }
-.table-sort { min-height: 44px; width: 100%; display: flex; gap: 8px; align-items: center; justify-content: space-between; background: transparent; padding: 2px 0; text-align: left; font-weight: 650; font-size: 12px; }
+.table-sort { min-height: 44px; min-width: 44px; width: 100%; display: flex; gap: 8px; align-items: center; justify-content: space-between; background: transparent; padding: 2px 0; text-align: left; font-weight: 650; font-size: 12px; }
 .table-sort small { display: block; font-weight: 450; font-size: 11px; color: #58624c; margin-top: 2px; }
 .table-sort:hover { color: #3a571d; }
 .ratings-table tbody tr:last-child th, .ratings-table tbody tr:last-child td { border-bottom: 0; }
 .ratings-table tbody tr:hover th, .ratings-table tbody tr:hover td { background: #edf0e3; }
 .ratings-table .row-selected th, .ratings-table .row-selected td { background: #e5edce; }
-.ratings-table .table-rank { position: sticky; left: var(--selection-width); z-index: 1; min-width: 54px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.ratings-table .table-game { position: sticky; left: calc(var(--selection-width) + 54px); z-index: 1; min-width: 225px; max-width: 285px; box-shadow: 4px 0 5px #20231e08; }
+.ratings-table .table-rank { position: sticky; left: var(--selection-width); z-index: 1; width: 68px; min-width: 68px; max-width: 68px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.ratings-table .table-game { position: sticky; left: calc(var(--selection-width) + 68px); z-index: 1; min-width: 225px; max-width: 285px; box-shadow: 4px 0 5px #20231e08; }
 .ratings-table .table-game a { display: flex; align-items: center; min-height: 44px; font-size: 14px; line-height: 1.35; font-weight: 700; }
 .ratings-table .table-game a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.table-inline-rank { display: none; }
+.table-game-title { min-width: 0; overflow-wrap: anywhere; }
 .ratings-table .table-game > span { display: block; font-size: 10px; color: var(--muted); font-weight: 450; line-height: 1.4; margin-top: 1px; }
 .ratings-table thead .table-rank, .ratings-table thead .table-game { z-index: 4; }
 .ratings-table .selection-column { position: sticky; left: 0; z-index: 2; width: 44px; min-width: 44px; padding-inline: 0; }
@@ -343,12 +345,14 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
   .ratings-explainer { gap: 5px; }
   .ratings-explainer > p { font-size: 12px; }
   .ratings-scroll { max-height: 70vh; }
-  .ratings-table .table-game { min-width: 155px; max-width: 185px; position: static; box-shadow: none; }
+  .ratings-table .table-game { width: 146px; min-width: 146px; max-width: 146px; left: var(--selection-width); }
   .ratings-table th, .ratings-table td { padding-inline: 9px; }
-  .ratings-table .table-game a { font-size: 13px; }
+  .ratings-table .table-game a { align-items: flex-start; gap: 6px; font-size: 13px; }
+  .ratings-table .table-inline-rank { display: inline; flex-shrink: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
   .ratings-table .table-game > span { font-size: 10px; }
-  .ratings-table thead .table-game { position: sticky; left: auto; top: 0; }
-  .ratings-table .table-rank { min-width: 48px; }
+  .ratings-table thead .table-game { white-space: normal; }
+  .ratings-table .table-rank { width: 62px; min-width: 62px; max-width: 62px; position: static; }
+  .ratings-table thead .table-rank { position: sticky; left: auto; z-index: 3; }
   .table-sort { font-size: 11px; }
   .table-footnote { font-size: 11px; }
   .app-page { padding-top: 27px; padding-bottom: 35px; }
@@ -452,8 +456,8 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
 .friend-sharing-summary > .button-row { justify-content: space-between; align-items: center; }
 .friend-sharing-summary p { min-width: 0; max-width: 68ch; overflow-wrap: anywhere; }
 .friend-sharing-summary > .section-help { margin-top: 8px; }
-.progress-filter { display: grid; gap: 6px; min-width: 0; font-size: 14px; color: var(--ink); }
-.progress-filter select { width: 100%; min-height: 44px; max-width: 250px; background: var(--white); border: 1px solid #a5ac98; border-radius: 4px; padding: 8px 30px 8px 10px; font: inherit; color: var(--ink); }
+.progress-filter { display: grid; gap: 6px; min-width: 0; max-width: 250px; font-size: 14px; color: var(--ink); }
+.progress-filter select { width: 100%; min-height: 44px; max-width: 100%; background: var(--white); border: 1px solid #a5ac98; border-radius: 4px; padding: 8px 30px 8px 10px; font: inherit; color: var(--ink); }
 .completed-toggle { white-space: nowrap; padding-inline: 6px; gap: 5px; }
 .completed-toggle[aria-pressed="true"] { color: var(--ink); background: var(--lime); border-radius: 4px; }
 .view-controls { flex-wrap: wrap; }

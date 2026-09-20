@@ -29,8 +29,10 @@ button.compare-drag-handle { display: none; }
 .compare-tray-games { list-style: none; margin: 24px 0 16px; padding: 0; border-top: 1px solid var(--line); }
 .compare-tray-games > li { display: flex; gap: 14px; align-items: center; padding-block: 10px; border-bottom: 1px solid var(--line); }
 .compare-tray-game-copy { min-width: 0; flex: 1; }
-.compare-tray-game-title { display: block; text-align: left; font-size: 15px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
-.compare-tray-game-copy > span:not(.game-artwork-credit) { font-size: 12px; color: var(--muted); }
+.compare-tray-game-copy > .compare-tray-game-title { display: block; width: 100%; text-align: left; font-size: 15px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.compare-tray-game-copy > span:not(.game-artwork-credit) { display: block; font-size: 12px; color: var(--muted); }
+.compare-tray-game-copy .game-artwork-disclosure > summary { min-height: 44px; align-content: center; font-size: 12px; color: var(--muted); cursor: pointer; }
+.compare-tray-game-copy .game-artwork-disclosure > summary:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .compare-tray-games .icon-button { flex-shrink: 0; }
 .compare-tray-sheet-actions { display: flex; justify-content: space-between; gap: 12px; align-items: center; position: sticky; bottom: 0; background: var(--paper); padding-top: 12px; }
 .compare-tray-warning { margin-top: 20px; padding-block: 12px; border-block: 1px solid var(--line); font-size: 13px; }

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { emptyCatalogs } from './catalog-helpers';
+import { openBrowsingFilters } from './browsing-helpers';
 
 const firstTitle = 'Red Dead Redemption 2';
 const firstSlug = 'red-dead-redemption-2';
@@ -83,6 +84,7 @@ test('search and real filters survive reload and browser history', async ({ page
   await expect(page.getByRole('searchbox')).toHaveValue('mass EFFECT 2');
   await expect(page.locator('.game-card h3')).toHaveText('Mass Effect 2');
   await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
+  await openBrowsingFilters(page);
   await page.getByLabel('Genre', { exact: true }).selectOption('Open-world / Action-Adventure');
   await page.getByLabel('Year', { exact: true }).selectOption('2018');
   await expect(page.locator('.game-card')).toHaveCount(1);
@@ -99,6 +101,7 @@ test('search and real filters survive reload and browser history', async ({ page
 
 test('sorting changes display order, never collection ranks; list view roundtrips', async ({ page }) => {
   await page.goto('/');
+  await openBrowsingFilters(page);
   await page.getByLabel('Sort', { exact: true }).selectOption('newest');
   await expect(page.locator('.game-meta').first()).toContainText('2026');
   await page.getByRole('button', { name: 'List view', exact: true }).click();
@@ -106,6 +109,7 @@ test('sorting changes display order, never collection ranks; list view roundtrip
   await page.reload();
   await expect(page.getByRole('button', { name: 'List view', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Sort', { exact: true })).toHaveValue('newest');
+  await openBrowsingFilters(page);
   await page.getByLabel('Sort', { exact: true }).selectOption('rank');
   await expect(page.locator('.game-card').first()).toHaveAttribute('data-game', firstSlug);
   await expect(page.locator('.cover-rank').first()).toHaveText('01');

@@ -25,7 +25,7 @@ export function GameArtwork({ record, artwork, className = '' }: GameArtworkProp
   </span>;
 }
 
-export function GameArtworkCredit({ artwork }: Pick<GameArtworkProps, 'artwork'>) {
+export function GameArtworkCredit({ artwork, disclosureLabel }: Pick<GameArtworkProps, 'artwork'> & { disclosureLabel?: string }) {
   if (!artwork) return null;
   const safeLink = (value: string) => {
     try {
@@ -35,5 +35,6 @@ export function GameArtworkCredit({ artwork }: Pick<GameArtworkProps, 'artwork'>
       return false;
     }
   };
-  return <span className="game-artwork-credit">Art: {safeLink(artwork.sourceUrl) ? <a href={artwork.sourceUrl} target="_blank" rel="noreferrer">{artwork.credit}</a> : artwork.credit}{' / '}{safeLink(artwork.licenseUrl) ? <a href={artwork.licenseUrl} target="_blank" rel="noreferrer">{artwork.license}</a> : artwork.license}</span>;
+  const credit = <span className="game-artwork-credit">Art: {safeLink(artwork.sourceUrl) ? <a href={artwork.sourceUrl} target="_blank" rel="noreferrer">{artwork.credit}</a> : artwork.credit}{' / '}{safeLink(artwork.licenseUrl) ? <a href={artwork.licenseUrl} target="_blank" rel="noreferrer">{artwork.license}</a> : artwork.license}</span>;
+  return disclosureLabel ? <details className="game-artwork-disclosure"><summary aria-label={disclosureLabel}>Artwork credits</summary>{credit}</details> : credit;
 }

@@ -1,0 +1,11 @@
+.browse-filters { min-width: 0; }
+.browse-filters > summary { min-height: 44px; align-content: center; padding-block: 8px; font-size: 14px; font-weight: 650; cursor: pointer; }
+.browse-filters > summary > span { margin-left: 10px; color: var(--muted); font-size: 12px; font-weight: 450; }
+.browse-filters-content { min-width: 0; }
+@media (min-width: 761px) {
+  .browse-filters > summary { display: none; }
+}
+@media (max-width: 760px) {
+  .browse-filters { border-bottom: 1px solid var(--line); }
+  .browse-filters-content { padding-bottom: 12px; }
+}

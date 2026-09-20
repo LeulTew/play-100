@@ -9,6 +9,7 @@ import { recordFromGame } from '../src/lib/personal-types';
 import type { LibraryRecord, PersonalLibraryState } from '../src/lib/personal-types';
 import { DB_NAME, DB_VERSION, STATE_KEY, STORE_NAME } from '../src/lib/personal-db';
 import { readLibrary } from './library-helpers';
+import { openBrowsingFilters } from './browsing-helpers';
 
 const collection = JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8'));
 const games = parseCollection(collection).games;
@@ -236,9 +237,10 @@ test('provider echoes resolve before filtering and cannot reappear from another 
   await expect(page.locator('[data-catalog-id]')).toHaveCount(1);
   await expect(cardFor(page)).toContainText('2018');
   await expect(cardFor(page, provider.id)).toHaveCount(0);
+  await openBrowsingFilters(page);
   await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption('collection');
   await expect(cardFor(page)).toBeVisible();
-  await page.reload(); await expect(page.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('collection');
+  await page.reload(); await openBrowsingFilters(page); await expect(page.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('collection');
   await page.goBack(); await expect(page.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('wikidata');
 });
 
@@ -262,7 +264,7 @@ test('late canonical data gates duplicate actions, error is recoverable, and all
   await expect(cardFor(page)).toBeVisible();
   await page.route('**/data/discovery/catalog.v1.json', route => route.fulfill({ status: 503, body: 'Synthetic unavailable seed' }));
   await page.goto('/discover?source=collection&catalogs=off');
-  await expect(page.locator('.discovery-results-heading')).toContainText('100 games');
+  await expect(page.locator('.discovery-results-heading')).toContainText('1–24 of 100 catalog games');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(24);
   const firstIds = await page.locator('[data-catalog-id]').evaluateAll(cards => cards.map(card => card.getAttribute('data-catalog-id')));
   await page.getByRole('button', { name: 'Next', exact: true }).click();

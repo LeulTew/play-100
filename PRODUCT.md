@@ -72,6 +72,12 @@ until one explicit, inline **Share all with friends** action.
 - Exactly 100 canonical games: core ranks 1-50, essential ranks 51-100.
 - Search, original-genre/year/tier filters, sortable native-scale ratings table,
   card/list views, selection mode and atomic bulk list/ranking actions.
+- Discover's known local results use 24-item pages with direct page choice and
+  truthful first/last ranges; the 845-result catalog has 36 pages and five games
+  on its last page. Explicit page changes land on the results; typing and
+  background loading do not move focus. Provider offsets and coverage remain
+  separate. Pending ratings must save before replacing results, and failed or
+  superseded page requests cannot discard their drafts.
 - A separate private play queue with mouse/touch dragging, keyboard sorting and
   move buttons. Completed games may remain queued for replay.
 - A separate personal-ranking page with optional scores and notes. Ranking a
@@ -109,6 +115,9 @@ until one explicit, inline **Share all with friends** action.
   Account destination. Settings & backups invokes the existing scoped dialog,
   retaining its confirmation, recovery and persistence behavior. Inline sharing
   audience, Stop and recovery controls remain in their existing pages.
+- The comparison tray leads to friends' rankings, not an anonymous game-spec
+  comparison. Its per-game Artwork credits disclosure retains the full original
+  credit, license/source links, conversion notices and caveats.
 - Discover starts with 810 verified provider records and 220 illustrated
   records using licensed local images; unavailable art is labelled honestly.
   Seed browsing/search is public and independent of account/storage/provider
@@ -252,6 +261,13 @@ carried-over snapshots, not live or independently verified.
 Keyboard operation, visible focus, semantic controls, 44px touch targets, readable
 contrast, focus-managed dialogs, ordinary scrolling, responsive layouts and
 mobile safe areas are required.
+
+On mobile, public search and compact result/view controls precede games without
+requiring a trip through expanded secondary filters. Native filter disclosures
+show their active count, keep one copy of each labelled field and preserve
+public-lookup choices. The original table keeps compact game/rank identity
+visible during horizontal score reading. Focus scrolling clears the fixed
+navigation and device safe areas.
 
 ## Authorized Implementation Decisions
 
