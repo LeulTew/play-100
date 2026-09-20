@@ -1,0 +1,6 @@
+.library-results-boundary { margin-block: 20px 16px; }
+.library-results-boundary > h3 { margin: 0; font-family: inherit; font-size: 18px; font-weight: 650; line-height: 1.4; scroll-margin-block-start: 12px; }
+.library-results-boundary > h3:focus { outline: 3px solid #426515; outline-offset: 4px; }
+.library-results-boundary .local-pager { margin-top: 12px; }
+.library-results-boundary .local-pager-controls { justify-content: flex-start; }
+.library-results-boundary .local-pager > p { text-align: start; }

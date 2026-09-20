@@ -25,6 +25,7 @@ const state: PersonalLibraryState = {
 const filters: Filters = { q: '', genre: 'all', year: 'all', tier: 'all', list: 'all', sort: 'rank', view: 'grid', direction: 'auto', catalogs: 'on' };
 const props = {
   state, filters, busy: false, animate: false, onFilters: vi.fn(), onAction: vi.fn(async () => true),
+  onPresentationChange: vi.fn(async (commit: () => void) => { commit(); return true; }),
   onOpen: vi.fn(), onDiscover: vi.fn(), onBrowse: vi.fn(), availableRecords: [alpha, beta], persistent: true,
 };
 

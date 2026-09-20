@@ -13,14 +13,16 @@ interface SelectionBarProps {
   onAction: (action: SelectionAction) => void;
   onRemove?: () => void;
   context?: 'collection' | 'library' | 'discover';
+  selectAllLabel?: string;
+  selectionHelp?: string;
 }
 
-export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone, onAction, onRemove, context = 'collection' }: SelectionBarProps) {
+export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone, onAction, onRemove, context = 'collection', selectAllLabel, selectionHelp }: SelectionBarProps) {
   return (
     <section className="selection-bar" aria-label="Bulk game actions">
       <div className="selection-summary">
         <strong role="status">{count} selected</strong>
-        <button className="text-button" onClick={count === total ? onClear : onSelectAll} disabled={busy || !total}>{count === total ? 'Clear selection' : `Select all ${total} in this view`}</button>
+        <button className="text-button" onClick={count === total ? onClear : onSelectAll} disabled={busy || !total}>{count === total ? 'Clear selection' : selectAllLabel ?? `Select all ${total} in this view`}</button>
         <button className="text-button selection-done" onClick={onDone}>Done selecting<Icon name="close" width="16" height="16" /></button>
       </div>
       <div className="selection-actions">
@@ -34,7 +36,7 @@ export function SelectionBar({ count, total, busy, onSelectAll, onClear, onDone,
           {onRemove && <button className="text-button remove-library-action" disabled={!count || busy} onClick={onRemove}><Icon name="trash" width="17" height="17" />Remove from my library</button>}
         </>}
       </div>
-      <p>Changing the page or filters clears this selection. Your original collection ranks never change.</p>
+      <p>{selectionHelp ?? 'Changing the page or filters clears this selection. Your original collection ranks never change.'}</p>
     </section>
   );
 }

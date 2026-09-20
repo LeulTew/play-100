@@ -61,6 +61,22 @@ positions and queue replay remain independent. Existing `/my-library`,
 `/my-library?list=later` and `/my-rankings` links still work. Workspace tabs keep
 manual drafts and flush valid pending edits before switching.
 
+The unordered **Library** renders 25 matching games per page, including when its
+pane is hidden behind Ranking. Filtering searches the entire saved library;
+Queue and Ranking keep their existing full-list order and editors. Selection
+persists across Library pages: **Select all matching games** explicitly includes
+every matching page. Filters and tabs clear it.
+
+Library paging waits for pending edits before changing rows. Invalid or failed
+edits keep the current page and draft; stale navigation/account transitions
+cannot finish an old page request. A successful page change focuses **Your
+library results**. Page/query/form state survives an in-place game detail and
+Library/Ranking tab switches. The page is transient React state, not a private
+URL or saved preference: Back keeps its route/tab/dialog meaning, while leaving
+and remounting the workspace or reloading starts page 1. Entering Queue or changing
+the effective Library filter resets the Library page. Paging never writes or
+caps stored games, progress, notes or fixed positions.
+
 **Played and Completed are different.** Played records that you tried a game;
 Completed records finishing it and also implies Played. Unmarking Completed
 keeps Played. Marking a completed game not played shows a visible confirmation

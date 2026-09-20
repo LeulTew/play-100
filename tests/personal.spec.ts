@@ -83,9 +83,9 @@ test('bulk selection updates queue, completion and own ranking without changing 
   const original = await page.request.get('/data/collection.json');
   expect((await original.json()).games[0].rank).toBe(1);
   await page.goto('/my-library?list=completed');
-  await expect(page.locator('.personal-row')).toHaveCount(3);
+  await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(3);
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
-  await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
+  await page.getByRole('button', { name: 'Select all 3 matching games', exact: true }).click();
   await page.getByRole('button', { name: 'Remove from queue', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([]);
   expect(Object.values((await readLibrary(page)).progress).every((entry) => entry.completed)).toBe(true);

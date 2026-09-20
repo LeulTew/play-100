@@ -13,7 +13,7 @@ import './my-games.css';
 
 export type MyGamesView = 'library' | 'queue' | 'ranking';
 
-export interface MyGamesPageProps extends LibraryPageProps {
+export interface MyGamesPageProps extends Omit<LibraryPageProps, 'onPresentationChange'> {
   scope: string;
   view: MyGamesView;
   onViewChange: (view: MyGamesView) => void;
@@ -33,31 +33,60 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState('');
   const mounted = useRef(true);
-  const changing = useRef(false);
+  const changing = useRef<number | null>(null);
+  const generation = useRef(0);
   const progressView = effectiveProgressFilter(props.filters);
+  const presentation = `${view}:${progressView}`;
+  const previousPresentation = useRef(presentation);
+  if (previousPresentation.current !== presentation) {
+    previousPresentation.current = presentation;
+    generation.current += 1;
+  }
   const completedOnly = progressView === 'completed';
   const lastLibraryView = useRef<'library' | 'queue'>(view === 'queue' ? 'queue' : 'library');
   if (view !== 'ranking') lastLibraryView.current = view;
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    const invalidate = () => {
+      generation.current += 1;
+      changing.current = null;
+      setSwitching(false);
+      setError('');
+    };
+    window.addEventListener('popstate', invalidate);
+    window.addEventListener('play100:navigate', invalidate);
+    return () => {
+      mounted.current = false;
+      generation.current += 1;
+      window.removeEventListener('popstate', invalidate);
+      window.removeEventListener('play100:navigate', invalidate);
+    };
   }, []);
-  const change = async (commit: () => void) => {
-    if (changing.current || !isCurrent()) return;
-    changing.current = true;
+  const change = async (commit: () => void): Promise<boolean> => {
+    if (changing.current !== null || !mounted.current || !isCurrent()) return false;
+    const request = ++generation.current;
+    changing.current = request;
+    const ownsRequest = () => mounted.current && isCurrent() && generation.current === request;
     setSwitching(true);
     setError('');
     try {
       const saved = await flushPendingEdits();
-      if (!mounted.current || !isCurrent()) return;
-      if (saved) commit();
-      else setError('Your edit has not saved. Fix the highlighted field or retry before changing views.');
+      if (!ownsRequest()) return false;
+      if (!saved) {
+        setError('Your edit has not saved. Fix the highlighted field or retry before changing views.');
+        return false;
+      }
+      commit();
+      return true;
     } catch (cause) {
       console.error('My games could not save pending edits before changing views.', cause);
-      if (mounted.current && isCurrent()) setError('Your edit could not be saved. Keep this view open and retry.');
+      if (ownsRequest()) setError('Your edit could not be saved. Keep this view open and retry.');
+      return false;
     } finally {
-      changing.current = false;
-      if (mounted.current && isCurrent()) setSwitching(false);
+      if (changing.current === request) {
+        changing.current = null;
+        if (mounted.current && isCurrent()) setSwitching(false);
+      }
     }
   };
   const counts = {
@@ -83,7 +112,7 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
       </div>
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div hidden={view === 'ranking'}>
-        <LibraryPage {...props} busy={editorBusy} embedded workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} />
+        <LibraryPage {...props} busy={editorBusy} embedded active={view !== 'ranking'} workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} onPresentationChange={change} />
       </div>
       <div hidden={view !== 'ranking'}>
         <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
