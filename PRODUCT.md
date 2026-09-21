@@ -85,7 +85,16 @@ until one explicit, inline **Share all with friends** action.
 - My games brings Library, Queue and Ranking into one workspace while retaining
   independent data and the old deep links. Tabs preserve drafts and flush valid
   pending edits. A Compare tray holds at most six metadata-only game references;
-  Pin and optional desktop drag are equivalent, with keyboard/touch alternatives.
+  Pin, the visible grip and supported card/title dragging use the same scoped
+  one-use drop contract. Touch uses deliberate hold-then-move, with normal
+  scrolling, text selection and keyboard/tap alternatives preserved. Private
+  Queue/Ranking reorder grips remain independent.
+- Optional motion explains public card/detail continuity, native utility entry
+  and accepted route/tab/page changes. It never delays input, native focus,
+  closing or saving; clones no private or interactive content; and retains no
+  closing form. Missing origins and unsafe scope/readiness use an immediate
+  fallback. Existing Auto/Full/Lite and live reduced-motion/visibility rules
+  remain the single policy, separate from essential drag input.
 - A secondary Menu makes existing destinations findable without replacing the
   direct The 100, Discover, My games, Friends or Account/status entries. It uses
   the fifth mobile navigation slot, not a sixth item. Browse, My games, People

@@ -314,9 +314,32 @@ Retain the actual customized React Bits **CountUp**, **Magnet** and **AnimatedCo
 
 Keep drawer focus management and mobile safe areas intact. The narrow-screen detail actions share available width; supplementary details must not push the primary controls out of reach.
 
+The signature interaction is one public game sleeve moving from its source
+into the existing native detail, with the actual form stationary. Fine-pointer
+entry/return limits are 240/160ms; coarse-pointer limits are 180/120ms. Use the
+original numbered geometry or an existing exact-ID licensed catalog image,
+never an enlarged workbook bitmap, editor clone or private-content snapshot.
+Missing or stale origins take the immediate path; an eligible no-origin catalog
+artwork settle is at most 160ms fine / 140ms coarse.
+
+Menu enters in 180ms; ready Settings, About and sign-in utilities use 160ms.
+Cold or unsafe account readiness stays static. Native close, unlock and exact
+focus restoration are independent of every visual handle. Utility forms have
+no retained exit tail. Route headings use 160/120ms and accepted tab/range cues
+120/100ms; persistent editors, rows and exact selection counts do not animate
+or remount. These are authored duration limits, not measured input latency.
+
+Card/title Compare input keeps its generic public drag indicator separate from
+the source and from private reorder grips. Only a newly accepted pin receives
+the optional 150ms settle. Temporary empty drop targets must not compact the
+collection toolbar or change the source layout; real pins and storage messages
+retain their existing mobile clearance, including while another drag is active.
+Normal scrolling and selection win before touch ownership. The visible 44px
+grip and Pin remain alternatives, not evidence of broad-touch support.
+
 The six-game comparison tray keeps identities and actions ahead of long artwork
-attribution. Only that tray opts into the native Artwork credits disclosure;
-its full source credit and license/source links remain unchanged. Compare is
+attribution. The tray and catalog detail use the native Artwork credits
+disclosure; their full source credit and license/source links remain unchanged. Compare is
 labelled as rankings with friends. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
 

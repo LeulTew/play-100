@@ -101,8 +101,11 @@ reload. See [source, license and collection evidence](docs/discovery-sources.md)
 every displayed asset's credit/license remains accessible.
 
 The **Compare tray** holds up to six game references, separately per guest or
-account scope. Use Pin or the deliberate desktop drag handle; touch/keyboard
-never require dragging. Pins do not change private library state or permissions.
+account scope. Use Pin, the 44px drag grip, or a supported card-artwork/title
+drag. Touch dragging uses a deliberate hold followed by movement; ordinary
+scrolling, text selection and nested controls keep their own behavior. Pin and
+keyboard activation never require dragging, including in Lite or reduced motion.
+Pins do not change private library state or permissions.
 The tray feeds a private game filter into the existing comparison of two to six
 people. It never supplies invented friend entries, scores or ranking positions.
 Guest pins are not automatically adopted by an account. Starting another tray
@@ -495,6 +498,26 @@ Native dialogs trap focus, close with Escape, restore the initiating focus and
 support deep-linked entry. Buttons/touch controls are at least 44px. The UI keeps
 normal page scrolling, visible focus and mobile safe areas. Asset dimensions are
 reserved; covers load lazily and results are paginated in groups of 24.
+
+Eligible collection and Discover previews connect the existing public artwork
+to the native detail using one temporary numbered sleeve or licensed catalog
+image. The real fields stay in place and are usable immediately. A same-view
+close may return that public visual to its still-visible source; deep links,
+removed sources and interrupted navigation use the immediate fallback. No
+interactive editor, private note, manual title or password is cloned or retained.
+
+Menu, ready utility dialogs and committed route/tab/page changes have short,
+targeted cues rather than page-wide reveals. The existing Auto/Full/Lite policy
+also governs these effects. Reduced motion, hidden documents, unsafe account
+readiness and changed permissions cancel optional work without replaying it
+when the condition clears. Native opening, closing, focus and saves never wait
+for an animation. Drag-to-Compare remains separate from private Queue/Ranking
+reordering, and an empty drop target does not reflow the collection controls.
+
+These are bounded behavior and cleanup contracts, not a promise of zero cost,
+physical-device certification or universal frame-rate improvement. Development
+StrictMode rehearsals, production payload checks and paired performance evidence
+must be reported separately.
 
 ## Deploy to Vercel
 
