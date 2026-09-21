@@ -312,6 +312,12 @@ The outlined **Fan out / Stack up** control has a 112px minimum width and 44px m
 
 Retain the actual customized React Bits **CountUp**, **Magnet** and **AnimatedContent** implementations; attribution is maintained elsewhere in the project. Their role is feedback and restrained arrival, not a prerequisite to browsing.
 
+CountUp's single queue badge keeps damping45/stiffness240 with bounded native
+frames, not an eager general-purpose animation engine. The accessible number is
+always exact; the initial display is already correct. Retarget without flashing
+the final value before rewinding, and snap on disabled motion or scope change.
+Never interpolate between account scopes or remount a sibling editor for a count.
+
 Keep drawer focus management and mobile safe areas intact. The narrow-screen detail actions share available width; supplementary details must not push the primary controls out of reach.
 
 The signature interaction is one public game sleeve moving from its source

@@ -519,6 +519,15 @@ physical-device certification or universal frame-rate improvement. Development
 StrictMode rehearsals, production payload checks and paired performance evidence
 must be reported separately.
 
+The React Bits-derived queue badge uses a bounded native numeric spring rather
+than loading the Motion scheduler for one number. Its accessible count is exact
+immediately; initial, disabled and scope-reset values do not count up from zero.
+Visible updates can retarget, while cancellation and unmount leave no idle frame
+loop. Only the badge is scope-keyed, not the page or its editors.
+The counter's native-visibility fixture is explicitly opt-in through
+`PLAY100_COUNTER_HEADED=true`; a browser that remains visibly reported after
+minimization does not establish hidden-window behavior.
+
 ## Deploy to Vercel
 
 This is a standalone project. Do not link it to an unrelated existing Vercel
