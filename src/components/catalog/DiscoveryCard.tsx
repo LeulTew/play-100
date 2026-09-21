@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import type { ReactNode } from 'react';
+import { useRef, useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
+import { createCatalogMotionVisual, useMotionPolicy, useMotionRuntime } from '../../motion';
+import type { MotionOriginHint, PublicMotionVisual } from '../../motion';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
 import { CompletedToggle } from '../CompletedToggle';
@@ -11,6 +13,7 @@ import type { Game } from '../../lib/types';
 import { GameCover } from '../GameCover';
 import { author, authorRatingText } from '../../lib/author';
 import { SavedCatalogCopies } from './SavedCatalogCopies';
+import { useCompareDragSource } from '../compare-tray/useCompareDragSource';
 import { CATALOG_EDITION_HINTS } from '../../lib/collection-identities';
 import './discover.css';
 
@@ -27,27 +30,49 @@ export interface DiscoveryCardProps {
   selected?: boolean;
   pinned?: boolean;
   onSelect?: (id: string) => void;
-  onPreview?: (record: LibraryRecord) => void;
+  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
   onPin?: (record: LibraryRecord) => void;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
 }
 
 export function DiscoveryCard({ record, game, actionRecord = record, ownedCopies, artwork, state, busy, eager = false, selecting, selected, pinned, onSelect, onPreview, onPin, renderDragHandle, onAction }: DiscoveryCardProps) {
+  const cardRef = useRef<HTMLLIElement>(null);
+  const artRef = useRef<HTMLDivElement>(null);
+  const compare = useCompareDragSource({ record: onPin ? actionRecord : undefined, sourceRef: cardRef, disabled: Boolean(selecting) });
+  const motion = useMotionRuntime();
+  const policy = useMotionPolicy();
   const [failedSrc, setFailedSrc] = useState('');
   const saved = Boolean(state.records[actionRecord.id]);
   const progress = state.progress[actionRecord.id];
   const ranking = state.ranking.find((entry) => entry.id === actionRecord.id);
+  const preview = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.defaultPrevented || compare.consumeClick(event) || !onPreview) return;
+    let origin: MotionOriginHint | undefined;
+    const source = artRef.current;
+    if (policy.animate && source && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      let visual: PublicMotionVisual | null = null;
+      if (game) visual = { kind: 'jacket', rank: game.rank };
+      else if (artwork && failedSrc !== artwork.src) {
+        const image = source.querySelector('img');
+        if (image?.complete && image.naturalWidth > 0 && image.getAttribute('src') === artwork.src) {
+          visual = createCatalogMotionVisual(artwork);
+        }
+      }
+      if (visual) origin = motion.originHint({ surface: 'discover', presentationId: record.id, source, trigger: event.currentTarget, visual }) ?? undefined;
+    }
+    onPreview(record, origin);
+  };
   return (
-    <li className={`discovery-card${selected ? ' is-selected' : ''}`} data-catalog-id={record.id} data-unranked-id={game ? undefined : record.id}>
-      <div className="discovery-card-art">
+    <li ref={cardRef} {...compare.surfaceProps} className={`discovery-card${selected ? ' is-selected' : ''}`} data-catalog-id={record.id} data-unranked-id={game ? undefined : record.id}>
+      <div className="discovery-card-art" ref={artRef}>
         {game ? <GameCover game={game} eager={eager} /> : artwork && failedSrc !== artwork.src
           ? <img src={artwork.src} width={artwork.width} height={artwork.height} alt={artwork.alt} loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setFailedSrc(artwork.src)} />
           : <div className="discovery-no-art"><span>{record.year ?? 'Game'}</span><span>Artwork unavailable</span></div>}
         {selecting && onSelect && <label className="discovery-select"><input type="checkbox" checked={Boolean(selected)} onChange={() => onSelect(record.id)} aria-label={`Select ${record.title}`} /></label>}
       </div>
       <div className="discovery-card-body">
-        <h3>{onPreview ? <button type="button" onClick={() => onPreview(record)}>{record.title}</button> : record.title}</h3>
+        <h3>{onPreview ? <button {...compare.titleProps} type="button" onClick={preview}>{record.title}</button> : record.title}</h3>
         {game && <p className="discovery-canonical">From The 100 · #{game.rank}<span>{author.shortName}'s rating <strong title={game.authorRating?.rawValue}>{authorRatingText(game.authorRating)}{game.authorRating ? ' / 10' : ''}</strong></span></p>}
         <p className="discovery-card-meta">{[CATALOG_EDITION_HINTS.get(record.id) ?? record.year, record.genre].filter((value) => value !== null).join(' · ') || 'Game'}</p>
         <div className="discovery-card-primary">
@@ -57,7 +82,7 @@ export function DiscoveryCard({ record, game, actionRecord = record, ownedCopies
           {onPin && <button className="button button-outline" aria-label={`${pinned ? 'Pinned' : 'Pin'} ${record.title} for comparison`} aria-pressed={Boolean(pinned)} disabled={pinned} onClick={() => onPin(actionRecord)}><Icon name="stack" width="16" height="16" />{pinned ? 'Pinned' : 'Pin'}</button>}
           {renderDragHandle?.(actionRecord)}
         </div>
-        {game && <SavedCatalogCopies canonicalId={record.id} copies={ownedCopies} onOpen={onPreview} />}
+        {game && <SavedCatalogCopies canonicalId={record.id} copies={ownedCopies} onOpen={onPreview ? copy => onPreview(copy) : undefined} />}
         <details className="discovery-card-details">
           <summary aria-label={`Actions and source for ${record.title}`}>Actions &amp; source</summary>
           <div className="discovery-card-secondary">

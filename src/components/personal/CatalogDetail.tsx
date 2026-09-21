@@ -1,22 +1,38 @@
+import { useRef } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalProgress } from '../../lib/personal-types';
+import type { CatalogArtwork } from '../../lib/discovery-catalog';
+import type { MotionOriginLease } from '../../motion';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { Dialog } from '../Dialog';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
+import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { author } from '../../lib/author';
 import { CATALOG_EDITION_HINTS } from '../../lib/collection-identities';
+import './catalog-detail-motion.css';
 
-export default function CatalogDetail({ record, saved, progress, rankingPosition, rating, busy, onClose, onAction, onRankings }: {
+export interface CatalogDetailProps {
   record: LibraryRecord; saved: boolean; progress: PersonalProgress | undefined; rankingPosition: number | null; rating: number | null; busy: boolean;
+  artwork?: CatalogArtwork | null;
+  motionOrigin?: MotionOriginLease;
   onClose: () => void; onAction: (action: PersonalAction) => Promise<boolean>; onRankings: () => void;
-}) {
+}
+
+export default function CatalogDetail({ record, saved, progress, rankingPosition, rating, busy, artwork, motionOrigin, onClose, onAction, onRankings }: CatalogDetailProps) {
+  const artRef = useRef<HTMLDivElement>(null);
   return (
-    <Dialog open titleId="catalog-game-title" onClose={onClose} className="info-dialog">
+    <Dialog open titleId="catalog-game-title" onClose={onClose} className="info-dialog catalog-detail-dialog" motion={{ preset: 'dialog', continuity: { target: artRef, lease: motionOrigin } }}>
       <h2 id="catalog-game-title" data-autofocus tabIndex={-1}>{record.title}</h2>
       <p className="dialog-lead">{SOURCE_LABELS[record.source]}{record.collectionRank !== null ? ` · original rank #${record.collectionRank}` : ` · Unranked in ${author.shortName}'s collection`}</p>
       {CATALOG_EDITION_HINTS.has(record.id) && <p className="section-help">{CATALOG_EDITION_HINTS.get(record.id)}</p>}
-      <div className="catalog-art" aria-hidden="true"><Icon name="stack" width="47" height="47" /><span>Game details</span></div>
+      <div className="catalog-detail-visual">
+        <div className="catalog-detail-sleeve" ref={artRef}>
+          {artwork ? <GameArtwork record={record} artwork={artwork} className="catalog-detail-artwork" /> : <span className="catalog-detail-artwork catalog-detail-artwork-empty" aria-hidden="true"><Icon name="stack" width="28" height="28" /></span>}
+        </div>
+        {!artwork && <p className="catalog-detail-art-caption">Artwork unavailable</p>}
+      </div>
+      {artwork && <div className="catalog-detail-art-credits"><GameArtworkCredit artwork={artwork} disclosureLabel={`Artwork credits for ${record.title}`} /></div>}
       <dl className="catalog-facts"><div><dt>Year</dt><dd>{record.year ?? 'Not provided'}</dd></div><div><dt>Studio</dt><dd>{record.studio ?? 'Not provided'}</dd></div><div><dt>Genre</dt><dd>{record.genre ?? 'Not provided'}</dd></div></dl>
       {record.sourceUrl && <a className="catalog-source-link" href={record.sourceUrl} target="_blank" rel="noreferrer">View on {SOURCE_LABELS[record.source]}<Icon name="up-right" width="17" height="17" /></a>}
       <p className="section-help">Source metadata is not independently verified.</p>
