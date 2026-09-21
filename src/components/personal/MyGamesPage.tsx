@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import { flushPendingEdits } from '../../hooks/useExitSave';
+import { useCommittedCue } from '../../hooks/useCommittedCue';
+import type { CommittedCue } from '../../lib/route-continuity';
 import { Icon } from '../Icon';
 import { ProgressFilter } from '../ProgressFilter';
 import { effectiveProgressFilter, progressFilterPatch } from '../../lib/game-progress';
@@ -10,6 +12,7 @@ import type { LibraryPageProps } from './LibraryPage';
 import RankingsPage from './RankingsPage';
 import type { RankingsPageProps } from './RankingsPage';
 import './my-games.css';
+import './continuity.css';
 
 export type MyGamesView = 'library' | 'queue' | 'ranking';
 
@@ -35,6 +38,9 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
   const mounted = useRef(true);
   const changing = useRef<number | null>(null);
   const generation = useRef(0);
+  const marker = useRef<HTMLSpanElement>(null);
+  const tabHistory = useRef({ view, serial: 0 });
+  const [tabCue, setTabCue] = useState<(CommittedCue & { generation: number }) | null>(null);
   const progressView = effectiveProgressFilter(props.filters);
   const presentation = `${view}:${progressView}`;
   const previousPresentation = useRef(presentation);
@@ -62,6 +68,16 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
       window.removeEventListener('play100:navigate', invalidate);
     };
   }, []);
+  useEffect(() => {
+    const prior = tabHistory.current;
+    if (prior.view === view) return;
+    const order: MyGamesView[] = ['library', 'queue', 'ranking'];
+    const serial = prior.serial + 1;
+    tabHistory.current = { view, serial };
+    setTabCue({ serial, kind: 'tab', generation: generation.current, direction: order.indexOf(view) > order.indexOf(prior.view) ? 1 : -1 });
+  }, [view]);
+  useCommittedCue(marker, tabCue, !switching, () =>
+    mounted.current && isCurrent() && generation.current === tabCue?.generation);
   const change = async (commit: () => void): Promise<boolean> => {
     if (changing.current !== null || !mounted.current || !isCurrent()) return false;
     const request = ++generation.current;
@@ -105,8 +121,8 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
       </div>
       {props.friendSharing}
       <div className="my-games-navigation">
-        <nav className="personal-tabs" aria-label="My games views">
-          {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}<span>{counts[value]}</span></button>)}
+        <nav className="personal-tabs my-games-motion-tabs" aria-label="My games views">
+          {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}<span>{counts[value]}</span><span className="my-games-tab-marker" ref={view === value ? marker : undefined} hidden={view !== value} aria-hidden="true" /></button>)}
         </nav>
         <ProgressFilter value={progressView} disabled={switching} onChange={value => onFilters(progressFilterPatch(value, props.filters))} />
       </div>

@@ -16,6 +16,8 @@ import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveGamesDialog } from './RemoveGamesDialog';
 import { LocalPager } from '../LocalPager';
 import { getLocalPage } from '../../lib/local-pagination';
+import { useCommittedCue } from '../../hooks/useCommittedCue';
+import type { CommittedCue } from '../../lib/route-continuity';
 import './library-pagination.css';
 
 const LIBRARY_PAGE_SIZE = 25;
@@ -48,6 +50,10 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
   const [query, setQuery] = useState('');
   const [removing, setRemoving] = useState<LibraryRecord[]>([]);
   const [requestedPage, setRequestedPage] = useState({ definition: '', offset: 0 });
+  const [pageCue, setPageCue] = useState<CommittedCue | null>(null);
+  const pageCueSerial = useRef(0);
+  const pageCueLease = useRef(0);
+  const pageBoundary = useRef<HTMLDivElement>(null);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const removalTrigger = useRef<HTMLElement | null>(null);
   const removalFocus = useRef<{ trigger: HTMLElement | null; generation: number } | null>(null);
@@ -63,10 +69,12 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
     return ordered.filter((record) => matchesProgress(state.progress[record.id], progressView) && searchText(record.title).includes(term));
   }, [state, tab, query, progressView]);
   const definition = JSON.stringify([tab, query, progressView]);
-  const current = useRef({ active, definition, total: records.length });
-  if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
-  current.current = { active, definition, total: records.length };
   const page = getLocalPage(records.length, LIBRARY_PAGE_SIZE, requestedPage.definition === definition ? requestedPage.offset : 0);
+  const current = useRef({ active, definition, total: records.length, offset: page.offset });
+  if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
+  current.current = { active, definition, total: records.length, offset: page.offset };
+  useCommittedCue(pageBoundary, pageCue, active && tab !== 'later' && !busy, () =>
+    mounted.current && current.current.active && generation.current === pageCueLease.current);
   const visibleRecords = tab === 'later' ? records : records.slice(page.offset, page.offset + LIBRARY_PAGE_SIZE);
   const selectedRecords = records.filter((record) => selected.has(record.id));
   useEffect(() => { setSelected(new Set()); }, [tab, query, progressView, active]);
@@ -99,8 +107,13 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
     void onPresentationChange(() => {
       if (!mounted.current || !current.current.active || generation.current !== request) return;
       const bounded = getLocalPage(current.current.total, LIBRARY_PAGE_SIZE, offset);
+      const previousOffset = current.current.offset;
       setRequestedPage({ definition: current.current.definition, offset: bounded.offset });
       focusResults();
+      if (bounded.offset !== previousOffset) {
+        pageCueLease.current = request;
+        setPageCue({ serial: ++pageCueSerial.current, kind: 'library-page', direction: bounded.offset > previousOffset ? 1 : -1 });
+      }
     });
   };
   const requestRemoval = (chosen: LibraryRecord[], trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null) => {
@@ -143,7 +156,7 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
       {progressView !== 'all' && <p className="section-help" role="status">{records.length} {records.length === 1 ? 'game matches' : 'games match'} this progress view. <button className="text-button" onClick={() => onFilters(progressFilterPatch('all', filters))}>Clear progress filter</button></p>}
       {tab === 'later' && <p className="queue-instructions">{canReorder ? 'Drag or use arrows to reorder. Completed games can stay here for a replay.' : 'Clear search, progress filters and selection to reorder.'}</p>}
       {selecting && <SelectionBar context="library" count={selectedRecords.length} total={records.length} busy={busy} selectAllLabel={tab !== 'later' ? `Select all ${records.length} matching games${page.pageCount > 1 ? ` (all ${page.pageCount} pages)` : ''}` : undefined} selectionHelp={tab !== 'later' ? 'Selection includes matching games on other pages. Changing filters or tabs clears it.' : undefined} onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulkAction(action); }} onRemove={() => requestRemoval(selectedRecords)} />}
-      {tab !== 'later' && <div className="library-results-boundary">
+      {tab !== 'later' && <div ref={pageBoundary} className="library-results-boundary">
         <h3 ref={resultsHeading} tabIndex={-1}>Your library results</h3>
         <span className="sr-only" role="status" aria-atomic="true">Showing {page.start}-{page.end} of {records.length} matching games</span>
         <LocalPager total={records.length} pageSize={LIBRARY_PAGE_SIZE} offset={page.offset} disabled={busy} label="Library pages" itemLabel="matching games" onOffsetChange={changePage} />
