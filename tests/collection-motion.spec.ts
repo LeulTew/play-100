@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { readLibrary } from './library-helpers';
+import { openBrowsingFilters } from './browsing-helpers';
 
 const first = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
 const second = { id: 'mass-effect-2', title: 'Mass Effect 2' };
@@ -277,6 +278,7 @@ test('removing a filtered origin closes coherently instead of returning to stale
   await prepareSource(page);
   await page.locator(`${firstCard} .save-game`).click();
   await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'true');
+  await openBrowsingFilters(page);
   await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
   await expect(page.locator('.game-card')).toHaveCount(1);
   const link = await prepareSource(page);
