@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { Member, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { normalizeHandle, projectPublicRanking, PUBLIC_LIMIT } from '../lib/community';
@@ -11,10 +11,20 @@ import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
 import { Dialog } from '../components/Dialog';
 
-export function PublishPage({ social, identity, member, avatar, state, games, existing, isCreator, onAccount, onPublished }: {
-  social: SocialStore; identity: AccountIdentity; member: Member | null; avatar: AvatarDescriptor; state: PersonalLibraryState; games: Game[];
+export interface PublishPageProps {
+  social: Pick<SocialStore, 'control' | 'saveMember' | 'publish' | 'unpublish'>; identity: AccountIdentity; member: Member | null; avatar: AvatarDescriptor; state: PersonalLibraryState; games: Game[];
   existing: PublicProfile | null; isCreator: boolean; onAccount: () => void; onPublished: (profile: PublicProfile) => void;
-}) {
+}
+
+export function PublishPage(props: PublishPageProps) {
+  return <PublishDraft key={props.identity.uid} {...props} />;
+}
+
+function PublishDraft({ social, identity, member: incomingMember, avatar, state, games, existing: incomingProfile, isCreator, onAccount, onPublished }: PublishPageProps) {
+  const member = incomingMember?.uid === identity.uid ? incomingMember : null;
+  const existing = incomingProfile?.uid === identity.uid ? incomingProfile : null;
+  const publicIdentity = useRef(existing);
+  const edited = useRef({ name: false, handle: false, title: false, listed: false });
   const [selected, setSelected] = useState<Set<string>>(() => state.ranking.length <= PUBLIC_LIMIT ? new Set(state.ranking.map((entry) => entry.id)) : new Set());
   const [name, setName] = useState(existing?.displayName || member?.displayName || identity.displayName || '');
   const [handle, setHandle] = useState(existing?.handle ?? '');
@@ -27,6 +37,16 @@ export function PublishPage({ social, identity, member, avatar, state, games, ex
   const [preview, setPreview] = useState<{ displayName: string; handle: string; title: string; listed: boolean; avatar: AvatarDescriptor; entries: PublicEntry[]; control: PublicControl } | null>(null);
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
   const [limit, setLimit] = useState(30);
+  useEffect(() => {
+    if (existing) publicIdentity.current = existing;
+    const published = publicIdentity.current;
+    if (!edited.current.name) setName(published?.displayName || member?.displayName || identity.displayName || '');
+    if (published) {
+      if (!edited.current.handle) setHandle(published.handle);
+      if (!edited.current.title) setTitle(published.title);
+      if (!edited.current.listed) setListed(published.listed);
+    }
+  }, [existing, member?.displayName, identity.displayName]);
   useEffect(() => {
     let active = true;
     if (identity.verified) void social.control(identity.uid).then((value) => { if (active) setControl(value); }).catch((cause) => { if (active) setError(onlineError(cause)); });
@@ -62,11 +82,11 @@ export function PublishPage({ social, identity, member, avatar, state, games, ex
       {control?.hidden && <div className="inline-error" role="alert">The creator has paused publishing for this profile. Deleting or renaming it will not remove that restriction.</div>}
       {control?.deleted && <div className="inline-error" role="alert">This account's online content was deleted. Reconnect from Account before publishing again.</div>}
       {!rows.length ? <div className="empty-state"><h2>A ranking comes first.</h2><p>Add games and your optional scores on My rankings. Nothing has been published.</p><a className="button button-dark" href="/my-rankings">Open My rankings</a></div> : <>
-        <div className="publication-fields"><label>Public name<input name="public-name" autoComplete="nickname" required maxLength={60} value={name} onChange={(event) => setName(event.target.value)} disabled={busy} /></label><label>Unique handle<span>3-24 letters, numbers or underscores; starts with a letter.</span><input name="public-handle" autoComplete="off" spellCheck={false} required maxLength={24} value={handle} onChange={(event) => setHandle(event.target.value)} disabled={busy} placeholder="your_handle" /></label><label className="publication-title">Ranking title<input name="ranking-title" autoComplete="off" required maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} disabled={busy} /></label></div>
+        <div className="publication-fields"><label>Public name<input name="public-name" autoComplete="nickname" required maxLength={60} value={name} onChange={(event) => { edited.current.name = true; setName(event.target.value); }} disabled={busy} /></label><label>Unique handle<span>3-24 letters, numbers or underscores; starts with a letter.</span><input name="public-handle" autoComplete="off" spellCheck={false} required maxLength={24} value={handle} onChange={(event) => { edited.current.handle = true; setHandle(event.target.value); }} disabled={busy} placeholder="your_handle" /></label><label className="publication-title">Ranking title<input name="ranking-title" autoComplete="off" required maxLength={80} value={title} onChange={(event) => { edited.current.title = true; setTitle(event.target.value); }} disabled={busy} /></label></div>
         <div className="publication-selection"><h2>{selected.size} of {PUBLIC_LIMIT} selected</h2><div className="button-row"><button className="text-button" disabled={busy || rows.length > PUBLIC_LIMIT} onClick={() => setSelected(new Set(rows.map((entry) => entry.id)))}>Select all ranked games</button><button className="text-button" disabled={busy} onClick={() => setSelected(new Set())}>Clear selection</button></div></div>
         <ol className="publish-selection-list">{rows.slice(0, limit).map((row, index) => <li key={row.id}><label className="check-control"><input type="checkbox" checked={selected.has(row.id)} disabled={busy || (!selected.has(row.id) && selected.size >= PUBLIC_LIMIT)} onChange={() => { setPreview(null); setSelected((previous) => { const next = new Set(previous); if (next.has(row.id)) next.delete(row.id); else next.add(row.id); return next; }); }} /><span><small>#{index + 1}</small>{row.title}</span></label><strong>{row.score ?? '—'}{row.score !== null && <small> / 10</small>}</strong></li>)}</ol>
         {limit < rows.length && <button className="text-button" onClick={() => setLimit((value) => value + 30)}>Show next {Math.min(30, rows.length - limit)} ranked games<Icon name="down" width="17" height="17" /></button>}
-        <label className="check-control directory-consent"><input type="checkbox" checked={listed} onChange={(event) => setListed(event.target.checked)} disabled={busy} />Show in Community</label><p className="section-help">Anyone with the link can view this, listed or not.</p>
+        <label className="check-control directory-consent"><input type="checkbox" checked={listed} onChange={(event) => { edited.current.listed = true; setListed(event.target.checked); }} disabled={busy} />Show in Community</label><p className="section-help">Anyone with the link can view this, listed or not.</p>
         <button className="button button-dark" disabled={!selected.size || busy || !control || control.hidden || control.deleted} onClick={buildPreview}>Preview public snapshot<Icon name="arrow" width="18" height="18" /></button>
       </>}
       {existing?.published && <button className="text-button danger-text unpublish-button" disabled={busy} onClick={() => setConfirmUnpublish(true)}>Unpublish current ranking</button>}

@@ -183,6 +183,10 @@ until one explicit, inline **Share all with friends** action.
 - Public profiles contain only explicitly selected rankings and chosen
   identity metadata. Directory listing is opt-in; public snapshots do not
   automatically follow later private edits.
+  Late public-profile reads prefill only untouched publication fields, including
+  the existing listing choice. Explicit edits and clears remain; public identity
+  takes precedence over a private member name. Account changes reset the draft,
+  and an open consent preview keeps its exact frozen payload.
 - The creator can inspect consenting member profiles/ranking summaries and
   moderate public reports, with server-enforced authorization. The creator UI
   does not load private notes or play queues.
