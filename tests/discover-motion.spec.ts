@@ -66,7 +66,8 @@ async function recordContinuity(page: Page) {
       if (this.closest('.catalog-detail-dialog')) {
         const controls = 'button, input, select, textarea, a[href], summary, [contenteditable="true"]';
         receipt.animatedControlAncestor ||= this.matches(controls) || Boolean(this.querySelector(controls));
-        receipt.animationDurations.push(typeof options === 'number' ? options : options?.duration ?? null);
+        const duration = typeof options === 'number' ? options : options?.duration;
+        receipt.animationDurations.push(typeof duration === 'number' ? duration : String(duration));
       }
       return animate.call(this, frames, options);
     };
