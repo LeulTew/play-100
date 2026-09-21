@@ -1,0 +1,279 @@
+import { expect, test } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { emptyCatalogs } from './catalog-helpers';
+import { readLibrary } from './library-helpers';
+
+const first = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
+const second = { id: 'mass-effect-2', title: 'Mass Effect 2' };
+const firstCard = `.game-card[data-game="${first.id}"]`;
+
+interface CollectionMotionProbe {
+  hold: boolean;
+  calls: { duration: number | null; containsEditor: boolean }[];
+  errors: string[];
+}
+
+declare global {
+  interface Window {
+    __collectionMotionProbe: CollectionMotionProbe;
+  }
+}
+
+test.beforeEach(async ({ page }) => {
+  await emptyCatalogs(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    localStorage.setItem('play100.library.v1', JSON.stringify({ version: 1, motion: 'full', progress: {} }));
+    window.__collectionMotionProbe = { hold: false, calls: [], errors: [] };
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args: Parameters<Element['animate']>) {
+      const animation = animate.apply(this, args);
+      if (this.closest('.game-dialog')) {
+        const duration = animation.effect?.getTiming().duration;
+        const containsEditor = this.matches('input, textarea, select') || Boolean(this.querySelector('input, textarea, select'));
+        window.__collectionMotionProbe.calls.push({ duration: typeof duration === 'number' ? duration : null, containsEditor });
+        if (window.__collectionMotionProbe.hold) animation.pause();
+      }
+      return animation;
+    };
+    window.addEventListener('error', event => window.__collectionMotionProbe.errors.push(event.message));
+    window.addEventListener('unhandledrejection', event => {
+      window.__collectionMotionProbe.errors.push(event.reason instanceof Error ? event.reason.message : String(event.reason));
+    });
+  });
+});
+
+test.afterEach(async ({ page }) => {
+  expect(await page.evaluate(() => window.__collectionMotionProbe.errors)).toEqual([]);
+});
+
+async function prepareSource(page: Page) {
+  const link = page.locator(`${firstCard} .game-link`);
+  await expect(link).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
+  await page.evaluate(() => document.fonts.ready);
+  await link.locator('.game-cover').evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  return link;
+}
+
+async function expectStationaryEditor(input: Locator) {
+  expect(await input.evaluate(element => {
+    const dialog = element.closest('dialog');
+    const animated: string[] = [];
+    for (let current: Element | null = element; current && dialog?.contains(current); current = current.parentElement) {
+      const style = getComputedStyle(current);
+      if (style.transform !== 'none' || style.animationName !== 'none' || Number(style.opacity) !== 1) {
+        animated.push(current.tagName);
+      }
+    }
+    return animated;
+  })).toEqual([]);
+}
+
+for (const view of ['grid', 'list'] as const) {
+  test(`${view} public continuity never makes the live editor wait for animation`, async ({ page }) => {
+    await page.goto(`/?view=${view}&catalogs=off`);
+    const link = await prepareSource(page);
+    await page.evaluate(() => { window.__collectionMotionProbe.hold = true; });
+    await link.click();
+    const dialog = page.locator('.game-dialog');
+    await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.__collectionMotionProbe.calls.length)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.__collectionMotionProbe.calls.some(call => call.containsEditor))).toBe(false);
+    const input = dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+    await expectStationaryEditor(input);
+    await input.fill('8.75');
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue('8.75');
+    await expect(dialog.locator(`img[src="/covers/${first.id}.webp"]`)).toHaveCount(1);
+    await expect(dialog.locator('.detail-cover img')).toHaveJSProperty('complete', true);
+    expect(await dialog.locator('.detail-cover img').evaluate(image => {
+      if (!(image instanceof HTMLImageElement)) throw new Error('The detail artwork is not an image');
+      const style = getComputedStyle(image);
+      return image.naturalWidth > 0 && image.naturalHeight > 0 &&
+        parseFloat(style.width) <= Math.min(Number(image.getAttribute('width')), image.naturalWidth) &&
+        parseFloat(style.height) <= Math.min(Number(image.getAttribute('height')), image.naturalHeight);
+    })).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(link).toBeFocused();
+    expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+    await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(8.75);
+  });
+}
+
+test('table titles keep native links and use a no-origin detail without moving the form', async ({ page, isMobile, context }) => {
+  await page.goto('/?view=table&q=mass+effect+2&catalogs=off');
+  const link = page.locator(`tr[data-game="${second.id}"] .table-game > a`);
+  await expect(link).toBeVisible();
+  const href = await link.getAttribute('href');
+  expect(href).toContain(`game=${second.id}`);
+  if (!isMobile) {
+    const popupPromise = context.waitForEvent('page');
+    await link.click({ modifiers: ['ControlOrMeta'] });
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL(new RegExp(`game=${second.id}`));
+    expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+    await popup.close();
+  }
+  await link.focus();
+  await link.press('Enter');
+  const dialog = page.locator('.game-dialog');
+  await expect(dialog.getByRole('heading', { name: second.title, exact: true })).toBeFocused();
+  await expectStationaryEditor(dialog.getByRole('spinbutton'));
+  expect(await page.evaluate(() => window.__collectionMotionProbe.calls)).toEqual([]);
+  expect(new URL(page.url()).searchParams.get('view')).toBe('table');
+  expect(new URL(page.url()).searchParams.get('q')).toBe('mass effect 2');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(link).toBeFocused();
+});
+
+test('nested save, selection and Pin controls never enroll a detail origin', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  await prepareSource(page);
+  const card = page.locator(firstCard);
+  const save = card.locator('.save-game');
+  await save.click();
+  await expect(save).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Select games', exact: true }).click();
+  const select = card.getByRole('checkbox', { name: `Select ${first.title}`, exact: true });
+  await select.check();
+  await expect(select).toBeChecked();
+  const pin = card.getByRole('button', { name: `Pin ${first.title} for comparison`, exact: true });
+  await pin.click();
+  await expect(card.getByRole('button', { name: `Pinned ${first.title} for comparison`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.game-dialog')).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+  expect(await page.evaluate(() => window.__collectionMotionProbe.calls)).toEqual([]);
+});
+
+test('direct links and next/previous preserve current-record drafts without a new motion key', async ({ page }) => {
+  await page.goto(`/?game=${first.id}&catalogs=off`);
+  const dialog = page.locator('.game-dialog');
+  const input = dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+  await expect(input).toBeVisible();
+  await page.clock.install({ time: new Date('2026-09-21T08:00:00Z') });
+  await page.clock.pauseAt(new Date('2026-09-21T08:00:10Z'));
+  await input.fill('8.25');
+  const editor = await input.elementHandle();
+  if (!editor) throw new Error('The first detail rating editor did not mount');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  expect(await editor.evaluate(element => element.isConnected)).toBe(true);
+  await expect(input).toHaveValue('8.25');
+  await dialog.getByRole('button', { name: 'Next game', exact: true }).click();
+  await expect(dialog.getByRole('heading', { name: second.title, exact: true })).toBeFocused();
+  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(8.25);
+  const nextInput = dialog.getByRole('spinbutton', { name: `Your rating for ${second.title}`, exact: true });
+  await expect(nextInput).toHaveValue('');
+  await nextInput.fill('4.5');
+  await dialog.getByRole('button', { name: 'Previous game', exact: true }).click();
+  await expect(dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true })).toHaveValue('8.25');
+  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === second.id)?.score).toBe(4.5);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+  expect((await readLibrary(page)).progress).toEqual({});
+  expect(await page.evaluate(() => window.__collectionMotionProbe.calls)).toEqual([]);
+  await editor.dispose();
+});
+
+test('Escape, reopen and live reduced motion cancel a held public flight safely', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const link = await prepareSource(page);
+    await page.evaluate(() => { window.__collectionMotionProbe.hold = true; });
+    await link.click();
+    const dialog = page.locator('.game-dialog');
+    await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeFocused();
+    if (attempt === 2) {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
+      await expectStationaryEditor(dialog.getByRole('spinbutton'));
+    }
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(link).toBeFocused();
+  }
+  const calls = await page.evaluate(() => window.__collectionMotionProbe.calls.length);
+  await page.locator(`${firstCard} .game-link`).click();
+  await expect(page.locator('.game-dialog')).toBeVisible();
+  expect(await page.evaluate(() => window.__collectionMotionProbe.calls.length)).toBe(calls);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.game-dialog')).toHaveCount(0);
+});
+
+test('removing a filtered origin closes coherently instead of returning to stale geometry', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  await prepareSource(page);
+  await page.locator(`${firstCard} .save-game`).click();
+  await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
+  await expect(page.locator('.game-card')).toHaveCount(1);
+  const link = await prepareSource(page);
+  await link.click();
+  const dialog = page.locator('.game-dialog');
+  await dialog.getByRole('button', { name: 'Saved for later', exact: true }).click();
+  await expect(page.locator(firstCard)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Your next great game goes here.', exact: true })).toBeVisible();
+  expect(new URL(page.url()).searchParams.get('list')).toBe('later');
+});
+
+test('a real desktop title drag pins without opening, then keyboard and a fresh click still open', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Native fine-pointer drag; the separate coarse test exercises visible Pin.');
+  await page.goto('/?view=list&catalogs=off');
+  await page.locator(`.game-card[data-game="${second.id}"]`).getByRole('button', {
+    name: `Pin ${second.title} for comparison`, exact: true,
+  }).click();
+  const dock = page.locator('.compare-tray-dock');
+  await expect(dock).toBeVisible();
+  const link = await prepareSource(page);
+  await link.dragTo(dock, { targetPosition: { x: 20, y: 20 } });
+  await expect(page.locator(firstCard).getByRole('button', {
+    name: `Pinned ${first.title} for comparison`, exact: true,
+  })).toHaveAttribute('aria-pressed', 'true');
+  expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+  await expect(page.locator('.game-dialog')).toHaveCount(0);
+  await link.focus();
+  await link.press('Enter');
+  await expect(page.locator('.game-dialog').getByRole('heading', { name: first.title, exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.game-dialog')).toHaveCount(0);
+  await link.click();
+  await expect(page.locator('.game-dialog').getByRole('heading', { name: first.title, exact: true })).toBeFocused();
+});
+
+test('320px coarse detail keeps visible Pin, native artwork and reachable 44px close controls', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'Runs with the existing coarse-pointer project, not viewport-only touch claims.');
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/?view=list&catalogs=off');
+  const link = await prepareSource(page);
+  await page.locator(firstCard).getByRole('button', {
+    name: `Pin ${first.title} for comparison`, exact: true,
+  }).tap();
+  await expect(page.locator(firstCard).getByRole('button', {
+    name: `Pinned ${first.title} for comparison`, exact: true,
+  })).toHaveAttribute('aria-pressed', 'true');
+  await link.tap();
+  const dialog = page.locator('.game-dialog');
+  await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeVisible();
+  const close = dialog.getByRole('button', { name: 'Close dialog', exact: true });
+  const bounds = await close.boundingBox();
+  expect(bounds).not.toBeNull();
+  if (!bounds) throw new Error('The mobile detail close control has no visible bounds');
+  expect(bounds.width).toBeGreaterThanOrEqual(44);
+  expect(bounds.height).toBeGreaterThanOrEqual(44);
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const input = dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+  await expectStationaryEditor(input);
+  await input.fill('6.25');
+  await close.tap();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(6.25);
+});

@@ -1,12 +1,14 @@
-import type { CSSProperties, MouseEvent, ReactNode } from 'react';
+import { useRef } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Filters, Game, SortOrder } from '../lib/types';
-import type { PersonalProgress } from '../lib/personal-types';
+import type { LibraryRecord, PersonalProgress } from '../lib/personal-types';
 import { criticColumns, formatAverage, sortDirection } from '../lib/collection';
 import { createSearch } from '../lib/url';
 import { Icon } from './Icon';
 import { PlayedToggle } from './PlayedToggle';
 import { CompletedToggle } from './CompletedToggle';
 import { author, authorRatingText } from '../lib/author';
+import { useCompareDragSource } from './compare-tray/useCompareDragSource';
 
 interface RatingsTableProps {
   games: Game[];
@@ -19,10 +21,11 @@ interface RatingsTableProps {
   onOpen: (id: string) => void;
   onToggle: (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => void;
   onSort: (patch: Partial<Filters>) => void;
+  getCompareRecord?: (game: Game) => LibraryRecord;
   savedCopies?: (game: Game) => ReactNode;
 }
 
-export default function RatingsTable({ games, filters, progress, selecting, selected, busy, onSelect, onOpen, onToggle, onSort, savedCopies }: RatingsTableProps) {
+export default function RatingsTable({ games, filters, progress, selecting, selected, busy, onSelect, onOpen, onToggle, onSort, getCompareRecord, savedCopies }: RatingsTableProps) {
   const direction = sortDirection(filters);
   const sortedHeader = (label: string, sort: SortOrder, scale?: string) => {
     const active = filters.sort === sort || (sort === 'newest' && filters.sort === 'oldest');
@@ -36,11 +39,6 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
         </button>
       </th>
     );
-  };
-  const open = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-    event.preventDefault();
-    onOpen(id);
   };
   return (
     <div className="ratings-mode">
@@ -62,7 +60,7 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
             <tr key={game.slug} data-game={game.slug} className={selected.has(game.slug) ? 'row-selected' : ''}>
               {selecting && <td className="selection-column"><label className="select-control"><input type="checkbox" checked={selected.has(game.slug)} onChange={() => onSelect(game.slug)} aria-label={`Select ${game.title}`} /></label></td>}
               <td className="table-rank">{String(game.rank).padStart(2, '0')}</td>
-              <th scope="row" className="table-game"><a href={`/${createSearch(filters, game.slug)}`} onClick={(event) => open(event, game.slug)}><span className="table-inline-rank" aria-hidden="true">#{String(game.rank).padStart(2, '0')}</span><span className="table-game-title">{game.title}</span></a><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
+              <th scope="row" className="table-game"><RatingsGameLink game={game} filters={filters} onOpen={onOpen} compareRecord={getCompareRecord?.(game)} /><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
               <td>{game.year}</td>
               <td className="numeric-score table-author-rating" title={game.authorRating?.rawValue}>{game.authorRating ? authorRatingText(game.authorRating) : <span aria-label="Original author rating unavailable">—</span>}</td>
               {criticColumns.map(({ key }) => <td key={key} className="numeric-score">{game.critics[key] === null ? <span aria-label="Unavailable">—</span> : game.critics[key]}</td>)}
@@ -74,6 +72,23 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
       </div>
       <p className="table-footnote">The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s original cached ratings and source notes are preserved, not recalculated. Your editable personal ratings live on My rankings and are separate from these source values.</p>
     </div>
+  );
+}
+
+function RatingsGameLink({ game, filters, onOpen, compareRecord }: {
+  game: Game; filters: Filters; onOpen: (id: string) => void; compareRecord?: LibraryRecord;
+}) {
+  const sourceRef = useRef<HTMLAnchorElement>(null);
+  const compareDrag = useCompareDragSource({ record: compareRecord, sourceRef });
+  return (
+    <a ref={sourceRef} {...compareDrag.surfaceProps} {...compareDrag.titleProps} href={`/${createSearch(filters, game.slug)}`} onClick={(event) => {
+      if (event.defaultPrevented || compareDrag.consumeClick(event)) return;
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      event.preventDefault();
+      onOpen(game.slug);
+    }}>
+      <span className="table-inline-rank" aria-hidden="true">#{String(game.rank).padStart(2, '0')}</span><span className="table-game-title">{game.title}</span>
+    </a>
   );
 }
 

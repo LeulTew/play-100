@@ -1,6 +1,7 @@
 import type { Filters, Game } from '../lib/types';
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { PersonalProgress } from '../lib/personal-types';
+import type { LibraryRecord, PersonalProgress } from '../lib/personal-types';
 import { createSearch } from '../lib/url';
 import { formatAverage } from '../lib/collection';
 import { GameCover } from './GameCover';
@@ -8,12 +9,15 @@ import { Icon } from './Icon';
 import { PlayedToggle } from './PlayedToggle';
 import { CompletedToggle } from './CompletedToggle';
 import { author, authorRatingText } from '../lib/author';
+import { useMotionRuntime } from '../motion';
+import type { MotionOriginHint } from '../motion';
+import { useCompareDragSource } from './compare-tray/useCompareDragSource';
 
 interface GameCardProps {
   game: Game;
   filters: Filters;
   state: PersonalProgress | undefined;
-  onOpen: (slug: string) => void;
+  onOpen: (slug: string, origin?: MotionOriginHint) => void;
   onSave: (slug: string) => void;
   onPlayed: (slug: string, value: boolean) => void;
   onCompleted: (slug: string, value: boolean) => void;
@@ -22,20 +26,34 @@ interface GameCardProps {
   selected?: boolean;
   busy?: boolean;
   onSelect?: (id: string) => void;
+  compareRecord?: LibraryRecord;
   compareActions?: ReactNode;
   savedCopies?: ReactNode;
 }
 
-export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCompleted, eager, selecting, selected, busy, onSelect, compareActions, savedCopies }: GameCardProps) {
+export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCompleted, eager, selecting, selected, busy, onSelect, compareRecord, compareActions, savedCopies }: GameCardProps) {
+  const motion = useMotionRuntime();
+  const sourceRef = useRef<HTMLElement>(null);
+  const compareDrag = useCompareDragSource({ record: compareRecord, sourceRef });
   return (
-    <article className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
+    <article ref={sourceRef} {...compareDrag.surfaceProps} className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
       <a
+        {...compareDrag.titleProps}
         href={`/${createSearch(filters, game.slug)}`}
         className="game-link"
         onClick={(event) => {
-          if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          if (event.defaultPrevented || compareDrag.consumeClick(event)) return;
+          if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
           event.preventDefault();
-          onOpen(game.slug);
+          const source = event.currentTarget.querySelector<HTMLElement>('.game-cover');
+          const origin = source ? motion.originHint({
+            surface: 'collection',
+            presentationId: game.slug,
+            source,
+            trigger: event.currentTarget,
+            visual: { kind: 'jacket', rank: game.rank },
+          }) : null;
+          onOpen(game.slug, origin ?? undefined);
         }}
       >
         <span className="sr-only">Number {game.rank} in the author's collection. </span>

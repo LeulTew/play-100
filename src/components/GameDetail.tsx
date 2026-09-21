@@ -9,6 +9,7 @@ import { PlayedToggle } from './PlayedToggle';
 import { author, authorRatingText } from '../lib/author';
 import { PersonalRatingInput } from './personal/PersonalRatingInput';
 import { useLibraryMode } from '../lib/library-mode';
+import type { MotionOriginLease } from '../motion';
 
 interface GameDetailProps {
   game: Game;
@@ -28,11 +29,13 @@ interface GameDetailProps {
   personalRating: number | null;
   onRate: (score: number | null) => Promise<boolean>;
   savedCopies?: ReactNode;
+  motionOrigin?: MotionOriginLease;
 }
 
-export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank, personalRating, onRate, savedCopies }: GameDetailProps) {
+export function GameDetail({ game, state, previous, next, onClose, onOpen, onToggle, onShare, shareFeedback, busy, played, rankingPosition, onPlayed, onRank, personalRating, onRate, savedCopies, motionOrigin }: GameDetailProps) {
   const mode = useLibraryMode();
   const topRef = useRef<HTMLDivElement>(null);
+  const artworkRef = useRef<HTMLDivElement>(null);
   const lastSlug = useRef(game.slug);
   useEffect(() => {
     if (lastSlug.current !== game.slug) {
@@ -42,13 +45,13 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
     }
   }, [game.slug]);
   return (
-    <Dialog open titleId="game-title" onClose={onClose} className="game-dialog">
+    <Dialog open titleId="game-title" onClose={onClose} className="game-dialog" motion={motionOrigin ? { preset: 'sheet', continuity: { lease: motionOrigin, target: artworkRef } } : false}>
       <div className="detail-top" ref={topRef}>
         <div className="detail-place"><span>#{String(game.rank).padStart(2, '0')} in the collection</span><span>{game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span></div>
         <h2 id="game-title" tabIndex={-1} data-autofocus>{game.title}</h2>
         <p className="detail-byline">{game.year}<span> / </span>{game.studio}</p>
         <div className="author-rating-detail"><div><strong>{author.shortName}'s original rating</strong><p>Workbook rank-based rating.</p></div><span title={game.authorRating?.rawValue}>{authorRatingText(game.authorRating)}{game.authorRating && <small> / 10</small>}</span></div>
-        <div className="detail-cover"><GameCover key={game.slug} game={game} large eager /></div>
+        <div className="detail-cover" ref={artworkRef}><GameCover key={game.slug} game={game} large eager /></div>
         <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
         {game.slug === 'hitman-world-of-assassination' && <p className="source-note">Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.</p>}
         <p className="detail-genre">{game.genre}</p>
