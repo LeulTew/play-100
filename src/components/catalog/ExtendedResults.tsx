@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { MotionOriginHint } from '../../motion';
 import type { useExtendedSearch } from '../../hooks/useExtendedSearch';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { DiscoveryCard } from './DiscoveryCard';
@@ -8,7 +9,7 @@ import { CatalogSourceStatus } from './CatalogSourceStatus';
 export default function ExtendedResults({ records, online, state, queryKey, busy, selecting, selected, onSelect, onPreview, onPin, pinnedIds, renderDragHandle, onAction }: {
   records: LibraryRecord[]; online: ReturnType<typeof useExtendedSearch>; state: PersonalLibraryState; queryKey: string;
   busy: boolean; selecting: boolean; selected: Set<string>; onSelect: (id: string) => void;
-  onPreview?: (record: LibraryRecord) => void; onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
+  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void; onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
 }) {

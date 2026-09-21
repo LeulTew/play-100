@@ -326,7 +326,7 @@ svg { flex-shrink: 0; }
 .app-error h1 { font: 700 56px/1 var(--display); }
 .app-error p { line-height: 1.6; margin-block: 24px; }
 .app-error a { display: block; margin-top: 20px; text-decoration: underline; min-height: 44px; }
-html[data-motion="on"] .dialog[open] .dialog-inner { animation: dialog-reveal 250ms var(--ease-out); }
+html[data-motion="on"] .dialog[open]:not([data-motion-owned]) .dialog-inner { animation: dialog-reveal 250ms var(--ease-out); }
 @keyframes dialog-reveal { from { transform: translateY(8px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
 html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 @media (prefers-reduced-motion: reduce) {

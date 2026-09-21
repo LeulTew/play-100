@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { MotionOriginHint } from '../../motion';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE } from '../../lib/discovery-search';
 import type { DiscoveryFilters } from '../../lib/discovery-search';
@@ -22,7 +23,7 @@ import './discover.css';
 export default function DiscoverPage({ collection, state, busy, onAction, onLibrary, onCommunity, onPreview, onPin, pinnedIds, renderDragHandle }: {
   collection: ReturnType<typeof useCollection>;
   state: PersonalLibraryState; busy: boolean; onAction: (action: PersonalAction) => Promise<boolean>; onLibrary: () => void;
-  onCommunity?: () => void; onPreview?: (record: LibraryRecord) => void;
+  onCommunity?: () => void; onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
   onPin?: (record: LibraryRecord) => void; pinnedIds?: ReadonlySet<string>;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
