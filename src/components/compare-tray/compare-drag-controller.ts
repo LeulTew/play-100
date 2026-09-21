@@ -421,7 +421,11 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         cancel();
         return;
       }
-      if (event.defaultPrevented || modified(event) || selecting() || !compareSourceTarget(gesture.node, event)) { cancel(); return; }
+      if (event.defaultPrevented || modified(event) || selecting() || !compareSourceTarget(gesture.node, event)) {
+        event.preventDefault();
+        cancel();
+        return;
+      }
       if (!event.dataTransfer) {
         event.preventDefault();
         store.reportError('A safe drag could not be started. Use Pin to compare instead.');
