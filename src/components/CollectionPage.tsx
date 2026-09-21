@@ -40,7 +40,7 @@ interface CollectionPageProps {
   onFilters: (patch: Partial<Filters>, method?: 'push' | 'replace') => void;
   onAction: (action: PersonalAction) => Promise<boolean>;
   onOpen: (id: string, origin?: MotionOriginHint) => void;
-  onPreview: (record: LibraryRecord) => void;
+  onPreview: (record: LibraryRecord, origin?: MotionOriginHint) => void;
   onShare: () => void;
   onFullLibrary: () => void;
   notify: (message: string) => void;
