@@ -126,7 +126,7 @@ describe('collection continuity preserves the public presentation', () => {
     const resolve = vi.fn(() => owned);
     renderToStaticMarkup(h(RatingsTable, {
       games: [game], filters: { ...defaultFilters, view: 'table' }, progress: {},
-      selecting: false, selected: new Set(), busy: true, onSelect: vi.fn(),
+      selecting: false, selected: new Set<string>(), busy: true, onSelect: vi.fn(),
       onOpen: vi.fn(), onToggle: vi.fn(), onSort: vi.fn(), getCompareRecord: resolve,
     }));
     expect(resolve).toHaveBeenCalledExactlyOnceWith(game);
