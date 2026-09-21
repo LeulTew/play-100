@@ -4,7 +4,7 @@ import { author } from '../lib/author';
 
 export function AboutDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Dialog open titleId="about-title" onClose={onClose} className="info-dialog">
+    <Dialog open titleId="about-title" onClose={onClose} className="info-dialog" motion={{ preset: 'dialog', enterMs: 160 }}>
       <h2 id="about-title" data-autofocus tabIndex={-1}>About Play 100</h2>
       <p className="dialog-lead">A personal collection of 100 games, not an official best-games ranking.</p>
       <section><h3>Original order</h3><p>The <strong>Core 50</strong> are ranks 1-50. The <strong>Essential 50</strong> are ranks 51-100. Both follow the original workbook's main sheet, including its manual changes. Sorting this website never changes those original ranks.</p></section>

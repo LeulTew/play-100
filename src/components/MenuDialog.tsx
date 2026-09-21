@@ -86,7 +86,7 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
     }}><span>{label}</span>{current && <small aria-hidden="true">Current</small>}</a></li>;
   };
 
-  return <Dialog open titleId="menu-title" onClose={close} className="menu-dialog" getReturnFocus={getReturnFocus}>
+  return <Dialog open titleId="menu-title" onClose={close} className="menu-dialog" getReturnFocus={getReturnFocus} motion={{ preset: 'dialog', enterMs: 180 }}>
     <h2 id="menu-title" data-autofocus tabIndex={-1}>Menu</h2>
     <div className="menu-feedback">
       <p role="status">{saving ? 'Saving your open edit...' : ''}</p>
