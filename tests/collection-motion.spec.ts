@@ -9,7 +9,8 @@ const firstCard = `.game-card[data-game="${first.id}"]`;
 
 interface CollectionMotionProbe {
   hold: boolean;
-  calls: { duration: number | null; containsEditor: boolean }[];
+  holdReturn: boolean;
+  calls: { duration: number | null; containsEditor: boolean; phase: string | null }[];
   errors: string[];
 }
 
@@ -24,15 +25,20 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript(() => {
     localStorage.setItem('play100.library.v1', JSON.stringify({ version: 1, motion: 'full', progress: {} }));
-    window.__collectionMotionProbe = { hold: false, calls: [], errors: [] };
+    window.__collectionMotionProbe = { hold: false, holdReturn: false, calls: [], errors: [] };
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args: Parameters<Element['animate']>) {
       const animation = animate.apply(this, args);
-      if (this.closest('.game-dialog')) {
+      const inDetail = Boolean(this.closest('.game-dialog'));
+      const phase = this.getAttribute('data-motion-phase');
+      if (inDetail || this.hasAttribute('data-motion-visual')) {
         const duration = animation.effect?.getTiming().duration;
         const containsEditor = this.matches('input, textarea, select') || Boolean(this.querySelector('input, textarea, select'));
-        window.__collectionMotionProbe.calls.push({ duration: typeof duration === 'number' ? duration : null, containsEditor });
-        if (window.__collectionMotionProbe.hold) animation.pause();
+        window.__collectionMotionProbe.calls.push({ duration: typeof duration === 'number' ? duration : null, containsEditor, phase });
+        if (inDetail && window.__collectionMotionProbe.hold || phase === 'return' && window.__collectionMotionProbe.holdReturn) {
+          animation.pause();
+          animation.currentTime = 0;
+        }
       }
       return animation;
     };
@@ -43,7 +49,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(async ({ page }) => {
+test.afterEach(async ({ page }, info) => {
+  if (info.status === 'skipped') return;
+  await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
   expect(await page.evaluate(() => window.__collectionMotionProbe.errors)).toEqual([]);
 });
 
@@ -70,6 +78,66 @@ async function expectStationaryEditor(input: Locator) {
     return animated;
   })).toEqual([]);
 }
+
+async function expectBounds(element: Locator, expected: { x: number; y: number; width: number; height: number }) {
+  const actual = await element.boundingBox();
+  if (!actual) throw new Error('The public sleeve has no measurable bounds');
+  for (const key of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(actual[key] - expected[key]), `Public sleeve ${key}`).toBeLessThanOrEqual(2);
+  }
+}
+
+async function seekPublicEnd(element: Locator) {
+  return element.evaluate(node => {
+    const animation = node.getAnimations()[0];
+    const duration = animation?.effect?.getTiming().duration;
+    if (!animation || typeof duration !== 'number') throw new Error('The public sleeve has no timed animation');
+    animation.currentTime = Math.max(0, duration - 1);
+    return duration;
+  });
+}
+
+test('one public sleeve connects measured endpoints and returns only after native close', async ({ page, isMobile }) => {
+  await page.goto('/?catalogs=off');
+  const link = await prepareSource(page);
+  const source = link.locator('.game-cover');
+  const sourceBounds = await source.boundingBox();
+  if (!sourceBounds) throw new Error('The collection source has no visible bounds');
+  await page.evaluate(() => {
+    window.__collectionMotionProbe.hold = true;
+    window.__collectionMotionProbe.holdReturn = true;
+  });
+  await link.click();
+  const dialog = page.locator('.game-dialog');
+  const entering = page.locator('[data-motion-visual="jacket"][data-motion-phase="enter"]');
+  await expect(entering).toHaveCount(1);
+  await expect(page.locator('[data-motion-visual]')).toHaveCount(1);
+  expect(await entering.evaluate(node => Boolean(node.closest('dialog[open] [data-motion-host="dialog"]')))).toBe(true);
+  expect(await entering.evaluate(node => Boolean(node.closest('[aria-hidden="true"]')) && Boolean(node.closest('[inert]')))).toBe(true);
+  await expect(entering.locator('img, input, textarea, select, button, a, [id], [tabindex]')).toHaveCount(0);
+  await expect(entering).not.toContainText(first.title);
+  await expectBounds(entering, sourceBounds);
+  const destinationBounds = await dialog.locator('.detail-cover').boundingBox();
+  if (!destinationBounds) throw new Error('The detail artwork target has no visible bounds');
+  expect(await seekPublicEnd(entering)).toBe(isMobile ? 180 : 240);
+  await expectBounds(entering, destinationBounds);
+  await entering.evaluate(node => { for (const animation of node.getAnimations()) animation.finish(); });
+  await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+  await expectStationaryEditor(dialog.getByRole('spinbutton'));
+  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const returning = page.locator('[data-motion-visual="jacket"][data-motion-phase="return"]');
+  await expect(returning).toHaveCount(1);
+  expect(await returning.evaluate(node => Boolean(node.closest('[data-motion-host="root"]')) && !node.closest('dialog'))).toBe(true);
+  await expectBounds(returning, destinationBounds);
+  const returnBounds = await source.boundingBox();
+  if (!returnBounds) throw new Error('The original sleeve is no longer visible');
+  expect(await seekPublicEnd(returning)).toBe(isMobile ? 120 : 160);
+  await expectBounds(returning, returnBounds);
+  await returning.evaluate(node => { for (const animation of node.getAnimations()) animation.finish(); });
+  await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+  await expect(link).toBeFocused();
+});
 
 for (const view of ['grid', 'list'] as const) {
   test(`${view} public continuity never makes the live editor wait for animation`, async ({ page }) => {
