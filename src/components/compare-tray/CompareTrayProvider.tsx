@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
 import { compareTrayStorageKey, createCompareDragSession, createCompareTrayStore } from '../../lib/compare-tray';
+import { useMotionRuntime } from '../../motion';
+import type { CompareTrayProviderProps } from './compare-drag-types';
+import { createCompareDragController } from './compare-drag-controller';
+import { CompareDragSourceContext } from './compare-drag-source-context';
 import { CompareTrayContext } from './compare-tray-context';
 
-export function CompareTrayProvider({ scope, children }: { scope: string; children: ReactNode }) {
+export function CompareTrayProvider({ scope, children, interaction }: CompareTrayProviderProps) {
+  const runtime = useMotionRuntime();
+  const input = useRef(interaction);
+  input.current = interaction;
   const mounted = useRef(true);
   const currentLease = useRef<object | null>(null);
-  const { store, drag, lease } = useMemo(() => {
+  const { store, controller, lease } = useMemo(() => {
     const lease = {};
     const isCurrent = () => mounted.current && currentLease.current === lease;
     const store = createCompareTrayStore(scope, () => window.localStorage, isCurrent);
-    return { store, drag: createCompareDragSession(scope, store, isCurrent), lease };
-  }, [scope]);
+    const drag = createCompareDragSession(scope, store, isCurrent);
+    const controller = createCompareDragController({ store, drag, runtime, isCurrent, interaction: () => input.current });
+    return { store, controller, lease };
+  }, [scope, runtime]);
   currentLease.current = lease;
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
@@ -19,6 +27,7 @@ export function CompareTrayProvider({ scope, children }: { scope: string; childr
     return () => { mounted.current = false; };
   }, []);
   useEffect(() => {
+    controller.resume();
     store.reload();
     const onStorage = (event: StorageEvent) => {
       if (event.key === compareTrayStorageKey(scope) || event.key === null) store.reload();
@@ -26,12 +35,12 @@ export function CompareTrayProvider({ scope, children }: { scope: string; childr
     window.addEventListener('storage', onStorage);
     return () => {
       window.removeEventListener('storage', onStorage);
-      drag.cancelDrag();
+      controller.dispose();
     };
-  }, [scope, store, drag]);
+  }, [scope, store, controller]);
+  useEffect(() => { controller.refresh(); }, [controller, interaction]);
   const value = useMemo(() => ({
-    ...snapshot, currentScope: scope, pin: store.pin, unpin: store.unpin, clear: store.clear,
-    beginDrag: drag.beginDrag, cancelDrag: drag.cancelDrag, dropGame: drag.dropGame,
-  }), [snapshot, scope, store, drag]);
-  return <CompareTrayContext.Provider value={value}>{children}<span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{snapshot.status}</span></CompareTrayContext.Provider>;
+    ...snapshot, currentScope: scope, pin: controller.pin, unpin: store.unpin, clear: controller.clear,
+  }), [snapshot, scope, store, controller]);
+  return <CompareTrayContext.Provider value={value}><CompareDragSourceContext.Provider value={controller}>{children}</CompareDragSourceContext.Provider><span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{snapshot.status}</span></CompareTrayContext.Provider>;
 }

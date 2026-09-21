@@ -11,6 +11,7 @@ import { GameArtwork } from '../games/GameArtwork';
 import { CompareTray } from './CompareTray';
 import { ComparePinButton } from './ComparePinButton';
 import { CompareDragHandle } from './CompareDragHandle';
+import { CompareDragSource } from './CompareDragSource';
 import { CompareTrayContext } from './compare-tray-context';
 
 const alpha: LibraryRecord = { id: 'alpha', source: 'collection', sourceId: 'alpha', title: 'Alpha game', year: 2020, collectionRank: 1, sourceUrl: null, studio: null, genre: null };
@@ -110,6 +111,15 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('draggable="false"');
     expect(html).toContain('data-dragging="true"');
     expect(html).toContain('Drop to pin for comparison');
+    expect(html).toContain('data-compare-drag-grip=""');
+  });
+  it('keeps a source inert without a source provider and adds no wrapper DOM', () => {
+    const html = renderToStaticMarkup(h(CompareDragSource, {
+      record: alpha,
+      children: (binding) => h('div', { ...binding.surfaceProps, ref: binding.sourceRef, className: 'existing-row' },
+        h('button', { type: 'button', ...binding.titleProps }, alpha.title)),
+    }));
+    expect(html).toBe('<div class="existing-row"><button type="button">Alpha game</button></div>');
   });
   it('loads only local artwork and exposes fixed dimensions and lazy loading', () => {
     const artwork = { src: `/images/discovery/${'a'.repeat(64)}.webp`, width: 120, height: 80, alt: '', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Example.webp', credit: 'Example creator', license: 'CC BY', licenseUrl: 'https://creativecommons.org/licenses/by/4.0/' };

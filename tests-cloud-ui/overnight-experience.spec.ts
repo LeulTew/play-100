@@ -152,7 +152,7 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
     await page.mouse.up();
     await expect(card(page, ids[0]!).getByRole('button', { name: /^Pinned .* for comparison$/ })).toBeDisabled();
   } else {
-    expect(await page.locator('.compare-drag-handle:visible').count()).toBe(0);
+    await expect(card(page, ids[0]!).locator('.compare-drag-handle')).toBeVisible();
     await card(page, ids[0]!).getByRole('button', { name: /^Pin .* for comparison$/ }).click();
   }
   for (const id of ids.slice(1, 6)) {
