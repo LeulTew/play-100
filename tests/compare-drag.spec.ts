@@ -18,74 +18,6 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/catalog?**', route => route.fulfill({ status: 503, json: { error: 'Controlled offline provider.' } }));
 });
 
-async function observeCompareInput(source: Locator) {
-  return source.evaluateHandle(element => {
-    const entries: Record<string, unknown>[] = [];
-    const disposers: (() => void)[] = [];
-    const root = element.closest('[data-compare-drag-source]');
-    const label = (node: EventTarget | null) => node instanceof Element ? `${node.tagName}.${node.getAttribute('class') ?? ''}` : node === document ? 'document' : 'window';
-    const record = (type: string, detail: Record<string, unknown> = {}) => {
-      if (entries.length >= 160) return;
-      const rect = element.getBoundingClientRect();
-      const dock = document.querySelector('.compare-tray-dock');
-      entries.push({
-        type, at: performance.now(), scrollY,
-        sourceTop: rect.top, sourceDocumentTop: rect.top + scrollY,
-        sourceHeight: rect.height, dragging: root?.hasAttribute('data-compare-dragging'),
-        dock: Boolean(dock), dockDragging: dock?.getAttribute('data-dragging'),
-        ghosts: document.querySelectorAll('.compare-drag-ghost').length,
-        selectionLength: document.getSelection()?.toString().length ?? 0,
-        viewportTop: visualViewport?.offsetTop, viewportHeight: visualViewport?.height,
-        ...detail,
-      });
-    };
-    const input = (event: Event) => {
-      const point = event instanceof TouchEvent ? event.touches[0] ?? event.changedTouches[0] : event instanceof MouseEvent ? event : null;
-      const detail = {
-        target: label(event.target), cancelable: event.cancelable,
-        x: point?.clientX, y: point?.clientY,
-        pointerType: event instanceof PointerEvent ? event.pointerType : undefined,
-      };
-      record(event.type, { ...detail, defaultPrevented: event.defaultPrevented });
-      queueMicrotask(() => record(`${event.type}:after`, { ...detail, defaultPrevented: event.defaultPrevented }));
-    };
-    for (const type of ['touchstart', 'touchmove', 'touchcancel', 'touchend', 'pointerdown', 'pointermove', 'pointercancel', 'pointerup', 'contextmenu', 'selectionchange']) {
-      document.addEventListener(type, input, { capture: true, passive: true });
-      disposers.push(() => document.removeEventListener(type, input, true));
-    }
-    window.addEventListener('scroll', input, { capture: true, passive: true });
-    disposers.push(() => window.removeEventListener('scroll', input, true));
-    const observer = new MutationObserver(changes => {
-      for (const change of changes) {
-        if (change.type === 'attributes') {
-          record('mutation:attribute', { target: label(change.target), attribute: change.attributeName, oldValue: change.oldValue });
-        } else {
-          for (const [action, nodes] of [['added', change.addedNodes], ['removed', change.removedNodes]] as const) {
-            for (const node of nodes) {
-              if (node instanceof Element && node.matches('.compare-tray-dock,.compare-tray-reserve,.compare-drag-ghost')) {
-                record(`mutation:${action}`, { target: label(node) });
-              }
-            }
-          }
-        }
-      }
-    });
-    observer.observe(document.body, {
-      subtree: true, childList: true, attributes: true, attributeOldValue: true,
-      attributeFilter: ['data-compare-dragging', 'data-dragging', 'open'],
-    });
-    record('observation:start');
-    return {
-      finish() {
-        record('observation:end');
-        observer.disconnect();
-        for (const dispose of disposers) dispose();
-        return entries;
-      },
-    };
-  });
-}
-
 async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, source: Locator, touch: boolean) {
   const url = page.url();
   await expect(page.locator('.compare-tray-dock,.compare-drag-ghost,.drag-preview,dialog[open]')).toHaveCount(0);
@@ -100,7 +32,6 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
     return Boolean(hit && element.contains(hit) && !hit.closest('.compare-drag-handle,.drag-handle'));
   }, start)).toBe(true);
   expect(await source.evaluate(element => getComputedStyle(element).touchAction)).not.toBe('none');
-  const observation = process.env.PLAY100_COMPARE_INPUT_RECEIPT === '1' ? await observeCompareInput(source) : null;
   const cdp = touch ? await context.newCDPSession(page) : null;
   let held = false;
   try {
@@ -160,15 +91,7 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
         if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
         else await page.mouse.up();
       }
-    } finally {
-      await cdp?.detach();
-      if (observation) {
-        try {
-          const receipt = await observation.evaluate(value => value.finish());
-          await test.info().attach('compare-input-receipt.json', { body: JSON.stringify(receipt, null, 2), contentType: 'application/json' });
-        } finally { await observation.dispose(); }
-      }
-    }
+    } finally { await cdp?.detach(); }
   }
 }
 
