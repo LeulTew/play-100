@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
+import { useMotionController } from '../motion/useMotion';
+import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
 
 let bodyLocks = 0;
 let originalOverflow = '';
@@ -32,12 +34,25 @@ interface DialogProps {
   children: ReactNode;
   className?: string;
   getReturnFocus?: () => HTMLElement | null;
+  motion?: false | DialogMotionOptions;
 }
 
-export function Dialog({ open, titleId, descriptionId, onClose, children, className = '', getReturnFocus }: DialogProps) {
+export function Dialog({ open, titleId, descriptionId, onClose, children, className = '', getReturnFocus, motion }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const slot = useRef<HTMLDivElement>(null);
+  const visual = useRef<DialogMotionHandle | null>(null);
+  const controller = useMotionController();
+  const latestMotion = useRef(motion);
+  latestMotion.current = motion;
+  const motionDisabled = motion === false;
   const returnFocus = useRef(getReturnFocus);
   returnFocus.current = getReturnFocus;
+  useLayoutEffect(() => {
+    const current = visual;
+    return () => { current.current?.prepareClose(); };
+  }, [open]);
+  useLayoutEffect(() => { if (motionDisabled) visual.current?.cancel(); }, [motionDisabled]);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
@@ -45,7 +60,10 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
     dialog.showModal();
     const unlock = lockBody();
     dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
+    if (inner.current) visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
     return () => {
+      const ending = visual.current;
+      visual.current = null;
       dialog.close();
       unlock();
       const preferred = returnFocus.current?.();
@@ -58,21 +76,24 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
       } else {
         document.querySelector<HTMLElement>('[data-page-heading], #collection-title')?.focus({ preventScroll: true });
       }
+      ending?.closed();
     };
-  }, [open]);
+  }, [open, controller]);
   return (
     <dialog
       ref={ref}
       className={`dialog ${className}`}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
+      data-motion-owned={motion !== undefined ? 'true' : undefined}
       onCancel={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
-      <div className="dialog-inner">
+      <div className="dialog-inner" ref={inner}>
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog"><Icon name="close" /></button>
         {children}
       </div>
+      {motion && <div ref={slot} className="dialog-motion-slot" data-motion-host="dialog" aria-hidden="true" inert />}
     </dialog>
   );
 }
