@@ -46,9 +46,9 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
 @media (max-width: 760px) {
   .compare-tray-reserve { height: 88px; }
   .compare-tray-reserve[data-error="true"] { height: 204px; }
-  body:has(.compare-tray-dock) .collection-title-line { padding-top: 8px; }
-  body:has(.compare-tray-dock) .collection-search { margin-top: 8px; }
-  body:has(.compare-tray-dock) .collection-utilities, body:has(.compare-tray-dock) .collection-extra-actions { margin-bottom: 8px; }
+  body:has(.compare-tray-dock[data-has-content="true"]) .collection-title-line { padding-top: 8px; }
+  body:has(.compare-tray-dock[data-has-content="true"]) .collection-search { margin-top: 8px; }
+  body:has(.compare-tray-dock[data-has-content="true"]) .collection-utilities, body:has(.compare-tray-dock[data-has-content="true"]) .collection-extra-actions { margin-bottom: 8px; }
   .compare-tray-dock { inset-inline: 10px; bottom: calc(var(--compare-tray-nav-height, 78px) + env(safe-area-inset-bottom, 0px)); max-width: none; justify-content: space-between; gap: 8px; padding: 5px 8px; }
   .compare-tray-expand { min-height: 48px; gap: 10px; padding-inline: 3px; }
   .compare-tray-stack { min-width: 30px; }

@@ -110,8 +110,22 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('Pin Alpha game for comparison, or drag to the tray');
     expect(html).toContain('draggable="false"');
     expect(html).toContain('data-dragging="true"');
+    expect(html).toContain('data-has-content="false"');
     expect(html).toContain('Drop to pin for comparison');
     expect(html).toContain('data-compare-drag-grip=""');
+  });
+  it('retains the compact collection state for real pins and storage messages while dragging', () => {
+    for (const content of [
+      { items: [alpha], warning: null, error: null },
+      { items: [], warning: 'Pins stay in this tab only.', error: null },
+      { items: [], warning: null, error: 'The pinned game is invalid.' },
+    ]) {
+      for (const dragging of [false, true]) {
+        const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, ...content, dragging } }, h(CompareTray, { onCompare: vi.fn() })));
+        expect(html).toContain('data-has-content="true"');
+        expect(html).toContain(`data-dragging="${dragging}"`);
+      }
+    }
   });
   it('keeps a source inert without a source provider and adds no wrapper DOM', () => {
     const html = renderToStaticMarkup(h(CompareDragSource, {

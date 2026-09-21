@@ -36,7 +36,8 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   const arrivalRef = useCallback((node: HTMLSpanElement | null) => {
     controller?.setArrivalTarget(animate ? newestId : undefined, node);
   }, [controller, newestId, animate]);
-  const hasTray = items.length > 0 || Boolean(warning) || Boolean(error) || dragging;
+  const hasContent = items.length > 0 || Boolean(warning) || Boolean(error);
+  const hasTray = hasContent || dragging;
   useEffect(() => {
     const onVisibility = () => setDocumentVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
@@ -57,7 +58,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   };
   return <>
     {hasTray && !hidden && <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />}
-    {hasTray && !hidden && <aside ref={dockRef} className="compare-tray-dock" aria-label="Pinned games for comparison" data-animate={animate && documentVisible ? 'true' : 'false'} data-dragging={dragging}
+    {hasTray && !hidden && <aside ref={dockRef} className="compare-tray-dock" aria-label="Pinned games for comparison" data-animate={animate && documentVisible ? 'true' : 'false'} data-dragging={dragging} data-has-content={hasContent}
       onDragOver={(event) => controller?.nativeOver(event.nativeEvent)}
       onDrop={(event) => controller?.nativeDrop(event.nativeEvent)}>
       {dragging && <span className="compare-tray-drop-label"><Icon name="plus" width="20" height="20" />Drop to pin for comparison</span>}
