@@ -205,7 +205,7 @@ test('nested save, selection and Pin controls never enroll a detail origin', asy
   const save = card.locator('.save-game');
   await save.click();
   await expect(save).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Select games', exact: true }).click();
+  await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
   const select = card.getByRole('checkbox', { name: `Select ${first.title}`, exact: true });
   await select.check();
   await expect(select).toBeChecked();
