@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { canonicalCatalogId } from '../src/lib/catalog-identity';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
 import type { DiscoveryItem } from '../src/lib/discovery-catalog';
+import { readLibrary } from './library-helpers';
 
 const catalog = parseDiscoveryCatalog(JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')));
 const illustrated = catalog.items.find(item => item.artwork && canonicalCatalogId(item.record.id) === item.record.id);
@@ -186,8 +187,9 @@ test('motion-enabled pointer and keyboard previews retain immediate native close
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('button', { name: 'Settings & backups', exact: true }).click();
   const full = page.getByRole('radio', { name: /Full/ });
-  await full.check();
+  await full.click();
   await expect(full).toBeChecked();
+  await expect.poll(async () => (await readLibrary(page)).motion).toBe('full');
   await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
   await expect.poll(() => card.locator('.discovery-card-art > img').evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
