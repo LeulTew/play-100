@@ -12,10 +12,13 @@ if (!illustrated?.artwork || !withoutArt) throw new Error('Discover continuity r
 const illustratedItem = illustrated;
 const artwork = illustrated.artwork;
 const withoutArtItem = withoutArt;
+const developmentBuild = process.env.PLAY100_TEST_BUILD === 'development';
 
 interface ContinuityReceipt {
   sourceReads: number;
   targetReads: number;
+  nativeOpens: number;
+  nativeCloses: number;
   animatedControlAncestor: boolean;
   animationDurations: (number | string | null)[];
 }
@@ -38,8 +41,20 @@ function catalogUrl(item: DiscoveryItem) {
 
 async function recordContinuity(page: Page) {
   await page.evaluate(() => {
-    const receipt: ContinuityReceipt = { sourceReads: 0, targetReads: 0, animatedControlAncestor: false, animationDurations: [] };
+    const receipt: ContinuityReceipt = { sourceReads: 0, targetReads: 0, nativeOpens: 0, nativeCloses: 0, animatedControlAncestor: false, animationDurations: [] };
     window.discoverContinuityReceipt = receipt;
+    const showModal = HTMLDialogElement.prototype.showModal;
+    HTMLDialogElement.prototype.showModal = function () {
+      const wasOpen = this.open;
+      showModal.call(this);
+      if (!wasOpen && this.matches('.catalog-detail-dialog')) receipt.nativeOpens += 1;
+    };
+    const close = HTMLDialogElement.prototype.close;
+    HTMLDialogElement.prototype.close = function (returnValue) {
+      const wasOpen = this.open;
+      close.call(this, returnValue);
+      if (wasOpen && this.matches('.catalog-detail-dialog')) receipt.nativeCloses += 1;
+    };
     const measure = Element.prototype.getBoundingClientRect;
     Element.prototype.getBoundingClientRect = function () {
       if (this.matches('.discovery-card-art')) receipt.sourceReads += 1;
@@ -152,10 +167,11 @@ test('failed existing artwork uses the shared fallback without losing credits or
 test('reduced motion skips endpoint measurement and optional animation setup', async ({ page }) => {
   const { dialog } = await openCatalogDetail(page, illustratedItem, () => recordContinuity(page));
   const receipt = await page.evaluate(() => window.discoverContinuityReceipt);
-  expect(receipt).toEqual({ sourceReads: 0, targetReads: 0, animatedControlAncestor: false, animationDurations: [] });
+  const noMotion = { sourceReads: 0, targetReads: 0, animatedControlAncestor: false, animationDurations: [] };
+  expect(receipt).toMatchObject(noMotion);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  expect(await page.evaluate(() => window.discoverContinuityReceipt)).toEqual(receipt);
+  expect(await page.evaluate(() => window.discoverContinuityReceipt)).toMatchObject(noMotion);
 });
 
 test('motion-enabled pointer and keyboard previews retain immediate native close and rapid reopen', async ({ page, isMobile }) => {
@@ -184,8 +200,11 @@ test('motion-enabled pointer and keyboard previews retain immediate native close
   await expect(dialog.getByRole('spinbutton')).toBeEnabled();
   await expect.poll(() => page.evaluate(() => window.discoverContinuityReceipt?.animationDurations.length ?? 0)).toBeGreaterThan(0);
   const opening = await page.evaluate(() => window.discoverContinuityReceipt);
+  const expectedOpens = developmentBuild ? 2 : 1;
   expect(opening?.sourceReads).toBe(1);
-  expect(opening?.targetReads).toBe(1);
+  expect(opening?.targetReads).toBe(expectedOpens);
+  expect(opening?.nativeOpens).toBe(expectedOpens);
+  expect(opening?.nativeCloses).toBe(developmentBuild ? 1 : 0);
   expect(opening?.animatedControlAncestor).toBe(false);
   for (const duration of opening?.animationDurations ?? []) {
     expect(typeof duration).toBe('number');
