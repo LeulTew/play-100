@@ -114,6 +114,19 @@ describe('bounded optional motion sessions', () => {
     runtime.dispose();
   });
 
+  it('does not let a late native navigation notification cancel a just-committed effect', () => {
+    const { runtime, update, emit } = fixture();
+    const old = runtime.startMotionSession({ channel: 'route' });
+    update(current => ({ ...current, location: { ...current.location, navigationGeneration: 1 } }));
+    expect(old?.signal.aborted).toBe(true);
+    const current = runtime.startMotionSession({ channel: 'route' });
+    emit('navigation');
+    expect(current?.isCurrent()).toBe(true);
+    update(snapshot => ({ ...snapshot, location: { ...snapshot.location, navigationGeneration: 2 } }));
+    expect(current?.signal.aborted).toBe(true);
+    runtime.dispose();
+  });
+
   it('listens to an active authority and releases the exact subscription once', () => {
     const { runtime } = fixture();
     let permitted = true;

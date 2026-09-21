@@ -148,7 +148,8 @@ export function createMotionRuntime(
     origin = null;
     if (old) {
       old.abort.abort(reason);
-      old.release?.();
+      try { old.release?.(); }
+      catch { console.error('A motion authority cleanup failed. Remaining cleanup will continue.'); }
       old.sprite?.remove();
       old.sprite = undefined;
     }
@@ -160,13 +161,18 @@ export function createMotionRuntime(
   const snapshotSprite = () => {
     if (origin?.sprite?.isConnected) origin.interrupted = measure(origin.sprite) ?? undefined;
   };
+  const cancelStaleNavigation = () => {
+    const stale = [...sessions.values()].filter(session => !session.isCurrent());
+    const flight = sessions.get('continuity');
+    if (flight && stale.includes(flight)) snapshotSprite();
+    for (const session of stale) session.cancel('navigation');
+  };
   function interrupt(reason: MotionCancelReason) {
     if (reason === 'navigation') {
       generation += 1;
       pendingHint = null;
-      // The committed URL decides whether this was our own open or an eligible Back.
-      snapshotSprite();
-      cancelSessions(reason);
+      // A native event may arrive after React already committed its new effect.
+      cancelStaleNavigation();
       notify(reason);
     } else runtime.cancel(reason);
   }
@@ -218,8 +224,7 @@ export function createMotionRuntime(
         prior.location.viewKey !== next.location.viewKey || prior.location.overlayKey !== next.location.overlayKey ||
         prior.location.requestedDetailKey !== next.location.requestedDetailKey ||
         prior.location.displayedDetailKey !== next.location.displayedDetailKey) {
-        snapshotSprite();
-        cancelSessions('navigation');
+        cancelStaleNavigation();
         if (origin && !expectedOpen(origin) && !canReturn(origin)) clearOrigin('navigation');
         notify('navigation');
       }
@@ -244,6 +249,9 @@ export function createMotionRuntime(
       syncEvents();
       return () => { listeners.delete(listener); syncEvents(); };
     },
+    forgetDialog(dialog) {
+      dialogs.delete(dialog);
+    },
     originHint(input) {
       if (!eligible() || typeof WeakRef === 'undefined' || !input.presentationId ||
         !publicTarget(input.source) || !input.trigger.isConnected) return null;
@@ -262,6 +270,8 @@ export function createMotionRuntime(
       const candidate = pendingHint?.handle === hint ? pendingHint.value : null;
       if (candidate) pendingHint = null;
       if (!candidate || candidate.generation !== generation || !eligible() || hint.presentationId !== intent.displayedDetailKey ||
+        (read().location.requestedDetailKey === intent.requestedDetailKey &&
+          read().location.displayedDetailKey === intent.displayedDetailKey) ||
         !sameBoundary(candidate.snapshot.boundary, read().boundary) ||
         candidate.snapshot.location.viewKey !== read().location.viewKey ||
         candidate.snapshot.location.overlayKey !== read().location.overlayKey ||
@@ -298,7 +308,8 @@ export function createMotionRuntime(
       return handle.signal.aborted ? null : handle;
     },
     startMotionSession({ channel, guard }) {
-      if (!eligible() || !guardCurrent(guard)) return null;
+      if (!eligible() || (dialogs.size > 0 && channel !== 'dialog' && channel !== 'continuity') ||
+        !guardCurrent(guard)) return null;
       sessions.get(channel)?.cancel('superseded');
       const snapshot = read();
       const abort = new AbortController();

@@ -8,6 +8,11 @@ let bodyLocks = 0;
 let originalOverflow = '';
 let originalPadding = '';
 
+function runDialogMotion(work: () => void) {
+  try { work(); }
+  catch { console.error('Dialog motion failed. Native dialog behavior remains available.'); }
+}
+
 function lockBody() {
   if (bodyLocks === 0) {
     originalOverflow = document.body.style.overflow;
@@ -50,9 +55,9 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
   returnFocus.current = getReturnFocus;
   useLayoutEffect(() => {
     const current = visual;
-    return () => { current.current?.prepareClose(); };
+    return () => { runDialogMotion(() => current.current?.prepareClose()); };
   }, [open]);
-  useLayoutEffect(() => { if (motionDisabled) visual.current?.cancel(); }, [motionDisabled]);
+  useLayoutEffect(() => { if (motionDisabled) runDialogMotion(() => visual.current?.cancel()); }, [motionDisabled]);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
@@ -60,7 +65,9 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
     dialog.showModal();
     const unlock = lockBody();
     dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
-    if (inner.current) visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
+    runDialogMotion(() => {
+      if (inner.current) visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
+    });
     return () => {
       const ending = visual.current;
       visual.current = null;
@@ -76,7 +83,8 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
       } else {
         document.querySelector<HTMLElement>('[data-page-heading], #collection-title')?.focus({ preventScroll: true });
       }
-      ending?.closed();
+      controller.forgetDialog(dialog);
+      runDialogMotion(() => ending?.closed());
     };
   }, [open, controller]);
   return (

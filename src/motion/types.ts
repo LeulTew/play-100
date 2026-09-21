@@ -120,6 +120,7 @@ export interface MotionController extends MotionRuntime {
   mount(): void;
   update(): void;
   dispose(): void;
+  forgetDialog(dialog: HTMLDialogElement): void;
   openDialog(
     dialog: HTMLDialogElement,
     inner: HTMLElement,

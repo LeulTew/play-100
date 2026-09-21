@@ -32,6 +32,10 @@ declare global {
       returnToEditor(): void;
       scope(): void;
       navigate(): void;
+      noopCapture(): boolean;
+      routeAttempt(): boolean;
+      failRelease(): void;
+      failOpen(): void;
     };
   }
 }
@@ -40,6 +44,7 @@ declare global {
 const fixture = `<!doctype html><html lang="en" data-motion="on"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Native motion fixture</title>
+<link rel="icon" href="/favicon.svg">
 <style>
   #page-heading { margin: 16px 32px; font-size: 24px; }
   #source-trigger { position: fixed; left: 32px; top: 120px; padding: 0; border: 0; }
@@ -59,7 +64,7 @@ let policy = { animate: true, reducedMotion: false, coarsePointer: false, hidden
 let boundary = { scopeKey: 'guest', generation: 0, blocked: false };
 let route = { viewKey: '/fixture', requestedDetailKey: null, displayedDetailKey: null, navigationGeneration: 0, overlayKey: null };
 let detail = false, utility = false, nested = false, preferred = false;
-let mode = 'anchored', lease, runtime, permitted = true, paused = true, offset = 0;
+let mode = 'anchored', lease, runtime, permitted = true, paused = true, offset = 0, throwRelease = false;
 const guards = new Set();
 const stats = { renders: 0, sourceReads: 0, targetReads: 0, closeRequests: 0, effects: [] };
 const nativeNow = performance.now.bind(performance);
@@ -89,7 +94,10 @@ function prepare() {
   });
   lease = hint ? runtime.captureOrigin(hint, {
     requestedDetailKey: 'game-one', displayedDetailKey: 'game-one',
-    guard: { isCurrent: () => permitted, subscribe(fn) { guards.add(fn); return () => guards.delete(fn); } },
+    guard: { isCurrent: () => permitted, subscribe(fn) {
+      guards.add(fn);
+      return () => { guards.delete(fn); if (throwRelease) throw new Error('Synthetic motion release failure.'); };
+    } },
   }) ?? undefined : undefined;
 }
 function commit() {
@@ -175,6 +183,29 @@ window.motionFixture = {
     window.dispatchEvent(new Event('play100:navigate'));
     render();
   },
+  noopCapture() {
+    const hint = runtime.originHint({
+      surface: 'collection', presentationId: 'game-one',
+      source: document.getElementById('source-art'), trigger: document.getElementById('source-trigger'),
+      visual: { kind: 'jacket', rank: 7 },
+    });
+    return hint !== null && runtime.captureOrigin(hint, {
+      requestedDetailKey: 'game-one', displayedDetailKey: 'game-one',
+    }) === null;
+  },
+  routeAttempt() {
+    const session = runtime.startMotionSession({ channel: 'route' });
+    session?.finish();
+    return session !== null;
+  },
+  failRelease() { throwRelease = true; },
+  failOpen() {
+    const original = runtime.openDialog;
+    runtime.openDialog = (...args) => {
+      runtime.openDialog = original;
+      throw new Error('Synthetic motion startup failure.');
+    };
+  },
 };
 render();
 </script></body></html>`;
@@ -203,13 +234,14 @@ beforeAll(async () => {
         });
       },
     }],
-    server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
+    server: { host: '127.0.0.1', port: 4201, strictPort: true, watch: null },
   });
   await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Motion fixture did not bind a local port.');
   origin = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch({ channel: 'chrome', headless: true });
+  console.info(`Native motion fixture: ${origin}; owner Node PID ${process.pid}.`);
 }, 30_000);
 
 afterAll(async () => { await browser?.close(); await server?.close(); });
@@ -270,12 +302,13 @@ describe('native Dialog motion lifecycle', () => {
   it('removes the real form and unlocks/focuses before a held public return finishes', async () => {
     await page.evaluate(() => { document.body.style.overflow = 'clip'; document.body.style.paddingRight = '3px'; });
     await page.getByRole('button', { name: 'Open game', exact: true }).click();
+    await browserExpect(page.locator('#detail-title')).toBeFocused();
     await page.keyboard.press('Escape');
     await browserExpect(detail()).toHaveCount(0);
     await browserExpect(page.locator('#private-draft')).toHaveCount(0);
     await browserExpect(page.locator('#source-trigger')).toBeFocused();
     expect(await page.evaluate(() => [document.body.style.overflow, document.body.style.paddingRight])).toEqual(['clip', '3px']);
-    await browserExpect(page.locator('[data-motion-host="root"] [data-motion-phase="return"]')).toHaveCount(1);
+    await browserExpect(page.locator('[data-motion-host="root"] [data-motion-phase="return"]')).toHaveCount(1, { timeout: 2000 });
     expect((await stats()).closeRequests).toBe(1);
     expect((await stats()).effects.some(effect => effect.target === 'sprite:return' && effect.duration === 160)).toBe(true);
   });
@@ -294,6 +327,53 @@ describe('native Dialog motion lifecycle', () => {
     await browserExpect(detail()).toHaveCount(0);
     expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
     await browserExpect(activeVisuals()).toHaveCount(0);
+  });
+
+  it('suppresses newly requested route motion while a native modal is registered', async () => {
+    expect(await page.evaluate(() => window.motionFixture.routeAttempt())).toBe(true);
+    await page.getByRole('button', { name: 'Open game', exact: true }).click();
+    await browserExpect(detail()).toBeVisible();
+    expect(await page.evaluate(() => window.motionFixture.routeAttempt())).toBe(false);
+    await page.keyboard.press('Escape');
+    await browserExpect(page.locator('#source-trigger')).toBeFocused();
+    expect(await page.evaluate(() => window.motionFixture.routeAttempt())).toBe(true);
+  });
+
+  it('contains a throwing motion unsubscribe without losing native cleanup or focus', async () => {
+    const reports: string[] = [];
+    page.removeAllListeners('console');
+    page.on('console', message => { if (message.type() === 'error') reports.push(message.text()); });
+    await page.getByRole('button', { name: 'Open game', exact: true }).click();
+    await browserExpect(activeVisuals()).toHaveCount(1);
+    await page.evaluate(() => window.motionFixture.failRelease());
+    await page.getByRole('button', { name: 'Open confirmation', exact: true }).click();
+    await browserExpect(page.getByRole('dialog', { name: 'Confirm fixture', exact: true })).toBeVisible({ timeout: 1000 });
+    await page.keyboard.press('Escape');
+    await browserExpect(page.locator('#nested-trigger')).toBeFocused();
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+    await page.keyboard.press('Escape');
+    await browserExpect(page.locator('#source-trigger')).toBeFocused();
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+    await browserExpect(activeVisuals()).toHaveCount(0);
+    expect(reports).toEqual([
+      'A motion cleanup failed. Remaining cleanup will continue.',
+      'A motion authority cleanup failed. Remaining cleanup will continue.',
+    ]);
+  });
+
+  it('always registers native cleanup even when optional motion startup throws', async () => {
+    const reports: string[] = [];
+    page.removeAllListeners('console');
+    page.on('console', message => { if (message.type() === 'error') reports.push(message.text()); });
+    await page.evaluate(() => window.motionFixture.failOpen());
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await browserExpect(page.locator('#utility-title')).toBeFocused();
+    await page.locator('#utility-draft').fill('This stays usable without the effect');
+    await page.keyboard.press('Escape');
+    await browserExpect(page.locator('#utility-trigger')).toBeFocused();
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+    expect(await page.evaluate(() => window.motionFixture.routeAttempt())).toBe(true);
+    expect(reports).toEqual(['Dialog motion failed. Native dialog behavior remains available.']);
   });
 
   it('keeps utility entry stable across inline options rerenders and uses current preferred focus', async () => {
@@ -352,6 +432,16 @@ describe('native Dialog motion lifecycle', () => {
     await browserExpect(page.locator('#detail-title')).toBeFocused();
     await browserExpect(activeVisuals()).toHaveCount(0);
     expect((await stats()).effects.every(effect => effect.target === 'public-target')).toBe(true);
+  });
+
+  it('does not enroll or measure a duplicate open when the URL would not change', async () => {
+    await page.getByRole('button', { name: 'Open game', exact: true }).click();
+    await browserExpect(activeVisuals()).toHaveCount(1);
+    const before = await stats();
+    expect(await page.evaluate(() => window.motionFixture.noopCapture())).toBe(true);
+    expect((await stats()).sourceReads).toBe(before.sourceReads);
+    expect((await stats()).effects).toHaveLength(before.effects.length);
+    await browserExpect(activeVisuals()).toHaveCount(1);
   });
 
   it('cancels on resize and does not resume an old return after the geometry changes', async () => {
