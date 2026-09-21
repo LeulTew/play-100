@@ -358,7 +358,14 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       return accepted;
     },
     clear() { cancel(); settleSession?.cancel(); pendingSettle = null; return store.clear(); },
-    setDock(node: HTMLElement | null) { if (dock && !node) cancel(); dock = node; },
+    setDock(node: HTMLElement | null) {
+      dock = node;
+      if (!node && active) {
+        const gesture = active;
+        // A StrictMode ref rehearsal reattaches in this commit; a real removal stays unavailable.
+        queueMicrotask(() => { if (!dock && active === gesture) cancel(); });
+      }
+    },
     setArrivalTarget(id: string | undefined, node: HTMLElement | null) {
       if (node && id) arrival = { id, node };
       else if (!id || arrival?.id === id) arrival = null;

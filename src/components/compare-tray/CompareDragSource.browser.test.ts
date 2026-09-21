@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { writeFile } from 'node:fs/promises';
 import { chromium, expect as browserExpect } from '@playwright/test';
-import type { Browser, BrowserContext, Page } from '@playwright/test';
+import type { Browser, BrowserContext, BrowserServer, Page } from '@playwright/test';
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
@@ -12,11 +13,13 @@ interface DragFixture {
   nested: number;
   transfer: { types: string[]; values: Record<string, string> } | null;
   items(): string[];
+  status(): string;
   setScope(scope: string): void;
   setEnabled(enabled: boolean): void;
   setSource(visible: boolean): void;
   setDockHidden(hidden: boolean): void;
   setMotion(animate: boolean): void;
+  setModal(open: boolean): void;
   interrupt(reason: MotionCancelReason): void;
   unmount(): void;
 }
@@ -42,6 +45,7 @@ h1{font-size:24px;margin-bottom:24px}
 import { createElement as h, StrictMode, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MotionProvider, useMotionRuntime } from '/src/motion/index.ts';
+import { Dialog } from '/src/components/Dialog.tsx';
 import { CompareTrayProvider } from '/src/components/compare-tray/CompareTrayProvider.tsx';
 import { CompareTray } from '/src/components/compare-tray/CompareTray.tsx';
 import { CompareDragHandle } from '/src/components/compare-tray/CompareDragHandle.tsx';
@@ -56,15 +60,16 @@ const record = {
   title:'Manual fixture title', year:2020, studio:null, genre:null,
   sourceUrl:null, collectionRank:null,
 };
-let scope = 'guest', generation = 0, enabled = true, sourceVisible = true, dockHidden = false, animate = false;
+let scope = 'guest', generation = 0, enabled = true, sourceVisible = true, dockHidden = false, animate = false, modal = false;
 const root = createRoot(document.getElementById('mount'));
 window.compareDragTest = {
-  opens:0, nested:0, transfer:null, items:() => [],
+  opens:0, nested:0, transfer:null, items:() => [], status:() => '',
   setScope(next) { generation += 1; scope = next; render(); },
   setEnabled(next) { generation += 1; enabled = next; render(); },
   setSource(next) { sourceVisible = next; render(); },
   setDockHidden(next) { dockHidden = next; render(); },
   setMotion(next) { animate = next; render(); },
+  setModal(next) { modal = next; render(); },
   interrupt() {},
   unmount() { root.render(null); },
 };
@@ -79,6 +84,7 @@ function Inspector() {
   const tray = useCompareTray();
   const runtime = useMotionRuntime();
   window.compareDragTest.items = () => tray.items.map(item => item.id);
+  window.compareDragTest.status = () => tray.status;
   window.compareDragTest.interrupt = reason => runtime.cancel(reason);
   return null;
 }
@@ -91,6 +97,8 @@ function Source() {
       if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
       event.preventDefault(); window.compareDragTest.opens += 1;
     }},record.title),
+    h('svg',{id:'source-art',width:100,height:48,'aria-hidden':true},
+      h('rect',{width:96,height:44,fill:'currentColor'})),
     h('p',{id:'selectable'},'Ordinary selectable game facts stay copyable.'),
     h('div',{id:'source-controls'},
       h(ComparePinButton,{record}),
@@ -123,6 +131,8 @@ function render() {
   sourceVisible && h(Source),
   h(WrapperSource),
   h(CompareTray,{hidden:dockHidden,animate,onCompare() {}}),
+  h(Dialog,{open:modal,titleId:'fixture-modal-title',motion:false,onClose(){modal = false;render();}},
+    h('h2',{id:'fixture-modal-title','data-autofocus':true,tabIndex:-1},'Blocking fixture')),
   h('nav',{className:'mobile-nav','aria-label':'Fixture navigation'},h('button',{type:'button'},'Browse')),
   ))));
 }
@@ -131,13 +141,18 @@ render();
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;
+let browserServer: BrowserServer | undefined;
 let context: BrowserContext;
 let page: Page;
 let origin: string;
 let errors: string[];
 let externalRequests: string[];
+let resourceReceipt: { origin: string; runnerPid: number; chromePid: number | undefined; browserVersion: string; startedAt: string; closedAt: string | null } | undefined;
+const receiptPath = process.env.PLAY100_COMPARE_FIXTURE_RECEIPT;
 
 beforeAll(async () => {
+  const port = Number(process.env.PLAY100_COMPARE_FIXTURE_PORT ?? 0);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('The Compare fixture port is invalid.');
   server = await createServer({
     configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-compare-tests',
     logLevel: 'error', appType: 'custom',
@@ -147,7 +162,7 @@ beforeAll(async () => {
         name: 'compare-source-fixture',
         configureServer(vite) {
           vite.middlewares.use((request, response, next) => {
-            if (request.url !== '/__compare-source-test') return next();
+            if (request.url?.split('?')[0] !== '/__compare-source-test') return next();
             void vite.transformIndexHtml('/__compare-source-test', fixture).then(html => {
               response.setHeader('Content-Type', 'text/html');
               response.end(html);
@@ -156,18 +171,24 @@ beforeAll(async () => {
         },
       },
     ],
-    server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
+    server: { host: '127.0.0.1', port, strictPort: true, watch: null },
   });
   await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Compare fixture did not bind an owned local port.');
   origin = `http://127.0.0.1:${address.port}`;
-  browser = await chromium.launch({ channel: 'chrome', headless: true });
+  browserServer = await chromium.launchServer({ channel: 'chrome', headless: true });
+  browser = await chromium.connect(browserServer.wsEndpoint());
+  console.info(`Compare fixture ${origin}; runner PID ${process.pid}; Chrome PID ${browserServer.process().pid}; Chrome ${browser.version()}`);
+  resourceReceipt = { origin, runnerPid: process.pid, chromePid: browserServer.process().pid, browserVersion: browser.version(), startedAt: new Date().toISOString(), closedAt: null };
+  if (receiptPath) await writeFile(receiptPath, JSON.stringify(resourceReceipt, null, 2));
 }, 30_000);
 
 afterAll(async () => {
   await browser?.close();
+  await browserServer?.close();
   await server?.close();
+  if (receiptPath && resourceReceipt) await writeFile(receiptPath, JSON.stringify({ ...resourceReceipt, closedAt: new Date().toISOString() }, null, 2));
 });
 
 async function openFixture(touch = false, width = 1280) {
@@ -203,8 +224,8 @@ async function nativeStart(selector = '#source-title') {
   await target.scrollIntoViewIfNeeded();
   const rect = await target.boundingBox();
   if (!rect) throw new Error('The Compare source is not laid out.');
-  const x = rect.x + Math.min(24, rect.width / 2);
-  const y = rect.y + rect.height / 2;
+  const x = selector === '#source' ? rect.x + rect.width - 4 : rect.x + Math.min(24, rect.width / 2);
+  const y = selector === '#source' ? rect.y + rect.height - 4 : rect.y + rect.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + 24, y + 16, { steps: 8 });
@@ -219,6 +240,14 @@ async function nativeDrop() {
 }
 
 describe('Compare source browser contract', () => {
+  it.each(['#source', '#source-art'])('accepts the real %s card/SVG source without a default DOM image or payload', async selector => {
+    await nativeStart(selector);
+    await nativeDrop();
+    await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toHaveLength(1);
+    expect(await page.evaluate(() => window.compareDragTest.transfer?.types)).toEqual([COMPARE_DRAG_TYPE]);
+    expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
+  });
+
   it('uses actual native title drag and only the opaque MIME, without opening or copying private UI', async () => {
     await nativeStart();
     const transfer = await page.evaluate(() => window.compareDragTest.transfer);
@@ -269,6 +298,19 @@ describe('Compare source browser contract', () => {
     await browserExpect(page.locator('#note')).toHaveValue('Still my private draft');
   });
 
+  it('preserves a native modified link in a separate owned tab without arming Compare', async () => {
+    const opened = context.waitForEvent('page');
+    await page.locator('#source-title').click({ modifiers: ['Control'] });
+    const other = await opened;
+    try {
+      await other.waitForLoadState('domcontentloaded');
+      expect(other.url()).toContain('#native-title');
+      expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
+      expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
+    } finally { await other.close(); }
+  });
+
   it('cancels an old native token across account A to B to A and blocks readiness-gated starts', async () => {
     await page.evaluate(() => window.compareDragTest.setScope('account:demo-play100:alice'));
     await nativeStart();
@@ -301,6 +343,22 @@ describe('Compare source browser contract', () => {
     }
   });
 
+  it('cancels a native drag on a real modal and on an explicitly hidden dock', async () => {
+    for (const modal of [true, false]) {
+      await page.reload();
+      await browserExpect(page.locator('.compare-drag-handle')).toBeEnabled();
+      await nativeStart();
+      await page.evaluate(modal => {
+        if (modal) window.compareDragTest.setModal(true);
+        else window.compareDragTest.setDockHidden(true);
+      }, modal);
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
+      await page.mouse.up();
+      expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+      if (modal) await browserExpect(page.getByRole('dialog', { name: 'Blocking fixture' })).toBeVisible();
+    }
+  });
+
   it('keeps a coarse tap and pre-hold vertical pan native, including the 320px grip target', async () => {
     await context.close();
     await openFixture(true, 320);
@@ -311,16 +369,42 @@ describe('Compare source browser contract', () => {
     expect(grip.width).toBeGreaterThanOrEqual(44);
     expect(grip.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const title = await page.locator('#source-title').boundingBox();
+    if (!title) throw new Error('The pan source title is missing.');
+    const x = title.x + 30, y = title.y + title.height / 2;
     const cdp = await context.newCDPSession(page);
     try {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 130, y: 240 }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
       for (let step = 1; step <= 5; step++) {
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 130, y: 240 - step * 20 }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: Math.max(8, y - step * 20) }] });
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await browserExpect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
       await browserExpect(page.locator('.compare-drag-ghost,.compare-tray-dock')).toHaveCount(0);
       expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+    } finally { await cdp.detach(); }
+  });
+
+  it.each([393, 320])('supports the narrow touch grip and a still-held Escape cancellation at %ipx', async width => {
+    await context.close();
+    await openFixture(true, width);
+    const grip = await page.locator('.compare-drag-handle').boundingBox();
+    if (!grip) throw new Error('The touch grip is missing.');
+    const x = grip.x + grip.width / 2, y = grip.y + grip.height / 2;
+    const cdp = await context.newCDPSession(page);
+    try {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      await page.waitForTimeout(310);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 3, y: y + 3 }] });
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
+      await page.keyboard.press('Escape');
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
+      await page.waitForTimeout(400);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(400);
+      expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+      await page.locator('.compare-drag-handle').tap();
+      await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toHaveLength(1);
     } finally { await cdp.detach(); }
   });
 
@@ -334,7 +418,8 @@ describe('Compare source browser contract', () => {
     try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
       await page.waitForTimeout(310);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 2, y: y + 2 }] });
+      // Cross the UA's touchmove delivery threshold after the hold, not its pre-hold slop.
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 24, y: y + 24 }] });
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveText('Pin to Compare');
       const dock = await page.locator('.compare-tray-dock').boundingBox();
@@ -345,6 +430,8 @@ describe('Compare source browser contract', () => {
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+      await page.waitForTimeout(400);
+      expect(await page.evaluate(() => window.compareDragTest.status())).toContain('pinned for comparison. 1 of six games.');
       expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
       expect(await page.evaluate(() => scrollY)).toBe(0);
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
