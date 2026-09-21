@@ -308,11 +308,17 @@ export default function App() {
   const viewParams = new URLSearchParams(window.location.search);
   viewParams.delete('game');
   const viewQuery = viewParams.toString();
+  const locationKey = `${window.location.pathname}${window.location.search}`;
+  const motionNavigation = useRef({ key: locationKey, generation: 0 });
+  // Motion observes the committed URL; native Back notifications can arrive later.
+  if (motionNavigation.current.key !== locationKey) {
+    motionNavigation.current = { key: locationKey, generation: motionNavigation.current.generation + 1 };
+  }
   const motionLocation: MotionLocation = {
     viewKey: `${window.location.pathname}${viewQuery ? `?${viewQuery}` : ''}`,
     requestedDetailKey: selectedSlug,
     displayedDetailKey: selectedGame?.slug ?? selectedRecord?.id ?? null,
-    navigationGeneration: navigationGeneration.current,
+    navigationGeneration: motionNavigation.current.generation,
     overlayKey: manualLink ? 'share' : panel,
   };
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
