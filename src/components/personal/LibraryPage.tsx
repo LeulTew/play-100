@@ -15,6 +15,7 @@ import { effectiveProgressFilter, matchesProgress, progressFilterPatch, selectio
 import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveGamesDialog } from './RemoveGamesDialog';
 import { LocalPager } from '../LocalPager';
+import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { getLocalPage } from '../../lib/local-pagination';
 import { useCommittedCue } from '../../hooks/useCommittedCue';
 import type { CommittedCue } from '../../lib/route-continuity';
@@ -130,9 +131,9 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
     if (await onAction(operation)) setSelected(new Set());
   };
   const completedCount = Object.values(state.progress).filter((value) => value.completed).length;
-  const renderRecord = (record: LibraryRecord) => <div className="library-row-content">
+  const renderRecord = (record: LibraryRecord) => <CompareDragSource record={record} disabled={!active}>{binding => <div ref={binding.sourceRef} {...binding.surfaceProps} className="library-row-content">
     {selecting && <label className="select-control"><input type="checkbox" checked={selected.has(record.id)} onChange={() => toggleSelected(record.id)} aria-label={`Select ${record.title}`} /></label>}
-    <RecordIdentity record={record} onOpen={onOpen} />
+    <RecordIdentity record={record} onOpen={onOpen} compareDrag={binding} />
     <div className="record-actions">
       {onPin && <button className="icon-button" disabled={pinnedIds?.has(record.id) && !onUnpin} aria-pressed={pinnedIds?.has(record.id) ?? false} aria-label={`${pinnedIds?.has(record.id) ? 'Unpin' : 'Pin'} ${record.title} ${pinnedIds?.has(record.id) ? 'from' : 'for'} comparison`} title="Compare tray" onClick={() => { if (pinnedIds?.has(record.id)) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="19" height="19" /></button>}
       {renderDragHandle?.(record)}
@@ -143,7 +144,7 @@ export default function LibraryPage({ state, filters, busy, animate, onFilters, 
       <button className="icon-button remove-library-action" disabled={busy} aria-label={`Remove ${record.title} from my library`} title="Remove from my library" onClick={event => requestRemoval([record], event.currentTarget)}><Icon name="trash" width="19" height="19" /></button>
     </div>
     <span className={`play-state ${state.progress[record.id]?.completed ? 'state-completed' : ''}`}>{state.progress[record.id]?.completed ? 'Completed' : state.progress[record.id]?.played ? 'Played, not completed' : 'Not played'}</span>
-  </div>;
+  </div>}</CompareDragSource>;
   return (
     <section className={embedded ? 'my-games-editor' : 'app-page'} aria-labelledby="library-title">
       {embedded ? <h2 id="library-title" className="sr-only">{workspaceView === 'queue' ? 'Queue' : 'Library'}</h2> : <div className="page-heading"><div><h1 id="library-title" tabIndex={-1} data-page-heading>My library</h1></div><button className="button button-dark" onClick={onDiscover}><Icon name="plus" width="18" height="18" />Find more games</button></div>}

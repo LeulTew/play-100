@@ -12,6 +12,7 @@ import { matchesProgress } from '../../lib/game-progress';
 import type { ProgressFilter } from '../../lib/game-progress';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { RemoveRankingDialog } from './RemoveRankingDialog';
+import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { useExitSave } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
 import './my-games.css';
@@ -73,7 +74,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
         {(record) => {
           const entry = rankingById.get(record.id)?.entry;
           if (!entry) return null;
-          return <RankingRow key={record.id} record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} onOpen={onOpen} onAction={onAction} onRemove={() => setRemoval({ record, scope: mode.scope })} onPin={onPin} onUnpin={onUnpin} pinned={pinnedIds?.has(record.id)} renderDragHandle={renderDragHandle} />;
+          return <RankingRow key={record.id} record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} active={active} onOpen={onOpen} onAction={onAction} onRemove={() => setRemoval({ record, scope: mode.scope })} onPin={onPin} onUnpin={onUnpin} pinned={pinnedIds?.has(record.id)} renderDragHandle={renderDragHandle} />;
         }}
       </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or change the progress filter.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); onClearProgress?.(); }}>Show my full ranking</button>}</div>}
       {!persistent && <p className="personal-storage-footnote" role="alert"><strong>Device storage is unavailable.</strong> Export these temporary changes from Settings before closing this tab.</p>}
@@ -82,8 +83,8 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
   );
 }
 
-function RankingRow({ record, entry, played, completed, busy, onOpen, onAction, onRemove, onPin, onUnpin, pinned = false, renderDragHandle }: {
-  record: LibraryRecord; entry: PersonalRanking; played: boolean; completed: boolean; busy: boolean;
+function RankingRow({ record, entry, played, completed, busy, active, onOpen, onAction, onRemove, onPin, onUnpin, pinned = false, renderDragHandle }: {
+  record: LibraryRecord; entry: PersonalRanking; played: boolean; completed: boolean; busy: boolean; active: boolean;
   onOpen: (id: string) => void; onAction: (action: PersonalAction) => Promise<boolean>;
   onRemove: () => void;
   onPin?: (record: LibraryRecord) => void; onUnpin?: (id: string) => void; pinned?: boolean;
@@ -124,7 +125,7 @@ function RankingRow({ record, entry, played, completed, busy, onOpen, onAction, 
   useExitSave(() => noteError ? Promise.resolve(false) : saveNote(), noteEdited, noteRef);
   return (
     <div className="ranking-row-content">
-      <div className="ranking-game-identity"><RecordIdentity record={record} onOpen={onOpen} />{(onPin || renderDragHandle) && <div className="ranking-compare-actions">{onPin && <button className="text-button" disabled={pinned && !onUnpin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${record.title} ${pinned ? 'from' : 'for'} comparison`} onClick={() => { if (pinned) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="17" height="17" />{pinned ? 'Pinned for comparison' : 'Pin for comparison'}</button>}{renderDragHandle?.(record)}</div>}</div>
+      <CompareDragSource record={record} disabled={!active}>{binding => <div ref={binding.sourceRef} {...binding.surfaceProps} className="ranking-game-identity"><RecordIdentity record={record} onOpen={onOpen} compareDrag={binding} />{(onPin || renderDragHandle) && <div className="ranking-compare-actions">{onPin && <button className="text-button" disabled={pinned && !onUnpin} aria-pressed={pinned} aria-label={`${pinned ? 'Unpin' : 'Pin'} ${record.title} ${pinned ? 'from' : 'for'} comparison`} onClick={() => { if (pinned) onUnpin?.(record.id); else onPin(record); }}><Icon name="stack" width="17" height="17" />{pinned ? 'Pinned for comparison' : 'Pin for comparison'}</button>}{renderDragHandle?.(record)}</div>}</div>}</CompareDragSource>
       <PersonalRatingInput title={record.title} value={entry.score} busy={busy} onCommit={(score) => onAction({ type: 'edit-ranking', id: entry.id, score })} />
       <div className="played-check"><PlayedToggle id={record.id} title={record.title} played={played} completed={completed} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [record], key: 'played', value }); }} /><CompletedToggle title={record.title} completed={completed} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [record], key: 'completed', value }); }} /></div>
       <button className="icon-button" aria-label={`Remove ${record.title} from my ranking`} onClick={onRemove}><Icon name="close" width="18" height="18" /></button>
