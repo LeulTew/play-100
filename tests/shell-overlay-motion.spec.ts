@@ -264,18 +264,29 @@ test('closing the static cold Account placeholder prevents late module readiness
   }
   const response = await loaded;
   await page.evaluate(async url => { await import(url); }, response.url());
+  await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
   await expect(page.locator('.signin-dialog')).toHaveCount(0);
   expect(await entries(page, 'account-signin-title')).toEqual([]);
   await page.locator('.account-nav').click();
   await expectEntry(page, 'account-signin-title', 160);
 });
 
-test('the actual local sign-in sheet uses 160ms and removes typed credentials immediately on close', async ({ page }) => {
+test('the warm local sign-in sheet uses 160ms and removes typed credentials immediately on close', async ({ page }) => {
   test.skip(process.env.PLAY100_SHELL_EMULATOR !== 'true', 'Requires an explicitly assigned emulator-bound local server; no sign-in or account mutation is performed.');
   await openWorkspace(page);
   await page.locator('.account-nav').click();
   const sheet = page.locator('.signin-dialog');
   await expect(sheet.locator('.emulator-note')).toContainText('synthetic accounts only');
+  await expect(sheet.locator('#account-signin-title')).toBeFocused();
+  expect(await sheet.evaluate(element => element.matches(':modal'))).toBe(true);
+  await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await expectNoActiveEntry(page, 'account-signin-title');
+  await expect(page.locator('.account-nav')).toBeFocused();
+  const warmEntryCount = (await entries(page, 'account-signin-title')).length;
+  await page.locator('.account-nav').click();
+  await expect.poll(async () => (await entries(page, 'account-signin-title')).length).toBeGreaterThan(warmEntryCount);
   await expectEntry(page, 'account-signin-title', 160);
   await sheet.getByRole('button', { name: 'Use email', exact: true }).click();
   await sheet.getByLabel('Email', { exact: true }).fill('motion-shell-draft@play100.test');
