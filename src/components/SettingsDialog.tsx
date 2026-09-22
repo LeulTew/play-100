@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import type { MotionPreference } from '../lib/types';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
@@ -22,9 +23,10 @@ interface SettingsDialogProps {
   onAbout: () => void;
   onAccount?: () => void;
   onClose: () => void;
+  offlineControls?: ReactNode;
 }
 
-export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount }: SettingsDialogProps) {
+export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount, offlineControls }: SettingsDialogProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const mode = useLibraryMode();
@@ -33,6 +35,7 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
       <h2 id="settings-title" data-autofocus tabIndex={-1}>Make it<br />your speed.</h2>
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
       {onAccount && <div className="settings-account"><p><strong>{mode.label}</strong>{mode.scope === 'guest' ? ' — this guest library has not been uploaded.' : ' — you are using a separate account library.'}</p><button className="text-button" onClick={onAccount}>Account, saving &amp; privacy<Icon name="user" width="18" height="18" /></button></div>}
+      {offlineControls}
       <fieldset className="motion-options">
         <legend>Visual experience</legend>
         {([

@@ -211,7 +211,7 @@ test('motion-enabled pointer and keyboard previews retain immediate native close
   expect(opening?.animatedControlAncestor).toBe(false);
   for (const duration of opening?.animationDurations ?? []) {
     expect(typeof duration).toBe('number');
-    expect(duration).toBeLessThanOrEqual(isMobile ? 180 : 240);
+    expect(duration).toBeLessThanOrEqual(isMobile ? 220 : 240);
   }
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);

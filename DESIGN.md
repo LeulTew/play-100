@@ -332,11 +332,14 @@ Keep drawer focus management and mobile safe areas intact. The narrow-screen det
 
 The signature interaction is one public game sleeve moving from its source
 into the existing native detail, with the actual form stationary. Fine-pointer
-entry/return limits are 240/160ms; coarse-pointer limits are 180/120ms. Use the
+entry/return limits are 240/160ms; coarse-pointer limits are 220/160ms. Use the
 original numbered geometry or an existing exact-ID licensed catalog image,
 never an enlarged workbook bitmap, editor clone or private-content snapshot.
 Missing or stale origins take the immediate path; an eligible no-origin catalog
 artwork settle is at most 160ms fine / 140ms coarse.
+The coarse adjustment makes the substantial artwork travel easier to follow;
+it is not a global slowdown or a frame-rate claim. Keep the existing
+`cubic-bezier(.16,1,.3,1)` easing, 300ms rejection cap and origin lifetime.
 
 Menu enters in 180ms; ready Settings, About and sign-in utilities use 160ms.
 Cold or unsafe account readiness stays static. Native close, unlock and exact
@@ -366,6 +369,15 @@ visibly labelled **Compare rankings / with friends**, matching the accessible
 name **Compare rankings with friends**. Sheet actions may wrap without changing
 their purpose or order. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
+An active notification clears the measured tray, including its error and
+storage marker, instead of covering Compare. Empty transient drag targets add
+no page spacer. Explicit Explore and same-page The 100 navigation use one
+native scroll based on the current first identity and visible dock/nav/toast
+bounds; never correct a user's scrolling on later frames or shrink the artwork.
+Sign-in invoked by Compare returns to its current remounted action only while
+the same view, navigation and scope still apply. Loading-to-ready handoff keeps
+that logical origin; ordinary Account entry and invalidated origins cannot
+reuse it.
 
 ## Do's and Don'ts
 

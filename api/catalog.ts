@@ -2,19 +2,14 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { LibraryRecord } from '../src/lib/personal-types.ts';
 import type { CatalogPage, CatalogSource } from '../src/lib/catalog-types.ts';
 import { matchesCatalogQuery } from '../src/lib/catalog-query.js';
+import { CatalogError, upstreamJson } from './_lib/public-http.js';
+export { CatalogError } from './_lib/public-http.js';
 
 const WIKIDATA = 'https://www.wikidata.org/w/api.php';
 const FREE_TO_GAME = 'https://www.freetogame.com/api/games';
-const USER_AGENT = 'Play100Catalog/2.0 (https://play-100-collection.vercel.app; public game metadata lookup)';
-const UPSTREAM_LIMIT = 4 * 1024 * 1024;
 const WIKI_PAGE_SIZE = 5;
 const FREE_PAGE_SIZE = 20;
 type JsonObject = Record<string, unknown>;
-
-export class CatalogError extends Error {
-  readonly status: number;
-  constructor(message: string, status = 502, readonly code = 'unavailable', readonly retryAfter = 0) { super(message); this.status = status; }
-}
 
 function object(value: unknown): JsonObject | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : null;
@@ -22,49 +17,6 @@ function object(value: unknown): JsonObject | null {
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-async function cancelUpstreamBody(body: { cancel: () => Promise<void> } | null, status: number): Promise<void> {
-  try { await body?.cancel(); }
-  catch { console.warn('Catalog upstream response cleanup failed.', { status }); }
-}
-
-async function upstreamJson(url: URL | string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }, signal, redirect: 'error' });
-  if (response.status === 429) {
-    await cancelUpstreamBody(response.body, response.status);
-    const retryAfter = Math.min(60, Math.max(1, Number(response.headers.get('retry-after')) || 30));
-    throw new CatalogError('This catalog is rate-limiting requests. Please wait a moment and try again.', 429, 'rate-limited', retryAfter);
-  }
-  if (!response.ok) {
-    await cancelUpstreamBody(response.body, response.status);
-    throw new CatalogError(`The source catalog is unavailable (${response.status}). Try again later or add a game manually.`, 503);
-  }
-  if (!response.body) throw new CatalogError('The catalog returned no data.');
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const result = await reader.read();
-      if (result.done) break;
-      size += result.value.byteLength;
-      if (size > UPSTREAM_LIMIT) {
-        await cancelUpstreamBody(reader, response.status);
-        throw new CatalogError('The source response was too large to import safely. Try a more specific search.');
-      }
-      chunks.push(result.value);
-    }
-  } finally { reader.releaseLock(); }
-  const bytes = new Uint8Array(size);
-  let position = 0;
-  for (const chunk of chunks) { bytes.set(chunk, position); position += chunk.byteLength; }
-  let data: unknown;
-  try { data = JSON.parse(new TextDecoder().decode(bytes)); }
-  catch { throw new CatalogError('The source returned something other than readable catalog data.'); }
-  const sourceError = object(object(data)?.error);
-  if (sourceError) throw new CatalogError('Wikidata is temporarily busy or rejected the request. Please try again later.', 503);
-  return data;
 }
 
 function wikiUrl(parameters: Record<string, string>): URL {

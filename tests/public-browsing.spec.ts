@@ -40,7 +40,7 @@ async function expectResultsFocus(page: Page) {
 test('local page 1, 2 and last preserve identity, view, history and truthful 24-item bearings', async ({ page }) => {
   const queries: string[] = [];
   page.on('request', request => { if (request.url().includes('/api/catalog?')) queries.push(request.url()); });
-  await page.goto('/discover');
+  await page.goto('/discover?include100=on');
   await expect(pager(page)).toContainText('1–24 of 845 catalog games');
   await expect(cards(page)).toHaveCount(24);
   const firstIds = await cards(page).evaluateAll(elements => elements.map(element => element.getAttribute('data-catalog-id')));
@@ -71,7 +71,7 @@ test('local page 1, 2 and last preserve identity, view, history and truthful 24-
 });
 
 test('filters reset and bound local pages without stealing focus while typing or changing selection scope', async ({ page }) => {
-  await page.goto('/discover?offset=9999&catalogs=off');
+  await page.goto('/discover?offset=9999&catalogs=off&include100=on');
   await expect(page).toHaveURL(/offset=840/);
   await expect(cards(page)).toHaveCount(5);
   const input = page.getByRole('searchbox', { name: 'Find a game', exact: true });
@@ -106,7 +106,7 @@ test('a cold late seed does not clamp a valid last-page URL to the temporary can
   let release = () => {};
   const waiting = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/data/discovery/catalog.v1.json', async route => { await waiting; await route.fulfill({ json: rawSeed }); });
-  await page.goto('/discover?offset=840&catalogs=off');
+  await page.goto('/discover?offset=840&catalogs=off&include100=on');
   await expect(page.locator('.discovery-results-heading')).toContainText('Loading more catalog games');
   await expect(page.getByRole('heading', { name: 'No games on this page', exact: true })).toHaveCount(0);
   await expect(page).toHaveURL(/offset=840/);
@@ -141,7 +141,7 @@ test('provider offsets stay separate from known-local pages and local navigation
 });
 
 test('invalid and failed ratings stay with their original card; successful paging waits for persistence', async ({ page }) => {
-  await page.goto('/discover?catalogs=off');
+  await page.goto('/discover?catalogs=off&include100=on');
   await expect(pager(page)).toContainText('845 catalog games');
   const first = cards(page).first();
   const id = await first.getAttribute('data-catalog-id');
@@ -178,7 +178,7 @@ test('invalid and failed ratings stay with their original card; successful pagin
 });
 
 test('a pending page intent cannot replace a newer Back navigation after its delayed flush', async ({ page }) => {
-  await page.goto('/discover?catalogs=off');
+  await page.goto('/discover?catalogs=off&include100=on');
   await expect(pager(page)).toContainText('845 catalog games');
   await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page).toHaveURL(/offset=24/);
@@ -226,7 +226,7 @@ test('short targets and horizontal table scrolling retain a compact visible orig
   }
   await expect(table.getByRole('link', { name: 'Red Dead Redemption 2', exact: true })).toHaveAttribute('href', /game=red-dead-redemption-2/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.goto('/discover?catalogs=off');
+  await page.goto('/discover?catalogs=off&include100=on');
   await expect(pager(page)).toContainText('845 catalog games');
   const titles = await cards(page).locator('h3 button').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().width));
   expect(titles.every(width => width >= 44)).toBe(true);
@@ -375,7 +375,7 @@ test('batched desktop and mobile pixels keep games before secondary filters and 
     expect(controls.every(control => control.height >= 44 && control.contained && control.centered <= 0.5)).toBe(true);
     measurements.push({ viewport, result, controls });
     await writeFile(info.outputPath('geometry.json'), JSON.stringify(measurements, null, 2));
-    await page.goto('/discover?catalogs=off');
+    await page.goto('/discover?catalogs=off&include100=on');
     await expect(pager(page)).toContainText('845 catalog games');
     await page.screenshot({ path: info.outputPath(`discover-${viewport.width}.png`) });
     await page.goto('/?view=table&catalogs=off');

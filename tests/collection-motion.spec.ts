@@ -120,7 +120,7 @@ test('one public sleeve connects measured endpoints and returns only after nativ
   await expectBounds(entering, sourceBounds);
   const destinationBounds = await dialog.locator('.detail-cover').boundingBox();
   if (!destinationBounds) throw new Error('The detail artwork target has no visible bounds');
-  expect(await seekPublicEnd(entering)).toBe(isMobile ? 180 : 240);
+  expect(await seekPublicEnd(entering)).toBe(isMobile ? 220 : 240);
   await expectBounds(entering, destinationBounds);
   await entering.evaluate(node => { for (const animation of node.getAnimations()) animation.finish(); });
   await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
@@ -133,7 +133,7 @@ test('one public sleeve connects measured endpoints and returns only after nativ
   await expectBounds(returning, destinationBounds);
   const returnBounds = await source.boundingBox();
   if (!returnBounds) throw new Error('The original sleeve is no longer visible');
-  expect(await seekPublicEnd(returning)).toBe(isMobile ? 120 : 160);
+  expect(await seekPublicEnd(returning)).toBe(160);
   await expectBounds(returning, returnBounds);
   await returning.evaluate(node => { for (const animation of node.getAnimations()) animation.finish(); });
   await expect(page.locator('[data-motion-visual]')).toHaveCount(0);

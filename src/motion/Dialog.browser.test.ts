@@ -466,8 +466,8 @@ describe('native Dialog motion lifecycle', () => {
       await browserExpect(activeVisuals()).toHaveCount(0);
     }
     const effects = (await stats()).effects;
-    expect(effects.some(effect => effect.target === 'sprite:enter' && effect.duration === 180)).toBe(true);
-    expect(effects.some(effect => effect.target === 'sprite:return' && effect.duration === 120)).toBe(true);
+    expect(effects.some(effect => effect.target === 'sprite:enter' && effect.duration === 220)).toBe(true);
+    expect(effects.some(effect => effect.target === 'sprite:return' && effect.duration === 160)).toBe(true);
     expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
     await browserExpect(page.locator('[data-motion-host="root"]')).toHaveCount(1);
     expect(await page.evaluate(() => document.body.style.overflow)).toBe('');

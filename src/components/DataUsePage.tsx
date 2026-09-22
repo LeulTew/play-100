@@ -12,6 +12,9 @@ export default function DataUsePage() {
       <h2>Device-only libraries</h2>
       <p>Your games, ratings, notes, queue and play history can stay in this browser. Browser storage also keeps display settings and a small account-loading preference. Clearing site data can remove these copies. You can download a backup from Account or Settings.</p>
       <p>The Compare tray keeps up to six game references separately for this device or account. Pinning does not save a game to your library, rate it or share it. Guest pins are not adopted when you sign in. Comparison game filters and people selections stay in private tab/history state, not public links.</p>
+      <h2>Installation and offline access</h2>
+      <p>Installation uses your browser's own controls. Enabling offline access downloads a bounded public app shell, collection metadata and recently viewed bundled artwork. It does not cache account, Firebase, authentication or catalog API responses, or replace the existing device library database. Films and workbooks are not downloaded automatically.</p>
+      <p>Offline access does not make cloud features available offline or move an account library into the guest scope. Updates wait for an explicit choice and successful edit checks; another open app window or unfinished form can prevent a reload. This data-use page does not register the offline worker.</p>
       <h2>Sign-in</h2>
       <p>Firebase manages Google or email/password sign-in. Google requests basic identity, email and profile access, not your contacts or files. Sign-in identifies an account, not a verified person. Play 100 does not implement its own password store.</p>
       <p>Supported browsers retain sign-in until you sign out or the session is revoked. Private browsing, blocked storage, cleared site data or provider restrictions can require another sign-in. A deployment does not intentionally clear your account or library.</p>
@@ -37,6 +40,8 @@ export default function DataUsePage() {
       <p>Account deletion requires recent confirmation and finishes cloud cleanup before removing the sign-in account. Some content-free identity and revocation markers remain to prevent stale sessions recreating deleted content. A device-only guest library is not deleted by these account actions.</p>
       <h2>Services and essential storage</h2>
       <p>Vercel hosts the site; Firebase provides authentication and online data; Google handles Google sign-in. These services may use essential storage or cookies for their operation. Play 100 has no advertising analytics, contact scraping or bulk invitation email service. Catalog searches use the listed data providers; source links stay attached to their records.</p>
+      <p>Opening an eligible Discover game with online lookup enabled can request public ratings and licensed artwork by its exact public identifier. Wikidata supplies attributed score claims; Steam may supply user-recommendation totals through an unambiguous public app identifier. Wikimedia Commons artwork is reused only after license, creator and bounded-image checks, with full credit. Existing entries from The 100 are not enriched again.</p>
+      <p>These detail requests do not send private titles, ratings, notes, progress or account identifiers. Online lookup can be disabled; a small in-memory cache may retain public facts already fetched in this session, labelled with their retrieval date. External scores are not averaged together or treated as your rating, and missing data is not zero.</p>
       <p>Use Account for exports and deletion, or the creator links below for questions.</p>
     </main>
     <SiteFooter />

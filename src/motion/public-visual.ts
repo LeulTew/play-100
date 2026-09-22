@@ -1,7 +1,7 @@
 import type { PublicMotionVisual } from './types';
 
 export const MOTION_TIMINGS = {
-  artwork: { enter: { fine: 240, coarse: 180 }, return: { fine: 160, coarse: 120 } },
+  artwork: { enter: { fine: 240, coarse: 220 }, return: { fine: 160, coarse: 160 } },
   localArtwork: { fine: 160, coarse: 140 },
   dialog: 160,
   menu: 180,

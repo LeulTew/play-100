@@ -136,8 +136,10 @@ until one explicit, inline **Share all with friends** action.
   readiness. Online lookup remains a bounded fallback, not an empty-page
   prerequisite. Exact source IDs, not similar titles, identify games.
 - The 100 is authoritative when a Discover result has a reviewed matching
-  provider identity. Discover includes all 100 even without a seed match;
-  matches reuse the original title/year/rank/author rating/cover, details and
+  provider identity. Discover defaults to games outside that authored list;
+  matching searches offer canonical recovery links, and an explicit Include
+  The 100 option retains full-collection browsing and legacy deep links.
+  Matches reuse the original title/year/rank/author rating/cover, details and
   canonical action ID. Deduplicate before local pagination and remote append,
   retaining search aliases and explicit source provenance. Different games,
   remakes and unverified editions stay separate. The reviewed crosswalk lives
@@ -145,6 +147,19 @@ until one explicit, inline **Share all with friends** action.
   Existing saved provider copies, private scores, notes, order and progress
   remain intact and accessible, without migration or cloud/profile backfill.
   See `docs/discovery-sources.md` for the bounded implementation and evidence.
+- An eligible noncanonical Discover detail may request public facts by exact
+  source ID after opening. It never waits for enrichment to become usable and
+  never sends private titles, opinions, progress or account identity. Source
+  scores keep their original scale, platform, method and available dates;
+  they are not averaged together or copied into a personal rating. Verified
+  local art wins; new Commons rasters require complete reusable licensing and
+  attribution, a patched bounded decoder and a separate untrusted-art type.
+  Opt-out, offline, missing data and partial errors remain explicit.
+- Browser installation and public offline preparation are explicit choices.
+  The service worker caches only the generated public allowlist, not account,
+  Firebase, authentication or API responses. Existing local databases/scopes
+  remain separate. Updates require saved edits, a current invocation and one
+  app window; no automatic reload may discard forms or switch account scope.
 - Original and enhanced XLSX downloads, clearly distinguished from private data.
 - Two optional collection films use first-party, content-hashed media after the
   collection, never an autoplaying landing-page takeover. MP4 requests begin only

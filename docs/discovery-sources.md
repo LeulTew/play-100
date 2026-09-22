@@ -73,6 +73,11 @@ correction, not a new collection or a private-library migration.
   remote append. It does not rewrite the provider wire format or seed manifest.
 - Discover searches all 100 canonical records, including titles absent from
   the seed. Provider titles/aliases continue to find verified canonical entries.
+  The 2026-09-22 default presents games outside The 100 as cards. Matching
+  canonical entries appear as ordinary links under **Already in The 100**,
+  not as duplicate provider cards. **Include The 100** (`include100=on`) or
+  an existing `source=collection` link presents canonical cards once. This is
+  a presentation choice, not removal from the seed, collection or library.
   The canonical record supplies its title, year, original genre/studio, rank,
   original author rating, workbook cover and full GameDetail. Source filtering
   identifies where a match was found, not permission to replace authored facts.
@@ -83,7 +88,7 @@ correction, not a new collection or a private-library migration.
 - Cards use the existing responsive discovery grid/list and original GameCover,
   a short "From The 100" rank/rating line, and existing labelled actions.
   Unknown games retain provider artwork/credits and explicit missing-art state.
-  No new modal stack, gesture requirement, animation or full-size art preload.
+  No additional modal stack, gesture requirement or full-size art preload.
 - Existing saved provider records are never rekeyed, deleted, merged, or given
   copied scores/progress. They remain in My games/backups under their original
   IDs; a saved-copy link distinguishes an old private copy from the public
@@ -115,6 +120,143 @@ correction, not a new collection or a private-library migration.
   explicit. Public discovery never guesses a match while the canonical data is
   unavailable. A source failure must not replace authored metadata or mutate a
   saved library. Query, filters, paging, Back and reload keep their URL contract.
+  `genreFamily` and the legacy exact `genre` remain independent, cumulative
+  local filters. The include-collection choice resets only its own paging
+  position; it does not rewrite either genre or unrelated URL parameters.
+
+## On-demand public detail enrichment
+
+The 2026-09-22 feature adds public ratings and, where verifiably permitted, one
+small licensed image to an opened noncanonical Discover detail. It does not
+replace Leul's original scores, the visitor's rating, artwork already bundled
+for that identity, or any private record. Native opening, focus, close and
+editing never wait for a provider. Unsupported or failed sources stay explicit.
+
+The outside-The-100 default was an autonomous product decision made while the
+user was unavailable, not a separately selected user preference. The reviewed
+provider-ID crosswalk resolves before result projection and before enrichment
+on both client and server. Known matches link to the existing GameDetail.
+Unknown IDs, remakes and private saved copies remain distinct. There is no
+title-only matching and no guarantee that an unmapped same-title record is
+the same edition. Old canonical/owned-copy direct links remain valid.
+
+### Verified provider scope and rights
+
+First-party references read for this slice:
+
+| Provider | Admitted data and limits |
+| --- | --- |
+| [Wikidata licensing](https://www.wikidata.org/wiki/Wikidata:Licensing), [P444 review score](https://www.wikidata.org/wiki/Property:P444), [P447 reviewer](https://www.wikidata.org/wiki/Property:P447) | Structured statements are CC0. Only an exact returned video-game entity is used. Preserve the literal supported score/scale, reviewer ID/label, P400 platforms, P459 method, P585 score date and P813 reference retrieval date when supplied. Label these **via Wikidata**, not direct independent verification. Unknown method/type/date remains unspecified. No invented aggregate. |
+| [Steam documented store review endpoint](https://partner.steamgames.com/doc/store/getreviews), [Steam API terms](https://steamcommunity.com/dev/apiterms) | Only one unambiguous nondeprecated P1733 app ID, with preferred claims taking precedence, can supply a summary. Request one documented review, but project only summary counts into a rounded positive-recommendation percentage and total count; discard review text, recommendation IDs and user data. Query scope is Steam purchases, all languages, off-topic activity excluded. These are **user recommendations**, not critics. The numeric category `review_score` is not a /10 or /100 rating. |
+| [FreeToGame API documentation](https://www.freetogame.com/api-doc), [site terms](https://www.freetogame.com/terms-of-use) | Existing metadata/active source links remain. No verified critic-score schema or separate image redistribution grant was established for this detail feature; no new review text, score, thumbnail or screenshot is copied. |
+| [Commons reuse guidance](https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia), [Imageinfo API](https://www.mediawiki.org/wiki/API:Imageinfo) | Exact P154/P18 file identity, one tiny metadata request, the existing conservative CC BY/BY-SA 2.0/2.5/3.0/4.0, CC0 or declared-public-domain allowlist, complete creator/credit/attribution and source/license/original URLs. Unknown/noncommercial/fair-use/additional restrictions fail closed. Trademark caveats remain. File presence or a URL is not a license. |
+
+Steam's documented store endpoint does not list an API key parameter. The linked
+Web API terms discuss registered applications/API keys and are **not** treated
+as a blanket artwork license or proof that every Steam resource has identical
+terms. This feature uses only the documented public store summary with active
+Steam attribution, no affiliation claim, no account authentication, no copied
+review text and no Steam CDN artwork. Return data remains as-is and may be
+unavailable. A provider policy change must disable that source, not trigger
+scraping or a hidden credential requirement.
+
+A bounded public proof of `Q15408545` showed real P444 issuer/method/platform/
+date/reference statements and multiple Steam-ID statements. Multiple usable
+app IDs are not guessed or combined. Metadata availability and provider
+coverage are not evidence of current, complete or independent review quality.
+
+### API, privacy and lifecycle
+
+- `GET /api/catalog-detail?id=wikidata:Q...` accepts one exact public ID only.
+  FreeToGame IDs return an explicit unsupported-enrichment state without
+  querying an undocumented ratings/image endpoint. Titles, arbitrary URLs,
+  manual IDs, extra/duplicate parameters and curated aliases are rejected
+  before upstream traffic. No private account, opinion, note or score is sent.
+- Root supplies optional `publicLookup` only for an eligible public Discover
+  preview: no restricted preview authority, canonical target, pending account
+  opening or unsupported record. Its absence is a no-network default.
+- `catalogs=off` and offline state do not fetch or silently refresh. Bundled
+  imagery and bounded in-memory cached public facts can remain visible with
+  their fetched dates. **Enable online details** is an explicit URL-preserving
+  action. No private DB, service-worker API cache or cloud payload is changed.
+- Responses are keyed to exact ID plus an ephemeral scope/navigation lifetime.
+  Closing, changing ID/scope, disabling lookup and unmount abort work and reject
+  late results. No response can reopen a dialog, alter a private opinion or
+  substitute a record. A source-specific failure retains other available data.
+- Response shape: `schemaVersion`, `id`, `fetchedAt`, separate `ratings`,
+  `artwork | null`, and per-source `status`, `code`, `message`, `retryAfter`.
+  Score dates, reference retrieval dates and current fetch time are distinct.
+  Known scales retain zero; missing scores never become zero.
+- No automatic retry loop. A bounded retry honors rate-limit cooldowns.
+  Upstream 429, timeout, invalid media and unsupported rights remain explicit.
+  Partial source errors have `no-store`; only public complete/known-unavailable
+  responses may use the short shared cache.
+
+### Bounds and image execution gate
+
+At most five upstream requests per eligible Wikidata detail: exact entity,
+one bounded label batch, one Steam summary, one Commons metadata response and
+one raster. Existing licensed local artwork skips both Commons requests.
+Requests use HTTPS fixed allowlists and `redirect: error`; no user-selected
+upstream hostname is accepted. Whole-detail deadline is 9 seconds, individual
+fetches at most 3.5 seconds. Entity/labels are bounded at 768 KiB each;
+Steam/Commons metadata at 128 KiB each; input raster at 512 KiB. Final JSON is
+at most 192 KiB.
+
+When the exact original itself is a supported PNG/JPEG/WebP with verified
+positive dimensions no greater than 640 per edge and a declared size no greater
+than 512 KiB, it is selected before fetching instead of a bucketed thumbnail.
+Its actual byte length, MIME and decoded dimensions must match that original's
+metadata. Otherwise the existing permitted-thumbnail path or explicit
+unavailable result applies. A failed raster never triggers an alternate-image
+retry or relaxed dimension check.
+
+Process-local protection permits at most four active detail lookups and thirty
+uncached starts per minute, with per-source cooldowns. This is explicitly a
+bounded per-instance guard, not a distributed global rate-limit claim. Server
+public cache holds at most 96 IDs for 15 minutes; client memory holds at most
+24 IDs for 30 minutes. Cached facts may be older than the displayed fetch time.
+
+New media uses a **server-only dynamic Sharp import**. Sharp below 0.35.4 is
+refused before new image bytes are fetched or decoded. The integration owner
+owns the 0.35.4 runtime dependency/lock update and native Linux/function proof;
+the old build-time 0.34.5 use is not asserted to be a prior remote-input exposure.
+No dependency install or decoder run is part of D's source-only handoff.
+
+Only matching PNG/JPEG/WebP magic and MIME reach the patched decoder. SVG,
+HTML, GIF, TIFF, AVIF, animation/multiple pages, excessive pixels and ambiguous
+rights are rejected. Remote raster dimensions are positive integers at most
+640 per edge; original metadata is capped at 25 million pixels. Decoder input
+is capped at 640 x 640 pixels, native processing at two seconds with a 2.5-second
+wall deadline. Output is one metadata-stripped WebP contained within 320 x 240
+without enlargement, at most 80 KiB, with the re-encoding notice and full
+attribution. No existing asset is recollected or re-encoded.
+Successful transforms emit bounded format/dimension/page/byte/version
+diagnostics without game IDs, URLs, private input or credentials. A local
+Windows success is not deployed Linux-function evidence; each platform remains
+an explicit validation boundary.
+
+The output data URL has its own validated `commons-raster` type. It never enters
+LibraryRecord, the local content-hash artwork type or motion's trusted visual
+union. The browser performs no cross-origin image hotlink, and no CSP widening
+is needed. Reusable image absence leaves existing art/fallback and source links
+usable; it does not delay or gate detail interaction.
+
+### Integration and focused proof
+
+D owns the API/helper/parser/session/child UI and Discover projection. I owns
+App/CatalogDetail activation, the existing `api/catalog.ts` transport extraction,
+package/runtime upgrade and central build/browser/release. The shared transport
+retains S2's HTTP-error/oversize body cancellation and sanitized cleanup logging;
+its migration must pass the existing catalog API regressions.
+
+New focused suites cover exact-ID/canonical exclusion, literal scales and
+provenance, unknown editions, source errors, 429/timeout/size/SSRF rejection,
+licensed credits and raster guards, offline/opt-out/cache, late close/ID/scope
+changes and the real public/private UI separation. Existing canonical-card and
+845-record pagination regressions explicitly use `include100=on`; separate new
+checks cover the changed default, not relaxed identity assertions. Source-only
+test authorship is not a validation result or a release/performance claim.
 
 ### Reviewed identity evidence and deliberate exclusions
 

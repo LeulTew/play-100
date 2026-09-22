@@ -78,9 +78,10 @@ function download(value: unknown, name: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function OnlineController({ page, publicHandle, invitation, showSheet, guest, games, onBridge, onCloseSheet, onNavigate, onProfile, onOpenRecord, onShare, onPinRecord, artwork }: {
+export default function OnlineController({ page, publicHandle, invitation, showSheet, guest, games, onBridge, onCloseSheet, getSignInReturnFocus, onNavigate, onProfile, onOpenRecord, onShare, onPinRecord, artwork }: {
   page: AppPage; publicHandle: string; invitation: { capability: string | null; error: string }; showSheet: boolean; guest: LibraryController; games: Game[];
   onBridge: (bridge: OnlineBridge) => void; onCloseSheet: () => void; onNavigate: (page: AppPage) => void;
+  getSignInReturnFocus?: (authenticated?: boolean) => HTMLElement | null;
   onProfile: (handle: string) => void; onOpenRecord: (record: LibraryRecord, authority?: PreviewAuthority) => void; onShare: (title: string, url: string) => void;
   onPinRecord?: (record: LibraryRecord) => boolean; artwork?: ReadonlyMap<string, CatalogArtwork>;
 }) {
@@ -685,7 +686,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           sharedGames={automaticSummary}
           friendsSharing={!automatic.controlsAll && <><button className="text-button" onClick={() => onNavigate('friend-sharing')}>Selected ranking: {friends.status}</button><button className="text-button" onClick={() => onNavigate('friend-shelf')}>Selected saved games: {shelf.status}</button>{(friends.error || shelf.error) && <p className="inline-error" role="alert">{friends.error || shelf.error}<button className="text-button" onClick={() => { void run(async () => { await friends.retry(); await shelf.retry(); }); }}>Refresh selected sharing</button></p>}</>}
           onDelete={deleteOnline} onPublish={() => onNavigate('publish')} onCommunity={() => onNavigate('community')} onCreator={() => onNavigate('creator')} />)}
-      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin} motion={{ preset: 'dialog', enterMs: 160 }}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{authPanel}</Dialog>}
+      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin} getReturnFocus={() => getSignInReturnFocus?.(Boolean(identityRef.current)) ?? null} motion={{ preset: 'dialog', enterMs: 160 }}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{authPanel}</Dialog>}
       {avatarOpen && identity && <Dialog open titleId="account-avatar-title" className="info-dialog" onClose={() => { if (!busy) setAvatarOpen(false); }}><AvatarPicker value={avatar} identityKey={identityKey} titleId="account-avatar-title" onCancel={() => setAvatarOpen(false)} onSave={async (next) => {
         const uid = identity.uid; const epoch = currentEpoch.current; const sessionEpoch = authSessionEpoch.current;
         const saved = await run(async () => {

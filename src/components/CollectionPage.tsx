@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { useCollection } from '../hooks/useCollection';
 import type { Filters, MotionPreference } from '../lib/types';
@@ -24,6 +24,7 @@ import { effectiveProgressFilter, selectionOperation } from '../lib/game-progres
 import { catalogActionRecord, catalogOwnership, catalogProgress } from '../lib/catalog-identity';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
+import { scrollCollectionIntoView } from './collection-landing';
 
 const PAGE_SIZE = 24;
 
@@ -53,6 +54,8 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [browseRequest, setBrowseRequest] = useState(0);
+  const handledBrowseRequest = useRef(0);
   const games = collection.data?.games;
   const ownership = useMemo(() => catalogOwnership(state.records), [state.records]);
   const progress = useMemo(() => catalogProgress(state, ownership), [state, ownership]);
@@ -77,7 +80,12 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   }, [collection.status]);
   const savedCount = Object.values(state.progress).filter((progress) => progress.later).length;
   const completedCount = Object.values(state.progress).filter((progress) => progress.completed).length;
-  const browse = () => document.getElementById('collection')?.scrollIntoView({ behavior: animate ? 'smooth' : 'instant' });
+  useLayoutEffect(() => {
+    if (browseRequest === handledBrowseRequest.current) return;
+    handledBrowseRequest.current = browseRequest;
+    scrollCollectionIntoView(animate ? 'smooth' : 'instant');
+  }, [browseRequest, animate]);
+  const browse = () => setBrowseRequest(request => request + 1);
   const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
     const game = games?.find((candidate) => candidate.slug === id);
     if (game) {

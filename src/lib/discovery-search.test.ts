@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { catalogRelevance, matchesCatalogQuery, normalizeCatalogQuery } from './catalog-query';
-import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch, searchDiscoveryItems, shouldSearchOnline } from './discovery-search';
+import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch, patchDiscoverySearch, searchDiscoveryItems, shouldSearchOnline } from './discovery-search';
 import { artworkFixture, discoveryFixture } from './discovery-test-fixtures';
 
 describe('public seed search independent of personal state', () => {
@@ -44,6 +44,28 @@ describe('public seed search independent of personal state', () => {
 });
 
 describe('stable, public discovery URLs', () => {
+  it('keeps new family URLs separate from unchanged legacy exact genre matching', () => {
+    const legacy = parseDiscoverySearch('?genre=RPG&source=wikidata&year=2018');
+    expect(legacy.genre).toBe('RPG');
+    expect(legacy.genreFamily).toBe('');
+    expect(searchDiscoveryItems([discoveryFixture], legacy)).toEqual([discoveryFixture]);
+    const filters = { ...legacy, genreFamily: 'role-playing' as const, offset: 24 };
+    expect(parseDiscoverySearch(createDiscoverySearch(filters))).toEqual(filters);
+    expect(parseDiscoverySearch('?genre=shooter&genreFamily=Unknown')).toMatchObject({ genre: 'shooter', genreFamily: '' });
+    expect(searchDiscoveryItems([discoveryFixture], { ...legacy, genreFamily: 'shooter' })).toEqual([]);
+  });
+  it('patches only Discover-owned query keys, retaining unrelated preview and repeated parameters through reset', () => {
+    const original = '?genre=Action+RPG&offset=48&source=wikidata&view=list&catalogs=off&game=wikidata%3AQ1&campaign=a&campaign=b';
+    const updated = patchDiscoverySearch(original, { genreFamily: 'role-playing', genre: '', offset: 0, online: 'auto' });
+    expect(parseDiscoverySearch(updated)).toMatchObject({ genreFamily: 'role-playing', genre: '', offset: 0, source: 'wikidata', view: 'list', catalogs: 'off' });
+    expect(new URLSearchParams(updated).get('game')).toBe('wikidata:Q1');
+    expect(new URLSearchParams(updated).getAll('campaign')).toEqual(['a', 'b']);
+    const reset = patchDiscoverySearch(updated, { ...defaultDiscoveryFilters, catalogs: 'off', view: 'list' });
+    expect(parseDiscoverySearch(reset)).toEqual({ ...defaultDiscoveryFilters, catalogs: 'off', view: 'list' });
+    expect(new URLSearchParams(reset).getAll('campaign')).toEqual(['a', 'b']);
+    expect(new URLSearchParams(reset).get('game')).toBe('wikidata:Q1');
+    expect(createDiscoverySearch(parseDiscoverySearch(`${updated}&uid=private&note=secret`))).not.toMatch(/uid|note|campaign|game=/);
+  });
   it('roundtrips source/filter/offset/online and opt-out; excludes private/unrecognized query parameters', () => {
     const filters = { ...defaultDiscoveryFilters, q: 'KCD', source: 'wikidata' as const, year: '2018', genre: 'RPG', offset: 24, view: 'list' as const, catalogs: 'off' as const, online: 'on' as const };
     const url = createDiscoverySearch(filters);

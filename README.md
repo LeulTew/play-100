@@ -103,6 +103,16 @@ online fallback remains available with source-specific retry and explicit
 opt-out. Search/filter/view URLs and game previews round-trip through Back and
 reload. See [source, license and collection evidence](docs/discovery-sources.md);
 every displayed asset's credit/license remains accessible.
+Discover now defaults to games outside The 100. Exact known matches offer links
+to their original entry rather than duplicate cards or enrichment; **Include
+The 100** preserves explicit full-catalog browsing. Unknown editions and saved
+private copies are not title-merged or migrated.
+The primary native genre chooser offers 14 browsing families, based only on
+explicit source terms. Original genres remain unchanged in metadata and in the
+exact-source disclosure. `genreFamily=` is separate from legacy, case-sensitive
+`genre=`; both filters intersect when present. Family changes clear the exact
+genre and reset paging, while view, lookup opt-out and unrelated URL fields stay
+intact. Providers still receive only the existing query/source/offset fields.
 An exact-ID artwork-presence hint is generated from that same validated seed.
 It carries no metadata, image paths or credits: already-known no-art Library
 previews and pins can stay local, while licensed artwork, unresolved public
@@ -111,6 +121,30 @@ catalogue and provenance path. `npm run validate:discovery` rejects a stale
 hint; regenerate it with
 `npx --no-install tsx scripts\generate-discovery-artwork-presence.ts` when the
 checked-in seed changes. This does not change provider collection or saved IDs.
+Opening an eligible Discover detail can fetch separate public source scores
+and licensed artwork by exact ID. Wikidata claims retain issuer, scale,
+platform/method and supplied dates; Steam recommendations are labelled as user
+feedback, not critic scores. Existing local artwork is reused first. New
+Commons images need approved per-file rights and attribution, bounded raster
+validation and patched server-only Sharp. Missing data stays unavailable;
+external facts never overwrite your rating. Online opt-out and cached/offline
+states remain explicit. See the source document for terms and current limits.
+
+### Install and offline access
+
+Menu → **Install & offline access** opens the existing Settings surface.
+Installation uses a real browser prompt when offered, or truthful platform
+instructions; it is not a native wrapper or push subscription. Explicit offline
+preparation stores a hash-verified, bounded public core and recently viewed
+bundled artwork. It does not automatically download films/workbooks or cache
+private, authentication, Firebase or provider API responses.
+
+After the first preparation, finish your edits and reopen the page/app to use
+the worker offline. Library, Queue and Ranking retain their existing local
+storage. Account/cloud operations still require a connection. Updates require
+an explicit guarded choice, successful pending saves and no unsubmitted form,
+new edit, changed scope or competing app window. See [PWA boundaries and
+recovery](docs/pwa.md).
 
 The **Compare tray** holds up to six game references, separately per guest or
 account scope. Use native Pin, the fine-mouse handle, or a supported
@@ -121,6 +155,12 @@ Pins do not change private library state or permissions.
 The visible action says **Compare rankings with friends**. Its signed-out
 destination explains that purpose before provider choices and retains the
 device-only exit; ordinary Account sign-in is unchanged.
+Declining a Compare-invoked sign-in restores the remounted Compare action when
+the view, navigation and scope are still current. Cold loading does not consume
+that origin; cancellation or an invalidated origin uses a current safe target.
+Failed pending edits retain their exact usable field and do not open sign-in.
+Notifications have independent measured clearance above the active tray,
+including storage/error messages, without waiting for the toast to expire.
 The tray feeds a private game filter into the existing comparison of two to six
 people. It never supplies invented friend entries, scores or ranking positions.
 Guest pins are not automatically adopted by an account. Starting another tray
@@ -533,6 +573,11 @@ removed sources and interrupted navigation use the immediate fallback. No
 interactive editor, private note, manual title or password is cloned or retained.
 Canonical details present the complete workbook rationale and source note
 before saved copies, progress controls and personal rating fields.
+Public-artwork enter/return timing is 240/160ms for fine pointers and 220/160ms
+for coarse pointers. Only coarse artwork travel was softened after a focused
+perceptual assessment; easing, utility transitions, hero motion, the 300ms
+rejection cap and gesture thresholds are unchanged. This is not a latency or
+frame-rate improvement claim.
 
 Menu, ready utility dialogs and committed route/tab/page changes have short,
 targeted cues rather than page-wide reveals. The existing Auto/Full/Lite policy
@@ -599,6 +644,24 @@ physical-device, Safari or native-hidden-window certification.
   threshold was relaxed to support publication.
 
 </details>
+
+### Added functional-feature code allowance
+
+The later PWA and on-demand enrichment request has a separate **10,240-byte
+gzip-9 eager JavaScript/CSS increment allowance** above the current `cc2d82f`
+local baseline of 165,302 bytes (limit 175,542). This was an explicit
+scope-change acceptance **after** observing the new feature sizes, not the
+original preregistered motion gate. The 173,978-byte intermediate feature build
+still failed that older 8,192-byte gate by 484 bytes; that result is retained.
+The selected simpler Settings variant measured 174,453 locally. Any deployed
+build is measured separately. Moving optional update execution/detail parsing
+out of the eager graph is not a claim that total code or first-use downloads
+became smaller.
+
+The offline core remains limited to 2 MiB/48 files, with an independent
+4 MiB/48-entry runtime artwork cache. Historical cold, timing, noise-envelope
+and incomplete paired results remain unchanged; no new FPS or zero-lag
+certification follows from the feature allowance.
 
 ## Deploy to Vercel
 

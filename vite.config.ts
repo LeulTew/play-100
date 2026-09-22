@@ -3,6 +3,8 @@ import { loadEnv } from 'vite';
 import type { HtmlTagDescriptor } from 'vite';
 import react from '@vitejs/plugin-react';
 import catalogHandler from './api/catalog.ts';
+import catalogDetailHandler from './api/catalog-detail.ts';
+import { play100Pwa } from './scripts/pwa-build.ts';
 import author from './author.json' with { type: 'json' };
 import { readFirebaseConfiguration } from './src/lib/online-config.ts';
 
@@ -22,12 +24,15 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [
     react(),
+    play100Pwa(),
     {
       name: 'play100-local-catalog',
       configureServer(server) {
+        server.middlewares.use('/api/catalog-detail', (request, response) => { void catalogDetailHandler(request, response); });
         server.middlewares.use('/api/catalog', (request, response) => { void catalogHandler(request, response); });
       },
       configurePreviewServer(server) {
+        server.middlewares.use('/api/catalog-detail', (request, response) => { void catalogDetailHandler(request, response); });
         server.middlewares.use('/api/catalog', (request, response) => { void catalogHandler(request, response); });
       },
     },

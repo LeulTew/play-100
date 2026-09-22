@@ -52,7 +52,7 @@ describe('public-only motion descriptors', () => {
 
   it('shares the locked flight durations across both collection and catalog', () => {
     expect(MOTION_TIMINGS.artwork).toEqual({
-      enter: { fine: 240, coarse: 180 }, return: { fine: 160, coarse: 120 },
+      enter: { fine: 240, coarse: 220 }, return: { fine: 160, coarse: 160 },
     });
     expect(MOTION_TIMINGS.menu).toBe(180);
     expect(MOTION_TIMINGS.dialog).toBe(160);

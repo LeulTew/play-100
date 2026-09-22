@@ -15,6 +15,7 @@ interface MenuDialogProps {
   creator: boolean;
   onNavigate: (page: AppPage, patch?: Partial<Filters>) => void;
   onSettings: () => void;
+  onOffline?: () => void;
   onAbout: () => void;
   onClose: () => void;
   captureFocusGuard: () => () => boolean;
@@ -25,7 +26,7 @@ function visibleFocusTarget(target: HTMLElement | null): target is HTMLElement {
     target.getClientRects().length > 0 && getComputedStyle(target).visibility === 'visible');
 }
 
-export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onAbout, onClose, captureFocusGuard }: MenuDialogProps) {
+export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onOffline, onAbout, onClose, captureFocusGuard }: MenuDialogProps) {
   const active = useRef(true);
   const changing = useRef(false);
   const recovery = useRef<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
@@ -127,6 +128,7 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
             {onlineAvailable && link('Account', 'account')}
             {onlineAvailable && creator && link('Creator desk', 'creator')}
             <li><button disabled={saving} onClick={() => { void activate(onSettings); }}>Settings &amp; backups</button></li>
+            {onOffline && <li><button disabled={saving} onClick={() => { void activate(onOffline); }}>Install &amp; offline access</button></li>}
             <li><DataUseLink /></li>
             <li><button disabled={saving} onClick={() => { void activate(onAbout); }}>About &amp; credits</button></li>
           </ul>

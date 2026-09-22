@@ -149,6 +149,7 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('draggable="false"');
     expect(html).toContain('data-dragging="true"');
     expect(html).toContain('data-has-content="false"');
+    expect(html).not.toContain('compare-tray-reserve');
     expect(html).toContain('Drop to pin for comparison');
     expect(html).toContain('data-compare-drag-grip=""');
   });

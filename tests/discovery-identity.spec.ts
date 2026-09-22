@@ -47,7 +47,7 @@ async function rate(scope: Page | Locator, value: string) {
 
 test('fresh Discover canonical facts, all personal actions, details and main aliases share one original ID', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/discover?q=RDR2&catalogs=off');
+  await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
   await expect(card).toBeVisible(); await expect(page.locator('[data-catalog-id]')).toHaveCount(1);
   await expect(card).toContainText('From The 100 · #1'); await expect(card).toContainText("Leul's rating 10.0 / 10");
@@ -88,21 +88,21 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(page.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.goto('/discover?q=Red%20Dead&catalogs=off');
+  await page.goto('/discover?q=Red%20Dead&catalogs=off&include100=on');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(2);
   expect((await new AxeBuilder({ page }).include('.discovery-page').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('canonical-discover.png'), fullPage: true });
 });
 
 test('bulk Discover and main100 actions keep canonical IDs for MassEffect2 and GTAIV without false completion', async ({ page }) => {
-  await page.goto('/discover?q=Mass%20Effect%202&catalogs=off');
+  await page.goto('/discover?q=Mass%20Effect%202&catalogs=off&include100=on');
   const me2 = cardFor(page, 'mass-effect-2');
   await expect(me2).toContainText('From The 100 · #2');
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
   await me2.getByRole('checkbox', { name: 'Select Mass Effect 2', exact: true }).check();
   await page.getByRole('button', { name: 'Mark played', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress['mass-effect-2']).toEqual({ played: true, completed: false, later: false });
-  await page.goto('/discover?q=Grand%20Theft%20Auto%20IV&source=wikidata&year=2008&catalogs=off');
+  await page.goto('/discover?q=Grand%20Theft%20Auto%20IV&source=wikidata&year=2008&catalogs=off&include100=on');
   const gta = cardFor(page, 'grand-theft-auto-iv');
   await expect(gta).toContainText('From The 100 · #7'); await expect(gta).toContainText('2008');
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
@@ -125,7 +125,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   state = applyPersonalAction(state, { type: 'set-progress', records: [provider], key: 'later', value: true });
   await installLibrary(page, state);
   await page.evaluate(record => localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items: [record] })), provider);
-  await page.goto('/discover?q=RDR2&catalogs=off');
+  await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
   await expect(card.getByRole('button', { name: `Saved ${rdr.title}`, exact: true })).toBeDisabled();
   await expect(card.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
@@ -162,7 +162,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await expect(page.locator('.result-summary strong')).toHaveText('1');
   await page.getByRole('button', { name: `Mark ${rdr.title} completed`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[provider.id]?.completed).toBe(true);
-  await page.goto('/discover?q=RDR2&catalogs=off');
+  await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
   await cardFor(page).getByRole('checkbox', { name: `Select ${rdr.title}`, exact: true }).check();
   await page.getByRole('button', { name: 'Mark played', exact: true }).click();
@@ -191,7 +191,7 @@ test('both owned copies keep conflicting opinions and manual names remain separa
   state = applyPersonalAction(state, { type: 'edit-ranking', id: provider.id, score: 3.2, note: 'Different old opinion, never merge.' });
   await installLibrary(page, state);
   await page.evaluate(record => localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items: [record] })), provider);
-  await page.goto('/discover?q=RDR2&catalogs=off');
+  await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page); await expect(card).toContainText('You also have a separate saved catalog copy.');
   await card.getByText('Actions & source', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('9.1'); await rate(page, '8.9');
@@ -222,7 +222,7 @@ test('provider echoes resolve before filtering and cannot reappear from another 
     const source = query.get('source') ?? 'wikidata';
     return route.fulfill({ json: { source, query: query.get('q') ?? '', offset, items: source === 'wikidata' ? [provider, ...(offset ? [outside] : [])] : [], total: 2, nextOffset: offset ? null : 5, notices: [] } });
   });
-  await page.goto('/discover?source=wikidata&online=on');
+  await page.goto('/discover?source=wikidata&online=on&include100=on');
   await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('1 loaded online');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(24);
   await expect(cardFor(page)).toHaveCount(0);
@@ -232,7 +232,7 @@ test('provider echoes resolve before filtering and cannot reappear from another 
   await expect(cardFor(page, outside.id)).toBeVisible();
   await expect(page.locator('[data-catalog-id]')).toHaveCount(25);
   await expect(cardFor(page)).toHaveCount(0); expect(offsets).toContain(5);
-  await page.goto('/discover?q=RDR2&source=wikidata&year=2018&online=on');
+  await page.goto('/discover?q=RDR2&source=wikidata&year=2018&online=on&include100=on');
   await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('1 loaded online');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(1);
   await expect(cardFor(page)).toContainText('2018');
@@ -249,7 +249,7 @@ test('late canonical data gates duplicate actions, error is recoverable, and all
   let seedLoaded = false;
   page.on('response', response => { if (response.url().includes('/data/discovery/catalog.v1.json')) seedLoaded = true; });
   await page.route('**/data/collection.json', async route => { await waiting; await route.fulfill({ json: collection }); });
-  await page.goto('/discover?q=RDR2&catalogs=off');
+  await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   await expect.poll(() => seedLoaded).toBe(true);
   await expect(page.getByText('Loading The 100...', { exact: true })).toBeVisible();
   await expect(page.locator('[data-catalog-id]')).toHaveCount(0);
@@ -283,7 +283,7 @@ test('verified unsaved legacy links open canonical details while genuinely diffe
   await detailFor(page).getByRole('button', { name: 'Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([canonical.id]);
   expect((await readLibrary(page)).records[provider.id]).toBeUndefined();
-  await page.goto('/discover?q=Resident%20Evil%204&catalogs=off');
+  await page.goto('/discover?q=Resident%20Evil%204&catalogs=off&include100=on');
   await expect(cardFor(page, 'resident-evil-4')).toBeVisible();
   await expect(cardFor(page, 'wikidata:Q275950')).toBeVisible();
   await expect(cardFor(page, 'wikidata:Q275950')).toContainText('2005 original');
@@ -292,10 +292,10 @@ test('verified unsaved legacy links open canonical details while genuinely diffe
   await cardFor(page, 'wikidata:Q275950').getByRole('button', { name: 'Resident Evil 4', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('2005 original');
   await expect(page).toHaveURL(/game=wikidata%3AQ275950/);
-  await page.goto('/discover?q=Tomb%20Raider&catalogs=off');
+  await page.goto('/discover?q=Tomb%20Raider&catalogs=off&include100=on');
   await expect(cardFor(page, 'tomb-raider')).toBeVisible();
   await expect(cardFor(page, 'wikidata:Q317620')).toBeVisible();
-  await page.goto('/discover?q=Overwatch&catalogs=off');
+  await page.goto('/discover?q=Overwatch&catalogs=off&include100=on');
   await expect(cardFor(page, 'overwatch')).toBeVisible();
   await expect(cardFor(page, 'freetogame:540')).toBeVisible();
 });
@@ -313,10 +313,11 @@ test('a superseded provider response cannot restore an old query or duplicate a 
     await route.fulfill({ json: { source, query, offset: 0, nextOffset: null, total: source === 'wikidata' ? 1 : 0, items: source === 'wikidata' ? [record] : [], notices: [] } });
     if (source === 'wikidata' && query === 'RDR2') oldFinished = true;
   });
-  await page.goto('/discover?q=RDR2');
+  await page.goto('/discover?q=RDR2&online=on&include100=on');
   await expect.poll(() => oldRequested).toBe(true);
   await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill('Mass Effect 2');
   await expect(cardFor(page, 'mass-effect-2')).toBeVisible();
+  await page.getByRole('button', { name: 'Search online', exact: true }).click();
   release(); await expect.poll(() => oldFinished).toBe(true);
   await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('1 loaded online');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(1);

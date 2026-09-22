@@ -1,4 +1,7 @@
-.compare-tray-reserve { height: 108px; }
+:root { --compare-tray-bottom: 20px; }
+.compare-tray-reserve { height: calc(var(--compare-tray-height, 88px) + 20px); }
+/* Also clear the toast's existing 15px entrance translation. */
+body:has(.compare-tray-dock) .toast { bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px); }
 button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
 .compare-tray-dock[data-dragging="true"] { background: var(--lime); }
 .compare-tray-dock[data-dragging="true"] > .compare-tray-expand, .compare-tray-dock[data-dragging="true"] > .compare-tray-action { visibility: hidden; }
@@ -7,8 +10,7 @@ button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
   button.compare-drag-handle { cursor: grab; }
   .compare-drag-handle:active { cursor: grabbing; }
 }
-.compare-tray-reserve[data-error="true"] { height: 204px; }
-.compare-tray-dock { position: fixed; z-index: 34; inset-inline-end: var(--gutter); bottom: 20px; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 12px 8px 8px; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 8px 24px #20231e24; }
+.compare-tray-dock { position: fixed; z-index: 34; inset-inline-end: var(--gutter); bottom: var(--compare-tray-bottom); display: flex; align-items: center; gap: 16px; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 12px 8px 8px; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 8px 24px #20231e24; }
 .compare-tray-expand { display: flex; gap: 14px; min-height: 54px; align-items: center; padding: 4px 8px; background: none; text-align: left; }
 .compare-tray-expand > span:not(.compare-tray-stack) { display: flex; flex-direction: column; gap: 2px; }
 .compare-tray-expand strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -45,12 +47,11 @@ button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
 .compare-tray-warning .text-button { font-size: 13px; }
 html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
 @media (max-width: 760px) {
-  .compare-tray-reserve { height: 88px; }
-  .compare-tray-reserve[data-error="true"] { height: 204px; }
+  :root { --compare-tray-bottom: calc(var(--compare-tray-nav-height, 78px) + env(safe-area-inset-bottom, 0px)); }
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-title-line { padding-top: 8px; }
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-search { margin-top: 8px; }
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-utilities, body:has(.compare-tray-dock[data-has-content="true"]) .collection-extra-actions { margin-bottom: 8px; }
-  .compare-tray-dock { inset-inline: 10px; bottom: calc(var(--compare-tray-nav-height, 78px) + env(safe-area-inset-bottom, 0px)); max-width: none; justify-content: space-between; gap: 8px; padding: 5px 8px; }
+  .compare-tray-dock { inset-inline: 10px; max-width: none; justify-content: space-between; gap: 8px; padding: 5px 8px; }
   .compare-tray-expand { min-height: 48px; gap: 10px; padding-inline: 3px; }
   .compare-tray-stack { min-width: 30px; }
   .compare-tray-expand strong { font-size: 14px; }

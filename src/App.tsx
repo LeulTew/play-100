@@ -19,10 +19,14 @@ import { MenuDialog } from './components/MenuDialog';
 import { Dialog } from './components/Dialog';
 import CountUp from './components/bits/CountUp';
 import { SiteFooter } from './components/SiteFooter';
+import PwaControls from './components/PwaControls';
+import { usePwa } from './pwa';
+import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
+import { scrollCollectionIntoView } from './components/collection-landing';
 import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR, onlineWasRequested, rememberOnlineRequest, resolveOnlineRequest } from './lib/online-availability';
 import type { OnlineBridge } from './cloud/ui-types';
 import { LibraryModeContext } from './lib/library-mode';
-import { flushPendingEdits } from './hooks/useExitSave';
+import { flushPendingEdits, hasPendingEdits } from './hooks/useExitSave';
 import { OnlineBoundary } from './components/OnlineBoundary';
 import { captureInviteContinuation } from './lib/invite-continuation';
 import { CompareDragHandle, CompareTray, CompareTrayProvider, useCompareTray } from './components/compare-tray';
@@ -31,6 +35,8 @@ import { indexDiscoveryArtwork } from './lib/discovery-catalog';
 import type { CatalogArtwork } from './lib/discovery-catalog';
 import { EMPTY_DISCOVERY_ARTWORK, hasKnownDiscoveryArtwork } from './lib/discovery-artwork-presence';
 import { createComparisonGameFilter, rememberComparisonGameFilter } from './lib/comparison-game-filter';
+import { enrichmentIdentity } from './lib/catalog-enrichment-identity';
+import { patchDiscoverySearch } from './lib/discovery-search';
 import { comparisonScope, initialComparison, readComparisonView, rememberComparisonView } from './lib/friend-comparison-intent';
 import type { PreviewAuthority } from './lib/preview-authority';
 import { canonicalCatalogId, catalogActionRecord, catalogOwnership, catalogPinnedIds, collectionGameForId, resolveCatalogRecord } from './lib/catalog-identity';
@@ -48,6 +54,11 @@ const OnlineController = lazy(() => import('./cloud/OnlineController'));
 const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game', games: 'My games', library: 'My games - Library', rankings: 'My games - Ranking', discover: 'Discover more games', account: 'Account', community: 'Community', publish: 'Publish ranking', profile: 'A shared ranking', creator: 'Creator desk', friends: 'Friends', friend: 'Friend', invite: 'Invitation', compare: 'Compare rankings', 'friend-sharing': 'Friends sharing', 'friend-shelf': 'Shared games' };
 const noPreviewSubscription = () => () => {};
 interface PreviewedRecord { record: LibraryRecord; authority?: PreviewAuthority }
+
+function usableReturnFocusTarget(target: HTMLElement | null): target is HTMLElement {
+  return Boolean(target?.isConnected && !target.matches(':disabled') && !target.closest('[hidden], [inert], dialog:not([open])') &&
+    target.getClientRects().length > 0 && getComputedStyle(target).visibility === 'visible');
+}
 
 function CompareTrayBindings({ needsArtwork, previewId, resolvedRecordId, onResolvePreview, children }: {
   needsArtwork: boolean;
@@ -122,6 +133,36 @@ export default function App() {
   const effectiveMotion = library.status === 'loading' ? 'lite' : library.state.motion;
   const capabilities = useCapabilities(effectiveMotion);
   const [panel, setPanel] = useState<'menu' | 'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
+  const [offlineSettings, setOfflineSettings] = useState(false);
+  const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
+  const pwa = usePwa({ enabled: pwaEnabled });
+  const updateState = useRef({ busy: libraryBusy, panel });
+  updateState.current = { busy: libraryBusy, panel };
+  const inputGeneration = useRef(0);
+  useEffect(() => {
+    const edited = () => { inputGeneration.current += 1; };
+    document.addEventListener('input', edited, true);
+    document.addEventListener('change', edited, true);
+    return () => {
+      document.removeEventListener('input', edited, true);
+      document.removeEventListener('change', edited, true);
+    };
+  }, []);
+  const accountPanelOpen = useRef(panel === 'account');
+  accountPanelOpen.current = panel === 'account';
+  const compareSignInOrigin = useRef<{ isCurrent: () => boolean } | null>(null);
+  const getSignInReturnFocus = useCallback((authenticated = false) => {
+    const origin = compareSignInOrigin.current;
+    if (!origin) return null;
+    const current = !authenticated && origin.isCurrent();
+    // A loading sheet can unmount while the same sign-in invocation is still open.
+    if (current && accountPanelOpen.current) return null;
+    compareSignInOrigin.current = null;
+    const action = current ? document.querySelector<HTMLElement>('.compare-tray-action') : null;
+    if (usableReturnFocusTarget(action)) return action;
+    return [...document.querySelectorAll<HTMLElement>('.account-nav, [data-page-heading], #collection-title')]
+      .find(usableReturnFocusTarget) ?? null;
+  }, []);
   const closePanel = useCallback(() => setPanel(null), []);
   const captureMenuFocusGuard = useCallback(() => {
     const startedScope = scopeGeneration.current;
@@ -226,13 +267,41 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const navigate = (next: AppPage, patch: Partial<Filters> = {}) => { setPanel(null); goToPage(next, patch); };
-  const accountEntry = async () => {
-    if (!await flushPendingEdits()) { notify('Finish or correct the open rating or note before changing accounts.'); return; }
-    setHintError('');
-    setOnlineRequested(true);
-    if (online?.identity || page === 'account') navigate('account');
-    else setPanel('account');
+  const navigate = (next: AppPage, patch: Partial<Filters> = {}) => { compareSignInOrigin.current = null; setPanel(null); goToPage(next, patch); };
+  const accountEntry = async (invocation: 'account' | 'compare' = 'account') => {
+    const currentScopeAndNavigation = captureMenuFocusGuard();
+    const view = `${window.location.pathname}${window.location.search}`;
+    const isCurrent = () => currentScopeAndNavigation() && view === `${window.location.pathname}${window.location.search}`;
+    const blocked: { target: HTMLElement | null } = { target: null };
+    const returnToEdit = () => {
+      if (usableReturnFocusTarget(blocked.target)) {
+        blocked.target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+        blocked.target.focus({ preventScroll: true });
+      }
+    };
+    try {
+      const saved = await flushPendingEdits(target => { blocked.target = target; });
+      if (!isCurrent()) return;
+      if (!saved) {
+        notify('Finish or correct the open rating or note before changing accounts.');
+        returnToEdit();
+        return;
+      }
+      compareSignInOrigin.current = invocation === 'compare' ? { isCurrent } : null;
+      setHintError('');
+      setOnlineRequested(true);
+      if (currentOnline.current?.identity || page === 'account') navigate('account');
+      else {
+        if (invocation === 'compare') notify('Sign in to compare with friends. Device pins stay separate from account pins.');
+        setPanel('account');
+      }
+    } catch (cause) {
+      console.error('Account could not save pending edits.', cause instanceof Error ? cause.message : 'Unknown editor failure.');
+      if (isCurrent()) {
+        notify('Your edit could not be saved. Keep this page open and retry.');
+        returnToEdit();
+      }
+    }
   };
   const pageHref = (next: AppPage, patch: Partial<Filters> = {}) => {
     const destination = pageDestination(next, filters, patch);
@@ -255,7 +324,10 @@ export default function App() {
   };
   const browse = () => {
     if (page !== 'collection') navigate('collection');
-    else document.getElementById('collection')?.scrollIntoView({ behavior: capabilities.animate ? 'smooth' : 'instant' });
+    else {
+      scrollCollectionIntoView(capabilities.animate ? 'smooth' : 'instant');
+      document.getElementById('collection-title')?.focus({ preventScroll: true });
+    }
   };
   const shareView = (slug: string | null = null) => {
     const title = slug && selectedGame ? `${selectedGame.title} | Play 100` : 'Play 100 - a collection worth playing';
@@ -276,8 +348,7 @@ export default function App() {
     const startedNavigation = navigationGeneration.current;
     if (onlineOpening) { notify('Wait for your account to finish opening before comparing.'); return; }
     if (!online?.identity || libraryScope === 'guest') {
-      notify('Sign in to compare with friends. Device pins stay separate from account pins.');
-      await accountEntry();
+      await accountEntry('compare');
       return;
     }
     if (!online.identity.verified) { notify('Verify your account before comparing with friends.'); navigate('account'); return; }
@@ -295,6 +366,43 @@ export default function App() {
       if (warning) notify(warning);
     } catch (cause) { notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.'); }
   };
+  const enablePublicDetails = async () => {
+    const currentScopeAndNavigation = captureMenuFocusGuard();
+    const view = `${window.location.pathname}${window.location.search}`;
+    try {
+      if (!await flushPendingEdits()) { notify('Correct the open edit before changing online lookup.'); return; }
+      if (!currentScopeAndNavigation() || view !== `${window.location.pathname}${window.location.search}`) return;
+      const search = patchDiscoverySearch(window.location.search, { catalogs: 'on' });
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${search}`);
+      window.dispatchEvent(new Event('play100:navigate'));
+    } catch (cause) {
+      console.error('Online details could not save the pending edit.', cause instanceof Error ? cause.message : 'Unknown editor failure.');
+      if (currentScopeAndNavigation()) notify('Your edit could not be saved. Keep this game open and retry.');
+    }
+  };
+  const applyPwaUpdate = () => {
+    const currentScopeAndNavigation = captureMenuFocusGuard();
+    const view = `${window.location.pathname}${window.location.search}`;
+    const edits = inputGeneration.current;
+    const isCurrent = () => currentScopeAndNavigation() && updateState.current.panel === 'settings' &&
+      view === `${window.location.pathname}${window.location.search}`;
+    return pwa.applyUpdate({
+      isCurrent,
+      prepare: async () => {
+        if (!await flushPendingEdits()) return false;
+        if (hasUnsubmittedPwaForm()) throw new Error('Finish or clear unsubmitted forms, or return to The 100 before updating. Nothing was reloaded.');
+        return isCurrent();
+      },
+      canReload: () => isCurrent() && !updateState.current.busy && inputGeneration.current === edits &&
+        !hasPendingEdits() && !hasUnsubmittedPwaForm(),
+    });
+  };
+  const publicLookup = page === 'discover' && selectedRecord && !selectedGame && !transientPreview?.authority &&
+    !onlineOpening && enrichmentIdentity(selectedRecord.id) ? {
+      online: filters.catalogs === 'on',
+      scopeKey: `${libraryScope}:${scopeGeneration.current}:${navigationGeneration.current}`,
+      onEnableOnline: () => { void enablePublicDetails(); },
+    } : undefined;
   const warning = library.error ?? library.warning;
   const privateLoading = ['games', 'library', 'rankings'].includes(page) && (library.status === 'loading' || onlineOpening);
   const mainRef = useRef<HTMLElement>(null);
@@ -360,9 +468,12 @@ export default function App() {
       </header>
       {warning && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{warning}</p><button className="text-button" onClick={() => setPanel('settings')}>Settings<Icon name="arrow" width="18" height="18" /></button></div></div>}
       {ONLINE_CONFIG_ERROR && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{ONLINE_CONFIG_ERROR}</p></div></div>}
+      {pwaEnabled && !pwa.online && <div className="global-storage"><div className="storage-banner" role="status"><Icon name="info" /><p>You are offline.
+        {' '}{pwa.offlineState === 'ready' ? 'Prepared public files and this device’s existing library can remain available.' : 'The loaded page and this device’s existing library can still work; prepare offline access when connected for later visits.'}
+        {' '}Cloud saving and live source lookups need a connection. Account and guest libraries remain separate.</p></div></div>}
       {hintError && <div className="global-storage"><div className="storage-banner" role="alert"><Icon name="info" /><p>{hintError} Your libraries have not been cleared. Choose an account check or continue with this device explicitly.</p><button className="text-button" onClick={() => { void accountEntry(); }}>Open Account</button><button className="text-button" onClick={() => { setHintError(''); void rememberOnlineRequest(false); }}>Use this device only</button></div></div>}
       <main id="page-main" ref={mainRef}>
-        {ONLINE_AVAILABLE && (onlineRequested || cloudPage) && <OnlineBoundary onDevice={() => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); }}><Suspense fallback={cloudPage ? <div className="page-loading" role="status"><h1>Loading...</h1></div> : panel === 'account' ? <Dialog open motion={false} titleId="loading-account-title" onClose={() => setPanel(null)} className="info-dialog"><h2 id="loading-account-title" data-autofocus tabIndex={-1}>Opening sign-in...</h2></Dialog> : null}><OnlineController page={page} publicHandle={publicHandle} invitation={invitation} showSheet={panel === 'account'} guest={guestLibrary} games={games ?? []} onBridge={setOnline} onCloseSheet={() => setPanel(null)} onNavigate={navigate} onProfile={openProfile} onOpenRecord={preview} onShare={(title, url) => { void share(title, url, false); }} onPinRecord={pin} artwork={artwork} /></Suspense></OnlineBoundary>}
+        {ONLINE_AVAILABLE && (onlineRequested || cloudPage) && <OnlineBoundary onDevice={() => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); }}><Suspense fallback={cloudPage ? <div className="page-loading" role="status"><h1>Loading...</h1></div> : panel === 'account' ? <Dialog open motion={false} titleId="loading-account-title" onClose={() => setPanel(null)} getReturnFocus={getSignInReturnFocus} className="info-dialog"><h2 id="loading-account-title" data-autofocus tabIndex={-1}>Opening sign-in...</h2></Dialog> : null}><OnlineController page={page} publicHandle={publicHandle} invitation={invitation} showSheet={panel === 'account'} guest={guestLibrary} games={games ?? []} onBridge={setOnline} onCloseSheet={() => setPanel(null)} getSignInReturnFocus={getSignInReturnFocus} onNavigate={navigate} onProfile={openProfile} onOpenRecord={preview} onShare={(title, url) => { void share(title, url, false); }} onPinRecord={pin} artwork={artwork} /></Suspense></OnlineBoundary>}
         {cloudPage && !ONLINE_AVAILABLE ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : !cloudPage && <Suspense fallback={<div className="page-loading" role="status"><h2>Opening your page...</h2><p>Your games stay right where you left them.</p></div>}><div key={libraryScope}>
           {privateLoading ? <div className="page-loading" role="status"><h2>Opening your saved library...</h2><p>Waiting for the correct guest or account scope before allowing edits.</p></div> : personalPage === 'library' || personalPage === 'rankings' ? <MyGamesPage friendSharing={libraryScope !== 'guest' ? online?.friendSharing : undefined} scope={libraryScope} view={gamesView} onViewChange={changeGamesView} state={library.state} filters={filters} busy={libraryBusy} animate={capabilities.animate} onFilters={updateFilters} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} onBrowse={() => navigate('collection')} availableRecords={[...allRecords.values()]} persistent={library.status === 'ready'} onPublish={ONLINE_AVAILABLE ? () => navigate('publish') : undefined} onPin={pin} onUnpin={tray.unpin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : page === 'discover' ? <DiscoverPage collection={collection} state={library.state} busy={libraryBusy} onAction={perform} onLibrary={() => navigate('games')} onCommunity={ONLINE_AVAILABLE ? () => navigate('community') : undefined} onPreview={previewFromDiscover} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : <CollectionPage collection={collection} state={library.state} filters={filters} busy={libraryBusy} motion={effectiveMotion} animate={capabilities.animate} reducedMotion={capabilities.reducedMotion} coarsePointer={capabilities.coarsePointer} constrained={capabilities.constrained} onFilters={updateFilters} onAction={perform} onOpen={openCollection} onPreview={previewFromDiscover} onShare={() => shareView()} onFullLibrary={() => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' })} notify={notify} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} />}
         </div></Suspense>}
@@ -377,17 +488,17 @@ export default function App() {
       </nav>
       <CompareTray onCompare={(records) => { void compareGames(records); }} onPreview={preview} resolveArtwork={(record) => artwork.get(record.id)} animate={capabilities.animate} hidden={onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink)} />
       {selectedGame && selectedPersonalRecord && !onlineOpening && <GameDetail key={`${libraryScope}:${selectedPersonalRecord.id}`} game={selectedGame} motionOrigin={origin} state={library.state.progress[selectedPersonalRecord.id]} previous={games?.[selectedGame.rank - 2]} next={games?.[selectedGame.rank]} onClose={closeGame} onOpen={openGame} onToggle={toggle} onShare={() => shareView(selectedGame.slug)} shareFeedback={notice || library.error || ''} busy={libraryBusy} played={library.state.progress[selectedPersonalRecord.id]?.played} onPlayed={value => toggle(selectedGame.slug, 'played', value)} rankingPosition={rankingPosition || null} onRank={rankSelected} personalRating={library.state.ranking.find((entry) => entry.id === selectedPersonalRecord.id)?.score ?? null} onRate={(score) => perform({ type: 'rate-game', record: selectedPersonalRecord, score })} savedCopies={<SavedCatalogCopies canonicalId={selectedGame.slug} copies={ownership.get(selectedGame.slug)} onOpen={record => openGame(record.id)} />} />}
-      {!selectedGame && selectedRecord && !onlineOpening && <Suspense fallback={null}><CatalogDetail key={`${libraryScope}:${selectedRecord.id}`} record={selectedRecord} artwork={artwork.get(selectedRecord.id)} motionOrigin={origin} saved={Boolean(library.state.records[selectedRecord.id])} progress={library.state.progress[selectedRecord.id]} rankingPosition={rankingPosition || null} rating={library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null} busy={libraryBusy} onClose={closeGame} onAction={performDetailAction} onRankings={() => navigate('rankings')} /></Suspense>}
+      {!selectedGame && selectedRecord && !onlineOpening && <Suspense fallback={null}><CatalogDetail key={`${libraryScope}:${selectedRecord.id}`} record={selectedRecord} artwork={artwork.get(selectedRecord.id)} motionOrigin={origin} publicLookup={publicLookup} saved={Boolean(library.state.records[selectedRecord.id])} progress={library.state.progress[selectedRecord.id]} rankingPosition={rankingPosition || null} rating={library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null} busy={libraryBusy} onClose={closeGame} onAction={performDetailAction} onRankings={() => navigate('rankings')} /></Suspense>}
       {selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening && <Dialog open titleId="loading-game-title" onClose={closeGame} className="info-dialog"><h2 id="loading-game-title" data-autofocus tabIndex={-1}>Opening game...</h2><p role="status">Looking up its public catalog metadata.</p></Dialog>}
       {awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening && <Dialog open titleId="canonical-game-error-title" onClose={closeGame} className="info-dialog"><h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>The original game could not load.</h2><p>{collection.error} Your saved records have not changed.</p><button className="button button-dark" onClick={collection.retry}>Reload The 100</button></Dialog>}
       {selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
-      {panel === 'menu' && <MenuDialog key={libraryScope} page={page} gamesView={gamesView} filters={filters} onlineAvailable={ONLINE_AVAILABLE} creator={Boolean(!onlineOpening && online?.identity?.verified && online.creator)} onNavigate={navigate} onSettings={() => setPanel('settings')} onAbout={() => setPanel('about')} onClose={closePanel} captureFocusGuard={captureMenuFocusGuard} />}
+      {panel === 'menu' && <MenuDialog key={libraryScope} page={page} gamesView={gamesView} filters={filters} onlineAvailable={ONLINE_AVAILABLE} creator={Boolean(!onlineOpening && online?.identity?.verified && online.creator)} onNavigate={navigate} onSettings={() => { setOfflineSettings(false); setPanel('settings'); }} onOffline={pwaEnabled ? () => { setOfflineSettings(true); setPanel('settings'); } : undefined} onAbout={() => setPanel('about')} onClose={closePanel} captureFocusGuard={captureMenuFocusGuard} />}
       {panel === 'about' && <AboutDialog onClose={() => {
         setPanel(null);
         const params = new URLSearchParams(location.search);
         if (params.has('info')) { params.delete('info'); history.replaceState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}`); }
       }} />}
-      {panel === 'settings' && <SettingsDialog key={libraryScope} motion={library.state.motion} reducedMotion={capabilities.reducedMotion} constrained={capabilities.constrained} saved={savedCount} completed={completedCount} warning={warning} onMotion={(motion) => { void perform({ type: 'set-motion', motion }); }} onReset={library.reset} onRestore={library.restore} state={library.state} persistent={library.status === 'ready'} busy={libraryBusy} onAbout={() => setPanel('about')} onAccount={ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined} onClose={() => setPanel(null)} />}
+      {panel === 'settings' && <SettingsDialog key={libraryScope} motion={library.state.motion} reducedMotion={capabilities.reducedMotion} constrained={capabilities.constrained} saved={savedCount} completed={completedCount} warning={warning} onMotion={(motion) => { void perform({ type: 'set-motion', motion }); }} onReset={library.reset} onRestore={library.restore} state={library.state} persistent={library.status === 'ready'} busy={libraryBusy} onAbout={() => setPanel('about')} onAccount={ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined} offlineControls={pwaEnabled ? <PwaControls pwa={pwa} open={offlineSettings} onUpdate={applyPwaUpdate} /> : undefined} onClose={() => setPanel(null)} />}
       {manualLink && <Dialog open titleId="share-title" onClose={closeManualLink} className="info-dialog share-dialog"><h2 id="share-title" data-autofocus tabIndex={-1}>Good games are better shared.</h2><p>This browser couldn't share or copy automatically. Select this public link and copy it to send to a friend. Your private progress isn't included.</p><label htmlFor="share-link">Shareable link</label><input id="share-link" value={manualLink} readOnly onFocus={(event) => event.target.select()} /><button className="button button-dark" onClick={() => { const input = document.getElementById('share-link'); if (input instanceof HTMLInputElement) { input.focus(); input.select(); } }}><Icon name="copy" width="18" height="18" />Select link to copy</button></Dialog>}
       <div className={`toast ${notice ? 'toast-visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{notice && <><Icon name="info" width="19" height="19" /><span>{notice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><Icon name="close" width="17" height="17" /></button></>}</div>
       {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}

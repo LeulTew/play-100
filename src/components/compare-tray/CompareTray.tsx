@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { Dialog } from '../Dialog';
@@ -31,13 +31,35 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   const expand = useRef<HTMLButtonElement>(null);
   const sheetTitle = useRef<HTMLHeadingElement>(null);
   const list = useRef<HTMLUListElement>(null);
+  const dock = useRef<HTMLElement | null>(null);
   const newestId = items.at(-1)?.id;
-  const dockRef = useCallback((node: HTMLElement | null) => controller?.setDock(node), [controller]);
+  const dockRef = useCallback((node: HTMLElement | null) => {
+    dock.current = node;
+    controller?.setDock(node);
+  }, [controller]);
   const arrivalRef = useCallback((node: HTMLSpanElement | null) => {
     controller?.setArrivalTarget(animate ? newestId : undefined, node);
   }, [controller, newestId, animate]);
   const hasContent = items.length > 0 || Boolean(warning) || Boolean(error);
   const hasTray = hasContent || dragging;
+  useLayoutEffect(() => {
+    const node = dock.current;
+    if (!node || hidden || !hasTray) return;
+    const root = document.documentElement;
+    const measure = () => {
+      const bounds = node.getBoundingClientRect();
+      const top = Math.min(bounds.top, ...Array.from(node.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark'), element => element.getBoundingClientRect().top));
+      root.style.setProperty('--compare-tray-height', `${Math.ceil(bounds.bottom - top)}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    node.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark').forEach(element => observer.observe(element));
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--compare-tray-height');
+    };
+  }, [hasTray, hidden, error, warning]);
   useEffect(() => {
     const onVisibility = () => setDocumentVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
@@ -57,7 +79,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
     (buttons?.[index + 1] ?? buttons?.[index - 1] ?? sheetTitle.current)?.focus({ preventScroll: true });
   };
   return <>
-    {hasTray && !hidden && <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />}
+    {hasContent && !hidden && <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />}
     {hasTray && !hidden && <aside ref={dockRef} className="compare-tray-dock" aria-label="Pinned games for comparison" data-animate={animate && documentVisible ? 'true' : 'false'} data-dragging={dragging} data-has-content={hasContent}
       onDragOver={(event) => controller?.nativeOver(event.nativeEvent)}
       onDrop={(event) => controller?.nativeDrop(event.nativeEvent)}>

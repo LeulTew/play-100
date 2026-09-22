@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { createDiscoverySearch, parseDiscoverySearch } from '../lib/discovery-search';
+import { parseDiscoverySearch, patchDiscoverySearch } from '../lib/discovery-search';
 import type { DiscoveryFilters } from '../lib/discovery-search';
 import { flushPendingEdits, hasPendingEdits } from './useExitSave';
 
@@ -27,8 +27,7 @@ export function useDiscoveryUrl() {
   const update = useCallback(async (patch: Partial<DiscoveryFilters>, method: 'push' | 'replace' = 'push') => {
     const request = ++intent.current;
     const origin = `${window.location.pathname}${window.location.search}`;
-    const current = parseDiscoverySearch(window.location.search);
-    const next = createDiscoverySearch({ ...current, ...patch });
+    const next = patchDiscoverySearch(window.location.search, patch);
     const isCurrent = () => mounted.current && request === intent.current && origin === `${window.location.pathname}${window.location.search}`;
     setSaving(false);
     if (window.location.search === next) return false;
