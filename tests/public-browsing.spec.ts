@@ -237,6 +237,8 @@ test('the tray preserves complete art provenance behind a labelled disclosure an
   await page.addInitScript(record => localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items: [record] })), credited.record);
   await page.goto('/discover?catalogs=off');
   await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toBeVisible();
+  await expect(page.locator('.compare-tray-action-context')).toBeVisible();
+  await expect(page.locator('.compare-tray-action')).toHaveText('Compare rankings with friends');
   await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expect(dialog).toContainText('Choose friends to compare their rankings of these games.');

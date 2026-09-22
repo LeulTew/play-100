@@ -3,8 +3,9 @@ import { Icon } from '../components/Icon';
 import { EMULATOR_MODE } from '../lib/online-availability';
 import { DataUseLink } from '../components/DataUseLink';
 
-export function AuthPanel({ busy, error, message, onGoogle, onEmail, onReset, onDevice }: {
+export function AuthPanel({ busy, error, message, onGoogle, onEmail, onReset, onDevice, purpose }: {
   busy: boolean; error: string; message: string;
+  purpose?: 'compare';
   onGoogle: () => Promise<boolean>; onEmail: (email: string, password: string, create: boolean) => Promise<boolean>;
   onReset: (email: string) => Promise<boolean>; onDevice: () => void;
 }) {
@@ -18,6 +19,10 @@ export function AuthPanel({ busy, error, message, onGoogle, onEmail, onReset, on
   const id = useId();
   return (
     <div className="auth-panel">
+      {purpose === 'compare' && <section className="auth-purpose" aria-labelledby={`${id}-purpose`}>
+        <h2 id={`${id}-purpose`}>Compare friends' rankings</h2>
+        <p>Sign in to compare rankings shared by your friends. Pins select games for comparison; they do not share your library.</p>
+      </section>}
       {EMULATOR_MODE && <p className="emulator-note">Local test preview: use synthetic accounts only. Authentication and cloud data stay in the local emulators.</p>}
       <button className="google-signin" disabled={busy} onClick={() => { void onGoogle(); }}><img src="/provider/google.svg" width="20" height="20" alt="" />Continue with Google</button>
       {busy && <p className="google-continuation" role="status">Connecting...</p>}

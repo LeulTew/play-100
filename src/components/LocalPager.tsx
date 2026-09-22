@@ -13,6 +13,7 @@ export interface LocalPagerProps {
 
 export function LocalPager({ total, pageSize, offset, onOffsetChange, disabled = false, label = 'Result pages', itemLabel = 'games' }: LocalPagerProps) {
   const current = getLocalPage(total, pageSize, offset);
+  if (current.pageCount < 2) return null;
   const first = current.page <= 1;
   const last = current.page >= current.pageCount;
   return (
@@ -21,8 +22,8 @@ export function LocalPager({ total, pageSize, offset, onOffsetChange, disabled =
         <button type="button" className="button button-outline" disabled={disabled || first} onClick={() => onOffsetChange(0)}>First</button>
         <button type="button" className="button button-outline" disabled={disabled || first} onClick={() => onOffsetChange(current.offset - pageSize)}>Previous</button>
         <label className="local-pager-choice">Page
-          <select aria-label={`${label}: page`} value={current.page} disabled={disabled || current.pageCount < 2} onChange={(event) => onOffsetChange((Number(event.target.value) - 1) * pageSize)}>
-            {current.pageCount ? Array.from({ length: current.pageCount }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} of {current.pageCount}</option>) : <option value={0}>0 of 0</option>}
+          <select aria-label={`${label}: page`} value={current.page} disabled={disabled} onChange={(event) => onOffsetChange((Number(event.target.value) - 1) * pageSize)}>
+            {Array.from({ length: current.pageCount }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} of {current.pageCount}</option>)}
           </select>
         </label>
         <button type="button" className="button button-outline" disabled={disabled || last} onClick={() => onOffsetChange(current.offset + pageSize)}>Next</button>

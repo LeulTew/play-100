@@ -48,7 +48,8 @@ export async function installGuestLibrary(page: Page, state = libraryFixture(), 
   }), { name: DB_NAME, version: DB_VERSION, store: STORE_NAME, key: STATE_KEY, state });
   await page.goto(url);
   await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
-  await expect(page.locator('#library-search')).toBeVisible();
+  if (Object.keys(state.records).length) await expect(page.locator('#library-search')).toBeVisible();
+  else await expect(page.getByRole('heading', { name: 'No games yet', exact: true })).toBeVisible();
 }
 
 export async function libraryGeometry(page: Page) {

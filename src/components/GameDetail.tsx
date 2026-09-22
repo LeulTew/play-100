@@ -55,6 +55,11 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
         {game.slug === 'hitman-world-of-assassination' && <p className="source-note">Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.</p>}
         <p className="detail-genre">{game.genre}</p>
+        <section className="detail-section">
+          <h3>Why it made the list</h3>
+          <p className="rationale">{game.rationale}</p>
+          {game.sourceNote && <div className="source-note"><Icon name="info" /><p><strong>From the source workbook</strong><br />{game.sourceNote}</p></div>}
+        </section>
         {savedCopies}
         <div className="detail-actions">
           <button className={`button ${state?.later ? 'button-lime' : 'button-dark'}`} disabled={busy} aria-pressed={Boolean(state?.later)} onClick={() => onToggle(game.slug, 'later')}>
@@ -70,11 +75,6 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         <div className="catalog-detail-rating"><PersonalRatingInput key={game.slug} title={game.title} value={personalRating} busy={Boolean(busy)} onCommit={onRate} /><p>Rating adds to My rankings without marking played or moving a fixed position.</p></div>
         {shareFeedback && <p className="detail-share-notice" role="status">{shareFeedback}</p>}
       </div>
-      <section className="detail-section">
-        <h3>Why it made the list</h3>
-        <p className="rationale">{game.rationale}</p>
-        {game.sourceNote && <div className="source-note"><Icon name="info" /><p><strong>From the source workbook</strong><br />{game.sourceNote}</p></div>}
-      </section>
       <section className="detail-section critic-section">
         <div className="section-title-line"><h3>Critic scores</h3><div className="average"><strong>{formatAverage(game.criticAverage)}</strong>{game.criticAverage !== null && <span> / 100</span>}</div></div>
         <p className="section-help">Workbook snapshot. Not live or independently verified.</p>

@@ -12,7 +12,7 @@ export type GoogleRedirectIntent = GoogleRequest & {
 const storageError = 'Google needs temporary storage in this tab to return safely. Use email or keep using this device; no library data was changed.';
 
 export function googleReturnPath(value: string): string {
-  if (!value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u0020]/.test(value) || value.length > 1024) return '/account';
+  if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\') || [...value].some((character) => character.charCodeAt(0) <= 32) || value.length > 1024) return '/account';
   const url = new URL(value, 'https://play-100-collection.vercel.app');
   if (!Object.values(PAGE_PATHS).includes(url.pathname) && !/^\/u\/[a-z][a-z0-9_]{2,23}$/.test(url.pathname) && !/^\/friends\/[A-Za-z0-9_-]{1,128}$/.test(url.pathname)) return '/account';
   const { filters, game } = parseUrl(url.search);

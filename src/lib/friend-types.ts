@@ -4,6 +4,7 @@ import { parseAvatar, parsePublicEntry, projectPublicRanking } from './community
 import type { AvatarValue, PublicEntry } from './community';
 import type { PersonalLibraryState } from './personal-types';
 import type { Game } from './types';
+import { hasAsciiControl } from './text-controls';
 
 export const FRIEND_PAGE_SIZE = 20;
 export const FRIEND_SELECTION_LIMIT = 200;
@@ -105,7 +106,7 @@ export function friendToken(value: unknown): string {
   return value;
 }
 export function friendName(value: unknown, max = 60): string {
-  if (typeof value !== 'string' || !value.trim() || value.trim().length > max || /[\u0000-\u001f\u007f]/.test(value)) invalid(`Choose a name between 1 and ${max} characters.`);
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > max || hasAsciiControl(value)) invalid(`Choose a name between 1 and ${max} characters.`);
   return value.trim();
 }
 export function friendSelection(value: unknown): string[] {

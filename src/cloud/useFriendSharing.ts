@@ -28,6 +28,9 @@ export function useFriendSharing(uid: string | undefined, scope: LibraryScope | 
   const current = useRef({ uid, scope, snapshot, verified, games, authGeneration });
   current.current = { uid, scope, snapshot, verified, games, authGeneration };
   const settings = value && value.uid === uid ? value.settings : null;
+  const settingsRevision = settings?.revision;
+  const selectedIds = settings?.selectedIds;
+  const snapshotReady = Boolean(snapshot);
   const ready = Boolean(uid && value?.uid === uid);
   const settingsNow = useRef(settings);
   settingsNow.current = settings;
@@ -45,11 +48,13 @@ export function useFriendSharing(uid: string | undefined, scope: LibraryScope | 
     });
   }, []);
   useEffect(() => {
-    if (!uid || !scope || !settings || !snapshot) return;
-    void updateFriendSelectionCache(scope, settings.revision, settings.selectedIds, undefined, snapshot.state.revision).catch((cause) => {
+    // Seed from the current snapshot; later library edits advance their own removal journal.
+    const local = current.current.snapshot;
+    if (!uid || !scope || settingsRevision === undefined || !selectedIds || !snapshotReady || !local) return;
+    void updateFriendSelectionCache(scope, settingsRevision, selectedIds, undefined, local.state.revision).catch((cause) => {
       if (current.current.uid === uid) { setFailure({ uid, message: onlineError(cause) }); setStatus('error'); queue.current?.failed('blocked'); }
     });
-  }, [uid, scope, settings?.revision, Boolean(snapshot)]);
+  }, [uid, scope, settingsRevision, selectedIds, snapshotReady]);
   useEffect(() => {
     if (!uid || !verified) return;
     let alive = true;
@@ -169,7 +174,7 @@ export function useFriendSharing(uid: string | undefined, scope: LibraryScope | 
       window.removeEventListener('online', wake); window.removeEventListener('offline', wake);
       window.removeEventListener('focus', wake); document.removeEventListener('visibilitychange', wake);
     };
-  }, [uid, scope, verified, authGeneration, settings?.enabled, settings?.deleted, snapshot?.sync.enabled, snapshot?.sync.epoch, reload, store, acceptSettings, automaticMode]);
+  }, [uid, scope, verified, authGeneration, settings?.enabled, settings?.deleted, snapshot?.sync.enabled, snapshot?.sync.epoch, reload, store, acceptSettings, automaticMode, cancellationGeneration]);
   useEffect(() => {
     if (ready && settings?.enabled && snapshot?.sync.enabled && games.length && !pendingEdits && !snapshot.sync.dirty) queue.current?.request(1200, true);
   }, [ready, settings?.enabled, settings?.revision, snapshot?.sync.enabled, snapshot?.sync.dirty, snapshot?.sync.dataRevision, pendingEdits, games.length]);

@@ -1,5 +1,6 @@
 import type { LibraryRecord } from './personal-types';
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
+import { hasAsciiControl } from './text-controls';
 
 export const DISCOVERY_CATALOG_URL = '/data/discovery/catalog.v1.json';
 export const DISCOVERY_LIMITS = {
@@ -62,7 +63,7 @@ function shape(value: unknown, fields: readonly string[]): Record<string, unknow
 }
 
 function text(value: unknown, limit: number): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > limit || /[\u0000-\u001f\u007f]/.test(value)) {
+  if (typeof value !== 'string' || !value.trim() || value.length > limit || hasAsciiControl(value)) {
     return invalid(`expected nonempty text of at most ${limit} characters.`);
   }
   return value;

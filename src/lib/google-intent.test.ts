@@ -19,6 +19,15 @@ describe('Google UI intent is not authentication authority', () => {
     expect(() => parseGoogleIntent(JSON.stringify({ ...intent, returnPath: '//evil.example/' }), now)).toThrow();
     expect(() => parseGoogleIntent(JSON.stringify({ ...intent, target: 'all-users' }), now)).toThrow();
   });
+  it('rejects raw C0, space and backslash without broadening the redirect character boundary', () => {
+    for (const code of [...Array.from({ length: 33 }, (_, index) => index), 92]) {
+      expect(googleReturnPath(`/friends/alice#before${String.fromCharCode(code)}after`)).toBe('/account');
+    }
+    for (const code of [33, 126, 127, 128, 159, 160, 256, 287, 383, 0x2028, 0x2029, 0x10000, 0x1001f, 0x1007f, 0x1f600]) {
+      expect(googleReturnPath(`/friends/alice#before${String.fromCodePoint(code)}after`)).toBe('/friends/alice');
+    }
+    expect(googleReturnPath('/friends/alice#%00%20%5C')).toBe('/friends/alice');
+  });
   it('requires the actual SDK operation, Google provider, expected UID and current UID together', () => {
     const valid = { uid: intent.uid, providerId: 'google.com', operationType: 'reauthenticate' };
     expect(() => validateGoogleReturn(intent, valid, intent.uid)).not.toThrow();

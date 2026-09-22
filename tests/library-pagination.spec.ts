@@ -129,10 +129,17 @@ test('0, 1, 25 and 26 matches use the shared exact boundaries and existing empty
   for (const total of [0, 1, 25, 26]) {
     await installGuestLibrary(page, libraryFixture(total));
     await expect(libraryRows(page)).toHaveCount(Math.min(total, 25));
-    await expect(pager(page).getByRole('combobox')).toHaveValue(total ? '1' : '0');
-    await expect(pager(page)).toContainText(`${total ? 1 : 0}–${Math.min(total, 25)} of ${total} matching games`);
-    if (total === 0) await expect(page.getByRole('heading', { name: 'No games yet', exact: true })).toBeVisible();
-    if (total <= 25) await expect(pager(page).getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+    await expect(page.locator('.library-results-boundary [role="status"]')).toHaveText(`Showing ${total ? 1 : 0}–${Math.min(total, 25)} of ${total} matching games`);
+    if (total === 0) {
+      await expect(page.getByRole('heading', { name: 'No games yet', exact: true })).toBeVisible();
+      await expect(query(page)).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Select games', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Choose from the 100', exact: true })).toBeVisible();
+    }
+    if (total <= 25) {
+      await expect(pager(page)).toHaveCount(0);
+      await expect(page.locator('.library-results-count')).toBeVisible();
+    }
     else {
       await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
       await expect(libraryRows(page)).toHaveCount(1);
@@ -152,7 +159,7 @@ test('filtering searches the full Library and resets the page without moving inp
   const matches = sorted.filter(record => record.title.toLocaleLowerCase().includes(target.title.toLocaleLowerCase()));
   await expect(libraryRows(page)).toHaveCount(matches.length);
   await expect(page.locator(`ul.personal-records [data-record-id="${target.id}"]`)).toBeVisible();
-  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(pager(page)).toHaveCount(0);
   await query(page).fill('');
   await selectPage(page, 20);
   await page.getByLabel('Progress', { exact: true }).focus();
@@ -160,11 +167,44 @@ test('filtering searches the full Library and resets the page without moving inp
   await expect(page.getByLabel('Progress', { exact: true })).toBeFocused();
   await expect(libraryRows(page)).toHaveCount(1);
   await expect(libraryRows(page).first()).toHaveAttribute('data-record-id', rankedRecords[1]!.id);
-  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(pager(page)).toHaveCount(0);
   await page.getByLabel('Progress', { exact: true }).selectOption('all');
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   expect(await readLibrary(page)).toEqual(before);
+});
+
+test('first-run add choices yield to useful tools without remounting a draft or losing filtered-empty recovery', async ({ page }) => {
+  await installGuestLibrary(page, libraryFixture(0));
+  const library = page.locator('.my-games-editor').filter({ has: page.locator('#library-title') });
+  await expect(query(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Discover more games', exact: true })).toBeVisible();
+  await library.locator('.manual-add > summary').click();
+  const title = library.getByLabel('Game title', { exact: true });
+  await title.fill('Keep this manual draft');
+  await title.evaluate(element => { element.dataset.uxDraftIdentity = 'retained'; });
+  await page.evaluate(async record => {
+    const path = '/src/lib/personal-db.ts';
+    const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
+    await commitPersonalAction({ type: 'add-records', records: [record] });
+  }, rankedRecords[0]!);
+  await expect(query(page)).toBeVisible();
+  await expect(libraryRows(page)).toHaveCount(1);
+  await expect(pager(page)).toHaveCount(0);
+  await expect(title).toHaveValue('Keep this manual draft');
+  await expect(title).toHaveAttribute('data-ux-draft-identity', 'retained');
+  await page.getByRole('button', { name: 'Select games', exact: true }).click();
+  await libraryRows(page).getByRole('checkbox', { name: /^Select / }).check();
+  await query(page).fill('No game has this exact name');
+  await expect(query(page)).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'No matches', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Bulk game actions' }).getByRole('status')).toHaveText('0 selected');
+  await expect(page.getByRole('button', { name: 'Exit selection', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear search and progress filter', exact: true }).click();
+  await expect(libraryRows(page)).toHaveCount(1);
+  await expect(query(page)).toHaveValue('');
+  await expect(title).toHaveValue('Keep this manual draft');
+  await expect(title).toHaveAttribute('data-ux-draft-identity', 'retained');
 });
 
 test('selection survives pages and the explicit all-matching action covers all 500 exact IDs once', async ({ page }, info) => {
@@ -197,7 +237,7 @@ test('selection survives pages and the explicit all-matching action covers all 5
   await libraryRows(page).first().getByRole('checkbox', { name: /^Select / }).check();
   await query(page).fill('Mass Effect');
   await expect(selection.getByRole('status')).toHaveText('0 selected');
-  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(pager(page)).toHaveCount(0);
   const chosen = await libraryRows(page).evaluateAll(rows => rows.slice(0, 2).map(row => row.getAttribute('data-record-id')!));
   await libraryRows(page).nth(0).getByRole('checkbox', { name: /^Select / }).check();
   await libraryRows(page).nth(1).getByRole('checkbox', { name: /^Select / }).check();
@@ -397,7 +437,7 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
   await remove.click();
   await page.getByRole('dialog').getByRole('button', { name: 'Remove 1 game', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(pager(page)).toHaveCount(0);
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(results(page)).toBeFocused();
   expect(await readLibrary(page)).toEqual(applyPersonalAction(before, { type: 'remove-records', ids: [id] }));
@@ -410,7 +450,7 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
     const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
     await commitPersonalAction({ type: 'remove-records', ids: [id] });
   }, removedId);
-  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(pager(page)).toHaveCount(0);
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(query(page)).toBeFocused();
 });

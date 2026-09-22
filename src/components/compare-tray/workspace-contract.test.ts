@@ -32,6 +32,41 @@ const props = {
 };
 
 describe('workspace embedding contract', () => {
+  it.each([0, 1, 25, 26, 500])('keeps Library counts and bounded rows with %i records, without unnecessary page controls', total => {
+    const records = Array.from({ length: total }, (_, index) => ({ ...alpha, id: `game-${index}`, sourceId: `game-${index}`, title: `Game ${index}` }));
+    const html = renderToStaticMarkup(h(LibraryPage, {
+      ...props, embedded: true, workspaceView: 'library',
+      state: { ...emptyPersonalLibrary(), records: Object.fromEntries(records.map(record => [record.id, record])) },
+    }));
+    expect(html).toContain(`Showing ${total ? 1 : 0}–${Math.min(total, 25)} of ${total} matching games`);
+    expect(html).toContain('Your library results</h3>');
+    expect(html).toContain('role="status" aria-atomic="true"');
+    expect(html.match(/class="personal-row personal-row-static"/g) ?? []).toHaveLength(Math.min(total, 25));
+    expect(html.includes('aria-label="Library pages"')).toBe(total > 25);
+    expect(html.includes('Search your library')).toBe(total > 0);
+    expect(html.includes('Select games')).toBe(total > 0);
+    expect(html).toContain('Add a game manually');
+    if (total === 0) {
+      expect(html).toContain('No games yet');
+      expect(html).toContain('Choose from the 100');
+      expect(html).toContain('Discover more games');
+    }
+  });
+
+  it('retains filters, search and recovery for an empty filtered view', () => {
+    const html = renderToStaticMarkup(h(LibraryPage, {
+      ...props, progressFilter: 'not-played', state: {
+        ...emptyPersonalLibrary(), records: { alpha },
+        progress: { alpha: { played: true, completed: false, later: false } },
+      },
+    }));
+    expect(html).toContain('No matches');
+    expect(html).toContain('Search your library');
+    expect(html).toContain('Clear search and progress filter');
+    expect(html).toContain('Your saved games are unchanged.');
+    expect(html).not.toContain('aria-label="Library pages"');
+  });
+
   it('retains standalone Library and Ranking headings and their existing controls', () => {
     const library = renderToStaticMarkup(h(LibraryPage, props));
     expect(library).toContain('>My library</h1>');
@@ -97,6 +132,8 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('compare-tray-reserve');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('Choose friends');
+    expect(html).toContain('>Compare rankings <span class="compare-tray-action-context">with friends</span>');
+    expect(html).toContain('aria-label="Compare rankings with friends"');
     expect(html).toContain('Pinning does not save, rate or share a game.');
   });
   it('does not show an empty persistent dock or a dock behind another active dialog', () => {

@@ -8,8 +8,8 @@ import { comparisonScope, initialComparison, readComparisonView, rememberCompari
 import { createInviteUrl } from '../lib/invite-continuation';
 import type { FriendStore } from './friend-store';
 import { cloudAuth, firebaseApp } from './firebase-client';
-import { navigateFriend, prepareFriendIdentity } from './FriendPages';
-import type { OwnFriendIdentity } from './FriendPages';
+import { navigateFriend, prepareFriendIdentity } from './friend-page-actions';
+import type { OwnFriendIdentity } from './friend-page-actions';
 import { committedFriendChange, committedFriendMessage, friendMutationError } from './friend-outcomes';
 import { onlineError } from './errors';
 import { Avatar } from '../components/avatar/Avatar';

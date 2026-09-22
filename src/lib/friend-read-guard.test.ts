@@ -7,6 +7,7 @@ it('a deferred ranking result cannot repopulate data after a relationship permis
   const lease = access.begin();
   let finish: ((score: number) => void) | undefined;
   let visibleScore: number | null = null;
+  expect(visibleScore).toBeNull();
   const read = new Promise<number>((resolve) => { finish = resolve; }).then((score) => { if (access.permits(lease)) visibleScore = score; });
   access.revoke(); visibleScore = null;
   finish?.(9);

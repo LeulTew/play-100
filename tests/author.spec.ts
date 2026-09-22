@@ -1,6 +1,37 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { parseCollection } from '../src/lib/collection';
 import { readLibrary } from './library-helpers';
 import author from '../author.json' with { type: 'json' };
+
+test('canonical rationale stays complete before bookkeeping at narrow, mobile, intermediate and wide widths', async ({ page }) => {
+  const game = parseCollection(JSON.parse(readFileSync(new URL('../data/collection.json', import.meta.url), 'utf8'))).games[0]!;
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?catalogs=off');
+  const opener = page.locator(`[data-game="${game.slug}"] .game-link`);
+  await opener.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: game.title, exact: true })).toBeFocused();
+  await expect(dialog.locator('.rationale')).toHaveText(game.rationale);
+  await expect(dialog.locator('.author-rating-detail')).toContainText("Leul's original rating");
+  for (const width of [320, 393, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const geometry = await dialog.evaluate(element => {
+      const rationale = element.querySelector('.rationale')!.getBoundingClientRect();
+      const actions = element.querySelector('.detail-actions')!.getBoundingClientRect();
+      const close = element.querySelector('.dialog-close')!.getBoundingClientRect();
+      return { rationaleBottom: rationale.bottom, actionsTop: actions.top, width: element.clientWidth, contentWidth: element.scrollWidth, closeWidth: close.width, closeHeight: close.height };
+    });
+    expect(geometry.rationaleBottom).toBeLessThan(geometry.actionsTop);
+    expect(geometry.contentWidth).toBeLessThanOrEqual(geometry.width);
+    expect(geometry.closeWidth).toBeGreaterThanOrEqual(44);
+    expect(geometry.closeHeight).toBeGreaterThanOrEqual(44);
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
 
 test('Leul original values are visible by default and never become visitor ratings', async ({ page }) => {
   await page.goto('/?view=table');

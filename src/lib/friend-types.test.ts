@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyPersonalLibrary } from './personal-library';
 import type { PublicEntry } from './community';
 import {
-  FRIEND_CHUNK_LIMIT, FRIEND_CHUNK_SIZE, friendPairId, friendParticipants, friendSelection, friendToken, parseFriendChunk, parseFriendGeneration,
+  FRIEND_CHUNK_LIMIT, FRIEND_CHUNK_SIZE, friendName, friendPairId, friendParticipants, friendSelection, friendToken, parseFriendChunk, parseFriendGeneration,
   parseFriendGroup, parseFriendIdentity, parseFriendInvite, parseFriendPair, parseFriendSettings, parseFriendSource,
   projectFriendRanking, retainsFriendGeneration, validateFriendEntries,
 } from './friend-types';
@@ -17,6 +17,17 @@ const settings = { format: 1, enabled: true, deleted: false, selection: entry.id
 const pair = { format: 1, a: 'alice', b: 'bob', participants: ['alice', 'bob'], from: 'alice', state: 'pending', epoch: 1, inviteSlot: null, createdAt: time, updatedAt: time };
 
 describe('strict friend types and selected projection', () => {
+  it('rejects C0 and DEL before trimming names, while preserving Unicode and ordinary spaces', () => {
+    for (const code of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
+      const character = String.fromCharCode(code);
+      expect(() => friendName(`Player${character}name`)).toThrow();
+      expect(() => friendName(`${character}Player`)).toThrow();
+    }
+    for (const code of [32, 126, 128, 159, 160, 256, 287, 383, 0x2028, 0x2029, 0x1f600]) {
+      const name = `Player${String.fromCodePoint(code)}name`;
+      expect(friendName(` ${name} `)).toBe(name);
+    }
+  });
   it('keeps head pointers during prune retries even after consent changes, without changing deletion cleanup', () => {
     const current = crypto.randomUUID(); const previous = crypto.randomUUID(); const retired = crypto.randomUUID();
     const control: FriendSettings = { format: 1, enabled: true, deleted: false, selectedIds: [], epoch: 1, revision: 1, updatedAt: 1000 };

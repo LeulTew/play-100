@@ -255,6 +255,10 @@ svg { flex-shrink: 0; }
 .detail-place > span:first-child { font-weight: 700; }
 .detail-place > span:last-child { background: #e0e8cc; padding: 4px 7px; border-radius: 2px; }
 .game-dialog h2 { font-size: clamp(40px, 4.3vw, 60px); margin-bottom: 12px; }
+.game-dialog .detail-top, .game-dialog .detail-section { overflow-wrap: anywhere; }
+.auth-panel .auth-purpose { margin-bottom: 24px; }
+.auth-panel .auth-purpose h2 { font: 700 28px/1.15 var(--display); margin-bottom: 10px; }
+.auth-panel .auth-purpose p { color: var(--muted); font-size: 15px; line-height: 1.6; }
 .detail-byline { font-size: 14px; color: var(--muted); }
 .detail-byline > span { padding-inline: 7px; color: #929987; }
 .detail-cover { margin-top: 23px; }
@@ -294,7 +298,7 @@ svg { flex-shrink: 0; }
 .methodology-details summary::-webkit-details-marker { display: none; }
 .methodology-details[open] summary svg { transform: rotate(180deg); }
 .methodology-details p { margin-top: 10px; }
-.detail-pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--ink); margin-top: 33px; padding-top: 11px; }
+.detail-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--ink); margin-top: 33px; padding-top: 11px; }
 .detail-pagination > span { font-size: 12px; color: var(--muted); }
 .detail-pagination .text-button { font-size: 13px; }
 .detail-pagination svg { width: 17px; height: 17px; }

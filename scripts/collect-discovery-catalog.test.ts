@@ -9,6 +9,7 @@ import {
   type CommonsPermission,
 } from './collect-discovery-catalog';
 import { parseDiscoveryCatalog, type DiscoveryCatalog } from '../src/lib/discovery-catalog';
+import { artworkPresencePath, discoveryArtworkPresenceJson } from './generate-discovery-artwork-presence';
 
 const temporaryRoots: string[] = [];
 const date = '2026-09-17T18:00:00.000Z';
@@ -42,6 +43,21 @@ const freeRow = (id = 1) => ({
 const json = (value: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 const clientWith = (fetcher: typeof fetch) => new BoundedClient(new AbortController().signal, fetcher, async () => {});
+
+it('preserves collector trimming and exact ASCII control rejection for text and aliases', () => {
+  for (const code of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
+    const title = `Before${String.fromCharCode(code)}after`;
+    expect(() => parseFreeToGame([{ ...freeRow(), title }], date)).toThrow();
+    expect(parseWikiEntity({ ...entity, aliases: { en: [{ value: title }] } }, {}, date)?.aliases).toEqual([]);
+  }
+  for (const code of [32, 126, 128, 159, 160, 256, 287, 383, 0x2028, 0x2029, 0x1f600]) {
+    const title = `Before${String.fromCodePoint(code)}after`;
+    expect(parseFreeToGame([{ ...freeRow(), title }], date)[0]?.record.title).toBe(title);
+    expect(parseWikiEntity({ ...entity, aliases: { en: [{ value: title }] } }, {}, date)?.aliases).toEqual([title]);
+  }
+  expect(parseFreeToGame([{ ...freeRow(), title: '\tTrimmed\n' }], date)[0]?.record.title).toBe('Trimmed');
+  expect(parseWikiEntity({ ...entity, aliases: { en: [{ value: '\tTrimmed\n' }] } }, {}, date)?.aliases).toEqual(['Trimmed']);
+});
 
 afterEach(async () => {
   for (const root of temporaryRoots.splice(0)) await rm(root, { recursive: true, force: true });
@@ -197,10 +213,26 @@ describe('raster and atomic snapshot output', () => {
     expect(catalog.items[0]!.artwork).toMatchObject({ width: 16, height: 9 });
     await writeSnapshot(catalog, assets, root);
     const first = await verifySnapshot(root);
+    expect(await readFile(artworkPresencePath(root), 'utf8')).toBe(discoveryArtworkPresenceJson(catalog));
     await writeSnapshot(catalog, assets, root);
     expect(await verifySnapshot(root)).toEqual(first);
     expect(first).toMatchObject({ records: 1, illustratedRecords: 1, uniqueImages: 1 });
     expect(await readdir(path.join(root, 'public', 'data', 'discovery'))).toEqual(['catalog.v1.json']);
+  });
+  it('detects a stale artwork hint and regenerates it with a changed validated snapshot', async () => {
+    const root = await temporaryRoot();
+    const { catalog, assets } = await fixture();
+    await writeSnapshot(catalog, assets, root);
+    await writeFile(artworkPresencePath(root), '[]\n');
+    await expect(verifySnapshot(root)).rejects.toThrow(/presence index is stale/);
+    await writeSnapshot(catalog, assets, root);
+    expect(await verifySnapshot(root)).toMatchObject({ illustratedRecords: 1 });
+    const withoutArtwork = structuredClone(catalog);
+    withoutArtwork.items[0]!.artwork = null;
+    withoutArtwork.items[0]!.provenance.artworkMissingReason = 'No licensed image in this snapshot';
+    await writeSnapshot(withoutArtwork, new Map(), root);
+    expect(await readFile(artworkPresencePath(root), 'utf8')).toBe('[]\n');
+    expect(await verifySnapshot(root)).toMatchObject({ illustratedRecords: 0 });
   });
   it('preserves a last-good manifest on failed assets, schema or byte budgets', async () => {
     const root = await temporaryRoot();
@@ -208,11 +240,13 @@ describe('raster and atomic snapshot output', () => {
     await writeSnapshot(catalog, assets, root);
     const manifestPath = path.join(root, 'public', 'data', 'discovery', 'catalog.v1.json');
     const before = await readFile(manifestPath);
+    const presenceBefore = await readFile(artworkPresencePath(root));
     await expect(writeSnapshot(catalog, new Map(), root)).rejects.toThrow(/counts/);
     const malformed = structuredClone(catalog);
     malformed.items[0]!.record.id = 'wikidata:Q1';
     await expect(writeSnapshot(malformed, assets, root)).rejects.toThrow(/identity/);
     expect(await readFile(manifestPath)).toEqual(before);
+    expect(await readFile(artworkPresencePath(root))).toEqual(presenceBefore);
     const src = catalog.items[0]!.artwork!.src;
     const bad = Buffer.from('HTML is not an image');
     const badCatalog = structuredClone(catalog);

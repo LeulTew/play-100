@@ -47,7 +47,8 @@ import { useFriendSharing } from './useFriendSharing';
 import { useFriendAll } from './useFriendAll';
 import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { FriendComparisonPage } from './FriendComparisonPage';
-import { FriendDetailPage, FriendSharingPage, InvitationPage, navigateFriend, prepareFriendIdentity } from './FriendPages';
+import { FriendDetailPage, FriendSharingPage, InvitationPage } from './FriendPages';
+import { navigateFriend, prepareFriendIdentity } from './friend-page-actions';
 import { FriendsPage } from './FriendsPage';
 import { FriendShelfEditor } from './FriendShelf';
 import { FriendSharedGames, ShelfArtworkCredits } from './FriendSharedGames';
@@ -120,6 +121,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const scope = useMemo(() => uid ? accountScope(uid, firebaseApp.options.projectId) : null, [uid]);
   const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
   const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
+  const refreshAccount = account.refresh;
   const social = useMemo(() => new SocialStore(cloudDb), []);
   const friendToolsVisible = ['account', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
   const automatic = useFriendAll(uid, scope, account.snapshot, Boolean(identity?.verified), games, authSessionEpoch.current);
@@ -143,9 +145,10 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       throw Object.assign(new Error('The online copy changed during restoration. Checking again automatically.'), { code: 'aborted' });
     }
     await restoreConsentedAccount(scope, incoming, fresh, savedMember, () => isCurrent() && !hasPendingEdits());
-    if (isCurrent()) { setMessage('Online library restored.'); await account.refresh(); }
-  }, [scope, uid, social, account.refresh]);
+    if (isCurrent()) { setMessage('Online library restored.'); await refreshAccount(); }
+  }, [scope, uid, social, refreshAccount]);
   const sync = useCloudSync(scope, account.snapshot, Boolean(identity?.verified), restoreInitial, authSessionEpoch.current);
+  const reportProfileError = sync.reportProfileError;
   const active = Boolean(scope && account.snapshot && account.snapshot.sync.epoch > 0);
   const restoring = identity === undefined || Boolean(identity && !account.snapshot && !account.error) || sync.restoringInitial;
   const cacheUnavailable = Boolean(identity && account.error && !account.snapshot);
@@ -274,11 +277,11 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     const uid = identity.uid;
     void refresh(false).catch((cause) => {
       if (!alive || cloudAuth.currentUser?.uid !== uid) return;
-      if (syncFailure(cause) !== 'blocked') sync.reportProfileError(cause);
+      if (syncFailure(cause) !== 'blocked') reportProfileError(cause);
       else setError(onlineError(cause));
     });
     return () => { alive = false; };
-  }, [identity?.uid, identity?.verified, accountReady, refresh, sync.profileAvailable, sync.profileConnection, sync.reportProfileError]);
+  }, [identity?.uid, identity?.verified, accountReady, refresh, sync.profileAvailable, sync.profileConnection, reportProfileError]);
   useEffect(() => { if (sync.remote && uid) setHeadSnapshot({ uid, value: sync.remote }); }, [sync.remote, uid]);
   useEffect(() => {
     if (!uid || !scope || !identity?.verified || !sync.profileAvailable) return;
@@ -296,9 +299,9 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       void cacheScopedProfile(scope, next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
         if (alive && cloudAuth.currentUser?.uid === uid) { caching = ''; setError(`Your online profile loaded, but its device cache could not update. ${onlineError(cause)}`); }
       });
-    }, (cause) => { if (alive && cloudAuth.currentUser?.uid === uid) sync.reportProfileError(cause); });
+    }, (cause) => { if (alive && cloudAuth.currentUser?.uid === uid) reportProfileError(cause); });
     return () => { alive = false; unsubscribe(); };
-  }, [uid, scope, identity?.verified, sync.profileAvailable, sync.profileConnection, sync.reportProfileError, social]);
+  }, [uid, scope, identity?.verified, sync.profileAvailable, sync.profileConnection, reportProfileError, social]);
 
   const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? (defaultAvatarUid.current === uid ? defaultAvatar : loadingAvatar);
   const headerIdentity = useMemo(() => identity ? {
@@ -308,20 +311,23 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const friendIdentity = identity && headerIdentity ? { uid: identity.uid, verified: identity.verified, displayName: headerIdentity.name, avatar } : null;
   const committedFriendIdentity = useRef(friendIdentity);
   committedFriendIdentity.current = friendIdentity;
+  const friendIdentityReady = Boolean(friends.settings && !friends.settings.deleted);
+  const memberName = member?.displayName;
+  const memberAvatar = member?.avatar;
   useEffect(() => {
-    if (!uid || !identity?.verified || !friends.settings || friends.settings.deleted || !member) return;
+    if (!uid || !identity?.verified || !friendIdentityReady || memberName === undefined || !memberAvatar) return;
     let alive = true;
-    const source = `${member.displayName}:${JSON.stringify(member.avatar)}`;
+    const source = `${memberName}:${JSON.stringify(memberAvatar)}`;
     void (async () => {
       const old = await friends.store.identity(uid);
       if (!alive || !old || cloudAuth.currentUser?.uid !== uid) return;
-      if (old.displayName === member.displayName && JSON.stringify(old.avatar) === JSON.stringify(member.avatar)) return;
+      if (old.displayName === memberName && JSON.stringify(old.avatar) === JSON.stringify(memberAvatar)) return;
       const current = committedFriendIdentity.current;
       if (!current || `${current.displayName}:${JSON.stringify(current.avatar)}` !== source) return;
-      await friends.store.saveIdentity(uid, { displayName: member.displayName, avatar: member.avatar }, old.revision);
+      await friends.store.saveIdentity(uid, { displayName: memberName, avatar: memberAvatar }, old.revision);
     })().catch((cause) => { if (alive && cloudAuth.currentUser?.uid === uid) setError(`Friend profile update pending. ${onlineError(cause)}`); });
     return () => { alive = false; };
-  }, [uid, identity?.verified, friends.settings?.deleted, Boolean(friends.settings), friends.store, member?.displayName, member?.avatar]);
+  }, [uid, identity?.verified, friendIdentityReady, friends.store, memberName, memberAvatar]);
   const canEnableAll = 'canEnable' in automatic.eligibility && automatic.eligibility.canEnable;
   const hasIdentity = Boolean(identity);
   const automaticSummary = useMemo(() => hasIdentity ? <FriendSharingSummary mode={automatic.eligibility.kind} status={automatic.status}
@@ -620,7 +626,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const currentDeletionApproval = deletionApproval?.uid === identity?.uid &&
     deletionApproval?.sessionEpoch === authSessionEpoch.current && deletionApproval.epoch === currentEpoch.current ? deletionApproval : null;
   const closeSignin = () => { setReturnSheet(false); onCloseSheet(); };
-  const authPanel = <AuthPanel busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)) onNavigate('collection'); }} />;
+  const authPanel = <AuthPanel purpose={page === 'compare' ? 'compare' : undefined} busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)) onNavigate('collection'); }} />;
   const cloudPage = ['account', 'publish', 'community', 'profile', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
   if (startupError) throw new Error(startupError);
   return (

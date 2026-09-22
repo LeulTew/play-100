@@ -3,6 +3,8 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { hasAsciiControl } from '../src/lib/text-controls.ts';
+import { artworkPresencePath, discoveryArtworkPresenceJson, writeArtworkPresence } from './generate-discovery-artwork-presence.ts';
 import {
   DISCOVERY_LIMITS, parseDiscoveryCatalog, parseDiscoveryCatalogJson,
   type CatalogArtwork, type DiscoveryCatalog, type DiscoveryItem,
@@ -72,7 +74,7 @@ function string(value: unknown): string | null {
 }
 function requiredText(value: unknown, label: string, max = 200): string {
   const result = string(value);
-  if (!result || result.length > max || /[\u0000-\u001f\u007f]/.test(result)) throw new Error(`Invalid ${label}.`);
+  if (!result || result.length > max || hasAsciiControl(result)) throw new Error(`Invalid ${label}.`);
   return result;
 }
 function optionalText(value: unknown): string | null {
@@ -279,7 +281,7 @@ export function parseWikiEntity(entity: JsonObject, names: JsonObject, retrieved
     const entries = aliases?.[language];
     return Array.isArray(entries) ? entries.flatMap((entry) => {
       const alias = string(object(entry)?.value);
-      return alias && alias.length <= 200 && !/[\u0000-\u001f\u007f]/.test(alias) ? [alias] : [];
+      return alias && alias.length <= 200 && !hasAsciiControl(alias) ? [alias] : [];
     }) : [];
   });
   return {
@@ -501,6 +503,9 @@ function imagePath(root: string, src: string): string {
 export async function verifySnapshot(root = ROOT): Promise<JsonObject> {
   const manifest = await readFile(path.join(root, 'public', 'data', 'discovery', 'catalog.v1.json'));
   const catalog = parseDiscoveryCatalogJson(manifest.toString('utf8'));
+  if (await readFile(artworkPresencePath(root), 'utf8') !== discoveryArtworkPresenceJson(catalog)) {
+    throw new Error('Artwork presence index is stale. Regenerate it from the checked-in catalog.');
+  }
   const assets = new Map(catalog.items.flatMap(({ artwork }) => artwork ? [[artwork.src, artwork] as const] : []));
   let localBytes = 0;
   for (const [src, artwork] of assets) {
@@ -573,6 +578,7 @@ export async function writeSnapshot(
     }
     await writeFile(stagedManifest, manifest, { flag: 'wx' });
     await rename(stagedManifest, path.join(manifestDirectory, 'catalog.v1.json'));
+    await writeArtworkPresence(validated, root);
   } finally { await rm(stagedManifest, { force: true }); }
 }
 

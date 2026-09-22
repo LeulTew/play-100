@@ -9,9 +9,16 @@ import { cloudAuth, cloudDb } from './firebase-client';
 import { onlineError } from './errors';
 
 type Block = 'transient' | 'quota' | 'terminal' | 'conflict' | 'revoked' | null;
+interface LifetimeIdentity {
+  scope: LibraryScope | null; enabled: boolean; epoch: number; verified: boolean; initialProbe: boolean; authGeneration: number;
+}
 interface Lifetime {
+  identity: LifetimeIdentity;
   active: boolean; block: Block; queue: SyncWorkQueue | null;
   detach: () => void; restart: () => void; watchAlive: boolean; initialChecked: boolean;
+}
+function createSyncLifetime(identity: LifetimeIdentity): Lifetime {
+  return { identity, active: false, block: null, queue: null, detach: () => {}, restart: () => {}, watchAlive: false, initialChecked: false };
 }
 const hardBlocked = (block: Block) => block === 'terminal' || block === 'conflict' || block === 'revoked';
 
@@ -20,7 +27,8 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
   const enabled = Boolean(snapshot?.sync.enabled && verified);
   const initialProbe = Boolean(verified && isInitialAccountCache(snapshot) && restoreInitial);
   const epoch = snapshot?.sync.epoch ?? 0;
-  const lifetime = useMemo<Lifetime>(() => ({ active: false, block: null, queue: null, detach: () => {}, restart: () => {}, watchAlive: false, initialChecked: false }), [scope, enabled, epoch, verified, initialProbe, authGeneration]);
+  // A fresh lease invalidates pending work when ownership or consent changes, not on ordinary data edits.
+  const lifetime = useMemo(() => createSyncLifetime({ scope, enabled, epoch, verified, initialProbe, authGeneration }), [scope, enabled, epoch, verified, initialProbe, authGeneration]);
   const [initialCheck, setInitialCheck] = useState<{ lifetime: Lifetime; pending: boolean } | null>(null);
   const initialWork = useRef(restoreInitial);
   initialWork.current = restoreInitial;
@@ -38,7 +46,7 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
   const snapshotNow = useRef(snapshot);
   const latestRemote = useRef<SyncHead | null>(null);
   scopeNow.current = scope; snapshotNow.current = snapshot;
-  const owns = useCallback(() => Boolean(lifetime.active && scope && scopeNow.current === scope && cloudAuth.currentUser?.uid === scopeUid(scope)), [lifetime, scope]);
+  const owns = useCallback(() => Boolean(lifetime.active && scope && scopeNow.current === lifetime.identity.scope && cloudAuth.currentUser?.uid === scopeUid(scope)), [lifetime, scope]);
 
   const failed = useCallback((cause: unknown) => {
     if (!owns() || lifetime.block === 'revoked') return;
@@ -145,10 +153,11 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
       if (owns()) {
         try {
           const after = await loadScopedLibrary(scope);
-          if (!owns() || !after.sync.enabled) return;
-          const observed = latestRemote.current;
-          if (observed && (observed.epoch !== after.sync.epoch || observed.revision > after.sync.baseRemoteRevision)) await receive(observed);
-          if (!hardBlocked(lifetime.block) && after.sync.dirty) lifetime.queue?.request(2500);
+          if (owns() && after.sync.enabled) {
+            const observed = latestRemote.current;
+            if (observed && (observed.epoch !== after.sync.epoch || observed.revision > after.sync.baseRemoteRevision)) await receive(observed);
+            if (!hardBlocked(lifetime.block) && after.sync.dirty) lifetime.queue?.request(2500);
+          }
         } catch (cause) { failed(cause); }
       }
     }

@@ -157,6 +157,7 @@ describe('canonical friendship requests and private relationship metadata', () =
     await expect(a.store.respond(a.uid, b.uid, 'cancel', pair.epoch - 1)).rejects.toThrow(/changed/);
     pair = await a.store.sendRequest(a.uid, b.uid);
     pair = await a.store.respond(a.uid, b.uid, 'cancel', pair.epoch);
+    expect(pair.state).toBe('cancelled');
     pair = await connect(a, b);
     pair = await b.store.respond(b.uid, a.uid, 'remove', pair.epoch);
     expect(pair.state).toBe('removed');

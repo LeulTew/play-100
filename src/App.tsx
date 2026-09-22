@@ -29,6 +29,7 @@ import { CompareDragHandle, CompareTray, CompareTrayProvider, useCompareTray } f
 import { useDiscoveryCatalog } from './hooks/useDiscoveryCatalog';
 import { indexDiscoveryArtwork } from './lib/discovery-catalog';
 import type { CatalogArtwork } from './lib/discovery-catalog';
+import { EMPTY_DISCOVERY_ARTWORK, hasKnownDiscoveryArtwork } from './lib/discovery-artwork-presence';
 import { createComparisonGameFilter, rememberComparisonGameFilter } from './lib/comparison-game-filter';
 import { comparisonScope, initialComparison, readComparisonView, rememberComparisonView } from './lib/friend-comparison-intent';
 import type { PreviewAuthority } from './lib/preview-authority';
@@ -48,18 +49,23 @@ const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game'
 const noPreviewSubscription = () => () => {};
 interface PreviewedRecord { record: LibraryRecord; authority?: PreviewAuthority }
 
-function CompareTrayBindings({ needsArtwork, previewId, onResolvePreview, children }: {
+function CompareTrayBindings({ needsArtwork, previewId, resolvedRecordId, onResolvePreview, children }: {
   needsArtwork: boolean;
+  resolvedRecordId: string | null;
   previewId: string | null; onResolvePreview: (record: LibraryRecord) => void;
   children: (tray: ReturnType<typeof useCompareTray>, artwork: ReadonlyMap<string, CatalogArtwork>, previewLoading: boolean) => ReactNode;
 }) {
   const tray = useCompareTray();
   const publicPreview = Boolean(previewId && /^(wikidata:Q[1-9]\d*|freetogame:[1-9]\d*)$/.test(previewId));
-  const catalog = useDiscoveryCatalog(needsArtwork || publicPreview || tray.items.some((record) => record.source !== 'collection'));
-  const artwork = useMemo(() => catalog.catalog ? indexDiscoveryArtwork(catalog.catalog) : new Map<string, CatalogArtwork>(), [catalog.catalog]);
-  const record = tray.items.find((item) => item.id === previewId) ?? catalog.catalog?.items.find((item) => item.record.id === previewId)?.record;
+  const trayRecord = tray.items.find((item) => item.id === previewId);
+  const knownRecordId = resolvedRecordId ?? trayRecord?.id;
+  const catalog = useDiscoveryCatalog(needsArtwork || publicPreview && !knownRecordId ||
+    Boolean(knownRecordId && hasKnownDiscoveryArtwork(knownRecordId)) || tray.items.some(record => hasKnownDiscoveryArtwork(record.id)));
+  const artwork = useMemo(() => catalog.catalog ? indexDiscoveryArtwork(catalog.catalog) : EMPTY_DISCOVERY_ARTWORK, [catalog.catalog]);
+  // Resolved identity controls loading, never replacement preview metadata.
+  const record = resolvedRecordId ? undefined : trayRecord ?? catalog.catalog?.items.find((item) => item.record.id === previewId)?.record;
   useEffect(() => { if (record) onResolvePreview(record); }, [record, onResolvePreview]);
-  return children(tray, artwork, publicPreview && !record && (catalog.status === 'idle' || catalog.status === 'loading'));
+  return children(tray, artwork, publicPreview && !knownRecordId && !record && (catalog.status === 'idle' || catalog.status === 'loading'));
 }
 
 function actionMessage(action: PersonalAction): string {
@@ -327,7 +333,7 @@ export default function App() {
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
     <AppMotionBindings mainRef={mainRef} page={page} boundary={motionBoundary} motionLocation={motionLocation} navigation={navigationGeneration} blocked={motionBlocked} onOpen={openGame} preparePreview={preparePreview}>
     {({ openCollection, preview, previewFromDiscover, origin, interaction }) => (
-    <CompareTrayProvider scope={libraryScope} interaction={interaction}><CompareTrayBindings needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)} previewId={selectedSlug} onResolvePreview={rememberPreview}>{(tray, artwork, previewLoading) => {
+    <CompareTrayProvider scope={libraryScope} interaction={interaction}><CompareTrayBindings needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)} previewId={transientPreview?.authority ? null : selectedSlug} resolvedRecordId={selectedRecord?.id ?? null} onResolvePreview={rememberPreview}>{(tray, artwork, previewLoading) => {
       const pinnedIds = catalogPinnedIds(tray.items);
       const pin = (record: LibraryRecord) => {
         if (onlineOpening || activeScope.current !== libraryScope) { notify('Wait for the correct account before pinning a game.'); return false; }

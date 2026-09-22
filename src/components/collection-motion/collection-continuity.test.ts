@@ -80,6 +80,27 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('We preserve all three rather than infer a release or edition.');
   });
 
+  it.each([1, 2, 100])('puts the complete original rationale before bookkeeping for rank %i', rank => {
+    const game = gameAt(rank);
+    const html = renderToStaticMarkup(h(GameDetail, {
+      game, state: undefined, previous: undefined, next: undefined,
+      onClose: vi.fn(), onOpen: vi.fn(), onToggle: vi.fn(), onShare: vi.fn(),
+      shareFeedback: '', personalRating: null, onRate: vi.fn(async () => true),
+      savedCopies: h('p', null, 'Existing saved copies'),
+    }));
+    const rationale = renderToStaticMarkup(h('p', { className: 'rationale' }, game.rationale));
+    expect(html).toContain(rationale);
+    expect(html.match(/Why it made the list/g)).toHaveLength(1);
+    expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Existing saved copies'));
+    expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Play later'));
+    expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Your rating for'));
+    if (game.sourceNote) {
+      const note = renderToStaticMarkup(h('p', null, h('strong', null, 'From the source workbook'), h('br'), game.sourceNote));
+      expect(html).toContain(note);
+      expect(html.indexOf(note)).toBeLessThan(html.indexOf('Existing saved copies'));
+    }
+  });
+
   it('passes an owned provider action record to the card adapter without changing public identity or using storage busy as a gate', () => {
     const game = gameAt(1);
     const owned: LibraryRecord = {

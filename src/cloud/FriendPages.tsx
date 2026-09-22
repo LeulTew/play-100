@@ -21,28 +21,8 @@ import { DataUseLink } from '../components/DataUseLink';
 import { FriendShelfStore } from './friend-shelf-store';
 import { useFriendSharedView } from './useFriendSharedView';
 import { parseFriendAllRankingEntry, recordFromFriendAll } from '../lib/friend-all';
-
-export function navigateFriend(uid: string) {
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) throw new Error('This player link is invalid.');
-  history.pushState(null, '', `/friends/${uid}`); window.dispatchEvent(new PopStateEvent('popstate')); window.scrollTo({ top: 0 });
-}
-export type OwnFriendIdentity = { uid: string; verified: boolean; displayName: string; avatar: FriendIdentity['avatar'] };
-export async function prepareFriendIdentity(store: FriendStore, identity: OwnFriendIdentity): Promise<FriendSettings> {
-  if (!identity.verified || cloudAuth.currentUser?.uid !== identity.uid) throw new Error('Verify your signed-in account before continuing.');
-  const [settings, previous] = await Promise.all([
-    store.settings(identity.uid).then((existing) => {
-      if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed. Review before continuing.');
-      return existing ?? store.initialize(identity.uid);
-    }),
-    store.identity(identity.uid),
-  ]);
-  if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed. Review before continuing.');
-  if (settings.deleted) throw new Error('This account is being deleted.');
-  if (!previous || previous.displayName !== identity.displayName || JSON.stringify(previous.avatar) !== JSON.stringify(identity.avatar)) {
-    await store.saveIdentity(identity.uid, { displayName: identity.displayName, avatar: identity.avatar }, previous?.revision ?? 0);
-  }
-  return settings;
-}
+import { prepareFriendIdentity } from './friend-page-actions';
+import type { OwnFriendIdentity } from './friend-page-actions';
 
 export function InvitationPage({ store, invitation, identity, authPanel, onAccount, onFriends, onSettings }: {
   store: FriendStore; invitation: { capability: string | null; error: string }; identity: OwnFriendIdentity | null;
@@ -200,7 +180,7 @@ export function FriendSharingPage({ store, identity, settings, ownState, connect
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const rows = projectOwnRanking(ownState, games);
-  useEffect(() => { if (!edited) setSelected(new Set(settings?.selectedIds ?? [])); }, [settings?.revision, edited]);
+  useEffect(() => { if (!edited) setSelected(new Set(settings?.selectedIds ?? [])); }, [settings?.revision, settings?.selectedIds, edited]);
   const [refreshRequired, setRefreshRequired] = useState(false);
   const confirmedSelection = useRef<{ revision: number; epoch: number; ids: string[]; sourceRevision: number } | null>(null);
   const saving = useRef(false);

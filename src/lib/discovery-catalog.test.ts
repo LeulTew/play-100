@@ -32,6 +32,18 @@ function fixture(): DiscoveryCatalog {
 }
 
 describe('discovery catalog boundary', () => {
+  it('rejects exactly ASCII controls in catalog text without trimming them away', () => {
+    for (const code of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
+      const catalog = fixture();
+      catalog.items[0]!.aliases = [`${String.fromCharCode(code)}Alias`];
+      expect(() => parseDiscoveryCatalog(catalog)).toThrow();
+    }
+    for (const code of [32, 126, 128, 159, 160, 256, 287, 383, 0x2028, 0x2029, 0x1f600]) {
+      const catalog = fixture();
+      catalog.items[0]!.aliases = [`Alias${String.fromCodePoint(code)}name`];
+      expect(parseDiscoveryCatalog(catalog).items[0]!.aliases).toEqual(catalog.items[0]!.aliases);
+    }
+  });
   it('preserves the strict image-free personal record and indexes only exact IDs', () => {
     const catalog = fixture();
     catalog.items[0]!.artwork = artwork;
