@@ -369,6 +369,8 @@ visibly labelled **Compare rankings / with friends**, matching the accessible
 name **Compare rankings with friends**. Sheet actions may wrap without changing
 their purpose or order. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
+Primary mobile navigation labels use 12px while retaining the existing
+48px minimum target width, navigation height, spacing and safe-area padding.
 An active notification clears the measured tray, including its error and
 storage marker, instead of covering Compare. Empty transient drag targets add
 no page spacer. Explicit Explore and same-page The 100 navigation use one
