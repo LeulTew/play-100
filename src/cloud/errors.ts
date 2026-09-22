@@ -5,6 +5,7 @@ export function onlineError(error: unknown): string {
     'auth/invalid-email': 'Enter a valid email address.',
     'auth/email-already-in-use': 'This email already has an account. Sign in instead, or use its existing provider.',
     'auth/weak-password': 'Choose a longer password or passphrase.',
+    'auth/password-does-not-meet-requirements': 'Choose a password or passphrase with at least 12 characters.',
     'auth/too-many-requests': 'Too many attempts. Wait a little before trying again.',
     'auth/network-request-failed': 'The sign-in service could not be reached. Check your connection and try again.',
     'auth/popup-blocked': 'Google could not open a separate window. Continue with Google in this tab, or use email.',

@@ -665,6 +665,13 @@ certification follows from the feature allowance.
 
 ## Deploy to Vercel
 
+`npm run build` checks both the browser app and the API dependency graph.
+The root TypeScript options explicitly use strict NodeNext/ES2022 for Vercel
+Functions; `tsconfig.functions.json` also checks that graph locally. Vercel's
+function compiler does not follow TypeScript project references, so a passing
+Vite build or a deployment marked Ready is not sufficient: review client and
+function compilation before promotion.
+
 This is a standalone project. Do not link it to an unrelated existing Vercel
 project. The authorized environment used for publication is Ubuntu-24.04 WSL,
 fish and the existing Vercel CLI login via `npx`.

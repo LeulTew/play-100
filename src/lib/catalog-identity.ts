@@ -1,8 +1,8 @@
-import { COLLECTION_IDENTITIES } from './collection-identities';
-import type { CatalogArtwork, DiscoveryItem } from './discovery-catalog';
-import type { GameSource, LibraryRecord, PersonalLibraryState } from './personal-types';
-import { recordFromGame } from './personal-types';
-import type { Game } from './types';
+import { COLLECTION_IDENTITIES } from './collection-identities.js';
+import type { CatalogArtwork, DiscoveryItem } from './discovery-catalog.js';
+import type { GameSource, LibraryRecord, PersonalLibraryState } from './personal-types.js';
+import { recordFromGame } from './personal-types.js';
+import type { Game } from './types.js';
 
 const providerSlugs: ReadonlyMap<string, string> = new Map(COLLECTION_IDENTITIES.map(([slug, id]) => [`wikidata:${id}`, slug]));
 const mappedSlugs = new Set<string>(COLLECTION_IDENTITIES.map(([slug]) => slug));

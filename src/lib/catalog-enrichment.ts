@@ -1,7 +1,7 @@
-import { hasAsciiControl } from './text-controls';
-import { enrichmentIdentity } from './catalog-enrichment-identity';
-export { enrichmentIdentity } from './catalog-enrichment-identity';
-export type { PublicCatalogIdentity } from './catalog-enrichment-identity';
+import { hasAsciiControl } from './text-controls.js';
+import { enrichmentIdentity } from './catalog-enrichment-identity.js';
+export { enrichmentIdentity } from './catalog-enrichment-identity.js';
+export type { PublicCatalogIdentity } from './catalog-enrichment-identity.js';
 
 export const ENRICHMENT_LIMITS = {
   responseBytes: 192 * 1024, ratings: 24, platforms: 8, cacheEntries: 24, cacheMs: 30 * 60_000,

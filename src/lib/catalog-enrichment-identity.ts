@@ -1,4 +1,4 @@
-import { canonicalCatalogId } from './catalog-identity';
+import { canonicalCatalogId } from './catalog-identity.js';
 
 export interface PublicCatalogIdentity {
   id: string;

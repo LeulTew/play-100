@@ -1,6 +1,6 @@
-import type { LibraryRecord } from './personal-types';
-import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
-import { hasAsciiControl } from './text-controls';
+import type { LibraryRecord } from './personal-types.js';
+import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library.js';
+import { hasAsciiControl } from './text-controls.js';
 
 export const DISCOVERY_CATALOG_URL = '/data/discovery/catalog.v1.json';
 export const DISCOVERY_LIMITS = {

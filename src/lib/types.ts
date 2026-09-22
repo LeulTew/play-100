@@ -63,7 +63,7 @@ export interface Filters {
   direction: SortDirection;
   view: ViewMode;
   catalogs: 'on' | 'off';
-  progress?: import('./game-progress').ProgressFilter;
+  progress?: import('./game-progress.js').ProgressFilter;
 }
 
 export interface GameProgress {

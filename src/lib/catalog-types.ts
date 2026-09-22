@@ -1,5 +1,5 @@
-import type { LibraryRecord } from './personal-types';
-import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
+import type { LibraryRecord } from './personal-types.js';
+import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library.js';
 
 export type CatalogSource = 'wikidata' | 'freetogame';
 

@@ -1,4 +1,4 @@
-import type { Game, MotionPreference } from './types';
+import type { Game, MotionPreference } from './types.js';
 
 export type GameSource = 'collection' | 'steam' | 'wikidata' | 'freetogame' | 'manual';
 

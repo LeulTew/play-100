@@ -1,5 +1,5 @@
-import artworkIds from './discovery-artwork-ids.json';
-import type { CatalogArtwork } from './discovery-catalog';
+import artworkIds from './discovery-artwork-ids.json' with { type: 'json' };
+import type { CatalogArtwork } from './discovery-catalog.js';
 
 const knownArtworkIds: ReadonlySet<string> = new Set(artworkIds);
 export const EMPTY_DISCOVERY_ARTWORK: ReadonlyMap<string, CatalogArtwork> = new Map();

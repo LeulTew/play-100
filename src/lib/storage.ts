@@ -1,4 +1,4 @@
-import type { LibraryState, Progress } from './types';
+import type { LibraryState, Progress } from './types.js';
 
 export const STORAGE_KEY = 'play100.library.v1';
 export const emptyLibrary = (): LibraryState => ({ version: 1, progress: {}, motion: 'auto' });

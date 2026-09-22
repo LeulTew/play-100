@@ -1,4 +1,4 @@
-import type { PersonalRanking } from './personal-types';
+import type { PersonalRanking } from './personal-types.js';
 
 export function orderByRating(entries: readonly PersonalRanking[]): PersonalRanking[] {
   const fixed = new Map<number, PersonalRanking>();

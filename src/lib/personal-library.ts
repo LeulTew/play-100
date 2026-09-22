@@ -1,10 +1,10 @@
 import type {
   GameSource, LibraryBackup, LibraryRecord, PersonalAction, PersonalLibraryState,
   PersonalProgress, PersonalRanking,
-} from './personal-types';
-import { parseLibrary } from './storage';
-import type { MotionPreference } from './types';
-import { orderByRating, retainManualPositions } from './ranking-order';
+} from './personal-types.js';
+import { parseLibrary } from './storage.js';
+import type { MotionPreference } from './types.js';
+import { orderByRating, retainManualPositions } from './ranking-order.js';
 
 const MAX_RECORDS = 10_000;
 const forbiddenKeys = new Set(['__proto__', 'constructor', 'prototype']);

@@ -1,5 +1,5 @@
-import type { Filters } from './types';
-import type { LibraryRecord, PersonalAction, PersonalProgress } from './personal-types';
+import type { Filters } from './types.js';
+import type { LibraryRecord, PersonalAction, PersonalProgress } from './personal-types.js';
 
 export type ProgressFilter = 'all' | 'not-played' | 'unfinished' | 'completed' | 'any-played' | 'not-completed';
 export const progressFilters: readonly ProgressFilter[] = ['all', 'not-played', 'unfinished', 'completed', 'any-played', 'not-completed'];
