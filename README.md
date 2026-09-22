@@ -540,7 +540,8 @@ physical-device, Safari or native-hidden-window certification.
 <details>
 <summary>Measured scope and retained limitation</summary>
 
-- Complete eager JavaScript plus CSS grew from 163,283 to 165,322 gzip bytes:
+- On the retained `94c6fe9` measurement build, complete eager JavaScript plus CSS
+  grew from 163,283 to 165,322 gzip bytes:
   +2,039 bytes (+1.25%), within the unchanged 8,164.15-byte limit. All four
   declared observed-cold route/profile cells met their own limits, with three
   consistent request sets per build/cell. The only observed non-code raw-byte

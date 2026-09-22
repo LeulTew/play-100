@@ -12,6 +12,8 @@ interface DragFixture {
   opens: number;
   nested: number;
   transfer: { types: string[]; values: Record<string, string> } | null;
+  pointerId: number | null;
+  captureLosses: { targetIsGrip: boolean; gripHasCapture: boolean }[];
   items(): string[];
   status(): string;
   setScope(scope: string): void;
@@ -63,7 +65,7 @@ const record = {
 let scope = 'guest', generation = 0, enabled = true, sourceVisible = true, dockHidden = false, animate = false, modal = false;
 const root = createRoot(document.getElementById('mount'));
 window.compareDragTest = {
-  opens:0, nested:0, transfer:null, items:() => [], status:() => '',
+  opens:0, nested:0, transfer:null, pointerId:null, captureLosses:[], items:() => [], status:() => '',
   setScope(next) { generation += 1; scope = next; render(); },
   setEnabled(next) { generation += 1; enabled = next; render(); },
   setSource(next) { sourceVisible = next; render(); },
@@ -406,6 +408,74 @@ describe('Compare source browser contract', () => {
       await page.locator('.compare-drag-handle').tap();
       await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toHaveLength(1);
     } finally { await cdp.detach(); }
+  });
+
+  it.each(['drop', 'owned capture loss'] as const)('native nested-grip capture preserves SVG transfer before %s', async outcome => {
+    await context.close();
+    await openFixture(true, 393);
+    const grip = page.locator('.compare-drag-handle');
+    await grip.scrollIntoViewIfNeeded();
+    const icon = grip.locator('svg');
+    const box = await icon.boundingBox();
+    if (!box) throw new Error('The actual nested grip icon is missing.');
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    expect(await icon.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), { x, y })).toBe(true);
+    await page.evaluate(() => {
+      const button = document.querySelector<HTMLButtonElement>('.compare-drag-handle');
+      if (!button) throw new Error('The actual capture-owning button is missing.');
+      button.addEventListener('pointerdown', event => { window.compareDragTest.pointerId = event.pointerId; }, { once: true });
+      document.addEventListener('lostpointercapture', event => {
+        if (event.composedPath().includes(button)) window.compareDragTest.captureLosses.push({
+          targetIsGrip: event.target === button,
+          gripHasCapture: button.hasPointerCapture(event.pointerId),
+        });
+      }, true);
+    });
+    const cdp = await context.newCDPSession(page);
+    let held = false;
+    try {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      held = true;
+      await page.waitForTimeout(310);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 24, y: y + 24 }] });
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 30, y: y + 30 }] });
+      await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.captureLosses)).toContainEqual({
+        targetIsGrip: false, gripHasCapture: true,
+      });
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1, { timeout: 1_500 });
+      if (outcome === 'owned capture loss') {
+        await grip.evaluate(button => {
+          const id = window.compareDragTest.pointerId;
+          if (id === null || !button.hasPointerCapture(id)) throw new Error('The grip does not own the native pointer.');
+          button.releasePointerCapture(id);
+        });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 34, y: y + 34 }] });
+        await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
+        expect(await page.evaluate(() => window.compareDragTest.captureLosses)).toContainEqual({
+          targetIsGrip: true, gripHasCapture: false,
+        });
+        expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+      } else {
+        const dock = await page.locator('.compare-tray-dock').boundingBox();
+        if (!dock) throw new Error('The owned touch drop target is missing.');
+        const endX = dock.x + dock.width / 2, endY = dock.y + dock.height / 2;
+        for (let step = 1; step <= 8; step++) await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove', touchPoints: [{ x: x + 30 + (endX - x - 30) * step / 8, y: y + 30 + (endY - y - 30) * step / 8 }],
+        });
+        await browserExpect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compare-drop-ready', 'true');
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        held = false;
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+        await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
+      }
+      expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
+      await browserExpect(page.locator('#note')).toHaveValue('Keep this private draft');
+    } finally {
+      try {
+        if (held) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      } finally { await cdp.detach(); }
+    }
   });
 
   it('performs the bounded broad-touch hold experiment with real touch input and the same token drop', async () => {

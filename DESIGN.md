@@ -342,6 +342,9 @@ collection toolbar or change the source layout; real pins and storage messages
 retain their existing mobile clearance, including while another drag is active.
 Normal scrolling and selection win before touch ownership. The visible 44px
 grip and Pin remain alternatives, not evidence of broad-touch support.
+Transferring native implicit capture from a grip's nested icon to its button
+does not end the drag. Capture-loss cancellation belongs to that button and
+the active pointer, not to bubbled events from descendants.
 
 The six-game comparison tray keeps identities and actions ahead of long artwork
 attribution. The tray and catalog detail use the native Artwork credits

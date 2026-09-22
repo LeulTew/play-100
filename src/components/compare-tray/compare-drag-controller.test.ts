@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMPARE_CLICK_TAIL_MS, COMPARE_TOUCH_HOLD_MS, COMPARE_TOUCH_SLOP, matchesCompareClick } from './compare-drag-controller';
+import { COMPARE_CLICK_TAIL_MS, COMPARE_TOUCH_HOLD_MS, COMPARE_TOUCH_SLOP, matchesCompareClick, ownsCompareCaptureLoss } from './compare-drag-controller';
 import type { CompareClickTail } from './compare-drag-controller';
 
 const click = {
@@ -7,6 +7,17 @@ const click = {
   altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
 };
 const tail: CompareClickTail = { x: 120, y: 240, pointerId: 1, until: 1_000 + COMPARE_CLICK_TAIL_MS };
+
+describe('Compare pointer capture ownership', () => {
+  it('accepts only capture loss from the owned node and pointer, never a descendant or unrelated pointer', () => {
+    const grip = new EventTarget();
+    const descendant = new EventTarget();
+    expect(ownsCompareCaptureLoss({ target: grip, pointerId: 7 }, grip, 7)).toBe(true);
+    expect(ownsCompareCaptureLoss({ target: descendant, pointerId: 7 }, grip, 7)).toBe(false);
+    expect(ownsCompareCaptureLoss({ target: grip, pointerId: 8 }, grip, 7)).toBe(false);
+    expect(ownsCompareCaptureLoss({ target: null, pointerId: 7 }, grip, 7)).toBe(false);
+  });
+});
 
 describe('Compare terminal click matching', () => {
   it('matches only the terminating pointer at the release position and bounded time', () => {

@@ -20,6 +20,10 @@ export function matchesCompareClick(event: ClickInput, tail: CompareClickTail | 
     Math.hypot(event.clientX - tail.x, event.clientY - tail.y) <= COMPARE_TOUCH_SLOP);
 }
 
+export function ownsCompareCaptureLoss(event: Pick<PointerEvent, 'target' | 'pointerId'>, node: EventTarget, pointerId: number): boolean {
+  return event.target === node && event.pointerId === pointerId;
+}
+
 export interface CompareSource {
   read(): { node: HTMLElement | null; record: LibraryRecord | undefined; disabled: boolean };
 }
@@ -280,7 +284,10 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
           return;
         }
         const id = gesture.pointerId;
-        const lost = () => { if (active === gesture) cancel(false); };
+        const lost = (event: PointerEvent) => {
+          // A descendant's implicit-capture transfer also bubbles through the grip.
+          if (active === gesture && ownsCompareCaptureLoss(event, gesture.node, id)) cancel(false);
+        };
         gesture.node.addEventListener('lostpointercapture', lost);
         gesture.cleanups.push(() => {
           gesture.node.removeEventListener('lostpointercapture', lost);
