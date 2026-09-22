@@ -15,6 +15,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -55,6 +56,71 @@ describe('same-origin catalog API boundary', () => {
     expect(body).not.toHaveProperty('items');
     expect(body.code).toBe(status === 429 ? 'rate-limited' : 'unavailable');
     if (status === 429) expect(response.headers.get('retry-after')).toBe('3');
+  });
+  it.each([400, 500, 503])('cancels the owned upstream HTTP%s error body without reading it', async status => {
+    const cancel = vi.fn(async () => undefined);
+    const stream = new ReadableStream<Uint8Array>({ cancel });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status })));
+    const response = await nativeFetch(`${base}/api/catalog?q=ErrorBody`);
+    expect(response.status).toBe(503);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining(`unavailable (${status})`), code: 'unavailable' });
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+  it.each([429, 503])('preserves the original HTTP%s response when cancellation rejects and logs no upstream details', async status => {
+    const cancel = vi.fn(async () => { throw new Error('private-query-token-must-not-be-logged'); });
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new ReadableStream<Uint8Array>({ cancel }), {
+      status, headers: { 'Retry-After': '3' },
+    })));
+    const response = await nativeFetch(`${base}/api/catalog?q=PrivateQueryMustNotBeLogged`);
+    expect(response.status).toBe(status);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({
+      error: expect.stringMatching(status === 429 ? /rate-limiting requests/ : /unavailable \(503\)/),
+      code: status === 429 ? 'rate-limited' : 'unavailable',
+    });
+    if (status === 429) expect(response.headers.get('retry-after')).toBe('3');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(warning).toHaveBeenCalledExactlyOnceWith('Catalog upstream response cleanup failed.', { status });
+    expect(JSON.stringify(warning.mock.calls)).not.toContain('private-query-token');
+    expect(JSON.stringify(warning.mock.calls)).not.toContain('PrivateQuery');
+  });
+  it.each(['wikidata', 'freetogame'] as const)('uses only the fixed %s upstream with redirect rejection', async source => {
+    const body = source === 'wikidata' ? { query: { search: [], searchinfo: { totalhits: 0 } } } : [];
+    const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify(body)));
+    vi.stubGlobal('fetch', upstream);
+    const response = await nativeFetch(`${base}/api/catalog?${new URLSearchParams({ source, q: 'https://private.invalid/' })}`);
+    expect(response.status).toBe(200);
+    expect(upstream).toHaveBeenCalledOnce();
+    const [raw, options] = upstream.mock.calls[0]!;
+    const url = new URL(raw);
+    expect(url.origin).toBe(source === 'wikidata' ? 'https://www.wikidata.org' : 'https://www.freetogame.com');
+    expect(url.pathname).toBe(source === 'wikidata' ? '/w/api.php' : '/api/games');
+    expect(options.redirect).toBe('error');
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect(url.username).toBe('');
+    expect(url.password).toBe('');
+  });
+  it('accepts an exactly4MiB streamed response and cancels4MiB plus one without caching an error', async () => {
+    const limit = 4 * 1024 * 1024;
+    const valid = JSON.stringify({ query: { search: [], searchinfo: { totalhits: 0 } } });
+    const exact = valid + ' '.repeat(limit - valid.length);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(exact)));
+    const accepted = await nativeFetch(`${base}/api/catalog?q=ExactLimit`);
+    expect(accepted.status).toBe(200);
+    expect((await accepted.json()).items).toEqual([]);
+    const cancel = vi.fn(async () => undefined);
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new Uint8Array(limit + 1)); },
+      cancel,
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(stream)));
+    const rejected = await nativeFetch(`${base}/api/catalog?q=OverLimit`);
+    expect(rejected.status).toBe(502);
+    expect(rejected.headers.get('cache-control')).toBe('no-store');
+    expect(await rejected.json()).toMatchObject({ error: expect.stringContaining('too large'), code: 'unavailable' });
+    expect(cancel).toHaveBeenCalledOnce();
   });
   it('reports network failures without caching them', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Network unreachable')));

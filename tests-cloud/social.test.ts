@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { initializeTestEnvironment, assertFails } from '@firebase/rules-unit-testing';
+import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { initializeApp, deleteApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
@@ -95,6 +95,35 @@ describe('consented public snapshots, handle claims and moderation', () => {
     await assertFails(setDoc(ref, { epoch: 0, count: 1, uploaded: 1, status: 'ready', createdAt: serverTimestamp() }));
     await assertFails(owner.social.publish(owner.uid, { ...publication('fake_owner'), creator: true }, control));
     expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
+  });
+  it.each([2048, 2049])('enforces new public source URL boundary%s through a direct SDK write', async length => {
+    const owner = await client();
+    const prefix = 'https://www.freetogame.com/';
+    const row: PublicEntry = { ...entry, id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: prefix + 'a'.repeat(length - prefix.length) };
+    await setDoc(doc(owner.db, 'publicControls', owner.uid), control);
+    const ref = doc(owner.db, 'publicProfiles', owner.uid, 'generations', crypto.randomUUID());
+    await setDoc(ref, { epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp() });
+    const batch = writeBatch(owner.db);
+    batch.set(doc(ref, 'entries', '1'), row);
+    batch.update(ref, { uploaded: 1, status: 'ready' });
+    if (length === 2048) await assertSucceeds(batch.commit());
+    else await assertFails(batch.commit());
+    expect((await getDocFromServer(ref)).data()?.uploaded).toBe(length === 2048 ? 1 : 0);
+  });
+  it('keeps historical oversized public source links readable but rejects a new publication without changing stored rows', async () => {
+    const owner = await client(); const guest = await client(true);
+    const prefix = 'https://www.freetogame.com/';
+    const allowed: PublicEntry = { ...entry, id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: prefix + 'a'.repeat(2048 - prefix.length) };
+    const old = { ...allowed, sourceUrl: prefix + 'a'.repeat(2049 - prefix.length) };
+    const profile = await owner.social.publish(owner.uid, publication('historical_link', false, [allowed]), control);
+    const path = `publicProfiles/${owner.uid}/generations/${profile.generation}/entries/1`;
+    await environment.withSecurityRulesDisabled(async context => { await context.firestore().doc(path).set(old); });
+    expect(await guest.social.entries(profile)).toEqual([old]);
+    const before = await owner.social.control(owner.uid);
+    await expect(owner.social.publish(owner.uid, publication('historical_link', false, [old]), before)).rejects.toThrow(/source link.*2048.*private/i);
+    expect(await owner.social.control(owner.uid)).toEqual(before);
+    expect(await guest.social.entries(profile)).toEqual([old]);
+    await assertFails(setDoc(doc(owner.db, path), allowed));
   });
   it('publishes 200 entries in bounded validated batches and refuses 201', async () => {
     const owner = await client();

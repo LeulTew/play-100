@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
-import { parseAvatar, parsePublicEntry, projectPublicRanking } from './community';
+import { parseAvatar, parsePublicationEntry, parsePublicEntry, projectPublicRanking } from './community';
 import type { AvatarValue, PublicEntry } from './community';
 import type { PersonalLibraryState } from './personal-types';
 import type { Game } from './types';
@@ -200,7 +200,7 @@ export function parseFriendSlot(value: unknown): string {
   return friendToken(object(value, 'token').token);
 }
 export function validateFriendEntries(value: readonly PublicEntry[], selectedIds: readonly string[]): PublicEntry[] {
-  const selected = new Set(friendSelection(selectedIds)); const entries = value.map(parsePublicEntry);
+  const selected = new Set(friendSelection(selectedIds)); const entries = value.map(parsePublicationEntry);
   if (entries.length > 200 || new Set(entries.map((entry) => entry.id)).size !== entries.length ||
     entries.some((entry, index) => entry.position !== index + 1 || !selected.has(entry.id))) invalid('The selected ranking changed. Review its games and order before sharing.');
   return entries;

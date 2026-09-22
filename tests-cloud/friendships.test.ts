@@ -540,6 +540,56 @@ describe('bounded strict friends-only ranking generations', () => {
       expect((await getDocFromServer(ref)).data()?.uploaded).toBe(chunkIndex + 1);
     }
   }, 60000);
+  it.each([0, 1])('enforces new selected-ranking source URL boundaries in packed position%s through direct SDK writes', async offset => {
+    const owner = await client();
+    const prefix = 'https://www.freetogame.com/';
+    const rows: PublicEntry[] = [
+      { ...entry, position: 1 },
+      { ...entry, position: 2, id: 'wikidata:Q124', sourceId: 'Q124', sourceUrl: 'https://www.wikidata.org/wiki/Q124' },
+    ];
+    const accepted: PublicEntry = { ...entry, position: offset + 1, id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: prefix + 'a'.repeat(2048 - prefix.length) };
+    rows[offset] = accepted;
+    const control = await owner.store.saveSettings(owner.uid, { enabled: true, selectedIds: rows.map(row => row.id) }, await settings(owner));
+    const generation = crypto.randomUUID(), ref = doc(owner.db, 'friendShares', owner.uid, 'generations', generation);
+    const stage = writeBatch(owner.db);
+    stage.set(doc(owner.db, 'friendShareRegistry', owner.uid), { ids: [generation], revision: 1 });
+    stage.set(ref, { epoch: control.epoch, settingsRevision: control.revision, source, count: 2, digest: 'a'.repeat(64),
+      uploaded: 0, ids: [], status: 'staging', createdAt: serverTimestamp() });
+    await assertSucceeds(stage.commit());
+    const put = (entries: PublicEntry[]) => {
+      const batch = writeBatch(owner.db);
+      batch.set(doc(ref, 'chunks', '0'), { index: 0, entries, ids: rows.map(row => row.id) });
+      batch.update(ref, { uploaded: 1, ids: rows.map(row => row.id), status: 'ready' });
+      return batch.commit();
+    };
+    await assertFails(put(rows.map((row, index) => index === offset ? { ...row, sourceUrl: prefix + 'a'.repeat(2049 - prefix.length) } : row)));
+    expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
+    await assertSucceeds(put(rows));
+    expect((await getDocFromServer(ref)).data()?.uploaded).toBe(1);
+  });
+  it('keeps historical oversized selected-ranking links readable by an accepted friend without allowing republishing', async () => {
+    const owner = await client(), friend = await client();
+    await connect(owner, friend);
+    const prefix = 'https://www.freetogame.com/';
+    const allowed: PublicEntry = { ...entry, id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: prefix + 'a'.repeat(2048 - prefix.length) };
+    const old = { ...allowed, sourceUrl: prefix + 'a'.repeat(2049 - prefix.length) };
+    const published = await share(owner, [allowed]);
+    if (!published.head.current) throw new Error('The selected-ranking fixture did not publish.');
+    const generation = published.head.current.generation;
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([old])))),
+      value => value.toString(16).padStart(2, '0')).join('');
+    await environment.withSecurityRulesDisabled(async context => {
+      await context.firestore().doc(`friendShares/${owner.uid}/generations/${generation}/chunks/0`).set({ index: 0, entries: [old], ids: [old.id] });
+      await context.firestore().doc(`friendShares/${owner.uid}/generations/${generation}`).update({ digest });
+      await context.firestore().doc(`friendShareHeads/${owner.uid}`).update({ 'current.digest': digest });
+    });
+    expect((await friend.store.ranking(owner.uid)).entries).toEqual([old]);
+    const before = await owner.store.shareHead(owner.uid);
+    await expect(owner.store.publishRanking(owner.uid, [old], await settings(owner), source, published.head.revision)).rejects.toThrow(/source link.*2048.*private/i);
+    expect(await owner.store.shareHead(owner.uid)).toEqual(before);
+    expect((await friend.store.ranking(owner.uid)).entries).toEqual([old]);
+    await assertFails(setDoc(doc(owner.db, 'friendShares', owner.uid, 'generations', generation, 'chunks', '0'), { index: 0, entries: [allowed], ids: [allowed.id] }));
+  });
   it('rejects duplicate/unselected IDs across chunks and source/settings stale publication', async () => {
     const a = await client();
     const published = await share(a);

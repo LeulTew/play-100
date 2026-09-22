@@ -24,14 +24,22 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+async function cancelUpstreamBody(body: { cancel: () => Promise<void> } | null, status: number): Promise<void> {
+  try { await body?.cancel(); }
+  catch { console.warn('Catalog upstream response cleanup failed.', { status }); }
+}
+
 async function upstreamJson(url: URL | string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }, signal, redirect: 'error' });
   if (response.status === 429) {
-    await response.body?.cancel();
+    await cancelUpstreamBody(response.body, response.status);
     const retryAfter = Math.min(60, Math.max(1, Number(response.headers.get('retry-after')) || 30));
     throw new CatalogError('This catalog is rate-limiting requests. Please wait a moment and try again.', 429, 'rate-limited', retryAfter);
   }
-  if (!response.ok) throw new CatalogError(`The source catalog is unavailable (${response.status}). Try again later or add a game manually.`, 503);
+  if (!response.ok) {
+    await cancelUpstreamBody(response.body, response.status);
+    throw new CatalogError(`The source catalog is unavailable (${response.status}). Try again later or add a game manually.`, 503);
+  }
   if (!response.body) throw new CatalogError('The catalog returned no data.');
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -42,7 +50,7 @@ async function upstreamJson(url: URL | string, signal: AbortSignal): Promise<unk
       if (result.done) break;
       size += result.value.byteLength;
       if (size > UPSTREAM_LIMIT) {
-        await reader.cancel();
+        await cancelUpstreamBody(reader, response.status);
         throw new CatalogError('The source response was too large to import safely. Try a more specific search.');
       }
       chunks.push(result.value);

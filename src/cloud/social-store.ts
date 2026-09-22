@@ -1,6 +1,6 @@
 import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
-import { normalizeHandle, parseAvatar, parsePublicEntry, PUBLIC_LIMIT } from '../lib/community';
+import { normalizeHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { ensureAccountActivity } from './account-lifecycle';
 
@@ -118,7 +118,7 @@ export class SocialStore {
     const title = input.title.trim();
     if (!displayName || displayName.length > 60 || !title || title.length > 80) throw new Error('Use a name up to 60 characters and a ranking title up to 80.');
     if (!input.entries.length || input.entries.length > PUBLIC_LIMIT) throw new Error('Choose 1-200 games; no entries are automatically omitted.');
-    const entries = input.entries.map(parsePublicEntry);
+    const entries = input.entries.map(parsePublicationEntry);
     if (new Set(entries.map((entry) => entry.id)).size !== entries.length || entries.some((entry, index) => entry.position !== index + 1)) throw new Error('Review the publication order and remove duplicate games.');
     const avatar = parseAvatar(input.avatar);
     await ensureAccountActivity(this.db, uid);

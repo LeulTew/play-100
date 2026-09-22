@@ -230,7 +230,7 @@ service cloud.firestore {
         || (entry.source == 'wikidata' && entry.sourceId.matches('^Q[1-9][0-9]*$') && entry.id == 'wikidata:' + entry.sourceId && entry.sourceUrl == 'https://www.wikidata.org/wiki/' + entry.sourceId)
         || (entry.source == 'steam' && entry.sourceId.matches('^[1-9][0-9]*$') && entry.id == 'steam:' + entry.sourceId && entry.sourceUrl == 'https://store.steampowered.com/app/' + entry.sourceId + '/')
         || (entry.source == 'freetogame' && entry.sourceId.matches('^[1-9][0-9]*$') && entry.id == 'freetogame:' + entry.sourceId
-          && (entry.sourceUrl == null || (entry.sourceUrl is string && entry.sourceUrl.matches('^https://www[.]freetogame[.]com/[a-z0-9/-]+$'))))
+          && (entry.sourceUrl == null || (entry.sourceUrl is string && entry.sourceUrl.size() <= 2048 && entry.sourceUrl.matches('^https://www[.]freetogame[.]com/[a-z0-9/-]+$'))))
         || (entry.source == 'manual' && entry.id == 'manual:' + entry.sourceId && entry.sourceUrl == null);
     }
     function publicEntry(data) {
@@ -681,7 +681,7 @@ service cloud.firestore {
             ? sourceId.matches('^[1-9][0-9]*$') && id == 'steam:' + sourceId && url == 'https://store.steampowered.com/app/' + sourceId + '/'
             : source == 'freetogame'
               ? sourceId.matches('^[1-9][0-9]*$') && id == 'freetogame:' + sourceId
-                && (url == null || (url is string && url.matches('^https://www[.]freetogame[.]com/[a-z0-9/-]+$')))
+                && (url == null || (url is string && url.size() <= 2048 && url.matches('^https://www[.]freetogame[.]com/[a-z0-9/-]+$')))
               : source == 'manual' && id == 'manual:' + sourceId && url == null;
     }
     function fPackedEntry(entry, expectedId, expectedPosition) {

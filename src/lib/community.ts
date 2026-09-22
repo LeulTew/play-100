@@ -6,6 +6,7 @@ import type { AvatarDescriptor } from './avatar';
 export { parseAvatarDescriptor as parseAvatar } from './avatar';
 
 export const PUBLIC_LIMIT = 200;
+export const PUBLIC_SOURCE_URL_LIMIT = 2048;
 export const RESERVED_HANDLES = ['admin', 'administrator', 'creator', 'leul', 'leultew', 'play100', 'play-100', 'support', 'system', 'moderator', 'firebase', 'account', 'community', 'settings', 'official'];
 export type AvatarValue = AvatarDescriptor;
 export interface Member {
@@ -61,7 +62,7 @@ export function projectPublicRanking(state: PersonalLibraryState, selected: Read
     return { position: index + 1, id: record.id, title: record.title, year: record.year, source: record.source, sourceId: record.sourceId, sourceUrl: sourceUrl(record), score: entry.score };
   });
   if (entries.length !== selected.size) throw new Error('Your ranking changed while selecting games. Review the selection before publishing.');
-  return entries;
+  return entries.map(parsePublicationEntry);
 }
 
 export function parsePublicEntry(value: unknown): PublicEntry {
@@ -80,6 +81,14 @@ export function parsePublicEntry(value: unknown): PublicEntry {
     ((record.source === 'freetogame' || record.source === 'steam') && !/^[1-9]\d*$/.test(record.sourceId)) ||
     record.sourceUrl !== sourceUrl(record)) throw new Error('A published game has an unsupported identity or source link.');
   return { position: row.position, id: record.id, title: record.title, year: record.year, source: record.source, sourceId: record.sourceId, sourceUrl: record.sourceUrl, score: row.score };
+}
+
+export function parsePublicationEntry(value: unknown): PublicEntry {
+  const entry = parsePublicEntry(value);
+  if (entry.sourceUrl && entry.sourceUrl.length > PUBLIC_SOURCE_URL_LIMIT) {
+    throw new Error('A selected game has a source link longer than 2048 characters. Correct its link or leave it out before publishing or sharing. Your private library is unchanged.');
+  }
+  return entry;
 }
 
 export function recordFromPublic(value: PublicEntry, games: Game[]): LibraryRecord {
