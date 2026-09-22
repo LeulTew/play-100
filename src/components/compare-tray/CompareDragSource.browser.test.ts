@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import { chromium, expect as browserExpect } from '@playwright/test';
-import type { Browser, BrowserContext, BrowserServer, Page } from '@playwright/test';
+import type { Browser, BrowserContext, BrowserServer, CDPSession, Locator, Page } from '@playwright/test';
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
@@ -12,8 +12,6 @@ interface DragFixture {
   opens: number;
   nested: number;
   transfer: { types: string[]; values: Record<string, string> } | null;
-  pointerId: number | null;
-  captureLosses: { targetIsGrip: boolean; gripHasCapture: boolean }[];
   items(): string[];
   status(): string;
   setScope(scope: string): void;
@@ -27,7 +25,14 @@ interface DragFixture {
 }
 
 declare global {
-  interface Window { compareDragTest: DragFixture }
+  interface Window {
+    compareDragTest: DragFixture;
+    comparePinInput: {
+      ghosts: number;
+      sourceActivations: number;
+      events: { type: string; pointerType: string; trusted: boolean; isPrimary: boolean; targetIsGrip: boolean; prevented: boolean }[];
+    };
+  }
 }
 
 const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -65,7 +70,7 @@ const record = {
 let scope = 'guest', generation = 0, enabled = true, sourceVisible = true, dockHidden = false, animate = false, modal = false;
 const root = createRoot(document.getElementById('mount'));
 window.compareDragTest = {
-  opens:0, nested:0, transfer:null, pointerId:null, captureLosses:[], items:() => [], status:() => '',
+  opens:0, nested:0, transfer:null, items:() => [], status:() => '',
   setScope(next) { generation += 1; scope = next; render(); },
   setEnabled(next) { generation += 1; enabled = next; render(); },
   setSource(next) { sourceVisible = next; render(); },
@@ -241,6 +246,40 @@ async function nativeDrop() {
   await page.mouse.up();
 }
 
+async function nativeTouchTap(cdp: CDPSession, target: Locator, padding = false) {
+  const box = await target.boundingBox();
+  if (!box) throw new Error('The native tap target is missing.');
+  const point = padding ? { x: box.x + 4, y: box.y + 4 } : { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  expect(await target.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), point)).toBe(true);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+async function observePinInput() {
+  await page.evaluate(() => {
+    const receipt: Window['comparePinInput'] = { ghosts: 0, sourceActivations: 0, events: [] };
+    window.comparePinInput = receipt;
+    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'gotpointercapture', 'click'] as const) {
+      document.addEventListener(type, event => {
+        const row = { type, pointerType: event.pointerType, trusted: event.isTrusted, isPrimary: event.isPrimary,
+          targetIsGrip: event.target === document.querySelector('.compare-drag-handle'), prevented: event.defaultPrevented };
+        receipt.events.push(row);
+        setTimeout(() => { row.prevented = event.defaultPrevented; }, 0);
+      }, { capture: true, passive: true });
+    }
+    new MutationObserver(mutations => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element && (node.matches('.compare-drag-ghost') || node.querySelector('.compare-drag-ghost'))) receipt.ghosts += 1;
+        }
+        if (mutation.attributeName === 'data-compare-dragging' && mutation.target instanceof Element && mutation.target.hasAttribute('data-compare-dragging')) {
+          receipt.sourceActivations += 1;
+        }
+      }
+    }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-compare-dragging'] });
+  });
+}
+
 describe('Compare source browser contract', () => {
   it.each(['#source', '#source-art'])('accepts the real %s card/SVG source without a default DOM image or payload', async selector => {
     await nativeStart(selector);
@@ -277,6 +316,9 @@ describe('Compare source browser contract', () => {
     await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
     expect(await page.locator('#wrapper-source').evaluate(element => element.parentElement?.id)).toBe('mount');
     expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
+    await page.locator('#source-title').click();
+    await page.locator('#source-title').press('Enter');
+    expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(2);
   });
 
   it('preserves ordinary title clicks, independent fields and selectable prose', async () => {
@@ -387,100 +429,102 @@ describe('Compare source browser contract', () => {
     } finally { await cdp.detach(); }
   });
 
-  it.each([393, 320])('supports the narrow touch grip and a still-held Escape cancellation at %ipx', async width => {
-    await context.close();
-    await openFixture(true, width);
-    const grip = await page.locator('.compare-drag-handle').boundingBox();
-    if (!grip) throw new Error('The touch grip is missing.');
-    const x = grip.x + grip.width / 2, y = grip.y + grip.height / 2;
+  for (const width of [393, 320]) {
+    it.each(['icon center', 'button padding'] as const)(`uses the native touch %s as Pin only and preserves the next title tap at ${width}px`, async target => {
+      await context.close();
+      await openFixture(true, width);
+      const grip = page.locator('.compare-drag-handle');
+      await browserExpect(grip).toHaveAccessibleName('Pin Manual fixture title to the Compare tray');
+      await browserExpect(grip).toHaveAttribute('title', 'Pin to the Compare tray');
+      expect(await grip.evaluate(node => getComputedStyle(node).touchAction)).toBe('manipulation');
+      const box = await grip.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+      await observePinInput();
+      const cdp = await context.newCDPSession(page);
+      try {
+        await nativeTouchTap(cdp, target === 'icon center' ? grip.locator('svg') : grip, target === 'button padding');
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+        await nativeTouchTap(cdp, page.locator('#source-title'));
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(1);
+        await nativeTouchTap(cdp, grip, true);
+        await nativeTouchTap(cdp, page.locator('#source-title'));
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(2);
+        expect(await page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+        const receipt = await page.evaluate(() => window.comparePinInput);
+        expect(receipt.ghosts).toBe(0);
+        expect(receipt.sourceActivations).toBe(0);
+        expect(receipt.events.some(event => event.type === 'click' && event.trusted && event.pointerType === 'touch')).toBe(true);
+        expect(receipt.events.filter(event => event.type.startsWith('pointer')).every(event => !event.prevented)).toBe(true);
+        await browserExpect(page.locator('.compare-drag-ghost,[data-compare-dragging]')).toHaveCount(0);
+      } finally { await cdp.detach(); }
+    });
+
+    it(`keeps a native pan from the Pin handle back to page top and the next title tap at ${width}px`, async () => {
+      await context.close();
+      await openFixture(true, width);
+      await observePinInput();
+      await page.evaluate(() => window.scrollTo({ top: 100, behavior: 'instant' }));
+      await browserExpect.poll(() => page.evaluate(() => scrollY)).toBe(100);
+      const grip = await page.locator('.compare-drag-handle').boundingBox();
+      if (!grip) throw new Error('The native Pin handle is missing.');
+      const start = { x: grip.x + grip.width / 2, y: grip.y + grip.height / 2 };
+      const cdp = await context.newCDPSession(page);
+      let held = false;
+      try {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+        held = true;
+        for (let step = 1; step <= 5; step++) await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove', touchPoints: [{ x: start.x, y: start.y + step * 35 }],
+        });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        held = false;
+        await browserExpect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+        await nativeTouchTap(cdp, page.locator('#source-title'));
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(1);
+        expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+        const receipt = await page.evaluate(() => window.comparePinInput);
+        expect(receipt.ghosts).toBe(0);
+        expect(receipt.sourceActivations).toBe(0);
+        await browserExpect(page.locator('.compare-drag-ghost,.compare-tray-dock')).toHaveCount(0);
+      } finally {
+        try { if (held) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }); }
+        finally { await cdp.detach(); }
+      }
+    });
+  }
+
+  it.each(['touch', 'pen'] as const)('never arms the grip for actual %s input on a fine-pointer layout', async pointerType => {
+    expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(true);
+    await observePinInput();
+    const grip = page.locator('.compare-drag-handle');
+    const box = await grip.locator('svg').boundingBox();
+    if (!box) throw new Error('The mixed-input grip icon is missing.');
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     const cdp = await context.newCDPSession(page);
     try {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-      await page.waitForTimeout(310);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 3, y: y + 3 }] });
-      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
-      await page.keyboard.press('Escape');
-      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
-      await page.waitForTimeout(400);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      await page.waitForTimeout(400);
-      expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
-      await page.locator('.compare-drag-handle').tap();
-      await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toHaveLength(1);
+      if (pointerType === 'touch') {
+        await nativeTouchTap(cdp, grip.locator('svg'));
+      } else {
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', buttons: 1, clickCount: 1, pointerType });
+        await page.waitForTimeout(310);
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x + 4, y: point.y + 4, button: 'left', buttons: 1, pointerType });
+        await browserExpect(page.locator('.compare-drag-ghost,.compare-tray-dock')).toHaveCount(0);
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x + 4, y: point.y + 4, button: 'left', buttons: 0, clickCount: 1, pointerType });
+      }
+      await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+      await page.locator('#source-title').press('Enter');
+      expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(1);
+      const receipt = await page.evaluate(() => window.comparePinInput);
+      expect(receipt.ghosts).toBe(0);
+      expect(receipt.sourceActivations).toBe(0);
+      expect(receipt.events.some(event => event.type === 'pointerdown' && event.pointerType === pointerType && event.trusted && event.isPrimary)).toBe(true);
     } finally { await cdp.detach(); }
   });
 
-  it.each(['drop', 'owned capture loss'] as const)('native nested-grip capture preserves SVG transfer before %s', async outcome => {
+  it.each([393, 320])('keeps the existing broad-touch hold, token drop and direct fresh native tap at %ipx', async width => {
     await context.close();
-    await openFixture(true, 393);
-    const grip = page.locator('.compare-drag-handle');
-    await grip.scrollIntoViewIfNeeded();
-    const icon = grip.locator('svg');
-    const box = await icon.boundingBox();
-    if (!box) throw new Error('The actual nested grip icon is missing.');
-    const x = box.x + box.width / 2, y = box.y + box.height / 2;
-    expect(await icon.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), { x, y })).toBe(true);
-    await page.evaluate(() => {
-      const button = document.querySelector<HTMLButtonElement>('.compare-drag-handle');
-      if (!button) throw new Error('The actual capture-owning button is missing.');
-      button.addEventListener('pointerdown', event => { window.compareDragTest.pointerId = event.pointerId; }, { once: true });
-      document.addEventListener('lostpointercapture', event => {
-        if (event.composedPath().includes(button)) window.compareDragTest.captureLosses.push({
-          targetIsGrip: event.target === button,
-          gripHasCapture: button.hasPointerCapture(event.pointerId),
-        });
-      }, true);
-    });
-    const cdp = await context.newCDPSession(page);
-    let held = false;
-    try {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-      held = true;
-      await page.waitForTimeout(310);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 24, y: y + 24 }] });
-      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 30, y: y + 30 }] });
-      await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.captureLosses)).toContainEqual({
-        targetIsGrip: false, gripHasCapture: true,
-      });
-      await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1, { timeout: 1_500 });
-      if (outcome === 'owned capture loss') {
-        await grip.evaluate(button => {
-          const id = window.compareDragTest.pointerId;
-          if (id === null || !button.hasPointerCapture(id)) throw new Error('The grip does not own the native pointer.');
-          button.releasePointerCapture(id);
-        });
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 34, y: y + 34 }] });
-        await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
-        expect(await page.evaluate(() => window.compareDragTest.captureLosses)).toContainEqual({
-          targetIsGrip: true, gripHasCapture: false,
-        });
-        expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
-      } else {
-        const dock = await page.locator('.compare-tray-dock').boundingBox();
-        if (!dock) throw new Error('The owned touch drop target is missing.');
-        const endX = dock.x + dock.width / 2, endY = dock.y + dock.height / 2;
-        for (let step = 1; step <= 8; step++) await cdp.send('Input.dispatchTouchEvent', {
-          type: 'touchMove', touchPoints: [{ x: x + 30 + (endX - x - 30) * step / 8, y: y + 30 + (endY - y - 30) * step / 8 }],
-        });
-        await browserExpect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compare-drop-ready', 'true');
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        held = false;
-        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
-        await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
-      }
-      expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
-      await browserExpect(page.locator('#note')).toHaveValue('Keep this private draft');
-    } finally {
-      try {
-        if (held) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-      } finally { await cdp.detach(); }
-    }
-  });
-
-  it('performs the bounded broad-touch hold experiment with real touch input and the same token drop', async () => {
-    await context.close();
-    await openFixture(true, 393);
+    await openFixture(true, width);
     const source = await page.locator('#source-title').boundingBox();
     if (!source) throw new Error('The touch title is missing.');
     const x = source.x + 30, y = source.y + source.height / 2;
@@ -500,13 +544,17 @@ describe('Compare source browser contract', () => {
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
-      await page.waitForTimeout(400);
       expect(await page.evaluate(() => window.compareDragTest.status())).toContain('pinned for comparison. 1 of six games.');
       expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
       expect(await page.evaluate(() => scrollY)).toBe(0);
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(0);
-      await page.locator('#source-title').tap();
-      expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(1);
+      const fresh = await page.locator('#source-title').boundingBox();
+      if (!fresh) throw new Error('The fresh native title target is missing.');
+      const point = { x: fresh.x + fresh.width / 2, y: fresh.y + fresh.height / 2 };
+      expect(await page.locator('#source-title').evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), point)).toBe(true);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(1);
     } finally { await cdp.detach(); }
   }, 20_000);
 });

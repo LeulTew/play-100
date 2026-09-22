@@ -380,10 +380,10 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     },
     pointerDown(source: CompareSource, event: PointerEvent) {
       if (event.button !== 0 || !event.isPrimary || modified(event)) return;
-      const grip = source.read().node?.hasAttribute('data-compare-drag-grip');
       const mouse = event.pointerType === 'mouse' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-      if (!mouse && !(grip && (event.pointerType === 'touch' || event.pointerType === 'pen'))) return;
-      const gesture = prepare(source, event, pointOf(event), mouse ? 'mouse' : 'grip');
+      // Touch and pen use the grip's native Pin click, even on mixed-pointer devices.
+      if (!mouse) return;
+      const gesture = prepare(source, event, pointOf(event), 'mouse');
       if (!gesture) return;
       gesture.pointerId = event.pointerId;
       if (mouse) {

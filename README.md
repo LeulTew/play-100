@@ -514,6 +514,15 @@ when the condition clears. Native opening, closing, focus and saves never wait
 for an animation. Drag-to-Compare remains separate from private Queue/Ranking
 reordering, and an empty drop target does not reflow the collection controls.
 
+The 44px Compare handle is a native **Pin** button for touch and pen; it does
+not start a held drag or explicit pointer capture. Fine-mouse handle dragging
+remains available, alongside ordinary clicks and keyboard activation. Coarse
+layouts show a Pin icon and label, and allow native panning from the button.
+Card/title touch-hold dragging is a separate interaction, not enabled by the
+handle. This is an intentional capability fallback after a retained
+post-touch-grip click failure, not a claim to have diagnosed or fixed its
+underlying browser cause. It does not relax the performance qualification below.
+
 These are bounded behavior and cleanup contracts, not a promise of zero cost,
 physical-device certification or universal frame-rate improvement. Development
 StrictMode rehearsals, production payload checks and paired performance evidence

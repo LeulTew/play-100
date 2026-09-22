@@ -340,11 +340,14 @@ the source and from private reorder grips. Only a newly accepted pin receives
 the optional 150ms settle. Temporary empty drop targets must not compact the
 collection toolbar or change the source layout; real pins and storage messages
 retain their existing mobile clearance, including while another drag is active.
-Normal scrolling and selection win before touch ownership. The visible 44px
-grip and Pin remain alternatives, not evidence of broad-touch support.
-Transferring native implicit capture from a grip's nested icon to its button
-does not end the drag. Capture-loss cancellation belongs to that button and
-the active pointer, not to bubbled events from descendants.
+Normal scrolling and selection win before broad card/title touch ownership.
+The visible 44px Compare handle is Pin-only for touch and pen, including on
+mixed-pointer devices; only fine-mouse input may start a drag from it. Coarse
+layouts use the stack icon and Pin wording, not a drag affordance. Keep native
+panning and keyboard activation on this button. This deliberate safety fallback
+does not claim a root-cause fix for the retained post-grip native-click failure.
+The existing capture-ownership guard remains scoped to its node and pointer;
+touch and pen no longer enter that grip-capture path.
 
 The six-game comparison tray keeps identities and actions ahead of long artwork
 attribution. The tray and catalog detail use the native Artwork credits

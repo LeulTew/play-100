@@ -13,6 +13,7 @@ import { ComparePinButton } from './ComparePinButton';
 import { CompareDragHandle } from './CompareDragHandle';
 import { CompareDragSource } from './CompareDragSource';
 import { CompareTrayContext } from './compare-tray-context';
+import { MotionPolicyContext, staticMotionPolicy } from '../../motion/context';
 
 const alpha: LibraryRecord = { id: 'alpha', source: 'collection', sourceId: 'alpha', title: 'Alpha game', year: 2020, collectionRank: 1, sourceUrl: null, studio: null, genre: null };
 const beta: LibraryRecord = { ...alpha, id: 'beta', sourceId: 'beta', title: 'Beta game', collectionRank: 2 };
@@ -107,12 +108,22 @@ describe('tray and image rendering contract', () => {
   });
   it('offers an optional semantic handle and a drop target even before the first pin', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, items: [], dragging: true } }, h(CompareDragHandle, { record: alpha }), h(CompareTray, { onCompare: vi.fn() })));
-    expect(html).toContain('Pin Alpha game for comparison, or drag to the tray');
+    expect(html).toContain('Pin Alpha game for comparison, or drag with a mouse');
     expect(html).toContain('draggable="false"');
     expect(html).toContain('data-dragging="true"');
     expect(html).toContain('data-has-content="false"');
     expect(html).toContain('Drop to pin for comparison');
     expect(html).toContain('data-compare-drag-grip=""');
+  });
+  it('describes the coarse Compare handle as a Pin button, never a touch drag affordance', () => {
+    const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value },
+      h(MotionPolicyContext.Provider, { value: { ...staticMotionPolicy, coarsePointer: true } },
+        h(CompareDragHandle, { record: alpha }))));
+    expect(html).toContain('Pin Alpha game to the Compare tray');
+    expect(html).toContain('>Pin to tray');
+    expect(html).not.toContain('Drag to tray');
+    expect(html).not.toContain('drag with a mouse');
+    expect(html).toContain('draggable="false"');
   });
   it('retains the compact collection state for real pins and storage messages while dragging', () => {
     for (const content of [
