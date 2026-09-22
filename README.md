@@ -528,6 +528,40 @@ The counter's native-visibility fixture is explicitly opt-in through
 `PLAY100_COUNTER_HEADED=true`; a browser that remains visibly reported after
 minimization does not establish hidden-window behavior.
 
+### Qualified motion release: performance limitation
+
+The user approved publication **after final release checks, with the performance
+limitation documented**. Scoped motion functional/production checks and static
+and observed-cold code-size budgets passed, but the paired interaction comparison
+stopped early on a late detail-open observation. Numerical interaction
+performance remains **inconclusive**; this is not a zero-added-lag, FPS,
+physical-device, Safari or native-hidden-window certification.
+
+<details>
+<summary>Measured scope and retained limitation</summary>
+
+- Complete eager JavaScript plus CSS grew from 163,283 to 165,322 gzip bytes:
+  +2,039 bytes (+1.25%), within the unchanged 8,164.15-byte limit. All four
+  declared observed-cold route/profile cells met their own limits, with three
+  consistent request sets per build/cell. The only observed non-code raw-byte
+  difference was four favicon line-ending bytes; no new resource path was added.
+- The paired interaction run stopped after 90 of 720 planned observations.
+  In pair `p044`, the candidate's 500-game Library at coarse 393px with configured
+  4x CPU throttling opened the correct native detail, but sampled readiness
+  arrived at 1,253.9 ms, beyond the fixed 1,200 ms window. The single paired
+  baseline observation was 171.1 ms; this is not a regression confidence interval.
+- One separately instrumented diagnostic did not reproduce that delay
+  (approximately 202.3 ms candidate / 186.9 ms baseline). Its tracing overhead
+  and invalid native CPU timing deltas prevent a stronger conclusion; it neither
+  erases the original finding nor establishes a cause.
+- The retained-prefix analysis applied no numerical gates or confidence
+  intervals: at most one of eight required pairs was available per cell.
+  All 648 metric/action records and all five overall profiles remain
+  inconclusive. No failure was discarded as environmental noise, and no
+  threshold was relaxed to support publication.
+
+</details>
+
 ## Deploy to Vercel
 
 This is a standalone project. Do not link it to an unrelated existing Vercel
