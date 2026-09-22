@@ -66,6 +66,10 @@ pane is hidden behind Ranking. Filtering searches the entire saved library;
 Queue and Ranking keep their existing full-list order and editors. Selection
 persists across Library pages: **Select all matching games** explicitly includes
 every matching page. Filters and tabs clear it.
+Zero- and one-page local result sets omit inactive paging controls while keeping
+their result count. A genuinely empty, unfiltered Library leads with add/browse
+choices rather than unavailable search or selection; filtered-empty recovery
+and mounted manual-entry drafts remain available.
 
 Library paging waits for pending edits before changing rows. Invalid or failed
 edits keep the current page and draft; stale navigation/account transitions
@@ -99,18 +103,37 @@ online fallback remains available with source-specific retry and explicit
 opt-out. Search/filter/view URLs and game previews round-trip through Back and
 reload. See [source, license and collection evidence](docs/discovery-sources.md);
 every displayed asset's credit/license remains accessible.
+An exact-ID artwork-presence hint is generated from that same validated seed.
+It carries no metadata, image paths or credits: already-known no-art Library
+previews and pins can stay local, while licensed artwork, unresolved public
+deep links and artwork-dependent friend/Compare surfaces retain the full
+catalogue and provenance path. `npm run validate:discovery` rejects a stale
+hint; regenerate it with
+`npx --no-install tsx scripts\generate-discovery-artwork-presence.ts` when the
+checked-in seed changes. This does not change provider collection or saved IDs.
 
 The **Compare tray** holds up to six game references, separately per guest or
-account scope. Use Pin, the 44px drag grip, or a supported card-artwork/title
-drag. Touch dragging uses a deliberate hold followed by movement; ordinary
+account scope. Use native Pin, the fine-mouse handle, or a supported
+card-artwork/title drag. Broad-surface touch dragging uses a deliberate hold followed by movement; ordinary
 scrolling, text selection and nested controls keep their own behavior. Pin and
 keyboard activation never require dragging, including in Lite or reduced motion.
 Pins do not change private library state or permissions.
+The visible action says **Compare rankings with friends**. Its signed-out
+destination explains that purpose before provider choices and retains the
+device-only exit; ordinary Account sign-in is unchanged.
 The tray feeds a private game filter into the existing comparison of two to six
 people. It never supplies invented friend entries, scores or ranking positions.
 Guest pins are not automatically adopted by an account. Starting another tray
 comparison while Compare is already open resets its game mode/search/page as
 one explicit transition while retaining the chosen people.
+
+New public and selected-ranking publications reject source links longer than
+2048 characters before writing, with an actionable error that leaves the
+private library intact. The rules apply the same limit to new FreeToGame rows.
+Previously stored oversized public/selected-ranking rows remain readable;
+private-library and backup formats are unchanged. No truncation, backfill or
+data migration is required. This write-policy change requires a separately
+reviewed rules deployment before releasing the corresponding client.
 
 **All sharing** follows the complete account library, including future additions,
 up to its 10,000-game limit. Metadata and ranking scores use separate bounded
@@ -466,6 +489,9 @@ retains existing results and retries that page, not the first page. Anonymous
 Wikidata requests ask for public 300-second caching; normalized responses use
 short CDN caching. The FreeToGame snapshot also has a bounded per-instance
 cache; this is not a durable database or a globally enforced rate limiter.
+Owned HTTP error bodies are cancelled rather than read without a size bound.
+If cancellation fails, bounded logging records only a fixed message and status;
+the original HTTP/rate-limit error and no-store policy still reach the caller.
 
 Catalog search necessarily sends the typed query to the selected providers.
 Private library state, opinions and backups are never sent to the proxy.
@@ -505,6 +531,8 @@ image. The real fields stay in place and are usable immediately. A same-view
 close may return that public visual to its still-visible source; deep links,
 removed sources and interrupted navigation use the immediate fallback. No
 interactive editor, private note, manual title or password is cloned or retained.
+Canonical details present the complete workbook rationale and source note
+before saved copies, progress controls and personal rating fields.
 
 Menu, ready utility dialogs and committed route/tab/page changes have short,
 targeted cues rather than page-wide reveals. The existing Auto/Full/Lite policy

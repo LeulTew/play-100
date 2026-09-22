@@ -206,7 +206,10 @@ touch-friendly rows on mobile. Loading/error controls belong to each source;
 saved records remain usable independently.
 
 Game details keep the creator's original score and **Your rating** visually and
-semantically separate. Private ratings and notes commit on editor exit as well
+semantically separate. The complete existing rationale and source note lead
+the personal tracking controls; do not rewrite or truncate the curator's text.
+Long detail copy and previous/next navigation wrap without pushing controls
+outside the native dialog. Private ratings and notes commit on editor exit as well
 as their normal save triggers. Unordered library views omit disabled drag/move
 chrome; actual play queues retain all existing ordering affordances.
 
@@ -235,6 +238,9 @@ The compact header Account entry exposes saving status without adding a sixth
 mobile navigation item. Community is reachable through Discover and Account.
 Public sharing is secondary to editing, with an exact frozen preview and
 independent directory consent. Routine sync does not generate toast spam.
+The signed-out Compare route explains friends' rankings and the privacy of pins
+before authentication choices. Its optional purpose copy does not change
+ordinary Account sign-in, provider actions or the device-only exit.
 
 Creature avatars use a pinned, static Critters recipe with rounded silhouettes
 and selected flat palettes. Six choices, Shuffle, palette and Save are enough;
@@ -286,6 +292,10 @@ An explicit catalog page change brings its new results heading into
 view and focuses it; typing alone never moves the page. Known local Discover
 pages use the existing 24-item slice with First/Previous, one native direct-page
 choice, Next/Last and a truthful range. Provider pagination remains separate.
+Local sets of zero or one page omit navigation instead of presenting disabled
+controls. Library keeps a visible live count and its focusable results heading;
+filtered-empty recovery, selection scope and manual drafts are not remounted.
+A genuinely empty unfiltered Library leads with useful add/browse choices.
 Late catalog loading does not clamp a valid URL to a temporary count; pending
 rating edits are saved or visibly retained before results can change.
 
@@ -352,7 +362,9 @@ touch and pen no longer enter that grip-capture path.
 The six-game comparison tray keeps identities and actions ahead of long artwork
 attribution. The tray and catalog detail use the native Artwork credits
 disclosure; their full source credit and license/source links remain unchanged. Compare is
-labelled as rankings with friends. Root mobile focus scrolling reserves the
+visibly labelled **Compare rankings / with friends**, matching the accessible
+name **Compare rankings with friends**. Sheet actions may wrap without changing
+their purpose or order. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
 
 ## Do's and Don'ts
