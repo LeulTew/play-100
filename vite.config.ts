@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
       name: 'play100-public-metadata',
       transformIndexHtml(html, context) {
         const fonts = Object.values(context.bundle ?? {}).filter((asset) =>
-          asset.type === 'asset' && /(?:hanken-grotesk-latin-wght-normal|barlow-condensed-latin-(?:700|800)-normal).*\.woff2$/.test(asset.fileName),
+          asset.type === 'asset' && /barlow-condensed-latin-800-normal.*\.woff2$/.test(asset.fileName),
         );
         const tags: HtmlTagDescriptor[] = [
           { tag: 'meta', attrs: { name: 'author', content: author.fullName } },
