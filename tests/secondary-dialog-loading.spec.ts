@@ -1,10 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { readBuildManifest } from '../scripts/build-metadata';
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 
 async function dialogAsset(root = 'src/components/app/SettingsPanel.tsx') {
-  const manifest: Record<string, { file: string }> = JSON.parse(await readFile(path.join(process.cwd(), 'dist', '.vite', 'manifest.json'), 'utf8'));
+  const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
   const file = manifest[root]?.file;
   if (!file) throw new Error(`${root} must remain a separately emitted lazy root.`);
   return `/${file}`;

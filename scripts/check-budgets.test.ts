@@ -4,6 +4,7 @@ import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { budgetRows, eagerHtmlFiles, measureBuild, parseBudgetLimits } from './check-budgets';
+import { buildManifestPath } from './build-metadata';
 
 const folders: string[] = [];
 const source: Record<string, string> = {
@@ -20,16 +21,17 @@ const source: Record<string, string> = {
 };
 
 async function fixture(inline = '') {
-  const directory = await mkdtemp(path.join(tmpdir(), 'play100-budget-test-'));
-  folders.push(directory);
+  const workspace = await mkdtemp(path.join(tmpdir(), 'play100-budget-test-'));
+  folders.push(workspace);
+  const directory = path.join(workspace, 'dist');
   const contents: Record<string, string> = { ...source, 'index.html': source['index.html']! + inline };
   for (const [file, content] of Object.entries(contents)) {
     const target = path.join(directory, ...file.split('/'));
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, content);
   }
-  await mkdir(path.join(directory, '.vite'));
-  await writeFile(path.join(directory, '.vite', 'manifest.json'), JSON.stringify({
+  await mkdir(path.dirname(buildManifestPath(directory)), { recursive: true });
+  await writeFile(buildManifestPath(directory), JSON.stringify({
     'index.html': { file: 'assets/main-12345678.js', imports: ['shared'], css: ['assets/main-12345678.css'], dynamicImports: ['lazy'] },
     shared: { file: 'assets/shared-12345678.js', imports: ['nested'] },
     nested: { file: 'assets/nested-12345678.js', imports: ['index.html'] },
@@ -50,6 +52,28 @@ afterEach(async () => {
 });
 
 describe('offline built-output budgets', () => {
+  it.each(['.vite', 'assets/main.js.map'])('rejects deploy-only metadata leak %s even with a valid private manifest', async leak => {
+    const directory = await fixture();
+    const file = path.join(directory, ...leak.split('/'));
+    if (leak === '.vite') await mkdir(file);
+    else await writeFile(file, '{}');
+    await expect(measureBuild(directory)).rejects.toThrow('Build metadata must not be deployed');
+    await rm(file, { recursive: true });
+    await expect(measureBuild(directory)).resolves.toBeDefined();
+  });
+
+  it('rejects a generated precache metadata entry before trusting asset sizes', async () => {
+    const directory = await fixture();
+    const file = path.join(directory, 'pwa-assets.json');
+    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    const original = await readFile(file, 'utf8');
+    manifest.core.push({ url: '/.vite/manifest.json', bytes: 0 });
+    await writeFile(file, JSON.stringify(manifest));
+    await expect(measureBuild(directory)).rejects.toThrow('Build metadata must not enter the public precache');
+    await writeFile(file, original);
+    await expect(measureBuild(directory)).resolves.toBeDefined();
+  });
+
   it('finds module/preload/stylesheet assets regardless of attribute order and deduplicates them', () => {
     expect(eagerHtmlFiles(`
       <!-- <script type="module" src="/assets/comment.js"></script> -->
@@ -111,7 +135,7 @@ describe('offline built-output budgets', () => {
 
   it('rejects app chunk and CSS-import references to standalone styles', async () => {
     const directory = await fixture();
-    const file = path.join(directory, '.vite', 'manifest.json');
+    const file = buildManifestPath(directory);
     const manifest = JSON.parse(await readFile(file, 'utf8'));
     manifest.lazy.css.push('pwa/fallback.css');
     await writeFile(file, JSON.stringify(manifest));

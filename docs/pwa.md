@@ -127,6 +127,15 @@ central 40%-radius safe circle. No third-party runtime PWA plugin is required.
 Use the centrally approved Sharp version for icon generation; no protected
 existing assets are re-encoded.
 
+Vite's module manifest is build-only metadata. After consuming it, the PWA build
+moves it from `dist/.vite/manifest.json` to the gitignored
+`.build-meta/dist/vite-manifest.json` outside the deploy directory. Budget checks
+and chunk-loading tests read that retained copy through `scripts/build-metadata.ts`;
+keep it with the matching build when running those checks, but never publish it.
+The build and budget checks reject any remaining `.vite` directory or `*.map`
+file in the deploy output, and reject metadata paths in the generated precache.
+Worker, asset hashes and public precache contents do not include the retained manifest.
+
 The root consumes `usePwa({ enabled })` once. A false gate prohibits registration/
 prefetch/install handling and is required for the Data use bypass and explicit
 performance-quiet contexts. Menu/Settings can render install, prepare/retry,
@@ -160,6 +169,10 @@ Its existence is not evidence a particular release ran it; retain the actual
 CI results. ServiceWorker-blocked timing tests are not offline evidence.
 
 ### Manual release checks
+
+- After deployment, verify `GET /.vite/manifest.json` returns **404**, not 200,
+  a redirect, or a fallback HTML page. The Vercel configuration has no SPA
+  catch-all; 404 is the required result. Publish only `dist`, not `.build-meta`.
 
 - Verify OS-level installation and launch/uninstall behavior with explicit user
   consent; automation does not install an OS app.

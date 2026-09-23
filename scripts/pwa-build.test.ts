@@ -25,6 +25,16 @@ function manifest(): Manifest {
 }
 
 describe('generated public PWA build closure', () => {
+  it('rejects Vite metadata in the generated core while preserving normal public roots', () => {
+    const entries = manifest();
+    const original = entries._shared;
+    entries._shared = { file: '.vite/manifest.json' };
+    expect(() => pwaCorePaths(entries)).toThrow(/unapproved|metadata/);
+    entries._shared = original!;
+    expect(pwaCorePaths(entries)).toContain('/assets/shared-12345678.js');
+    expect(pwaCorePaths(entries).some(file => file.includes('/.vite/'))).toBe(false);
+  });
+
   it('uses explicit route roots/static imports, never a recursive dynamic or public-folder glob', () => {
     const files = pwaCorePaths(manifest());
     expect(files).toContain('/assets/shared-12345678.js');

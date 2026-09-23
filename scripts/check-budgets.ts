@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { assertPublicBuildOutput, assertPublicPrecachePaths, readBuildManifest } from './build-metadata';
 export { assertDeferredBundleModules } from './eager-module-guard';
 
 const metrics = [
@@ -125,6 +126,7 @@ async function buildFiles(root: string, relative = ''): Promise<string[]> {
 }
 
 export async function measureBuild(root: string): Promise<BuildMeasurement> {
+  await assertPublicBuildOutput(root);
   const files = new Set(await buildFiles(root));
   const sizes = new Map<string, AssetSize>();
   const size = async (file: string) => {
@@ -162,7 +164,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
       }
     }
   }
-  const manifest: unknown = JSON.parse(await readFile(path.join(root, '.vite', 'manifest.json'), 'utf8'));
+  const manifest: unknown = await readBuildManifest(root);
   if (!object(manifest)) throw new Error('Invalid Vite build manifest.');
   for (const [key, chunk] of Object.entries(manifest)) {
     if (!object(chunk) || chunk.css === undefined) continue;
@@ -211,6 +213,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   let coreBytes = 0;
   for (const asset of pwa.core) {
     if (!object(asset) || typeof asset.url !== 'string' || typeof asset.bytes !== 'number') throw new Error('Invalid PWA core asset.');
+    assertPublicPrecachePaths([asset.url]);
     const file = localFile(asset.url);
     if (coreFiles.has(file)) throw new Error(`Duplicate PWA core asset: ${file}`);
     coreFiles.add(file);

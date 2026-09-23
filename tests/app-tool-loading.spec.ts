@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { readBuildManifest } from '../scripts/build-metadata';
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { motionHintKey } from '../src/lib/motion-hint';
@@ -22,7 +22,7 @@ for (const policy of [
   { name: '2G', saveData: false, effectiveType: '2g', allowed: false },
 ]) {
   test(`noncritical tools stay out of initial requests and warm only when allowed: ${policy.name}`, async ({ page, isMobile }) => {
-    const manifest: Record<string, { file: string }> = JSON.parse(await readFile(path.join(process.cwd(), 'dist', '.vite', 'manifest.json'), 'utf8'));
+    const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
     const files = roots.map(root => {
       const entry = manifest[root];
       if (!entry) throw new Error(`Missing separately emitted tool: ${root}`);

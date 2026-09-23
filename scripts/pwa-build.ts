@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { assertDeferredBundleModules, eagerHtmlFiles } from './check-budgets';
+import { assertPublicBuildOutput, assertPublicPrecachePaths, retainBuildManifest } from './build-metadata';
 import ts from 'typescript';
 import type { Manifest, Plugin, ResolvedConfig } from 'vite';
 import { PWA_ICONS, writePwaIcons } from './pwa-icons';
@@ -42,6 +43,7 @@ export function pwaCorePaths(manifest: Manifest): string[] {
     for (const imported of chunk.imports ?? []) visit(imported);
   };
   for (const root of PWA_ROOTS) visit(root);
+  assertPublicPrecachePaths([...paths]);
   return [...paths].sort();
 }
 
@@ -92,7 +94,7 @@ async function describeAsset(output: string, url: string): Promise<PwaAsset> {
 }
 
 export async function generatePwaBuild(root: string, output: string): Promise<PwaBuildManifest> {
-  const viteManifest: Manifest = JSON.parse(await readFile(path.join(output, '.vite', 'manifest.json'), 'utf8'));
+  const viteManifest = await retainBuildManifest(output);
   await writePwaIcons(root, output);
   const core = await Promise.all(pwaCorePaths(viteManifest).map(url => describeAsset(output, url)));
   const images: PwaAsset[] = [];
@@ -118,6 +120,7 @@ export async function generatePwaBuild(root: string, output: string): Promise<Pw
   const manifest: PwaBuildManifest = {
     format: 1, version: pwaBuildVersion(core, images, result.outputText, documentPolicy), core, images, documentPolicy,
   };
+  assertPublicPrecachePaths(manifest.core.map(asset => asset.url));
   validatePwaManifest(manifest);
   const script = `${result.outputText}\ninstallPwaWorker(self, ${JSON.stringify(manifest)});\n`;
   await writeFile(path.join(output, 'sw.js'), script);
@@ -127,6 +130,7 @@ export async function generatePwaBuild(root: string, output: string): Promise<Pw
     coreBytes: core.reduce((sum, asset) => sum + asset.bytes, 0),
     imagePolicy: 'runtime-only; no image precache',
   }, null, 2)}\n`);
+  await assertPublicBuildOutput(output);
   return manifest;
 }
 
