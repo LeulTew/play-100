@@ -76,8 +76,8 @@ export function DiscoveryCard({ record, game, actionRecord = record, ownedCopies
         {game && <p className="discovery-canonical">From The 100 · #{game.rank}<span>{author.shortName}'s rating <strong title={game.authorRating?.rawValue}>{authorRatingText(game.authorRating)}{game.authorRating ? ' / 10' : ''}</strong></span></p>}
         <p className="discovery-card-meta">{[CATALOG_EDITION_HINTS.get(record.id) ?? record.year, record.genre].filter((value) => value !== null).join(' · ') || 'Game'}</p>
         <div className="discovery-card-primary">
-          <button className={`button ${saved ? 'button-outline' : 'button-dark'}`} disabled={busy || saved} aria-label={`${saved ? 'Saved' : 'Save'} ${record.title}`} onClick={() => { void onAction({ type: 'add-records', records: [actionRecord] }); }}>
-            <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />{saved ? 'Saved' : 'Save'}
+          <button className={`button ${saved ? 'button-outline' : 'button-dark'}`} disabled={busy || saved} aria-label={`${saved ? 'In My games' : 'Add to My games'}: ${record.title}`} onClick={() => { void onAction({ type: 'add-records', records: [actionRecord] }); }}>
+            <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />{saved ? 'In My games' : 'Add to My games'}
           </button>
           {onPin && <button className="button button-outline" aria-label={`${pinned ? 'Pinned' : 'Pin'} ${record.title} for comparison`} aria-pressed={Boolean(pinned)} disabled={pinned} onClick={() => onPin(actionRecord)}><Icon name="stack" width="16" height="16" />{pinned ? 'Pinned' : 'Pin'}</button>}
           {renderDragHandle?.(actionRecord)}

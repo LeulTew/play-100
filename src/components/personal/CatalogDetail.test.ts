@@ -58,6 +58,8 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('Mark completed');
     expect(html).toContain(`Your rating for ${discoveryFixture.record.title}`);
     expect(html).toContain('Preview only.');
+    expect(html).toContain('Add to My games from Discover');
+    expect(html).toContain('The 100 stays unchanged.');
   });
 
   it('does not infer artwork or replace an independent manual opinion from a matching title', () => {
@@ -71,7 +73,8 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('Artwork unavailable');
     expect(html).toContain('value="3.2"');
     expect(html).toContain('Your rank: #2');
-    expect(html).toContain('Saved in your library.');
+    expect(html).toContain('Saved in My games.');
+    expect(html).toContain('The 100 stays unchanged.');
     expect(record).toEqual(original);
     expect(props.record).toBe(record);
     expect(props.onAction).not.toHaveBeenCalled();

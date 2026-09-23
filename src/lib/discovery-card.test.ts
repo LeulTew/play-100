@@ -13,7 +13,7 @@ describe('compact catalog card markup', () => {
     expect(html).toContain('width="320" height="180"');
     expect(html).toContain('loading="lazy"');
     expect(html).toContain('decoding="async"');
-    expect(html).toContain('Save Kingdom Come: Deliverance');
+    expect(html).toContain('Add to My games: Kingdom Come: Deliverance');
     expect(html).toContain('Pin Kingdom Come: Deliverance for comparison');
     expect(html).toContain('Actions &amp; source');
     expect(html).toContain(artworkFixture.sourceUrl);

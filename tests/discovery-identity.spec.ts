@@ -54,8 +54,8 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(card).toContainText('2018');
   await expect(card.locator('img')).toHaveAttribute('src', '/covers/red-dead-redemption-2.webp');
   expect(await card.getAttribute('data-unranked-id')).toBeNull();
-  await card.getByRole('button', { name: `Save ${rdr.title}`, exact: true }).click();
-  await expect(card.getByRole('button', { name: `Saved ${rdr.title}`, exact: true })).toBeDisabled();
+  await card.getByRole('button', { name: `Add to My games: ${rdr.title}`, exact: true }).click();
+  await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
   await card.getByRole('button', { name: `Pin ${rdr.title} for comparison`, exact: true }).click();
   await expect(card.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
@@ -127,7 +127,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await page.evaluate(record => localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items: [record] })), provider);
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
-  await expect(card.getByRole('button', { name: `Saved ${rdr.title}`, exact: true })).toBeDisabled();
+  await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
   await expect(card.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
   await expect(card).toContainText('Progress and ratings use your existing saved catalog copy.');
   await card.getByText('Actions & source', { exact: true }).click();
@@ -253,7 +253,7 @@ test('late canonical data gates duplicate actions, error is recoverable, and all
   await expect.poll(() => seedLoaded).toBe(true);
   await expect(page.getByText('Loading The 100...', { exact: true })).toBeVisible();
   await expect(page.locator('[data-catalog-id]')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: `Save ${rdr.title}`, exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: `Add to My games: ${rdr.title}`, exact: true })).toHaveCount(0);
   release(); await expect(cardFor(page)).toBeVisible();
   await page.unroute('**/data/collection.json');
   await page.route('**/data/collection.json', route => route.fulfill({ status: 503, body: 'Synthetic unavailable original collection' }));
