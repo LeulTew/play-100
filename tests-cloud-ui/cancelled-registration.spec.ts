@@ -1,5 +1,28 @@
 import { expect, test } from '@playwright/test';
+import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
+import { candidateRules, live270fRules } from '../tests-cloud/fixtures/migration-rules';
 import { authOrigin, emailFor, firestoreOrigin, password, signIn } from './helpers';
+
+for (const policy of ['candidate', 'live-270f'] as const) test.describe(`cancelled recovery with ${policy} rules`, () => {
+  let environment: RulesTestEnvironment;
+  const target = new URL(firestoreOrigin);
+  const configuration = (rules: string) => ({
+    projectId: 'demo-play100', firestore: { host: target.hostname, port: Number(target.port), rules },
+  });
+  test.beforeAll(async () => {
+    if (target.hostname !== '127.0.0.1') throw new Error('Only the local demo rules may be changed by this fixture.');
+    environment = await initializeTestEnvironment(configuration(policy === 'live-270f' ? live270fRules() : candidateRules()));
+  });
+  test.afterAll(async () => {
+    try { await environment?.cleanup(); }
+    finally {
+      if (policy === 'live-270f') {
+        const restored = await initializeTestEnvironment(configuration(candidateRules()));
+        await restored.cleanup();
+      }
+    }
+  });
 
 test('a verified cancelled registration offers removal without bootstrapping content', async ({ page, context, request, baseURL }) => {
   if (!baseURL || !['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) throw new Error('Use only the owned emulator-bound app.');
@@ -56,4 +79,5 @@ test('a verified cancelled registration offers removal without bootstrapping con
     });
     await request.delete(document, { headers: { Authorization: 'Bearer owner' } });
   }
+});
 });

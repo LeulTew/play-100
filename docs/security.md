@@ -113,8 +113,9 @@ by this source change.
 
 ## Stage 1 compatibility and validation
 
-The new client still works with live 270f rules. Publish it before tightening
-rules: the old client's outgoing-pending identity reads will be denied by the
+The new client has an explicit client-first path for live 270f rules; the
+migration cases below must be executed before relying on that compatibility.
+Publish it before tightening rules: the old client's outgoing-pending identity reads will be denied by the
 new policy, and its immediate declined retry will be rejected. The report
 transaction already reads only its own missing/existing report and needs no
 ID change for delimiter-safe UIDs; the client now rejects unsupported report IDs
@@ -154,12 +155,79 @@ errors do not. Once new rules are active, verified owner reads of the registry
 are permitted and every new generation requires enrollment; falling back cannot
 bypass the server cap.
 
-These caps limit amplification against Spark's 1 GiB storage allowance; they are
-not a global billing guarantee. Eight worst-case private and ranking manifests
+**Open limit: these are tracked-generation caps, not a cumulative payload bound.**
+Neither private generation deletion nor public generation deletion proves that
+the associated chunks/entries were deleted first. A malicious verified owner can
+write a small valid generation, mark it deleting, delete/unregister only its
+metadata, and allocate a new generation in the freed slot. Repeating this leaves
+payload behind while every registry remains below eight/four IDs. The client
+deletes payload before metadata, but rules cannot trust clients to do that.
+New payload-orphan growth is therefore **not blocked**, not just a legacy-data
+inventory problem, and H5 storage-exhaustion closure is incomplete.
+
+Normal cleanup cannot rediscover those private chunks through an empty registry
+or those public entries through absent generation documents. Entry deletion also
+requires its generation's `deleting` marker; absent metadata can prevent ordinary
+owner cleanup. Restoring metadata or another repair may recover access, but there
+is no supported orphan-recovery flow or rule-level byte ceiling in this batch.
+An operator must inventory payload as well as generation metadata and decide
+the existing-data purge scope. The parent requires a separately reviewed repair:
+this is an **open release-candidate gate**, not an accepted residual risk.
+No repair, privilege expansion, collection scan in the client, or
+production inventory was performed by this lane.
+
+The eight/four limits bound the cooperative client's tracked working set against
+Spark's 1 GiB allowance, not malicious total storage or global billing.
+Eight worst-case tracked private and ranking manifests
 at 20 MiB each can still require roughly 427 MiB after base64, before indexes and
-metadata. Typical ranking summaries are much smaller. The operator must review
+metadata; orphan payload is additional and unbounded by the registry counts.
+Typical ranking summaries are much smaller. The operator must review
 actual legacy use, billing/quota alerts and account-level abuse; no number of
 accounts is guaranteed to fit within 1 GiB.
+
+### Self-contained migration coverage
+
+`tests-cloud/fixtures/live-270f4c7/firestore.rules` is the unchanged repository
+snapshot from commit `270f4c743d3a9a89d5a64fe612e471ea045ebb47`, Git blob
+`6e97647cb01106e2035edfd97a725e2b3e9538f7`, SHA-256
+`971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
+The shared fixture loader verifies both digests before loading it. It does not
+read a private evidence drive, invoke Git, or depend on CI fetching old history.
+This identifies the archived source, not a fresh production rules readback.
+
+`tests-cloud/security-migration.test.ts` uses real Auth/Firestore emulator
+clients and current SocialStore, CloudStore, cancelled-recovery and Friends
+methods. It covers new publish/rename/report on frozen old rules, the specific
+registry-read permission-denied fallback (not offline errors), verified cancelled
+identity/device removal without content cleanup, outgoing public-name selection,
+and denied guest profile reads mapped to null. Candidate-only cases cover
+valid expired 12-generation private state shrinking before an actual save and
+readback, unregistered public cleanup then enrollment, and reserved legacy handles
+unpublishing/renaming while same-handle republishing is rejected.
+
+Two tiny counterexample cases deliberately characterize the **open** payload
+limit: real payload writes, metadata-only deletion/unregistration, reallocation,
+surviving orphan payload and inability of normal cleanup to find it. Their
+success would confirm the limitation, not a security fix. They are not a
+large-payload, storage-exhaustion or timing benchmark.
+
+The existing `tests-cloud-ui/cancelled-registration.spec.ts` exercises the same
+real UI removal against both frozen and candidate rules. The new
+`tests-cloud-ui/security-migration.spec.ts` checks the actual sent-row published
+label under old rules, and the unavailable-profile UI plus unauthenticated
+missing-profile denial under new rules. No SDK responses are mocked to grant
+compatibility. The Node removal case uses the existing fake IndexedDB backend
+but executes the real scoped-storage transaction; UI cases use browser storage.
+
+All these added cases are **UNRUN in the source lane**. Run `npm run test:cloud`
+and the two UI specs on the separately configured local demo app. These fixtures
+temporarily load old rules into `demo-play100` and restore candidate rules in
+teardown: run with one worker and exclusive ownership of those emulator ports,
+never alongside another validation or against production. No case inventories
+real users or proves malformed/dangling legacy metadata recoverable. The
+12-generation case deliberately has valid manifests, payload and expired
+timestamps; young in-flight generations may need to age, and dangling registry
+IDs or missing/corrupt payload still require operator preflight.
 
 ## Profile reads and handles
 
@@ -206,7 +274,9 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
    do not infer it from an email match.
 2. Run central unit/types/lint/build, the complete demo rules suite and the
    separately configured demo UI cases. Review legacy generation inventories,
-   reserved/orphan handles, and the new-client/old-rules path before publication.
+   payload orphans (not just registry counts), reserved/orphan handles, and the
+   new-client/old-rules path before publication. Record the operator's decision
+   on the open payload-orphan limit; do not mark H5 closed from count tests.
 3. Deploy and promote the compatible client first. Verify report submission,
    outgoing request labels, cancelled recovery, publish/rename/cleanup and
    shared-device removal with approved accounts on production after promotion;
