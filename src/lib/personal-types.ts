@@ -1,5 +1,9 @@
 import type { Game, MotionPreference } from './types.js';
 
+export const MAX_LIBRARY_RECORDS = 10_000;
+export const MAX_LIBRARY_ID_CHARACTERS = 200;
+export const MAX_LIBRARY_TITLE_CHARACTERS = 200;
+
 export type GameSource = 'collection' | 'steam' | 'wikidata' | 'freetogame' | 'manual';
 
 export interface LibraryRecord {

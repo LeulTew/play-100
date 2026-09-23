@@ -5,8 +5,8 @@ import type {
 import { parseLibrary } from './storage.js';
 import type { MotionPreference } from './types.js';
 import { orderByRating, retainManualPositions } from './ranking-order.js';
+import { MAX_LIBRARY_RECORDS as MAX_RECORDS, MAX_LIBRARY_ID_CHARACTERS, MAX_LIBRARY_TITLE_CHARACTERS } from './personal-types.js';
 
-const MAX_RECORDS = 10_000;
 const forbiddenKeys = new Set(['__proto__', 'constructor', 'prototype']);
 const sources: readonly GameSource[] = ['collection', 'steam', 'wikidata', 'freetogame', 'manual'];
 
@@ -55,7 +55,7 @@ function shape(
 
 function safeId(value: unknown): string {
   if (
-    typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$/.test(value) ||
+    typeof value !== 'string' || value.length > MAX_LIBRARY_ID_CHARACTERS || !/^[A-Za-z0-9][A-Za-z0-9:_-]*$/.test(value) ||
     forbiddenKeys.has(value)
   ) {
     return invalid('a game has an unsafe or missing ID.');
@@ -122,7 +122,7 @@ function record(value: unknown): LibraryRecord {
   }
   return {
     id: safeId(input.id),
-    title: text(input.title, 'A game title', 200, true),
+    title: text(input.title, 'A game title', MAX_LIBRARY_TITLE_CHARACTERS, true),
     year,
     studio: nullableText(input.studio, 'A studio'),
     genre: nullableText(input.genre, 'A genre'),

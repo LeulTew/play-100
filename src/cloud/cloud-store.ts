@@ -1,7 +1,8 @@
 import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
 import type { DocumentData, DocumentReference, Firestore, Transaction } from 'firebase/firestore';
 import type { PersonalLibraryState } from '../lib/personal-types';
-import { creatorRanks } from '../lib/cloud-types';
+import { creatorRanks, MAX_RANKING_SNAPSHOT_BYTES } from '../lib/cloud-types';
+import { MAX_LIBRARY_RECORDS, MAX_LIBRARY_TITLE_CHARACTERS } from '../lib/personal-types';
 import type { CreatorRank, SnapshotChunk, SnapshotManifest, SyncHead } from '../lib/cloud-types';
 import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot } from '../lib/snapshot-transport';
 import { ensureAccountActivity } from './account-lifecycle';
@@ -136,11 +137,11 @@ export class CloudStore {
       const part = await getDocFromServer(this.chunkRef('ranking', digest));
       return part.exists() ? part.data() : undefined;
     });
-    if (!Array.isArray(data) || data.length > 10_000) throw new Error('The member ranking summary is invalid.');
+    if (!Array.isArray(data) || data.length > MAX_LIBRARY_RECORDS) throw new Error('The member ranking summary is invalid.');
     return data.map((entry: unknown, index) => {
       if (!entry || typeof entry !== 'object' || Object.keys(entry).sort().join() !== 'id,position,score,title' ||
         !('position' in entry) || entry.position !== index + 1 || !('id' in entry) || typeof entry.id !== 'string' ||
-        !('title' in entry) || typeof entry.title !== 'string' || entry.title.length > 200 ||
+        !('title' in entry) || typeof entry.title !== 'string' || entry.title.length > MAX_LIBRARY_TITLE_CHARACTERS ||
         !('score' in entry) || (entry.score !== null && (typeof entry.score !== 'number' || !Number.isFinite(entry.score) || entry.score < 0 || entry.score > 10))) {
         throw new Error('The member ranking contains unsupported fields. It was not displayed.');
       }
@@ -201,6 +202,7 @@ export class CloudStore {
     guard();
     await ensureAccountActivity(this.db, this.uid);
     const [snapshot, summary] = await Promise.all([packLibrary(state), packSnapshot(creatorRanks(state))]);
+    if (summary.manifest.bytes > MAX_RANKING_SNAPSHOT_BYTES) throw new Error('This ranking summary is too large for online saving. Your device copy is unchanged.');
     guard();
     summary.manifest.generation = snapshot.manifest.generation;
     if (expected.current?.digest === snapshot.manifest.digest) {

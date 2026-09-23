@@ -34,6 +34,9 @@ service cloud.firestore {
         && value.chunks is list && value.chunks.size() > 0 && value.chunks.size() <= 107
         && value.bytes > (value.chunks.size() - 1) * 196608 && value.bytes <= value.chunks.size() * 196608;
     }
+    function rankingManifest(value) {
+      return manifest(value) && value.bytes <= 16777216 && value.chunks.size() <= 86;
+    }
     function headShape(data) {
       return data.keys().hasOnly(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt', 'cleanupEpoch'])
         && data.keys().hasAll(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
@@ -145,7 +148,7 @@ service cloud.firestore {
       allow get: if own(uid);
       allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if own(uid) && request.resource.data.keys().hasOnly(['private', 'ranking', 'epoch', 'status', 'createdAt'])
-        && manifest(request.resource.data.private) && manifest(request.resource.data.ranking)
+        && manifest(request.resource.data.private) && rankingManifest(request.resource.data.ranking)
         && request.resource.data.private.generation == id && request.resource.data.ranking.generation == id
         && active(uid, request.resource.data.epoch) && request.resource.data.status == 'staging'
         && request.resource.data.createdAt == request.time
@@ -218,7 +221,7 @@ service cloud.firestore {
       allow get: if own(uid) || creator();
       allow list: if false;
       allow create, update: if own(uid) && request.resource.data.keys().hasOnly(['format', 'epoch', 'revision', 'current', 'previous', 'updatedAt'])
-        && request.resource.data.format == 1 && manifest(request.resource.data.current)
+        && request.resource.data.format == 1 && rankingManifest(request.resource.data.current)
         && (request.resource.data.previous == null || manifest(request.resource.data.previous))
         && request.resource.data.epoch == getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.epoch
         && request.resource.data.revision == getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.revision

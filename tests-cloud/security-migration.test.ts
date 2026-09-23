@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { assertFails, initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteApp, initializeApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
@@ -19,7 +19,7 @@ import { FriendAllStore } from '../src/cloud/friend-all-store';
 import { SocialStore } from '../src/cloud/social-store';
 import { releaseIndexedPayload } from '../src/cloud/generation-cleanup';
 import { ACCOUNT_LIMITS, AccountQuotaFull, quotaRef } from '../src/cloud/account-quota';
-import { accountScope, CHUNK_BYTES, creatorRanks, MAX_CHUNKS, MAX_SNAPSHOT_BYTES } from '../src/lib/cloud-types';
+import { accountScope, CHUNK_BYTES, creatorRanks, MAX_CHUNKS, MAX_RANKING_CHUNKS, MAX_RANKING_SNAPSHOT_BYTES, MAX_SNAPSHOT_BYTES } from '../src/lib/cloud-types';
 import type { AvatarValue, PublicEntry, PublicProfile } from '../src/lib/community';
 import { FriendManagerFeed } from '../src/lib/friend-manager-feed';
 import { visibleFriendPairs } from '../src/lib/friend-manager';
@@ -375,6 +375,60 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
   });
 
   if (policy === 'candidate') {
+    it('allows new twenty-MiB private and sixteen-MiB ranking manifests, but denies a larger ranking allocation atomically', async () => {
+      const owner = await actor();
+      const head = await owner.cloud.enable(null);
+      const registry = doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry');
+      const manifest = (id: string, bytes: number) => ({
+        format: 1, generation: id, bytes, digest: 'a'.repeat(64),
+        chunks: Array.from({ length: Math.ceil(bytes / CHUNK_BYTES) }, (_, index) => index.toString(16).padStart(64, '0')),
+      });
+      const first = crypto.randomUUID();
+      const begin = writeBatch(owner.db);
+      begin.set(doc(owner.db, 'accounts', owner.uid, 'generations', first), {
+        private: manifest(first, MAX_SNAPSHOT_BYTES), ranking: manifest(first, MAX_RANKING_SNAPSHOT_BYTES),
+        status: 'staging', epoch: head.epoch, createdAt: serverTimestamp(),
+      });
+      begin.set(registry, { ids: [first], revision: 1 });
+      await begin.commit();
+      expect(manifest(first, MAX_RANKING_SNAPSHOT_BYTES).chunks).toHaveLength(MAX_RANKING_CHUNKS);
+      const overflow = crypto.randomUUID();
+      const invalid = writeBatch(owner.db);
+      invalid.set(doc(owner.db, 'accounts', owner.uid, 'generations', overflow), {
+        private: manifest(overflow, MAX_SNAPSHOT_BYTES), ranking: manifest(overflow, MAX_RANKING_SNAPSHOT_BYTES + 1),
+        status: 'staging', epoch: head.epoch, createdAt: serverTimestamp(),
+      });
+      invalid.update(registry, { ids: [first, overflow], revision: 2 });
+      await assertFails(invalid.commit());
+      expect((await getDocFromServer(registry)).data()?.ids).toEqual([first]);
+      expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'generations', overflow))).exists()).toBe(false);
+    });
+
+    it.each([MAX_RANKING_SNAPSHOT_BYTES + 1, MAX_RANKING_CHUNKS * CHUNK_BYTES + 1])('denies an oversized READY creator ranking manifest with %s bytes while permitting the bounded control', async bytes => {
+      const owner = await actor();
+      const head = await owner.cloud.enable(null);
+      const id = crypto.randomUUID();
+      const manifest = (size: number) => ({
+        format: 1, generation: id, bytes: size, digest: 'b'.repeat(64),
+        chunks: Array.from({ length: Math.ceil(size / CHUNK_BYTES) }, (_, index) => index.toString(16).padStart(64, '0')),
+      });
+      const oversized = manifest(bytes);
+      expect(parseManifest(oversized).bytes).toBe(bytes);
+      expect(oversized.chunks).toHaveLength(bytes === MAX_RANKING_SNAPSHOT_BYTES + 1 ? 86 : 87);
+      const generation = `accounts/${owner.uid}/generations/${id}`;
+      const ranking = doc(owner.db, 'creatorRanks', owner.uid);
+      await seed({ [generation]: { private: manifest(1), ranking: oversized, status: 'ready', epoch: head.epoch, createdAt: aged() } });
+      const summary = (current: ReturnType<typeof manifest>) => ({
+        format: 1, epoch: head.epoch, revision: head.revision, current, previous: null, updatedAt: serverTimestamp(),
+      });
+      await assertFails(setDoc(ranking, summary(oversized)));
+      expect((await getDocFromServer(ranking)).exists()).toBe(false);
+      const bounded = manifest(MAX_RANKING_SNAPSHOT_BYTES);
+      await seed({ [generation]: { private: manifest(1), ranking: bounded, status: 'ready', epoch: head.epoch, createdAt: aged() } });
+      await assertSucceeds(setDoc(ranking, summary(bounded)));
+      expect((await getDocFromServer(ranking)).data()?.current.bytes).toBe(MAX_RANKING_SNAPSHOT_BYTES);
+    });
+
     it('heals rollback orphan group and block IDs before removing their empty quota records', async () => {
       const owner = await actor();
       await owner.friends.initialize(owner.uid);
