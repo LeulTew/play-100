@@ -329,7 +329,8 @@ service cloud.firestore {
         && request.resource.data.hidden == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.hidden
         && request.resource.data.epoch == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch
         && request.resource.data.epoch == resource.data.epoch + 1;
-      allow delete: if own(uid) && publicControl(uid).deleted && !resource.data.published;
+      allow delete: if own(uid) && publicControl(uid).deleted && !resource.data.published
+        && !existsAfter(/databases/$(database)/documents/handles/$(resource.data.handle));
     }
     match /handles/{handle} {
       allow get: if resource == null || (profile(resource.data.uid).handle == handle
@@ -392,7 +393,7 @@ service cloud.firestore {
             && publicRegistryAdded(uid, request.resource.data.ids[request.resource.data.ids.size() - 1]))
           || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
             && !existsAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(resource.data.ids.removeAll(request.resource.data.ids)[0]))));
-      allow delete: if own(uid) && publicControl(uid).deleted && resource.data.ids.size() == 0;
+      allow delete: if own(uid) && publicControl(uid).deleted && (resource == null || resource.data.ids.size() == 0);
     }
     match /publicProfiles/{uid}/generations/{id} {
       allow get: if own(uid);

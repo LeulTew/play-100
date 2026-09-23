@@ -319,6 +319,23 @@ export class SocialStore {
     }
     return cleaned;
   }
+  private async releaseAbsentPublicIds(uid: string): Promise<void> {
+    const registry = doc(this.db, 'publicProfiles', uid, 'metadata', 'registry');
+    const current = await getDocFromServer(registry);
+    if (!current.exists()) return;
+    const value = publicationRegistry(current.data());
+    if (value.ids.length > 4) throw new Error('Some public copies still need cleanup. Try deleting again later.');
+    for (const id of value.ids) {
+      const generation = doc(this.db, 'publicProfiles', uid, 'generations', id);
+      if ((await getDocFromServer(generation)).exists()) continue;
+      await runTransaction(this.db, async tx => {
+        const [stored, parent] = await Promise.all([tx.get(registry), tx.get(generation)]);
+        if (!stored.exists() || parent.exists()) return;
+        const live = publicationRegistry(stored.data());
+        if (live.ids.includes(id)) tx.update(registry, { ids: live.ids.filter(value => value !== id), revision: live.revision + 1 });
+      });
+    }
+  }
   async deleteProfile(uid: string): Promise<void> {
     for (let pass = 0; pass < 20; pass += 1) {
       if (await this.cleanup(uid, true) < 20) break;
@@ -331,9 +348,18 @@ export class SocialStore {
     }
     const quota = quotaRef(this.db, uid, 'reports');
     const counted = await quotaSupported(quota);
+    const publicRegistry = doc(this.db, 'publicProfiles', uid, 'metadata', 'registry');
+    const publicationsCounted = await quotaSupported(publicRegistry);
+    if (publicationsCounted) await this.releaseAbsentPublicIds(uid);
     await runTransaction(this.db, async (tx) => {
       const ref = doc(this.db, 'publicProfiles', uid);
-      const [profile, usage] = await Promise.all([tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null)]);
+      const [profile, usage, registry] = await Promise.all([
+        tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null), publicationsCounted ? tx.get(publicRegistry) : Promise.resolve(null),
+      ]);
+      if (registry?.exists()) {
+        if (publicationRegistry(registry.data()).ids.length) throw new Error('Some public copies still need cleanup. Try deleting again later.');
+        tx.delete(publicRegistry);
+      }
       if (usage?.exists()) {
         if (usage.data().count !== 0) throw new Error('Some reports could not be removed, so account deletion stopped. Try again later.');
         tx.delete(quota);
@@ -343,5 +369,8 @@ export class SocialStore {
         tx.delete(ref);
       }
     });
+    if (publicationsCounted && (await getDocFromServer(publicRegistry)).exists()) {
+      throw new Error('Some publication settings still need removal. Try deleting again later.');
+    }
   }
 }

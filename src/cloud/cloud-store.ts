@@ -344,7 +344,20 @@ export class CloudStore {
           if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
         }
         const candidate = await tx.get(this.generationRef(id));
-        if (!candidate.exists() || retained.has(id)) return null;
+        if (retained.has(id)) return null;
+        if (!candidate.exists()) {
+          const registry = await tx.get(this.registryRef());
+          if (!registry.exists()) return null;
+          const current = registry.data();
+          const currentIds: unknown = current.ids;
+          if (!Array.isArray(currentIds) || !currentIds.every((value): value is string => typeof value === 'string') ||
+            !Number.isSafeInteger(current.revision) || current.revision < 1) {
+            throw new Error("Your online data couldn't be read. Try again later.");
+          }
+          if (!currentIds.includes(id)) return null;
+          tx.update(this.registryRef(), { ids: currentIds.filter(value => value !== id), revision: current.revision + 1 });
+          return { orphaned: true };
+        }
         const data = candidate.data();
         if (!(data.createdAt instanceof Timestamp)) throw new Error("Your online data couldn't be read. Try again later.");
         const age = Date.now() - data.createdAt.toMillis();
@@ -354,6 +367,7 @@ export class CloudStore {
         return manifests;
       });
       if (!generation) continue;
+      if ('orphaned' in generation) { count += 1; continue; }
       const parts = (['private', 'ranking'] as const).flatMap(kind => generation[kind].chunks.map(digest => ({ kind, digest })));
       const releaseHeld = (tx: Transaction, ref: DocumentReference<DocumentData>, data: DocumentData | undefined) => {
         if (!data) return;

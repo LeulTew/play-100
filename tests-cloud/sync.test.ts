@@ -50,6 +50,17 @@ async function client(existingEmail?: string) {
 }
 
 describe('real Auth and Firestore snapshot transactions', () => {
+  it('heals an absent unretained private generation ID during deletion and removes its registry', async () => {
+    const { store, db, user } = await client();
+    const head = await store.enable(null);
+    await store.revoke(head, true);
+    const registry = doc(db, 'accounts', user.uid, 'metadata', 'registry');
+    await environment.withSecurityRulesDisabled(async context => {
+      await context.firestore().doc(registry.path).set({ ids: [crypto.randomUUID()], revision: 1 });
+    });
+    expect(await store.cleanup(true)).toBe(1);
+    expect((await getDocFromServer(registry)).exists()).toBe(false);
+  });
   it('commits private snapshots and a separate sanitized creator summary with no public data', async () => {
     const { store, db, user } = await client();
     const head = await store.enable(null);

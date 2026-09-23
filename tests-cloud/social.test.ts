@@ -7,6 +7,7 @@ import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemo
 import { collection, connectFirestoreEmulator, doc, getDocFromServer, getDocs, getFirestore, limit, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { SocialStore } from '../src/cloud/social-store';
+import { CloudStore } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
 
@@ -58,6 +59,50 @@ async function stageGeneration(owner: Awaited<ReturnType<typeof client>>, ref: R
 }
 
 describe('consented public snapshots, handle claims and moderation', () => {
+  it('heals an absent public generation ID before deleting the empty registry', async () => {
+    const owner = await client(); const id = crypto.randomUUID();
+    await owner.social.unpublish(owner.uid, control, true);
+    await environment.withSecurityRulesDisabled(async context => {
+      await context.firestore().doc(`publicProfiles/${owner.uid}/metadata/registry`).set({ ids: [id], revision: 1 });
+    });
+    await owner.social.deleteProfile(owner.uid);
+    expect((await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
+  });
+  it('does not delete a profile or handle while a present generation is excluded by its missing createdAt', async () => {
+    const owner = await client();
+    const profile = await owner.social.publish(owner.uid, publication('retained_public'), control);
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid), true);
+    const before = await owner.social.ownProfile(owner.uid);
+    await environment.withSecurityRulesDisabled(async context => {
+      await context.firestore().doc(`publicProfiles/${owner.uid}/generations/${profile.generation}`).set({
+        epoch: 0, count: 1, uploaded: 1, status: 'ready',
+      });
+    });
+    await expect(owner.social.deleteProfile(owner.uid)).rejects.toThrow('Some public copies still need cleanup.');
+    expect(await owner.social.ownProfile(owner.uid)).toEqual(before);
+    expect((await getDocFromServer(doc(owner.db, 'handles', profile.handle))).exists()).toBe(true);
+  });
+  it('requires releasing the current handle on profile deletion and removes the empty publication registry', async () => {
+    const owner = await client();
+    await owner.social.saveMember(owner.uid, 'Handle cleanup fixture', avatar);
+    await new CloudStore(owner.db, owner.uid).enable(null);
+    const first = await owner.social.publish(owner.uid, publication('bounded_handle'), control);
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid), true);
+    const profile = doc(owner.db, 'publicProfiles', owner.uid);
+    const orphan = writeBatch(owner.db);
+    orphan.delete(profile);
+    await assertFails(orphan.commit());
+    expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(true);
+    await owner.social.deleteProfile(owner.uid);
+    expect((await getDocFromServer(profile)).exists()).toBe(false);
+    expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(false);
+    expect((await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
+    await owner.social.deleteProfile(owner.uid);
+    await owner.social.restorePublicationPermission(owner.uid);
+    const second = await owner.social.publish(owner.uid, publication('next_bounded_handle'), await owner.social.control(owner.uid));
+    expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(false);
+    expect((await getDocFromServer(doc(owner.db, 'handles', second.handle))).exists()).toBe(true);
+  });
   it('keeps link-only publication out of the directory and never publishes private state', async () => {
     const owner = await client(); const guest = await client(true);
     const published = await owner.social.publish(owner.uid, publication('my_games'), control);
