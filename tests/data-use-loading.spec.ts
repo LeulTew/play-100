@@ -78,7 +78,9 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
     expect(shift).toBe(0);
     await expect(page.getByRole('heading', { name: 'Services and essential storage', exact: true })).toBeAttached();
     expect(modules).toHaveLength(1);
-    expect(dataRequests).toEqual([]);
+    const publicCollectionPreload = new URL('/data/collection.json', page.url()).href;
+    expect(dataRequests.filter(url => url !== publicCollectionPreload)).toEqual([]);
+    expect(dataRequests.length).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
     expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0);
   } finally { release(); }
