@@ -3,8 +3,4 @@
 .route-skeleton { margin-top: 24px; }
 .route-skeleton i { grid-row: span 2; }
 .route-form { display: grid; gap: 16px; }
-.route-fallback[data-route="discover"] { padding-top: 28px; }
 @media (max-width: 760px) { .route-fallback > .page-heading { min-height: 48px; } }
-@media (max-width: 680px) {
-  .route-fallback[data-route="discover"] { padding-top: 20px; }
-}

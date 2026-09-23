@@ -21,7 +21,8 @@ for (const destination of [
     try {
       await page.goto(destination.path, { waitUntil: 'domcontentloaded' });
       await began;
-      const fallback = page.locator(`.route-fallback[data-route="${destination.route}"]`);
+      const fallback = page.locator(`.route-fallback[data-route="${destination.route}"]:visible`);
+      await expect(page.locator('.route-fallback:visible')).toHaveCount(1);
       await expect(fallback).toBeVisible();
       await expect(fallback).toHaveAttribute('aria-busy', 'true');
       await expect(fallback.getByRole('heading', { level: 1 })).toHaveText(destination.title);
