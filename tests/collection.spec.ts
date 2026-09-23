@@ -140,10 +140,10 @@ test('play-later and completion are independent and persist on this device', asy
   await page.goto(`/?game=${firstSlug}`);
   await page.getByRole('dialog').getByRole('button', { name: 'Play later', exact: true }).click();
   await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Saved for later', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Play later', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Saved for later', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Play later', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();

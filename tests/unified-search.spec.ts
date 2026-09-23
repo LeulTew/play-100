@@ -52,7 +52,7 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   await page.reload();
   await expect(row(page, a)).toHaveCount(1);
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('9.25');
-  await expect(row(page, b).getByRole('button', { name: `Saved for later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.goto('/my-library');
   await expect(page.locator('[data-record-id]')).toHaveCount(2);
 });
@@ -296,7 +296,7 @@ test('external metadata, ratings and queue survive a full browser restart even w
     await page.route('**/api/catalog?**', (route) => route.fulfill({ status: 503, json: { error: 'Source offline for this check.' } }));
     await page.goto('/?q=mass&view=table');
     await expect(row(page, a).getByRole('spinbutton')).toHaveValue('9');
-    await expect(row(page, b).getByRole('button', { name: `Saved for later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     const after = await readLibrary(page);
     expect(after.records).toEqual(before.records);
     expect(after.ranking).toEqual(before.ranking);

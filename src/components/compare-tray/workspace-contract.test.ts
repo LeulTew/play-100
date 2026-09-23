@@ -56,6 +56,15 @@ describe('workspace embedding contract', () => {
     }
   });
 
+  it.each([false, true])('keeps the editor queue name stable with pressed=%s', selected => {
+    const libraryState = { ...state, progress: { ...state.progress, alpha: { played: false, completed: false, later: selected } } };
+    const library = renderToStaticMarkup(h(LibraryPage, { ...props, state: libraryState }));
+    const queue = library.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes('aria-label="Play later: Alpha game"'));
+    expect(queue).toContain(`aria-pressed="${selected}"`);
+    expect(queue).toContain('title="Play later"');
+    expect(queue).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
+  });
+
   it.each([0, 1, 25, 26, 500])('keeps Library counts and bounded rows with %i records, without unnecessary page controls', total => {
     const records = Array.from({ length: total }, (_, index) => ({ ...alpha, id: `game-${index}`, sourceId: `game-${index}`, title: `Game ${index}` }));
     const html = renderToStaticMarkup(h(LibraryPage, {

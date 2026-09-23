@@ -17,6 +17,15 @@ function renderDetail(overrides: Partial<CatalogDetailProps> = {}) {
 }
 
 describe('catalog detail artwork continuity surface', () => {
+  it.each([false, true])('keeps the detail queue name stable with pressed=%s', selected => {
+    const { html } = renderDetail({ progress: { later: selected, completed: selected, played: selected } });
+    const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+    const button = buttons.find(value => value.endsWith('</svg>Play later</button>'));
+    expect(button).toContain(`aria-pressed="${selected}"`);
+    expect(button).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
+    expect(html).not.toContain('Saved for later');
+  });
+
   it('uses the supplied local artwork with intrinsic dimensions in the existing centered dialog', () => {
     const { html, props } = renderDetail({ artwork: artworkFixture });
     expect(html).toContain('class="dialog info-dialog catalog-detail-dialog"');

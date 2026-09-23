@@ -284,7 +284,7 @@ test('removing a filtered origin closes coherently instead of returning to stale
   const link = await prepareSource(page);
   await link.click();
   const dialog = page.locator('.game-dialog');
-  await dialog.getByRole('button', { name: 'Saved for later', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Play later', exact: true }).click();
   await expect(page.locator(firstCard)).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);

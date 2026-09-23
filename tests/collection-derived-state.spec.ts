@@ -17,12 +17,12 @@ test('collection derivations stay current across Menu, filters, progress edits a
   await page.keyboard.press('Escape');
   expect(await cards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-game')))).toEqual(before);
   await expect(search).toHaveValue('Red Dead Redemption 2');
-  await cards.getByRole('button', { name: 'Add Red Dead Redemption 2 to play later', exact: true }).click();
-  await expect(cards.getByRole('button', { name: 'Remove Red Dead Redemption 2 from play later', exact: true })).toBeVisible();
+  await cards.getByRole('button', { name: 'Play later: Red Dead Redemption 2', exact: true }).click();
+  await expect(cards.getByRole('button', { name: 'Play later: Red Dead Redemption 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await openBrowsingFilters(page);
   await page.getByRole('group', { name: 'Your collection views', exact: true }).getByRole('button', { name: /^Play later/ }).click();
   await expect(cards).toHaveCount(1);
-  await cards.getByRole('button', { name: 'Remove Red Dead Redemption 2 from play later', exact: true }).click();
+  await cards.getByRole('button', { name: 'Play later: Red Dead Redemption 2', exact: true }).click();
   await expect(cards).toHaveCount(0);
   await page.goBack();
   await expect(cards).toHaveCount(1);

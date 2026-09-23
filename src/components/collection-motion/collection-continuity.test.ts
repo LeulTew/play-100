@@ -27,6 +27,32 @@ function gameAt(rank: number): Game {
 }
 
 describe('collection continuity preserves the public presentation', () => {
+  it.each([false, true])('keeps card, table and detail queue names stable with pressed=%s', selected => {
+    const game = gameAt(2);
+    const state = { played: selected, completed: selected, later: selected };
+    const card = renderToStaticMarkup(h(GameCard, {
+      game, filters: defaultFilters, state, onOpen: vi.fn(), onSave: vi.fn(), onPlayed: vi.fn(), onCompleted: vi.fn(),
+    }));
+    const table = renderToStaticMarkup(h(RatingsTable, {
+      games: [game], filters: defaultFilters, progress: { [game.slug]: state }, selecting: false,
+      selected: new Set<string>(), busy: false, onSelect: vi.fn(), onOpen: vi.fn(), onToggle: vi.fn(), onSort: vi.fn(),
+    }));
+    for (const html of [card, table]) {
+      expect(html).toContain(`aria-pressed="${selected}" aria-label="Play later: ${game.title}"`);
+      const queue = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes(`aria-label="Play later: ${game.title}"`));
+      expect(queue).toContain('title="Play later"');
+      expect(queue).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
+    }
+    const detail = renderToStaticMarkup(h(GameDetail, {
+      game, state, previous: undefined, next: undefined, onClose: vi.fn(), onOpen: vi.fn(), onToggle: vi.fn(),
+      onShare: vi.fn(), shareFeedback: '', personalRating: null, onRate: vi.fn(async () => true),
+    }));
+    const buttons = detail.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+    const button = buttons.find(value => value.trimEnd().endsWith('</svg>Play later</button>'));
+    expect(button).toContain(`aria-pressed="${selected}"`);
+    expect(button).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
+  });
+
   it.each(['grid', 'list'] as const)('keeps the %s card a real link with native artwork and separate controls', (view) => {
     const game = gameAt(2);
     const filters = { ...defaultFilters, view, q: 'mass effect' };

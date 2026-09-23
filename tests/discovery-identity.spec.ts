@@ -66,7 +66,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await card.getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[canonical.id]).toEqual({ played: true, completed: false, later: false });
   await card.getByRole('button', { name: `Mark ${rdr.title} completed`, exact: true }).click();
-  await card.getByRole('button', { name: 'Play later', exact: true }).click();
+  await card.getByRole('button', { name: `Play later: ${rdr.title}`, exact: true }).click();
   await card.getByRole('button', { name: rdr.title, exact: true }).click();
   await expect(page).toHaveURL(/game=red-dead-redemption-2/);
   const detail = detailFor(page);

@@ -53,7 +53,7 @@ test('explicit offline preparation preserves guest data and serves fresh local r
   const record = Object.values((await readLibrary(page)).records).find(value => value.title === title);
   if (!record) throw new Error('The UI-created guest fixture did not persist.');
   const row = page.locator(`.my-games-editor:visible [data-record-id="${record.id}"]`);
-  await row.getByRole('button', { name: `Add ${title} to play later`, exact: true }).click();
+  await row.getByRole('button', { name: `Play later: ${title}`, exact: true }).click();
   await row.getByRole('button', { name: `Add ${title} to my ranking`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.some(entry => entry.id === record.id)).toBe(true);
   const beforeOffline = await readLibrary(page);

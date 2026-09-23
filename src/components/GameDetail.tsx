@@ -63,7 +63,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         {savedCopies}
         <div className="detail-actions">
           <button className={`button ${state?.later ? 'button-lime' : 'button-dark'}`} disabled={busy} aria-pressed={Boolean(state?.later)} onClick={() => onToggle(game.slug, 'later')}>
-            <Icon name="bookmark" />{state?.later ? 'Saved for later' : 'Play later'}
+            <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />Play later
           </button>
           <button className="button button-outline" disabled={busy} aria-pressed={Boolean(state?.completed)} onClick={() => onToggle(game.slug, 'completed', !state?.completed)}>
             <Icon name="check" />{state?.completed ? 'Completed' : 'Mark completed'}

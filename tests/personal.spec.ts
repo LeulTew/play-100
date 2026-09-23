@@ -215,7 +215,7 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await page.getByRole('button', { name: 'Search catalog', exact: true }).click();
   await expect(page.locator('.catalog-results > li')).toHaveCount(1);
   expect(Object.keys((await readLibrary(page)).records)).toHaveLength(0);
-  await page.locator('.catalog-record-actions').getByRole('button', { name: 'Play later', exact: true }).click();
+  await page.locator('.catalog-record-actions').getByRole('button', { name: `Play later: ${item.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([item.id]);
   await page.getByRole('button', { name: 'Add Catalog game for verification to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);

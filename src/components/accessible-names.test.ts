@@ -26,6 +26,19 @@ describe('composite control accessible names', () => {
     expect(pin).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
   });
 
+  it.each([false, true])('keeps the discovery queue name stable with pressed=%s', selected => {
+    const record = discoveryFixture.record;
+    const html = renderToStaticMarkup(h(DiscoveryCard, {
+      record, state: { ...emptyPersonalLibrary(), progress: { [record.id]: { later: selected, played: false, completed: false } } },
+      busy: false, pinned: selected, onPin: vi.fn(), onAction: vi.fn(async () => true),
+    }));
+    const queue = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.endsWith('</svg>Play later</button>'));
+    expect(queue).toContain(`aria-label="Play later: ${record.title}"`);
+    expect(queue).toContain(`aria-pressed="${selected}"`);
+    expect(queue).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
+    expect(html).not.toContain('>In your queue</button>');
+  });
+
   it('distinguishes provider disclosures in the same status group without changing their visible labels', () => {
     const html = renderToStaticMarkup(h(CatalogSourceStatus, {
       sources: emptySources().map(source => ({ ...source, status: 'ready' as const, notices: ['Provider-specific coverage.'] })),

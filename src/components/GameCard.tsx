@@ -73,12 +73,12 @@ export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCom
       <button
         className={`save-game icon-button ${state?.later ? 'is-saved' : ''}`}
         aria-pressed={Boolean(state?.later)}
-        aria-label={`${state?.later ? 'Remove' : 'Add'} ${game.title} ${state?.later ? 'from' : 'to'} play later`}
-        title={state?.later ? 'Saved to play later' : 'Save to play later'}
+        aria-label={`Play later: ${game.title}`}
+        title="Play later"
         disabled={busy}
         onClick={() => onSave(game.slug)}
       >
-        <Icon name="bookmark" />
+        <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />
       </button>
     </article>
   );
