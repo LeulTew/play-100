@@ -721,19 +721,53 @@ function compilation before promotion.
 
 This is a standalone project. Do not link it to an unrelated existing Vercel
 project. The authorized environment used for publication is Ubuntu-24.04 WSL,
-fish and the existing Vercel CLI login via `npx`.
+fish and the existing Vercel CLI login via `npx`. Pin the CLI to
+`vercel@59.16.0`; never use `@latest` for a release.
 
-Use a clean, isolated staging copy of committed source with Linux-installed
-dependencies, not the Windows checkout's `node_modules`. Copy only the existing
-ignored `.vercel\project.json` link metadata to target this same project; do not
-copy authentication files. From that staging directory in WSL fish:
+Deploy only a reviewed commit already on `origin/main`, from an isolated stage
+of exactly that committed tree. The source stage must contain no untracked
+files, `node_modules`, environment files or authentication files. Add only the
+existing ignored `.vercel/project.json` link metadata to target this same
+project. Vercel installs dependencies and builds remotely on Linux using the
+Node major pinned in `package.json` `engines`; do not build local prebuilt
+artifacts for this release path.
+
+Build-time configuration comes only from this project's Production environment
+variables in Vercel: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+`VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and
+`VITE_FIREBASE_REQUIRED=true`. Missing required configuration fails the build;
+see [online saving](docs/online-saving.md). Nothing is pulled into the stage.
+
+From that staging directory in WSL fish, replace the placeholder with the full
+reviewed commit SHA:
 
 ```fish
-npm ci --no-fund --no-audit
-npx --yes vercel@latest pull --yes --environment=production --scope leulman2-gmailcoms-projects
-set -lx VITE_SITE_URL https://play-100-collection.vercel.app
-npx --yes vercel@latest build --prod --standalone
-npx --yes vercel@latest deploy --prebuilt --prod --yes --scope leulman2-gmailcoms-projects
+set -l source_commit REVIEWED_COMMIT_SHA
+npx --yes vercel@59.16.0 deploy --prod --skip-domain --archive=tgz --yes --meta sourceCommit=$source_commit --scope leulman2-gmailcoms-projects
+```
+
+`--skip-domain` leaves the production alias on the current release. Verify the
+exact new deployment before promotion while Deployment Protection stays on;
+automated checks use the project's existing automation bypass. Never disable
+protection or rotate or print its secret. Check response headers and CSP,
+served entry/worker/manifest sizes against the budgets, and the key journeys.
+
+Before promotion, record the deployment the production alias currently points
+to as the rollback target. Replace both placeholders below with the verified
+deployment URL and that recorded previous deployment URL, respectively:
+
+```fish
+set -l verified_deployment VERIFIED_DEPLOYMENT_URL
+set -l previous_deployment RECORDED_PREVIOUS_DEPLOYMENT_URL
+npx --yes vercel@59.16.0 promote $verified_deployment --scope leulman2-gmailcoms-projects --yes --timeout 3m
+```
+
+Confirm the production alias serves the same asset hashes as the verified
+deployment, then run the production sign-in smoke. If rollback is needed,
+promote the recorded previous deployment using the same path:
+
+```fish
+npx --yes vercel@59.16.0 promote $previous_deployment --scope leulman2-gmailcoms-projects --yes --timeout 3m
 ```
 
 Keep `.vercel` and all environment files ignored. Never copy a token into the
@@ -747,16 +781,13 @@ production browser suite before treating a deployment as delivered.
 
 Hosted build environments provide `VERCEL_PROJECT_PRODUCTION_URL` for absolute
 Open Graph image/URL and canonical metadata. `VITE_SITE_URL` is an optional
-explicit HTTPS origin override; set it as above for the local prebuilt release,
-where Vercel system variables may be unavailable. Local preview does not guess a public origin.
+explicit HTTPS origin override. Local preview does not guess a public origin.
 The shared social card describes the collection, not private visitor progress.
 
-This local/prebuilt deployment path is separate from the quality CI above. Keep
-pulled environment files private and out of source archives, and remove only
-the staging copy's `.vercel\.env.production.local` after publication.
+This remote-build, verify and promote path is separate from the quality CI above.
 The source is now published on the public `LeulTew/play-100` repository. Its
 initial `main` publication is not a PR merge. CI does not deploy, and no automatic
-Vercel Git-build integration is installed; use the explicit local/prebuilt path.
+Vercel Git-build integration is installed; use the explicit remote-build path.
 
 ## Credits and design
 

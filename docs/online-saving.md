@@ -324,10 +324,12 @@ of a user's real Google credentials, MFA or email delivery. Production checks
 must separately verify provider configuration, narrow CSP, rules, current
 billing, a real managed-account data roundtrip, and the exact workbook hashes.
 
-Deploy committed source through an isolated WSL staging copy, `vercel build
---prod --standalone`, and `vercel deploy --prebuilt --prod`. Never deploy a
-`cloud-test` build to production. The normal site uses four primitive public
-configuration values, avoiding JSON/newline quoting across environment tools:
+Follow the [README release path](../README.md#deploy-to-vercel): stage the exact
+reviewed commit already on `origin/main`, then use the pinned CLI to
+`deploy --prod --skip-domain`, verify the remote-built deployment, and `promote`.
+Never deploy a `cloud-test` build to production. The normal site uses four primitive public
+configuration values stored in the project's Vercel Production environment,
+avoiding JSON/newline quoting across environment tools:
 `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
 `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID`.
 Production releases set `VITE_FIREBASE_REQUIRED=true`, so a missing or malformed

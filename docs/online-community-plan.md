@@ -2,6 +2,14 @@
 
 Status: implementation contract, not a claim that the features are already live.
 
+## Release-path amendment (2026-09-23)
+
+Releases now use the remote-build/skip-domain/verify/promote path documented in
+[Deploy to Vercel](../README.md#deploy-to-vercel). GitHub Actions CI runs quality
+checks without deploying. This amendment supersedes the original local-prebuilt
+release and no-hosted-CI requirements, including the historical quota statement
+in Review output; the original contract text below is retained for provenance.
+
 ## 1. Outcome and scope
 
 Keep the collection people already like. Add an account that travels between
@@ -56,7 +64,7 @@ The following remain unchanged:
 - Manual positions, tie behavior, played/completed/replay semantics, drafts,
   record identities, unranked imports, and remove/restore protections.
 - The existing chalk/ink/lime identity and adaptive Three.js enhancement.
-- Local builds and prebuilt Vercel deployment; no hosted CI or invented PR merge.
+- Local builds and prebuilt Vercel deployment; no hosted CI or invented PR merge (superseded; see release-path amendment).
 
 ### Provisioned infrastructure
 
@@ -522,7 +530,7 @@ Guidelines apply. Implementation is authorized; discovered defects must be fixed
 | F: publication | Preview redaction, unique handle race, directory opt-in, atomic update/unpublish, stale reads/writers, safe copy and moderation |
 | G: interface | Desktop/mobile/tablet, keyboard, 200% zoom, long text, focus/scroll/safe areas, axe plus manual interaction; avatar chooser and 32px/96px readability |
 | H: regressions | Exact original data/workbook hashes, author/private score separation, manual ranks, Played, draft exit flush, imports and current 3D |
-| I: release | Type/lint/build, focused and full relevant suites, staged/history secret scans, local prebuilt upload, real production checks |
+| I: release | Type/lint/build, focused and full relevant suites, staged/history secret scans, local prebuilt upload, real production checks (superseded; see release-path amendment) |
 | J: re-review | Fresh read-only review of the final diff and affected lifecycles; repair real findings, rerun affected gates, record remaining limits |
 
 Specific adversarial cases are mandatory:
@@ -567,7 +575,7 @@ as not run, not passing. No merge approval is fabricated when no PR exists.
 5. Run the gauntlet, repair findings, inspect one batched desktop/mobile pass and
    a final confirmation pass, then freeze the release.
 6. Commit/push the clean source with the existing attribution policy.
-7. Build in the owned isolated release staging area and deploy prebuilt artifacts
+7. Build in the owned isolated release staging area and deploy prebuilt artifacts (superseded; see release-path amendment)
    to the existing Vercel project. Recheck provider billing and real live flows.
 8. Deliver the URL, account/community/creator entry points, public-source commit,
    privacy behavior, measured evidence, honest limits, and clean helper status.
