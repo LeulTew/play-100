@@ -1,7 +1,16 @@
 import { chromium, expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { loadEnv } from 'vite';
+import { readFirebaseConfiguration } from '../src/lib/online-config';
 
-const labels = ['The 100', 'Discover', 'My games', 'Friends', 'Menu'];
+const mode = process.env.PLAY100_TEST_BUILD === 'development' ? 'development' : 'production';
+const environment = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+const online = readFirebaseConfiguration(environment);
+if (online.error || (environment.VITE_FIREBASE_REQUIRED === 'true' && !online.config)) {
+  throw new Error(online.error ?? 'The declared navigation build requires complete public Firebase configuration.');
+}
+const onlineAvailable = online.config !== null;
+const labels = ['The 100', 'Discover', 'My games', onlineAvailable ? 'Friends' : 'Ranking', 'Menu'];
 
 async function readNavigation(page: Page) {
   return page.locator('.mobile-nav').evaluate(nav => {
@@ -46,11 +55,21 @@ async function assertNavigation(page: Page) {
 
 async function activateAll(page: Page, touch: boolean) {
   const nav = page.getByRole('navigation', { name: 'Mobile navigation', exact: true });
-  for (const [label, path] of [['Discover', '/discover'], ['My games', '/my-games'], ['Friends', '/friends']] as const) {
+  const destinations = [
+    ['Discover', '/discover'],
+    ['My games', '/my-games'],
+    onlineAvailable ? ['Friends', '/friends'] : ['Ranking', '/my-games'],
+  ] as const;
+  for (const [label, path] of destinations) {
     const link = nav.getByRole('link', { name: label, exact: true });
     if (touch) await link.tap(); else await link.click();
     await expect(page).toHaveURL(url => url.pathname === path);
     if (label === 'Friends') await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+    if (label === 'Ranking') {
+      await expect(page).toHaveURL(url => url.pathname === path && url.searchParams.get('tab') === 'ranking');
+      await expect(page.getByRole('navigation', { name: 'My games views', exact: true })
+        .getByRole('button', { name: /^Ranking/ })).toHaveAttribute('aria-current', 'page');
+    }
   }
   const menu = nav.getByRole('button', { name: 'Menu', exact: true });
   if (touch) await menu.tap(); else await menu.click();
@@ -77,8 +96,15 @@ for (const width of [320, 393]) {
     await page.setViewportSize({ width, height: width === 320 ? 740 : 852 });
     await page.goto('/?catalogs=off');
     await expect(page.locator('.game-card')).toHaveCount(24);
-    await page.locator('.game-card').first().locator('.compare-drag-handle').tap();
+    const card = page.locator('.game-card').first();
+    const title = (await card.locator('h3').innerText()).trim();
+    const pin = card.getByRole('button', { name: `Pin ${title} for comparison`, exact: true });
+    await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
+    await expect(pin).toHaveAttribute('aria-pressed', 'false');
+    await pin.tap();
+    await expect(card.getByRole('button', { name: `Unpin ${title} from comparison`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.compare-tray-dock')).toBeVisible();
+    await expect(page.locator('.compare-tray-dock').getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
     const actual = await readNavigation(page);
     await info.attach('navigation-labels', { contentType: 'application/json', body: JSON.stringify(actual) });
     await assertNavigation(page);
