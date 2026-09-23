@@ -215,7 +215,8 @@ test('menus confirm named actions, blocked profiles stay private, invite expiry 
   await active.getByRole('button', { name: 'Revoke', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Revoke invitation', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Invitation revoked.' })).toBeVisible();
-  await expect(page.locator('.friend-invite-status').filter({ hasText: /^Revoked$/ })).toHaveCount(2);
+  await expect(page.locator('.friend-list > li')).toHaveCount(4);
+  await expect(page.locator('.friend-invite-status').filter({ hasText: /^Revoked$/ })).toHaveCount(1);
   await page.clock.install();
   await writeManagerDocuments(request, {
     [`friendInvites/${f.tokens[4]}`]: { format: 1, ownerUid: f.uid, slot: 4, displayName: 'QA Manager', avatar: f.avatar, state: 'active', createdAt: new Date(Date.now() - inviteLifetime + 3000), acceptedBy: null },

@@ -42,7 +42,7 @@ function page<T>(rows: QueryDocumentSnapshot<DocumentData>[], parse: (row: Query
 function errorValue(cause: unknown): Error { return cause instanceof Error ? cause : new Error('Friend data could not be read. Try again.'); }
 function unavailableInvite(cause: unknown): never {
   if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') {
-    throw new FriendStoreError('invite-unavailable', 'This invitation is unavailable. It may have expired, been used or been revoked.');
+    throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
   }
   throw cause;
 }
@@ -234,7 +234,8 @@ export class FriendStore {
     await this.graphReady(uid);
     const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
     const ref = doc(this.db, 'friendInvites', token);
-    await runTransaction(this.db, async (tx) => {
+    let retiring = false;
+    const create = (legacy: boolean) => runTransaction(this.db, async (tx) => {
       online();
       const slotRefs = Array.from({ length: 20 }, (_, slot) => doc(this.db, 'friendInviteSlots', uid, 'slots', String(slot)));
       const [identity, ...slots] = await Promise.all([tx.get(this.ref('friendIdentities', uid)), ...slotRefs.map((slot) => tx.get(slot))]);
@@ -246,7 +247,7 @@ export class FriendStore {
       if (index < 0) {
         const occupied = await Promise.all(tokens.map((token) => tx.get(doc(this.db, 'friendInvites', token!))));
         index = occupied.findIndex((invite, slot) => {
-          if (!invite.exists()) throw new FriendStoreError('invalid', 'An invitation slot is inconsistent. Revoke its link before retrying.');
+          if (!invite.exists()) return true;
           if (invite.data().state === 'closed') return true;
           const value = parseFriendInvite(tokens[slot]!, invite.data());
           return value.state !== 'active' || value.expiresAt <= Date.now();
@@ -256,10 +257,23 @@ export class FriendStore {
       if (index < 0) throw new FriendStoreError('limit', 'You already have 20 active invitation links. Revoke one before creating another.');
       const slotRef = slotRefs[index];
       if (!slotRef) throw new FriendStoreError('invalid', 'The invitation slot is invalid.');
-      if (prior?.exists() && prior.data().state !== 'closed') tx.set(prior.ref, { ownerUid: uid, state: 'closed' });
+      retiring = Boolean(prior?.exists());
+      if (prior?.exists()) {
+        if (legacy && prior.data().state !== 'closed') tx.set(prior.ref, { ownerUid: uid, state: 'closed' });
+        else if (!legacy) tx.delete(prior.ref);
+      }
       tx.set(slotRef, { token });
       tx.set(ref, { format: 1, ownerUid: uid, slot: index, displayName: chosen.displayName, avatar: chosen.avatar, createdAt: serverTimestamp(), state: 'active', acceptedBy: null });
     });
+    try { await create(false); }
+    catch (cause) {
+      if (!retiring || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+      console.info('Invitation deletion is not available yet; using the legacy slot replacement once.');
+      try { await create(true); } catch (fallback) {
+        if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied') throw cause;
+        throw fallback;
+      }
+    }
     return this.afterCommit({ operation: 'create-invite', uid }, async () => {
       const result = await this.readCommitted(ref, (data) => parseFriendInvite(token, data));
       if (!result) conflict();
@@ -270,7 +284,7 @@ export class FriendStore {
     const token = friendToken(tokenInput);
     try {
       const snap = await getDocFromServer(doc(this.db, 'friendInvites', token));
-      if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invitation is unavailable.');
+      if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
       const invite = parseFriendInvite(token, snap.data());
       if (invite.expiresAt <= Date.now()) throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
       const { ownerUid, displayName, avatar, createdAt, expiresAt, lifetimeDays, singleUse } = invite;
@@ -286,15 +300,30 @@ export class FriendStore {
     friendUid(uid); const token = friendToken(tokenInput); online();
     await this.graphReady(uid);
     const ref = doc(this.db, 'friendInvites', token);
-    await runTransaction(this.db, async (tx) => {
+    const revoke = (legacy: boolean) => runTransaction(this.db, async (tx) => {
       online();
       const snap = await tx.get(ref);
-      if (!snap.exists() || snap.data().ownerUid !== uid) throw new FriendStoreError('invite-unavailable', 'This invitation is unavailable.');
-      if (snap.data().state === 'closed') return;
+      if (!snap.exists() || snap.data().ownerUid !== uid) throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
+      if (snap.data().state === 'closed') { if (!legacy) tx.delete(ref); return; }
       const invite = parseFriendInvite(token, snap.data());
-      if (invite.state !== 'active') return;
-      tx.update(ref, { state: 'revoked' });
+      const slotRef = doc(this.db, 'friendInviteSlots', uid, 'slots', String(invite.slot));
+      const slot = await tx.get(slotRef);
+      if (legacy) {
+        if (invite.state === 'active') tx.update(ref, { state: 'revoked' });
+      } else {
+        tx.delete(ref);
+        if (slot.exists() && slot.data().token === token) tx.delete(slotRef);
+      }
     });
+    try { await revoke(false); }
+    catch (cause) {
+      if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+      console.info('Invitation deletion is not available yet; revoking the legacy link once.');
+      try { await revoke(true); } catch (fallback) {
+        if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied') throw cause;
+        throw fallback;
+      }
+    }
   }
   async acceptInvite(uid: string, tokenInput: string): Promise<FriendPair> {
     friendUid(uid); const token = friendToken(tokenInput); online();
@@ -305,7 +334,7 @@ export class FriendStore {
         online();
         const inviteRef = doc(this.db, 'friendInvites', token);
         const snap = await tx.get(inviteRef);
-        if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invitation is unavailable.');
+        if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
         const invite = parseFriendInvite(token, snap.data()); const ownerUid = invite.ownerUid;
         if (uid === ownerUid) throw new FriendStoreError('invalid', 'You cannot accept your own invitation.');
         if (invite.expiresAt <= Date.now()) throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
@@ -498,7 +527,8 @@ export class FriendStore {
     online();
     let deleted = await this.cleanupSharing(uid);
     const [relations, groups, blocks, invites] = await Promise.all([
-      getDocsFromServer(this.relationsQuery(uid)), this.listGroups(uid), this.listBlocks(uid), this.listInvites(uid),
+      getDocsFromServer(this.relationsQuery(uid)), this.listGroups(uid), this.listBlocks(uid),
+      getDocsFromServer(query(collection(this.db, 'friendInvites'), where('ownerUid', '==', uid), orderBy(documentId()), limit(20))),
     ]);
     for (const docs of [relations.docs,
       groups.items.map((group) => ({ ref: doc(this.db, 'friendGroups', uid, 'items', group.id) })),
@@ -506,15 +536,30 @@ export class FriendStore {
       if (!docs.length) continue;
       const batch = writeBatch(this.db); docs.forEach((item) => batch.delete(item.ref)); await batch.commit(); deleted += docs.length;
     }
-    if (invites.items.length) {
+    let inviteCount = invites.size;
+    if (invites.size) {
       const batch = writeBatch(this.db);
-      invites.items.forEach((invite) => batch.set(doc(this.db, 'friendInvites', invite.token), { ownerUid: uid, state: 'closed' }));
-      await batch.commit(); deleted += invites.items.length;
+      invites.docs.forEach(invite => batch.delete(invite.ref));
+      try { await batch.commit(); deleted += invites.size; }
+      catch (cause) {
+        if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+        console.info('Invitation deletion is not available yet; closing legacy links once.');
+        const legacy = await this.listInvites(uid);
+        const close = writeBatch(this.db);
+        legacy.items.forEach(invite => close.set(doc(this.db, 'friendInvites', invite.token), { ownerUid: uid, state: 'closed' }));
+        await close.commit();
+        inviteCount = legacy.items.length; deleted += inviteCount;
+      }
+    }
+    if (inviteCount === 20) return { deleted, done: false };
+    for (let start = 0; start < 20; start += 10) {
+      const slots = writeBatch(this.db);
+      for (let slot = start; slot < start + 10; slot += 1) slots.delete(doc(this.db, 'friendInviteSlots', uid, 'slots', String(slot)));
+      await slots.commit();
     }
     const batch = writeBatch(this.db);
-    for (let slot = 0; slot < 20; slot += 1) batch.delete(doc(this.db, 'friendInviteSlots', uid, 'slots', String(slot)));
     batch.delete(this.ref('friendIdentities', uid)); batch.delete(this.ref('friendShareHeads', uid)); batch.delete(this.ref('friendShareRegistry', uid));
     await batch.commit();
-    return { deleted, done: relations.size < 20 && groups.items.length < 20 && blocks.items.length < 20 && invites.items.length < 20 };
+    return { deleted, done: relations.size < 20 && groups.items.length < 20 && blocks.items.length < 20 && inviteCount < 20 };
   }
 }

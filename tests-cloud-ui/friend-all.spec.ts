@@ -111,14 +111,14 @@ test('quota progress survives reload across both scopes without claiming all sha
       year: null, studio: null, genre: null, collectionRank: null,
     })) });
   }, uid);
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Waiting for free quota', { timeout: 30000 });
+  await expect(page.locator('.friend-sharing-summary')).toContainText('Continuing later', { timeout: 30000 });
   await expect(page.locator('.friend-sharing-summary')).toContainText('Saved games: 52 ready');
   await expect(page.locator('.friend-sharing-summary')).toContainText('Rankings: 50 / 52 changes confirmed');
   await expect(page.locator('.friend-sharing-summary')).not.toContainText('Up to date');
   expect((await readAccount(page, uid)).sync.dirty).toBe(false);
   await page.clock.install();
   await page.reload();
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Waiting for free quota');
+  await expect(page.locator('.friend-sharing-summary')).toContainText('Continuing later');
   await expect(page.locator('.friend-sharing-summary')).toContainText('Rankings: 50 / 52 changes confirmed');
   expect(await sdk(page, 'heads')).toMatchObject({ games: { status: 'ready', count: 52 }, ranking: { status: 'updating' } });
   await page.clock.fastForward(65_000);

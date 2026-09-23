@@ -329,7 +329,7 @@ describe('single-use, fixed-slot invitation capabilities', () => {
     await expect(guest.store.previewInvite(blocked.token)).rejects.toMatchObject({ code: 'invite-unavailable' });
     await expect(b.store.acceptInvite(b.uid, blocked.token)).rejects.toMatchObject({ code: 'invite-unavailable' });
   });
-  it('caps allocation at 20 slots on the server and retains a content-free anti-replay tombstone', async () => {
+  it('caps allocation at 20 slots and deletes a prior token before reusing its slot', async () => {
     const a = await client();
     let firstToken = '';
     let expiredToken = '';
@@ -339,21 +339,35 @@ describe('single-use, fixed-slot invitation capabilities', () => {
       if (index === 1) expiredToken = invite.token;
     }
     await expect(a.store.createInvite(a.uid)).rejects.toMatchObject({ code: 'limit' });
+    const unregistered = 'd'.repeat(64);
+    const identity = await a.store.identity(a.uid);
+    if (!identity) throw new Error('The invitation identity is missing.');
+    const candidate = { format: 1, ownerUid: a.uid, slot: 0, displayName: identity.displayName, avatar: identity.avatar,
+      createdAt: serverTimestamp(), state: 'active', acceptedBy: null };
+    await assertFails(setDoc(doc(a.db, 'friendInvites', unregistered), candidate));
+    const noRelease = writeBatch(a.db);
+    noRelease.set(doc(a.db, 'friendInvites', unregistered), candidate);
+    noRelease.set(doc(a.db, 'friendInviteSlots', a.uid, 'slots', '0'), { token: unregistered });
+    await assertFails(noRelease.commit());
     const unauthorizedSlot = writeBatch(a.db);
     unauthorizedSlot.set(doc(a.db, 'friendInviteSlots', a.uid, 'slots', '20'), { token: firstToken });
     await assertFails(unauthorizedSlot.commit());
     await a.store.revokeInvite(a.uid, firstToken);
     await a.store.createInvite(a.uid);
-    const closed = await getDocFromServer(doc(a.db, 'friendInvites', firstToken));
-    expect(Object.keys(closed.data() ?? {}).sort()).toEqual(['ownerUid', 'state']);
-    expect(closed.data()?.state).toBe('closed');
-    await assertFails(setDoc(closed.ref, { ownerUid: a.uid, state: 'active' }));
+    const closedRef = doc(a.db, 'friendInvites', firstToken);
+    await assertFails(getDocFromServer(closedRef));
+    await environment.withSecurityRulesDisabled(async context => {
+      expect((await context.firestore().doc(`friendInvites/${firstToken}`).get()).exists).toBe(false);
+    });
+    await assertFails(setDoc(closedRef, { ownerUid: a.uid, state: 'active' }));
     await environment.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc(`friendInvites/${expiredToken}`).update({ createdAt: Timestamp.fromMillis(Date.now() - 8 * 86400000) });
     });
     const replacement = await a.store.createInvite(a.uid);
     expect(replacement.slot).toBe(1);
-    expect((await getDocFromServer(doc(a.db, 'friendInvites', expiredToken))).data()).toEqual({ ownerUid: a.uid, state: 'closed' });
+    await environment.withSecurityRulesDisabled(async context => {
+      expect((await context.firestore().doc(`friendInvites/${expiredToken}`).get()).exists).toBe(false);
+    });
     await expect(a.store.createInvite(a.uid)).rejects.toMatchObject({ code: 'limit' });
   }, 60000);
 });
@@ -732,7 +746,9 @@ describe('private groups, export and resumable account deletion', () => {
     expect(await a.store.identity(a.uid)).toBeNull();
     expect((await a.store.listGroups(a.uid)).items).toHaveLength(0);
     expect((await a.store.listRelations(a.uid)).items).toHaveLength(0);
-    expect((await getDocFromServer(doc(a.db, 'friendInvites', invite.token))).data()?.state).toBe('closed');
+    await environment.withSecurityRulesDisabled(async context => {
+      expect((await context.firestore().doc(`friendInvites/${invite.token}`).get()).exists).toBe(false);
+    });
     await expect(a.store.cleanupDeleted(a.uid)).resolves.toMatchObject({ done: true });
     await assertFails(setDoc(doc(a.db, 'friendSettings', a.uid), { format: 1, enabled: false, deleted: false, selection: '', epoch: oldSettings.epoch + 2, revision: oldSettings.revision + 2, updatedAt: serverTimestamp() }));
   });

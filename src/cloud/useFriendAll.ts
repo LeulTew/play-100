@@ -102,7 +102,7 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
       const cooldown = await readFriendAllCooldown(scope);
       if (!valid()) return;
       if (cooldown?.epoch === policy.epoch && cooldown.nextAttemptAt > Date.now()) {
-        setState(old => old?.key === key ? { ...old, status: 'quota', error: 'Waiting for the free quota retry. Confirmed progress is retained.' } : old);
+        setState(old => old?.key === key ? { ...old, status: 'quota', error: 'The online service has reached a limit. Sharing will continue later without starting over.' } : old);
         work.request(cooldown.nextAttemptAt - Date.now());
         return;
       }
@@ -137,7 +137,8 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
         if (owns()) setState(old => old?.key === key ? { ...old, status: 'error', error: `The retry cooldown could not be saved. ${onlineError(storageError)}` } : old);
       });
       setState(old => old?.key === key ? { ...old, status: failure === 'quota' ? 'quota' : failure === 'transient' ? 'retrying' : 'error',
-        error: cause instanceof FriendAllCommittedError ? cause.message : onlineError(cause) } : old);
+        error: failure === 'quota' ? 'The online service has reached a limit. Sharing will continue later without starting over.'
+          : cause instanceof FriendAllCommittedError ? cause.message : onlineError(cause) } : old);
     });
     queue.current = work;
     const wake = () => { work.setAvailable(valid() && !document.hidden && navigator.onLine !== false); work.wake(); };

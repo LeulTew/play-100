@@ -15,6 +15,7 @@ import { cancelUnusedRegistration, ensureAccountActivity, removeCancelledRegistr
 import { CloudStore, DeletionCleanupInterrupted, DeletionListPermissionPending } from '../src/cloud/cloud-store';
 import { FriendStore } from '../src/cloud/friend-store';
 import { FriendShelfStore } from '../src/cloud/friend-shelf-store';
+import { FriendAllStore } from '../src/cloud/friend-all-store';
 import { SocialStore } from '../src/cloud/social-store';
 import { releaseIndexedPayload } from '../src/cloud/generation-cleanup';
 import { accountScope, CHUNK_BYTES, creatorRanks, MAX_CHUNKS, MAX_SNAPSHOT_BYTES } from '../src/lib/cloud-types';
@@ -287,6 +288,38 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     }
   });
 
+  it('uses counted All sharing when supported and tries the old begin only once per attempt on old rules', async () => {
+    const owner = await actor();
+    await owner.cloud.enable(null);
+    const all = new FriendAllStore(owner.db);
+    const control = await all.setPolicy(owner.uid, true, 'default', await all.controls(owner.uid), () => true);
+    if (!control) throw new Error('The sharing policy is missing.');
+    const info = vi.spyOn(console, 'info');
+    const rows = [{ id: entry.id, title: entry.title, year: entry.year, source: entry.source, sourceId: entry.sourceId, sourceUrl: entry.sourceUrl }];
+    const first = await all.publish(owner.uid, 'games', rows, control, { syncEpoch: 1, remoteRevision: 0 }, () => true);
+    expect(first.format).toBe(policy === 'candidate' ? 3 : 2);
+    await all.publish(owner.uid, 'games', rows.map(row => ({ ...row, title: 'Changed shared title' })), control, { syncEpoch: 1, remoteRevision: 0 }, () => true);
+    expect(info.mock.calls.filter(([message]) => message === 'Counted friend sharing is not available yet; trying the legacy begin once.'))
+      .toHaveLength(policy === 'live-270f' ? 2 : 0);
+    const ref = doc(owner.db, 'friendAllJobs', owner.uid, 'views', 'games');
+    expect((await getDocFromServer(ref)).data()).toMatchObject({ format: policy === 'candidate' ? 3 : 2, count: 1 });
+  });
+
+  it('revokes invitation links with a bounded legacy fallback and no unavailable-token existence distinction', async () => {
+    const owner = await actor();
+    await owner.friends.initialize(owner.uid);
+    await owner.friends.saveIdentity(owner.uid, { displayName: 'Invitation fixture', avatar }, 0);
+    const invite = await owner.friends.createInvite(owner.uid);
+    await owner.friends.revokeInvite(owner.uid, invite.token);
+    const raw = await stored(`friendInvites/${invite.token}`);
+    if (policy === 'candidate') expect(raw).toBeUndefined();
+    else expect(raw?.state).toBe('revoked');
+    const guest = session();
+    for (const token of [invite.token, 'f'.repeat(64)]) {
+      await expect(guest.friends.previewInvite(token)).rejects.toMatchObject({ code: 'invite-unavailable', message: 'This invite is no longer available.' });
+    }
+  });
+
   if (policy === 'candidate') {
     it('allows only an owner completion marker on the same deleted epoch and keeps ordinary head writes from changing it', async () => {
       const owner = await actor(); const other = await actor(); const fresh = await actor();
@@ -322,6 +355,38 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect(repeated.epoch).toBe(deleting.epoch + 2);
       expect(await owner.cloud.probeDeletedCopy(repeated)).not.toBe('complete');
       await assertFails(updateDoc(ref, { cleanupEpoch: deleting.epoch }));
+    });
+
+    it('keeps legacy All rows readable to their owner but frozen, and counts physical format3 rows across epochs', async () => {
+      const owner = await actor();
+      await owner.cloud.enable(null);
+      const all = new FriendAllStore(owner.db);
+      const policy = await all.setPolicy(owner.uid, true, 'default', await all.controls(owner.uid), () => true);
+      if (!policy) throw new Error('The sharing policy is missing.');
+      const legacyRef = doc(owner.db, 'friendAllGames', owner.uid, 'entries', 'manual:legacy');
+      const legacy = { format: 2, epoch: 1, token: crypto.randomUUID(), step: 1, active: false, entry: null };
+      await seed({ [legacyRef.path]: legacy });
+      expect((await getDocFromServer(legacyRef)).data()).toEqual(legacy);
+      await assertFails(setDoc(legacyRef, { ...legacy, step: 2 }));
+      await assertFails(setDoc(doc(owner.db, 'friendAllGames', owner.uid, 'entries', 'manual:unregistered'), legacy));
+      await deleteDoc(legacyRef);
+      const rows = [{ id: entry.id, title: entry.title, year: entry.year, source: entry.source, sourceId: entry.sourceId, sourceUrl: entry.sourceUrl }];
+      await all.publish(owner.uid, 'games', rows, policy, { syncEpoch: 1, remoteRevision: 0 }, () => true);
+      const jobRef = doc(owner.db, 'friendAllJobs', owner.uid, 'views', 'games');
+      const rowRef = doc(owner.db, 'friendAllGames', owner.uid, 'entries', entry.id);
+      const stopped = await all.setPolicy(owner.uid, false, 'explicit', await all.controls(owner.uid), () => true);
+      expect(stopped?.epoch).toBeGreaterThan(policy.epoch);
+      expect((await getDocFromServer(jobRef)).data()?.count).toBe(1);
+      await assertFails(deleteDoc(jobRef));
+      await assertFails(deleteDoc(rowRef));
+      await assertFails(updateDoc(jobRef, { count: 0, last: [entry.id], updatedAt: serverTimestamp() }));
+      expect(await all.cleanupPage(owner.uid, 'games')).toMatchObject({ deleted: 1, done: false });
+      expect((await getDocFromServer(jobRef)).data()?.count).toBe(0);
+      expect((await getDocFromServer(rowRef)).exists()).toBe(false);
+      expect(await all.cleanupPage(owner.uid, 'games')).toMatchObject({ done: true });
+      const resumed = await all.setPolicy(owner.uid, true, 'explicit', await all.controls(owner.uid), () => true);
+      if (!resumed) throw new Error('The resumed policy is missing.');
+      expect((await all.publish(owner.uid, 'games', rows, resumed, { syncEpoch: 1, remoteRevision: 0 }, () => true)).count).toBe(1);
     });
 
     it('cleans ten old public entries in three-position steps while another generation remains live and published', async () => {

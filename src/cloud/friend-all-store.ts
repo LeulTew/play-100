@@ -6,7 +6,7 @@ import type { DocumentData, DocumentReference, Firestore } from 'firebase/firest
 import type { FriendAllEntry, FriendAllKind, FriendAllPolicy } from '../lib/friend-all';
 import { FRIEND_ALL_EXACT_LIMIT, FRIEND_ALL_LIMIT, FRIEND_ALL_PAGE_SIZE, friendAllEntrySignature, planFriendAllChanges } from '../lib/friend-all';
 import {
-  FRIEND_ALL_OWNER_PAGE, FRIEND_ALL_WRITE_GROUP, friendAllId, parseFriendAllEntry, parseFriendAllHead,
+  FRIEND_ALL_OWNER_PAGE, FRIEND_ALL_TRACKED_WRITE_GROUP, FRIEND_ALL_WRITE_GROUP, friendAllId, parseFriendAllEntry, parseFriendAllHead,
   parseFriendAllJob, parseFriendAllPolicy, parseFriendAllRow,
 } from '../lib/friend-all-transport';
 import type { FriendAllHead, FriendAllJob } from '../lib/friend-all-transport';
@@ -138,12 +138,12 @@ export class FriendAllStore {
     const head = await this.head(uid, kind);
     if (!head || head.status !== 'ready') throw new FriendStoreError('unavailable', 'This shared account view is still updating or unavailable.');
     if (expectedRevision !== undefined && head.revision !== expectedRevision) conflict('The shared list changed. Refresh its first page.');
-    const result = await getDocsFromServer(query(this.rows(uid, kind), where('epoch', '==', head.epoch), where('active', '==', true),
+    const result = await getDocsFromServer(query(this.rows(uid, kind), ...(head.format === 3 ? [where('format', '==', 3)] : []), where('epoch', '==', head.epoch), where('active', '==', true),
       orderBy(kind === 'games' ? 'entry.title' : 'entry.position'), orderBy(documentId()),
       ...(cursor ? [startAfter(cursor)] : []), limit(FRIEND_ALL_PAGE_SIZE)));
     const entries = result.docs.map(row => {
       const value = parseFriendAllRow(row.data(), row.id, kind);
-      if (!value.active || !value.entry || value.epoch !== head.epoch) throw new FriendStoreError('invalid', 'The shared page contains an invalid entry.');
+      if (!value.active || !value.entry || value.epoch !== head.epoch || value.format !== head.format) throw new FriendStoreError('invalid', 'The shared page contains an invalid entry.');
       return value.entry;
     });
     await this.requireSameHead(uid, kind, head);
@@ -159,7 +159,7 @@ export class FriendAllStore {
       if (!row.exists()) return [];
       const value = parseFriendAllRow(row.data(), row.id, kind);
       if (!value.active) return [];
-      if (!value.entry || value.epoch !== head.epoch || !ids.includes(value.entry.id)) throw new FriendStoreError('invalid', 'The shared lookup contains an invalid entry.');
+      if (!value.entry || value.epoch !== head.epoch || value.format !== head.format || !ids.includes(value.entry.id)) throw new FriendStoreError('invalid', 'The shared lookup contains an invalid entry.');
       return [value.entry];
     });
     await this.requireSameHead(uid, kind, head);
@@ -177,6 +177,7 @@ export class FriendAllStore {
         ...(cursor ? [startAfter(cursor)] : []), limit(FRIEND_ALL_OWNER_PAGE)));
       for (const item of page.docs) {
         const row = parseFriendAllRow(item.data(), item.id, kind);
+        if (before?.format === 3 && row.format === 2) continue;
         if (!row.entry || !row.active || row.epoch !== epoch) throw new FriendStoreError('invalid', 'The sharing inventory is inconsistent.');
         entries.push(row.entry);
       }
@@ -188,6 +189,20 @@ export class FriendAllStore {
     if (entries.length !== (after?.epoch === epoch ? after.count : 0)) throw new FriendStoreError('invalid', 'The sharing count does not match its stored inventory.');
     return { job: after, entries };
   }
+  private async releaseRows(uid: string, kind: FriendAllKind, refs: readonly DocumentReference<DocumentData>[]) {
+    for (const ref of refs) await runTransaction(this.db, async tx => {
+      const row = await tx.get(ref);
+      if (!row.exists()) return;
+      const parsed = parseFriendAllRow(row.data(), row.id, kind);
+      if (parsed.format === 2) { tx.delete(ref); return; }
+      const jobRef = this.jobRef(uid, kind);
+      const snapshot = await tx.get(jobRef);
+      const job = snapshot.exists() ? parseFriendAllJob(snapshot.data()) : null;
+      if (!job || job.format !== 3 || job.count < 1) throw new FriendStoreError('invalid', 'Shared data could not be counted safely. Try again later, or contact the site owner.');
+      tx.delete(ref);
+      tx.update(jobRef, { count: job.count - 1, last: [row.id], updatedAt: serverTimestamp() });
+    });
+  }
   private async prepareEpoch(uid: string, kind: FriendAllKind, epoch: number, guard: () => void) {
     const key = `${uid}:${kind}:${epoch}`;
     if (this.preparedEpochs.has(key)) return;
@@ -195,9 +210,7 @@ export class FriendAllStore {
       guard();
       const stale = await getDocsFromServer(query(this.rows(uid, kind), where('epoch', '<', epoch), limit(FRIEND_ALL_OWNER_PAGE)));
       if (stale.empty) break;
-      const batch = writeBatch(this.db);
-      stale.docs.forEach(row => batch.delete(row.ref));
-      await batch.commit();
+      await this.releaseRows(uid, kind, stale.docs.map(row => row.ref));
     }
     this.preparedEpochs.add(key);
   }
@@ -206,8 +219,17 @@ export class FriendAllStore {
       guard();
       const inactive = await getDocsFromServer(query(this.rows(uid, kind), where('active', '==', false), limit(FRIEND_ALL_OWNER_PAGE)));
       if (inactive.empty) return;
-      const batch = writeBatch(this.db); inactive.docs.forEach(row => batch.delete(row.ref)); await batch.commit();
+      await this.releaseRows(uid, kind, inactive.docs.map(row => row.ref));
     }
+  }
+  private async pruneLegacy(uid: string, kind: FriendAllKind, guard: () => void) {
+    for (let page = 0; page < 200; page += 1) {
+      guard();
+      const legacy = await getDocsFromServer(query(this.rows(uid, kind), where('format', '==', 2), limit(FRIEND_ALL_OWNER_PAGE)));
+      if (legacy.empty) return;
+      await this.releaseRows(uid, kind, legacy.docs.map(row => row.ref));
+    }
+    throw new FriendStoreError('limit', 'Older shared copies still need cleanup. Try again to continue, or contact the site owner.');
   }
   async publish(uid: string, kind: FriendAllKind, input: readonly FriendAllEntry[], policy: FriendAllPolicy, sourceInput: FriendSourceRevision, isCurrent: () => boolean, progress?: (value: FriendAllProgress) => void): Promise<FriendAllHead> {
     const guard = () => { online(); if (!isCurrent()) conflict(); };
@@ -226,7 +248,7 @@ export class FriendAllStore {
       const head = data ? parseHead(data) : null;
       if (!head?.enabled || head.deleted || head.epoch !== source.syncEpoch || head.revision !== source.remoteRevision) conflict('Wait for the current account copy to finish saving before sharing.');
     };
-    if (publicHead?.status === 'ready' && publicHead.epoch === policy.epoch && publicHead.policyRevision === policy.revision &&
+    if (publicHead?.format === 3 && publicHead.status === 'ready' && publicHead.epoch === policy.epoch && publicHead.policyRevision === policy.revision &&
       publicHead.digest === targetDigest && sameShelfSource(publicHead.source, source)) {
       return runTransaction(this.db, async tx => {
         guard();
@@ -248,9 +270,11 @@ export class FriendAllStore {
     const initial = cached?.epoch === policy.epoch && observedJob?.epoch === policy.epoch && observedJob.applied === observedJob.total && cached.digest === observedJob.digest
       ? { entries: cached.entries, job: observedJob } : await this.inventory(uid, kind, policy.epoch);
     guard();
-    const changes = planFriendAllChanges(initial.entries, entries);
-    const operations = [...changes.removals.map(id => ({ id, entry: null })), ...changes.upserts.map(entry => ({ id: entry.id, entry }))];
-    let job = await runTransaction(this.db, async tx => {
+    const operationsFor = (format: 2 | 3) => {
+      const changes = planFriendAllChanges(format === 3 && initial.job?.format !== 3 ? [] : initial.entries, entries);
+      return [...changes.removals.map(id => ({ id, entry: null })), ...changes.upserts.map(entry => ({ id: entry.id, entry }))];
+    };
+    const begin = (format: 2 | 3) => runTransaction(this.db, async tx => {
       guard();
       const [control, currentHead, currentJob, sync] = await Promise.all([tx.get(policyRef), tx.get(headRef), tx.get(jobRef), tx.get(syncRef)]);
       const latest = control.exists() ? parseFriendAllPolicy(control.data(), uid) : null;
@@ -259,26 +283,48 @@ export class FriendAllStore {
       const head = currentHead.exists() ? parseFriendAllHead(currentHead.data()) : null;
       const old = currentJob.exists() ? parseFriendAllJob(currentJob.data()) : null;
       if (!sameJob(old, initial.job)) conflict('Another tab advanced the sharing update.');
-      if (head?.status === 'updating' && old?.epoch === policy.epoch && old.policyRevision === policy.revision && old.digest === targetDigest &&
+      const operations = operationsFor(format);
+      if (head?.format === format && head.status === 'updating' && old?.format === format && old.epoch === policy.epoch && old.policyRevision === policy.revision && old.digest === targetDigest &&
         sameShelfSource(old.source, source) && old.total - old.applied === operations.length) return old;
       const revision = (head?.revision ?? 0) + 1;
-      const next: FriendAllJob = { format: 2, epoch: policy.epoch, policyRevision: policy.revision, source, token: crypto.randomUUID(),
-        digest: targetDigest, targetCount: entries.length, count: initial.entries.length, total: operations.length, applied: 0, last: [], headRevision: revision, updatedAt: 0 };
-      tx.set(headRef, { format: 2, epoch: policy.epoch, policyRevision: policy.revision, source, revision, status: 'updating', count: 0, digest: targetDigest, updatedAt: serverTimestamp() });
+      const next: FriendAllJob = { format, epoch: policy.epoch, policyRevision: policy.revision, source, token: crypto.randomUUID(),
+        digest: targetDigest, targetCount: entries.length, count: format === 3 ? old?.format === 3 ? old.count : 0 : initial.entries.length,
+        total: operations.length, applied: 0, last: [], headRevision: revision, updatedAt: 0 };
+      tx.set(headRef, { format, epoch: policy.epoch, policyRevision: policy.revision, source, revision, status: 'updating', count: 0, digest: targetDigest, updatedAt: serverTimestamp() });
       tx.set(jobRef, { ...next, updatedAt: serverTimestamp() });
       return next;
     });
+    let job: FriendAllJob;
+    try { job = await begin(3); }
+    catch (cause) {
+      if (initial.job?.format === 3 || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+      console.info('Counted friend sharing is not available yet; trying the legacy begin once.');
+      try { job = await begin(2); }
+      catch (fallback) {
+        if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied') {
+          throw new FriendStoreError('limit', 'Sharing could not start. Refresh the app or remove older shared copies, then try again.');
+        }
+        throw fallback;
+      }
+    }
+    if (job.format === 3 && (initial.job?.format !== 3 || publicHead?.status === 'updating' && initial.job.applied === 0)) {
+      await this.pruneLegacy(uid, kind, guard);
+    }
+    const operations = operationsFor(job.format);
     progress?.({ kind, applied: job.applied, total: job.total, targetCount: job.targetCount, ready: false });
-    const present = new Set(initial.entries.map(entry => entry.id));
-    for (let index = 0; index < operations.length; index += FRIEND_ALL_WRITE_GROUP) {
+    const present = new Set(job.format === 3 && initial.job?.format !== 3 ? [] : initial.entries.map(entry => entry.id));
+    const writeGroup = job.format === 3 ? FRIEND_ALL_TRACKED_WRITE_GROUP : FRIEND_ALL_WRITE_GROUP;
+    for (let index = 0; index < operations.length; index += writeGroup) {
       guard();
-      const group = operations.slice(index, index + FRIEND_ALL_WRITE_GROUP);
+      const group = operations.slice(index, index + writeGroup);
       const batch = writeBatch(this.db);
       let count = job.count;
       for (const [offset, operation] of group.entries()) {
         if (operation.entry && !present.has(operation.id)) { count += 1; present.add(operation.id); }
         if (!operation.entry && present.has(operation.id)) { count -= 1; present.delete(operation.id); }
-        batch.set(doc(this.rows(uid, kind), operation.id), { format: 2, epoch: policy.epoch, token: job.token,
+        const ref = doc(this.rows(uid, kind), operation.id);
+        if (job.format === 3 && !operation.entry) batch.delete(ref);
+        else batch.set(ref, { format: job.format, epoch: policy.epoch, token: job.token,
           step: job.applied + offset + 1, active: operation.entry !== null, entry: operation.entry });
       }
       const applied = job.applied + group.length; const last = group.map(operation => operation.id);
@@ -315,7 +361,7 @@ export class FriendAllStore {
     online(); await this.policy(uid);
     const rows = await getDocsFromServer(query(this.rows(uid, kind), orderBy(documentId()), limit(FRIEND_ALL_OWNER_PAGE)));
     if (!rows.empty) {
-      const batch = writeBatch(this.db); rows.docs.forEach(row => batch.delete(row.ref)); await batch.commit();
+      await this.releaseRows(uid, kind, rows.docs.map(row => row.ref));
       return { deleted: rows.size, done: false };
     }
     const batch = writeBatch(this.db); batch.delete(this.jobRef(uid, kind)); batch.delete(this.headRef(uid, kind)); await batch.commit();

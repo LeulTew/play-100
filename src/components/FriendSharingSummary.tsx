@@ -15,7 +15,7 @@ export interface FriendSharingSummaryProps {
 export function FriendSharingSummary({ mode, status, canEnable, enabled, error, progress, onEnable, onStop, onRefresh }: FriendSharingSummaryProps) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
-  const labels: Record<string, string> = { saved: 'Up to date', pending: 'Waiting for saved edits', saving: 'Updating', checking: 'Checking', paused: 'Paused', retrying: 'Retrying', quota: 'Waiting for free quota', error: 'Needs attention' };
+  const labels: Record<string, string> = { saved: 'Up to date', pending: 'Waiting for saved edits', saving: 'Updating', checking: 'Checking', paused: 'Paused', retrying: 'Retrying', quota: 'Continuing later', error: 'Needs attention' };
   const change = async (operation: () => Promise<void>) => {
     if (busy) return;
     setBusy(true); setProblem('');
@@ -34,6 +34,6 @@ export function FriendSharingSummary({ mode, status, canEnable, enabled, error, 
     {progress}
     {(problem || error) && <p className="inline-error" role="alert">{problem || error}</p>}
     {(problem || error || status === 'error' || status === 'quota' || status === 'retrying') && <button className="text-button" disabled={busy} onClick={() => { void change(onRefresh); }}>Refresh sharing status</button>}
-    {status === 'quota' && <p className="section-help">Waiting for free quota; progress resumes without starting over. Large first shares may continue another day.</p>}
+    {status === 'quota' && <p className="section-help">The online service has reached a limit. Sharing can continue later without starting over.</p>}
   </section>;
 }

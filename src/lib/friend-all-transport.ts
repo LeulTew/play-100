@@ -6,18 +6,19 @@ import { friendToken, friendUid, friendUuid, parseFriendSource } from './friend-
 import type { FriendSourceRevision } from './friend-types';
 
 export const FRIEND_ALL_WRITE_GROUP = 2;
+export const FRIEND_ALL_TRACKED_WRITE_GROUP = 1;
 export const FRIEND_ALL_OWNER_PAGE = 100;
 export interface FriendAllHead {
-  format: 2; epoch: number; policyRevision: number; source: FriendSourceRevision;
+  format: 2 | 3; epoch: number; policyRevision: number; source: FriendSourceRevision;
   revision: number; status: 'updating' | 'ready'; count: number; digest: string; updatedAt: number;
 }
 export interface FriendAllJob {
-  format: 2; epoch: number; policyRevision: number; source: FriendSourceRevision;
+  format: 2 | 3; epoch: number; policyRevision: number; source: FriendSourceRevision;
   token: string; digest: string; targetCount: number; count: number;
   total: number; applied: number; last: string[]; headRevision: number; updatedAt: number;
 }
 export interface FriendAllRow {
-  format: 2; epoch: number; token: string; step: number; active: boolean; entry: FriendAllEntry | null;
+  format: 2 | 3; epoch: number; token: string; step: number; active: boolean; entry: FriendAllEntry | null;
 }
 function invalid(): never { throw new FriendAllValidationError('Automatic sharing contains an unsupported format. Refresh before continuing.'); }
 function shape(value: unknown, fields: string): Record<string, unknown> {
@@ -47,17 +48,17 @@ export function parseFriendAllPolicy(value: unknown, uid: string): FriendAllPoli
 }
 export function parseFriendAllHead(value: unknown): FriendAllHead {
   const row = shape(value, 'format,epoch,policyRevision,source,revision,status,count,digest,updatedAt');
-  if (row.format !== 2 || row.status !== 'updating' && row.status !== 'ready') invalid();
-  return { format: 2, epoch: integer(row.epoch, 1), policyRevision: integer(row.policyRevision, 1), source: parseFriendSource(row.source),
+  if ((row.format !== 2 && row.format !== 3) || row.status !== 'updating' && row.status !== 'ready') invalid();
+  return { format: row.format, epoch: integer(row.epoch, 1), policyRevision: integer(row.policyRevision, 1), source: parseFriendSource(row.source),
     revision: integer(row.revision, 1), status: row.status, count: integer(row.count, 0, FRIEND_ALL_LIMIT), digest: friendToken(row.digest), updatedAt: time(row.updatedAt) };
 }
 export function parseFriendAllJob(value: unknown): FriendAllJob {
   const row = shape(value, 'format,epoch,policyRevision,source,token,digest,targetCount,count,total,applied,last,headRevision,updatedAt');
-  if (row.format !== 2 || !Array.isArray(row.last) || row.last.length > FRIEND_ALL_WRITE_GROUP) invalid();
+  if ((row.format !== 2 && row.format !== 3) || !Array.isArray(row.last) || row.last.length > (row.format === 3 ? FRIEND_ALL_TRACKED_WRITE_GROUP : FRIEND_ALL_WRITE_GROUP)) invalid();
   const last = row.last.map(friendAllId);
   const total = integer(row.total, 0, FRIEND_ALL_LIMIT * 2); const applied = integer(row.applied, 0, total);
-  if (new Set(last).size !== last.length || (applied === 0 ? last.length !== 0 : last.length === 0)) invalid();
-  return { format: 2, epoch: integer(row.epoch, 1), policyRevision: integer(row.policyRevision, 1), source: parseFriendSource(row.source),
+  if (new Set(last).size !== last.length || (row.format === 2 && (applied === 0 ? last.length !== 0 : last.length === 0))) invalid();
+  return { format: row.format, epoch: integer(row.epoch, 1), policyRevision: integer(row.policyRevision, 1), source: parseFriendSource(row.source),
     token: friendUuid(row.token), digest: friendToken(row.digest), targetCount: integer(row.targetCount, 0, FRIEND_ALL_LIMIT),
     count: integer(row.count, 0, FRIEND_ALL_LIMIT), total, applied, last, headRevision: integer(row.headRevision, 1), updatedAt: time(row.updatedAt) };
 }
@@ -66,8 +67,8 @@ export function parseFriendAllEntry(value: unknown, kind: FriendAllKind): Friend
 }
 export function parseFriendAllRow(value: unknown, id: string, kind: FriendAllKind): FriendAllRow {
   const row = shape(value, 'format,epoch,token,step,active,entry');
-  if (row.format !== 2 || typeof row.active !== 'boolean' || !row.active && row.entry !== null) invalid();
+  if ((row.format !== 2 && row.format !== 3) || typeof row.active !== 'boolean' || !row.active && row.entry !== null || (row.format === 3 && !row.active)) invalid();
   const entry = row.active ? parseFriendAllEntry(row.entry, kind) : null;
   if (entry && entry.id !== friendAllId(id)) invalid();
-  return { format: 2, epoch: integer(row.epoch, 1), token: friendUuid(row.token), step: integer(row.step, 1, FRIEND_ALL_LIMIT * 2), active: row.active, entry };
+  return { format: row.format, epoch: integer(row.epoch, 1), token: friendUuid(row.token), step: integer(row.step, 1, FRIEND_ALL_LIMIT * 2), active: row.active, entry };
 }

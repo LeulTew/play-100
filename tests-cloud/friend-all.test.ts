@@ -6,7 +6,7 @@ import type { FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, initializeAuth, inMemoryPersistence, reload } from 'firebase/auth';
 import {
   collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer,
-  getFirestore, limit, onSnapshot, query, runTransaction, serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
+  deleteDoc, getFirestore, limit, onSnapshot, query, runTransaction, serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FriendAllStore } from '../src/cloud/friend-all-store';
@@ -80,6 +80,86 @@ const games = (count: number): FriendShelfEntry[] => Array.from({ length: count 
 const ranks = (count: number): PublicEntry[] => games(count).map((entry, index) => ({ ...entry, position: index + 1, score: index === 0 ? 0 : null }));
 
 describe('All-sharing bounded SDK transport', () => {
+  it('migrates an old head automatically and rejects same-epoch frozen rows or an unfiltered peer query on the new head', async () => {
+    const a = await client(); const b = await client();
+    const policy = await enable(a); await enable(b); await connect(a, b);
+    const token = crypto.randomUUID(); const value = games(1)[0]!;
+    const base = { epoch: policy.epoch, policyRevision: policy.revision, source };
+    await seed(`friendAllHeads/${a.uid}/views/games`, {
+      ...base, format: 2, revision: 2, status: 'ready', count: 1, digest: 'a'.repeat(64), updatedAt: Timestamp.now(),
+    });
+    await seed(`friendAllJobs/${a.uid}/views/games`, {
+      ...base, format: 2, token, digest: 'a'.repeat(64), targetCount: 1, count: 1, total: 1, applied: 1, last: [value.id], headRevision: 1, updatedAt: Timestamp.now(),
+    });
+    await seed(`friendAllGames/${a.uid}/entries/${value.id}`, { format: 2, epoch: policy.epoch, token, step: 1, active: true, entry: value });
+    expect((await b.all.page(a.uid, 'games')).entries).toEqual([value]);
+    expect((await a.all.publish(a.uid, 'games', [value], policy, source, () => true)).format).toBe(3);
+    const legacy = games(2)[1]!;
+    await seed(`friendAllGames/${a.uid}/entries/${legacy.id}`, { format: 2, epoch: policy.epoch, token, step: 2, active: true, entry: legacy });
+    await assertFails(getDocFromServer(doc(b.db, 'friendAllGames', a.uid, 'entries', legacy.id)));
+    await assertFails(getDocsFromServer(query(collection(b.db, 'friendAllGames', a.uid, 'entries'),
+      where('epoch', '==', policy.epoch), where('active', '==', true), limit(25))));
+    expect((await b.all.page(a.uid, 'games')).entries).toEqual([value]);
+    expect((await getDocFromServer(doc(a.db, 'friendAllGames', a.uid, 'entries', legacy.id))).exists()).toBe(true);
+    await deleteDoc(doc(a.db, 'friendAllGames', a.uid, 'entries', legacy.id));
+    expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).data()?.count).toBe(1);
+  });
+
+  it('never resets the physical row count on a new policy epoch or frees it without an actual row deletion', async () => {
+    const a = await client(); const policy = await enable(a);
+    await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+    const fresh = await a.all.setPolicy(a.uid, true, 'explicit', await a.all.controls(a.uid), () => true);
+    if (!fresh) throw new Error('The next policy is missing.');
+    const headRef = doc(a.db, 'friendAllHeads', a.uid, 'views', 'games');
+    const jobRef = doc(a.db, 'friendAllJobs', a.uid, 'views', 'games');
+    const oldHead = (await getDocFromServer(headRef)).data()!;
+    const oldJob = (await getDocFromServer(jobRef)).data()!;
+    const token = crypto.randomUUID();
+    const reset = writeBatch(a.db);
+    reset.set(headRef, { ...oldHead, epoch: fresh.epoch, policyRevision: fresh.revision, revision: oldHead.revision + 1, status: 'updating', count: 0, updatedAt: serverTimestamp() });
+    reset.set(jobRef, { ...oldJob, epoch: fresh.epoch, policyRevision: fresh.revision, token, count: 0, total: 0, targetCount: 0, applied: 0, last: [], headRevision: oldHead.revision + 1, updatedAt: serverTimestamp() });
+    await assertFails(reset.commit());
+    expect((await getDocFromServer(jobRef)).data()?.count).toBe(1);
+    await assertFails(deleteDoc(doc(a.db, 'friendAllGames', a.uid, 'entries', games(1)[0]!.id)));
+    await a.all.publish(a.uid, 'games', games(2), fresh, source, () => true);
+    expect((await getDocFromServer(jobRef)).data()?.count).toBe(2);
+  });
+
+  it('denies a counted create beyond ten thousand while allowing an in-place replacement at the same counter value', async () => {
+    const a = await client(); const policy = await enable(a);
+    await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+    const jobRef = doc(a.db, 'friendAllJobs', a.uid, 'views', 'games');
+    const headRef = doc(a.db, 'friendAllHeads', a.uid, 'views', 'games');
+    const job = (await getDocFromServer(jobRef)).data()!;
+    const head = (await getDocFromServer(headRef)).data()!;
+    const token = crypto.randomUUID();
+    await seed(jobRef.path, { ...job, token, count: 10000, total: 1, targetCount: 10000, applied: 0, last: [], headRevision: head.revision + 1 });
+    await seed(headRef.path, { ...head, status: 'updating', revision: head.revision + 1, count: 0 });
+    const write = (value: FriendShelfEntry, count: number) => {
+      const batch = writeBatch(a.db);
+      batch.set(doc(a.db, 'friendAllGames', a.uid, 'entries', value.id), { format: 3, epoch: policy.epoch, token, step: 1, active: true, entry: value });
+      batch.update(jobRef, { count, applied: 1, last: [value.id], updatedAt: serverTimestamp() });
+      return batch.commit();
+    };
+    await assertFails(write(games(2)[1]!, 10001));
+    await write({ ...games(1)[0]!, title: 'Same counted slot' }, 10000);
+    expect((await getDocFromServer(jobRef)).data()?.count).toBe(10000);
+  });
+
+  it('surfaces a rejected counted begin when its one legacy fallback is also denied, without creating a format2 job', async () => {
+    const a = await client(); const policy = await enable(a);
+    const controls = a.all.controls.bind(a.all);
+    vi.spyOn(a.all, 'controls').mockImplementationOnce(async uid => {
+      const prior = await controls(uid);
+      await a.friends.saveSettings(uid, { enabled: false, selectedIds: [] }, prior.ranking!);
+      return prior;
+    });
+    await expect(a.all.publish(a.uid, 'games', games(1), policy, source, () => true))
+      .rejects.toThrow('Sharing could not start. Refresh the app or remove older shared copies, then try again.');
+    expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).exists()).toBe(false);
+    expect((await getDocFromServer(doc(a.db, 'friendAllHeads', a.uid, 'views', 'games'))).exists()).toBe(false);
+  });
+
   it('creates the new default atomically, publishes both safe paths, and allows bounded accepted-friend reads only', async () => {
     const a = await client(); const b = await client(); const stranger = await client();
     const policy = await enable(a); await enable(b); await connect(a, b);
@@ -178,7 +258,7 @@ describe('All-sharing bounded SDK transport', () => {
     const writesBefore = vi.mocked(writeBatch).mock.calls.length;
     const head = await a.all.publish(a.uid, kind, entries, policy, source, () => true);
     expect(head.count).toBe(10_000);
-    expect(vi.mocked(writeBatch).mock.calls.length - writesBefore).toBe(5000);
+    expect(vi.mocked(writeBatch).mock.calls.length - writesBefore).toBe(10000);
     const first = await b.all.page(a.uid, kind);
     expect(first.entries).toHaveLength(25);
     expect(first.head.count).toBe(10_000);
@@ -247,15 +327,15 @@ describe('All-sharing bounded SDK transport', () => {
     await expect(a.all.publish(a.uid, 'ranking', ranks(6), policy, source, () => true)).rejects.toMatchObject({ code: 'resource-exhausted' });
     const jobRef = doc(a.db, 'friendAllJobs', a.uid, 'views', 'ranking');
     const pending = (await getDocFromServer(jobRef)).data()!;
-    expect(pending).toMatchObject({ applied: 2, total: 6, count: 2 });
+    expect(pending).toMatchObject({ applied: 1, total: 6, count: 1 });
     expect(await a.all.progress(a.uid, 'games')).toMatchObject({ ready: true, targetCount: 6 });
-    expect(await a.all.progress(a.uid, 'ranking')).toMatchObject({ ready: false, applied: 2, total: 6 });
+    expect(await a.all.progress(a.uid, 'ranking')).toMatchObject({ ready: false, applied: 1, total: 6 });
     const firstRow = doc(a.db, 'friendAllRankings', a.uid, 'entries', 'wikidata:Q1');
     const unchanged = (await getDocFromServer(firstRow)).data();
     const fresh = new FriendAllStore(a.db);
     const writes = vi.mocked(writeBatch).mock.calls.length;
     await fresh.publish(a.uid, 'ranking', ranks(6), policy, source, () => true);
-    expect(vi.mocked(writeBatch).mock.calls.length - writes).toBe(2);
+    expect(vi.mocked(writeBatch).mock.calls.length - writes).toBe(5);
     expect((await getDocFromServer(jobRef)).data()).toMatchObject({ token: pending.token, applied: 6, total: 6, count: 6 });
     expect((await getDocFromServer(firstRow)).data()).toEqual(unchanged);
     expect((await b.all.page(a.uid, 'ranking')).entries).toEqual(ranks(6));
