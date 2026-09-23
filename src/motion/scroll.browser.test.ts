@@ -101,11 +101,12 @@ beforeAll(async () => {
   browser = await chromium.launch({ channel: 'chrome', headless: true });
 }, 30_000);
 
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
   const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
   if (failures.length) throw new AggregateError(failures, 'Motion scroll fixture teardown failed.');
-});
+}, 60_000);
 
 describe('native motion scroll sources', () => {
   for (const target of ['input', 'textarea', 'container', 'document'] as const) {
