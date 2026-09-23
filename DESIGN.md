@@ -216,6 +216,11 @@ inside it. Native menus, keyboard behavior and focus outlines stay intact.
 Online search scope is explicit beneath the fields and is never reset by
 opening the disclosure.
 
+Discover keeps its heading and search while the catalog loads, with one polite
+loading status instead of an incomplete count. Static, noninteractive placeholders
+share the grid/list artwork, title, metadata and action anatomy; known collection
+cards remain usable. Errors replace the loading state with the existing recovery.
+
 Unranked matches and saved additions use an open ruled list below the original
 100, not fake numbered jackets or empty critic-score cells. Source attribution
 and a restrained Unranked label distinguish public metadata from the visitor's

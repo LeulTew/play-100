@@ -67,6 +67,7 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
   const genres = useMemo(() => [...new Set(items.flatMap(({ record }) => record.genre ? [record.genre] : []))].sort(), [items]);
   const years = useMemo(() => [...new Set(items.flatMap(({ record }) => record.year ? [record.year] : []))].sort((a, b) => b - a), [items]);
   const initialLoading = collection.status === 'loading';
+  const catalogLoading = initialLoading || collection.status === 'ready' && !localReady;
   const failed = remote.sources.some((source) => source.status === 'error');
   const activeFilters = [progressView !== 'all', Boolean(filters.genreFamily), Boolean(filters.genre), Boolean(filters.year), filters.source !== 'all'].filter(Boolean).length;
   const localRange = localReady && filters.online === 'auto' && local.length > DISCOVERY_PAGE_SIZE
@@ -102,10 +103,11 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
         {activeFilters > 0 && <button className="text-button" onClick={() => change({ progress: 'all', genreFamily: '', genre: '', year: '', source: 'all', offset: 0, online: 'auto' })}>Clear filters</button>}
       </BrowseFilters>
       <div className="discovery-results-heading">
-        <div><h2 ref={resultsHeading} id="discovery-results-title" tabIndex={-1}>Catalog games</h2><p role="status" aria-atomic="true">{initialLoading ? 'Loading The 100...' : localRange}{!initialLoading && (seed.status === 'idle' || seed.status === 'loading') ? ' · Loading more catalog games...' : ''}</p></div>
+        <div><h2 ref={resultsHeading} id="discovery-results-title" tabIndex={-1}>Catalog games</h2><p role="status" aria-live="polite" aria-atomic="true">{catalogLoading ? 'Loading the catalog' : collection.status === 'error' ? 'Catalog unavailable' : localRange}</p></div>
         <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
-        <button className="text-button" aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
+        <button className="text-button" disabled={catalogLoading && !records.length} aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
       </div>
+      <div role="region" aria-labelledby="discovery-results-title" aria-busy={catalogLoading}>
       {navigationError && <p className="inline-error" role="alert">{navigationError}</p>}
       {saving && <p className="section-help" role="status">Saving your rating before changing results...</p>}
       {!showCollection && filters.q.trim() && collectionMatches.length > 0 && <section className="discovery-collection-matches" aria-labelledby="discovery-collection-matches-title">
@@ -122,7 +124,17 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
       {selecting && <SelectionBar context="discover" count={selection.length} total={records.length} busy={busy} onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
       {collection.status === 'error' && <div className="discovery-notice" role="alert"><p>The 100 could not load. {collection.error} Reload it before browsing so matching catalog games use the original entry.</p><button className="text-button" onClick={collection.retry}>Reload The 100</button></div>}
       {seed.error && <div className="discovery-notice" role="alert"><p>Local catalog unavailable. {seed.error} The 100 remains searchable. {filters.catalogs === 'off' ? 'Online lookup is off.' : 'Trying online catalogs instead.'}</p><button className="text-button" onClick={seed.retry}>Reload local catalog</button></div>}
-      {(initialLoading || collection.status === 'ready' && !localReady) && !records.length && <div className="discovery-skeleton" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <div key={index} />)}</div>}
+      {catalogLoading && !records.length && <ul className={`discovery-skeleton discovery-cards-${filters.view}`} aria-hidden="true" inert>
+        {Array.from({ length: DISCOVERY_PAGE_SIZE }, (_, index) => <li className="discovery-card-skeleton" key={index}>
+          <div className="discovery-card-art"><span className="discovery-skeleton-print" /></div>
+          <div className="discovery-card-body">
+            <h3><span className="discovery-skeleton-line" /></h3>
+            <p className="discovery-card-meta"><span className="discovery-skeleton-line" /><span className="discovery-skeleton-line" /></p>
+            <div className="discovery-card-primary"><span className="discovery-skeleton-action" /><span className="discovery-skeleton-action" />{renderDragHandle && <span className="discovery-skeleton-grip" />}</div>
+            <div className="discovery-skeleton-source"><span className="discovery-skeleton-line" /></div>
+          </div>
+        </li>)}
+      </ul>}
       {records.length > 0 && <ul className={`discovery-cards discovery-cards-${filters.view}`} aria-label="Discovered games">
         {records.map((record, index) => <DiscoveryCard key={record.id} record={record} game={collectionGameForId(games, record.id)} actionRecord={catalogActionRecord(record, ownership)} ownedCopies={ownership.get(record.id)} artwork={artwork.get(record.id)} state={state} busy={busy} eager={index < 4} selecting={selecting} selected={selected.has(record.id)} pinned={pinnedIds?.has(record.id)} onSelect={(id) => setSelected((prior) => {
           const next = new Set(prior); if (next.has(id)) next.delete(id); else next.add(id); return next;
@@ -130,6 +142,7 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
       </ul>}
       {collection.status === 'ready' && localReady && !records.length && <div className="discovery-empty"><h2>{remote.loading ? 'Looking online…' : failed ? 'Online search is incomplete' : seed.error ? 'The catalog could not load' : filters.offset > 0 ? 'No games on this page' : !showCollection && collectionMatches.length && filters.q.trim() ? 'No additional games outside The 100' : 'No matching games'}</h2><p>{failed ? 'Retry a provider below or change your search.' : 'Try a shorter title, clear a filter, or add a game manually.'}</p><button className="text-button" onClick={() => change({ ...defaultDiscoveryFilters, catalogs: filters.catalogs, view: filters.view })}>Reset search and filters</button></div>}
       {filters.online === 'auto' && localReady && localPage.pageCount > 1 && <LocalPager label="Catalog pages" itemLabel="catalog games" total={local.length} offset={localPage.offset} pageSize={DISCOVERY_PAGE_SIZE} disabled={saving} onOffsetChange={offset => change({ offset }, 'push', true)} />}
+      </div>
       <div className="discovery-online">
         {filters.source === 'collection' ? <p>Showing entries from The 100. Choose another source to look beyond the collection.</p> : progressView !== 'all' ? <p>Online lookup is paused for this progress view. Your play history is not sent to providers.</p> : filters.catalogs === 'off' ? <p>Online lookup is off. <button className="text-button" onClick={() => change({ catalogs: 'on', online: 'on', offset: 0 })}>Search online</button></p>
           : !remoteEnabled && <button className="text-button" onClick={() => change({ online: 'on', offset: 0 })}>Search online<Icon name="arrow" width="17" height="17" /></button>}

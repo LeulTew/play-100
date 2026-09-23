@@ -10,12 +10,13 @@
 .discovery-view { display: flex; margin-left: auto; gap: 4px; }
 .discovery-view [aria-pressed="true"] { background: var(--lime); }
 .discovery-results-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin: 12px 0 10px; }
+.discovery-results-heading > div:first-child { flex: 1 1 180px; min-width: 0; }
 .discovery-results-heading h2 { font-size: 1rem; line-height: 1.5; }
 .discovery-results-heading h2:focus { outline: 3px solid #426515; outline-offset: 4px; }
-.discovery-results-heading p { font-size: .875rem; line-height: 1.5; color: var(--muted); }
-.discovery-cards { list-style: none; margin: 0; padding: 0; }
-.discovery-cards-grid, .discovery-skeleton { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 20px; }
-.discovery-card { min-width: 0; align-self: start; }
+.discovery-results-heading p { min-height: 3em; font-size: .875rem; line-height: 1.5; color: var(--muted); }
+.discovery-cards, .discovery-skeleton { list-style: none; margin: 0; padding: 0; }
+.discovery-cards-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 20px; }
+.discovery-card, .discovery-card-skeleton { min-width: 0; align-self: start; }
 .discovery-card.is-selected { outline: 3px solid #426515; outline-offset: 5px; }
 .discovery-card-art { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; background: #e4e7db; overflow: hidden; }
 .discovery-card-art:has(.discovery-no-art) { min-height: min-content; }
@@ -33,7 +34,7 @@
 .discovery-select { position: absolute; top: 6px; left: 6px; display: grid; place-items: center; width: 44px; height: 44px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; }
 .discovery-select input { width: 20px; height: 20px; accent-color: #426515; }
 .discovery-card-body { padding-top: 10px; min-width: 0; }
-.discovery-card h3 { font: 650 1.1875rem/1.25 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; text-wrap: pretty; overflow-wrap: anywhere; }
+.discovery-card h3, .discovery-card-skeleton h3 { font: 650 1.1875rem/1.25 'Hanken Grotesk Variable', 'Segoe UI', sans-serif; text-wrap: pretty; overflow-wrap: anywhere; }
 .discovery-card h3 button { display: block; min-height: 44px; min-width: 44px; width: 100%; background: transparent; text-align: left; padding: 0; font: inherit; }
 .discovery-card h3 button:hover { text-decoration: underline; text-underline-offset: 4px; }
 .discovery-card-meta { color: var(--muted); font-size: .8125rem; line-height: 1.5; margin-top: 4px; overflow-wrap: anywhere; }
@@ -48,7 +49,7 @@
 .discovery-card-source p { margin-block: 6px; }
 .discovery-card-source a { display: flex; align-items: center; gap: 5px; min-height: 44px; width: fit-content; text-decoration: underline; text-underline-offset: 3px; }
 .discovery-cards-list { display: grid; gap: 0; }
-.discovery-cards-list .discovery-card { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.discovery-cards-list :is(.discovery-card, .discovery-card-skeleton) { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .discovery-cards-list .discovery-card-body { padding: 0; }
 .discovery-cards-list .discovery-card-art { align-self: start; }
 .discovery-cards-list .discovery-card h3 button { min-height: 44px; }
@@ -74,13 +75,22 @@
 .discovery-empty h2 { font: 700 2rem/1.2 var(--display); }
 .discovery-empty p { margin-top: 10px; color: var(--muted); line-height: 1.5; }
 .discovery-footer { padding-top: 20px; }
-.discovery-skeleton > div { min-height: 210px; background: #e4e7db; }
+.discovery-skeleton-print { width: 46%; height: 64%; border: 1px solid var(--muted); border-block-width: 3px; opacity: .35; }
+.discovery-skeleton-line { display: block; width: 80%; height: .65em; background: var(--line); }
+.discovery-card-skeleton h3, .discovery-skeleton-source { display: flex; align-items: center; min-height: 44px; }
+.discovery-card-skeleton .discovery-card-meta { display: grid; align-content: center; gap: .65em; min-height: 3em; }
+.discovery-card-skeleton .discovery-card-meta > :last-child { width: 60%; }
+.discovery-skeleton-action { width: min(100%, 140px); height: 44px; border: 1px solid var(--line); border-radius: 4px; }
+.discovery-skeleton-action + .discovery-skeleton-action { width: 68px; }
+.discovery-skeleton-grip { width: 44px; height: 44px; border: 1px solid var(--line); }
+.discovery-skeleton-source { margin-top: 2px; }
+.discovery-skeleton-source .discovery-skeleton-line { width: 52%; }
 .discovery-extended .extended-heading { margin-bottom: 8px; }
 @media (min-width: 1350px) {
-  .discovery-cards-grid, .discovery-skeleton { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .discovery-cards-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 @media (max-width: 1000px) {
-  .discovery-cards-grid, .discovery-skeleton { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .discovery-cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
   .discovery-page { padding-top: 20px; }
@@ -89,12 +99,12 @@
   .discovery-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
   .discovery-toolbar > label, .discovery-toolbar > .progress-filter { max-width: none; }
   .discovery-view { align-self: end; }
-  .discovery-cards-grid, .discovery-skeleton { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 12px; }
-  .discovery-card h3 { font-size: 1rem; }
+  .discovery-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 12px; }
+  .discovery-card h3, .discovery-card-skeleton h3 { font-size: 1rem; }
   .discovery-card-primary { gap: 6px; }
   .discovery-card-primary .button { padding-inline: 10px; }
   .discovery-no-art { padding: 12px; }
-  .discovery-cards-list .discovery-card { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+  .discovery-cards-list :is(.discovery-card, .discovery-card-skeleton) { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
   .discovery-results-heading { gap: 8px; }
   .discovery-results-heading p { font-size: .8125rem; }
   .discovery-results-heading .text-button { font-size: .8125rem; }
