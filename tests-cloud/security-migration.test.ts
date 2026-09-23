@@ -6,7 +6,7 @@ import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemo
 import type { User } from 'firebase/auth';
 import {
   connectFirestoreEmulator, deleteDoc, disableNetwork, doc, enableNetwork, getDocFromServer, getFirestore,
-  serverTimestamp, Timestamp, updateDoc, writeBatch,
+  Timestamp, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
