@@ -13,7 +13,7 @@ test('table rows expose the same bounded metadata-only comparison path', async (
     await pin.click();
   }
   await expect(page.locator('.compare-tray-dock')).toContainText('6 games');
-  await expect(page.locator('.compare-tray-error')).toContainText('six games');
+  await expect(page.locator('.compare-tray-dock .compare-tray-error')).toContainText('six games');
   const remove = page.locator('.ratings-table').getByRole('button', { name: `Unpin ${libraryRecords[0].title} from comparison`, exact: true });
   await expect(remove).toHaveAttribute('aria-pressed', 'true');
   await remove.focus();
