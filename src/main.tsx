@@ -8,6 +8,7 @@ import DataUsePage from './components/DataUsePage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles.css';
 import './personal.css';
+import './render-containment.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode><ErrorBoundary>{/^\/data-use\/?$/.test(location.pathname) ? <DataUsePage /> : <App />}</ErrorBoundary></StrictMode>,

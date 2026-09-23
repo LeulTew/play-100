@@ -1,0 +1,54 @@
+/* Native auto visibility retains find-in-page, focus and anchors. Remember the
+   real block size after first layout; estimates apply only to unvisited content.
+   Keep the hero, first row, tables, sortable lists and dialog hosts uncontained. */
+@media screen {
+  .games-grid > .game-card:nth-child(n + 5) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 430px;
+  }
+  .games-list > .game-card:nth-child(n + 5) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 170px;
+  }
+  .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 400px;
+  }
+  .discovery-cards-list > .discovery-card:nth-child(n + 5) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 220px;
+  }
+  .films-list > li {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 180px;
+  }
+  .workbook-section {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 350px;
+  }
+  .site-footer {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 160px;
+  }
+  .games > .game-card:focus-within,
+  .games > .game-card[data-compare-dragging],
+  .discovery-cards > .discovery-card:focus-within,
+  .discovery-cards > .discovery-card[data-compare-dragging],
+  .films-list > li:focus-within,
+  .workbook-section:focus-within,
+  .site-footer:focus-within {
+    content-visibility: visible;
+  }
+}
+@media screen and (min-width: 761px) and (max-width: 1150px) {
+  .games-grid > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 400px; }
+}
+@media screen and (max-width: 760px) {
+  .games-grid > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 370px; }
+  .games-list > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 240px; }
+  .discovery-cards-grid > .discovery-card:nth-child(n + 6) { contain-intrinsic-block-size: auto 420px; }
+  .discovery-cards-list > .discovery-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 280px; }
+  .films-list > li { contain-intrinsic-block-size: auto 110px; }
+  .workbook-section { contain-intrinsic-block-size: auto 550px; }
+  .site-footer { contain-intrinsic-block-size: auto 260px; }
+}
