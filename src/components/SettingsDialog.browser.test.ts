@@ -17,6 +17,9 @@ declare global {
     settingsRadioFixture: {
       calls: string[];
       frames: RadioFrame[];
+      saved(): string;
+      inFlight(): number;
+      maxInFlight(): number;
       finish(result: boolean | 'reject'): void;
       externalBusy(value: boolean): void;
     };
@@ -34,6 +37,7 @@ import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
 import '/src/styles.css';
 import '/src/personal.css';
 let finish, setExternalBusy;
+let saved = 'auto', inFlight = 0, maxInFlight = 0, frameGeneration = 0;
 const calls = [], frames = [];
 function App() {
   const [motion, setMotion] = useState('auto');
@@ -45,10 +49,13 @@ function App() {
     status: 'Existing Settings status.',
     onMotion(value) {
       calls.push(value);
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
       setBusy(true);
       return new Promise((resolve, reject) => {
         finish = result => {
-          if (result === true) setMotion(value);
+          inFlight -= 1;
+          if (result === true) { saved = value; setMotion(value); }
           setBusy(false);
           if (result === 'reject') reject(new Error('Synthetic motion-save rejection'));
           else resolve(result);
@@ -60,8 +67,10 @@ function App() {
 }
 document.addEventListener('change', event => {
   if (!(event.target instanceof HTMLInputElement) || event.target.name !== 'visual-experience') return;
+  const generation = ++frameGeneration;
   frames.length = 0;
   const sample = () => {
+    if (generation !== frameGeneration) return;
     frames.push({
       checked: document.querySelector('input[name="visual-experience"]:checked')?.value,
       selected: document.querySelector('.motion-option.selected input')?.value,
@@ -74,6 +83,7 @@ document.addEventListener('change', event => {
 });
 window.settingsRadioFixture = {
   calls, frames, finish: result => finish(result), externalBusy: value => setExternalBusy(value),
+  saved: () => saved, inFlight: () => inFlight, maxInFlight: () => maxInFlight,
 };
 createRoot(document.getElementById('mount')).render(h(App));
 </script></body></html>`;
@@ -140,10 +150,8 @@ for (const mobile of [false, true]) {
           { checked: 'lite', selected: 'lite', focused: 'lite', disabled: false },
           { checked: 'lite', selected: 'lite', focused: 'lite', disabled: false },
         ]);
-        await browserExpect(radio(page, 'lite')).toHaveAttribute('aria-disabled', 'true');
-        // Bypass Playwright's aria-disabled actionability check to exercise the handler guard.
-        await radio(page, 'full').click({ force: true });
-        await browserExpect(radio(page, 'lite')).toBeChecked();
+        await browserExpect(radio(page, 'lite')).toBeEnabled();
+        await browserExpect(radio(page, 'lite')).not.toHaveAttribute('aria-disabled', 'true');
         expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['lite']);
         await page.evaluate(() => window.settingsRadioFixture.finish(true));
         await browserExpect(radio(page, 'lite')).toBeChecked();
@@ -170,6 +178,78 @@ for (const mobile of [false, true]) {
         });
       },
     );
+
+    it('coalesces queued choices back to the in-flight value without a duplicate save', async () => {
+      await withPage(async page => {
+        await radio(page, 'full').click();
+        await page.keyboard.press('ArrowDown');
+        await browserExpect(radio(page, 'lite')).toBeChecked();
+        await page.keyboard.press('ArrowUp');
+        await browserExpect(radio(page, 'full')).toBeChecked();
+        await browserExpect(radio(page, 'full')).toBeFocused();
+        await page.evaluate(() => window.settingsRadioFixture.finish(true));
+        await browserExpect.poll(() => page.evaluate(() => window.settingsRadioFixture.saved())).toBe('full');
+        expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full']);
+        expect(await page.evaluate(() => window.settingsRadioFixture.inFlight())).toBe(0);
+        await browserExpect(radio(page, 'full')).toBeFocused();
+      });
+    });
+
+    it.each([['ArrowDown', 'lite'], ['ArrowUp', 'auto']] as const)(
+      'saves the latest %s choice %s after the held save without losing focus',
+      async (key, latest) => {
+        await withPage(async page => {
+          await radio(page, 'full').click();
+          await page.keyboard.press(key);
+          await browserExpect.poll(() => page.evaluate(() => window.settingsRadioFixture.frames.length)).toBe(2);
+          expect(await page.evaluate(() => window.settingsRadioFixture.frames)).toEqual([
+            { checked: latest, selected: latest, focused: latest, disabled: false },
+            { checked: latest, selected: latest, focused: latest, disabled: false },
+          ]);
+          expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full']);
+          await page.evaluate(() => window.settingsRadioFixture.finish(true));
+          await browserExpect.poll(() => page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full', latest]);
+          expect(await page.evaluate(() => window.settingsRadioFixture.saved())).toBe('full');
+          expect(await page.evaluate(() => window.settingsRadioFixture.inFlight())).toBe(1);
+          await browserExpect(radio(page, latest)).toBeChecked();
+          await browserExpect(radio(page, latest)).toBeFocused();
+          await browserExpect(radio(page, latest)).toBeEnabled();
+          await page.evaluate(() => window.settingsRadioFixture.finish(true));
+          await browserExpect.poll(() => page.evaluate(() => window.settingsRadioFixture.saved())).toBe(latest);
+          expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full', latest]);
+          expect(await page.evaluate(() => window.settingsRadioFixture.inFlight())).toBe(0);
+          expect(await page.evaluate(() => window.settingsRadioFixture.maxInFlight())).toBe(1);
+          await browserExpect(radio(page, latest)).toBeChecked();
+          await browserExpect(radio(page, latest)).toBeFocused();
+          await page.evaluate(() => window.settingsRadioFixture.externalBusy(true));
+          await browserExpect(radio(page, latest)).toBeDisabled();
+        });
+      },
+    );
+
+    it.each([false, 'reject'] as const)('drops the queued choice when the held save fails with %s', async result => {
+      await withPage(async page => {
+        await radio(page, 'full').click();
+        await page.keyboard.press('ArrowDown');
+        await browserExpect(radio(page, 'lite')).toBeChecked();
+        await browserExpect(radio(page, 'lite')).toBeFocused();
+        expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full']);
+        await page.evaluate(value => window.settingsRadioFixture.finish(value), result);
+        await browserExpect(radio(page, 'auto')).toBeChecked();
+        await browserExpect(page.locator('.motion-option.selected input')).toHaveValue('auto');
+        await browserExpect(radio(page, 'lite')).toBeFocused();
+        await browserExpect(page.locator('.settings-dialog .dialog-inner > [role="status"]'))
+          .toContainText('Your visual experience could not be saved.');
+        expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full']);
+        expect(await page.evaluate(() => window.settingsRadioFixture.inFlight())).toBe(0);
+        expect(await page.evaluate(() => window.settingsRadioFixture.saved())).toBe('auto');
+        await radio(page, 'full').click();
+        await page.evaluate(() => window.settingsRadioFixture.finish(true));
+        await browserExpect.poll(() => page.evaluate(() => window.settingsRadioFixture.saved())).toBe('full');
+        expect(await page.evaluate(() => window.settingsRadioFixture.calls)).toEqual(['full', 'full']);
+        expect(await page.evaluate(() => window.settingsRadioFixture.inFlight())).toBe(0);
+      });
+    });
 
     it.each([false, 'reject'] as const)('reverts and announces failed save %s in the existing status region, then retries', async result => {
       await withPage(async page => {

@@ -36,18 +36,36 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
   const [pendingMotion, setPendingMotion] = useState<MotionPreference | null>(null);
   const [motionFailed, setMotionFailed] = useState(false);
   const savingMotion = useRef(false);
+  const queued = useRef<MotionPreference | null>(null);
+  const saving = pendingMotion !== null;
   const selectedMotion = pendingMotion ?? motion;
   const changeMotion = async (value: MotionPreference) => {
-    if (savingMotion.current || busy || value === motion) return;
+    if (savingMotion.current) {
+      queued.current = value;
+      setPendingMotion(value);
+      return;
+    }
+    if (busy || value === motion) return;
     savingMotion.current = true;
+    queued.current = value;
     setPendingMotion(value);
     setMotionFailed(false);
     try {
-      if (!await onMotion(value)) setMotionFailed(true);
+      let next = value;
+      while (true) {
+        if (!await onMotion(next)) {
+          setMotionFailed(true);
+          break;
+        }
+        const latest = queued.current;
+        if (latest === null || latest === next) break;
+        next = latest;
+      }
     } catch (error: unknown) {
       console.error('The visual experience preference could not be saved.', error);
       setMotionFailed(true);
     } finally {
+      queued.current = null;
       savingMotion.current = false;
       setPendingMotion(null);
     }
@@ -69,7 +87,7 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
           ['lite', 'Lite', 'Original static art. No effects.'],
         ] as const).map(([value, label, description]) => (
           <label key={value} className={`motion-option ${selectedMotion === value ? 'selected' : ''}`}>
-            <input type="radio" name="visual-experience" value={value} checked={selectedMotion === value} disabled={busy && pendingMotion === null} aria-disabled={pendingMotion !== null || undefined} onChange={() => { void changeMotion(value); }} />
+            <input type="radio" name="visual-experience" value={value} checked={selectedMotion === value} disabled={busy && !saving} onChange={() => { void changeMotion(value); }} />
             <span><strong>{label}</strong><small>{description}</small></span>
           </label>
         ))}
