@@ -6,6 +6,17 @@ import { BrowseFilters } from './BrowseFilters';
 import { CollectionControls } from './CollectionControls';
 
 describe('collection result scope and accessible names', () => {
+  it.each([false, true])('names the current selection-mode action without a competing pressed state (selecting=%s)', selecting => {
+    const html = renderToStaticMarkup(createElement(CollectionControls, {
+      games: [], extraRecords: [], filters: defaultFilters, count: 0, addedCount: 0,
+      unrankedCount: 0, onlineScope: true, searching: false, savedCount: 0, completedCount: 0,
+      onChange: vi.fn(), onShare: vi.fn(), selecting, onSelectMode: vi.fn(),
+    }));
+    const button = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(value => value.endsWith(`</svg>${selecting ? 'Exit selection mode' : 'Select multiple games'}</button>`));
+    expect(button).toBeDefined();
+    expect(button).not.toContain('aria-pressed');
+  });
+
   it.each([[100, 0], [1, 4], [0, 4], [0, 0], [100, 400]])(
     'separates %i original matches from %i beyond matches', (originals, beyond) => {
       const html = renderToStaticMarkup(createElement(CollectionControls, {

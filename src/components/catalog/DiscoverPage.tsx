@@ -108,7 +108,7 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
       <div className="discovery-results-heading">
         <div><h2 ref={resultsHeading} id="discovery-results-title" tabIndex={-1}>Catalog games</h2><p role="status" aria-live="polite" aria-atomic="true">{catalogStatus}</p></div>
         <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
-        <button className="text-button" disabled={catalogLoading && !records.length} aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
+        <button className="text-button" disabled={catalogLoading && !records.length} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
       </div>
       <div role="region" aria-labelledby="discovery-results-title" aria-busy={catalogLoading}>
       {navigationError && <p className="inline-error" role="alert">{navigationError}</p>}

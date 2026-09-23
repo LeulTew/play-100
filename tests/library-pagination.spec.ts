@@ -200,6 +200,7 @@ test('first-run add choices yield to useful tools without remounting a draft or 
   await expect(page.getByRole('heading', { name: 'No matches', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Bulk game actions' }).getByRole('status')).toHaveText('0 selected');
   await expect(page.getByRole('button', { name: 'Exit selection', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exit selection', exact: true })).not.toHaveAttribute('aria-pressed');
   await page.getByRole('button', { name: 'Clear search and progress filter', exact: true }).click();
   await expect(libraryRows(page)).toHaveCount(1);
   await expect(query(page)).toHaveValue('');

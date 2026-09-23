@@ -99,6 +99,7 @@ test('bulk Discover and main100 actions keep canonical IDs for MassEffect2 and G
   const me2 = cardFor(page, 'mass-effect-2');
   await expect(me2).toContainText('From The 100 · #2');
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
+  await expect(page.locator('.discovery-results-heading').getByRole('button', { name: 'Done selecting', exact: true })).not.toHaveAttribute('aria-pressed');
   await me2.getByRole('checkbox', { name: 'Select Mass Effect 2', exact: true }).check();
   await page.getByRole('button', { name: 'Mark played', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress['mass-effect-2']).toEqual({ played: true, completed: false, later: false });
