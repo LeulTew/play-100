@@ -32,7 +32,7 @@ export function RemoveGamesDialog({ records, state, busy, onClose, onRemove }: {
         <p className="removal-warning">This cannot be undone. To keep a copy, cancel and export a backup from Settings first.</p>
       </>}
       {failed && <p className="inline-error" role="alert">Nothing was removed. Your saved data is unchanged. Check the storage warning and try again.</p>}
-      <div className="button-row"><button className="button button-outline" data-autofocus disabled={removing} onClick={onClose}>{remaining.length ? 'Keep games' : 'Close'}</button>{remaining.length > 0 && <button className="button button-danger" disabled={busy || removing} onClick={() => { void submit(); }}><Icon name="trash" width="18" height="18" />{removing ? 'Removing...' : `Remove ${remaining.length} ${remaining.length === 1 ? 'game' : 'games'}`}</button>}</div>
+      <div className="button-row"><button className="button button-outline" data-autofocus disabled={removing} onClick={onClose}>{remaining.length ? 'Keep games' : 'Close'}</button>{remaining.length > 0 && <button className="button button-danger" disabled={busy || removing} onClick={() => { void submit(); }}><Icon name="trash" width="18" height="18" />{removing ? 'Removing…' : `Remove ${remaining.length} ${remaining.length === 1 ? 'game' : 'games'}`}</button>}</div>
     </Dialog>
   );
 }

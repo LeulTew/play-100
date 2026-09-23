@@ -166,7 +166,7 @@ test('online search is debounced, length bounded, scoped and URL reversible with
   await input.fill('ma');
   await page.clock.runFor(400);
   await input.fill('mass');
-  await expect(page.getByText('Searching public catalogs...', { exact: true })).toBeVisible();
+  await expect(page.getByText('Searching public catalogs…', { exact: true })).toBeVisible();
   await page.clock.runFor(749);
   expect(queries).toEqual([]);
   await page.clock.runFor(1);

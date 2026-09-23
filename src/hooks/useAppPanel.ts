@@ -47,7 +47,7 @@ export function useAppPanel(scope: string, opening: boolean) {
     if (next !== 'about' && next !== 'settings') return;
     const title = next === 'about' ? 'credits' : 'Settings';
     noticeTimer.current = setTimeout(() => {
-      if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}...`, error: false });
+      if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}…`, error: false });
     }, 500);
     void loadSecondaryDialog(next).then(() => {
       if (!alive.current || generation.current !== request) return;

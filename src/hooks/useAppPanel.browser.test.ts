@@ -124,7 +124,7 @@ describe('secondary panel guard through the real hook', () => {
       await page.goto(`${base}/__panel-guard${intent === 'credits' ? '?info=credits' : ''}`);
       if (intent !== 'credits') await page.getByRole('button', { name: intent, exact: true }).click();
       await browserExpect(page.locator('#opening')).toHaveText('true');
-      await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits...' : 'Opening Settings...');
+      await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits…' : 'Opening Settings…');
       if (boundary !== 'held') await page.getByRole('button', { name: boundary, exact: true }).click();
       release();
       await page.evaluate(about ? 'window.waitForAbout()' : 'window.waitForSettings()');
@@ -144,7 +144,7 @@ describe('secondary panel guard through the real hook', () => {
     await page.route('**/src/components/AboutDialog.tsx', async route => { await held; await route.continue(); });
     try {
       await page.goto(`${base}/__panel-guard?info=credits${cancellation === 'scope' ? '&settled=1' : ''}`);
-      await browserExpect(page.locator('#message')).toHaveText('Opening credits...');
+      await browserExpect(page.locator('#message')).toHaveText('Opening credits…');
       if (cancellation === 'Escape') await page.keyboard.press('Escape');
       else await page.getByRole('button', { name: cancellation, exact: true }).click();
       expect(new URL(page.url()).searchParams.has('info')).toBe(false);
@@ -188,7 +188,7 @@ describe('secondary panel guard through the real hook', () => {
     const wait = about ? 'window.waitForAbout()' : 'window.waitForSettings()';
     try {
       await page.goto(`${base}/__panel-guard?info=${intent}`);
-      await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits...' : 'Opening Settings...');
+      await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits…' : 'Opening Settings…');
       if (phase === 'open') {
         release();
         await page.evaluate(wait);

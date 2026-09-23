@@ -13,7 +13,7 @@ describe('destination loading anatomy', () => {
   ] as const)('names %s without inventing loaded contents', (route, title) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route, kind: 'public-page' }));
     expect(html).toContain(`<h1>${title}</h1>`);
-    expect(html).toContain(`Loading ${title}...`);
+    expect(html).toContain(`Loading ${title}…`);
     expect(html.match(/role="status"/g)).toHaveLength(1);
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('aria-hidden="true" inert=""');
@@ -30,7 +30,7 @@ describe('destination loading anatomy', () => {
     expect(html).toContain('data-motion-owned="true"');
     expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
     expect(html.match(/class="search-field section-help"/g)).toHaveLength(3);
-    expect(html).toContain('role="status">Loading sign-in...</p>');
+    expect(html).toContain('role="status">Loading sign-in…</p>');
     expect(html).not.toContain('discovery-cards-grid');
     expect(html).not.toMatch(/<(input|form)\b/);
     expect(html.match(/<button\b/g)).toHaveLength(1);

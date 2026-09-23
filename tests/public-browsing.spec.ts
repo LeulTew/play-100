@@ -192,7 +192,7 @@ test('a pending page intent cannot replace a newer Back navigation after its del
     window.removeBrowsingEditor = registerPendingEditor({ pending: () => pending, flush: () => flush });
   });
   await pager(page).getByRole('button', { name: 'Last', exact: true }).click();
-  await expect(page.getByText('Saving your rating before changing results...', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saving your rating before changing results…', { exact: true })).toBeVisible();
   await page.goBack();
   await expect(page).not.toHaveURL(/offset=/);
   await page.evaluate(async () => { window.releaseBrowsingNavigation?.(); await window.removeBrowsingEditor?.(); });

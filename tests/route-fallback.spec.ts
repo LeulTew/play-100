@@ -26,7 +26,7 @@ for (const destination of [
       await expect(fallback).toBeVisible();
       await expect(fallback).toHaveAttribute('aria-busy', 'true');
       await expect(fallback.getByRole('heading', { level: 1 })).toHaveText(destination.title);
-      await expect(fallback.getByRole('status')).toHaveText(`Loading ${destination.title}...`);
+      await expect(fallback.getByRole('status')).toHaveText(`Loading ${destination.title}…`);
       await expect(fallback.locator('button, input, a, [tabindex]')).toHaveCount(0);
       await expect(page.locator(destination.heading)).toHaveCount(0);
       await expect(fallback.locator('.route-skeleton')).toHaveAttribute('aria-hidden', 'true');

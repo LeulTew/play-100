@@ -251,7 +251,7 @@ test('late canonical data gates duplicate actions, error is recoverable, and all
   await page.route('**/data/collection.json', async route => { await waiting; await route.fulfill({ json: collection }); });
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   await expect.poll(() => seedLoaded).toBe(true);
-  await expect(page.getByText('Loading The 100...', { exact: true })).toBeVisible();
+  await expect(page.getByText('Loading The 100…', { exact: true })).toBeVisible();
   await expect(page.locator('[data-catalog-id]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: `Add to My games: ${rdr.title}`, exact: true })).toHaveCount(0);
   release(); await expect(cardFor(page)).toBeVisible();

@@ -50,7 +50,7 @@ test.beforeEach(async ({ page, context, baseURL }) => {
           const image = this.querySelector<HTMLImageElement>('.catalog-detail-sleeve img');
           frames.push({
             unavailable: this.textContent?.includes('Artwork unavailable') ?? false,
-            loading: this.textContent?.includes('Loading public ratings and licensed artwork...') ?? false,
+            loading: this.textContent?.includes('Loading public ratings and licensed artwork…') ?? false,
             rating: Boolean(this.querySelector('.catalog-review-list')),
             image: Boolean(image?.complete && image.naturalWidth > 0),
             actions: actions ? { x: actions.x, y: actions.y, width: actions.width, height: actions.height } : null,

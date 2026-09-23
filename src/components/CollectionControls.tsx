@@ -97,7 +97,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
       </BrowseFilters>
       <div className="collection-utilities">
         <div className="result-summary">
-          <p role="status" aria-live="polite" aria-atomic="true"><strong>{count - unrankedCount}</strong> in The 100{unrankedCount > 0 ? <> · {unrankedCount} beyond The 100</> : !activeFilters && filters.sort === 'rank' && filters.direction !== 'desc' ? ', in the author\'s order' : ''}{searching && <span className="result-breakdown">Searching public catalogs...</span>}</p>
+          <p role="status" aria-live="polite" aria-atomic="true"><strong>{count - unrankedCount}</strong> in The 100{unrankedCount > 0 ? <> · {unrankedCount} beyond The 100</> : !activeFilters && filters.sort === 'rank' && filters.direction !== 'desc' ? ', in the author\'s order' : ''}{searching && <span className="result-breakdown">Searching public catalogs…</span>}</p>
           {activeFilters && <button className="text-button clear-filters" onClick={() => onChange({ ...defaultFilters, catalogs: filters.catalogs, sort: filters.sort, view: filters.view })}>Reset filters<Icon name="close" width="15" height="15" /></button>}
         </div>
         <div className="view-controls">

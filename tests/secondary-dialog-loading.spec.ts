@@ -34,13 +34,13 @@ test('an 800ms Settings chunk retains the Menu and its focus, then opens the rea
     const observation = { visible: false, focused: false, pageToast: false };
     const observer = new MutationObserver(() => {
       const status = dialog.querySelector<HTMLElement>('[role="status"]');
-      if (!status?.textContent?.includes('Opening Settings...') || !dialog.matches('[open]') ||
+      if (!status?.textContent?.includes('Opening Settings…') || !dialog.matches('[open]') ||
         status.closest('[inert], [hidden]') || status.getClientRects().length === 0 ||
         getComputedStyle(status).visibility !== 'visible') return;
       observation.visible = true;
       observation.focused = dialog.contains(document.activeElement) &&
         document.activeElement?.textContent?.trim() === 'Settings & backups';
-      observation.pageToast = document.querySelector('.toast')?.textContent?.includes('Opening Settings...') ?? false;
+      observation.pageToast = document.querySelector('.toast')?.textContent?.includes('Opening Settings…') ?? false;
       observer.disconnect();
     });
     observer.observe(dialog, { subtree: true, childList: true, characterData: true, attributes: true });
@@ -57,10 +57,10 @@ test('an 800ms Settings chunk retains the Menu and its focus, then opens the rea
     await notice.evaluate(probe => probe.stop());
     await notice.dispose();
   }
-  await expect(page.locator('.toast')).not.toContainText('Opening Settings...');
+  await expect(page.locator('.toast')).not.toContainText('Opening Settings…');
   await expect(page.locator('#settings-title')).toBeFocused();
   await expect(menu).toHaveCount(0);
-  await expect(page.locator('.toast')).not.toContainText('Opening Settings...');
+  await expect(page.locator('.toast')).not.toContainText('Opening Settings…');
   await expect(page.locator('dialog[open]')).toHaveCount(1);
 });
 
@@ -195,10 +195,10 @@ for (const entry of ['footer', 'deep link'] as const) {
     try {
       await page.goto(entry === 'footer' ? '/?catalogs=off' : '/?info=credits&catalogs=off');
       if (entry === 'footer') await page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true }).click();
-      await expect(page.locator('.toast')).toContainText('Opening credits...');
+      await expect(page.locator('.toast')).toContainText('Opening credits…');
       await expect(page.locator('dialog[open]')).toHaveCount(0);
       await page.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
-      await expect(page.locator('.toast')).not.toContainText('Opening credits...');
+      await expect(page.locator('.toast')).not.toContainText('Opening credits…');
       release();
       await expect(page.locator('#about-title')).toBeFocused();
     } finally { release(); }
@@ -220,10 +220,10 @@ test('credits requested inside Settings announces inside that modal instead of t
     await expect(status).toBeEmpty();
     expect(await status.evaluate(element => element.getBoundingClientRect().height)).toBe(0);
     await trigger.click();
-    await expect(status).toContainText('Opening credits...');
+    await expect(status).toContainText('Opening credits…');
     await expect(status).toBeVisible();
     await expect(trigger).toBeFocused();
-    await expect(page.locator('.toast')).not.toContainText('Opening credits...');
+    await expect(page.locator('.toast')).not.toContainText('Opening credits…');
     release();
     await expect(page.locator('#about-title')).toBeFocused();
   } finally { release(); }

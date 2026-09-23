@@ -34,7 +34,7 @@ function FilmVideo({ film, onRetry }: { film: CollectionFilm; onRetry: () => voi
       <track kind="captions" src={film.captions} srcLang="en" label="English (sound)" />
       Your browser does not support this video. Use Download film or read the transcript below.
     </video>
-    {waiting && !failed && <p role="status">Buffering film...</p>}
+    {waiting && !failed && <p role="status">Buffering film…</p>}
     {failed && <div className="film-error" role="alert"><p>The film could not load. Check your connection or download it instead.</p><button className="button button-outline" onClick={onRetry}>Retry film</button></div>}
   </div>;
 }

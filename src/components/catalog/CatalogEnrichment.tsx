@@ -33,7 +33,7 @@ export function CatalogEnrichment({ enrichment, lookup }: {
     {!lookup.online && <p className="catalog-enrichment-note">Online lookup is off. Only bundled or previously loaded public details are shown.
       {' '}<button className="text-button" disabled={!connected} onClick={lookup.onEnableOnline}>Enable online details</button></p>}
     {!connected && <p className="catalog-enrichment-note" role="status">You appear to be offline. Previously loaded public details remain available.</p>}
-    {status === 'loading' && <p className="catalog-enrichment-note" role="status">Loading public ratings and licensed artwork...</p>}
+    {status === 'loading' && <p className="catalog-enrichment-note" role="status">Loading public ratings and licensed artwork…</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     {data && <>
       <p className="catalog-enrichment-note">{cached ? 'Cached public details' : 'Public details'} retrieved <time dateTime={data.fetchedAt}>{data.fetchedAt.slice(0, 10)}</time>. Source dates may be older.</p>

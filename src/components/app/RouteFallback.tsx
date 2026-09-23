@@ -25,7 +25,7 @@ export function RouteFallback(props: RouteFallbackProps) {
   const skeleton = <div className={`route-skeleton ${form ? '' : `discovery-skeleton discovery-cards-${cards ? 'grid' : 'list'}`}`} aria-hidden="true" inert>
     {Array.from({ length: cards ? 10 : 3 }, (_, index) => <div className={form ? 'search-field section-help' : 'discovery-card-skeleton'} key={index}>{content}</div>)}
   </div>;
-  const status = <p className="section-help" role="status">{props.kind === 'private-library' ? 'Waiting for the correct guest or account scope before allowing edits.' : `Loading ${title}...`}</p>;
+  const status = <p className="section-help" role="status">{props.kind === 'private-library' ? 'Waiting for the correct guest or account scope before allowing edits.' : `Loading ${title}…`}</p>;
   if (sheet) return <Dialog open motion={false} titleId="loading-account-title" onClose={props.onClose} getReturnFocus={props.getReturnFocus} className="info-dialog">
     <h2 id="loading-account-title" data-autofocus tabIndex={-1}>Sign in</h2>
     {status}{skeleton}

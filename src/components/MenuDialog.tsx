@@ -90,7 +90,7 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
   return <Dialog open titleId="menu-title" onClose={close} className="menu-dialog" getReturnFocus={getReturnFocus} motion={{ preset: 'dialog', enterMs: 180 }}>
     <h2 id="menu-title" data-autofocus tabIndex={-1}>Menu</h2>
     <div className="menu-feedback">
-      <p role="status" className={!saving && status && statusError && !moduleRecovery ? 'inline-error' : undefined}>{saving ? 'Saving your open edit...' : moduleRecovery ? '' : status}</p>
+      <p role="status" className={!saving && status && statusError && !moduleRecovery ? 'inline-error' : undefined}>{saving ? 'Saving your open edit…' : moduleRecovery ? '' : status}</p>
       {moduleRecovery}
       {error && <div role="alert"><p>{error}</p><button className="text-button" onClick={() => {
         returnToEditor.current = true;

@@ -112,7 +112,7 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
       </div>
       <div role="region" aria-labelledby="discovery-results-title" aria-busy={catalogLoading}>
       {navigationError && <p className="inline-error" role="alert">{navigationError}</p>}
-      {saving && <p className="section-help" role="status">Saving your rating before changing results...</p>}
+      {saving && <p className="section-help" role="status">Saving your rating before changing results…</p>}
       {!showCollection && filters.q.trim() && collectionMatches.length > 0 && <section className="discovery-collection-matches" aria-labelledby="discovery-collection-matches-title">
         <h2 id="discovery-collection-matches-title">Already in The 100</h2>
         <p>Open the original collection entry. Its artwork, original scores and your existing opinions are unchanged.</p>

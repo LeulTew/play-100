@@ -23,7 +23,7 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
     <div className="button-row">
       <button className="button button-outline" disabled={!pwa.online || pending || pwa.offlineState === 'ready'}
         onClick={() => { void pwa.prepareOffline(); }}>
-        {pwa.offlineState === 'ready' ? 'Offline files ready' : pwa.offlineState === 'preparing' ? 'Preparing offline files...' : 'Enable offline access'}
+        {pwa.offlineState === 'ready' ? 'Offline files ready' : pwa.offlineState === 'preparing' ? 'Preparing offline files…' : 'Enable offline access'}
       </button>
       {pwa.offlineState === 'ready' && <button className="text-button" disabled={!pwa.online || pending}
         onClick={() => { void pwa.checkForUpdate(); }}>Check for an app update</button>}
@@ -38,7 +38,7 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
         console.error('The requested reload could not start.', cause);
         setUpdateError('This page could not reload. Save your changes before reloading when connected.');
       }).finally(() => setRecovering(false));
-    }}>{recovering ? 'Checking connection...' : 'Reload this page'}</button></div>}
+    }}>{recovering ? 'Checking your connection…' : 'Reload this page'}</button></div>}
     {updateError && <p className="inline-error" role="alert">{updateError}</p>}
     {!pwa.moduleError && (pwa.updateState === 'waiting' || pwa.updateState === 'reload-required') && (confirm
       ? <div className="reset-confirmation" role="group" aria-label="Confirm app update">

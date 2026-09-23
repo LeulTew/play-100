@@ -11,7 +11,7 @@ export function CatalogSourceStatus({ sources, onRetry, onMore, onPrevious }: {
   return <div className="discovery-source-status" role="group" aria-label="Online catalog status">
     {sources.filter((source) => source.status !== 'idle').map((source) => <div key={source.source}>
       <p role="status"><a href={source.source === 'wikidata' ? 'https://www.wikidata.org/wiki/Wikidata:Data_access' : 'https://www.freetogame.com/'} target="_blank" rel="noreferrer">{SOURCE_LABELS[source.source]}</a>
-        <span>{source.status === 'loading' ? 'Loading...' : source.status === 'error'
+        <span>{source.status === 'loading' ? 'Loading…' : source.status === 'error'
           ? source.failure === 'timeout' ? 'Timed out' : source.failure === 'rate-limited' ? 'Rate limited' : source.failure === 'offline' ? 'Offline' : 'Provider unavailable'
           : source.total === 0 ? 'No online matches' : `${source.records.length} loaded online`}</span></p>
       {source.error && <p className="discovery-source-error" role="alert">{source.error}</p>}

@@ -70,8 +70,8 @@ describe('contextual tray host', () => {
 
 describe('route fallback host', () => {
   it.each([
-    ['public-page', 'Loading My games...'],
-    ['cloud-page', 'Loading My games...'],
+    ['public-page', 'Loading My games…'],
+    ['cloud-page', 'Loading My games…'],
     ['private-library', 'Waiting for the correct guest or account scope before allowing edits.'],
   ] as const)('retains a truthful %s status without guessing private contents', (kind, explanation) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route: 'games', kind }));
@@ -92,7 +92,7 @@ describe('route fallback host', () => {
     expect(html).toContain('aria-labelledby="loading-account-title"');
     expect(html).toContain('id="loading-account-title"');
     expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
-    expect(html).toContain('role="status">Loading sign-in...</p>');
+    expect(html).toContain('role="status">Loading sign-in…</p>');
     expect(html).not.toContain('<input');
     expect(onClose).not.toHaveBeenCalled();
     expect(getReturnFocus).not.toHaveBeenCalled();

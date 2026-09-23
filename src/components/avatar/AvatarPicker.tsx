@@ -140,11 +140,11 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
         })}
       </div>
       {(error || generationError) && <p className="avatar-picker__error" role="alert">{error || generationError}</p>}
-      <p className="avatar-picker__status" role="status">{pending ? 'Saving your avatar...' : status === 'saved' ? 'Avatar saved.' : ''}</p>
+      <p className="avatar-picker__status" role="status">{pending ? 'Saving your avatar…' : status === 'saved' ? 'Avatar saved.' : ''}</p>
       <div className="avatar-picker__actions">
         <button type="button" className="button button-outline" disabled={pending} onClick={onCancel}>Cancel</button>
         <button type="button" className="button button-dark" disabled={pending || status === 'saved'} onClick={() => { void save(); }}>
-          {pending ? 'Saving...' : 'Save avatar'}
+          {pending ? 'Saving…' : 'Save avatar'}
         </button>
       </div>
     </section>

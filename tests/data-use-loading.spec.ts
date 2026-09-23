@@ -48,7 +48,7 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
     await page.goto('/data-use', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveTitle('Data use | Play 100');
     await expect(page.getByRole('heading', { name: 'Data use', exact: true })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('Loading data-use details...');
+    await expect(page.getByRole('status')).toHaveText('Loading data-use details…');
     await expect(page.getByText('Device storage, account saving and public sharing are separate choices.', { exact: false })).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Skip to data use', exact: true })).toBeFocused();

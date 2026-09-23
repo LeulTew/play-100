@@ -266,7 +266,7 @@ for (const cancel of ['Keep', 'Escape', 'Back'] as const) {
     await holdPendingEditor(page);
     await openRemoval(page);
     await confirmation(page).getByRole('button', { name: 'Remove from ranking', exact: true }).click();
-    await expect(confirmation(page).getByRole('button', { name: 'Checking edits...', exact: true })).toBeDisabled();
+    await expect(confirmation(page).getByRole('button', { name: 'Checking edits…', exact: true })).toBeDisabled();
     await expect(confirmation(page).getByRole('button', { name: 'Keep ranking', exact: true })).toBeEnabled();
     if (cancel === 'Keep') await confirmation(page).getByRole('button', { name: 'Keep ranking', exact: true }).click();
     else if (cancel === 'Escape') await page.keyboard.press('Escape');
@@ -289,7 +289,7 @@ test('a removed then re-added target cannot be deleted by a stale pending confir
   await holdPendingEditor(page);
   await openRemoval(page);
   await confirmation(page).getByRole('button', { name: 'Remove from ranking', exact: true }).click();
-  await expect(confirmation(page).getByRole('button', { name: 'Checking edits...', exact: true })).toBeDisabled();
+  await expect(confirmation(page).getByRole('button', { name: 'Checking edits…', exact: true })).toBeDisabled();
   await page.evaluate(async id => {
     const path = '/src/lib/personal-db.ts';
     const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);

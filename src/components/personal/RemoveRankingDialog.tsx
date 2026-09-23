@@ -86,7 +86,7 @@ export function RemoveRankingDialog({ record, state, busy, onAction, onClose }: 
     {error && <p className="inline-error" role="alert">{error}</p>}
     <div className="button-row">
       <button className="button button-outline" data-autofocus disabled={stage === 'removing'} onClick={close}>Keep ranking</button>
-      <button className="button button-danger" disabled={busy || stage !== null} onClick={() => { void submit(); }}><Icon name="trash" width="18" height="18" />{stage === 'checking' ? 'Checking edits...' : stage === 'removing' ? 'Removing...' : 'Remove from ranking'}</button>
+      <button className="button button-danger" disabled={busy || stage !== null} onClick={() => { void submit(); }}><Icon name="trash" width="18" height="18" />{stage === 'checking' ? 'Checking edits…' : stage === 'removing' ? 'Removing…' : 'Remove from ranking'}</button>
     </div>
   </Dialog>;
 }

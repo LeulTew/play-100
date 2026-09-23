@@ -216,7 +216,7 @@ describe('AvatarPicker in a real browser', () => {
       button.click();
       button.click();
     });
-    await browserExpect(page.getByRole('button', { name: 'Saving...', exact: true })).toBeDisabled();
+    await browserExpect(page.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled();
     expect(await calls()).toHaveLength(1);
     expect(await page.locator('.avatar-picker input, .avatar-picker button').evaluateAll((controls) =>
       controls.every((control) => control.matches(':disabled')),
@@ -268,7 +268,7 @@ describe('AvatarPicker in a real browser', () => {
     expect(await selectedImage()).toBe(generateAvatarDataUri(second));
     await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
     await page.evaluate((settle) => window.avatarTest[settle](0), settle);
-    await browserExpect(page.getByRole('button', { name: 'Saving...', exact: true })).toBeDisabled();
+    await browserExpect(page.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled();
     await browserExpect(page.getByRole('alert')).toHaveCount(0);
     await page.evaluate(() => window.avatarTest.resolve(1));
     await browserExpect(page.getByRole('status')).toHaveText('Avatar saved.');
