@@ -108,6 +108,9 @@ test('an aborted Settings chunk requires an explicit connected reload and restor
   await expect(page.locator('#settings-title')).toBeFocused();
   expect(attempts).toBe(2);
   expect(unhandled).toEqual([]);
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page).not.toHaveURL(/info=/);
+  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
 });
 
 test('closing the invoking Menu cancels a delayed Settings commit', async ({ page }) => {
@@ -217,4 +220,7 @@ test('Settings credits failure stays in its modal and restores credits only afte
   await page.waitForURL(url => url.searchParams.get('info') === 'credits');
   await expect(page.locator('#about-title')).toBeFocused();
   expect(attempts).toBe(2);
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page).not.toHaveURL(/info=/);
+  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
 });

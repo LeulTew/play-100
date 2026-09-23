@@ -3,7 +3,14 @@ import { loadSecondaryDialog, loadSecondaryDialogs, secondaryDialogReady, second
 import type { AppPanel } from '../lib/secondary-dialogs';
 import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
 
-export function useAppPanel(captureScope: () => () => boolean, scope: string, opening: boolean) {
+function clearPanelIntent() {
+  const url = new URL(location.href);
+  if (!['credits', 'settings'].includes(url.searchParams.get('info') ?? '')) return;
+  url.searchParams.delete('info');
+  history.replaceState(history.state, '', url);
+}
+
+export function useAppPanel(scope: string) {
   const [panel, commit] = useState<AppPanel>(null);
   const [message, setMessage] = useState({ text: '', error: false });
   const [panelFailure, setPanelFailure] = useState<'about' | 'settings' | null>(null);
@@ -11,20 +18,16 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
   const alive = useRef(true);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prefetchStop = useRef<(() => void) | undefined>(undefined);
-  const boundary = useRef({ scope, opening });
-  if (boundary.current.scope !== scope || boundary.current.opening !== opening) {
-    boundary.current = { scope, opening };
-    generation.current += 1;
-  }
+  const initialScope = useRef(scope);
+  const urlIntentActive = useRef(false);
   const dismissPanelMessage = useCallback(() => setMessage({ text: '', error: false }), []);
   const warm = useCallback(() => {
     if (secondaryDialogsStarted()) return;
     prefetchStop.current?.();
     prefetchStop.current = scheduleIdlePrefetch(loadSecondaryDialogs, 150, 'intent');
   }, []);
-  const setPanel = useCallback((next: AppPanel) => {
+  const openPanel = useCallback((next: AppPanel) => {
     const request = ++generation.current;
-    const isCurrentScope = captureScope();
     clearTimeout(noticeTimer.current);
     setMessage({ text: '', error: false });
     setPanelFailure(null);
@@ -35,28 +38,40 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     if (next !== 'about' && next !== 'settings') return;
     const title = next === 'about' ? 'credits' : 'Settings';
     noticeTimer.current = setTimeout(() => {
-      if (alive.current && generation.current === request && isCurrentScope()) setMessage({ text: `Opening ${title}...`, error: false });
+      if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}...`, error: false });
     }, 500);
     void loadSecondaryDialog(next).then(() => {
-      if (!alive.current || generation.current !== request || !isCurrentScope()) return;
+      if (!alive.current || generation.current !== request) return;
       clearTimeout(noticeTimer.current);
       setMessage({ text: '', error: false });
       commit(next);
     }).catch(error => {
       console.error('The requested dialog could not load.', error instanceof Error ? error.message : 'Unknown module error.');
-      if (alive.current && generation.current === request && isCurrentScope()) {
+      if (alive.current && generation.current === request) {
         clearTimeout(noticeTimer.current);
         setMessage({ text: `${next === 'about' ? 'Credits' : title} didn't load.`, error: true });
         setPanelFailure(next);
       }
     });
-  }, [captureScope]);
+  }, []);
+  const setPanel = useCallback((next: AppPanel) => {
+    urlIntentActive.current = false;
+    clearPanelIntent();
+    openPanel(next);
+  }, [openPanel]);
+  const cancel = useCallback(() => {
+    generation.current += 1;
+    clearTimeout(noticeTimer.current);
+    setMessage({ text: '', error: false });
+    setPanelFailure(null);
+    urlIntentActive.current = false;
+    clearPanelIntent();
+  }, []);
   useEffect(() => {
     if (panel === 'menu') warm();
   }, [panel, warm]);
   useEffect(() => {
     alive.current = true;
-    const cancel = () => { generation.current += 1; clearTimeout(noticeTimer.current); setMessage({ text: '', error: false }); setPanelFailure(null); };
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') cancel(); };
     const intent = (event: Event) => {
       const target = event.target;
@@ -66,7 +81,11 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     window.addEventListener('popstate', cancel);
     window.addEventListener('play100:navigate', cancel);
     window.addEventListener('keydown', escape);
-    if (new URLSearchParams(location.search).get('info') === 'credits') setPanel('about');
+    const info = new URLSearchParams(location.search).get('info');
+    if (info === 'credits' || info === 'settings') {
+      urlIntentActive.current = true;
+      openPanel(info === 'credits' ? 'about' : 'settings');
+    }
     return () => {
       alive.current = false;
       generation.current += 1;
@@ -77,7 +96,11 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
       window.removeEventListener('play100:navigate', cancel);
       window.removeEventListener('keydown', escape);
     };
-  }, [setPanel, warm]);
-  useEffect(() => { setMessage({ text: '', error: false }); }, [scope, opening]);
+  }, [cancel, openPanel, warm]);
+  useEffect(() => {
+    if (initialScope.current === scope) return;
+    initialScope.current = scope;
+    if (urlIntentActive.current) { cancel(); commit(null); }
+  }, [scope, cancel]);
   return { panel, setPanel, panelMessage: message.text, panelMessageError: message.error, panelFailure, dismissPanelMessage };
 }

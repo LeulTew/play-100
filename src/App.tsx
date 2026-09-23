@@ -126,7 +126,7 @@ export default function App() {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
-  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage } = useAppPanel(captureMenuFocusGuard, libraryScope, onlineOpening);
+  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage } = useAppPanel(libraryScope);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled });

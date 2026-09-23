@@ -78,10 +78,11 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
         !preferred.closest('[hidden], [inert]') && getComputedStyle(preferred).visibility === 'visible') {
         preferred.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
         preferred.focus({ preventScroll: true });
-      } else if (previousFocus instanceof HTMLElement && previousFocus.isConnected && !previousFocus.matches(':disabled')) {
+      } else if (previousFocus instanceof HTMLElement && previousFocus !== document.body &&
+        previousFocus.isConnected && !previousFocus.matches(':disabled') && !previousFocus.closest('[hidden], [inert], dialog:not([open])')) {
         previousFocus.focus({ preventScroll: true });
       } else {
-        document.querySelector<HTMLElement>('[data-page-heading], #collection-title')?.focus({ preventScroll: true });
+        document.querySelector<HTMLElement>('.menu-nav, [data-page-heading], #collection-title')?.focus({ preventScroll: true });
       }
       controller.forgetDialog(dialog);
       runDialogMotion(() => ending?.closed());

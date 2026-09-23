@@ -10,27 +10,31 @@ const fixture = `<!doctype html><html><head><title>Panel guard fixture</title></
 import { createElement as h } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useAppPanel } from '/src/hooks/useAppPanel.ts';
-import { settingsDialogModule } from '/src/lib/secondary-dialogs.ts';
+import { aboutDialogModule, settingsDialogModule } from '/src/lib/secondary-dialogs.ts';
 window.waitForSettings = async () => {
   await settingsDialogModule.load();
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 };
+window.waitForAbout = async () => {
+  await aboutDialogModule.load();
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+};
 window.requestIdleCallback = () => 1;
 window.cancelIdleCallback = () => {};
-let scope = 'guest', generation = 0, opening = false;
-const capture = () => { const start = generation; return () => generation === start; };
+let scope = 'guest', opening = true;
 const root = createRoot(document.getElementById('root'));
 function Harness() {
-  const result = useAppPanel(capture, scope, opening);
+  const result = useAppPanel(scope);
   return h('main', null,
     h('output', { id: 'panel' }, result.panel || 'none'),
     h('output', { id: 'message' }, result.panelMessage),
     h('output', { id: 'message-state' }, JSON.stringify({ text: result.panelMessage, error: result.panelMessageError })),
+    h('output', { id: 'opening' }, String(opening)),
     ...['menu', 'about', 'settings', null].map(panel => h('button', {
       key: panel || 'close', onClick: () => result.setPanel(panel)
     }, panel || 'close')),
-    h('button', { onClick: () => { scope = 'account:two'; generation++; render(); } }, 'scope'),
-    h('button', { onClick: () => { opening = true; render(); } }, 'opening'),
+    h('button', { onClick: () => { scope = 'account:two'; render(); } }, 'scope'),
+    h('button', { onClick: () => { opening = !opening; render(); } }, 'opening'),
     h('button', { onClick: () => window.dispatchEvent(new Event('play100:navigate')) }, 'navigate'),
     h('button', { onClick: () => window.dispatchEvent(new Event('popstate')) }, 'popstate'),
     h('button', { onClick: result.dismissPanelMessage }, 'dismiss')
@@ -69,12 +73,70 @@ beforeAll(async () => {
     await warmup.goto(`${base}/__panel-guard`);
     await warmup.getByRole('button', { name: 'settings', exact: true }).waitFor();
     await warmup.evaluate('window.waitForSettings()');
+    await warmup.evaluate('window.waitForAbout()');
   } finally { await warmup.close(); }
 }, 60_000);
 afterAll(async () => { await browser?.close(); await server?.close(); });
 
 describe('secondary panel guard through the real hook', () => {
-  it.each(['Escape', 'popstate', 'navigate', 'scope', 'opening', 'dismiss', 'close'])('atomically clears failed notice state after %s', async clear => {
+  it.each(['scope', 'opening'])('retains an explicit failed intent across %s changes', async boundary => {
+    const page = await browser.newPage();
+    await page.route('**/src/components/app/SettingsPanel.tsx', route => route.abort('failed'));
+    try {
+      await page.goto(`${base}/__panel-guard`);
+      await page.getByRole('button', { name: 'settings', exact: true }).click();
+      const failure = JSON.stringify({ text: "Settings didn't load.", error: true });
+      await browserExpect(page.locator('#message-state')).toHaveText(failure);
+      await page.getByRole('button', { name: boundary, exact: true }).click();
+      await browserExpect(page.locator('#message-state')).toHaveText(failure);
+    } finally { await page.close(); }
+  });
+
+  it.each([
+    ['credits', 'opening'], ['credits', 'held'], ['about', 'opening'],
+    ['about', 'scope'], ['settings', 'opening'], ['settings', 'scope'],
+  ])('keeps %s intent while account opening is %s', async (intent, boundary) => {
+    const about = intent !== 'settings';
+    const page = await browser.newPage();
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    await page.route(about ? '**/src/components/AboutDialog.tsx' : '**/src/components/app/SettingsPanel.tsx', async route => {
+      await held;
+      await route.continue();
+    });
+    try {
+      await page.goto(`${base}/__panel-guard${intent === 'credits' ? '?info=credits' : ''}`);
+      if (intent !== 'credits') await page.getByRole('button', { name: intent, exact: true }).click();
+      await browserExpect(page.locator('#opening')).toHaveText('true');
+      await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits...' : 'Opening Settings...');
+      if (boundary !== 'held') await page.getByRole('button', { name: boundary, exact: true }).click();
+      release();
+      await page.evaluate(about ? 'window.waitForAbout()' : 'window.waitForSettings()');
+      await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
+      await browserExpect(page.locator('#message')).toBeEmpty();
+      await page.getByRole('button', { name: 'close', exact: true }).click();
+      expect(new URL(page.url()).searchParams.has('info')).toBe(false);
+    } finally { release(); await page.close(); }
+  });
+
+  it.each(['Escape', 'navigate', 'popstate', 'scope', 'close'])('consumes and cancels a held URL intent on %s', async cancellation => {
+    const page = await browser.newPage();
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**/src/components/AboutDialog.tsx', async route => { await held; await route.continue(); });
+    try {
+      await page.goto(`${base}/__panel-guard?info=credits`);
+      await browserExpect(page.locator('#message')).toHaveText('Opening credits...');
+      if (cancellation === 'Escape') await page.keyboard.press('Escape');
+      else await page.getByRole('button', { name: cancellation, exact: true }).click();
+      expect(new URL(page.url()).searchParams.has('info')).toBe(false);
+      release();
+      await page.evaluate('window.waitForAbout()');
+      await browserExpect(page.locator('#panel')).toHaveText('none');
+    } finally { release(); await page.close(); }
+  });
+
+  it.each(['Escape', 'popstate', 'navigate', 'dismiss', 'close'])('atomically clears failed notice state after %s', async clear => {
     const page = await browser.newPage();
     await page.route('**/src/components/app/SettingsPanel.tsx', route => route.abort('failed'));
     try {
@@ -89,7 +151,7 @@ describe('secondary panel guard through the real hook', () => {
     } finally { await page.close(); }
   });
 
-  it.each(['close', 'scope', 'opening', 'navigate', 'Escape'])('does not open a late module after %s', async cancellation => {
+  it.each(['close', 'navigate', 'Escape'])('does not open a late module after %s', async cancellation => {
     const page = await browser.newPage();
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });

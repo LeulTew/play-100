@@ -63,6 +63,11 @@ five-second `HEAD /` probe before replacing the current URL. The worker does
 not intercept non-GET requests. Settings and credits restore their explicit
 intent through `info=settings` or `info=credits`, preserving other URL parameters.
 An offline or failed probe leaves the current app and recovery action available.
+Credits do not depend on account readiness. Settings opens with the current
+library's existing busy/disabled controls rather than waiting for authentication
+or a hint error to clear. Explicit panel requests survive account transitions;
+URL-restored intents are consumed on close or cancellation, including a scope
+switch, and never reopen after Escape or navigation.
 
 The stable worker URL uses `updateViaCache: 'none'`. Installing a new version
 first fills a separate bounded cache and writes its ready marker last. A failed
