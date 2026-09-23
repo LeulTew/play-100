@@ -30,7 +30,7 @@ declare global {
 
 // Served in memory by the test-only Vite instance; no fixture or route enters the app.
 const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Avatar component tests</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Avatar component tests</title><link rel="icon" href="/favicon.svg">
 <style>main{width:min(520px,calc(100% - 70px));margin:24px auto}h1{font-size:18px;margin-bottom:24px}</style>
 </head><body><main><h1>Isolated avatar component fixture</h1><div id="mount"></div></main>
 <script type="module">
@@ -88,6 +88,7 @@ beforeAll(async () => {
     cacheDir: 'node_modules/.vite-avatar-tests',
     logLevel: 'error',
     appType: 'custom',
+    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client', '@dicebear/core'] },
     plugins: [
       react(),
       {
@@ -105,6 +106,9 @@ beforeAll(async () => {
     ],
     server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
   });
+  expect(server.config.optimizeDeps.noDiscovery).toBe(true);
+  expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-avatar-tests$/);
+  expect(server.config.server.watch).toBeNull();
   await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Avatar test server did not bind a local port.');
@@ -125,6 +129,7 @@ beforeEach(async () => {
   context = await browser.newContext({ viewport: { width: 1280, height: 960 } });
   page = await context.newPage();
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   context.on('request', (request) => {
     if (!request.url().startsWith(`${origin}/`) && !request.url().startsWith('data:')) externalRequests.push(request.url());
   });

@@ -69,7 +69,7 @@ const headed = process.env.PLAY100_COUNTER_HEADED === 'true';
 beforeAll(async () => {
   server = await createServer({
     configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-countup-tests',
-    logLevel: 'error', appType: 'custom', optimizeDeps: { include: ['react', 'react-dom/client'] },
+    logLevel: 'error', appType: 'custom', optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
     plugins: [react(), {
       name: 'native-countup-fixture',
       configureServer(vite) {
@@ -84,6 +84,9 @@ beforeAll(async () => {
     }],
     server: { host: '127.0.0.1', port: 4204, strictPort: true, watch: null },
   });
+  expect(server.config.optimizeDeps.noDiscovery).toBe(true);
+  expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-countup-tests$/);
+  expect(server.config.server.watch).toBeNull();
   await server.listen();
   origin = 'http://127.0.0.1:4204';
   browserServer = await chromium.launchServer({ channel: 'chrome', headless: !headed });
@@ -108,6 +111,7 @@ beforeEach(async () => {
   page = await context.newPage();
   errors = [];
   page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(`${origin}/__countup-test`);
   await browserExpect(page.locator('.saved-count [aria-hidden="true"]')).toHaveText('42');
 });

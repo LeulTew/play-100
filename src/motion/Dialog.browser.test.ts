@@ -292,6 +292,7 @@ beforeAll(async () => {
   server = await createServer({
     configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-motion-tests',
     logLevel: 'error', appType: 'custom',
+    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
     plugins: [react(), {
       name: 'native-motion-fixture',
       configureServer(vite) {
@@ -306,6 +307,9 @@ beforeAll(async () => {
     }],
     server: { host: '127.0.0.1', port: 4201, strictPort: true, watch: null },
   });
+  expect(server.config.optimizeDeps.noDiscovery).toBe(true);
+  expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-motion-tests$/);
+  expect(server.config.server.watch).toBeNull();
   await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Motion fixture did not bind a local port.');
