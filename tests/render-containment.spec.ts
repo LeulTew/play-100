@@ -82,8 +82,10 @@ test('offscreen content remains findable, focusable and printable without contai
   const title = await cards.nth(22).locator('h3').innerText();
   // Chromium's native find uses auto-visible content, unlike hidden virtualization.
   expect(await page.evaluate(text => {
-    const findWindow = window as Window & { find: (text: string) => boolean };
-    return findWindow.find(text);
+    if (!('find' in window) || typeof window.find !== 'function') {
+      throw new Error('This proof requires the native Chromium find implementation.');
+    }
+    return window.find(text);
   }, title)).toBe(true);
   await page.evaluate(() => document.getElementById('collection-films')?.scrollIntoView({ behavior: 'instant' }));
   await expect(page.getByRole('heading', { name: 'Watch films', exact: true })).toBeInViewport();

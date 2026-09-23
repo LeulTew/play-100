@@ -187,7 +187,9 @@ describe('IndexedDB initialization and migration', () => {
     expect(put).not.toHaveBeenCalled();
     tx.mockRestore(); get.mockRestore(); put.mockRestore();
     expect(await stored()).toEqual(dense);
-    loaded.state.records['manual:dense-0'].title = 'Only the returned object';
+    const firstRecord = loaded.state.records['manual:dense-0'];
+    if (!firstRecord) throw new Error('The dense fixture must retain its first record.');
+    firstRecord.title = 'Only the returned object';
     expect((await loadPersonalLibrary(canonical)).state).toEqual(expected);
   });
 
