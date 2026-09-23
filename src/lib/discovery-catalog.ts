@@ -1,45 +1,10 @@
-import type { LibraryRecord } from './personal-types.js';
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library.js';
 import { hasAsciiControl } from './text-controls.js';
 
-export const DISCOVERY_CATALOG_URL = '/data/discovery/catalog.v1.json';
-export const DISCOVERY_LIMITS = {
-  items: 1_000, aliases: 30, metadataBytes: 3 * 1024 * 1024,
-  imageBytes: 80 * 1024, totalImageBytes: 35 * 1024 * 1024, imageEdge: 640,
-} as const;
-
-export interface CatalogArtwork {
-  src: string;
-  width: number;
-  height: number;
-  alt: string;
-  sourceUrl: string;
-  credit: string;
-  license: string;
-  licenseUrl: string;
-  originalUrl: string;
-  retrievedAt: string;
-  sha256: string;
-  bytes: number;
-}
-
-export interface DiscoveryItem {
-  record: LibraryRecord;
-  aliases: string[];
-  artwork: CatalogArtwork | null;
-  provenance: {
-    retrievedAt: string;
-    metadataLicense: 'CC0-1.0' | 'FreeToGame API terms';
-    metadataLicenseUrl: string;
-    artworkMissingReason: string | null;
-  };
-}
-
-export interface DiscoveryCatalog {
-  schemaVersion: 1;
-  generatedAt: string;
-  items: DiscoveryItem[];
-}
+import { DISCOVERY_LIMITS } from './discovery-catalog-shared.js';
+import type { CatalogArtwork, DiscoveryCatalog, DiscoveryItem } from './discovery-catalog-shared.js';
+export { DISCOVERY_CATALOG_URL, DISCOVERY_LIMITS, indexDiscoveryArtwork } from './discovery-catalog-shared.js';
+export type { CatalogArtwork, DiscoveryCatalog, DiscoveryItem } from './discovery-catalog-shared.js';
 
 function invalid(message: string): never {
   throw new Error(`Invalid discovery catalog: ${message}`);
@@ -203,8 +168,4 @@ export function parseDiscoveryCatalogJson(json: string): DiscoveryCatalog {
     return invalid('metadata exceeds 3 MiB.');
   }
   return parseDiscoveryCatalog(JSON.parse(json));
-}
-
-export function indexDiscoveryArtwork(catalog: DiscoveryCatalog): ReadonlyMap<string, CatalogArtwork> {
-  return new Map(catalog.items.flatMap(({ record, artwork }) => artwork ? [[record.id, artwork] as const] : []));
 }

@@ -3,8 +3,9 @@ import { createDiscoveryLoader } from './discovery-loader';
 import { DISCOVERY_CATALOG_URL } from './discovery-catalog';
 import { catalogFixture } from './discovery-test-fixtures';
 import { searchDiscoveryItems, defaultDiscoveryFilters } from './discovery-search';
+import * as parserPreload from './discovery-parser-preload';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 const signal = () => new AbortController().signal;
 
 describe('lazy bounded public seed loading', () => {
@@ -48,6 +49,34 @@ describe('lazy bounded public seed loading', () => {
     const first = load(controller.signal);
     controller.abort(new Error('obsolete'));
     await expect(first).rejects.toThrow('obsolete');
+    expect(await load(signal())).toEqual(catalogFixture);
+  });
+
+  it('does not parse or cache a request canceled while its parser module loads', async () => {
+    const parser = await import('./discovery-catalog');
+    let release: (module: typeof parser) => void = () => { throw new Error('Parser was not requested'); };
+    const preload = vi.spyOn(parserPreload, 'loadDiscoveryParser').mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const parse = vi.spyOn(parser, 'parseDiscoveryCatalog');
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(catalogFixture))));
+    vi.stubGlobal('fetch', fetcher);
+    const controller = new AbortController();
+    const load = createDiscoveryLoader();
+    const first = load(controller.signal);
+    await vi.waitFor(() => expect(preload).toHaveBeenCalledOnce());
+    controller.abort(new Error('obsolete parser load'));
+    release(parser);
+    await expect(first).rejects.toThrow('obsolete parser load');
+    expect(parse).not.toHaveBeenCalled();
+    expect(await load(signal())).toEqual(catalogFixture);
+    expect(parse).toHaveBeenCalledOnce();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('surfaces a failed parser import and permits a fresh explicit retry', async () => {
+    vi.spyOn(parserPreload, 'loadDiscoveryParser').mockRejectedValueOnce(new Error('Parser module unavailable'));
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(catalogFixture)))));
+    const load = createDiscoveryLoader();
+    await expect(load(signal())).rejects.toThrow('Parser module unavailable');
     expect(await load(signal())).toEqual(catalogFixture);
   });
 });

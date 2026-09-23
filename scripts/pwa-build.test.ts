@@ -70,6 +70,19 @@ describe('generated public PWA build closure', () => {
     expect(() => pwaCorePaths(entries)).toThrow(/missing required Vite entry src\/components\/DataUseContent/);
   });
 
+  it.each([
+    'src/lib/discovery-catalog.ts', 'src/lib/google-intent.ts',
+    'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
+  ])('keeps the previously eager %s tools in the explicit offline closure', root => {
+    expect(PWA_ROOTS).toContain(root);
+    const entries = manifest();
+    const entry = entries[root];
+    if (!entry) throw new Error(`Missing fixture root ${root}`);
+    expect(pwaCorePaths(entries)).toContain(`/${entry.file}`);
+    delete entries[root];
+    expect(() => pwaCorePaths(entries)).toThrow('missing required Vite entry');
+  });
+
   it('declares stable root installation identity and distinct any/maskable sizes', async () => {
     const data = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8'));
     expect(data).toMatchObject({

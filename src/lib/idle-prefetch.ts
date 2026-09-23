@@ -1,6 +1,6 @@
 import { isConstrainedDevice } from './device-capabilities';
 
-export function scheduleIdlePrefetch(load: () => Promise<unknown>): () => void {
+export function scheduleIdlePrefetch(load: () => Promise<unknown>, timeout?: number): () => void {
   let canceled = false;
   let idle: number | undefined;
   let timer: number | undefined;
@@ -16,7 +16,9 @@ export function scheduleIdlePrefetch(load: () => Promise<unknown>): () => void {
   };
   const schedule = () => {
     if (!allowed()) return;
-    if (typeof window.requestIdleCallback === 'function') idle = window.requestIdleCallback(run);
+    if (typeof window.requestIdleCallback === 'function') {
+      idle = timeout === undefined ? window.requestIdleCallback(run) : window.requestIdleCallback(run, { timeout });
+    }
     else timer = window.setTimeout(run, 1200);
   };
   if (document.readyState === 'complete') schedule();

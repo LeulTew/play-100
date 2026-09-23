@@ -1,6 +1,7 @@
 import { createSearch, PAGE_PATHS, parseUrl } from './url';
+import { GOOGLE_REDIRECT_KEY } from './google-intent-key';
 
-export const GOOGLE_REDIRECT_KEY = 'play100.google-redirect.v1';
+export { GOOGLE_REDIRECT_KEY } from './google-intent-key';
 export const GOOGLE_INTENT_LIFETIME = 15 * 60 * 1000;
 export type GoogleRequest =
   | { kind: 'sign-in'; uid: null }

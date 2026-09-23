@@ -23,13 +23,11 @@ import { flushPendingEdits, hasPendingEdits } from './hooks/useExitSave';
 import { captureInviteContinuation } from './lib/invite-continuation';
 import { CompareDragHandle, CompareTrayProvider, useCompareTray } from './components/compare-tray';
 import { useDiscoveryCatalog } from './hooks/useDiscoveryCatalog';
-import { indexDiscoveryArtwork } from './lib/discovery-catalog';
+import { indexDiscoveryArtwork } from './lib/discovery-catalog-shared';
 import type { CatalogArtwork } from './lib/discovery-catalog';
 import { EMPTY_DISCOVERY_ARTWORK, hasKnownDiscoveryArtwork } from './lib/discovery-artwork-presence';
-import { createComparisonGameFilter, rememberComparisonGameFilter } from './lib/comparison-game-filter';
 import { enrichmentIdentity } from './lib/catalog-enrichment-identity';
 import { patchDiscoverySearch } from './lib/discovery-search';
-import { comparisonScope, initialComparison, readComparisonView, rememberComparisonView } from './lib/friend-comparison-intent';
 import type { PreviewAuthority } from './lib/preview-authority';
 import { canonicalCatalogId, catalogActionRecord, catalogOwnership, catalogPinnedIds, collectionGameForId, resolveCatalogRecord } from './lib/catalog-identity';
 import { SavedCatalogCopies } from './components/catalog/SavedCatalogCopies';
@@ -38,7 +36,7 @@ import type { PreparedPreview } from './AppMotionBindings';
 import { MotionProvider } from './motion';
 import type { MotionBoundary, MotionLocation } from './motion';
 import './motion/motion.css';
-import { loadCatalogDetail } from './lib/catalog-detail-preload';
+import { loadAppTools, loadComparisonTools, prefetchAppTools } from './lib/app-tool-preload';
 import { scheduleIdlePrefetch } from './lib/idle-prefetch';
 import { effectiveMotionPreference, readMotionHint } from './lib/motion-hint';
 import { GlobalBanners } from './components/app/GlobalBanners';
@@ -125,7 +123,7 @@ export default function App() {
   const capabilities = useCapabilities(effectiveMotion);
   useEffect(() => {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
-    return scheduleIdlePrefetch(loadCatalogDetail);
+    return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
   const [panel, setPanel] = useState<'menu' | 'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
   const [offlineSettings, setOfflineSettings] = useState(false);
@@ -344,6 +342,9 @@ export default function App() {
     }
     if (!online.identity.verified) { notify('Verify your account before comparing with friends.'); navigate('account'); return; }
     try {
+      const [{ createComparisonGameFilter, rememberComparisonGameFilter }, { comparisonScope, initialComparison, readComparisonView, rememberComparisonView }] = await loadComparisonTools();
+      if (scopeGeneration.current !== startedScope || navigationGeneration.current !== startedNavigation ||
+        currentOnline.current?.identity?.uid !== online.identity.uid || !currentOnline.current.identity.verified) return;
       const filter = createComparisonGameFilter(libraryScope, records);
       if (!await flushPendingEdits()) { notify('Correct the open edit before starting a comparison.'); return; }
       if (scopeGeneration.current !== startedScope || navigationGeneration.current !== startedNavigation ||
@@ -355,7 +356,11 @@ export default function App() {
       rememberComparisonView({ ...prior, mode: 'all-shared', query: '', page: 1 }, true);
       const warning = rememberComparisonGameFilter(filter);
       if (warning) notify(warning);
-    } catch (cause) { notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.'); }
+    } catch (cause) {
+      if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation) {
+        notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.');
+      } else console.warn('A comparison operation failed after its page or account changed. No stale navigation was applied.');
+    }
   };
   const enablePublicDetails = async () => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
@@ -442,7 +447,7 @@ export default function App() {
       return (
     <LibraryModeContext.Provider value={libraryMode}>
       <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>Skip to {page === 'collection' ? 'the collection' : 'page content'}</a>
-      <AppHeader page={page} onlineAvailable={ONLINE_AVAILABLE} libraryScope={libraryScope} libraryLabel={libraryMode.label} syncStatus={online?.status ?? 'device'} headerIdentity={headerIdentity} savedCount={savedCount} animate={capabilities.animate} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onQueue={() => navigate('library', { list: 'later' })} onMenu={() => setPanel('menu')} onAccount={() => { void accountEntry(); }} />
+      <AppHeader page={page} onlineAvailable={ONLINE_AVAILABLE} libraryScope={libraryScope} libraryLabel={libraryMode.label} syncStatus={online?.status ?? 'device'} headerIdentity={headerIdentity} savedCount={savedCount} animate={capabilities.animate} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onQueue={() => navigate('library', { list: 'later' })} onMenu={() => setPanel('menu')} onAccount={() => { void accountEntry(); }} onIntent={prefetchAppTools} />
       <GlobalBanners warning={warning} onlineConfigError={ONLINE_CONFIG_ERROR} offline={pwaEnabled && !pwa.online} offlineReady={pwa.offlineState === 'ready'} hintError={hintError} onSettings={() => setPanel('settings')} onAccount={() => { void accountEntry(); }} onDeviceOnly={() => { setHintError(''); void rememberOnlineRequest(false); }} />
       <main id="page-main" ref={mainRef}>
         <RouteHost route={page} scope={libraryScope}
@@ -474,7 +479,7 @@ export default function App() {
             } }} />
       </main>
       <SiteFooter onAbout={() => setPanel('about')} onEffects={() => setPanel('settings')} effects={library.state.motion} />
-      <MobileNav page={page} personalPage={personalPage} gamesView={gamesView} onlineAvailable={ONLINE_AVAILABLE} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onBrowseLink={event => { void navigateLink(event, 'collection', {}, browse); }} onMenu={() => setPanel('menu')} />
+      <MobileNav page={page} personalPage={personalPage} gamesView={gamesView} onlineAvailable={ONLINE_AVAILABLE} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onBrowseLink={event => { void navigateLink(event, 'collection', {}, browse); }} onMenu={() => setPanel('menu')} onIntent={prefetchAppTools} />
       <TrayHost page={page} tray={{ onCompare: records => { void compareGames(records); }, onPreview: preview, resolveArtwork: record => artwork.get(record.id), animate: capabilities.animate, hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink) }} />
       <DialogHost page={page}
         game={selectedGame && selectedPersonalRecord && !onlineOpening ? { key: `${libraryScope}:${selectedPersonalRecord.id}`, props: {

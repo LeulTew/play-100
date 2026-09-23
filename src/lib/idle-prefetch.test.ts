@@ -101,6 +101,16 @@ describe('background-only module prefetch', () => {
     finish();
   });
 
+  it('passes an explicit timeout without bypassing live policy checks', () => {
+    const load = vi.fn().mockResolvedValue({});
+    const cancel = scheduleIdlePrefetch(load, 1200);
+    expect(requestIdle).toHaveBeenCalledWith(expect.any(Function), { timeout: 1200 });
+    hints.connection = { saveData: true };
+    idle?.();
+    expect(load).not.toHaveBeenCalled();
+    cancel();
+  });
+
   it('cancels pending load/idle callbacks and stale invocations cannot import', () => {
     const load = vi.fn().mockResolvedValue({});
     const cancel = scheduleIdlePrefetch(load);

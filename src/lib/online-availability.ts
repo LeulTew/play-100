@@ -1,5 +1,5 @@
 import { readFirebaseConfiguration } from './online-config';
-import { GOOGLE_REDIRECT_KEY } from './google-intent';
+import { GOOGLE_REDIRECT_KEY } from './google-intent-key';
 import { readOnlineLoadHint, saveOnlineLoadHint } from './personal-db';
 
 export const ONLINE_HINT = 'play100.online-requested.v1';
