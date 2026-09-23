@@ -73,9 +73,9 @@ export class CatalogEnrichmentSession {
     const controller = new AbortController();
     this.controller = controller;
     this.publish(initial);
-    void this.load(request.id, controller.signal).then(data => {
+    void this.load(request.id, controller.signal).then(payload => {
       if (controller.signal.aborted || generation !== this.generation) return;
-      const current = parseCatalogEnrichment(data, request.id);
+      const current = parseCatalogEnrichment(payload, request.id);
       const retryAfter = Math.max(0, ...current.sources.map(source => source.retryAfter));
       this.cooldown = this.now() + retryAfter * 1000;
       this.cache.delete(request.id);
