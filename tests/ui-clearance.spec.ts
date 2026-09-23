@@ -34,7 +34,7 @@ async function prepare(page: Page, total: number, motion: MotionPreference) {
   }, originals.slice(0, 5));
   await page.goto('/?catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
-  await expect(page.locator('.result-summary [role="status"]')).toContainText(`${total} games`);
+  await expect(page.locator('.result-summary [role="status"]')).toContainText('100 in The 100');
   await expect(page.getByRole('button', { name: 'Open Compare tray, 5 games', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
@@ -89,7 +89,7 @@ for (const width of [320, 393]) {
         await page.getByRole('link', { name: 'Explore all 100', exact: true }).tap();
         await settleNativeScroll(page);
         await assertClearIdentity(page, page.locator('.game-card h3').first());
-        if (total > 100) await expect(page.locator('.result-breakdown').first()).toHaveText(`100 from the 100 · ${total - 100} unranked`);
+        if (total > 100) await expect(page.locator('.result-summary [role="status"]')).toHaveText(`100 in The 100 · ${total - 100} beyond The 100`);
         await page.getByRole('button', { name: 'List view', exact: true }).tap();
         await expect(page.locator('.games-list')).toBeVisible();
         // Reset a real query on Explore; measuring the old filtered layout would be incorrect.

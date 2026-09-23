@@ -199,7 +199,7 @@ test('both owned copies keep conflicting opinions and manual names remain separa
   await card.getByRole('button', { name: `Open saved Wikidata copy of ${rdr.title}`, exact: true }).click();
   await expect(detailFor(page).getByRole('spinbutton')).toHaveValue('3.2');
   await page.goto('/?q=Red%20Dead%20Redemption%202&catalogs=off');
-  await expect(page.locator('.result-summary strong')).toHaveText('2');
+  await expect(page.locator('.result-summary [role="status"]')).toHaveText('1 in The 100 · 1 beyond The 100');
   await expect(page.locator('[data-game="red-dead-redemption-2"]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveAttribute('data-unranked-id', manual.id);
   await page.goto('/my-games');

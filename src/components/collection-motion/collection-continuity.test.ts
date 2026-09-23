@@ -43,7 +43,8 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain(`aria-label="Select ${game.title}"`);
     expect(html).toContain('Pin for comparison');
     expect(html).not.toMatch(/<a\b[^>]*>(?:(?!<\/a>)[\s\S])*<(?:button|input)\b/);
-    expect(html).not.toMatch(/<article\b[^>]*(?:tabindex|role)=/);
+    expect(html).toContain('role="listitem"');
+    expect(html).not.toMatch(/<article\b[^>]*(?:tabindex=|role="(?:button|link)")/);
     expect(onOpen).not.toHaveBeenCalled();
   });
 

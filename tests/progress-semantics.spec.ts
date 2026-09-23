@@ -42,12 +42,12 @@ test('clear progress views roundtrip for the100, additions, Queue and Ranking wi
   await page.goto('/?progress=unfinished&catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(1);
-  await expect(page.locator('.result-summary strong')).toHaveText('2');
+  await expect(page.locator('.result-summary [role="status"]')).toHaveText('1 in The 100 · 1 beyond The 100');
   await expect(page.getByLabel('Progress', { exact: true })).toHaveValue('unfinished');
   await openBrowsingFilters(page);
   await page.getByLabel('Progress', { exact: true }).selectOption('completed');
-  await expect(page.locator('.result-summary strong')).toHaveText('3');
-  await page.reload(); await expect(page.locator('.result-summary strong')).toHaveText('3');
+  await expect(page.locator('.result-summary [role="status"]')).toHaveText('2 in The 100 · 1 beyond The 100');
+  await page.reload(); await expect(page.locator('.result-summary [role="status"]')).toHaveText('2 in The 100 · 1 beyond The 100');
   await openBrowsingFilters(page);
   await page.getByLabel('Progress', { exact: true }).selectOption('not-played');
   await expect(page.locator('.result-summary strong')).toHaveText('97');
@@ -55,7 +55,7 @@ test('clear progress views roundtrip for the100, additions, Queue and Ranking wi
   await expect(page.getByLabel('Progress', { exact: true })).toHaveValue('completed');
   await page.goto('/?list=unplayed&catalogs=off');
   await expect(page.getByLabel('Progress', { exact: true })).toHaveValue('not-completed');
-  await expect(page.locator('.result-summary strong')).toHaveText('99');
+  await expect(page.locator('.result-summary [role="status"]')).toHaveText('98 in The 100 · 1 beyond The 100');
   await page.getByRole('button', { name: 'Share this view', exact: true }).click();
   const shared = await page.getByLabel('Shareable link', { exact: true }).inputValue();
   expect(new URL(shared).searchParams.get('list')).toBeNull();

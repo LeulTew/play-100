@@ -20,7 +20,7 @@ export default function ExtendedResults({ records, online, state, queryKey, busy
   const limit = localLimit + online.sources.reduce((count, source) => count + source.records.length, 0);
   return (
     <section className="extended-results discovery-extended" aria-labelledby="extended-results-title">
-      <div className="extended-heading"><h2 id="extended-results-title">{online.eligible ? 'Beyond the 100' : 'Your additions'}</h2><span>{records.length} {records.length === 1 ? 'game' : 'games'}</span></div>
+      <div className="extended-heading"><h2 id="extended-results-title">Beyond The 100</h2><span>{records.length} {records.length === 1 ? 'match' : 'matches'}{online.loading ? ' so far' : ''}</span></div>
       {records.length > 0 && <ul className="discovery-cards discovery-cards-list" aria-label="Unranked games in this view">
         {records.slice(0, limit).map((record) => <DiscoveryCard key={record.id} record={record} artwork={online.artwork.get(record.id)} state={state} busy={busy} selecting={selecting} selected={selected.has(record.id)} onSelect={onSelect} onPreview={onPreview} onPin={onPin} pinned={pinnedIds?.has(record.id)} renderDragHandle={renderDragHandle} onAction={onAction} />)}
       </ul>}

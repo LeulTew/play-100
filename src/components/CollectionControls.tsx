@@ -39,7 +39,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
   return (
     <>
       <div className="collection-title-line">
-        <Heading id="collection-title" tabIndex={-1}>The collection<span>100</span></Heading>
+        <Heading id="collection-title" tabIndex={-1} aria-label="The collection, 100">The collection<span>100</span></Heading>
         <button className="text-button share-view" onClick={onShare}><Icon name="share" />Share this view</button>
       </div>
       <div className="collection-search">
@@ -61,9 +61,9 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
       </div>
       <BrowseFilters activeCount={secondaryCount} label="Filters & sort" className="collection-filters">
           <div className="collection-tabs" role="group" aria-label="Your collection views">
-            <button className={filters.list === 'all' ? 'is-active' : ''} aria-pressed={filters.list === 'all'} onClick={() => onChange({ list: 'all', progress: 'all' })}>All games<span>{games.length + addedCount}</span></button>
-            <button className={filters.list === 'later' ? 'is-active' : ''} aria-pressed={filters.list === 'later'} onClick={() => onChange({ list: 'later' })}>Play later<span>{savedCount}</span></button>
-            <button className={filters.list === 'completed' ? 'is-active' : ''} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed', progress: 'all' })}>Completed<span>{completedCount}</span></button>
+            <button className={filters.list === 'all' ? 'is-active' : ''} aria-label={`All games, ${games.length + addedCount}`} aria-pressed={filters.list === 'all'} onClick={() => onChange({ list: 'all', progress: 'all' })}>All games<span>{games.length + addedCount}</span></button>
+            <button className={filters.list === 'later' ? 'is-active' : ''} aria-label={`Play later, ${savedCount}`} aria-pressed={filters.list === 'later'} onClick={() => onChange({ list: 'later' })}>Play later<span>{savedCount}</span></button>
+            <button className={filters.list === 'completed' ? 'is-active' : ''} aria-label={`Completed, ${completedCount}`} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed', progress: 'all' })}>Completed<span>{completedCount}</span></button>
           </div>
           {(filters.list !== 'all' || progress !== 'all') && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your progress, including games you added beyond the 100.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
         <div className="search-and-filters">
@@ -97,7 +97,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
       </BrowseFilters>
       <div className="collection-utilities">
         <div className="result-summary">
-          <p role="status" aria-live="polite" aria-atomic="true"><strong>{count}</strong> {count === 1 ? 'game' : 'games'}{activeFilters ? ' found' : !unrankedCount && filters.sort === 'rank' && filters.direction !== 'desc' ? ', in the author\'s order' : ''}{unrankedCount > 0 && <span className="result-breakdown">{count - unrankedCount} from the 100 · {unrankedCount} unranked</span>}{searching && <span className="result-breakdown">Searching public catalogs...</span>}</p>
+          <p role="status" aria-live="polite" aria-atomic="true"><strong>{count - unrankedCount}</strong> in The 100{unrankedCount > 0 ? <> · {unrankedCount} beyond The 100</> : !activeFilters && filters.sort === 'rank' && filters.direction !== 'desc' ? ', in the author\'s order' : ''}{searching && <span className="result-breakdown">Searching public catalogs...</span>}</p>
           {activeFilters && <button className="text-button clear-filters" onClick={() => onChange({ ...defaultFilters, catalogs: filters.catalogs, sort: filters.sort, view: filters.view })}>Reset filters<Icon name="close" width="15" height="15" /></button>}
         </div>
         <div className="view-controls">

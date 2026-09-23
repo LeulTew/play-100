@@ -36,7 +36,7 @@ export function GameCard({ game, filters, state, onOpen, onSave, onPlayed, onCom
   const sourceRef = useRef<HTMLElement>(null);
   const compareDrag = useCompareDragSource({ record: compareRecord, sourceRef });
   return (
-    <article ref={sourceRef} {...compareDrag.surfaceProps} className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
+    <article ref={sourceRef} {...compareDrag.surfaceProps} role="listitem" className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`} data-game={game.slug}>
       <a
         {...compareDrag.titleProps}
         href={`/${createSearch(filters, game.slug)}`}
