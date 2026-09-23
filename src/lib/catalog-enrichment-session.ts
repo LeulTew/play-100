@@ -50,24 +50,29 @@ export class CatalogEnrichmentSession {
     this.controller?.abort();
     this.controller = null;
   };
-  start(request: EnrichmentRequest, refresh = false) {
-    this.cancel();
-    this.request = request;
+  peek(request: EnrichmentRequest, refresh = false): EnrichmentSnapshot {
     const key = enrichmentRequestKey(request);
     const eligible = request.allowed && Boolean(enrichmentIdentity(request.id));
     const prior = eligible ? this.cache.get(request.id) : undefined;
     const base = { key, data: prior?.data ?? null, error: null, cached: Boolean(prior) };
-    if (!eligible || !request.online) { this.publish({ ...base, status: 'disabled' }); return; }
-    if (!request.connected) { this.publish({ ...base, status: 'offline' }); return; }
-    if (!refresh && prior && prior.expires > this.now()) { this.publish({ ...base, status: 'ready' }); return; }
+    if (!eligible || !request.online) return { ...base, status: 'disabled' };
+    if (!request.connected) return { ...base, status: 'offline' };
+    if (!refresh && prior && prior.expires > this.now()) return { ...base, status: 'ready' };
     if (this.cooldown > this.now()) {
-      this.publish({ ...base, status: 'error', error: 'A source is rate-limiting requests. Please wait before retrying.' });
-      return;
+      return { ...base, status: 'error', error: 'A source is rate-limiting requests. Please wait before retrying.' };
     }
+    return { ...base, status: 'loading' };
+  }
+  start(request: EnrichmentRequest, refresh = false) {
+    this.cancel();
+    this.request = request;
+    const initial = this.peek(request, refresh);
+    if (initial.status !== 'loading') { this.publish(initial); return; }
+    const { key, data, cached } = initial;
     const generation = this.generation;
     const controller = new AbortController();
     this.controller = controller;
-    this.publish({ ...base, status: 'loading' });
+    this.publish(initial);
     void this.load(request.id, controller.signal).then(data => {
       if (controller.signal.aborted || generation !== this.generation) return;
       const current = parseCatalogEnrichment(data, request.id);
@@ -80,7 +85,7 @@ export class CatalogEnrichmentSession {
     }).catch((error: unknown) => {
       if (controller.signal.aborted || generation !== this.generation) return;
       if (error instanceof CatalogRequestError && error.kind === 'rate-limited') this.cooldown = this.now() + (error.retryAfter || 30) * 1000;
-      this.publish({ ...base, status: 'error', error: error instanceof Error ? error.message : 'Public game details could not be loaded. Existing details are unchanged.' });
+      this.publish({ key, data, cached, status: 'error', error: error instanceof Error ? error.message : 'Public game details could not be loaded. Existing details are unchanged.' });
     }).finally(() => { if (this.controller === controller) this.controller = null; });
   }
   retry = () => { if (this.request) this.start(this.request, true); };

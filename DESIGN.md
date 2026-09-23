@@ -222,7 +222,8 @@ Return-target visibility is resolved before close/unlock writes; native focus
 and required editor scrolling do not wait for visual completion. Optional motion
 measures destinations in a cancellable animation frame, while modal registration
 remains immediate. Dialogs and their motion hosts retain their existing containment
-and containing blocks. Public catalog enrichment
+and containing blocks. Public catalog enrichment renders its locally resolved
+cache, offline, disabled, cooldown or loading snapshot immediately. Network work
 starts in a cancellable task after a frame, not in the shell's opening effect;
 closing or changing its scope cancels both queued work and existing requests.
 

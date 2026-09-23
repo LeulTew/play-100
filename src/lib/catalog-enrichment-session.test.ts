@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CatalogEnrichmentSession, fetchCatalogEnrichment } from './catalog-enrichment-session';
-import type { EnrichmentRequest } from './catalog-enrichment-session';
+import type { EnrichmentRequest, EnrichmentSnapshot } from './catalog-enrichment-session';
 import type { CatalogEnrichment } from './catalog-enrichment';
 import { CatalogRequestError } from './catalog-transport';
 import { enrichmentFixture } from './discovery-test-fixtures';
@@ -11,6 +11,64 @@ const request = (patch: Partial<EnrichmentRequest> = {}): EnrichmentRequest => (
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('public detail lookup eligibility and lifecycle', () => {
+  it.each(['disabled', 'offline', 'ready', 'error', 'loading'] as const)(
+    'peeks the exact first %s snapshot without requests, publication or cache mutation',
+    async status => {
+      const data = enrichmentFixture();
+      const cache = new Map([[data.id, { data, expires: status === 'ready' ? 2000 : 0 }]]);
+      const load = vi.fn<(id: string, signal: AbortSignal) => Promise<CatalogEnrichment>>()
+        .mockImplementation(() => new Promise(() => {}));
+      const session = new CatalogEnrichmentSession(load, () => 1000, cache);
+      if (status === 'error') {
+        load.mockRejectedValueOnce(new CatalogRequestError('Slow down', 'rate-limited', 30));
+        session.start(request());
+        await vi.waitFor(() => expect(session.getSnapshot().status).toBe('error'));
+        load.mockClear();
+      }
+      const published: EnrichmentSnapshot[] = [];
+      const unsubscribe = session.subscribe(() => { published.push(session.getSnapshot()); });
+      const input = request({ online: status !== 'disabled', connected: status !== 'offline' });
+      const before = session.getSnapshot();
+      const cached = [...cache.entries()];
+      const peeked = session.peek(input);
+      expect(peeked).toMatchObject({ status, data, cached: true });
+      expect(session.getSnapshot()).toBe(before);
+      expect(published).toEqual([]);
+      expect(load).not.toHaveBeenCalled();
+      expect([...cache.entries()]).toEqual(cached);
+      session.start(input);
+      expect(published[0]).toEqual(peeked);
+      expect(load).toHaveBeenCalledTimes(status === 'loading' ? 1 : 0);
+      unsubscribe();
+      session.cancel();
+    },
+  );
+
+  it('does not cancel a live request, construct a controller or change retry identity when peeking', () => {
+    const load = vi.fn<(id: string, signal: AbortSignal) => Promise<CatalogEnrichment>>()
+      .mockImplementation(() => new Promise(() => {}));
+    const session = new CatalogEnrichmentSession(load, () => 1000, new Map());
+    session.start(request());
+    const signal = load.mock.calls[0]![1];
+    const controller = vi.fn();
+    vi.stubGlobal('AbortController', controller);
+    const listener = vi.fn();
+    session.subscribe(listener);
+    const before = session.getSnapshot();
+    expect(session.peek(request({ id: 'manual:private', scopeKey: 'other' }))).toMatchObject({
+      status: 'disabled', data: null, cached: false,
+    });
+    expect(controller).not.toHaveBeenCalled();
+    expect(signal.aborted).toBe(false);
+    expect(load).toHaveBeenCalledOnce();
+    expect(listener).not.toHaveBeenCalled();
+    expect(session.getSnapshot()).toBe(before);
+    vi.unstubAllGlobals();
+    session.retry();
+    expect(load.mock.calls[1]![0]).toBe(request().id);
+    session.cancel();
+  });
+
   it.each([
     { allowed: false }, { online: false }, { connected: false }, { id: 'manual:private-title' },
     { id: 'red-dead-redemption-2' }, { id: 'wikidata:Q27438121' },
