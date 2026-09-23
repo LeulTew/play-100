@@ -11,6 +11,7 @@ export const PWA_ROOTS = [
   'index.html', 'src/components/personal/MyGamesPage.tsx',
   'src/components/personal/CatalogDetail.tsx', 'src/components/catalog/DiscoverPage.tsx',
   'src/pwa/apply-update.ts',
+  'src/components/DataUseContent.tsx',
 ] as const;
 const publicCore = [
   '/index.html', '/manifest.webmanifest', '/pwa/offline.html', '/favicon.svg',

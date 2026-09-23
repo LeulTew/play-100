@@ -31,6 +31,8 @@ describe('generated public PWA build closure', () => {
     expect(files).toContain('/assets/route0-12345678.js');
     expect(PWA_ROOTS).toContain('src/pwa/apply-update.ts');
     expect(files).toContain('/assets/route3-12345678.js');
+    expect(PWA_ROOTS).toContain('src/components/DataUseContent.tsx');
+    expect(files).toContain('/assets/route4-12345678.js');
     expect(files).toContain('/assets/brand-12345678.woff2');
     expect(files).toContain('/data/collection.json');
     expect(files).toContain('/data/discovery/catalog.v1.json');
@@ -48,6 +50,24 @@ describe('generated public PWA build closure', () => {
     const injected = manifest();
     injected._shared = { file: '../api/catalog' };
     expect(() => pwaCorePaths(injected)).toThrow(/unapproved/);
+  });
+
+  it('includes the lazy data-use body and its static closure, failing if either is missing', () => {
+    const entries = manifest();
+    const body = 'src/components/DataUseContent.tsx';
+    entries[body] = {
+      file: 'assets/DataUseContent-12345678.js',
+      imports: ['_disclosure'],
+      css: ['assets/disclosure-12345678.css'],
+    };
+    entries._disclosure = { file: 'assets/disclosure-12345678.js' };
+    expect(pwaCorePaths(entries)).toEqual(expect.arrayContaining([
+      '/assets/DataUseContent-12345678.js', '/assets/disclosure-12345678.js', '/assets/disclosure-12345678.css',
+    ]));
+    delete entries._disclosure;
+    expect(() => pwaCorePaths(entries)).toThrow(/missing required Vite entry _disclosure/);
+    delete entries[body];
+    expect(() => pwaCorePaths(entries)).toThrow(/missing required Vite entry src\/components\/DataUseContent/);
   });
 
   it('declares stable root installation identity and distinct any/maskable sizes', async () => {

@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { SiteFooter } from './SiteFooter';
+
+const DataUseContent = lazy(() => import('./DataUseContent'));
 
 export default function DataUsePage() {
   useEffect(() => { document.title = 'Data use | Play 100'; }, []);
@@ -9,40 +11,10 @@ export default function DataUsePage() {
     <main className="app-page data-use-page" id="data-use">
       <h1>Data use</h1>
       <p>Device storage, account saving and public sharing are separate choices. This page does not open your private library or start online saving.</p>
-      <h2>Device-only libraries</h2>
-      <p>Your games, ratings, notes, queue and play history can stay in this browser. Browser storage also keeps display settings and a small account-loading preference. Clearing site data can remove these copies. You can download a backup from Account or Settings.</p>
-      <p>The Compare tray keeps up to six game references separately for this device or account. Pinning does not save a game to your library, rate it or share it. Guest pins are not adopted when you sign in. Comparison game filters and people selections stay in private tab/history state, not public links.</p>
-      <h2>Installation and offline access</h2>
-      <p>Installation uses your browser's own controls. Enabling offline access downloads a bounded public app shell, collection metadata and recently viewed bundled artwork. It does not cache account, Firebase, authentication or catalog API responses, or replace the existing device library database. Films and workbooks are not downloaded automatically.</p>
-      <p>Offline access does not make cloud features available offline or move an account library into the guest scope. Updates wait for an explicit choice and successful edit checks; another open app window or unfinished form can prevent a reload. This data-use page does not register the offline worker.</p>
-      <h2>Sign-in</h2>
-      <p>Firebase manages Google or email/password sign-in. Google requests basic identity, email and profile access, not your contacts or files. Sign-in identifies an account, not a verified person. Play 100 does not implement its own password store.</p>
-      <p>Supported browsers retain sign-in until you sign out or the session is revoked. Private browsing, blocked storage, cleared site data or provider restrictions can require another sign-in. A deployment does not intentionally clear your account or library.</p>
-      <h2>Online saving</h2>
-      <p>When you agree to online saving, the creator can view your chosen account profile and ranking summary. Private library data is stored under your verified account. Notes, queue and play history are excluded from the creator’s ranking view, but the project operator can technically access data in the database.</p>
-      <p>Existing active account copies can restore into an empty, unchanged account cache after sign-in. Guest data is not merged or uploaded automatically. Dirty copies, stopped saving, deleted data and conflicts require a safe choice.</p>
-      <p>Edits save on the device before uploading. A visible, connected browser retries temporary failures; closed browsers cannot run those updates. Firebase’s free quotas are finite. Quota exhaustion can delay saving without enabling billing.</p>
-      <h2>Profiles and icons</h2>
-      <p>A saved name and chosen creature are account profile data. Creature images are generated locally. No uploaded image or Google profile photo is used. Saving an icon does not update an existing public snapshot.</p>
-      <h2>Friends and comparisons</h2>
-      <p>Connecting shares your chosen name and icon. Accepted, nonblocked friends can also see the games and rankings allowed by your sharing mode. Requests require acceptance. Invitation links are one-use, expire after seven days and can be revoked; anyone with the link can preview your invitation. Keep it private.</p>
-      <p>New verified account setups with online saving default to All mode: all saved game metadata and rankings, including later additions, update for accepted friends. Notes, email, queue and play history are excluded. Public profiles and directory listing remain separate, optional choices. Guest data is never adopted or uploaded automatically.</p>
-      <p>Existing off and selected-only choices stay unchanged; absent new settings are not consent. One Share all with friends action in Friends, My games or Account enables All without per-game selection. Stop remains available. Legacy selected mode still supports up to 200 selected games with its existing removal-review protection. All mode instead follows current membership, including deliberate removal and re-add.</p>
-      <p>All mode supports the full 10,000-game account limit with bounded pages and resumable incremental updates. A first share of 10,000 saved games plus 10,000 rankings needs at least 30,000 document writes, exceeding one day's 20,000-write free quota. It can continue another day; partial progress is not labelled complete. Unfetched comparison pages are not missing or unrated games, and incomplete whole-list metrics stay unknown.</p>
-      <p>Removing a friendship, blocking, stopping sharing or deleting the account revokes access. In All mode, stopping private saving also revokes the shared views; restarting needs an explicit Share all action. Legacy selected-mode pause can retain its last explicitly shared snapshot until that sharing is stopped. Previously copied information cannot be recalled.</p>
-      <p>All mode requires a current client to invalidate shared views atomically with private-source changes. An older client cannot upload or pause a ready All view without that safety signal: refresh the app, or use its existing friend-sharing Stop first. This restriction does not apply to accounts without active All sharing, and it never authorizes discarding pending local edits.</p>
-      <p>Comparison groups are private saved participant selections, not chat rooms or a permission grant. Unavailable rankings are labelled; groups do not store a copy of another person's private scores. Account exports omit active invitation links and other people's ranking data.</p>
-      <h2>Public rankings</h2>
-      <p>Publishing requires its own preview and consent. Anyone with a published link can view the selected games, order and scores. A link-only ranking is public, not private. Listing in Community is another optional choice.</p>
-      <p>Public snapshots change only when you update them. They exclude email, notes, queue and play history. Unpublishing or moderation stops new server reads; it cannot recall screenshots, downloads or copies others already made.</p>
-      <h2>Export, stop and delete</h2>
-      <p>Signing out leaves your account’s device cache and guest library separate. Stopping online saving retains saved copies but stops uploads. Deleting an online copy removes its online profile and library, unpublishes its ranking and retains the account’s local recovery copy.</p>
-      <p>Account deletion requires recent confirmation and finishes cloud cleanup before removing the sign-in account. Some content-free identity and revocation markers remain to prevent stale sessions recreating deleted content. A device-only guest library is not deleted by these account actions.</p>
-      <h2>Services and essential storage</h2>
-      <p>Vercel hosts the site; Firebase provides authentication and online data; Google handles Google sign-in. These services may use essential storage or cookies for their operation. Play 100 has no advertising analytics, contact scraping or bulk invitation email service. Catalog searches use the listed data providers; source links stay attached to their records.</p>
-      <p>Opening an eligible Discover game with online lookup enabled can request public ratings and licensed artwork by its exact public identifier. Wikidata supplies attributed score claims; Steam may supply user-recommendation totals through an unambiguous public app identifier. Wikimedia Commons artwork is reused only after license, creator and bounded-image checks, with full credit. Existing entries from The 100 are not enriched again.</p>
-      <p>These detail requests do not send private titles, ratings, notes, progress or account identifiers. Online lookup can be disabled; a small in-memory cache may retain public facts already fetched in this session, labelled with their retrieval date. External scores are not averaged together or treated as your rating, and missing data is not zero.</p>
-      <p>Use Account for exports and deletion, or the creator links below for questions.</p>
+      {/* Keep the footer below the viewport while the long disclosure body loads. */}
+      <Suspense fallback={<p role="status" style={{ minHeight: '100vh' }}>Loading data-use details...</p>}>
+        <DataUseContent />
+      </Suspense>
     </main>
     <SiteFooter />
   </>;
