@@ -24,13 +24,22 @@ for (const width of [320, 393, 768, 1440]) {
       await expect(page.locator('.result-summary [role="status"]')).toHaveText('1 in The 100 · 4 beyond The 100');
       await expect(page.getByRole('heading', { name: 'The collection, 100', exact: true })).toBeVisible();
       const summary = page.locator('.collection-filters > summary');
-      await expect(summary).toHaveAccessibleName('Filters & sort');
-      await expect(summary).toHaveAccessibleDescription('1 active');
-      if (await page.locator('.collection-filters').getAttribute('open') === null) {
+      if (width <= 760) {
+        await expect(summary).toBeVisible();
+        await expect(summary).toHaveAccessibleName('Filters & sort');
+        await expect(summary).toHaveAccessibleDescription('1 active');
         await summary.focus();
         await summary.press('Enter');
+      } else {
+        await expect(summary).toBeHidden();
       }
+      await expect(page.locator('.collection-filters')).toHaveAttribute('open', '');
+      await expect(page.locator('.collection-filters .browse-filters-content')).toBeVisible();
       await expect(page.getByRole('button', { name: 'All games, 104', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Play later, 0', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Completed, 0', exact: true })).toBeVisible();
+      await expect(page.getByRole('combobox', { name: 'Genre', exact: true })).toBeVisible();
+      await expect(page.getByRole('combobox', { name: 'Sort', exact: true })).toBeVisible();
       if (view !== 'table') {
         const list = page.getByRole('list', { name: 'Games in this view', exact: true });
         await expect(list.getByRole('listitem')).toHaveCount(1);

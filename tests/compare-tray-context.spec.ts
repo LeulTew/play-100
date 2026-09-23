@@ -14,43 +14,6 @@ for (const width of [320, 393, 768, 1440]) {
       await page.getByRole('button', { name: `Pin ${record.title} for comparison`, exact: true }).click();
     }
 
-    for (const width of [320, 393]) {
-      test(`ready sign-in returns to the visible contextual chip at ${width}px`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 852 });
-        await page.emulateMedia({ reducedMotion: 'reduce' });
-        await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname)
-          ? route.continue() : route.abort('blockedbyclient'));
-        await installGuestLibrary(page, libraryFixture(3));
-        test.skip(await page.locator('.account-nav').count() === 0, 'Requires the centrally configured online build; no remote account requests are allowed.');
-        await page.goto('/?catalogs=off');
-        await page.getByRole('button', { name: `Pin ${libraryRecords[0].title} for comparison`, exact: true }).click();
-        const before = await readLibrary(page);
-        for (const route of ['/my-games?tab=library&catalogs=off', '/?q=NoMatchContextFixture&catalogs=off']) {
-          await page.goto(route);
-          const chip = page.locator('.compare-tray-expand');
-          await expect(chip).toBeVisible();
-          await expect(page.locator('.compare-tray-action')).toBeHidden();
-          await page.locator('.account-nav').click();
-          const signIn = page.getByRole('dialog', { name: 'Sign in', exact: true });
-          await expect(signIn.locator('#account-signin-title')).toBeFocused();
-          await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
-          await signIn.getByRole('button', { name: 'Close dialog', exact: true }).click();
-          await expect(signIn).toHaveCount(0);
-          await chip.focus();
-          await chip.press('Enter');
-          await page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Choose friends', exact: true }).click();
-          await expect(signIn.locator('#account-signin-title')).toBeFocused();
-          await signIn.getByRole('button', { name: 'Keep using this device', exact: true }).click();
-          await expect(signIn).toHaveCount(0);
-          await expect(chip).toBeFocused();
-          expect(await chip.evaluate(element => {
-            const bounds = element.getBoundingClientRect();
-            return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
-          })).toBe(true);
-        }
-        expect(await readLibrary(page)).toEqual(before);
-      });
-    }
     const dock = page.locator('.compare-tray-dock');
     await expect(dock.locator('.compare-tray-error')).toContainText('six games');
     const failedPin = page.getByRole('button', { name: `Pin ${libraryRecords[6].title} for comparison`, exact: true });
@@ -115,5 +78,43 @@ for (const width of [320, 393, 768, 1440]) {
     }
     expect(await readLibrary(page)).toEqual(before);
     expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toBe(pins);
+  });
+}
+
+for (const width of [320, 393]) {
+  test(`ready sign-in returns to the visible contextual chip at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 852 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname)
+      ? route.continue() : route.abort('blockedbyclient'));
+    await installGuestLibrary(page, libraryFixture(3));
+    test.skip(await page.locator('.account-nav').count() === 0, 'Requires the centrally configured online build; no remote account requests are allowed.');
+    await page.goto('/?catalogs=off');
+    await page.getByRole('button', { name: `Pin ${libraryRecords[0].title} for comparison`, exact: true }).click();
+    const before = await readLibrary(page);
+    for (const route of ['/my-games?tab=library&catalogs=off', '/?q=NoMatchContextFixture&catalogs=off']) {
+      await page.goto(route);
+      const chip = page.locator('.compare-tray-expand');
+      await expect(chip).toBeVisible();
+      await expect(page.locator('.compare-tray-action')).toBeHidden();
+      await page.locator('.account-nav').click();
+      const signIn = page.getByRole('dialog', { name: 'Sign in', exact: true });
+      await expect(signIn.locator('#account-signin-title')).toBeFocused();
+      await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
+      await signIn.getByRole('button', { name: 'Close dialog', exact: true }).click();
+      await expect(signIn).toHaveCount(0);
+      await chip.focus();
+      await chip.press('Enter');
+      await page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Choose friends', exact: true }).click();
+      await expect(signIn.locator('#account-signin-title')).toBeFocused();
+      await signIn.getByRole('button', { name: 'Keep using this device', exact: true }).click();
+      await expect(signIn).toHaveCount(0);
+      await expect(chip).toBeFocused();
+      expect(await chip.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+      })).toBe(true);
+    }
+    expect(await readLibrary(page)).toEqual(before);
   });
 }
