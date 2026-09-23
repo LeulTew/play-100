@@ -5,6 +5,8 @@ import sharp from 'sharp';
 import type { Manifest } from 'vite';
 import { pwaBuildVersion, pwaCorePaths, pwaDocumentPolicy, PWA_ROOTS } from './pwa-build';
 import { PWA_ICONS, renderPwaIcons } from './pwa-icons';
+import { myGamesTab } from '../src/lib/my-games-navigation';
+import { pageFromPath } from '../src/lib/url';
 
 function manifest(): Manifest {
   const output: Manifest = {
@@ -171,6 +173,8 @@ describe('generated public PWA build closure', () => {
     expect(data).toMatchObject({
       id: '/', scope: '/', start_url: '/', display: 'standalone',
       theme_color: '#f3f3e9', background_color: '#f3f3e9', name: 'Play 100',
+      description: 'A personal collection of games, with your own library, queue and rankings.',
+      categories: ['games', 'entertainment'],
     });
     expect(data.icons).toEqual(expect.arrayContaining([
       expect.objectContaining({ sizes: '192x192', purpose: 'any', type: 'image/png' }),
@@ -179,6 +183,42 @@ describe('generated public PWA build closure', () => {
       expect.objectContaining({ sizes: '512x512', purpose: 'maskable', type: 'image/png' }),
     ]));
     expect(data.start_url).not.toContain('?');
+    expect(data.screenshots).toBeUndefined();
+  });
+
+  it('uses existing in-scope My games tabs and already-precached icons for shortcuts', async () => {
+    const data = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8'));
+    const shortcuts = [
+      { name: 'Library', description: 'Open your saved games.', url: '/my-games', tab: 'library' },
+      { name: 'Queue', description: 'Choose what to play next.', url: '/my-games?tab=queue', tab: 'queue' },
+      { name: 'Ranking', description: 'Open your personal ranking.', url: '/my-games?tab=ranking', tab: 'ranking' },
+    ];
+    const icons = [{ src: '/pwa/icon-192.png', sizes: '192x192', type: 'image/png' }];
+    expect(data.shortcuts).toEqual(shortcuts.map(({ name, description, url }) => ({ name, description, url, icons })));
+    const core = pwaCorePaths(manifest());
+    for (const shortcut of shortcuts) {
+      const url = new URL(shortcut.url, 'https://play.test');
+      expect(url.origin).toBe('https://play.test');
+      expect(url.pathname.startsWith(data.scope)).toBe(true);
+      expect(pageFromPath(url.pathname)).toBe('games');
+      expect(myGamesTab(url.pathname, url.search)).toBe(shortcut.tab);
+      expect([...url.searchParams.keys()]).toEqual(shortcut.tab === 'library' ? [] : ['tab']);
+    }
+    expect(core).toContain(icons[0]!.src);
+    expect(core.filter(file => file.startsWith('/pwa/') && file.endsWith('.png')).sort())
+      .toEqual(PWA_ICONS.map(icon => `/pwa/${icon.file}`).sort());
+  });
+
+  it('maps every declared maskable icon to dedicated generated artwork in the existing core', async () => {
+    const data = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8'));
+    const declared = PWA_ICONS.filter(icon => icon.file !== 'apple-touch-icon.png');
+    expect(data.icons).toEqual(declared.map(icon => ({
+      src: `/pwa/${icon.file}`, sizes: `${icon.size}x${icon.size}`, type: 'image/png',
+      purpose: icon.maskable ? 'maskable' : 'any',
+    })));
+    expect(declared.filter(icon => icon.maskable).map(icon => icon.size)).toEqual([192, 512]);
+    const core = pwaCorePaths(manifest());
+    for (const icon of declared) expect(core).toContain(`/pwa/${icon.file}`);
   });
 
   it('decodes exact icon sizes and keeps the existing ink logo inside the maskable safe circle', async () => {
@@ -190,16 +230,23 @@ describe('generated public PWA build closure', () => {
       let ink = 0;
       let transparentPixels = 0;
       let furthestInk = 0;
+      let unsafeMaskablePixels = 0;
       for (let y = 0; y < info.height; y += 1) for (let x = 0; x < info.width; x += 1) {
         const offset = (y * info.width + x) * 4;
         if (data[offset + 3] !== 255) transparentPixels += 1;
+        const radius = Math.hypot(x + .5 - icon.size / 2, y + .5 - icon.size / 2);
+        if (icon.maskable && radius > icon.size * .4 &&
+          (Math.abs(data[offset]! - 211) > 2 || Math.abs(data[offset + 1]! - 243) > 2 || Math.abs(data[offset + 2]! - 107) > 2)) {
+          unsafeMaskablePixels += 1;
+        }
         if ((data[offset] ?? 255) < 100 && (data[offset + 1] ?? 255) < 100) {
           ink += 1;
-          furthestInk = Math.max(furthestInk, Math.hypot(x + .5 - icon.size / 2, y + .5 - icon.size / 2));
+          furthestInk = Math.max(furthestInk, radius);
         }
       }
       expect(ink).toBeGreaterThan(100);
       expect(transparentPixels).toBe(0);
+      expect(unsafeMaskablePixels).toBe(0);
       if (icon.maskable) expect(furthestInk).toBeLessThanOrEqual(icon.size * .4);
     }
   });
