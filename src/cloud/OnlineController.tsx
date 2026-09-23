@@ -455,14 +455,25 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     await account.refresh(); await refresh();
     setMessage('Online saving enabled.');
   });
-  const signOutAccount = () => run(async () => {
+  const signOutAccount = (removeDeviceCopy = false) => run(async () => {
+    const user = cloudAuth.currentUser;
+    const target = scope;
+    const session = authSessionEpoch.current;
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before signing out.');
+    if (!user || !target || cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) {
+      throw new Error('The signed-in account changed. Review Account before signing out.');
+    }
     sync.suspend();
     friends.stop();
     shelf.stop();
     automatic.suspend();
     await account.waitForWrites();
-    await signOut(cloudAuth); await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
+    const local = removeDeviceCopy ? await loadScopedLibrary(target) : null;
+    if (local?.sync.dirty) throw new Error('This device has unsynced changes. Save or export them before removing its copy. Ordinary Sign out keeps them.');
+    if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Nothing was removed.');
+    await signOut(cloudAuth);
+    if (local) await deleteScopedLibrary(target, local.state.revision);
+    await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
   const openComparison = (peers?: string[]) => {
     if (!identity || cloudAuth.currentUser?.uid !== identity.uid) return;
@@ -697,7 +708,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
             catch (cause) { if (cloudAuth.currentUser?.uid === user.uid) setMessage(`Name saved. Reconnect to refresh the profile. ${onlineError(cause)}`); }
           })}
           onConnect={connect} onVerify={sendVerification} onRefreshIdentity={() => run(async () => { const user = cloudAuth.currentUser; if (!user) return; await reload(user); refreshedMismatch.current.delete(user.uid); const next = await reconcileIdentity(user, true); setMessage(next.verified ? 'Email verified. You can choose online saving or publishing.' : 'Verification is not confirmed yet. Open the latest email link, then try again.'); })}
-          onSignOut={signOutAccount} onLinkGoogle={linkGoogle}
+          onSignOut={signOutAccount} onSignOutAndRemove={() => signOutAccount(true)} onLinkGoogle={linkGoogle}
           onRetry={() => run(async () => { await sync.retry(); await automatic.refresh(); await friends.retry(); await shelf.retry(); })} onCleanup={() => run(async () => { const { store, user } = verifiedIdentity(); await store.cleanup(); await social.cleanup(user.uid); await shelf.store.prune(user.uid); setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.'); })}
           onPause={pause} onDownload={downloadData}
           onUseRemote={(reviewed, revision) => run(async () => { await sync.useRemote(reviewed, revision); await account.refresh(); })}

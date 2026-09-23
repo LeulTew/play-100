@@ -1,6 +1,6 @@
 import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
-import { normalizeHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, PUBLIC_LIMIT } from '../lib/community';
+import { normalizeHandle, parseHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { ensureAccountActivity } from './account-lifecycle';
 
@@ -17,7 +17,7 @@ export function parseMember(value: DocumentData): Member {
 }
 export function parseProfile(value: DocumentData): PublicProfile {
   if (Object.keys(value).sort().join() !== 'avatar,count,creator,displayName,epoch,generation,handle,hidden,listed,preview,published,title,uid,updatedAt' ||
-    typeof value.uid !== 'string' || typeof value.handle !== 'string' || normalizeHandle(value.handle) !== value.handle ||
+    typeof value.uid !== 'string' || typeof value.handle !== 'string' || parseHandle(value.handle) !== value.handle ||
     typeof value.displayName !== 'string' || value.displayName.length < 1 || value.displayName.length > 60 ||
     typeof value.title !== 'string' || value.title.length < 1 || value.title.length > 80 ||
     !Number.isInteger(value.count) || value.count < 1 || value.count > PUBLIC_LIMIT ||
@@ -30,6 +30,17 @@ function parseControl(value: DocumentData): PublicControl {
   if (Object.keys(value).sort().join() !== 'deleted,epoch,hidden' || !Number.isSafeInteger(value.epoch) || value.epoch < 0 ||
     typeof value.hidden !== 'boolean' || typeof value.deleted !== 'boolean') throw new Error('Publication permissions are unreadable.');
   return { epoch: value.epoch, hidden: value.hidden, deleted: value.deleted };
+}
+function denied(cause: unknown): boolean {
+  return Boolean(cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied');
+}
+function publicationRegistry(value: DocumentData): { ids: string[]; revision: number } {
+  if (Object.keys(value).sort().join() !== 'ids,revision' || !Array.isArray(value.ids) ||
+    !value.ids.every((id: unknown) => typeof id === 'string' && /^[a-f0-9-]{36}$/.test(id)) ||
+    new Set(value.ids).size !== value.ids.length || !Number.isSafeInteger(value.revision) || value.revision < 1) {
+    throw new Error('Publication cleanup metadata is invalid. Nothing was changed.');
+  }
+  return { ids: value.ids, revision: value.revision };
 }
 
 export class SocialStore {
@@ -79,11 +90,16 @@ export class SocialStore {
     return value.exists() ? parseControl(value.data()) : { epoch: 0, hidden: false, deleted: false };
   }
   async ownProfile(uid: string): Promise<PublicProfile | null> {
-    const value = await getDocFromServer(doc(this.db, 'publicProfiles', uid));
-    return value.exists() ? parseProfile(value.data()) : null;
+    try {
+      const value = await getDocFromServer(doc(this.db, 'publicProfiles', uid));
+      return value.exists() ? parseProfile(value.data()) : null;
+    } catch (cause) {
+      if (denied(cause)) return null;
+      throw cause;
+    }
   }
   async profile(handleInput: string): Promise<PublicProfile | null> {
-    const handle = normalizeHandle(handleInput);
+    const handle = parseHandle(handleInput);
     try {
       const link = await getDocFromServer(doc(this.db, 'handles', handle));
       if (!link.exists() || typeof link.data().uid !== 'string') return null;
@@ -122,14 +138,28 @@ export class SocialStore {
     if (new Set(entries.map((entry) => entry.id)).size !== entries.length || entries.some((entry, index) => entry.position !== index + 1)) throw new Error('Review the publication order and remove duplicate games.');
     const avatar = parseAvatar(input.avatar);
     await ensureAccountActivity(this.db, uid);
+    await this.cleanup(uid);
+    const registryRef = doc(this.db, 'publicProfiles', uid, 'metadata', 'registry');
+    let quotaSupported = true;
+    try { await getDocFromServer(registryRef); }
+    catch (cause) {
+      if (!denied(cause)) throw cause;
+      quotaSupported = false;
+      console.info('Publication quota controls are not yet available; using the legacy client-first publication path.');
+    }
     const id = crypto.randomUUID();
     const controlRef = doc(this.db, 'publicControls', uid);
     const generationRef = doc(this.db, 'publicProfiles', uid, 'generations', id);
     await runTransaction(this.db, async (tx) => {
-      const snap = await tx.get(controlRef);
+      const [snap, registry] = await Promise.all([tx.get(controlRef), quotaSupported ? tx.get(registryRef) : Promise.resolve(null)]);
       const current = snap.exists() ? parseControl(snap.data()) : { epoch: 0, hidden: false, deleted: false };
       if (current.epoch !== expected.epoch || current.hidden || current.deleted) throw new Error('Publication permission changed. Refresh the preview; hidden or deleted profiles cannot publish.');
       if (!snap.exists()) tx.set(controlRef, current);
+      if (quotaSupported) {
+        const value = registry?.exists() ? publicationRegistry(registry.data()) : { ids: [], revision: 0 };
+        if (value.ids.length >= 4) throw new Error('Four publication snapshots are still retained. Wait for cleanup and retry; your published ranking is unchanged.');
+        tx.set(registryRef, { ids: [...value.ids, id], revision: value.revision + 1 });
+      }
       tx.set(generationRef, { epoch: current.epoch, count: entries.length, uploaded: 0, status: 'staging', createdAt: serverTimestamp() });
     });
     for (let index = 0; index < entries.length; index += 8) {
@@ -235,9 +265,22 @@ export class SocialStore {
         await batch.commit();
         if (afterDeleteBatch) await afterDeleteBatch();
       }
-      const batch = writeBatch(this.db);
-      batch.delete(item.ref);
-      await batch.commit();
+      const registryRef = doc(this.db, 'publicProfiles', uid, 'metadata', 'registry');
+      let quotaSupported = true;
+      try { await getDocFromServer(registryRef); }
+      catch (cause) {
+        if (!denied(cause)) throw cause;
+        quotaSupported = false;
+        console.info('Publication quota controls are not yet available; cleaning the legacy publication only.');
+      }
+      await runTransaction(this.db, async tx => {
+        const registry = quotaSupported ? await tx.get(registryRef) : null;
+        if (registry?.exists()) {
+          const value = publicationRegistry(registry.data());
+          if (value.ids.includes(item.id)) tx.update(registryRef, { ids: value.ids.filter(id => id !== item.id), revision: value.revision + 1 });
+        }
+        tx.delete(item.ref);
+      });
       cleaned += 1;
     }
     return cleaned;

@@ -132,12 +132,13 @@ test('the creator can inspect and hide a reported public profile even without a 
   try {
     const admin = await moderator.newPage();
     await createAccount(admin, creatorEmail); await verifyEmail(admin, request, creatorEmail);
+    const creatorUid = await uidFor(request, creatorEmail);
     await admin.goto(`/u/${handle}`);
     await admin.getByRole('button', { name: 'Report profile', exact: true }).click();
     await admin.getByLabel('What needs attention?', { exact: true }).fill(`Review member-less profile ${handle}`);
     await admin.getByRole('button', { name: 'Submit report', exact: true }).click();
     await expect(admin.getByRole('dialog')).toHaveCount(0);
-    const bootstrapped = await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { email: { stringValue: creatorEmail } } } });
+    const bootstrapped = await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { uid: { stringValue: creatorUid }, email: { stringValue: creatorEmail } } } });
     expect(bootstrapped.ok()).toBe(true);
     await admin.goto('/creator');
     await expect(admin.getByRole('heading', { name: 'Creator desk', exact: true })).toBeVisible();
@@ -152,7 +153,8 @@ test('the creator can inspect and hide a reported public profile even without a 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'This ranking is not available.', exact: true })).toBeVisible();
   } finally {
-    await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { email: { stringValue: 'creator@play100.test' } } } });
+    const creatorUid = await uidFor(request, 'creator@play100.test');
+    await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { uid: { stringValue: creatorUid }, email: { stringValue: 'creator@play100.test' } } } });
     await moderator.close();
   }
 });

@@ -17,7 +17,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await environment.clearFirestore();
   await environment.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc('_owner/config').set({ email: 'owner@example.test' });
+    await context.firestore().doc('_owner/config').set({ uid: 'creator-uid', email: 'owner@example.test' });
     await context.firestore().doc('ownerAccess/status').set({ enabled: true });
     await context.firestore().doc('members/alice').set(member('alice'));
     await context.firestore().doc('members/bob').set(member('bob'));
@@ -54,6 +54,10 @@ describe('managed verified identity and protected creator role', () => {
     const spoofed = environment.authenticatedContext('mallory', { email: 'mallory@example.test', email_verified: true, admin: true }).firestore();
     await assertFails(spoofed.doc('ownerAccess/status').get());
     await assertFails(spoofed.doc('members/alice').get());
+    const sameEmail = environment.authenticatedContext('replacement-uid', { email: 'owner@example.test', email_verified: true }).firestore();
+    await assertFails(sameEmail.doc('ownerAccess/status').get());
+    const renamedOwner = environment.authenticatedContext('creator-uid', { email: 'new-owner@example.test', email_verified: true }).firestore();
+    await assertSucceeds(renamedOwner.doc('ownerAccess/status').get());
     const unverifiedOwner = environment.authenticatedContext('creator-uid', { email: 'owner@example.test', email_verified: false }).firestore();
     await assertFails(unverifiedOwner.doc('ownerAccess/status').get());
   });

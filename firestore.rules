@@ -9,7 +9,7 @@ service cloud.firestore {
       return own(uid) && get(/databases/$(database)/documents/accountLifecycle/$(uid)).data.state == 'active';
     }
     function creator() {
-      return verified() && request.auth.token.email == get(/databases/$(database)/documents/_owner/config).data.email;
+      return verified() && request.auth.uid == get(/databases/$(database)/documents/_owner/config).data.uid;
     }
     function head(uid) { return get(/databases/$(database)/documents/syncHeads/$(uid)).data; }
     function retained(uid, generation) {
@@ -120,7 +120,8 @@ service cloud.firestore {
         && request.resource.data.ids is list && request.resource.data.ids.size() == 1 && request.resource.data.revision == 1
         && getAfter(/databases/$(database)/documents/accounts/$(uid)/generations/$(request.resource.data.ids[0])).data.status == 'staging';
       allow update: if own(uid) && request.resource.data.keys().hasOnly(['ids', 'revision'])
-        && request.resource.data.ids is list && request.resource.data.ids.size() <= 128
+        && request.resource.data.ids is list
+        && (request.resource.data.ids.size() <= 8 || request.resource.data.ids.size() < resource.data.ids.size())
         && request.resource.data.ids.toSet().size() == request.resource.data.ids.size()
         && request.resource.data.revision == resource.data.revision + 1
         && (
@@ -217,7 +218,7 @@ service cloud.firestore {
     }
     function validHandle(handle) {
       return handle is string && handle.matches('^[a-z][a-z0-9_]{2,23}$')
-        && !(handle in ['admin', 'administrator', 'creator', 'leul', 'leultew', 'play100', 'play-100', 'support', 'system', 'moderator', 'firebase', 'account', 'community', 'settings', 'official']);
+        && !handle.matches('^(admin|creator|leul|play100|support|system|moderator|firebase|account|community|settings|official).*');
     }
     function publicGeneration(uid, id) {
       return get(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(id)).data;
@@ -247,7 +248,7 @@ service cloud.firestore {
     function profileShape(data, uid) {
       return data.keys().hasOnly(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.keys().hasAll(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
-        && data.uid == uid && validHandle(data.handle) && avatar(data.avatar)
+        && data.uid == uid && data.handle is string && data.handle.matches('^[a-z][a-z0-9_]{2,23}$') && avatar(data.avatar)
         && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
         && data.count is int && data.count >= 1 && data.count <= 200
@@ -274,10 +275,13 @@ service cloud.firestore {
           || (creator() && request.resource.data.hidden is bool && request.resource.data.deleted == resource.data.deleted));
     }
     match /publicProfiles/{uid} {
-      allow get: if (resource == null) || own(uid) || creator() || (resource.data.published && !resource.data.hidden);
+      allow get: if own(uid) || (resource != null && (creator() || (resource.data.published && !resource.data.hidden)));
       allow list: if request.query.limit != null && request.query.limit <= 20
         && (creator() || (resource.data.published && resource.data.listed && !resource.data.hidden));
       allow create, update: if own(uid) && canPublish(uid) && profileShape(request.resource.data, uid)
+        && validHandle(request.resource.data.handle)
+        && (resource == null || resource.data.handle == request.resource.data.handle
+          || !existsAfter(/databases/$(database)/documents/handles/$(resource.data.handle)))
         && request.resource.data.published && !request.resource.data.hidden
         && request.resource.data.creator == creator()
         && request.resource.data.epoch == publicControl(uid).epoch + 1
@@ -295,7 +299,8 @@ service cloud.firestore {
       allow delete: if own(uid) && publicControl(uid).deleted && !resource.data.published;
     }
     match /handles/{handle} {
-      allow get: if resource == null || (verified() && resource.data.uid == request.auth.uid) || liveProfile(resource.data.uid);
+      allow get: if resource == null || (profile(resource.data.uid).handle == handle
+        && ((verified() && resource.data.uid == request.auth.uid) || liveProfile(resource.data.uid)));
       allow list: if false;
       allow create, update: if verified() && validHandle(handle) && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid
@@ -310,10 +315,39 @@ service cloud.firestore {
     function uploadedEntry(uid, generation, position, end) {
       return position > end || getAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(generation)/entries/$(string(position))).data.position == position;
     }
+    function publicRegistryPath(uid) {
+      return /databases/$(database)/documents/publicProfiles/$(uid)/metadata/registry;
+    }
+    function publicRegistryShape(data) {
+      return data.keys().hasOnly(['ids', 'revision']) && data.keys().hasAll(['ids', 'revision'])
+        && data.ids is list && data.ids.toSet().size() == data.ids.size()
+        && data.revision is int && data.revision >= 1;
+    }
+    function publicRegistryAdded(uid, id) {
+      return uuid(id) && getAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(id)).data.status == 'staging'
+        && getAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(id)).data.createdAt == request.time;
+    }
+    match /publicProfiles/{uid}/metadata/registry {
+      allow get: if own(uid);
+      allow list: if false;
+      allow create: if accountActive(uid) && publicRegistryShape(request.resource.data)
+        && request.resource.data.ids.size() == 1 && request.resource.data.revision == 1
+        && publicRegistryAdded(uid, request.resource.data.ids[0]);
+      allow update: if own(uid) && publicRegistryShape(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1
+        && ((request.resource.data.ids.size() <= 4
+            && request.resource.data.ids.size() == resource.data.ids.size() + 1
+            && request.resource.data.ids == resource.data.ids.concat([request.resource.data.ids[request.resource.data.ids.size() - 1]])
+            && publicRegistryAdded(uid, request.resource.data.ids[request.resource.data.ids.size() - 1]))
+          || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
+            && !existsAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(resource.data.ids.removeAll(request.resource.data.ids)[0]))));
+      allow delete: if own(uid) && publicControl(uid).deleted && resource.data.ids.size() == 0;
+    }
     match /publicProfiles/{uid}/generations/{id} {
       allow get: if own(uid);
       allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if accountActive(uid) && uuid(id)
+        && getAfter(publicRegistryPath(uid)).data.ids.hasAny([id])
         && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted)
         && request.resource.data.keys().hasOnly(['epoch', 'count', 'uploaded', 'status', 'createdAt'])
         && request.resource.data.epoch == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch
@@ -339,6 +373,7 @@ service cloud.firestore {
         && request.resource.data.status == 'deleting'
         && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != id);
       allow delete: if own(uid) && resource.data.status == 'deleting'
+        && (!exists(publicRegistryPath(uid)) || !getAfter(publicRegistryPath(uid)).data.ids.hasAny([id]))
         && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != id);
     }
     match /publicProfiles/{uid}/generations/{generationId}/entries/{position} {

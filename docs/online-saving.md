@@ -81,6 +81,11 @@ generation. Current and previous heads are retained. Cleanup first marks an
 unreferenced generation as deleting, then releases its chunks and registry
 entry. It is bounded, owner-scoped and retryable. Cleanup failure is distinct
 from whether the new snapshot was successfully saved.
+The private registry admits at most eight generations (current, previous and
+bounded staging/retry headroom); allocation attempts run the existing cleanup
+first. At the limit, local edits remain pending with a retry/cleanup message.
+Older oversized registries may shrink one retired generation at a time but
+cannot grow. The 20 MiB per-manifest transport envelope is unchanged.
 
 Firestore uses memory cache. Its persistent offline queue and default
 last-write-wins behavior are not used as the account outbox or conflict policy.
@@ -220,7 +225,9 @@ allowlists; they cannot carry notes, email, queue, play history, internal
 revision fields or a forged author-rank field.
 
 The protected `_owner/config` document is provisioned administratively with the
-verified project owner's identity. It is never readable or writable by app
+verified project owner's Firebase `uid`, not the email address. Set this field
+before publishing UID-based rules, retaining the old email field until the
+previous rules are retired. It is never readable or writable by app
 clients. Creator authority is evaluated by Security Rules, not a client flag or
 the first signup. The creator UI reads a separately projected ranking summary
 without private notes or queues. A project database operator can technically

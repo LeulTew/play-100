@@ -53,6 +53,6 @@ describe('explicit public projection and safe imports', () => {
   });
   it('normalizes safe handles and reserves impersonation/system names', () => {
     expect(normalizeHandle('  Green_Games  ')).toBe('green_games');
-    for (const handle of ['admin', 'leul', 'play100', '_name', 'two words', 'xx', 'x'.repeat(25)]) expect(() => normalizeHandle(handle)).toThrow();
+    for (const handle of ['admin', 'leul', 'play100', 'leul_tew', 'play100_official', 'support_team', '_name', 'two words', 'xx', 'x'.repeat(25)]) expect(() => normalizeHandle(handle)).toThrow();
   });
 });

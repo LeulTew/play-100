@@ -109,12 +109,13 @@ export class CloudStore {
   }
 
   private async register(manifest: SnapshotManifest, ranking: SnapshotManifest, expected: SyncHead): Promise<void> {
+    await this.cleanup();
     await runTransaction(this.db, async (tx) => {
       const [head, registry] = await Promise.all([tx.get(this.headRef()), tx.get(this.registryRef())]);
       if (!head.exists()) throw new SyncRevoked();
       sameHead(parseHead(head.data()), expected);
       const ids: string[] = registry.exists() ? registry.data().ids : [];
-      if (!Array.isArray(ids) || ids.length >= 128) throw new Error('Too many unfinished online snapshots. Run storage cleanup in Account before retrying. Local edits are safe.');
+      if (!Array.isArray(ids) || ids.length >= 8) throw new Error('Eight online snapshots are still retained. Wait for cleanup or run it from Account, then retry. Local edits are safe.');
       tx.set(this.generationRef(manifest.generation), { private: manifest, ranking, epoch: expected.epoch, status: 'staging', createdAt: serverTimestamp() });
       tx.set(this.registryRef(), { ids: [...ids, manifest.generation], revision: registry.exists() ? registry.data().revision + 1 : 1 });
     });

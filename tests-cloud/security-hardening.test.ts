@@ -93,4 +93,82 @@ describe('S3 report and friendship boundaries', () => {
       from: 'Alice', state: 'pending', epoch: 2, updatedAt: serverTimestamp(),
     }));
   });
+
+  it('does not reveal hidden or missing public profiles to other accounts', async () => {
+    await seed({ 'publicProfiles/Bob': { uid: 'Bob', published: false, hidden: true } });
+    const outsider = user('Third');
+    await expect(outsider.doc('publicProfiles/Bob').get()).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(outsider.doc('publicProfiles/Missing').get()).rejects.toMatchObject({ code: 'permission-denied' });
+    await assertSucceeds(user('Bob').doc('publicProfiles/Bob').get());
+    await assertSucceeds(user('Missing').doc('publicProfiles/Missing').get());
+  });
+
+  it('limits private registry growth to eight while permitting oversized legacy cleanup', async () => {
+    const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
+    await seed({
+      'syncHeads/Alice': { enabled: true, deleted: false, epoch: 1, revision: 0, current: null, previous: null },
+      'accounts/Alice/metadata/registry': { ids: ids.slice(0, 8), revision: 1 },
+    });
+    const db = user('Alice');
+    const manifest = { format: 1, generation: ids[8], digest: 'a'.repeat(64), bytes: 1, chunks: ['a'.repeat(64)] };
+    const growth = db.batch();
+    growth.set(db.doc(`accounts/Alice/generations/${ids[8]}`), { private: manifest, ranking: manifest, epoch: 1, status: 'staging', createdAt: serverTimestamp() });
+    growth.update(db.doc('accounts/Alice/metadata/registry'), { ids: ids.slice(0, 9), revision: 2 });
+    await assertFails(growth.commit());
+    await seed({
+      'accounts/Alice/metadata/registry': { ids, revision: 1 },
+      [`accounts/Alice/generations/${ids[9]}`]: { status: 'deleting' },
+    });
+    const shrink = db.batch();
+    shrink.delete(db.doc(`accounts/Alice/generations/${ids[9]}`));
+    shrink.update(db.doc('accounts/Alice/metadata/registry'), { ids: ids.slice(0, 9), revision: 2 });
+    await assertSucceeds(shrink.commit());
+  });
+
+  it('requires atomic public registry enrollment and refuses a fifth retained generation', async () => {
+    await seed({ 'publicControls/Alice': { epoch: 0, hidden: false, deleted: false } });
+    const db = user('Alice'); const ids: string[] = [];
+    for (let index = 0; index < 5; index += 1) {
+      const id = crypto.randomUUID(); ids.push(id);
+      const batch = db.batch();
+      batch.set(db.doc(`publicProfiles/Alice/generations/${id}`), {
+        epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp(),
+      });
+      batch.set(db.doc('publicProfiles/Alice/metadata/registry'), { ids: [...ids], revision: index + 1 });
+      if (index < 4) await assertSucceeds(batch.commit());
+      else await assertFails(batch.commit());
+    }
+    await assertFails(db.doc(`publicProfiles/Alice/generations/${crypto.randomUUID()}`).set({
+      epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp(),
+    }));
+  });
+
+  it('requires releasing an old handle in the publication batch and rejects reserved prefixes', async () => {
+    const id = crypto.randomUUID();
+    const profile = {
+      uid: 'Alice', handle: 'previous_games', displayName: 'Alice', avatar, title: 'Games', count: 1, preview: ['Game'],
+      generation: id, epoch: 1, published: true, listed: false, hidden: false, creator: false, updatedAt: Timestamp.now(),
+    };
+    await seed({
+      'publicProfiles/Alice': profile, 'handles/previous_games': { uid: 'Alice' },
+      'publicControls/Alice': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Alice/generations/${id}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+    });
+    const db = user('Alice');
+    const change = (handle: string, release: boolean) => {
+      const batch = db.batch();
+      batch.set(db.doc('publicProfiles/Alice'), { ...profile, handle, epoch: 2, updatedAt: serverTimestamp() });
+      batch.update(db.doc('publicControls/Alice'), { epoch: 2 });
+      batch.set(db.doc(`handles/${handle}`), { uid: 'Alice' });
+      if (release) batch.delete(db.doc('handles/previous_games'));
+      return batch.commit();
+    };
+    await assertFails(change('new_games', false));
+    for (const handle of ['leul_tew', 'play100_official', 'support_team']) await assertFails(change(handle, true));
+    await assertSucceeds(change('new_games', true));
+    await seed({ 'handles/hoarded_games': { uid: 'Alice' } });
+    await assertFails(environment.unauthenticatedContext().firestore().doc('handles/hoarded_games').get());
+    await assertFails(db.doc('handles/hoarded_games').get());
+    await assertSucceeds(db.doc('handles/new_games').get());
+  });
 });

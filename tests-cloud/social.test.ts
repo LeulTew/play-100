@@ -21,7 +21,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await environment.clearFirestore();
   await environment.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().doc('_owner/config').set({ email: 'owner@example.test' });
+    await context.firestore().doc('_owner/config').set({ uid: 'creator-uid', email: 'owner@example.test' });
     await context.firestore().doc('ownerAccess/status').set({ enabled: true });
     await context.firestore().doc('catalog/author').set({ records: { 'trusted-game': { title: 'Trusted original game', year: 2020 } } });
   });
@@ -47,6 +47,14 @@ async function client(anonymous = false) {
 }
 function publication(handle: string, listed = false, entries = [entry]) {
   return { handle, displayName: 'A chosen nickname', avatar, title: 'My favorites', listed, creator: false, entries };
+}
+async function stageGeneration(owner: Awaited<ReturnType<typeof client>>, ref: ReturnType<typeof doc>) {
+  const registryRef = doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry');
+  const registry = await getDocFromServer(registryRef);
+  const batch = writeBatch(owner.db);
+  batch.set(ref, { epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp() });
+  batch.set(registryRef, { ids: [...(registry.exists() ? registry.data().ids : []), ref.id], revision: registry.exists() ? registry.data().revision + 1 : 1 });
+  await batch.commit();
 }
 
 describe('consented public snapshots, handle claims and moderation', () => {
@@ -85,7 +93,7 @@ describe('consented public snapshots, handle claims and moderation', () => {
     await setDoc(doc(owner.db, 'publicControls', owner.uid), control);
     const generation = crypto.randomUUID();
     const ref = doc(owner.db, 'publicProfiles', owner.uid, 'generations', generation);
-    await setDoc(ref, { epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp() });
+    await stageGeneration(owner, ref);
     for (const invalid of [{ ...entry, note: 'Secret' }, { ...entry, collectionRank: 1 }, { ...entry, source: 'collection', sourceId: 'forged-game', id: 'forged-game', sourceUrl: null }, { ...entry, sourceUrl: 'https://evil.invalid/' }]) {
       const batch = writeBatch(owner.db);
       batch.set(doc(ref, 'entries', '1'), invalid);
@@ -102,7 +110,7 @@ describe('consented public snapshots, handle claims and moderation', () => {
     const row: PublicEntry = { ...entry, id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: prefix + 'a'.repeat(length - prefix.length) };
     await setDoc(doc(owner.db, 'publicControls', owner.uid), control);
     const ref = doc(owner.db, 'publicProfiles', owner.uid, 'generations', crypto.randomUUID());
-    await setDoc(ref, { epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp() });
+    await stageGeneration(owner, ref);
     const batch = writeBatch(owner.db);
     batch.set(doc(ref, 'entries', '1'), row);
     batch.update(ref, { uploaded: 1, status: 'ready' });
@@ -141,7 +149,7 @@ describe('consented public snapshots, handle claims and moderation', () => {
     await assertFails(getDocs(query(collection(owner.db, 'reports'), limit(20))));
     const moderator = await client();
     await environment.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc('_owner/config').set({ email: moderator.email });
+      await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
     });
     const epoch = (await owner.social.control(owner.uid)).epoch;
     await moderator.social.moderate(owner.uid, true);

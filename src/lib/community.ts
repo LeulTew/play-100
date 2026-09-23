@@ -26,8 +26,14 @@ export interface PublicControl { epoch: number; hidden: boolean; deleted: boolea
 export interface ProfileReport { id: string; reporterUid: string; targetUid: string; reason: string; status: 'open' | 'resolved'; createdAt: number }
 
 export function normalizeHandle(value: string): string {
+  const handle = parseHandle(value);
+  if (RESERVED_HANDLES.some(reserved => handle.startsWith(reserved))) throw new Error('System and creator handle prefixes are reserved. Choose another handle.');
+  return handle;
+}
+
+export function parseHandle(value: string): string {
   const handle = value.trim().toLowerCase();
-  if (!/^[a-z][a-z0-9_]{2,23}$/.test(handle) || RESERVED_HANDLES.includes(handle)) throw new Error('Choose 3-24 letters, numbers or underscores, starting with a letter. System and creator names are reserved.');
+  if (!/^[a-z][a-z0-9_]{2,23}$/.test(handle)) throw new Error('Choose 3-24 letters, numbers or underscores, starting with a letter.');
   return handle;
 }
 

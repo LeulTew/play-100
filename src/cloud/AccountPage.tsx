@@ -18,6 +18,7 @@ export interface AccountPageProps {
   busy: boolean; resendIn: number; isCreator: boolean; avatar: ReactNode;
   onAvatar: () => void; onName: (name: string) => Promise<boolean>; onConnect: (choice: ConnectionChoice, name: string) => Promise<boolean>;
   onVerify: () => Promise<boolean>; onRefreshIdentity: () => Promise<boolean>; onSignOut: () => Promise<boolean>; onLinkGoogle: () => Promise<boolean>;
+  onSignOutAndRemove?: () => Promise<boolean>;
   onRetry: () => Promise<boolean>; onCleanup: () => Promise<boolean>; onPause: () => Promise<boolean>;
   onDownload: (source: 'local' | 'online' | 'guest' | 'all') => Promise<boolean>;
   onUseRemote: (head: SyncHead, localRevision: number) => Promise<boolean>; onUseLocal: (head: SyncHead, localRevision: number) => Promise<boolean>;
@@ -31,14 +32,14 @@ export function AccountPage(props: AccountPageProps) {
   const { identity, member, cache, guest, head, remoteReady, status, error, message, cleanupWarning, busy, resendIn,
     isCreator, avatar, googleDeletion, onDismissDeletion, onAvatar, onName, onConnect, onVerify, onRefreshIdentity,
     onSignOut, onLinkGoogle, onRetry, onCleanup, onPause, onDownload, onUseRemote, onUseLocal, onDelete,
-    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames, cancelledRegistration = false } = props;
+    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames, cancelledRegistration = false, onSignOutAndRemove } = props;
   const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
   const [name, setName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
   const [nameError, setNameError] = useState('');
   const nameInput = useRef<HTMLInputElement>(null);
   const [choice, setChoice] = useState<ConnectionChoice | null>(null);
-  const [confirmation, setConfirmation] = useState<'pause' | 'remote' | 'local' | 'delete-copy' | 'delete-account' | null>(null);
+  const [confirmation, setConfirmation] = useState<'pause' | 'remote' | 'local' | 'delete-copy' | 'delete-account' | 'signout-device' | null>(null);
   const [password, setPassword] = useState('');
   const [conflictVersion, setConflictVersion] = useState<{ head: SyncHead; localRevision: number } | null>(null);
   const resumedDeletion = useRef<string | null>(null);
@@ -68,7 +69,7 @@ export function AccountPage(props: AccountPageProps) {
   const googleConfirmation = confirmation?.startsWith('delete') && !identity.providers.includes('password');
   const googleConfirmed = googleDeletion?.target === (confirmation === 'delete-account' ? 'account' : 'copy');
   const confirm = async () => {
-    const result = confirmation === 'pause' ? await onPause() : confirmation === 'remote' ? conflictVersion && await onUseRemote(conflictVersion.head, conflictVersion.localRevision)
+    const result = confirmation === 'signout-device' ? await onSignOutAndRemove?.() : confirmation === 'pause' ? await onPause() : confirmation === 'remote' ? conflictVersion && await onUseRemote(conflictVersion.head, conflictVersion.localRevision)
       : confirmation === 'local' ? conflictVersion && await onUseLocal(conflictVersion.head, conflictVersion.localRevision) : await onDelete(confirmation === 'delete-account', password);
     if (result) closeConfirmation();
   };
@@ -79,6 +80,10 @@ export function AccountPage(props: AccountPageProps) {
       <div><h1 id="account-title" data-page-heading tabIndex={-1}>Account</h1><p>{identity.email}<span>Signed in{identity.verificationPending ? ' - checking access' : identity.verified ? '' : ' - verify your email'}</span></p></div>
       <button className="text-button" disabled={busy} onClick={() => { void onSignOut(); }}>Sign out<Icon name="arrow" width="17" height="17" /></button>
     </div>
+    {onSignOutAndRemove && <div className="account-section">
+      <button className="text-button" disabled={busy || !cache || cache.sync.dirty} onClick={() => setConfirmation('signout-device')}>Sign out and remove this device's copy</button>
+      {cache?.sync.dirty && <p>Unsynced changes are on this device. Save or export them first; ordinary Sign out keeps the copy.</p>}
+    </div>}
     {cancelledRegistration && <section className="account-notice" role="alert">
       <p>{CANCELLED_REGISTRATION_MESSAGE}</p>
       <button className="button button-outline" disabled={busy} onClick={() => setConfirmation('delete-account')}>Remove cancelled sign-in</button>
@@ -142,13 +147,13 @@ export function AccountPage(props: AccountPageProps) {
       </details>
     </aside></div>
     {confirmation && <Dialog open titleId="account-confirm-title" onClose={() => { if (!busy) closeConfirmation(); }} className="info-dialog">
-      <h2 id="account-confirm-title">{confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : cancelledRegistration ? 'Remove cancelled sign-in?' : identity.verified ? 'Delete your account?' : 'Cancel this registration?'}</h2>
+      <h2 id="account-confirm-title">{confirmation === 'signout-device' ? "Remove this device's account copy?" : confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : cancelledRegistration ? 'Remove cancelled sign-in?' : identity.verified ? 'Delete your account?' : 'Cancel this registration?'}</h2>
       {cancelledRegistration && confirmation === 'delete-account' && <p>This removes the cancelled sign-in and its account copy on this device. You can then register again with the same email. Your guest library stays here.</p>}
-      <p>{confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? 'Replace this account’s device library with the online copy. A recovery copy stays here.' : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish your ranking and stop older sessions from restoring it. Export a backup first. The device-only library stays here.'}</p>
+      <p>{confirmation === 'signout-device' ? 'Sign out and remove only this account copy, its recovery data and sharing caches from this device. Your guest library and online copy are not deleted. Unsynced or newly changed data prevents removal.' : confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? 'Replace this account’s device library with the online copy. A recovery copy stays here.' : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish its ranking and stop older sessions from restoring it. Export a backup first. Your guest library stays here.'}</p>
       {(confirmation === 'delete-copy' || confirmation === 'delete-account') && identity.providers.includes('password') && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
       {googleConfirmation && <p className="section-help">{googleConfirmed ? 'Google confirmed this account. Confirm below to delete.' : 'Confirm with Google in this tab, then return here. Returning does not delete anything.'}</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
-      <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={closeConfirmation}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working...' : googleConfirmation && !googleConfirmed ? 'Continue in this tab' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>
+      <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={closeConfirmation}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') || confirmation === 'signout-device' ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working...' : confirmation === 'signout-device' ? 'Sign out and remove copy' : googleConfirmation && !googleConfirmed ? 'Continue in this tab' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>
     </Dialog>}
   </section>;
 }

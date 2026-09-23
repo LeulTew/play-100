@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import type { SyncHead } from './cloud-types';
 import { closePersonalLibrary, loadPersonalLibrary, commitPersonalAction, subscribePersonalLibrary } from './personal-db';
-import { acknowledgeScopedUpload, adoptScopedRemote, cacheScopedProfile, commitScopedAction, connectScopedLibrary, loadScopedLibrary, parseScopedLibrary, pauseScopedLibrary, rebaseScopedLibrary } from './scoped-library';
+import { acknowledgeScopedUpload, adoptScopedRemote, cacheScopedProfile, commitScopedAction, connectScopedLibrary, deleteScopedLibrary, loadScopedLibrary, parseScopedLibrary, pauseScopedLibrary, rebaseScopedLibrary } from './scoped-library';
 import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
@@ -25,6 +25,22 @@ beforeEach(() => {
 afterEach(() => { closePersonalLibrary(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('explicit account scopes in the existing local database', () => {
+  it('removes only the confirmed clean device copy and blocks dirty or concurrently changed revisions', async () => {
+    await loadPersonalLibrary([game]);
+    const guest = await commitPersonalAction({ type: 'rate-game', record: game, score: 9 });
+    const clean = await connect();
+    const other = await loadScopedLibrary(bob);
+    await expect(deleteScopedLibrary(alice, clean.state.revision - 1)).rejects.toThrow(/kept/);
+    const changed = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 6 });
+    await expect(deleteScopedLibrary(alice, changed.state.revision)).rejects.toThrow(/unsynced/);
+    expect(await loadScopedLibrary(alice)).toEqual(changed);
+    await deleteScopedLibrary(alice);
+    expect((await loadPersonalLibrary([game])).state).toEqual(guest);
+    expect(await loadScopedLibrary(bob)).toEqual(other);
+    const empty = await loadScopedLibrary(alice);
+    await deleteScopedLibrary(alice, empty.state.revision);
+    expect((await loadScopedLibrary(alice)).state.ranking).toEqual([]);
+  });
   it('retains the original guest record and separates every account namespace', async () => {
     await loadPersonalLibrary([game]);
     const guest = await commitPersonalAction({ type: 'rate-game', record: game, score: 9 });

@@ -185,9 +185,17 @@ export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expecte
   });
 }
 
-export async function deleteScopedLibrary(scope: LibraryScope): Promise<void> {
+export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?: number): Promise<void> {
   scopeUid(scope);
-  await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); store.delete(friendShelfSelectionKey(scope)); store.delete(`friends-all-work:v2:${scope}`); });
+  await accountStorageTransaction(scope, (value, store) => {
+    if (expectedRevision !== undefined && value !== undefined) {
+      const current = parseScopedLibrary(value, scope);
+      if (current.sync.dirty || current.state.revision !== expectedRevision) {
+        throw conflict('Signed out, but this device copy changed or has unsynced edits. It was kept. Sign in to save or export it before removing it.');
+      }
+    }
+    store.delete(scope); store.delete(`friends-selection:v1:${scope}`); store.delete(friendShelfSelectionKey(scope)); store.delete(`friends-all-work:v2:${scope}`);
+  });
   clearMotionHint(scope);
   publishLibraryChange(scope);
 }
