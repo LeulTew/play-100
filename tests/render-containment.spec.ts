@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const view of ['grid', 'list'] as const) {
-  test(`${view}: scrolled native Menu and detail preserve background geometry and exact focus return`, async ({ page }) => {
+  test(`${view}: scrolled native Menu and detail preserve background geometry and exact focus return`, async ({ page, isMobile }) => {
     await page.goto(`/?catalogs=off&view=${view}`);
     const cards = page.locator('.game-card');
     await expect(cards).toHaveCount(24);
@@ -41,7 +41,17 @@ for (const view of ['grid', 'list'] as const) {
     await settle(page);
     const beforeMenu = await geometry(page, title);
     const menuTrigger = page.getByRole('button', { name: 'Menu', exact: true });
-    await menuTrigger.click();
+    const point = await menuTrigger.evaluate(node => {
+      const box = node.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      const y = box.top + box.height / 2;
+      if (x < 0 || x >= innerWidth || y < 0 || y >= innerHeight || !node.contains(document.elementFromPoint(x, y))) {
+        throw new Error('The visible Menu trigger must be unobstructed before native activation.');
+      }
+      return { x, y };
+    });
+    if (isMobile) await page.touchscreen.tap(point.x, point.y);
+    else await page.mouse.click(point.x, point.y);
     const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
     await expect(menu.locator('[data-autofocus]')).toBeFocused();
     expect(await menu.evaluate(node => node.matches(':modal'))).toBe(true);
