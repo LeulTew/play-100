@@ -98,6 +98,18 @@ function fixture(pathname = '/') {
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('truthful installation and page startup', () => {
+  it('announces preparation without claiming that offline files are already ready', async () => {
+    const current = fixture();
+    try {
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      const prepared = current.controller.prepareOffline();
+      expect(current.controller.getSnapshot()).toMatchObject({
+        offlineState: 'preparing', message: 'Preparing offline app files...', error: '',
+      });
+      expect(await prepared).toBe(true);
+    } finally { current.stop(); }
+  });
+
   it('uses actual browser/standalone signals, not platform guesses as an installation claim', () => {
     expect(pwaInstallAvailability(false, false, false)).toBe('unavailable');
     expect(pwaInstallAvailability(false, true, false)).toBe('ios-instructions');

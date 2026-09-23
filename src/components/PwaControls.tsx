@@ -13,12 +13,12 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
   const pending = pwa.offlineState === 'preparing' || pwa.updateState === 'applying';
   return <details className="device-settings pwa-settings" open={open}>
     <summary>Install &amp; offline access</summary>
-    <p>Keep the public collection and this device's library available without a connection.
-      Account services and live catalog details still need the internet. No private or account responses are stored by the offline worker.</p>
+    <p>Keep The 100 and this device's library available offline.</p>
+    <p>Account services and live catalog details need a connection. The offline worker does not store private or account responses.</p>
     {pwa.installState === 'installed' ? <p role="status">Running as an installed app.</p>
       : pwa.installState === 'ios-instructions' ? <p>{PWA_IOS_INSTRUCTIONS}</p>
         : pwa.installState === 'prompt' ? <button className="button button-dark" onClick={() => { void pwa.install(); }}>Install Play 100</button>
-          : <p>Use your browser's Install or Add to Home Screen option when available. This browser has not offered an in-page install prompt.</p>}
+          : <p>No install prompt is available here. Look for Install or Add to Home Screen in your browser.</p>}
     <div className="button-row">
       <button className="button button-outline" disabled={!pwa.online || pending || pwa.offlineState === 'ready'}
         onClick={() => { void pwa.prepareOffline(); }}>
@@ -27,7 +27,7 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
       {pwa.offlineState === 'ready' && <button className="text-button" disabled={!pwa.online || pending}
         onClick={() => { void pwa.checkForUpdate(); }}>Check for an app update</button>}
     </div>
-    <p className="section-help">Public code, metadata and recently viewed bundled artwork use bounded storage.
+    <p className="section-help">Public app files, metadata and recently viewed bundled artwork have storage limits.
       Workbooks, films, cloud pages and live-provider responses are not downloaded for offline use.</p>
     {pwa.message && <p role="status" aria-live="polite">{pwa.message}</p>}
     {pwa.error && <p className="inline-error" role="alert">{pwa.error}</p>}
