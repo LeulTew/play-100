@@ -788,6 +788,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       const owner = await actor();
       const id = crypto.randomUUID();
       const path = `publicProfiles/${owner.uid}/generations/${id}`;
+      const ref = doc(owner.db, path);
       await seed({
         [`publicControls/${owner.uid}`]: initialControl,
         [path]: { epoch: 0, count: 1, uploaded: 1, status: 'ready', createdAt: aged() },
