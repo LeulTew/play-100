@@ -11,6 +11,11 @@ import {
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixtureRoot = path.join(root, 'tests', 'fixtures', 'firestore-270f');
+const auditFiles = new Set([
+  fileURLToPath(import.meta.url),
+  fileURLToPath(new URL('./firestore-index-audit.ts', import.meta.url)),
+]);
+const auditedRoots = ['src', 'api', 'scripts'] as const;
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected a query/index object.');
   return value as Record<string, unknown>;
@@ -86,7 +91,8 @@ function sourceFiles(directory: string): string[] {
 }
 const config = configuration(JSON.parse(readFileSync(path.join(root, 'firestore.indexes.json'), 'utf8')));
 const baseline = configuration(JSON.parse(verifiedFixture(manifest.indexBaseline.path, manifest.indexBaseline.blob).toString('utf8')));
-const currentQueries = sourceFiles(path.join(root, 'src')).flatMap(file =>
+const currentFiles = auditedRoots.flatMap(directory => sourceFiles(path.join(root, directory))).filter(file => !auditFiles.has(file));
+const currentQueries = currentFiles.flatMap(file =>
   extractQueries(path.relative(root, file).replaceAll('\\', '/'), readFileSync(file, 'utf8')));
 const oldQueries = manifest.files.flatMap(file =>
   extractQueries(file.path, verifiedFixture(`${file.path}.txt`, file.blob).toString('utf8')));
@@ -98,6 +104,14 @@ const operatorQueries = list(JSON.parse(blocks[0]![1]!)).map(queryShape);
 const identities = (queries: QueryShape[]) => [...new Set(queries.map(query => query.id))].sort();
 
 describe('STORAGE-02 exact query/index contract', () => {
+  it('includes application, shipped API and build-script sources while excluding the audit pair', () => {
+    for (const directory of auditedRoots) {
+      expect(currentFiles.some(file => path.relative(root, file).split(path.sep)[0] === directory)).toBe(true);
+    }
+    for (const file of auditFiles) expect(currentFiles).not.toContain(file);
+    expect(currentFiles.some(file => /\.test\.[jt]sx?$|\.d\.ts$/.test(file))).toBe(false);
+  });
+
   it('preserves every accepted composite and override and adds only thirteen exact exemptions', () => {
     expect(manifest.commit).toBe('270f4c743d3a9a89d5a64fe612e471ea045ebb47');
     expect(manifest.srcTree).toBe('f9df7578b4935e8f046e12a3f9e33609879777ff');
@@ -190,6 +204,36 @@ describe('STORAGE-02 exact query/index contract', () => {
     expect(() => extractQueries('probe.ts', `${prelude} const hidden = w; hidden('token', '==', 1);`)).toThrow(/aliased\/passed/);
     expect(() => extractQueries('probe.ts', `${prelude} function f(db, field) { return q(c(db, 'entries'), w(field, '==', 1)); }`)).toThrow(/resolve query binding/);
     expect(() => extractQueries('probe.ts', `${prelude} function f() { return w('token', '==', 1); }`)).toThrow(/not covered/);
+  });
+
+  it.each([
+    "collection(db, 'accounts/u/chunks')",
+    "collection(db, 'accounts', uid, 'generations/g/chunks')",
+    "collectionGroup(db, 'accounts/u/chunks')",
+  ])('rejects a slash-joined collection path instead of missing an exempt field: %s', reference => {
+    expect(() => extractQueries('probe.ts', `
+      import { query, collection, collectionGroup, where } from 'firebase/firestore';
+      function f(db, uid) { return query(${reference}, where('digest', '==', 1)); }`))
+      .toThrow(/slash-joined collection path/);
+  });
+
+  it.each(auditedRoots)('rejects direct RPC and structured query syntax in %s until an extractor is reviewed', directory => {
+    for (const source of [
+      "client.runQuery(request);",
+      "fetch('https://firestore.example/v1/projects/demo/databases/(default)/documents:runQuery');",
+      "const request = { structuredQuery: { from: [{ collectionId: 'chunks' }] } };",
+      'const body = \'{"structuredQuery": {"from": [{"collectionId": "chunks"}]}}\';',
+    ]) {
+      expect(() => extractQueries(`${directory}/probe.ts`, source)).toThrow(/runQuery\/structuredQuery requires a reviewed extractor/);
+    }
+  });
+
+  it.each([
+    "db.collection('x').where('digest', '==', 1);",
+    "db.collection('x').orderBy('digest');",
+    "db.collectionGroup('chunks');",
+  ])('rejects unaudited Admin method chains: %s', source => {
+    expect(() => extractQueries('api/probe.ts', source)).toThrow(/Unbound query primitive/);
   });
 
   it('does not accept source-ordered multi-inequality fields as the SDK implicit order', () => {

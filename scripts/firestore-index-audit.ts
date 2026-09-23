@@ -63,6 +63,9 @@ function ownerName(owner: Owner): string {
  * Unsupported indirection fails closed instead of omitting a possible query.
  */
 export function extractQueries(file: string, text: string): QueryShape[] {
+  if (/\b(?:runQuery|structuredQuery)\b/.test(text)) {
+    throw new Error(`${file}: runQuery/structuredQuery requires a reviewed extractor.`);
+  }
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const bindings = new Map<string, string>();
   const namespaces = new Set<string>();
@@ -172,6 +175,7 @@ export function extractQueries(file: string, text: string): QueryShape[] {
       const last = expression.arguments.at(-1);
       const groups = last ? strings(last, owner) : [];
       if (groups.length !== 1 || !groups[0]) return fail(expression, 'A dynamic collection group requires an explicit reviewed extractor.');
+      if (groups[0].includes('/')) return fail(expression, 'A slash-joined collection path requires an explicit reviewed extractor.');
       return { group: groups[0], scope: name === 'collectionGroup' ? 'COLLECTION_GROUP' : 'COLLECTION' };
     }
     if (ts.isPropertyAccessExpression(expression.expression) && expression.expression.expression.kind === ts.SyntaxKind.ThisKeyword) {
