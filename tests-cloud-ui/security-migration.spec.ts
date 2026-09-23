@@ -62,7 +62,8 @@ for (const policy of ['live-270f', 'candidate'] as const) test.describe(`profile
       ? route.continue() : route.abort('blockedbyclient'));
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/account');
-    await expect(page.locator('.emulator-note')).toContainText('synthetic accounts only');
+    await expect(page.locator('.auth-panel .emulator-note')).toHaveCount(1);
+    await expect(page.locator('.auth-panel .emulator-note')).toContainText('synthetic accounts only');
     const email = emailFor('migration-manager');
     await createAccount(page, email);
     await verifyEmail(page, request, email);

@@ -32,7 +32,8 @@ test('a verified cancelled registration offers removal without bootstrapping con
       ? route.continue() : route.abort('blockedbyclient');
   });
   await page.goto('/account');
-  await expect(page.locator('.emulator-note')).toContainText('synthetic accounts only');
+  await expect(page.locator('.auth-panel .emulator-note')).toHaveCount(1);
+  await expect(page.locator('.auth-panel .emulator-note')).toContainText('synthetic accounts only');
   const email = emailFor('cancelled-registration');
   const created = await request.post(`${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-play100-key`, {
     data: { email, password, returnSecureToken: true },
