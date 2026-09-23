@@ -55,8 +55,8 @@ describe('route fallback host', () => {
     ['private-library', 'Waiting for the correct guest or account scope before allowing edits.'],
   ] as const)('retains a truthful %s status without guessing private contents', (kind, explanation) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route: 'games', kind }));
-    expect(html).toContain('class="app-page route-fallback" data-route="games"');
-    expect(html).toContain('role="status" aria-live="polite"');
+    expect(html).toContain('class="app-page route-fallback" aria-busy="true"');
+    expect(html).toContain('role="status"');
     expect(html).toContain('<h1>My games</h1>');
     expect(html).toContain(explanation);
     expect(html).not.toContain('<dialog');
@@ -72,7 +72,7 @@ describe('route fallback host', () => {
     expect(html).toContain('aria-labelledby="loading-account-title"');
     expect(html).toContain('id="loading-account-title"');
     expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
-    expect(html).toContain('role="status" aria-live="polite">Opening sign-in...</p>');
+    expect(html).toContain('role="status">Loading sign-in...</p>');
     expect(html).not.toContain('<input');
     expect(onClose).not.toHaveBeenCalled();
     expect(getReturnFocus).not.toHaveBeenCalled();

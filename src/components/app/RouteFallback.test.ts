@@ -29,7 +29,8 @@ describe('destination loading anatomy', () => {
     expect(html).toContain('aria-labelledby="loading-account-title"');
     expect(html).toContain('data-motion-owned="true"');
     expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
-    expect(html).toContain('route-form');
+    expect(html.match(/class="search-field section-help"/g)).toHaveLength(3);
+    expect(html).toContain('role="status">Loading sign-in...</p>');
     expect(html).not.toContain('discovery-cards-grid');
     expect(html).not.toMatch(/<(input|form)\b/);
     expect(html.match(/<button\b/g)).toHaveLength(1);

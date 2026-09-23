@@ -100,7 +100,8 @@ test('remembered-account restoration never exposes an editable guest fallback wh
     await page.goto('/my-rankings', { waitUntil: 'domcontentloaded' });
     await expect.poll(() => intercepted).toBe(true);
     await expect(page.getByRole('spinbutton')).toHaveCount(0);
-    const waiting = page.locator('.route-fallback[data-route="rankings"]');
+    const waiting = page.locator('.route-fallback:visible');
+    await expect(waiting).toHaveCount(1);
     await expect(waiting.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
     await expect(waiting.getByRole('status')).toHaveText('Waiting for the correct guest or account scope before allowing edits.');
     expect((await readLibrary(page)).ranking[0]?.score).toBe(5);

@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 
 for (const destination of [
-  { path: '/discover?catalogs=off', route: 'discover', chunk: 'DiscoverPage', title: 'Discover', heading: '#discover-title' },
-  { path: '/my-games?catalogs=off', route: 'games', chunk: 'MyGamesPage', title: 'My games', heading: '#my-games-title' },
+  { path: '/discover?catalogs=off', chunk: 'DiscoverPage', title: 'Discover', heading: '#discover-title' },
+  { path: '/my-games?catalogs=off', chunk: 'MyGamesPage', title: 'My games', heading: '#my-games-title' },
 ]) {
   test(`cold ${destination.title} keeps its header footprint before the lazy module and styles`, async ({ page, isMobile }) => {
     await page.setViewportSize({ width: isMobile ? 393 : 1440, height: 1000 });
@@ -21,8 +21,8 @@ for (const destination of [
     try {
       await page.goto(destination.path, { waitUntil: 'domcontentloaded' });
       await began;
-      const fallback = page.locator(`.route-fallback[data-route="${destination.route}"]:visible`);
-      await expect(page.locator('.route-fallback:visible')).toHaveCount(1);
+      const fallback = page.locator('.route-fallback:visible');
+      await expect(fallback).toHaveCount(1);
       await expect(fallback).toBeVisible();
       await expect(fallback).toHaveAttribute('aria-busy', 'true');
       await expect(fallback.getByRole('heading', { level: 1 })).toHaveText(destination.title);
