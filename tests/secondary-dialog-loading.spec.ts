@@ -14,7 +14,9 @@ test.beforeEach(async ({ page }) => {
   await emptyCatalogs(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'connection', { configurable: true, value: { saveData: true } });
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true, value: Object.assign(new EventTarget(), { saveData: true, effectiveType: '4g' }),
+    });
   });
 });
 
