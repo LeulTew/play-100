@@ -23,7 +23,10 @@ const browserEnvironment: MotionEnvironment = {
   subscribe(listener) {
     const hidden = () => { if (document.hidden) listener('hidden'); };
     const resize = () => listener('resize');
-    const scroll = () => listener('scroll');
+    const scroll = (event: Event) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      listener('scroll');
+    };
     const navigation = () => listener('navigation');
     document.addEventListener('visibilitychange', hidden);
     window.addEventListener('resize', resize);
