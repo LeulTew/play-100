@@ -7,6 +7,6 @@ export interface TrayHostProps {
   tray: ComponentProps<typeof CompareTray>;
 }
 
-export function TrayHost({ tray }: TrayHostProps) {
-  return <CompareTray {...tray} />;
+export function TrayHost({ page, tray }: TrayHostProps) {
+  return <CompareTray {...tray} page={page} />;
 }

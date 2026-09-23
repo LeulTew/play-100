@@ -8,6 +8,9 @@ import { AppHeader } from './AppHeader';
 import { MobileNav } from './MobileNav';
 import { DialogHost } from './DialogHost';
 import type { DialogHostProps } from './DialogHost';
+import { TrayHost } from './TrayHost';
+import { CompareTrayContext } from '../compare-tray/compare-tray-context';
+import { discoveryFixture } from '../../lib/discovery-test-fixtures';
 
 const dialogs = (): DialogHostProps => ({
   page: 'collection', game: null, catalog: null, loadingGame: false, canonicalError: null, missingGame: false,
@@ -42,9 +45,26 @@ describe('app status host', () => {
 
   it.each([false, true])('retains offline preparation and scope distinctions (ready=%s)', offlineReady => {
     const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), offline: true, offlineReady }));
-    expect(html).toContain(offlineReady ? 'Prepared public files' : 'prepare offline access when connected');
-    expect(html).toContain('Cloud saving and live source lookups need a connection.');
-    expect(html).toContain('Account and guest libraries remain separate.');
+    expect(html).toContain(offlineReady ? 'Prepared app files and saved device games can work offline.' : 'Enable offline access in Settings when connected.');
+    expect(html).toContain('Cloud saving and live lookups need a connection.');
+    expect(html).toContain('Guest and account libraries stay separate.');
+  });
+});
+
+describe('contextual tray host', () => {
+  it.each(['collection', 'games', 'discover', 'compare'] as const)('forwards the current %s route without invoking or changing actions', page => {
+    const onCompare = vi.fn();
+    const value = {
+      currentScope: 'guest', items: [discoveryFixture.record], persistent: true,
+      warning: null, error: null, status: '', dragging: false,
+      pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), dismissError: vi.fn(),
+    };
+    const html = renderToStaticMarkup(createElement(CompareTrayContext.Provider, { value },
+      createElement(TrayHost, { page, tray: { page: page === 'collection' ? 'games' : 'collection', onCompare } })));
+    expect(html).toContain(`data-compact="${page !== 'collection'}"`);
+    expect(html).toContain('Open Compare tray, 1 game');
+    expect(onCompare).not.toHaveBeenCalled();
+    expect(value.pin).not.toHaveBeenCalled();
   });
 });
 
