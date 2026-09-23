@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { enrichmentIdentity } from '../src/lib/catalog-enrichment';
+import { enrichmentIdentity, parseCatalogEnrichment } from '../src/lib/catalog-enrichment';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
 import { enrichmentFixture } from '../src/lib/discovery-test-fixtures';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
@@ -181,16 +181,16 @@ for (const mode of ['on', 'off', 'lite', 'reduced'] as const) {
   });
 }
 
-async function chromeBounds(page: Page) {
-  return page.evaluate(() => {
+async function chromeBounds(page: Page, trayPresent = true) {
+  return page.evaluate(trayPresent => {
     const rect = (selector: string) => {
       const element = document.querySelector(selector);
       if (!element) throw new Error(`Missing geometry target: ${selector}`);
       const { x, y, width, height } = element.getBoundingClientRect();
       return { x, y, width, height };
     };
-    return { header: rect('.site-header'), tray: rect('.compare-tray-dock'), heading: rect('#collection-title') };
-  });
+    return { header: rect('.site-header'), tray: trayPresent ? rect('.compare-tray-dock') : null, heading: rect('#collection-title') };
+  }, trayPresent);
 }
 
 for (const length of ['short', 'long'] as const) {
@@ -208,9 +208,11 @@ for (const length of ['short', 'long'] as const) {
     const before = await chromeBounds(page);
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await expect(page.locator('#menu-title')).toBeFocused();
-    expect(await chromeBounds(page)).toEqual(before);
+    await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
+    expect(await chromeBounds(page, false)).toEqual({ ...before, tray: null });
     await page.keyboard.press('Escape');
     await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.locator('.compare-tray-dock')).toBeVisible();
     expect(await chromeBounds(page)).toEqual(before);
     if (length === 'long') {
       const link = page.locator(`.game-card[data-game="${game.id}"] .game-link`);
@@ -219,9 +221,11 @@ for (const length of ['short', 'long'] as const) {
       const detailBefore = await chromeBounds(page);
       await link.press('Enter');
       await expect(page.locator('#game-title')).toBeFocused();
-      expect(await chromeBounds(page)).toEqual(detailBefore);
+      await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
+      expect(await chromeBounds(page, false)).toEqual({ ...detailBefore, tray: null });
       await page.keyboard.press('Escape');
       await expect(link).toBeFocused();
+      await expect(page.locator('.compare-tray-dock')).toBeVisible();
       expect(await chromeBounds(page)).toEqual(detailBefore);
     }
   });
@@ -260,11 +264,22 @@ test('provider enrichment waits for a focused native detail and a frame, and can
   } finally { release(); }
 });
 
+function wikidataEnrichment(id: string) {
+  const identity = enrichmentIdentity(id);
+  if (identity?.source !== 'wikidata') throw new Error('The rating fixture requires an eligible Wikidata identity.');
+  const data = enrichmentFixture();
+  data.id = id;
+  data.ratings = data.ratings.map(rating => ({
+    ...rating, sourceUrl: `https://www.wikidata.org/wiki/${identity.sourceId}#P444`,
+  }));
+  return parseCatalogEnrichment(data, id);
+}
+
 test('warm provider art and ratings are present in the first three frames without moving actions', async ({ page }) => {
-  const item = catalog.items.find(item => !item.artwork && enrichmentIdentity(item.record.id));
-  if (!item) throw new Error('Warm-cache coverage requires an eligible provider without bundled art.');
+  const item = catalog.items.find(item => !item.artwork && enrichmentIdentity(item.record.id)?.source === 'wikidata');
+  if (!item) throw new Error('Warm-cache coverage requires an eligible Wikidata provider without bundled art.');
   await seed(page, 'on');
-  const data = { ...enrichmentFixture(), id: item.record.id };
+  const data = wikidataEnrichment(item.record.id);
   const src = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 160;
@@ -285,8 +300,9 @@ test('warm provider art and ratings are present in the first three frames withou
   data.sources = data.sources.map(source => source.source === 'commons'
     ? { source: 'commons', status: 'ready', code: null, message: 'Synthetic cached artwork.', retryAfter: 0 }
     : source);
+  const response = parseCatalogEnrichment(data, item.record.id);
   let requests = 0;
-  await page.route('**/api/catalog-detail?**', route => { requests += 1; return route.fulfill({ json: data }); });
+  await page.route('**/api/catalog-detail?**', route => { requests += 1; return route.fulfill({ json: response }); });
   await page.goto(`/discover?${new URLSearchParams({ q: item.record.title.slice(0, 80), catalogs: 'on' })}`);
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
   await page.evaluate(() => document.fonts.ready);
@@ -316,10 +332,11 @@ test('warm provider art and ratings are present in the first three frames withou
 });
 
 test('a warm bundled-provider detail retains its real continuity flight', async ({ page }) => {
-  const item = catalog.items.find(item => item.artwork && enrichmentIdentity(item.record.id));
-  if (!item) throw new Error('Continuity coverage requires an illustrated eligible provider.');
+  const item = catalog.items.find(item => item.artwork && enrichmentIdentity(item.record.id)?.source === 'wikidata');
+  if (!item) throw new Error('Continuity coverage requires an illustrated eligible Wikidata provider.');
+  const data = wikidataEnrichment(item.record.id);
   await seed(page, 'on');
-  await page.route('**/api/catalog-detail?**', route => route.fulfill({ json: { ...enrichmentFixture(), id: item.record.id } }));
+  await page.route('**/api/catalog-detail?**', route => route.fulfill({ json: data }));
   await page.goto(`/discover?${new URLSearchParams({ q: item.record.title.slice(0, 80), catalogs: 'on' })}`);
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
   const card = page.locator(`[data-catalog-id="${item.record.id}"]`);
