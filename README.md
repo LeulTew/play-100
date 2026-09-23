@@ -207,7 +207,7 @@ editorial illustrations, not recordings of real accounts. See the
 
 ## Run locally
 
-Use Node.js 22.12 or later.
+Use Node.js 24 LTS, the major pinned in `package.json` `engines` and used by Vercel and CI.
 
 ```powershell
 npm ci
