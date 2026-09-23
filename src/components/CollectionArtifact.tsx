@@ -81,6 +81,7 @@ export default function CollectionArtifact({
     let loading = false;
     let hasFrame = false;
     let scene: CollectionSceneHandle | null = null;
+    let createScene: typeof import('./scene/CollectionScene')['createCollectionScene'] | null = null;
     let idleId: number | null = null;
     let timerId: number | null = null;
     let observer: IntersectionObserver | null = null;
@@ -111,13 +112,15 @@ export default function CollectionArtifact({
       loading = true;
       setState({ ready: false, status: 'loading', reason: null });
       try {
-        const { createCollectionScene } = await import('./scene/CollectionScene');
-        if (cancelled || failed) return;
-        if (!isActive()) {
-          setState({ ready: false, status: 'waiting', reason: null });
+        if (!createScene) {
+          const module = await import('./scene/CollectionScene');
+          if (cancelled || failed) return;
+          createScene = module.createCollectionScene;
+          if (!isActive()) setState({ ready: false, status: 'waiting', reason: null });
+          // WebGL construction gets its own visible idle turn after module evaluation.
           return;
-        };
-        scene = createCollectionScene(host, {
+        }
+        scene = createScene(host, {
           quality: sceneQuality,
           fanned: fannedRef.current,
           active: isActive(),
@@ -136,6 +139,7 @@ export default function CollectionArtifact({
         fallback('3D is unavailable here. The illustrated view is ready.');
       } finally {
         loading = false;
+        if (!scene) reconcile();
       }
     }
 
@@ -153,9 +157,9 @@ export default function CollectionArtifact({
       }
       if (loading || idleId !== null || timerId !== null) return;
       if (typeof window.requestIdleCallback === 'function') {
-        idleId = window.requestIdleCallback(() => { void loadScene(); }, { timeout: 1200 });
+        idleId = window.requestIdleCallback(() => { void loadScene(); });
       } else {
-        timerId = window.setTimeout(() => { void loadScene(); }, 180);
+        timerId = window.setTimeout(() => { void loadScene(); }, 1200);
       }
     }
 
