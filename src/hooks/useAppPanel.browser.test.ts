@@ -83,11 +83,12 @@ beforeAll(async () => {
     await warmup.evaluate('window.waitForAbout()');
   } finally { await warmup.close(); expect(errors).toEqual([]); }
 }, 60_000);
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
   const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
   if (failures.length) throw new AggregateError(failures, 'Panel fixture teardown failed.');
-});
+}, 60_000);
 
 describe('secondary panel guard through the real hook', () => {
   it.each(['scope', 'opening'])('retains an explicit failed intent across %s changes', async boundary => {

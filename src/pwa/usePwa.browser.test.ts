@@ -74,11 +74,12 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch();
 }, 60_000);
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
   const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
   if (failures.length) throw new AggregateError(failures, 'PWA fixture teardown failed.');
-});
+}, 60_000);
 
 describe('direct Settings PWA connection', () => {
   it('connects without Menu or idle and explains the pending disabled control inside the native dialog', async () => {
