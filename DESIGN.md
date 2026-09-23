@@ -387,10 +387,11 @@ the optional 150ms settle. Temporary empty drop targets must not compact the
 collection toolbar or change the source layout; real pins and storage messages
 retain their existing mobile clearance, including while another drag is active.
 Normal scrolling and selection win before broad card/title touch ownership.
-The visible 44px Compare handle is Pin-only for touch and pen, including on
-mixed-pointer devices; only fine-mouse input may start a drag from it. Coarse
-layouts use the stack icon and Pin wording, not a drag affordance. Keep native
-panning and keyboard activation on this button. This deliberate safety fallback
+Coarse layouts expose the separate 44px Pin action and hide the redundant
+mouse-drag handle from layout, keyboard focus and assistive technology. On
+mixed-pointer devices the visible handle remains Pin-only for touch and pen;
+only fine-mouse input may start a drag from it. Keep native panning and keyboard
+activation on the Pin action. This deliberate safety fallback
 does not claim a root-cause fix for the retained post-grip native-click failure.
 The existing capture-ownership guard remains scoped to its node and pointer;
 touch and pen no longer enter that grip-capture path.
@@ -406,7 +407,13 @@ Primary mobile navigation labels use 12px while retaining the existing
 48px minimum target width, navigation height, spacing and safe-area padding.
 An active notification clears the measured tray, including its error and
 storage marker, instead of covering Compare. Empty transient drag targets add
-no page spacer. Explicit Explore and same-page The 100 navigation use one
+no page spacer. Dismissible limit feedback stays inside the measured dock, and
+the page-end reserve includes the entire dock, mobile navigation and gap.
+Non-collection routes and empty collection results use a labelled chip that
+opens the same native tray dialog. Ratings-table rows retain the same Pin path.
+If limit feedback grows over its focused source, one immediate native scroll
+reveals that control without moving focus.
+Explicit Explore and same-page The 100 navigation use one
 native scroll based on the current first identity and visible dock/nav/toast
 bounds; never correct a user's scrolling on later frames or shrink the artwork.
 Sign-in invoked by Compare returns to its current remounted action only while
