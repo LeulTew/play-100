@@ -7,6 +7,7 @@ import {
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from './personal-types';
 import { STORAGE_KEY } from './storage';
+import { motionHintKey } from './motion-hint';
 
 const a: LibraryRecord = {
   id: 'game-a', title: 'Game A', year: 2007, studio: null, genre: null,
@@ -308,9 +309,15 @@ describe('IndexedDB initialization and migration', () => {
     await loadPersonalLibrary(canonical);
     const saved = await commitPersonalAction({ type: 'add-ranking', records: [c] });
     storage.setItem(STORAGE_KEY, 'not json');
-    const get = vi.spyOn(storage, 'getItem').mockImplementation(() => { throw new Error('Must not read'); });
+    const originalGet = storage.getItem;
+    const hintKey = motionHintKey('guest');
+    const get = vi.spyOn(storage, 'getItem').mockImplementation(key => {
+      if (key !== hintKey) throw new Error('Must not read unrelated storage');
+      return originalGet(key);
+    });
     expect((await loadPersonalLibrary([])).state).toEqual(saved);
-    expect(get).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalledWith(STORAGE_KEY);
+    expect(get.mock.calls).toEqual([[hintKey]]);
   });
 
   it('keeps a visible warning and valid DB if legacy cleanup fails', async () => {
