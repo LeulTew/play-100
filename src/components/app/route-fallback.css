@@ -1,25 +1,10 @@
-.route-fallback > .page-heading { flex-direction: row; align-items: center; margin-bottom: 20px; }
-.route-fallback-action { width: 124px; max-width: 38%; background: var(--line); }
-.route-fallback > p { color: var(--muted); line-height: 1.5; }
-.route-skeleton { display: grid; gap: 16px; margin-top: 24px; }
-.route-skeleton > div { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 8px 16px; padding-block: 16px; border-block-end: 1px solid var(--line); }
-.route-skeleton i { grid-row: span 2; height: 60px; background: var(--line); }
-.route-skeleton span { height: 12px; width: 70%; background: var(--line); }
-.route-skeleton span:last-child { width: 45%; }
-.route-form > div { display: block; max-width: 600px; padding: 0; border: 0; }
-.route-form i { display: block; height: 48px; border: 1px solid var(--line); background: transparent; }
-.route-form span { display: none; }
+.route-fallback > .page-heading { flex-direction: row; align-items: center; min-height: 53px; margin-bottom: 20px; }
+.route-fallback > .discovery-heading { min-height: 44px; }
+.route-skeleton { margin-top: 24px; }
+.route-skeleton i { grid-row: span 2; }
+.route-form { display: grid; gap: 16px; }
 .route-fallback[data-route="discover"] { padding-top: 28px; }
-.route-fallback[data-route="discover"] h1 { font: 700 3rem/1 var(--display); letter-spacing: normal; }
-.route-fallback[data-route="discover"] .route-fallback-action { width: 80px; }
-.route-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 20px; }
-.route-cards > div { display: flex; flex-direction: column; align-items: stretch; padding: 0; border: 0; }
-.route-cards i { height: auto; aspect-ratio: 4 / 3; margin-bottom: 10px; }
-@media (min-width: 1350px) { .route-cards { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-@media (max-width: 1000px) { .route-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .route-fallback > .page-heading { min-height: 48px; } }
 @media (max-width: 680px) {
   .route-fallback[data-route="discover"] { padding-top: 20px; }
-  .route-fallback[data-route="discover"] h1 { font-size: 2.5rem; }
-  .route-fallback[data-route="discover"] > .page-heading { margin-bottom: 16px; }
-  .route-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 12px; }
 }

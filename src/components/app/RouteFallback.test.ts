@@ -30,7 +30,7 @@ describe('destination loading anatomy', () => {
     expect(html).toContain('data-motion-owned="true"');
     expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
     expect(html).toContain('route-form');
-    expect(html).not.toContain('route-cards');
+    expect(html).not.toContain('discovery-cards-grid');
     expect(html).not.toMatch(/<(input|form)\b/);
     expect(html.match(/<button\b/g)).toHaveLength(1);
     expect(onClose).not.toHaveBeenCalled();
@@ -43,5 +43,16 @@ describe('destination loading anatomy', () => {
     expect(source).not.toMatch(/\b(lazy|fetch|useEffect|useState|setTimeout)\s*\(|\bimport\s*\(/);
     expect(source).not.toMatch(/from\s+['"][^'"]*(cloud\/|personal\/|catalog\/)/);
     expect(css).not.toMatch(/@import|@keyframes|\banimation\s*:|\btransition\s*:|gradient\s*\(/);
+  });
+
+  it('reuses only placeholder rules that the existing public entry already loads eagerly', () => {
+    const host = readFileSync(new URL('./RouteHost.tsx', import.meta.url), 'utf8');
+    const collection = readFileSync(new URL('../CollectionPage.tsx', import.meta.url), 'utf8');
+    const extended = readFileSync(new URL('../catalog/ExtendedResults.tsx', import.meta.url), 'utf8');
+    const card = readFileSync(new URL('../catalog/DiscoveryCard.tsx', import.meta.url), 'utf8');
+    expect(host).toContain("import CollectionPage from '../CollectionPage'");
+    expect(collection).toContain("import ExtendedResults from './catalog/ExtendedResults'");
+    expect(extended).toContain("import { DiscoveryCard } from './DiscoveryCard'");
+    expect(card).toContain("import './discover.css'");
   });
 });
