@@ -130,8 +130,26 @@ the non-auth CSP, no-store headers for `/sw.js` and `/pwa-assets.json`, and
 revalidation for the web manifest. Do not broaden auth-helper permissions.
 
 Focused source tests cover the build graph, icon pixels, cache budgets and
-allow-deny rules, failed installs, offline local shell navigation, old chunks,
-trusted updates, multi-tab refusal, install availability and retained drafts.
-An actual owned-profile production-build browser run is still necessary to prove
-service-worker registration, offline reload/recovery and update behavior.
-ServiceWorker-blocked timing tests do not provide that evidence.
+allow-deny rules, failed installs, old chunks, trusted updates, multi-tab refusal,
+install availability and retained drafts.
+
+`tests/pwa-offline.spec.ts` runs in the production-preview CI partition on both
+Chromium profiles with an isolated, worker-enabled context. It exercises the
+real Settings control, no pre-intent worker download, first-install no-claim/
+no-reload behavior, offline fresh Library/Queue/Ranking/Discover navigation,
+genre/include filters, Settings, preserved UI-created guest data, denied
+API/auth cache paths and online recovery. Run it after building with
+`npm run test:e2e -- tests/pwa-offline.spec.ts`.
+Its existence is not evidence a particular release ran it; retain the actual
+CI results. ServiceWorker-blocked timing tests are not offline evidence.
+
+### Manual release checks
+
+- Verify OS-level installation and launch/uninstall behavior with explicit user
+  consent; automation does not install an OS app.
+- Check physical iOS Safari's Share/Add to Home Screen flow and offline launch.
+  Chromium mobile emulation does not certify Safari or a physical device.
+- Exercise real multi-window/two-version update races and interrupted updates,
+  including an unsubmitted form, failed save, changed scope and fresh edit
+  after approval. The single-build offline spec does not manufacture an update
+  or replace these campaigns; source mocks cover the guard logic separately.

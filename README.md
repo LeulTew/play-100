@@ -233,8 +233,8 @@ grouping minor/patch updates with at most five open version-update PRs per ecosy
 
 | CI job | Checks |
 | --- | --- |
-| Quality | ESLint, project and Functions types, unit/mounted tests, production build, offline data validators |
-| Browser (production) | Built preview on port 4187, desktop and mobile |
+| Quality | ESLint, project and Functions types, unit/mounted tests, production build, `check:budgets`, offline data validators |
+| Browser (production) | Built preview on port 4187, desktop and mobile, including the real-worker `pwa-offline.spec.ts` |
 | Browser (development) | Source-module fixtures on a Vite server at port 4187, desktop and mobile |
 | Auth and Firestore | Java 21, the lockfile-pinned Firebase CLI, and credential-free `demo-play100` emulator tests |
 | CodeQL | JavaScript/TypeScript analysis without running an application build |
@@ -249,6 +249,7 @@ npx --no-install tsc -b
 npm run typecheck:functions
 npm test -- --maxWorkers=1
 npm run build
+npm run check:budgets
 npm run validate:data
 npm run validate:discovery
 npm run test:e2e
@@ -272,6 +273,11 @@ Existing actor-gated Menu/account and sign-in-sheet UI cases still need dedicate
 local emulator setup; CI does not create those actors or enable production
 accounts. The headed native-hidden-window case remains opt-in and is not a
 headless CI proof. Profile-specific desktop/mobile skips retain their intent.
+`check:budgets` reads the existing `dist` without rebuilding or network access;
+`budgets.json` records the enforced eager JS+CSS/PWA caps and provisional
+270f CSS/lazy limits. The PWA browser spec checks explicit preparation and
+offline local routes in isolated contexts, not OS installation or update races.
+See [the remaining manual PWA release checks](docs/pwa.md#manual-release-checks).
 
 The browser suite covers desktop and mobile, pagination, exact source order,
 search/filter/sort history, native-scale ratings tables, bulk actions, actual
