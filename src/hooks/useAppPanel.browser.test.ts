@@ -10,6 +10,11 @@ const fixture = `<!doctype html><html><head><title>Panel guard fixture</title></
 import { createElement as h } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useAppPanel } from '/src/hooks/useAppPanel.ts';
+import { settingsDialogModule } from '/src/lib/secondary-dialogs.ts';
+window.waitForSettings = async () => {
+  await settingsDialogModule.load();
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+};
 window.requestIdleCallback = () => 1;
 window.cancelIdleCallback = () => {};
 let scope = 'guest', generation = 0, opening = false;
@@ -40,6 +45,7 @@ let browser: Browser;
 let base: string;
 beforeAll(async () => {
   server = await createServer({
+    optimizeDeps: { include: ['react', 'react-dom/client'] },
     configFile: false, plugins: [react(), {
       name: 'panel-guard-fixture',
       configureServer(server) {
@@ -58,6 +64,12 @@ beforeAll(async () => {
   if (!address || typeof address === 'string') throw new Error('Panel fixture did not bind a port.');
   base = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch();
+  const warmup = await browser.newPage();
+  try {
+    await warmup.goto(`${base}/__panel-guard`);
+    await warmup.getByRole('button', { name: 'settings', exact: true }).waitFor();
+    await warmup.evaluate('window.waitForSettings()');
+  } finally { await warmup.close(); }
 }, 60_000);
 afterAll(async () => { await browser?.close(); await server?.close(); });
 
@@ -100,10 +112,7 @@ describe('secondary panel guard through the real hook', () => {
       else await page.getByRole('button', { name: cancellation, exact: true }).click();
       release();
       await browserExpect.poll(() => finished.size).toBe(1);
-      await page.evaluate(async moduleURL => {
-        const { settingsDialogModule } = await import(moduleURL);
-        await settingsDialogModule.load();
-      }, `${base}/src/lib/secondary-dialogs.ts`);
+      await page.evaluate('window.waitForSettings()');
       await browserExpect(page.locator('#panel')).toHaveText('none');
       await page.getByRole('button', { name: 'settings', exact: true }).click();
       await browserExpect(page.locator('#panel')).toHaveText('settings');
