@@ -71,7 +71,12 @@ describe('workspace embedding contract', () => {
     const library = renderToStaticMarkup(h(LibraryPage, props));
     expect(library).toContain('>My library</h1>');
     expect(library).toContain('Personal library views');
-    expect(library).toContain('Remove Alpha game from my library');
+    expect(library).toContain('role="group" aria-label="Personal library views"');
+    for (const name of ['Play later, 2', 'Completed, 1', 'All my games, 2']) {
+      expect(library).toContain(`aria-label="${name}"`);
+    }
+    expect(library).toContain('aria-label="Remove Alpha game from my library"');
+    expect(library).not.toContain('title="Remove from my library"');
     expect(library).toContain('Add a game manually');
     const ranking = renderToStaticMarkup(h(RankingsPage, props));
     expect(ranking).toContain('>My rankings</h1>');
@@ -98,6 +103,9 @@ describe('workspace embedding contract', () => {
       expect(html.match(/<h1\b/g)).toHaveLength(1);
       expect(html).toContain('>My games</h1>');
       expect(html).toContain('aria-label="My games views"');
+      for (const name of ['Library, 2', 'Queue, 2', 'Ranking, 1']) {
+        expect(html).toContain(`aria-label="${name}"`);
+      }
       expect(html).toContain('class="filter-select progress-filter"');
       expect(html).toContain('Played (not completed)');
       expect(html).toContain('A private note');
@@ -153,7 +161,8 @@ describe('tray and image rendering contract', () => {
   });
   it('offers an optional semantic handle and a drop target even before the first pin', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, items: [], dragging: true } }, h(CompareDragHandle, { record: alpha }), h(CompareTray, { onCompare: vi.fn() })));
-    expect(html).toContain('Pin Alpha game for comparison, or drag with a mouse');
+    expect(html).toContain('aria-label="Drag to tray: Alpha game, or click to pin for comparison"');
+    expect(html).not.toContain('title="Drag with a mouse, or click to pin"');
     expect(html).toContain('draggable="false"');
     expect(html).toContain('data-dragging="true"');
     expect(html).toContain('data-has-content="false"');
@@ -165,7 +174,7 @@ describe('tray and image rendering contract', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value },
       h(MotionPolicyContext.Provider, { value: { ...staticMotionPolicy, coarsePointer: true } },
         h(CompareDragHandle, { record: alpha }))));
-    expect(html).toContain('Pin Alpha game to the Compare tray');
+    expect(html).toContain('aria-label="Pin to tray: Alpha game"');
     expect(html).toContain('>Pin to tray');
     expect(html).not.toContain('Drag to tray');
     expect(html).not.toContain('drag with a mouse');
@@ -173,6 +182,15 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('hidden=""');
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('tabindex="-1"');
+  });
+  it('keeps the compact icon-only handle named without repeating its instructions in a description', () => {
+    const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value }, h(CompareDragHandle, { record: alpha, compact: true })));
+    expect(html).toContain('aria-label="Pin Alpha game for comparison, or drag with a mouse"');
+    expect(html).not.toContain('title=');
+  });
+  it.each([true, false])('includes the visible tray label in the opener name (persistent=%s)', persistent => {
+    const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, persistent } }, h(CompareTray, { onCompare: vi.fn() })));
+    expect(html).toContain(`aria-label="Open ${persistent ? 'Compare tray' : 'Temporary tray'}, 1 game"`);
   });
   it('retains the compact collection state for real pins and storage messages while dragging', () => {
     for (const content of [

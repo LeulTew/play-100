@@ -18,7 +18,7 @@ export function CatalogSourceStatus({ sources, onRetry, onMore, onPrevious }: {
       {onPrevious && source.requestOffset > 0 && <button className="text-button" disabled={source.status === 'loading'} onClick={() => onPrevious(source.source, Math.max(0, source.requestOffset - (source.source === 'wikidata' ? 5 : 20)))}>Previous from {SOURCE_LABELS[source.source]}</button>}
       {source.status === 'error' ? <button className="text-button" onClick={() => onRetry(source.source)}>Retry {SOURCE_LABELS[source.source]}</button>
         : source.nextOffset !== null && <button className="text-button" disabled={source.status === 'loading'} onClick={() => { if (source.nextOffset !== null) onMore(source.source, source.nextOffset); }}>More from {SOURCE_LABELS[source.source]}</button>}
-      {source.notices.length > 0 && <details><summary>Source details</summary>{source.notices.map((notice) => <p key={notice}>{notice}</p>)}</details>}
+      {source.notices.length > 0 && <details><summary aria-label={`Source details for ${SOURCE_LABELS[source.source]}`}>Source details</summary>{source.notices.map((notice) => <p key={notice}>{notice}</p>)}</details>}
     </div>)}
   </div>;
 }

@@ -317,8 +317,8 @@ test('Return to edit never focuses a retained hidden editor and keeps its invali
   await prepareRanking(page);
   const before = await readLibrary(page);
   const tabs = page.getByRole('navigation', { name: 'My games views', exact: true });
-  await tabs.getByRole('button', { name: /^Library / }).click();
-  await tabs.getByRole('button', { name: /^Ranking / }).click();
+  await tabs.getByRole('button', { name: /^Library, / }).click();
+  await tabs.getByRole('button', { name: /^Ranking, / }).click();
   await rating(page).fill('11');
   await page.goBack();
   const hidden = page.locator(`[hidden] [data-record-id="${first.id}"] input[type="number"]`);

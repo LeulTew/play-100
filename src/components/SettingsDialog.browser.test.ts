@@ -143,6 +143,14 @@ for (const mobile of [false, true]) {
       } finally { await context.close(); }
     }
 
+    it('separates each visible preference label from its supporting description in the exact name', async () => {
+      await withPage(async page => {
+        for (const name of ['Auto, Touchscreens start 3D on demand.', 'Full, The interactive 3D collection.', 'Lite, Original static art. No effects.']) {
+          await browserExpect(page.getByRole('radio', { name, exact: true })).toHaveCount(1);
+        }
+      });
+    });
+
     it('keeps the clicked value and selected class for both pending frames without disabling its focus', async () => {
       await withPage(async page => {
         await radio(page, 'lite').click();

@@ -84,7 +84,7 @@ export function DiscoveryCard({ record, game, actionRecord = record, ownedCopies
         </div>
         {game && <SavedCatalogCopies canonicalId={record.id} copies={ownedCopies} onOpen={onPreview ? copy => onPreview(copy) : undefined} />}
         <details className="discovery-card-details">
-          <summary aria-label={`Actions and source for ${record.title}`}>Actions &amp; source</summary>
+          <summary aria-label={`Actions & source for ${record.title}`}>Actions &amp; source</summary>
           <div className="discovery-card-secondary">
             <PlayedToggle key={`played:${actionRecord.id}`} id={actionRecord.id} title={record.title} played={Boolean(progress?.played)} completed={progress?.completed} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [actionRecord], key: 'played', value }); }} />
             <CompletedToggle title={record.title} completed={Boolean(progress?.completed)} busy={busy} onChange={value => { void onAction({ type: 'set-progress', records: [actionRecord], key: 'completed', value }); }} />

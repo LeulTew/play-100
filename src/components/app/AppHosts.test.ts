@@ -112,6 +112,10 @@ describe('navigation and dialog hosts', () => {
     expect(html.indexOf('>The 100</a>')).toBeLessThan(html.indexOf('>Discover</a>'));
     expect(html.indexOf('>Discover</a>')).toBeLessThan(html.indexOf('>My games</a>'));
     expect(html).toContain('aria-label="Account Device only"');
+    expect(html).not.toContain('title="Device only"');
+    expect(html).toContain('aria-label="Download enhanced Excel workbook"');
+    expect(html).not.toContain('title="Download Excel"');
+    expect(html).toContain('aria-label="Play later, 3 games in your queue"');
     expect(html).toContain('class="saved-count"><span class="sr-only">3</span>');
   });
 

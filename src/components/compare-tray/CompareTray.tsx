@@ -102,7 +102,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
       onDragOver={(event) => controller?.nativeOver(event.nativeEvent)}
       onDrop={(event) => controller?.nativeDrop(event.nativeEvent)}>
       {dragging && <span className="compare-tray-drop-label"><Icon name="plus" width="20" height="20" />Drop to pin for comparison</span>}
-      <button ref={expand} type="button" className="compare-tray-expand" aria-label={`Open Compare tray, ${items.length} ${items.length === 1 ? 'game' : 'games'}${persistent ? '' : ', temporary pins'}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <button ref={expand} type="button" className="compare-tray-expand" aria-label={`Open ${persistent ? 'Compare tray' : 'Temporary tray'}, ${items.length} ${items.length === 1 ? 'game' : 'games'}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <span className="compare-tray-stack" aria-hidden="true">{items.slice(-3).map((record) => <span className="compare-tray-jacket" key={record.id}><span className="compare-tray-jacket-arrival" ref={record.id === newestId ? arrivalRef : undefined}><GameArtwork record={record} artwork={resolveArtwork?.(record)} /></span></span>)}</span>
         <span><strong>{items.length} {items.length === 1 ? 'game' : 'games'}</strong><span>{persistent ? 'Compare tray' : 'Temporary tray'}</span></span>
         <Icon name="up" width="16" height="16" />

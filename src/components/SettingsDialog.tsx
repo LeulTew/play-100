@@ -87,7 +87,7 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
           ['lite', 'Lite', 'Original static art. No effects.'],
         ] as const).map(([value, label, description]) => (
           <label key={value} className={`motion-option ${selectedMotion === value ? 'selected' : ''}`}>
-            <input type="radio" name="visual-experience" value={value} checked={selectedMotion === value} disabled={busy && !saving} onChange={() => { void changeMotion(value); }} />
+            <input type="radio" name="visual-experience" aria-label={`${label}, ${description}`} value={value} checked={selectedMotion === value} disabled={busy && !saving} onChange={() => { void changeMotion(value); }} />
             <span><strong>{label}</strong><small>{description}</small></span>
           </label>
         ))}

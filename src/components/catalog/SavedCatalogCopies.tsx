@@ -8,6 +8,6 @@ export function SavedCatalogCopies({ canonicalId, copies = [], onOpen }: {
   if (!legacy.length) return null;
   return <div className="catalog-copy-note">
     <p>{copies.some(copy => copy.id === canonicalId) ? 'You also have a separate saved catalog copy.' : 'Progress and ratings use your existing saved catalog copy.'}</p>
-    {legacy.map(copy => <button key={copy.id} className="text-button" disabled={!onOpen} onClick={() => onOpen?.(copy)} aria-label={`Open saved ${SOURCE_LABELS[copy.source]} copy of ${copy.title}`}>Open saved copy{legacy.length > 1 ? ` (${SOURCE_LABELS[copy.source]})` : ''}</button>)}
+    {legacy.map(copy => <button key={copy.id} className="text-button" disabled={!onOpen} onClick={() => onOpen?.(copy)} aria-label={`Open saved copy (${SOURCE_LABELS[copy.source]}) of ${copy.title}`}>Open saved copy{legacy.length > 1 ? ` (${SOURCE_LABELS[copy.source]})` : ''}</button>)}
   </div>;
 }

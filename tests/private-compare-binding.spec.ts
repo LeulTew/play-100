@@ -52,7 +52,7 @@ test('private Compare bindings fail closed without a gate and preserve exact tit
   await expect(confirmation).toHaveCount(0);
   await expect(completedPlayed).not.toBeChecked();
   expect(await page.evaluate(() => window.routeArrivalHarness.opened)).toEqual([id]);
-  await workspace.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: 'Ranking 3', exact: true }).click();
+  await workspace.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: 'Ranking, 3', exact: true }).click();
   await expect(workspace.locator('.personal-score input')).toHaveCount(3);
   await expect(workspace.locator('.ranking-row-content')).toHaveCount(3);
   await expect(workspace.locator('li[data-compare-drag-source]')).toHaveCount(0);

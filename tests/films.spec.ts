@@ -49,7 +49,7 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
   expect(mediaRequests).toHaveLength(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('#collection-films').screenshot({ path: info.outputPath('films-row.png'), scale: 'css' });
-  const opener = page.getByRole('button', { name: 'Watch The 100, 22 seconds', exact: true });
+  const opener = page.getByRole('button', { name: 'Watch film: The 100, 22 seconds', exact: true });
   await opener.click();
   const dialog = page.getByRole('dialog');
   const video = page.locator('video');
@@ -101,7 +101,7 @@ test('poster and media failures keep Watch, retry, text alternatives and downloa
   await page.goto('/#collection-films');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();
   await expect(page.getByText('Poster unavailable', { exact: true })).toHaveCount(2);
-  await page.getByRole('button', { name: 'Watch The 100, 22 seconds', exact: true }).click();
+  await page.getByRole('button', { name: 'Watch film: The 100, 22 seconds', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('The film could not load');
   await page.getByText('Text alternative & credits', { exact: true }).click();
   await expect(page.getByRole('dialog').locator('dl')).toBeVisible();
@@ -120,7 +120,7 @@ test('hidden documents pause without resume and navigation unloads the player', 
   await page.goto('/?q=Portal');
   await page.getByLabel('Year', { exact: true }).selectOption('2007');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: 'Watch Discover & compare, 22 seconds', exact: true }).click();
+  await page.getByRole('button', { name: 'Watch film: Discover & compare, 22 seconds', exact: true }).click();
   const video = page.locator('video');
   await expect.poll(() => video.evaluate((player: HTMLVideoElement) => player.readyState)).toBeGreaterThanOrEqual(1);
   await video.focus(); await page.keyboard.press('Space');

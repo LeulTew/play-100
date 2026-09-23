@@ -154,7 +154,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   expect((await readLibrary(page)).ranking).toEqual(beforeConfirmation.ranking);
   await rate(detailFor(page), '8.2');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.2);
-  await detailFor(page).getByRole('button', { name: `Open saved Wikidata copy of ${rdr.title}`, exact: true }).click();
+  await detailFor(page).getByRole('button', { name: `Open saved copy (Wikidata) of ${rdr.title}`, exact: true }).click();
   await expect(page).toHaveURL(/game=wikidata%3AQ27438121/);
   await expect(detailFor(page)).not.toContainText('#01 in the collection');
   await expect(detailFor(page).getByRole('spinbutton')).toHaveValue('8.2');
@@ -196,7 +196,7 @@ test('both owned copies keep conflicting opinions and manual names remain separa
   await card.getByText('Actions & source', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('9.1'); await rate(page, '8.9');
   await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === canonical.id)?.score).toBe(8.9);
-  await card.getByRole('button', { name: `Open saved Wikidata copy of ${rdr.title}`, exact: true }).click();
+  await card.getByRole('button', { name: `Open saved copy (Wikidata) of ${rdr.title}`, exact: true }).click();
   await expect(detailFor(page).getByRole('spinbutton')).toHaveValue('3.2');
   await page.goto('/?q=Red%20Dead%20Redemption%202&catalogs=off');
   await expect(page.locator('.result-summary [role="status"]')).toHaveText('1 in The 100 · 1 beyond The 100');

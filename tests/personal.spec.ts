@@ -100,6 +100,7 @@ test('play queue reorders by keyboard and accessible arrows, then survives reloa
   await handle.focus();
   await page.keyboard.press('Space', { delay: 70 });
   await expect(page.locator('.drag-preview')).toBeVisible();
+  await expect(page.locator('.drag-preview')).toHaveAttribute('aria-hidden', 'true');
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('[id^="DndLiveRegion-"]')).toContainText('Over position 2');
   await page.keyboard.press('Space');

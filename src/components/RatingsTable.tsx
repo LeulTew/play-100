@@ -32,7 +32,7 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
     const active = filters.sort === sort || (sort === 'newest' && filters.sort === 'oldest');
     return (
       <th scope="col" className={sort === 'rank' ? 'table-rank' : sort === 'title' ? 'table-game' : undefined} aria-sort={active ? direction === 'asc' ? 'ascending' : 'descending' : undefined}>
-        <button className="table-sort" onClick={() => {
+        <button className="table-sort" aria-label={scale ? `${label} ${scale}` : label} onClick={() => {
           const nextDirection = active ? direction === 'asc' ? 'desc' : 'asc' : sortDirection({ sort, direction: 'auto' });
           onSort(sort === 'newest' ? { sort: nextDirection === 'asc' ? 'oldest' : 'newest', direction: 'auto' } : { sort, direction: nextDirection });
         }}>
@@ -96,5 +96,5 @@ function RatingsGameLink({ game, filters, onOpen, compareRecord }: {
 }
 
 function TableHeading({ label, scale, active, direction, onClick }: { label: string; scale: number; active: boolean; direction: 'asc' | 'desc'; onClick: () => void }) {
-  return <th scope="col" aria-sort={active ? direction === 'asc' ? 'ascending' : 'descending' : undefined}><button className="table-sort" onClick={onClick}><span>{label}<small>/ {scale}</small></span><Icon name={active && direction === 'asc' ? 'up' : 'down'} width="13" height="13" /></button></th>;
+  return <th scope="col" aria-sort={active ? direction === 'asc' ? 'ascending' : 'descending' : undefined}><button className="table-sort" aria-label={`${label} / ${scale}`} onClick={onClick}><span>{label}<small>/ {scale}</small></span><Icon name={active && direction === 'asc' ? 'up' : 'down'} width="13" height="13" /></button></th>;
 }

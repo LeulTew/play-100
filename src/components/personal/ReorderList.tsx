@@ -54,7 +54,7 @@ export default function ReorderList({ records, kind, canReorder, busy, animate, 
         </ol>
       </SortableContext>
       <DragOverlay dropAnimation={animate ? { duration: 180, easing: 'cubic-bezier(.16,1,.3,1)' } : null}>
-        {activeRecord ? <div className="drag-preview"><Icon name="grip" />{activeRecord.title}</div> : null}
+        {activeRecord ? <div className="drag-preview" aria-hidden="true"><Icon name="grip" />{activeRecord.title}</div> : null}
       </DragOverlay>
     </DndContext>
   );

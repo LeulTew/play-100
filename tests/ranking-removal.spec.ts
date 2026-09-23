@@ -147,7 +147,7 @@ test('saved opinion survives Keep and Escape; confirmation removes it once and r
   await page.reload();
   await expect(row(page)).toHaveCount(0);
   expect(await readLibrary(page)).toEqual(expected);
-  await views(page).getByRole('button', { name: /^Library / }).click();
+  await views(page).getByRole('button', { name: /^Library, / }).click();
   const libraryRow = page.locator(`.my-games-editor:visible [data-record-id="${canonical.id}"]`);
   await libraryRow.getByRole('button', { name: `Add ${canonical.title} to my ranking`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === canonical.id))
@@ -232,8 +232,8 @@ for (const field of ['score', 'note'] as const) {
     await confirmation(page).getByRole('button', { name: 'Remove from ranking', exact: true }).click();
     await expect(row(page)).toHaveCount(0);
     await page.clock.runFor(1500);
-    await views(page).getByRole('button', { name: /^Library / }).click();
-    await views(page).getByRole('button', { name: /^Ranking / }).click();
+    await views(page).getByRole('button', { name: /^Library, / }).click();
+    await views(page).getByRole('button', { name: /^Ranking, / }).click();
     expect(await readLibrary(page)).toEqual({
       ...saved, revision: saved.revision + 1, ranking: saved.ranking.filter(entry => entry.id !== canonical.id),
     });
@@ -261,8 +261,8 @@ test('a failed pending note is retained and is not silently retried by removal',
 for (const cancel of ['Keep', 'Escape', 'Back'] as const) {
   test(`${cancel} cancels a pending flush without letting its late result remove the ranking`, async ({ page }) => {
     const before = await seed(page);
-    await views(page).getByRole('button', { name: /^Library / }).click();
-    await views(page).getByRole('button', { name: /^Ranking / }).click();
+    await views(page).getByRole('button', { name: /^Library, / }).click();
+    await views(page).getByRole('button', { name: /^Ranking, / }).click();
     await holdPendingEditor(page);
     await openRemoval(page);
     await confirmation(page).getByRole('button', { name: 'Remove from ranking', exact: true }).click();
@@ -275,7 +275,7 @@ for (const cancel of ['Keep', 'Escape', 'Back'] as const) {
     await finishPendingEditor(page);
     expect(await readLibrary(page)).toEqual(before);
     if (cancel === 'Back') {
-      await expect(views(page).getByRole('button', { name: /^Library / })).toHaveAttribute('aria-current', 'page');
+      await expect(views(page).getByRole('button', { name: /^Library, / })).toHaveAttribute('aria-current', 'page');
       await page.goForward();
       await expect(row(page)).toBeVisible();
       await expect(confirmation(page)).toHaveCount(0);
@@ -309,11 +309,11 @@ test('a removed then re-added target cannot be deleted by a stale pending confir
 
 test('history-hidden ranking editors retain invalid input until corrected, and never resurrect a removed opinion', async ({ page }) => {
   const before = await seed(page);
-  await views(page).getByRole('button', { name: /^Library / }).click();
-  await views(page).getByRole('button', { name: /^Ranking / }).click();
+  await views(page).getByRole('button', { name: /^Library, / }).click();
+  await views(page).getByRole('button', { name: /^Ranking, / }).click();
   await row(page).getByRole('spinbutton').fill('11');
   await page.goBack();
-  await expect(views(page).getByRole('button', { name: /^Library / })).toHaveAttribute('aria-current', 'page');
+  await expect(views(page).getByRole('button', { name: /^Library, / })).toHaveAttribute('aria-current', 'page');
   await expect(page.locator(`[hidden] [data-record-id="${canonical.id}"] input[type="number"]`)).toHaveValue('11');
   expect(await readLibrary(page)).toEqual(before);
   await page.goForward();
@@ -327,8 +327,8 @@ test('history-hidden ranking editors retain invalid input until corrected, and n
   await confirmation(page).getByRole('button', { name: 'Remove from ranking', exact: true }).click();
   await expect(row(page)).toHaveCount(0);
   const removed = await readLibrary(page);
-  await views(page).getByRole('button', { name: /^Library / }).click();
-  await views(page).getByRole('button', { name: /^Ranking / }).click();
+  await views(page).getByRole('button', { name: /^Library, / }).click();
+  await views(page).getByRole('button', { name: /^Ranking, / }).click();
   expect(await readLibrary(page)).toEqual(removed);
   expect(removed.ranking.some(entry => entry.id === canonical.id)).toBe(false);
 });

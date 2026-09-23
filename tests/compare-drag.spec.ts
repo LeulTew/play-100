@@ -124,6 +124,7 @@ async function reorderWithDedicatedGrip(page: Page, context: BrowserContext, row
       await page.mouse.move(start.x, start.y + 10, { steps: 4 });
     }
     await expect(page.locator('.drag-preview')).toBeVisible();
+    await expect(page.locator('.drag-preview')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.locator('.compare-drag-ghost')).toHaveCount(0);
     await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-dragging', 'false');
     if (cdp) {

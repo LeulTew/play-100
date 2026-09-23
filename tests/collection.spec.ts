@@ -291,7 +291,7 @@ test('unknown game links recover; workbook download is the exact enhanced XLSX',
   await expect(page.getByRole('heading', { name: "That game isn't in this collection." })).toBeVisible();
   await page.getByRole('button', { name: 'Back to the collection', exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
-  await page.locator('.workbook-copy').getByRole('link', { name: /Download the workbook/ }).click();
+  await page.locator('.workbook-copy').getByRole('link', { name: 'Download the workbook, XLSX', exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Play-100-Collection.xlsx');
   const file = await download.path();
