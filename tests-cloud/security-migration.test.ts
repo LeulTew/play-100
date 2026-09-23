@@ -267,6 +267,31 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
   }, 60000);
 
   if (policy === 'candidate') {
+    it('cleans ten old public entries in three-position steps while another generation remains live and published', async () => {
+      const owner = await actor(); const guest = session();
+      await owner.cloud.enable(null);
+      const rows = Array.from({ length: 10 }, (_, index): PublicEntry => ({
+        ...entry, position: index + 1, id: `wikidata:Q${index + 1}`, sourceId: `Q${index + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${index + 1}`,
+      }));
+      const first = await owner.social.publish(owner.uid, { ...publication('live_cleanup'), entries: rows }, initialControl);
+      const current = await owner.social.publish(owner.uid, publication('live_cleanup'), await owner.social.control(owner.uid));
+      expect((await owner.social.ownProfile(owner.uid))?.generation).toBe(current.generation);
+      const oldRef = doc(owner.db, 'publicProfiles', owner.uid, 'generations', first.generation);
+      const countdown: number[] = [];
+      expect(await owner.social.cleanup(owner.uid, true, async () => {
+        const uploaded: unknown = (await getDocFromServer(oldRef)).data()?.uploaded;
+        if (typeof uploaded !== 'number') throw new Error('The old generation lost its countdown before metadata removal.');
+        countdown.push(uploaded);
+      })).toBe(1);
+      expect(countdown).toEqual([7, 4, 1, 0]);
+      expect((await getDocFromServer(oldRef)).exists()).toBe(false);
+      expect((await getDocsFromServer(query(collection(oldRef, 'entries'), limit(200)))).empty).toBe(true);
+      expect((await owner.social.ownProfile(owner.uid))?.published).toBe(true);
+      expect((await owner.social.ownProfile(owner.uid))?.generation).toBe(current.generation);
+      expect(await guest.social.entries(current)).toEqual([entry]);
+      expect((await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).data()?.ids).toEqual([current.generation]);
+    });
+
     it('releases all 107+107 maximum transport chunks with shared holders, then purges the retained copy in account-deletion mode', async () => {
       const owner = await actor();
       const base = await owner.cloud.enable(null);

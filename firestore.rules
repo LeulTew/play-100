@@ -349,11 +349,10 @@ service cloud.firestore {
     function indexedReleaseProgress(kind, uid, id, before, after) {
       return before.status == 'deleting' && after.diff(before).affectedKeys().hasOnly(['uploaded'])
         && after.uploaded is int && after.uploaded >= 0 && after.uploaded < before.uploaded
-        && after.uploaded >= before.uploaded - 4
+        && after.uploaded >= before.uploaded - 3
         && indexedPayloadGone(kind, uid, id, after.uploaded, before.uploaded)
         && indexedPayloadGone(kind, uid, id, after.uploaded + 1, before.uploaded)
-        && indexedPayloadGone(kind, uid, id, after.uploaded + 2, before.uploaded)
-        && indexedPayloadGone(kind, uid, id, after.uploaded + 3, before.uploaded);
+        && indexedPayloadGone(kind, uid, id, after.uploaded + 2, before.uploaded);
     }
     function publicRegistryPath(uid) {
       return /databases/$(database)/documents/publicProfiles/$(uid)/metadata/registry;
@@ -395,8 +394,8 @@ service cloud.firestore {
         && !getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.deleted
         && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 200
         && request.resource.data.uploaded == 0 && request.resource.data.status == 'staging' && request.resource.data.createdAt == request.time;
-      allow update: if canPublish(uid) && resource.data.epoch == publicControl(uid).epoch
-        && resource.data.status == 'staging'
+      allow update: if resource.data.status == 'staging' && canPublish(uid)
+        && resource.data.epoch == publicControl(uid).epoch
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uploaded', 'status'])
         && request.resource.data.uploaded is int && request.resource.data.uploaded > resource.data.uploaded
         && request.resource.data.uploaded <= resource.data.uploaded + 8 && request.resource.data.uploaded <= resource.data.count

@@ -1,7 +1,7 @@
 import { doc, getDocFromServer, runTransaction, writeBatch } from 'firebase/firestore';
 import type { DocumentData, DocumentReference } from 'firebase/firestore';
 
-export const PAYLOAD_RELEASE_BATCH = 4;
+export const INDEXED_RELEASE_BATCH = 3;
 export const PRIVATE_RELEASE_BATCH = 2;
 
 export async function runPayloadCleanup(
@@ -28,8 +28,8 @@ export async function releaseIndexedPayload(
   ref: DocumentReference<DocumentData>, directory: 'entries' | 'chunks', firstIndex: 0 | 1,
   maximum: number, afterDeleteBatch?: () => Promise<void>,
 ): Promise<void> {
-  // Missing legacy shelf chunks require an extra parent-existence rule read.
-  const batchSize = directory === 'chunks' ? 3 : PAYLOAD_RELEASE_BATCH;
+  // Public profiles and missing legacy shelf chunks both need access-call headroom.
+  const batchSize = INDEXED_RELEASE_BATCH;
   const remaining = (data: DocumentData | undefined): number => {
     if (!data || data.status !== 'deleting' || !Number.isSafeInteger(data.uploaded) || data.uploaded < 0 || data.uploaded > maximum) {
       throw new Error('Payload cleanup metadata changed or is invalid. Nothing further was removed.');
