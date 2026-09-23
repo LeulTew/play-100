@@ -1,0 +1,18 @@
+{
+  "commit": "270f4c743d3a9a89d5a64fe612e471ea045ebb47",
+  "srcTree": "f9df7578b4935e8f046e12a3f9e33609879777ff",
+  "discovery": "git grep -n -E '\\b(where|orderBy|collectionGroup)\\b|array-contains' 270f4c743d3a9a89d5a64fe612e471ea045ebb47 -- ':(glob)src/**/*.ts' ':(glob)src/**/*.tsx'",
+  "files": [
+    { "path": "src/App.tsx", "blob": "00fbfdd46266da8d8a6b5e17ca4e7f83aaa50bba", "querySource": false },
+    { "path": "src/cloud/cloud-store.ts", "blob": "1dac4ad1f6cb05b2b3c0d400e36f8f56ab3c9209", "querySource": true },
+    { "path": "src/cloud/friend-all-store.ts", "blob": "b778f0a01b8f60c4729a0c445c5f7757f240be53", "querySource": true },
+    { "path": "src/cloud/friend-shelf-store.ts", "blob": "e1b015d591f860507bd16ac863af9535564dc2b4", "querySource": true },
+    { "path": "src/cloud/friend-store.ts", "blob": "ff15112cddd663df1f92fbe32517eb957586e5d7", "querySource": true },
+    { "path": "src/cloud/social-store.ts", "blob": "dc466efdc2f66f4bc68470808a008ab43b9a65f4", "querySource": true }
+  ],
+  "indexBaseline": {
+    "commit": "67555a5eb5e1bdef712134b33ee278da8f9a0d58",
+    "path": "baseline/firestore.indexes.json",
+    "blob": "4d7cba43a0da923f253d1592b31af6de3342c97c"
+  }
+}

@@ -61,6 +61,49 @@ GET of missing `publicProfiles/{uid}` must deny, replacing live 270f's 404.
 Deletion must resume after interruption and preserve Auth until all checked
 steps and the final marker succeed.
 
+## Separately gated STORAGE-02 index overrides
+
+This is not part of the accepted H5 baseline until the parent/I explicitly
+accept it into the queue after q3 before freeze; otherwise it is post-release.
+The source branch adds only the 13 exact paths listed in `security.md`. All ten
+accepted composites and five prior overrides are preserved. In particular,
+selected chunk ordering keeps `chunks.index ASC`, and public generation cleanup
+keeps `generations.createdAt ASC`. No rules, grants, caps or schemas change.
+
+1. **Before:** the parent reads back the actual index definitions and
+   `fieldOverrides`, states and timestamps, retaining the exact before artifact.
+   Compare it with source and account for any additional production indexes;
+   abort on unexplained differences rather than overwriting them.
+2. **Source gate:** I runs the static query/index audit, types/lint and existing
+   focused suites. The audit covers every current query constructor, the pinned
+   270f source modules and the formal operator inventory below. It checks aliases,
+   conditional fields, query-array builders, ASC/DESC/CONTAINS, map descendants,
+   and unsupported indirection. CI needs no private path or historical Git fetch.
+3. **Deploy:** only the parent deploys the reviewed candidate. No `--force`, no
+   composite/override deletion, and no accepting deletion prompts. If the tool
+   proposes deleting any existing definition, abort and review. Approved
+   exemptions intentionally stop automatic single-field indexing on those
+   fields; that is disclosed, not described as “no physical index entries change.”
+4. **After:** collect parent-owned before/after readbacks, exact override list,
+   operation completion, READY state for required indexes and backfill/removal
+   evidence. The emulator does not model that work. Keep projected reserve
+   reductions separate from observed storage; do not call a calculation measured.
+5. **Smoke:** once READY, verify the current and supported rollback query shapes,
+   both selected chunk families, public cleanup, All pages, at-cap pair cleanup
+   and operator recount predicates. Merely receiving an HTTP response does not
+   verify UI/runtime behavior; I owns the ordinary browser gate.
+6. **Rollback:** the parent restores the captured prior single-field settings for
+   these same 13 paths, preserving composites and unrelated overrides. Never
+   force or auto-accept a deletion prompt; if restoration is represented as a
+   destructive CLI change, stop for explicit operator review instead of guessing.
+   Re-created indexes may need backfill/rebuild time before they are READY.
+   Restoring source bytes alone does not prove immediate index availability.
+
+Changing these overrides does not itself suspend the H5 quota invariants, but
+an unavailable required index can stop an operation. Keep this work isolated
+from integration fixes, and retain the normal old-rules rollback/repair
+restrictions below.
+
 ## Rollback modes
 
 Use these in order of preference:
@@ -137,6 +180,49 @@ repair strategy; a sequence of unlocked partial totals is not an equivalent
 repair. Tooling is written at the time of need and is not shipped in this repo.
 
 ## Every quota ledger: invariant, verification and mismatch response
+
+### Operator query contract
+
+This is the complete formal query inventory for this runbook. At-need operator
+tooling must use these shapes or direct document reads; adding a filter/order
+requires updating this inventory and passing the static index audit first.
+Projected fields are not query predicates. All sources are read completely,
+not truncated to a client page cap. These shapes grant no client permission.
+
+<!-- firestore-operator-queries:start -->
+```json
+[
+  {"id":"private-generations","path":"accounts/{uid}/generations","collectionGroup":"generations","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"private-chunks","path":"accounts/{uid}/chunks","collectionGroup":"chunks","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"creator-chunks","path":"creatorRanks/{uid}/chunks","collectionGroup":"chunks","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"public-generations","path":"publicProfiles/{uid}/generations","collectionGroup":"generations","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"public-entries","path":"publicProfiles/{uid}/generations/{id}/entries","collectionGroup":"entries","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"selected-generations","path":"friendShares/{uid}/generations","collectionGroup":"generations","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"selected-chunks","path":"friendShares/{uid}/generations/{id}/chunks","collectionGroup":"chunks","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"shelf-generations","path":"friendShelves/{uid}/generations","collectionGroup":"generations","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"shelf-chunks","path":"friendShelves/{uid}/generations/{id}/chunks","collectionGroup":"chunks","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"all-games","path":"friendAllGames/{uid}/entries","collectionGroup":"entries","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"all-ranking","path":"friendAllRankings/{uid}/entries","collectionGroup":"entries","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"groups","path":"friendGroups/{uid}/items","collectionGroup":"items","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"blocks","path":"friendBlocks/{uid}/items","collectionGroup":"items","scope":"COLLECTION","filters":[],"orders":[]},
+  {"id":"reporter-reports","path":"reports","collectionGroup":"reports","scope":"COLLECTION","filters":[{"field":"reporterUid","operator":"=="}],"orders":[]},
+  {"id":"creator-pairs","path":"friendPairs","collectionGroup":"friendPairs","scope":"COLLECTION","filters":[{"field":"creatorUid","operator":"=="}],"orders":[]},
+  {"id":"legacy-participant-pairs","path":"friendPairs","collectionGroup":"friendPairs","scope":"COLLECTION","filters":[{"field":"participants","operator":"array-contains"}],"orders":[]},
+  {"id":"owned-invites","path":"friendInvites","collectionGroup":"friendInvites","scope":"COLLECTION","filters":[{"field":"ownerUid","operator":"=="}],"orders":[]},
+  {"id":"owned-handles","path":"handles","collectionGroup":"handles","scope":"COLLECTION","filters":[{"field":"uid","operator":"=="}],"orders":[]},
+  {"id":"orphan-generations","path":"**/generations","collectionGroup":"generations","scope":"COLLECTION_GROUP","filters":[],"orders":[]},
+  {"id":"orphan-entries","path":"**/entries","collectionGroup":"entries","scope":"COLLECTION_GROUP","filters":[],"orders":[]},
+  {"id":"orphan-chunks","path":"**/chunks","collectionGroup":"chunks","scope":"COLLECTION_GROUP","filters":[],"orders":[]},
+  {"id":"deleted-account-items","path":"**/items","collectionGroup":"items","scope":"COLLECTION_GROUP","filters":[],"orders":[]},
+  {"id":"deleted-account-quotas","path":"**/limits","collectionGroup":"limits","scope":"COLLECTION_GROUP","filters":[],"orders":[]},
+  {"id":"all-heads-jobs","path":"**/views","collectionGroup":"views","scope":"COLLECTION_GROUP","filters":[],"orders":[]}
+]
+```
+<!-- firestore-operator-queries:end -->
+
+The `**` path notation above describes an Admin collection-group inventory,
+not an index exemption or a new rules grant. STORAGE-02 exemptions have exact
+field paths only and no wildcard.
 
 This inventory is derived from every owner-writable match in `firestore.rules`.
 “Exact query” means all pages under that UID, with the stated field projection;

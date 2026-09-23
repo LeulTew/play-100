@@ -185,6 +185,10 @@ registry-only deletion.
 
 ### Conditional per-account storage ceiling
 
+The table below retains the accepted H5 index baseline from `67555a5`.
+STORAGE-02 is a separate candidate, described afterward; its configuration must
+not be treated as deployed merely because this branch contains it.
+
 This is an ordinary verified account's **attributed** footprint, not all rows it
 may receive from other accounts. The configured creator's cross-UID moderation
 and Admin writes are privileged operator powers, not an untrusted-user quota.
@@ -237,6 +241,43 @@ entries, generation documents, fixed heads/settings/markers, all four quota
 records, invite slots and the current handle. Platform document/index ceilings
 still supply a finite fallback if the detailed index inventory is unavailable,
 but that much looser bound is not a useful promise about Spark capacity.
+
+### STORAGE-02 candidate accounting, not a deployed saving
+
+This candidate changes only 13 exact single-field overrides: `entries.token`,
+`entries.step`; `chunks.digest`, `bytes`, `createdAt`, `holder`, `holders`;
+`generations.private`, `generations.ranking`; `syncHeads.current`, `previous`;
+and `creatorRanks.current`, `previous`. There are no wildcard overrides or
+composite removals. The existing five exemptions remain unchanged.
+`chunks.index ASC` and `generations.createdAt ASC` remain available.
+
+The query/index audit enumerates current source, immutable 270f query-source
+fixtures, and the release runbook's formal operator-query contract. Unknown
+query indirection fails closed. Both the field order and array-CONTAINS support
+are checked, and none of the new exempt paths (including descendants of map
+exemptions) may be queried. Rule get/getAfter comparisons and field projections
+are not index-requiring queries.
+
+| Changed reserve | Accepted H5 reserve | STORAGE-02 conditional reserve | Loose-model reduction |
+| --- | ---: | ---: | ---: |
+| Private/ranking chunk secondary indexes | 48.25 MiB | 0 for the listed secondary fields; document-ID storage remains | 48.25 MiB |
+| Ten opaque generation/head documents' index reserve | 80 MiB | 172 KiB: 8 generation docs at 16 KiB (including optional released), sync head 28 KiB, creator head 16 KiB | 79.83203125 MiB |
+| All-row token/step single-field indexes | 156.25 MiB | 0; format/epoch/active and every explicit composite remain | 156.25 MiB |
+
+Thus the same deliberately loose model moves from about 1,585.828125 MiB to
+**1,301.49609375 MiB + L** (round conservatively to **less than 1,305 MiB + L**).
+This still exceeds Spark's 1 GiB. No private payload, cap, supported library size,
+rule, schema or quota invariant changes. System document-name storage and
+backfill/transitional occupancy are not counted as a saving.
+
+For the documented constructible example with an illustrative 28-byte UID,
+the same storage-size formulas give 31,360,000 bytes for All token/step indexes,
+3,521,992 for the listed private-chunk indexes, and 514,787 for valid full
+manifest-map indexes: **35,396,779 bytes, about 33.76 MiB** in that example.
+These calculated example deltas are not the loose ceiling deltas, real-user
+averages, measured billing savings or evidence of production index state.
+Only the parent's before/after readback after READY/backfill may establish the
+deployed result. Follow the runbook; all runtime commands remain with I.
 
 `ranking-envelope.test.ts` emits exact serialized and base64 sizes for a
 deterministic 100-record fixture, a 1,000-record fixture and the maximum escaping

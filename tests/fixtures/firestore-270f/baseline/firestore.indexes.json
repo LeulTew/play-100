@@ -98,19 +98,6 @@
     { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] },
     { "collectionGroup": "chunks", "fieldPath": "entries", "indexes": [] },
     { "collectionGroup": "friendSettings", "fieldPath": "selection", "indexes": [] },
-    { "collectionGroup": "friendShelfSettings", "fieldPath": "selection", "indexes": [] },
-    { "collectionGroup": "entries", "fieldPath": "token", "indexes": [] },
-    { "collectionGroup": "entries", "fieldPath": "step", "indexes": [] },
-    { "collectionGroup": "chunks", "fieldPath": "digest", "indexes": [] },
-    { "collectionGroup": "chunks", "fieldPath": "bytes", "indexes": [] },
-    { "collectionGroup": "chunks", "fieldPath": "createdAt", "indexes": [] },
-    { "collectionGroup": "chunks", "fieldPath": "holder", "indexes": [] },
-    { "collectionGroup": "chunks", "fieldPath": "holders", "indexes": [] },
-    { "collectionGroup": "generations", "fieldPath": "private", "indexes": [] },
-    { "collectionGroup": "generations", "fieldPath": "ranking", "indexes": [] },
-    { "collectionGroup": "syncHeads", "fieldPath": "current", "indexes": [] },
-    { "collectionGroup": "syncHeads", "fieldPath": "previous", "indexes": [] },
-    { "collectionGroup": "creatorRanks", "fieldPath": "current", "indexes": [] },
-    { "collectionGroup": "creatorRanks", "fieldPath": "previous", "indexes": [] }
+    { "collectionGroup": "friendShelfSettings", "fieldPath": "selection", "indexes": [] }
   ]
 }
