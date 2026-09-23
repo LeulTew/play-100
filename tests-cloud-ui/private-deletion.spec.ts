@@ -51,12 +51,14 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Deletion stopped before it finished');
+  await expect(page.locator('.sync-panel [role="alert"]')).toContainText('choose Finish deleting to continue');
   await expect(page.locator('.sync-panel [role="alert"]')).not.toContainText('chunk');
   const lookup = () => request.post(`${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:lookup?key=demo-play100-key`, {
     headers: { Authorization: 'Bearer owner' }, data: { localId: [uid] },
   });
   expect((await (await lookup()).json()).users).toHaveLength(1);
   await page.getByRole('dialog').getByRole('button', { name: 'Keep my data', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await signIn(page, email);
   await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();

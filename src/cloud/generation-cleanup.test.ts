@@ -43,7 +43,7 @@ describe('bounded payload-cleanup compatibility', () => {
     const callback = vi.fn(async () => {});
     await runPayloadCleanup(1, async () => null, legacy, callback);
     expect(callback).not.toHaveBeenCalled();
-    await expect(runPayloadCleanup(2, async () => 4, legacy)).rejects.toThrow(/bounded release limit/);
+    await expect(runPayloadCleanup(2, async () => 4, legacy)).rejects.toThrow('Some saved copies still need cleanup. Refresh the page, then try again.');
     expect(legacy).not.toHaveBeenCalled();
   });
 });

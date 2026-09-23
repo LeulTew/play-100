@@ -48,7 +48,8 @@ for (const policy of ['live-270f', 'candidate'] as const) test.describe(`profile
     await page.getByLabel('Confirm your password', { exact: true }).fill(password);
     await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
     await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Deletion is paused');
-    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Nothing has been deleted yet');
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('no saved content has been removed');
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('choose Finish deleting to continue');
     expect([await countPayload('accounts'), await countPayload('creatorRanks')]).toEqual(before);
     await page.reload();
     await expect(page.locator('.account-heading')).toContainText(email);

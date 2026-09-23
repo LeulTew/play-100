@@ -21,21 +21,21 @@ export class DeletionCleanupInterrupted extends Error {
   constructor(readonly kind: 'private' | 'ranking', readonly confirmed: number, cause: unknown) {
     const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';
     super(code === 'resource-exhausted'
-      ? 'Deletion stopped because the online service reached a limit. Your account is still here; try again later.'
-      : 'Deletion stopped before it finished. Your account is still here. Check your connection, then choose Finish deleting.', { cause });
+      ? 'Deletion paused because the online service reached a limit. Wait a while, then choose Finish deleting to continue.'
+      : 'Deletion stopped before it finished; your account is still here. Check your connection, then choose Finish deleting to continue.', { cause });
     this.name = 'DeletionCleanupInterrupted';
   }
 }
 
 export class DeletionListPermissionPending extends Error {
   constructor(cause: unknown) {
-    super('Deletion is paused. Nothing has been deleted yet. Online saving and sharing are off. Try again in a few minutes.', { cause });
+    super('Deletion is paused; no saved content has been removed and online saving and sharing are off. Wait a few minutes, then choose Finish deleting to continue.', { cause });
     this.name = 'DeletionListPermissionPending';
   }
 }
 
 class DeletionNeedsAnotherPass extends Error {
-  constructor() { super("There's more to delete. Choose Finish deleting again to continue."); this.name = 'DeletionNeedsAnotherPass'; }
+  constructor() { super("There's more to delete. Choose Finish deleting to continue."); this.name = 'DeletionNeedsAnotherPass'; }
 }
 
 export class RemoteConflict extends Error {
@@ -106,7 +106,7 @@ export class CloudStore {
     return runTransaction(this.db, async tx => {
       const snapshot = await tx.get(this.headRef());
       const head = snapshot.exists() ? parseHead(snapshot.data()) : null;
-      if (!isCurrent() || !head?.deleted || head.epoch !== epoch) throw new Error('The account changed. Deletion was not confirmed.');
+      if (!isCurrent() || !head?.deleted || head.epoch !== epoch) throw new Error('The account or online saving state changed. Refresh the page before continuing.');
       if (head.cleanupEpoch !== epoch) tx.update(this.headRef(), { cleanupEpoch: epoch });
       return { ...head, cleanupEpoch: epoch };
     });
@@ -281,7 +281,7 @@ export class CloudStore {
     for (const kind of ['private', 'ranking'] as const) {
       try {
         for (let page = 0; page <= 100; page += 1) {
-          if (options.isCurrent?.() === false) throw new Error('The account session changed. Deletion stopped.');
+          if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
           const chunks = await getDocsFromServer(query(collection(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks'), limit(20)))
             .catch(async cause => {
               if (confirmed === 0 && cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') {
@@ -298,7 +298,7 @@ export class CloudStore {
               const snapshot = await tx.get(this.headRef());
               const head = snapshot.exists() ? parseHead(snapshot.data()) : null;
               if (options.isCurrent?.() === false || !head?.deleted || head.epoch !== epoch) {
-                throw new Error('The deletion state changed. Review Account before continuing.');
+                throw new Error('Online saving changed. Refresh the page before continuing.');
               }
               batch.forEach(chunk => tx.delete(chunk.ref));
             });
@@ -317,14 +317,14 @@ export class CloudStore {
     const deletion = all ? await this.head() : null;
     const deletionEpoch = deletion?.deleted ? deletion.epoch : null;
     if (options.expectedDeletionEpoch !== undefined && deletionEpoch !== options.expectedDeletionEpoch) {
-      throw new Error('The deletion state changed. Review Account before continuing.');
+      throw new Error('Online saving changed. Refresh the page before continuing.');
     }
     if (deletionEpoch !== null) await this.purgeDeletedPayload(deletionEpoch, options);
     const guardDeletion = async () => {
-      if (options.isCurrent?.() === false) throw new Error('The account session changed. Cleanup stopped.');
+      if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
       if (deletionEpoch !== null) {
         const head = await this.head();
-        if (!head?.deleted || head.epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
+        if (!head?.deleted || head.epoch !== deletionEpoch) throw new Error('Online saving changed. Refresh the page before continuing.');
       }
     };
     await guardDeletion();
@@ -337,11 +337,11 @@ export class CloudStore {
     for (const id of ids) {
       if (!all && count >= 4) break;
       const generation = await runTransaction(this.db, async (tx) => {
-        if (options.isCurrent?.() === false) throw new Error('The account session changed. Cleanup stopped.');
+        if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
         const retained = await this.retained(tx);
         if (deletionEpoch !== null) {
           const head = await tx.get(this.headRef());
-          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
+          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('Online saving changed. Refresh the page before continuing.');
         }
         const candidate = await tx.get(this.generationRef(id));
         if (retained.has(id)) return null;
@@ -385,7 +385,7 @@ export class CloudStore {
           const [candidate, head] = await Promise.all([tx.get(this.generationRef(id)), tx.get(this.headRef())]);
           if (options.isCurrent?.() === false || (deletionEpoch !== null &&
             (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch))) {
-            throw new Error('The account or deletion state changed. Cleanup stopped.');
+            throw new Error('The account or online saving state changed. Refresh the page before continuing.');
           }
           const data = candidate.data();
           const released: unknown = data && 'released' in data ? data.released : 0;
@@ -414,7 +414,7 @@ export class CloudStore {
         result.removed.forEach(key => deletedChunks.add(key));
         return result.remaining;
       }, async () => {
-        if (deletionEpoch !== null) throw new Error("This version of the app can't finish deleting. Refresh the page, then choose Finish deleting.");
+        if (deletionEpoch !== null) throw new Error("This version of the app can't finish deleting. Refresh the page, then choose Finish deleting to continue.");
         const removeAll = all && (await this.head())?.deleted === true;
         for (const part of parts) {
           const ref = this.chunkRef(part.kind, part.digest);
@@ -429,14 +429,14 @@ export class CloudStore {
         }
       }, undefined, deletionEpoch === null);
       await runTransaction(this.db, async (tx) => {
-        if (options.isCurrent?.() === false) throw new Error('The account session changed. Cleanup stopped.');
+        if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
         const retained = await this.retained(tx);
         if (deletionEpoch !== null) {
           const head = await tx.get(this.headRef());
-          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
+          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('Online saving changed. Refresh the page before continuing.');
         }
         const current = await tx.get(this.registryRef());
-        if (retained.has(id)) throw new Error('A retained snapshot changed during cleanup. Nothing further was deleted.');
+        if (retained.has(id)) throw new Error('A saved copy changed. Refresh the page before continuing.');
         if (current.exists()) tx.update(this.registryRef(), { ids: current.data().ids.filter((value: string) => value !== id), revision: current.data().revision + 1 });
         tx.delete(this.generationRef(id));
       });
@@ -445,10 +445,10 @@ export class CloudStore {
     if (deletionEpoch !== null) await runTransaction(this.db, async tx => {
       const [head, registry] = await Promise.all([tx.get(this.headRef()), tx.get(this.registryRef())]);
       if (options.isCurrent?.() === false || !head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) {
-        throw new Error('The account or deletion state changed. Cleanup stopped.');
+        throw new Error('The account or online saving state changed. Refresh the page before continuing.');
       }
       if (registry.exists()) {
-        if (!Array.isArray(registry.data().ids) || registry.data().ids.length) throw new Error("There's more to delete. Choose Finish deleting again to continue.");
+        if (!Array.isArray(registry.data().ids) || registry.data().ids.length) throw new Error("There's more to delete. Choose Finish deleting to continue.");
         tx.delete(this.registryRef());
       }
     });

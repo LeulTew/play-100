@@ -273,3 +273,54 @@ envelope counts, orphan counts, dry-run/purge approvals, and verification recoun
 Do not put credentials or private content in those receipts. A mismatch means
 the affected bound is **not established**; contain the writes, retain data and
 escalate to the parent rather than calling a partial result success.
+
+## Deletion recovery copy inventory
+
+This is a copy-only consistency pass: no branch, query, retry limit, mutation,
+error code, completion rule or navigation changed. Production deletion calls
+`store.revoke(..., true)` and sets the deleted head on Account **before** private
+cleanup, `deleteProfile`, All cleanup and selected/social cleanup. Until the
+completion marker is written, Account therefore offers **Finish deleting**.
+If its confirmation dialog is still open, closing it exposes that action; the
+existing confirmation button can also retry. The label is not used for active
+background GC, pre-confirmation guards, a changed account, or an already-finished
+cloud cleanup that only needs recent Auth confirmation.
+
+| Source / state | Before | After / action |
+| --- | --- | --- |
+| Private interrupted deletion, deleted head already reserved | “Check your connection, then choose Finish deleting.” | “Deletion stopped before it finished; your account is still here. Check your connection, then choose Finish deleting to continue.” |
+| Private deletion service limit | “Your account is still here; try again later.” | “Deletion paused because the online service reached a limit. Wait a while, then choose Finish deleting to continue.” |
+| Old-rule deletion LIST hold | Four short sentences ending “Try again in a few minutes.” | “Deletion is paused; no saved content has been removed and online saving and sharing are off. Wait a few minutes, then choose Finish deleting to continue.” |
+| Private page/remaining-registry limit | “Choose Finish deleting again to continue.” | “There's more to delete. Choose Finish deleting to continue.” |
+| Deletion protocol not yet available | “Refresh the page, then choose Finish deleting.” | Adds “to continue”; no fallback or automatic retry added |
+| Public generation/registry still present (`deleteProfile` only) | “Try deleting again later.” | “Some public copies still need cleanup. Choose Finish deleting to continue.” |
+| Public cleanup pass limit | “Retry deletion to continue safely.” | “Some older public copies are still stored. Choose Finish deleting to continue.” |
+| Report page remains | “Retry deletion to finish the next batch.” | “Some reports are still stored. Choose Finish deleting to continue.” |
+| Public registry still exists after final transaction | “Some publication settings still need removal. Try deleting again later.” | “Some publication settings remain. Choose Finish deleting to continue.” |
+| Full social quota cleanup blocked/nonempty | “Some account settings could not be removed / still need removal. Try deleting again later.” | “Some account settings remain. Choose Finish deleting to continue.” |
+| Controller All/shelf/relationship pass limits | “Retry deletion” / “Retry account deletion” | “Some shared copies / shared games / connections are still stored. Choose Finish deleting to continue.” |
+| Account/session changed during any cleanup | “Cleanup stopped” or “Nothing was deleted” | “The signed-in account changed. Return to the same account before continuing.” Finish deleting may no longer belong to the visible account |
+| Deleted epoch or retained copy changed | Technical state/snapshot wording | “Online saving changed” / “A saved copy changed. Refresh the page before continuing.” No instruction to continue a stale deletion |
+| Final marker/last Auth guard changed | “The account changed. Deletion was not confirmed.” | Account/online-saving state changed; refresh. The final Auth guard also states the sign-in remains |
+| Controller offline preflight | “Connect before deleting cloud data. No success is reported...” | “Connect to the internet before deleting online data.” No deleted head is assumed yet |
+| Shared selected generation/registry errors, also used by active GC | Internal “generation registry” or “Retry deletion” | Shared copies/settings could not be checked; try later or refresh. No Finish deleting instruction when that control may not exist |
+| Shared shelf deletion precondition | “Reserve full shelf deletion...” | “Shared-game deletion is not ready. Refresh the page, then confirm deletion.” |
+| Social deletion precondition | “Reserve full social deletion...” | “Account deletion is not ready. Refresh the page, then confirm deletion.” |
+| Automatic All count validation | “Shared data could not be counted safely.” | “Some shared copies could not be checked. Try again later.” This helper also runs outside deletion |
+| Shared release engine exhausted/invalid state | Internal “payload / bounded release / generation” text | Saved copies need cleanup or could not be checked; refresh then retry. Shared active-GC callers are preserved |
+| Publication/report metadata corruption | Internal metadata wording or “Nothing was changed” | Settings/copies could not be checked/read; try later. An operator repair may still be necessary; retry never means guaranteed completion |
+
+Inventory unchanged by this pass: pending-edit, sign-in, password, Google-return,
+verification and cancelled-registration guards run before destructive cleanup;
+their real confirmation/sign-in actions remain. Shelf/All/friend store offline
+guards already give connection guidance. Low-level parser/storage exceptions
+still surface through the existing error adapter rather than being converted to
+a false resumable result. After cloud completion, `requires-recent-login` still
+asks for password/Google confirmation, not Finish deleting. Auth/local-device
+cleanup exceptions are not a claim that the old deleted-account notice remains
+visible.
+
+The unit and emulator assertions retain the same predicates and now check the
+new strings. The real UI source checks that the interrupted-deletion instruction
+matches the visible Finish deleting action after closing its confirmation.
+All changed-source execution remains the integrator's UNRUN work item.

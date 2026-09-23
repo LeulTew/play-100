@@ -21,7 +21,7 @@ export async function runPayloadCleanup(
     if (remaining !== null && afterStep) await afterStep();
     if (remaining === null || remaining === 0) return;
   }
-  throw new Error('Payload cleanup did not reach its bounded release limit. Retry cleanup before removing this generation.');
+  throw new Error('Some saved copies still need cleanup. Refresh the page, then try again.');
 }
 
 export async function releaseIndexedPayload(
@@ -32,7 +32,7 @@ export async function releaseIndexedPayload(
   const batchSize = INDEXED_RELEASE_BATCH;
   const remaining = (data: DocumentData | undefined): number => {
     if (!data || data.status !== 'deleting' || !Number.isSafeInteger(data.uploaded) || data.uploaded < 0 || data.uploaded > maximum) {
-      throw new Error('Payload cleanup metadata changed or is invalid. Nothing further was removed.');
+      throw new Error('Some saved copies could not be checked. Refresh the page, then try again.');
     }
     return data.uploaded;
   };

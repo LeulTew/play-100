@@ -205,7 +205,7 @@ export class FriendAllStore {
       const jobRef = this.jobRef(uid, kind);
       const snapshot = await tx.get(jobRef);
       const job = snapshot.exists() ? parseFriendAllJob(snapshot.data()) : null;
-      if (!job || job.format !== 3 || job.count < 1) throw new FriendStoreError('invalid', 'Shared data could not be counted safely. Try again later.');
+      if (!job || job.format !== 3 || job.count < 1) throw new FriendStoreError('invalid', 'Some shared copies could not be checked. Try again later.');
       tx.delete(ref);
       tx.update(jobRef, { count: job.count - 1, last: [row.id], updatedAt: serverTimestamp() });
     });

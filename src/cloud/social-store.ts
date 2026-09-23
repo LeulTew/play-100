@@ -40,7 +40,7 @@ function publicationRegistry(value: DocumentData): { ids: string[]; revision: nu
   if (Object.keys(value).sort().join() !== 'ids,revision' || !Array.isArray(value.ids) ||
     !value.ids.every((id: unknown) => typeof id === 'string' && /^[a-f0-9-]{36}$/.test(id)) ||
     new Set(value.ids).size !== value.ids.length || !Number.isSafeInteger(value.revision) || value.revision < 1) {
-    throw new Error('Publication cleanup metadata is invalid. Nothing was changed.');
+    throw new Error('Some publication settings could not be read. Try again later.');
   }
   return { ids: value.ids, revision: value.revision };
 }
@@ -291,7 +291,7 @@ export class SocialStore {
         const [current, profile] = await Promise.all([tx.get(item.ref), tx.get(doc(this.db, 'publicProfiles', uid))]);
         if (!current.exists()) return null;
         const data = current.data();
-        if (!Number.isInteger(data.count) || data.count < 1 || data.count > PUBLIC_LIMIT || !(data.createdAt instanceof Timestamp)) throw new Error('Publication cleanup metadata is invalid.');
+        if (!Number.isInteger(data.count) || data.count < 1 || data.count > PUBLIC_LIMIT || !(data.createdAt instanceof Timestamp)) throw new Error('Some public copies could not be checked. Try again later.');
         if (profile.exists() && profile.data().generation === item.id && (profile.data().published || !all)) return null;
         if (!all && data.status !== 'deleting' && Date.now() - data.createdAt.toMillis() < 300000) return null;
         if (data.status !== 'deleting') tx.update(item.ref, { status: 'deleting' });
@@ -324,7 +324,7 @@ export class SocialStore {
     const current = await getDocFromServer(registry);
     if (!current.exists()) return;
     const value = publicationRegistry(current.data());
-    if (value.ids.length > 4) throw new Error('Some public copies still need cleanup. Try deleting again later.');
+    if (value.ids.length > 4) throw new Error('Some public copies still need cleanup. Choose Finish deleting to continue.');
     for (const id of value.ids) {
       const generation = doc(this.db, 'publicProfiles', uid, 'generations', id);
       if ((await getDocFromServer(generation)).exists()) continue;
@@ -339,12 +339,12 @@ export class SocialStore {
   async deleteProfile(uid: string): Promise<void> {
     for (let pass = 0; pass < 20; pass += 1) {
       if (await this.cleanup(uid, true) < 20) break;
-      if (pass === 19) throw new Error('Some older publication data still needs cleanup. Retry deletion to continue safely.');
+      if (pass === 19) throw new Error('Some older public copies are still stored. Choose Finish deleting to continue.');
     }
     const ownReports = await getDocs(query(collection(this.db, 'reports'), where('reporterUid', '==', uid), limit(20)));
     if (ownReports.size) {
       for (const report of ownReports.docs) await this.withdrawReport(report.id);
-      if (ownReports.size === 20) throw new Error('Some reports still need removal. Retry deletion to finish the next batch.');
+      if (ownReports.size === 20) throw new Error('Some reports are still stored. Choose Finish deleting to continue.');
     }
     const quota = quotaRef(this.db, uid, 'reports');
     const counted = await quotaSupported(quota);
@@ -357,11 +357,11 @@ export class SocialStore {
         tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null), publicationsCounted ? tx.get(publicRegistry) : Promise.resolve(null),
       ]);
       if (registry?.exists()) {
-        if (publicationRegistry(registry.data()).ids.length) throw new Error('Some public copies still need cleanup. Try deleting again later.');
+        if (publicationRegistry(registry.data()).ids.length) throw new Error('Some public copies still need cleanup. Choose Finish deleting to continue.');
         tx.delete(publicRegistry);
       }
       if (usage?.exists()) {
-        if (usage.data().count !== 0) throw new Error('Some reports could not be removed, so account deletion stopped. Try again later.');
+        if (usage.data().count !== 0) throw new Error('Some report settings could not be checked. Try again later.');
         tx.delete(quota);
       }
       if (profile.exists()) {
@@ -370,7 +370,7 @@ export class SocialStore {
       }
     });
     if (publicationsCounted && (await getDocFromServer(publicRegistry)).exists()) {
-      throw new Error('Some publication settings still need removal. Try deleting again later.');
+      throw new Error('Some publication settings remain. Choose Finish deleting to continue.');
     }
   }
 }

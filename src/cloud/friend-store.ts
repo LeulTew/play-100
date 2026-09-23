@@ -607,7 +607,7 @@ export class FriendStore {
       const ref = doc(this.db, 'friendShares', uid, 'generations', id);
       const removable = await runTransaction(this.db, async (tx) => {
         const [generation, head, settings] = await Promise.all([tx.get(ref), tx.get(this.ref('friendShareHeads', uid)), tx.get(this.ref('friendSettings', uid))]);
-        if (!generation.exists()) throw new FriendStoreError('invalid', 'Sharing cleanup found an inconsistent generation registry.');
+        if (!generation.exists()) throw new FriendStoreError('invalid', 'Some shared copies could not be checked. Try again later.');
         const gen = parseFriendGeneration(generation.data()); const control = settings.exists() ? parseFriendSettings(settings.data()) : null;
         const pointer = head.exists() ? parseFriendHead(head.data()) : null;
         if (retainsFriendGeneration(id, pointer, control, preserveHead)) return false;
@@ -620,7 +620,7 @@ export class FriendStore {
       await releaseIndexedPayload(ref, 'chunks', 0, FRIEND_CHUNK_LIMIT);
       await runTransaction(this.db, async (tx) => {
         const current = await tx.get(registryRef);
-        if (!current.exists()) throw new FriendStoreError('invalid', 'Sharing cleanup lost its registry. Retry deletion.');
+        if (!current.exists()) throw new FriendStoreError('invalid', 'Sharing settings changed during cleanup. Refresh the page, then try again.');
         const currentIds = parseFriendRegistry(current.data());
         if (!currentIds.includes(id)) conflict();
         tx.delete(ref); tx.update(registryRef, { ids: currentIds.filter((value) => value !== id), revision: current.data().revision + 1 });
@@ -655,7 +655,7 @@ export class FriendStore {
   }
   async cleanupDeleted(uid: string): Promise<FriendCleanupResult> {
     const settings = await this.settings(uid);
-    if (!settings?.deleted) throw new FriendStoreError('conflict', 'Reserve full social deletion before cleaning its data.');
+    if (!settings?.deleted) throw new FriendStoreError('conflict', 'Account deletion is not ready. Refresh the page, then confirm deletion.');
     online();
     let deleted = await this.cleanupSharing(uid);
     const groupQuota = quotaRef(this.db, uid, 'groups'); const blockQuota = quotaRef(this.db, uid, 'blocks'); const pairQuota = quotaRef(this.db, uid, 'pairs');
@@ -700,17 +700,17 @@ export class FriendStore {
         for (const [kind, counted] of [['groups', groupsCounted], ['blocks', blocksCounted]] as const) {
           if (!counted) continue;
           const result = await this.releaseMissingQuotaIds(uid, kind);
-          if (result === 'blocked') return { deleted, done: false, message: 'Some account settings could not be removed. Try deleting again later.' };
+          if (result === 'blocked') return { deleted, done: false, message: 'Some account settings remain. Choose Finish deleting to continue.' };
           more ||= result === 'more';
         }
         if (more) return { deleted, done: false };
         const quotas = writeBatch(this.db); quotas.delete(groupQuota); quotas.delete(blockQuota); quotas.delete(pairQuota);
         await quotas.commit();
         const remaining = await Promise.all([getDocFromServer(groupQuota), getDocFromServer(blockQuota), getDocFromServer(pairQuota)]);
-        if (remaining.some(value => value.exists())) return { deleted, done: false, message: 'Some account settings still need removal. Try deleting again later.' };
+        if (remaining.some(value => value.exists())) return { deleted, done: false, message: 'Some account settings remain. Choose Finish deleting to continue.' };
       } catch (cause) {
         if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-        if (groupsCounted || blocksCounted || pairsCounted) return { deleted, done: false, message: 'Some account settings could not be removed. Try deleting again later.' };
+        if (groupsCounted || blocksCounted || pairsCounted) return { deleted, done: false, message: 'Some account settings remain. Choose Finish deleting to continue.' };
         console.info('Account count controls are unavailable; this cleanup uses the previous rules path.');
       }
     }

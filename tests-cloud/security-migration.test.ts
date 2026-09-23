@@ -286,7 +286,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     if (policy === 'live-270f') {
       const pending = owner.cloud.cleanup(true, options);
       await expect(pending).rejects.toBeInstanceOf(DeletionListPermissionPending);
-      await expect(pending).rejects.toThrow('Nothing has been deleted yet');
+      await expect(pending).rejects.toThrow('no saved content has been removed');
       expect(await owner.cloud.probeDeletedCopy()).toBe('unknown');
       for (const digest of saved.current!.chunks) expect(await stored(`accounts/${owner.uid}/chunks/${digest}`)).toBeDefined();
       expect(await stored(`accounts/${owner.uid}/generations/${saved.current!.generation}`)).toBeDefined();
@@ -468,7 +468,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         [`friendGroups/${owner.uid}/items/${id}`]: { format: 1, name: 'Malformed retained fixture', participantUids: [owner.uid, 'KnownPeer'], revision: 1, createdAt: aged() },
       });
       expect(await owner.friends.cleanupDeleted(owner.uid)).toMatchObject({
-        done: false, message: 'Some account settings could not be removed. Try deleting again later.',
+        done: false, message: 'Some account settings remain. Choose Finish deleting to continue.',
       });
       expect(await stored(`friendGroups/${owner.uid}/items/${id}`)).toBeDefined();
     });

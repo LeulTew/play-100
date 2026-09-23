@@ -576,7 +576,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       setDeletionNotice(null);
       const session = authSessionEpoch.current;
       const targetKind = removeAccount ? 'account' : 'copy';
-      if (!navigator.onLine) throw new Error('Connect before deleting cloud data. No success is reported until deletion finishes.');
+      if (!navigator.onLine) throw new Error('Connect to the internet before deleting online data.');
       if (identity?.providers.includes('password')) {
         if (!password) throw new Error('Confirm your password before deleting.');
         await reauthenticateWithCredential(signedIn, EmailAuthProvider.credential(signedIn.email ?? '', password));
@@ -592,7 +592,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         const token = await getIdTokenResult(signedIn);
         if (typeof token.claims.auth_time !== 'number' || token.claims.auth_time * 1000 < approval.startedAt - 5000) throw new Error('Google confirmation is no longer current. Review the account and confirm again.');
       }
-      if (cloudAuth.currentUser?.uid !== signedIn.uid || identityRef.current?.uid !== signedIn.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Nothing was deleted.');
+      if (cloudAuth.currentUser?.uid !== signedIn.uid || identityRef.current?.uid !== signedIn.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Return to the same account before continuing.');
       sync.suspend();
       if (removeAccount) {
         friends.stop(); shelf.stop(); automatic.suspend();
@@ -645,7 +645,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         }
       }
       await account.waitForWrites();
-      if (cloudAuth.currentUser?.uid !== user.uid || identityRef.current?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before cleanup. Nothing was deleted.');
+      if (cloudAuth.currentUser?.uid !== user.uid || identityRef.current?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Return to the same account before continuing.');
       if (account.snapshot) await pauseScopedLibrary(target);
       await ensureAccountActivity(cloudDb, user.uid);
       await social.unpublish(user.uid, await social.control(user.uid), true);
@@ -658,7 +658,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       await store.cleanup(true, {
         expectedDeletionEpoch: deleting.epoch, isCurrent: ownsDeletion,
         onProgress: ({ kind }) => {
-          if (!ownsDeletion()) throw new Error('The account changed. Cleanup stopped.');
+          if (!ownsDeletion()) throw new Error('The signed-in account changed. Return to the same account before continuing.');
           setMessage(kind === 'private' ? 'Deleting your online library...' : 'Deleting your ranking summary...');
         },
       });
@@ -670,27 +670,27 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       await social.deleteProfile(user.uid); await deleteOwnMember(cloudDb, user.uid);
       if (await automatic.store.policy(user.uid)) for (const kind of ['games', 'ranking'] as const) {
         for (let index = 0; index < 250; index += 1) {
-          if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before shared-data cleanup completed.');
+          if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Return to the same account before continuing.');
           const result = await automatic.store.cleanupPage(user.uid, kind);
           if (result.done) break;
           setMessage('Deleting shared and public copies...');
-          if (index === 249) throw new Error('Some shared account records still need cleanup. Retry deletion to continue.');
+          if (index === 249) throw new Error('Some shared copies are still stored. Choose Finish deleting to continue.');
         }
       }
       if (removeAccount) {
         const shelfCleanup = await shelf.store.cleanupDeleted(user.uid);
-        if (!shelfCleanup.done) throw new Error('Some shared games still need cleanup. Retry deletion before removing this account.');
+        if (!shelfCleanup.done) throw new Error('Some shared games are still stored. Choose Finish deleting to continue.');
         for (let index = 0; index < 100; index += 1) {
           const cleaned = await friends.store.cleanupDeleted(user.uid);
           if (cleaned.message) throw new Error(cleaned.message);
           if (cleaned.done) break;
-          if (index === 99) throw new Error('Some connections still need cleanup. Retry account deletion to continue.');
+          if (index === 99) throw new Error('Some connections are still stored. Choose Finish deleting to continue.');
         }
         const marked = await store.markCleanupComplete(deleting.epoch, ownsDeletion);
         deletionMarked = true;
         setHeadSnapshot({ uid: user.uid, value: marked });
         const finalHead = await store.head();
-        if (!ownsDeletion() || !finalHead?.deleted || finalHead.epoch !== deleting.epoch || finalHead.cleanupEpoch !== deleting.epoch) throw new Error('The account or deletion state changed. The sign-in was not removed.');
+        if (!ownsDeletion() || !finalHead?.deleted || finalHead.epoch !== deleting.epoch || finalHead.cleanupEpoch !== deleting.epoch) throw new Error('The account or online saving state changed. Refresh the page before continuing; your sign-in remains.');
         try { await deleteUser(user); }
         catch (cause) {
           if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'auth/requires-recent-login') {

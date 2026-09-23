@@ -78,7 +78,7 @@ describe('consented public snapshots, handle claims and moderation', () => {
         epoch: 0, count: 1, uploaded: 1, status: 'ready',
       });
     });
-    await expect(owner.social.deleteProfile(owner.uid)).rejects.toThrow('Some public copies still need cleanup.');
+    await expect(owner.social.deleteProfile(owner.uid)).rejects.toThrow('Some public copies still need cleanup. Choose Finish deleting to continue.');
     expect(await owner.social.ownProfile(owner.uid)).toEqual(before);
     expect((await getDocFromServer(doc(owner.db, 'handles', profile.handle))).exists()).toBe(true);
   });

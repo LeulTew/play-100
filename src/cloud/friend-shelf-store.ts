@@ -191,7 +191,7 @@ export class FriendShelfStore {
       const removable = await runTransaction(this.db, async (tx) => {
         const [generation, head, config, registry] = await Promise.all([tx.get(ref), tx.get(this.ref('friendShelfHeads', uid)), tx.get(this.ref('friendShelfSettings', uid)), tx.get(registryRef)]);
         if (!registry.exists() || !parseFriendRegistry(registry.data()).includes(id)) return false;
-        if (!generation.exists()) throw new FriendStoreError('invalid', 'Shelf cleanup found an inconsistent registry.');
+        if (!generation.exists()) throw new FriendStoreError('invalid', 'Some shared-game copies could not be checked. Try again later.');
         const gen = parseFriendGeneration(generation.data()); const control = config.exists() ? parseFriendShelfConfig(config.data()) : null;
         const pointer = head.exists() ? parseFriendShelfHead(head.data()) : null;
         if (retainsFriendGeneration(id, pointer, control, preserveHead)) return false;
@@ -225,7 +225,7 @@ export class FriendShelfStore {
     });
   }
   async cleanupDeleted(uid: string): Promise<{ deleted: number; done: boolean }> {
-    if (!(await this.config(uid))?.deleted) conflict('Reserve full shelf deletion before cleaning its data.');
+    if (!(await this.config(uid))?.deleted) conflict('Shared-game deletion is not ready. Refresh the page, then confirm deletion.');
     const deleted = await this.cleanupSharing(uid);
     const batch = writeBatch(this.db);
     batch.delete(this.ref('friendShelfHeads', uid)); batch.delete(this.ref('friendShelfRegistry', uid));
