@@ -114,9 +114,9 @@ test('bulk Mark played is independent on collection, imported Discovery and save
   if (!manual) throw new Error('Actual manual record missing.');
   expect(state.progress[manual.id]).toEqual({ played: true, completed: false, later: false });
   expect(state.queueOrder).toEqual([]); expect(state.ranking).toEqual([]);
-  await editor(page).getByRole('button', { name: `Mark ${manual.title} completed`, exact: true }).click();
+  await editor(page).getByRole('button', { name: `Completed: ${manual.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[manual.id]).toEqual({ played: true, completed: true, later: false });
-  await editor(page).getByRole('button', { name: `Unmark ${manual.title} completed`, exact: true }).click();
+  await editor(page).getByRole('button', { name: `Completed: ${manual.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[manual.id]).toEqual({ played: true, completed: false, later: false });
   await page.getByLabel('Progress', { exact: true }).selectOption('unfinished');
   await expect(editor(page).locator('[data-record-id]')).toHaveCount(3);
@@ -127,7 +127,7 @@ test('progress-filter changes flush valid drafts, block invalid drafts and never
   await page.goto('/?game=the-witcher-3-wild-hunt');
   await expect(page.locator('.source-note')).toContainText('not played');
   await expect(page.getByRole('checkbox', { name: 'I have played it: The Witcher 3: Wild Hunt', exact: true })).not.toBeChecked();
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Mark completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
   const records = await seed(page, request);
   await page.goto('/my-games?tab=ranking');
   const rating = editor(page).getByRole('spinbutton', { name: `Your rating for ${records[0]!.title}`, exact: true });

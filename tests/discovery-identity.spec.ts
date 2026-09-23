@@ -65,7 +65,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
   await card.getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[canonical.id]).toEqual({ played: true, completed: false, later: false });
-  await card.getByRole('button', { name: `Mark ${rdr.title} completed`, exact: true }).click();
+  await card.getByRole('button', { name: `Completed: ${rdr.title}`, exact: true }).click();
   await card.getByRole('button', { name: `Play later: ${rdr.title}`, exact: true }).click();
   await card.getByRole('button', { name: rdr.title, exact: true }).click();
   await expect(page).toHaveURL(/game=red-dead-redemption-2/);
@@ -134,7 +134,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await card.getByText('Actions & source', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('7.3');
   await card.getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true }).click();
-  await card.getByRole('button', { name: `Mark ${rdr.title} completed`, exact: true }).click();
+  await card.getByRole('button', { name: `Completed: ${rdr.title}`, exact: true }).click();
   await rate(page, '8.1');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.1);
   await card.getByRole('button', { name: rdr.title, exact: true }).click();
@@ -161,7 +161,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await expect(detailFor(page).getByRole('spinbutton')).toHaveValue('8.2');
   await page.goto('/?q=RDR2&catalogs=off&view=table');
   await expect(page.locator('.result-summary strong')).toHaveText('1');
-  await page.getByRole('button', { name: `Mark ${rdr.title} completed`, exact: true }).click();
+  await page.getByRole('button', { name: `Completed: ${rdr.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[provider.id]?.completed).toBe(true);
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   await page.getByRole('button', { name: 'Select games', exact: true }).click();

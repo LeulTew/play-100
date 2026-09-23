@@ -65,8 +65,8 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
           <button className={`button ${state?.later ? 'button-lime' : 'button-dark'}`} disabled={busy} aria-pressed={Boolean(state?.later)} onClick={() => onToggle(game.slug, 'later')}>
             <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />Play later
           </button>
-          <button className="button button-outline" disabled={busy} aria-pressed={Boolean(state?.completed)} onClick={() => onToggle(game.slug, 'completed', !state?.completed)}>
-            <Icon name="check" />{state?.completed ? 'Completed' : 'Mark completed'}
+          <button className={`button ${state?.completed ? 'button-lime' : 'button-outline'}`} disabled={busy} aria-pressed={Boolean(state?.completed)} onClick={() => onToggle(game.slug, 'completed', !state?.completed)}>
+            <Icon name={state?.completed ? 'check' : 'plus'} />Completed
           </button>
           <button className="icon-button share-detail" aria-label={`Share ${game.title}`} onClick={onShare}><Icon name="share" /></button>
         </div>

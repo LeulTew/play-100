@@ -117,7 +117,7 @@ test('library removal requires confirmation, deletes all selected private state 
   await prepareRanking(page, isMobile);
   await page.goto('/my-library');
   await page.getByRole('button', { name: `Play later: ${a.title}`, exact: true }).click();
-  await page.getByRole('button', { name: `Mark ${a.title} completed`, exact: true }).click();
+  await page.getByRole('button', { name: `Completed: ${a.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[a.id]?.completed).toBe(true);
   const before = await readLibrary(page);
   const remove = page.getByRole('button', { name: `Remove ${a.title} from my library`, exact: true });

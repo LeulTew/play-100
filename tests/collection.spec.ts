@@ -131,7 +131,7 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
   await expect(link).toBeFocused();
   await page.goto('/?game=the-witcher-3-wild-hunt');
   await expect(page.locator('.source-note')).toContainText('(AI – not played)');
-  await expect(page.getByRole('button', { name: 'Mark completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
 });
@@ -139,7 +139,7 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
 test('play-later and completion are independent and persist on this device', async ({ page }) => {
   await page.goto(`/?game=${firstSlug}`);
   await page.getByRole('dialog').getByRole('button', { name: 'Play later', exact: true }).click();
-  await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
+  await page.getByRole('button', { name: 'Completed', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Play later', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();

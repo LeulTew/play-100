@@ -26,6 +26,15 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).not.toContain('Saved for later');
   });
 
+  it.each([false, true])('keeps the detail completion name stable with a non-color cue for pressed=%s', completed => {
+    const { html } = renderDetail({ progress: { later: false, completed, played: completed } });
+    const button = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(value => value.endsWith('</svg>Completed</button>'));
+    expect(button).toContain(`aria-pressed="${completed}"`);
+    expect(button).toContain(`<path d="${completed ? 'm5 12 4 4L19 6' : 'M12 4v16M4 12h16'}">`);
+    expect(button).toContain(`class="button ${completed ? 'button-lime' : 'button-outline'}"`);
+    expect(html).not.toContain('Mark completed');
+  });
+
   it('uses the supplied local artwork with intrinsic dimensions in the existing centered dialog', () => {
     const { html, props } = renderDetail({ artwork: artworkFixture });
     expect(html).toContain('class="dialog info-dialog catalog-detail-dialog"');
@@ -64,7 +73,7 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).not.toContain('<img');
     expect(html).not.toContain('game-artwork-disclosure');
     expect(html).toContain('Play later');
-    expect(html).toContain('Mark completed');
+    expect(html).toContain('Completed');
     expect(html).toContain(`Your rating for ${discoveryFixture.record.title}`);
     expect(html).toContain('Preview only.');
     expect(html).toContain('Add to My games from Discover');

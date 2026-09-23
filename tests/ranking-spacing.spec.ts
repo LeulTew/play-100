@@ -27,11 +27,11 @@ for (const forcedColors of ['none', 'active'] as const) {
     }
     const before = await readLibrary(page);
     const first = libraryRecords[0];
-    const toggle = page.getByRole('button', { name: `Mark ${first.title} completed`, exact: true });
+    const toggle = page.getByRole('button', { name: `Completed: ${first.title}`, exact: true });
     await toggle.focus();
     await expect(toggle).toBeFocused();
     await toggle.press('Space');
-    await expect(page.getByRole('button', { name: `Unmark ${first.title} completed`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: `Completed: ${first.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     const after = await readLibrary(page);
     expect(after.progress[first.id]).toEqual({ ...before.progress[first.id], played: true, completed: true });
     expect(after.records).toEqual(before.records);

@@ -26,11 +26,11 @@ test('account sync keeps Played and Completed distinct and excludes both from Al
     await played.click();
     await expect(played).toBeChecked();
     await expect(peerPlayed).toBeChecked({ timeout: 30000 });
-    await expect(peerEditor.getByRole('button', { name: 'Mark Sync progress fixture completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
-    await editor.getByRole('button', { name: 'Mark Sync progress fixture completed', exact: true }).click();
-    await expect(peerEditor.getByRole('button', { name: 'Unmark Sync progress fixture completed', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
-    await peerEditor.getByRole('button', { name: 'Unmark Sync progress fixture completed', exact: true }).click();
-    await expect(editor.getByRole('button', { name: 'Mark Sync progress fixture completed', exact: true })).toHaveAttribute('aria-pressed', 'false', { timeout: 30000 });
+    await expect(peerEditor.getByRole('button', { name: 'Completed: Sync progress fixture', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await editor.getByRole('button', { name: 'Completed: Sync progress fixture', exact: true }).click();
+    await expect(peerEditor.getByRole('button', { name: 'Completed: Sync progress fixture', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
+    await peerEditor.getByRole('button', { name: 'Completed: Sync progress fixture', exact: true }).click();
+    await expect(editor.getByRole('button', { name: 'Completed: Sync progress fixture', exact: true })).toHaveAttribute('aria-pressed', 'false', { timeout: 30000 });
     await expect(played).toBeChecked();
     await expect(page.locator('.friend-sharing-summary')).toContainText('Up to date', { timeout: 30000 });
     const keys = await page.evaluate(async () => {

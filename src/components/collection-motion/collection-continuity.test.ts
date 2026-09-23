@@ -53,6 +53,18 @@ describe('collection continuity preserves the public presentation', () => {
     expect(button).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
   });
 
+  it.each([false, true])('keeps the detail completion name stable with a non-color cue for pressed=%s', completed => {
+    const detail = renderToStaticMarkup(h(GameDetail, {
+      game: gameAt(2), state: { played: completed, completed, later: false },
+      previous: undefined, next: undefined, onClose: vi.fn(), onOpen: vi.fn(), onToggle: vi.fn(),
+      onShare: vi.fn(), shareFeedback: '', personalRating: null, onRate: vi.fn(async () => true),
+    }));
+    const button = detail.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(value => value.trimEnd().endsWith('</svg>Completed</button>'));
+    expect(button).toContain(`aria-pressed="${completed}"`);
+    expect(button).toContain(`<path d="${completed ? 'm5 12 4 4L19 6' : 'M12 4v16M4 12h16'}">`);
+    expect(button).toContain(`class="button ${completed ? 'button-lime' : 'button-outline'}"`);
+  });
+
   it.each(['grid', 'list'] as const)('keeps the %s card a real link with native artwork and separate controls', (view) => {
     const game = gameAt(2);
     const filters = { ...defaultFilters, view, q: 'mass effect' };

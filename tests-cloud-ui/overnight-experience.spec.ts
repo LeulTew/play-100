@@ -201,7 +201,7 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await workspace(page).locator('.manual-add').getByRole('button', { name: 'Add to my library', exact: true }).click();
   await expect(row(page)).toBeVisible();
   await row(page).getByRole('button', { name: `Play later: ${title}`, exact: true }).click();
-  await row(page).getByRole('button', { name: `Mark ${title} completed`, exact: true }).click();
+  await row(page).getByRole('button', { name: `Completed: ${title}`, exact: true }).click();
   await tab(page, 'Queue').click();
   await page.getByLabel('Completed only', { exact: true }).check();
   await expect(tab(page, 'Queue')).toHaveAttribute('aria-current', 'page');

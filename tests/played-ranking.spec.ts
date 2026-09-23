@@ -62,7 +62,7 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   await page.goto(`/?game=${a.id}`);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Play later', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Mark completed', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Completed', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const played = dialog.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
   await expect(played).toBeChecked();

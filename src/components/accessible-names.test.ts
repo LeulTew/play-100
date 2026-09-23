@@ -11,8 +11,19 @@ import { CatalogSourceStatus } from './catalog/CatalogSourceStatus';
 import { DiscoveryCard } from './catalog/DiscoveryCard';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import RatingsTable from './RatingsTable';
+import { CompletedToggle } from './CompletedToggle';
 
 describe('composite control accessible names', () => {
+  it.each([false, true])('keeps the completion name stable with a distinct non-color cue for pressed=%s', completed => {
+    const html = renderToStaticMarkup(h(CompletedToggle, {
+      title: discoveryFixture.record.title, completed, onChange: vi.fn(),
+    }));
+    expect(html).toContain(`aria-pressed="${completed}" aria-label="Completed: ${discoveryFixture.record.title}"`);
+    expect(html).toContain('</svg>Completed</button>');
+    expect(html).toContain(`<path d="${completed ? 'm5 12 4 4L19 6' : 'M12 4v16M4 12h16'}">`);
+    expect(html).not.toMatch(/aria-label="(?:Mark|Unmark)/);
+  });
+
   it.each([false, true])('names discovery Pin as an add-only action (pinned=%s)', pinned => {
     const record = discoveryFixture.record;
     const html = renderToStaticMarkup(h(DiscoveryCard, {
