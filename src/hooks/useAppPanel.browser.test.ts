@@ -20,12 +20,15 @@ function Harness() {
   return h('main', null,
     h('output', { id: 'panel' }, result.panel || 'none'),
     h('output', { id: 'message' }, result.panelMessage),
+    h('output', { id: 'message-state' }, JSON.stringify({ text: result.panelMessage, error: result.panelMessageError })),
     ...['menu', 'about', 'settings', null].map(panel => h('button', {
       key: panel || 'close', onClick: () => result.setPanel(panel)
     }, panel || 'close')),
     h('button', { onClick: () => { scope = 'account:two'; generation++; render(); } }, 'scope'),
     h('button', { onClick: () => { opening = true; render(); } }, 'opening'),
-    h('button', { onClick: () => window.dispatchEvent(new Event('play100:navigate')) }, 'navigate')
+    h('button', { onClick: () => window.dispatchEvent(new Event('play100:navigate')) }, 'navigate'),
+    h('button', { onClick: () => window.dispatchEvent(new Event('popstate')) }, 'popstate'),
+    h('button', { onClick: result.dismissPanelMessage }, 'dismiss')
   );
 }
 function render() { root.render(h(Harness)); }
@@ -59,6 +62,21 @@ beforeAll(async () => {
 afterAll(async () => { await browser?.close(); await server?.close(); });
 
 describe('secondary panel guard through the real hook', () => {
+  it.each(['Escape', 'popstate', 'navigate', 'scope', 'opening', 'dismiss', 'close'])('atomically clears failed notice state after %s', async clear => {
+    const page = await browser.newPage();
+    await page.route('**/src/components/app/SettingsPanel.tsx', route => route.abort('failed'));
+    try {
+      await page.goto(`${base}/__panel-guard`);
+      await page.getByRole('button', { name: 'settings', exact: true }).click();
+      await browserExpect(page.locator('#message-state')).toHaveText(JSON.stringify({
+        text: 'Settings could not load. Check your connection and choose it again to retry.', error: true,
+      }));
+      if (clear === 'Escape') await page.keyboard.press('Escape');
+      else await page.getByRole('button', { name: clear, exact: true }).click();
+      await browserExpect(page.locator('#message-state')).toHaveText(JSON.stringify({ text: '', error: false }));
+    } finally { await page.close(); }
+  });
+
   it.each(['close', 'scope', 'opening', 'navigate', 'Escape'])('does not open a late module after %s', async cancellation => {
     const page = await browser.newPage();
     let release!: () => void;

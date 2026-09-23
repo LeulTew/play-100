@@ -36,7 +36,7 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
     <Dialog open titleId="settings-title" onClose={onClose} className="info-dialog settings-dialog" motion={{ preset: 'dialog', enterMs: 160 }}>
       <h2 id="settings-title" data-autofocus tabIndex={-1}>Make it<br />your speed.</h2>
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
-      <p role="status" hidden={!status} className={statusError ? 'inline-error' : undefined}>{status}</p>
+      <div role="status">{status && <p className={status && statusError ? 'inline-error' : undefined}>{status}</p>}</div>
       {onAccount && <div className="settings-account"><p><strong>{mode.label}</strong>{mode.scope === 'guest' ? ' — this guest library has not been uploaded.' : ' — you are using a separate account library.'}</p><button className="text-button" onClick={onAccount}>Account, saving &amp; privacy<Icon name="user" width="18" height="18" /></button></div>}
       {offlineControls}
       <fieldset className="motion-options">

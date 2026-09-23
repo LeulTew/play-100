@@ -5,8 +5,7 @@ import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
 
 export function useAppPanel(captureScope: () => () => boolean, scope: string, opening: boolean) {
   const [panel, commit] = useState<AppPanel>(null);
-  const [message, setMessage] = useState('');
-  const [messageError, setMessageError] = useState(false);
+  const [message, setMessage] = useState({ text: '', error: false });
   const generation = useRef(0);
   const alive = useRef(true);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -16,7 +15,7 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     boundary.current = { scope, opening };
     generation.current += 1;
   }
-  const dismissPanelMessage = useCallback(() => setMessage(''), []);
+  const dismissPanelMessage = useCallback(() => setMessage({ text: '', error: false }), []);
   const warm = useCallback(() => {
     if (secondaryDialogsStarted()) return;
     prefetchStop.current?.();
@@ -26,8 +25,7 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     const request = ++generation.current;
     const isCurrentScope = captureScope();
     clearTimeout(noticeTimer.current);
-    setMessage('');
-    setMessageError(false);
+    setMessage({ text: '', error: false });
     if (secondaryDialogReady(next)) {
       commit(next);
       return;
@@ -35,19 +33,18 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     if (next !== 'about' && next !== 'settings') return;
     const title = next === 'about' ? 'credits' : 'Settings';
     noticeTimer.current = setTimeout(() => {
-      if (alive.current && generation.current === request && isCurrentScope()) setMessage(`Opening ${title}...`);
+      if (alive.current && generation.current === request && isCurrentScope()) setMessage({ text: `Opening ${title}...`, error: false });
     }, 500);
     void loadSecondaryDialog(next).then(() => {
       if (!alive.current || generation.current !== request || !isCurrentScope()) return;
       clearTimeout(noticeTimer.current);
-      setMessage('');
+      setMessage({ text: '', error: false });
       commit(next);
     }).catch(error => {
       console.error('The requested dialog could not load.', error instanceof Error ? error.message : 'Unknown module error.');
       if (alive.current && generation.current === request && isCurrentScope()) {
         clearTimeout(noticeTimer.current);
-        setMessageError(true);
-        setMessage(`${title} could not load. Check your connection and choose it again to retry.`);
+        setMessage({ text: `${next === 'about' ? 'Credits' : title} could not load. Check your connection and choose it again to retry.`, error: true });
       }
     });
   }, [captureScope]);
@@ -56,7 +53,7 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
   }, [panel, warm]);
   useEffect(() => {
     alive.current = true;
-    const cancel = () => { generation.current += 1; clearTimeout(noticeTimer.current); setMessage(''); };
+    const cancel = () => { generation.current += 1; clearTimeout(noticeTimer.current); setMessage({ text: '', error: false }); };
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') cancel(); };
     const intent = (event: Event) => {
       const target = event.target;
@@ -78,6 +75,6 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
       window.removeEventListener('keydown', escape);
     };
   }, [setPanel, warm]);
-  useEffect(() => { setMessage(''); }, [scope, opening]);
-  return { panel, setPanel, panelMessage: message, panelMessageError: messageError, dismissPanelMessage };
+  useEffect(() => { setMessage({ text: '', error: false }); }, [scope, opening]);
+  return { panel, setPanel, panelMessage: message.text, panelMessageError: message.error, dismissPanelMessage };
 }

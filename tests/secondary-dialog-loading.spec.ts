@@ -119,11 +119,38 @@ test('credits requested inside Settings announces inside that modal instead of t
     await page.locator('.site-footer').getByRole('button', { name: /^Effects:/ }).click();
     const settings = page.locator('dialog[aria-labelledby="settings-title"]');
     const trigger = settings.getByRole('button', { name: 'Source, methodology & credits', exact: true });
+    const status = settings.locator('.dialog-inner > div[role="status"]');
+    await expect(status).toHaveCount(1);
+    await expect(status).toBeEmpty();
+    expect(await status.evaluate(element => element.getBoundingClientRect().height)).toBe(0);
     await trigger.click();
-    await expect(settings.getByRole('status').filter({ hasText: 'Opening credits...' })).toBeVisible();
+    await expect(status).toContainText('Opening credits...');
+    await expect(status).toBeVisible();
     await expect(trigger).toBeFocused();
     await expect(page.locator('.toast')).not.toContainText('Opening credits...');
     release();
     await expect(page.locator('#about-title')).toBeFocused();
   } finally { release(); }
+});
+
+test('Settings credits failure stays in the persistent modal status and retries from the focused trigger', async ({ page }) => {
+  const asset = await dialogAsset('src/components/AboutDialog.tsx');
+  let attempts = 0;
+  await page.route(`**${asset}`, route => ++attempts === 1 ? route.abort('failed') : route.continue());
+  await page.goto('/?catalogs=off');
+  await page.locator('.site-footer').getByRole('button', { name: /^Effects:/ }).click();
+  const settings = page.locator('dialog[aria-labelledby="settings-title"]');
+  const status = settings.locator('.dialog-inner > div[role="status"]');
+  const trigger = settings.getByRole('button', { name: 'Source, methodology & credits', exact: true });
+  await expect(status).toHaveCount(1);
+  await expect(status).toBeEmpty();
+  expect(await status.evaluate(element => element.getBoundingClientRect().height)).toBe(0);
+  await trigger.click();
+  await expect(status).toHaveText('Credits could not load. Check your connection and choose it again to retry.');
+  await expect(status.locator('p')).toHaveClass('inline-error');
+  await expect(trigger).toBeFocused();
+  await expect(page.locator('.toast')).not.toContainText('Credits could not load.');
+  await trigger.click();
+  await expect(page.locator('#about-title')).toBeFocused();
+  expect(attempts).toBe(2);
 });
