@@ -29,7 +29,7 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
     </div>
     <p className="section-help">Public app files, metadata and recently viewed bundled artwork have storage limits.
       Workbooks, films, cloud pages and live-provider responses are not downloaded for offline use.</p>
-    {pwa.message && <p role="status" aria-live="polite">{pwa.message}</p>}
+    <div role="status">{pwa.message && <p>{pwa.message}</p>}</div>
     {pwa.error && <p className="inline-error" role="alert">{pwa.error}</p>}
     {updateError && <p className="inline-error" role="alert">{updateError}</p>}
     {(pwa.updateState === 'waiting' || pwa.updateState === 'reload-required') && (confirm

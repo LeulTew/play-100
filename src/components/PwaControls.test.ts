@@ -23,5 +23,13 @@ describe('offline controls copy preserves readiness and privacy boundaries', () 
     expect(html).toContain(offlineState === 'ready' ? 'Offline files ready' : offlineState === 'preparing' ? 'Preparing offline files...' : 'Enable offline access');
     expect(html.includes('disabled=""')).toBe(offlineState !== 'idle');
     expect(pwa.prepareOffline).not.toHaveBeenCalled();
+    expect(html).toContain('<div role="status"></div>');
+    const loading = renderToStaticMarkup(createElement(PwaControls, {
+      pwa: { ...pwa, message: 'Loading offline controls...', error: 'Connection failed.' },
+      open: true, onUpdate: vi.fn(async () => false),
+    }));
+    expect(loading).toContain('<div role="status"><p>Loading offline controls...</p></div>');
+    expect(loading).toContain('<p class="inline-error" role="alert">Connection failed.</p>');
+    expect(loading).not.toContain('aria-live="polite"');
   });
 });
