@@ -14,7 +14,7 @@ export const FRIEND_INVITE_LIMIT = 20;
 export const FRIEND_INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 export type FriendCursor = QueryDocumentSnapshot<DocumentData>;
 export interface FriendPage<T> { items: T[]; cursor: FriendCursor | undefined }
-export type FriendErrorCode = 'invalid' | 'conflict' | 'unavailable' | 'invite-unavailable' | 'limit' | 'offline' | 'deleted' | 'committed-refresh-failed';
+export type FriendErrorCode = 'invalid' | 'conflict' | 'unavailable' | 'request-unavailable' | 'invite-unavailable' | 'limit' | 'offline' | 'deleted' | 'committed-refresh-failed';
 export class FriendStoreError extends Error {
   constructor(readonly code: FriendErrorCode, message: string) { super(message); this.name = 'FriendStoreError'; }
 }

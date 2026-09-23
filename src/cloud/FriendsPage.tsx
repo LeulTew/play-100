@@ -350,6 +350,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
           {pair.state === 'accepted' && <label className="check-control friend-select"><input type="checkbox" aria-label={`Select ${name} for comparison`} checked={selected.includes(peer)} disabled={busy || !selected.includes(peer) && selected.length >= 5} onChange={(event) => choose(event.target.checked ? [...selected, peer] : selected.filter((value) => value !== peer))} /></label>}
           <div className="friend-identity">{person ? <Avatar descriptor={person.avatar} size={48} /> : <span className="friend-avatar-placeholder" aria-hidden="true"><Icon name="user" /></span>}<div>
             <strong>{name}</strong>
+            {pair.state === 'pending' && pair.from === uid && person && <small>Published profile</small>}
             {(!profile || profile.status === 'loading') && <small role="status">Loading profile...</small>}
             {profile?.status === 'unavailable' && <small>Profile unavailable</small>}
             {profile?.status === 'error' && <small>Profile could not be loaded. {onlineError(profile.cause)}</small>}

@@ -9,6 +9,7 @@ export interface FriendManagerStore<Cursor> {
   pair(uid: string, peer: string): Promise<FriendPair | null>;
   watchPair(uid: string, peer: string, next: (pair: FriendPair | null) => void, error: (cause: Error) => void): () => void;
   identity(uid: string): Promise<FriendIdentity | null>;
+  publicIdentity(uid: string): Promise<FriendIdentity | null>;
 }
 export interface FriendManagerSnapshot<Cursor = FriendCursor> {
   pairs: FriendPair[];
@@ -86,7 +87,7 @@ export class FriendManagerFeed<Cursor = FriendCursor> {
     if (pair.epoch < previous.epoch) return;
     this.update({ pairs: this.snapshot.pairs.map((row) => friendPeer(row, this.uid) === peer ? pair : row) });
     const profile = this.snapshot.identities[peer];
-    if (!profile || profile.status === 'loading' && !this.profileLeases.has(peer)) this.enqueueProfile(peer);
+    if (previous.from !== pair.from || !profile || profile.status === 'loading' && !this.profileLeases.has(peer)) this.enqueueProfile(peer);
   }
   private bindRows() {
     const version = this.version;
@@ -117,10 +118,13 @@ export class FriendManagerFeed<Cursor = FriendCursor> {
     while (this.reads < 4 && this.profileQueue.length && this.current()) {
       const job = this.profileQueue.shift()!;
       if (job.version !== this.version || this.profileLeases.get(job.peer) !== job.lease) continue;
+      const pair = this.snapshot.pairs.find(row => friendPeer(row, this.uid) === job.peer);
+      if (!pair) continue;
+      const publicOnly = pair.state === 'pending' && pair.from === this.uid;
       this.reads += 1;
       const valid = () => this.current(job.version) && this.profileLeases.get(job.peer) === job.lease &&
         this.snapshot.pairs.some((row) => friendPeer(row, this.uid) === job.peer);
-      void this.store.identity(job.peer).then((value) => {
+      void (publicOnly ? this.store.publicIdentity(job.peer) : this.store.identity(job.peer)).then((value) => {
         if (!valid()) return;
         this.update({ identities: { ...this.snapshot.identities, [job.peer]: value ? { status: 'ready', value } : { status: 'unavailable', reason: 'missing' } } });
       }).catch((cause) => {

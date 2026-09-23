@@ -8,8 +8,7 @@ import { clearInviteContinuation, saveInviteContinuation } from '../lib/invite-c
 import { projectOwnRanking } from '../lib/community';
 import type { PublicEntry } from '../lib/community';
 import type { FriendStore } from './friend-store';
-import { SocialStore } from './social-store';
-import { cloudAuth, cloudDb } from './firebase-client';
+import { cloudAuth } from './firebase-client';
 import { onlineError } from './errors';
 import { syncFailure } from '../lib/sync-retry';
 import { createFriendReadGuard } from '../lib/friend-read-guard';
@@ -119,20 +118,23 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
     if (!visible) { setBusy(false); setNotice('Connect to view this player.'); return; }
     void (async () => {
       const connection = await store.pair(uid, peer);
-      let profile: FriendIdentity | null = null;
-      try { profile = await store.identity(peer); } catch (cause) {
-        if (connection?.state === 'accepted' || connection?.state === 'pending') throw cause;
-      }
-      if (!profile) {
-        const published = await new SocialStore(cloudDb).ownProfile(peer);
-        if (published?.published && !published.hidden) profile = { format: 1, uid: peer, displayName: published.displayName, avatar: published.avatar, revision: 1, updatedAt: published.updatedAt };
-      }
+      const privateIdentity = connection?.state === 'accepted' || connection?.state === 'pending' && connection.from === peer;
+      const profile = privateIdentity ? await store.identity(peer) : await store.publicIdentity(peer);
       if (alive && generation === version.current) { setPerson(profile); setPair((old) => old && (!connection || old.epoch > connection.epoch) ? old : connection); }
     })().catch((cause) => { if (alive) setError(onlineError(cause)); }).finally(() => { if (alive) setBusy(false); });
     const release = store.watchPair(uid, peer, (value) => {
       if (!alive) return; setPair(value); setRequestNeedsRefresh(false);
       if (value?.state === 'accepted') access.accept(value.epoch);
-      else { access.revoke(); }
+      else {
+        access.revoke();
+        if (value?.state !== 'pending' || value.from !== peer) {
+          const request = ++version.current;
+          setPerson(null);
+          void store.publicIdentity(peer).then(profile => {
+            if (alive && request === version.current) setPerson(profile);
+          }).catch(cause => { if (alive && request === version.current) setError(onlineError(cause)); });
+        }
+      }
     }, (cause) => {
       if (alive) { version.current += 1; access.revoke(); setPair(null); setPerson(null); setError(onlineError(cause)); }
     });

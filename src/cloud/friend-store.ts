@@ -17,6 +17,10 @@ import type {
 } from '../lib/friend-types';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
+import { SocialStore } from './social-store';
+
+export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+const requestUnavailable = "You can't send this person a request right now.";
 
 function conflict(message = 'This changed elsewhere. Reload before trying again.'): never { throw new FriendStoreError('conflict', message); }
 function online(): void {
@@ -114,6 +118,18 @@ export class FriendStore {
       return identity;
     });
   }
+  async publicIdentity(uid: string): Promise<FriendIdentity | null> {
+    friendUid(uid);
+    try {
+      const profile = await new SocialStore(this.db).ownProfile(uid);
+      return profile?.published && !profile.hidden
+        ? { format: 1, uid, displayName: profile.displayName, avatar: profile.avatar, revision: 1, updatedAt: profile.updatedAt }
+        : null;
+    } catch (cause) {
+      if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') return null;
+      throw cause;
+    }
+  }
   watchIdentity(uid: string, next: (value: FriendIdentity | null) => void, error: (cause: Error) => void): () => void {
     return this.watch(this.ref('friendIdentities', uid), parseFriendIdentity, next, error);
   }
@@ -159,6 +175,9 @@ export class FriendStore {
       const snap = await tx.get(ref); const current = snap.exists() ? parseFriendPair(snap.data()) : null;
       if (current?.state === 'accepted') conflict('You are already friends.');
       if (current?.state === 'pending') conflict(current.from === uid ? 'Your request is already waiting for a response.' : 'This person already sent you a request. Accept or decline that request instead.');
+      if (current?.state === 'declined' && current.from === uid && Date.now() < current.updatedAt + FRIEND_REQUEST_COOLDOWN_MS) {
+        throw new FriendStoreError('request-unavailable', requestUnavailable);
+      }
       const [a, b] = [uid, otherUid].sort();
       tx.set(ref, {
         format: 1, a, b, participants: [a, b], from: uid, state: 'pending', epoch: (current?.epoch ?? 0) + 1, inviteSlot: null,

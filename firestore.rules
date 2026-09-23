@@ -356,7 +356,12 @@ service cloud.firestore {
         && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != generationId);
     }
     match /reports/{reportId} {
-      allow get: if verified() && (resource == null || resource.data.reporterUid == request.auth.uid || creator());
+      function ownReportId() {
+        let segments = reportId.split('_');
+        return segments.size() == 2 && segments[1] == request.auth.uid;
+      }
+      allow get: if verified() && ((resource == null && ownReportId())
+        || (resource != null && (resource.data.reporterUid == request.auth.uid || creator())));
       allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && (creator() || resource.data.reporterUid == request.auth.uid);
       allow create: if accountActive(request.auth.uid)
         && (!exists(/databases/$(database)/documents/syncHeads/$(request.auth.uid)) || !head(request.auth.uid).deleted)
@@ -398,7 +403,7 @@ service cloud.firestore {
         && ((pair.state == 'accepted'
             && exists(/databases/$(database)/documents/friendSettings/$(uid))
             && exists(/databases/$(database)/documents/friendSettings/$(request.auth.uid)))
-          || (pending && pair.state == 'pending'));
+          || (pending && pair.state == 'pending' && pair.from == uid));
     }
     function fSelection(selection) {
       return selection is string && selection.size() <= 40199
@@ -475,7 +480,9 @@ service cloud.firestore {
         || (after.state == 'removed' && after.from == before.from && after.inviteSlot == null
           && (before.state == 'accepted' || (before.state == 'pending'
             && existsAfter(/databases/$(database)/documents/friendBlocks/$(request.auth.uid)/items/$(request.auth.uid == before.a ? before.b : before.a)))))
-        || (before.state in ['declined', 'cancelled', 'removed'] && fRequest(after))
+        || (before.state in ['declined', 'cancelled', 'removed'] && fRequest(after)
+          && (before.state != 'declined' || after.from != before.from
+            || (before.updatedAt is timestamp && request.time >= before.updatedAt + duration.value(30, 'd'))))
         || (before.state != 'accepted' && fInviteProof(after));
     }
     match /friendPairs/{id} {

@@ -8,9 +8,11 @@ import type { PersonalLibraryState } from '../lib/personal-types';
 import { Dialog } from '../components/Dialog';
 import { Icon } from '../components/Icon';
 import { DataUseLink } from '../components/DataUseLink';
+import { CANCELLED_REGISTRATION_MESSAGE } from './account-lifecycle';
 
 export type ConnectionChoice = 'guest' | 'online' | 'empty' | 'cached';
 export interface AccountPageProps {
+  cancelledRegistration?: boolean;
   identity: AccountIdentity; member: Member | null; cache: ScopedLibrary | null; guest: PersonalLibraryState;
   head: SyncHead | null; remoteReady: boolean; status: SyncStatus; error: string; message: string; cleanupWarning: string;
   busy: boolean; resendIn: number; isCreator: boolean; avatar: ReactNode;
@@ -29,7 +31,7 @@ export function AccountPage(props: AccountPageProps) {
   const { identity, member, cache, guest, head, remoteReady, status, error, message, cleanupWarning, busy, resendIn,
     isCreator, avatar, googleDeletion, onDismissDeletion, onAvatar, onName, onConnect, onVerify, onRefreshIdentity,
     onSignOut, onLinkGoogle, onRetry, onCleanup, onPause, onDownload, onUseRemote, onUseLocal, onDelete,
-    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames } = props;
+    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames, cancelledRegistration = false } = props;
   const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
   const [name, setName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
@@ -77,6 +79,10 @@ export function AccountPage(props: AccountPageProps) {
       <div><h1 id="account-title" data-page-heading tabIndex={-1}>Account</h1><p>{identity.email}<span>Signed in{identity.verificationPending ? ' - checking access' : identity.verified ? '' : ' - verify your email'}</span></p></div>
       <button className="text-button" disabled={busy} onClick={() => { void onSignOut(); }}>Sign out<Icon name="arrow" width="17" height="17" /></button>
     </div>
+    {cancelledRegistration && <section className="account-notice" role="alert">
+      <p>{CANCELLED_REGISTRATION_MESSAGE}</p>
+      <button className="button button-outline" disabled={busy} onClick={() => setConfirmation('delete-account')}>Remove cancelled sign-in</button>
+    </section>}
     <div className="account-columns"><div className="account-primary">
       <section className="sync-panel" aria-labelledby="sync-title">
         <div className="section-title-line"><h2 id="sync-title">Online saving</h2><span className={`sync-state sync-${status}`} role="status">{identity.verified ? SYNC_LABELS[status] : identity.verificationPending ? 'Sign-in needs attention' : 'Verify your email'}</span></div>
@@ -94,7 +100,7 @@ export function AccountPage(props: AccountPageProps) {
           {replacing && <p className="section-help">This replaces your online library. The device original stays here.</p>}
           <p className="consent-summary">The creator can see your profile and ranking summary. <DataUseLink /></p>
           <p className="section-help">New setups share saved games and rankings with accepted friends. Existing sharing choices stay unchanged; notes, queue and history stay private.</p>
-          <button className="button button-dark" disabled={busy || !cache || !remoteReady || !validChoice} type="submit">{busy ? 'Connecting...' : replacing ? 'Agree & replace online' : 'Agree & enable'}<Icon name="arrow" width="18" height="18" /></button>
+          <button className="button button-dark" disabled={busy || cancelledRegistration || !cache || !remoteReady || !validChoice} type="submit">{busy ? 'Connecting...' : replacing ? 'Agree & replace online' : 'Agree & enable'}<Icon name="arrow" width="18" height="18" /></button>
         </form> : <>
           <p className="account-counts">{localGames} {localGames === 1 ? 'game' : 'games'} · {cache?.state.queueOrder.length ?? 0} queued · {cache?.state.ranking.length ?? 0} ranked</p>
           {cache?.sync.lastSyncedAt && <p className="account-smallprint">Last saved: {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(cache.sync.lastSyncedAt)}</p>}
@@ -136,7 +142,8 @@ export function AccountPage(props: AccountPageProps) {
       </details>
     </aside></div>
     {confirmation && <Dialog open titleId="account-confirm-title" onClose={() => { if (!busy) closeConfirmation(); }} className="info-dialog">
-      <h2 id="account-confirm-title">{confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : identity.verified ? 'Delete your account?' : 'Cancel this registration?'}</h2>
+      <h2 id="account-confirm-title">{confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : cancelledRegistration ? 'Remove cancelled sign-in?' : identity.verified ? 'Delete your account?' : 'Cancel this registration?'}</h2>
+      {cancelledRegistration && confirmation === 'delete-account' && <p>This removes the cancelled sign-in and its account copy on this device. You can then register again with the same email. Your guest library stays here.</p>}
       <p>{confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? 'Replace this account’s device library with the online copy. A recovery copy stays here.' : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish your ranking and stop older sessions from restoring it. Export a backup first. The device-only library stays here.'}</p>
       {(confirmation === 'delete-copy' || confirmation === 'delete-account') && identity.providers.includes('password') && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
       {googleConfirmation && <p className="section-help">{googleConfirmed ? 'Google confirmed this account. Confirm below to delete.' : 'Confirm with Google in this tab, then return here. Returning does not delete anything.'}</p>}

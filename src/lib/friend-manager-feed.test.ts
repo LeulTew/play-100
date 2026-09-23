@@ -13,7 +13,7 @@ function deferred<T>() {
   const promise = new Promise<T>((ok, no) => { resolve = ok; reject = no; });
   return { promise, resolve, reject };
 }
-function fixture() {
+function fixture(kind: 'accepted' | 'pending' = 'accepted') {
   let head: Parameters<FriendManagerStore<string>['watchRelations']>[2] = () => {};
   let headError: (cause: Error) => void = () => {};
   const rows = new Map<string, { next: (pair: FriendPair | null) => void; error: (cause: Error) => void }>();
@@ -24,13 +24,28 @@ function fixture() {
     pair: vi.fn<FriendManagerStore<string>['pair']>(),
     watchPair: vi.fn<FriendManagerStore<string>['watchPair']>((_uid, peer, next, error) => { rows.set(peer, { next, error }); return () => { rows.delete(peer); releases(); }; }),
     identity: vi.fn<FriendManagerStore<string>['identity']>((uid) => Promise.resolve(profile(uid))),
+    publicIdentity: vi.fn<FriendManagerStore<string>['publicIdentity']>((uid) => Promise.resolve({ ...profile(uid), displayName: 'Published snapshot' })),
   };
   let authorized = true;
-  const feed = new FriendManagerFeed(store, 'owner', 'accepted', () => authorized);
+  const feed = new FriendManagerFeed(store, 'owner', kind, () => authorized);
   return { feed, store, rows, releases, revokeScope: () => { authorized = false; }, head: (items: FriendPair[], cursor?: string) => head({ items, cursor }), headError: (cause: Error) => headError(cause) };
 }
 
 describe('stable bounded manager feed', () => {
+  it('reads only the published snapshot for outgoing pending requests and the requester identity for incoming ones', async () => {
+    const f = fixture('pending');
+    const outgoing = { ...pair(0), state: 'pending' as const };
+    const incoming = { ...pair(1), state: 'pending' as const, from: pair(1).b };
+    f.feed.start(); f.head([outgoing, incoming]);
+    f.rows.get(outgoing.b)!.next(outgoing);
+    f.rows.get(incoming.b)!.next(incoming);
+    await vi.waitFor(() => expect(f.feed.getSnapshot().identities[outgoing.b]?.status).toBe('ready'));
+    expect(f.store.publicIdentity).toHaveBeenCalledWith(outgoing.b);
+    expect(f.store.identity).not.toHaveBeenCalledWith(outgoing.b);
+    expect(f.store.identity).toHaveBeenCalledWith(incoming.b);
+    expect(f.feed.getSnapshot().identities[outgoing.b]).toMatchObject({ value: { displayName: 'Published snapshot' } });
+    f.feed.stop();
+  });
   it('retains loaded pages and cursor on live head changes, deduplicates boundaries and refreshes the same page window', async () => {
     const f = fixture();
     const first = Array.from({ length: 20 }, (_, index) => pair(index));

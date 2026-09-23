@@ -35,7 +35,7 @@ import type { GoogleReturn } from './google-auth';
 import { readGoogleIntent } from '../lib/google-intent';
 import { clearComparisonView, comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
 import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
-import { cancelUnusedRegistration, ensureAccountActivity } from './account-lifecycle';
+import { cancelUnusedRegistration, ensureAccountActivity, readAccountLifecycle, removeCancelledRegistration } from './account-lifecycle';
 import { AuthPanel } from './AuthPanel';
 import { AccountPage } from './AccountPage';
 import type { ConnectionChoice } from './AccountPage';
@@ -91,6 +91,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
   const [headSnapshot, setHeadSnapshot] = useState<{ uid: string; value: SyncHead | null } | null>(null);
   const [creatorUid, setCreatorUid] = useState<string | null>(null);
+  const [cancelledUid, setCancelledUid] = useState<string | null>(null);
   const member = memberSnapshot?.uid === identity?.uid ? memberSnapshot : null;
   const profile = profileSnapshot?.uid === identity?.uid ? profileSnapshot : null;
   const head = headSnapshot?.uid === identity?.uid ? headSnapshot?.value ?? null : null;
@@ -119,6 +120,16 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const identityRef = useRef(identity);
   identityRef.current = identity;
   const uid = identity?.uid;
+  useEffect(() => {
+    let current = true;
+    setCancelledUid(null);
+    if (uid) void readAccountLifecycle(cloudDb, uid).then(state => {
+      if (current && cloudAuth.currentUser?.uid === uid) setCancelledUid(state === 'cancelled' ? uid : null);
+    }).catch(cause => {
+      if (current && cloudAuth.currentUser?.uid === uid) setError(onlineError(cause));
+    });
+    return () => { current = false; };
+  }, [uid]);
   const scope = useMemo(() => uid ? accountScope(uid, firebaseApp.options.projectId) : null, [uid]);
   const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
   const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
@@ -546,6 +557,16 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       }
       if (cloudAuth.currentUser?.uid !== signedIn.uid || identityRef.current?.uid !== signedIn.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Nothing was deleted.');
       sync.suspend();
+      if (removeAccount) {
+        friends.stop(); shelf.stop(); automatic.suspend();
+        await account.waitForWrites();
+        const current = () => cloudAuth.currentUser?.uid === signedIn.uid &&
+          identityRef.current?.uid === signedIn.uid && authSessionEpoch.current === session;
+        if (await removeCancelledRegistration(cloudDb, signedIn, scope, current)) {
+          await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
+          return;
+        }
+      }
       if (removeAccount && !identityRef.current.verified) {
         const token = await getIdTokenResult(signedIn, true);
         if (token.claims.email_verified === true) {
@@ -665,7 +686,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         </section> :
         page === 'creator' ? <CreatorPage key={identity.uid} social={social} allowed={isCreator} verified={identity.verified} onAccount={() => onNavigate('account')} /> :
         page === 'publish' ? <PublishPage key={identity.uid} social={social} identity={identity} member={member} avatar={avatar} state={activeController.state} games={games} existing={profile} isCreator={isCreator} onAccount={() => onNavigate('account')} onPublished={(next) => { if (cloudAuth.currentUser?.uid === next.uid) { setProfile(next); onProfile(next.handle); } }} /> :
-        <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
+        <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} cancelledRegistration={cancelledUid === identity.uid} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
           onAvatar={() => setAvatarOpen(true)} onName={(name) => run(async () => {
             const { user } = verifiedIdentity();
             await social.saveMemberName(user.uid, name, avatar);
