@@ -184,7 +184,9 @@ test('choosing Lite cancels the actual Settings entry and the next Menu creates 
   await menuTrigger(page).click();
   await menu(page).getByRole('button', { name: 'Settings & backups', exact: true }).click();
   await expectEntry(page, 'settings-title', 160);
-  await page.locator('input[name="visual-experience"][value="lite"]').check();
+  const lite = page.locator('input[name="visual-experience"][value="lite"]');
+  await lite.click();
+  await expect(lite).toBeChecked();
   await expect.poll(async () => (await readLibrary(page)).motion).toBe('lite');
   await expectNoActiveEntry(page, 'settings-title');
   await page.keyboard.press('Escape');
