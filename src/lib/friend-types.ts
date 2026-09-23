@@ -175,7 +175,9 @@ export function parseFriendGeneration(value: unknown): FriendGeneration {
   const row = object(value, 'epoch,settingsRevision,count,digest,uploaded,ids,status,createdAt,source');
   if (typeof row.status !== 'string' || !['staging', 'ready', 'published', 'deleting'].includes(row.status)) invalid();
   const count = integer(row.count, 0, FRIEND_SELECTION_LIMIT); const uploaded = integer(row.uploaded, 0, FRIEND_CHUNK_LIMIT); const ids = friendSelection(row.ids);
-  if (uploaded > Math.ceil(count / FRIEND_CHUNK_SIZE) || ids.length !== Math.min(uploaded * FRIEND_CHUNK_SIZE, count) || ((row.status === 'ready' || row.status === 'published') && ids.length !== count)) invalid();
+  if (uploaded > Math.ceil(count / FRIEND_CHUNK_SIZE) || ids.length > count ||
+    (row.status === 'deleting' ? uploaded > Math.ceil(ids.length / FRIEND_CHUNK_SIZE) || (ids.length !== count && ids.length % FRIEND_CHUNK_SIZE !== 0) : ids.length !== Math.min(uploaded * FRIEND_CHUNK_SIZE, count)) ||
+    ((row.status === 'ready' || row.status === 'published') && ids.length !== count)) invalid();
   return { epoch: integer(row.epoch, 1), settingsRevision: integer(row.settingsRevision, 1), source: parseFriendSource(row.source), count, digest: friendToken(row.digest), uploaded, ids, status: row.status as FriendGeneration['status'], createdAt: time(row.createdAt) };
 }
 export function parseFriendSource(value: unknown): FriendSourceRevision {

@@ -18,6 +18,7 @@ import type {
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
 import { SocialStore } from './social-store';
+import { releaseIndexedPayload } from './generation-cleanup';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
@@ -479,9 +480,7 @@ export class FriendStore {
         return true;
       });
       if (!removable) continue;
-      const batch = writeBatch(this.db);
-      for (let index = 0; index < FRIEND_CHUNK_LIMIT; index += 1) batch.delete(doc(ref, 'chunks', String(index)));
-      await batch.commit();
+      await releaseIndexedPayload(ref, 'chunks', 0, FRIEND_CHUNK_LIMIT);
       await runTransaction(this.db, async (tx) => {
         const current = await tx.get(registryRef);
         if (!current.exists()) throw new FriendStoreError('invalid', 'Sharing cleanup lost its registry. Retry deletion.');

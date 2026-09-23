@@ -140,6 +140,10 @@ describe('consented public snapshots, handle claims and moderation', () => {
     const guest = await client(true);
     expect(await guest.social.entries(profile)).toHaveLength(200);
     await expect(owner.social.publish(owner.uid, publication('too_many', false, [...entries, { ...entry, position: 201 }]), await owner.social.control(owner.uid))).rejects.toThrow(/200/);
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid));
+    expect(await owner.social.cleanup(owner.uid, true)).toBe(1);
+    expect((await getDocs(query(collection(owner.db, 'publicProfiles', owner.uid, 'generations', profile.generation, 'entries'), limit(200)))).empty).toBe(true);
+    expect((await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).data()?.ids).toEqual([]);
   }, 60000);
   it('protects moderation markers from publisher deletion/recreation and limits reports to the reporter/creator', async () => {
     const owner = await client(); const reporter = await client();

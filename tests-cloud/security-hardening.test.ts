@@ -159,8 +159,12 @@ describe('S3 report and friendship boundaries', () => {
     await assertFails(growth.commit());
     await seed({
       'accounts/Alice/metadata/registry': { ids, revision: 1 },
-      [`accounts/Alice/generations/${ids[9]}`]: { status: 'deleting' },
+      [`accounts/Alice/generations/${ids[9]}`]: {
+        private: { ...manifest, generation: ids[9] }, ranking: { ...manifest, generation: ids[9] },
+        epoch: 1, status: 'deleting', createdAt: Timestamp.now(),
+      },
     });
+    await assertSucceeds(db.doc(`accounts/Alice/generations/${ids[9]}`).update({ released: 2 }));
     const shrink = db.batch();
     shrink.delete(db.doc(`accounts/Alice/generations/${ids[9]}`));
     shrink.update(db.doc('accounts/Alice/metadata/registry'), { ids: ids.slice(0, 9), revision: 2 });

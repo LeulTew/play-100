@@ -144,7 +144,29 @@ service cloud.firestore {
       allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && ((resource.data.status == 'staging' && request.resource.data.status == 'ready' && active(uid, resource.data.epoch))
           || (request.resource.data.status == 'deleting' && !retained(uid, id)));
-      allow delete: if own(uid) && resource.data.status == 'deleting' && !retained(uid, id);
+      allow update: if own(uid) && privateReleaseProgress(uid, id, resource.data, request.resource.data);
+      allow delete: if own(uid) && resource.data.status == 'deleting' && !retained(uid, id)
+        && resource.data.released == resource.data.private.chunks.size() + resource.data.ranking.chunks.size();
+    }
+    function holderFreed(path, id) {
+      return !existsAfter(path) || !getAfter(path).data.holders.hasAny([id]);
+    }
+    function privateIndexFreed(uid, id, data, index, end) {
+      let privateCount = data.private.chunks.size();
+      return index >= end || (index < privateCount
+        ? holderFreed(/databases/$(database)/documents/accounts/$(uid)/chunks/$(data.private.chunks[index]), id)
+        : holderFreed(/databases/$(database)/documents/creatorRanks/$(uid)/chunks/$(data.ranking.chunks[index - privateCount]), id));
+    }
+    function privateReleaseProgress(uid, id, before, after) {
+      let released = 'released' in before ? before.released : 0;
+      let total = before.private.chunks.size() + before.ranking.chunks.size();
+      return before.status == 'deleting' && after.diff(before).affectedKeys().hasOnly(['released'])
+        && released is int && released >= 0 && after.released is int
+        && after.released > released && after.released <= released + 4 && after.released <= total
+        && privateIndexFreed(uid, id, before, released, after.released)
+        && privateIndexFreed(uid, id, before, released + 1, after.released)
+        && privateIndexFreed(uid, id, before, released + 2, after.released)
+        && privateIndexFreed(uid, id, before, released + 3, after.released);
     }
     function validChunk(data, id) {
       return data.keys().hasOnly(['digest', 'data', 'bytes', 'createdAt', 'holders', 'holder'])
@@ -166,7 +188,7 @@ service cloud.firestore {
       return own(uid) && validChunk(next, id)
         && next.diff(resource.data).affectedKeys().hasOnly(['holders', 'holder'])
         && (
-          (active(uid, gen.epoch) && gen.status == 'staging' && gen[kind].chunks.hasAny([id])
+          (gen.status == 'staging' && active(uid, gen.epoch) && gen[kind].chunks.hasAny([id])
             && next.holders == resource.data.holders.concat([next.holder]))
           || (gen.status == 'deleting' && !retained(uid, next.holder)
             && next.holders == resource.data.holders.removeAll([next.holder]))
@@ -315,6 +337,25 @@ service cloud.firestore {
     function uploadedEntry(uid, generation, position, end) {
       return position > end || getAfter(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(generation)/entries/$(string(position))).data.position == position;
     }
+    function indexedPayloadPath(kind, uid, id, index) {
+      return kind == 'public'
+        ? /databases/$(database)/documents/publicProfiles/$(uid)/generations/$(id)/entries/$(string(index + 1))
+        : kind == 'ranking'
+          ? /databases/$(database)/documents/friendShares/$(uid)/generations/$(id)/chunks/$(string(index))
+          : /databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)/chunks/$(string(index));
+    }
+    function indexedPayloadGone(kind, uid, id, index, end) {
+      return index >= end || !existsAfter(indexedPayloadPath(kind, uid, id, index));
+    }
+    function indexedReleaseProgress(kind, uid, id, before, after) {
+      return before.status == 'deleting' && after.diff(before).affectedKeys().hasOnly(['uploaded'])
+        && after.uploaded is int && after.uploaded >= 0 && after.uploaded < before.uploaded
+        && after.uploaded >= before.uploaded - 4
+        && indexedPayloadGone(kind, uid, id, after.uploaded, before.uploaded)
+        && indexedPayloadGone(kind, uid, id, after.uploaded + 1, before.uploaded)
+        && indexedPayloadGone(kind, uid, id, after.uploaded + 2, before.uploaded)
+        && indexedPayloadGone(kind, uid, id, after.uploaded + 3, before.uploaded);
+    }
     function publicRegistryPath(uid) {
       return /databases/$(database)/documents/publicProfiles/$(uid)/metadata/registry;
     }
@@ -372,7 +413,8 @@ service cloud.firestore {
       allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && request.resource.data.status == 'deleting'
         && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != id);
-      allow delete: if own(uid) && resource.data.status == 'deleting'
+      allow update: if own(uid) && indexedReleaseProgress('public', uid, id, resource.data, request.resource.data);
+      allow delete: if own(uid) && resource.data.status == 'deleting' && resource.data.uploaded == 0
         && (!exists(publicRegistryPath(uid)) || !getAfter(publicRegistryPath(uid)).data.ids.hasAny([id]))
         && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != id);
     }
@@ -626,9 +668,12 @@ service cloud.firestore {
     function fRetained(uid, id) {
       let control = fSettings(uid);
       return control.enabled && !control.deleted && exists(/databases/$(database)/documents/friendShareHeads/$(uid))
-        && fShareHead(uid).epoch == control.epoch && fShareHead(uid).settingsRevision == control.revision
-        && ((fShareHead(uid).current != null && fShareHead(uid).current.generation == id)
-          || (fShareHead(uid).previous != null && fShareHead(uid).previous.generation == id));
+        && sharingPointerRetains(fShareHead(uid), control, id);
+    }
+    function sharingPointerRetains(pointer, control, id) {
+      return pointer.epoch == control.epoch && pointer.settingsRevision == control.revision
+        && ((pointer.current != null && pointer.current.generation == id)
+          || (pointer.previous != null && pointer.previous.generation == id));
     }
     function fGeneration(uid, id) { return get(/databases/$(database)/documents/friendShares/$(uid)/generations/$(id)).data; }
     function fHeadWrite(uid, data) {
@@ -712,7 +757,8 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/friendShareHeads/$(uid)).data.current.generation == id)
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'deleting'
             && fCanRetire(uid, id, resource.data)));
-      allow delete: if own(uid) && resource.data.status == 'deleting' && !fRetained(uid, id)
+      allow update: if own(uid) && indexedReleaseProgress('ranking', uid, id, resource.data, request.resource.data);
+      allow delete: if own(uid) && resource.data.status == 'deleting' && resource.data.uploaded == 0 && !fRetained(uid, id)
         && !getAfter(/databases/$(database)/documents/friendShareRegistry/$(uid)).data.ids.hasAny([id]);
     }
     function fPackedCanonical(id, title, year) {
@@ -854,9 +900,7 @@ service cloud.firestore {
     function sRetained(uid, id) {
       let control = sConfig(uid);
       return control.enabled && !control.deleted && exists(/databases/$(database)/documents/friendShelfHeads/$(uid))
-        && sHead(uid).epoch == control.epoch && sHead(uid).settingsRevision == control.revision
-        && ((sHead(uid).current != null && sHead(uid).current.generation == id)
-          || (sHead(uid).previous != null && sHead(uid).previous.generation == id));
+        && sharingPointerRetains(sHead(uid), control, id);
     }
     match /friendShelfSettings/{uid} {
       allow get: if own(uid) || aObservableControl(uid, resource.data);
@@ -941,7 +985,8 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/friendShelfHeads/$(uid)).data.current.generation == id)
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'deleting'
             && sCanRetire(uid, id, resource.data)));
-      allow delete: if own(uid) && resource.data.status == 'deleting' && !sRetained(uid, id)
+      allow update: if own(uid) && indexedReleaseProgress('shelf', uid, id, resource.data, request.resource.data);
+      allow delete: if own(uid) && resource.data.status == 'deleting' && resource.data.uploaded == 0 && !sRetained(uid, id)
         && !getAfter(/databases/$(database)/documents/friendShelfRegistry/$(uid)).data.ids.hasAny([id]);
     }
     function sEntry(entry, expectedId) {

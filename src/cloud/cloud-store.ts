@@ -1,11 +1,12 @@
 import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
-import type { DocumentData, Firestore, Transaction } from 'firebase/firestore';
+import type { DocumentData, DocumentReference, Firestore, Transaction } from 'firebase/firestore';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import { creatorRanks } from '../lib/cloud-types';
 import type { CreatorRank, SnapshotChunk, SnapshotManifest, SyncHead } from '../lib/cloud-types';
 import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot } from '../lib/snapshot-transport';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseFriendAllHead } from '../lib/friend-all-transport';
+import { PAYLOAD_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
 
 export class RemoteConflict extends Error {
   readonly head: SyncHead;
@@ -235,30 +236,60 @@ export class CloudStore {
         return manifests;
       });
       if (!generation) continue;
-      for (const kind of ['private', 'ranking'] as const) {
-        for (const digest of generation[kind].chunks) {
-          const ref = this.chunkRef(kind, digest);
-          if (all) {
-            const key = `${kind}:${digest}`;
-            if (!deletedChunks.has(key)) {
-              const batch = writeBatch(this.db);
-              batch.delete(ref);
-              await batch.commit();
-              deletedChunks.add(key);
-            }
-            continue;
-          }
-          await runTransaction(this.db, async (tx) => {
-            const chunk = await tx.get(ref);
-            if (!chunk.exists()) return;
-            const holders = chunk.data().holders;
-            if (!Array.isArray(holders)) throw new Error('Online chunk references are invalid; cleanup was stopped.');
-            const kept = holders.filter((holder: unknown) => holder !== id);
-            if (kept.length) tx.update(ref, { holders: kept, holder: id });
-            else tx.delete(ref);
-          });
+      const parts = (['private', 'ranking'] as const).flatMap(kind => generation[kind].chunks.map(digest => ({ kind, digest })));
+      const releaseHeld = (tx: Transaction, ref: DocumentReference<DocumentData>, data: DocumentData | undefined) => {
+        if (!data) return;
+        const holders: unknown = data.holders;
+        if (!Array.isArray(holders) || !holders.every(holder => typeof holder === 'string')) {
+          throw new Error('Online chunk references are invalid; cleanup was stopped.');
         }
-      }
+        const kept = holders.filter(holder => holder !== id);
+        if (kept.length === holders.length) return;
+        if (kept.length) tx.update(ref, { holders: kept, holder: id });
+        else tx.delete(ref);
+      };
+      await runPayloadCleanup(Math.ceil(parts.length / PAYLOAD_RELEASE_BATCH) + 1, async () => {
+        const result = await runTransaction(this.db, async tx => {
+          const [candidate, head] = await Promise.all([tx.get(this.generationRef(id)), tx.get(this.headRef())]);
+          const data = candidate.data();
+          const released: unknown = data && 'released' in data ? data.released : 0;
+          if (!data || data.status !== 'deleting' || typeof released !== 'number' ||
+            !Number.isSafeInteger(released) || released < 0 || released > parts.length) {
+            throw new Error('Online payload release metadata is invalid. Cleanup was stopped.');
+          }
+          if (released === parts.length) return { remaining: null, removed: [] };
+          const end = Math.min(parts.length, released + PAYLOAD_RELEASE_BATCH);
+          const unique = [...new Map(parts.slice(released, end).map(part => [`${part.kind}:${part.digest}`, part])).entries()];
+          const removeAll = all && head.exists() && parseHead(head.data()).deleted;
+          const removed: string[] = [];
+          if (removeAll) {
+            for (const [key, part] of unique) if (!deletedChunks.has(key)) {
+              tx.delete(this.chunkRef(part.kind, part.digest));
+              removed.push(key);
+            }
+          } else {
+            const chunks = await Promise.all(unique.map(([, part]) => tx.get(this.chunkRef(part.kind, part.digest))));
+            for (const chunk of chunks) releaseHeld(tx, chunk.ref, chunk.data());
+          }
+          tx.update(this.generationRef(id), { released: end });
+          return { remaining: parts.length - end, removed };
+        });
+        result.removed.forEach(key => deletedChunks.add(key));
+        return result.remaining;
+      }, async () => {
+        const removeAll = all && (await this.head())?.deleted === true;
+        for (const part of parts) {
+          const ref = this.chunkRef(part.kind, part.digest);
+          const key = `${part.kind}:${part.digest}`;
+          if (removeAll) {
+            if (deletedChunks.has(key)) continue;
+            const batch = writeBatch(this.db);
+            batch.delete(ref);
+            await batch.commit();
+            deletedChunks.add(key);
+          } else await runTransaction(this.db, async tx => releaseHeld(tx, ref, (await tx.get(ref)).data()));
+        }
+      });
       await runTransaction(this.db, async (tx) => {
         const retained = await this.retained(tx);
         const current = await tx.get(this.registryRef());

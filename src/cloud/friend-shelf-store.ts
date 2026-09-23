@@ -14,6 +14,7 @@ import {
 import type { FriendShelf, FriendShelfConfig, FriendShelfEntry, FriendShelfHead, FriendShelfReceipt } from '../lib/friend-shelf-types';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
+import { releaseIndexedPayload } from './generation-cleanup';
 
 function conflict(message = 'Shared games changed elsewhere. Refresh before trying again.'): never { throw new FriendStoreError('conflict', message); }
 function online(): void {
@@ -199,9 +200,7 @@ export class FriendShelfStore {
         return true;
       });
       if (!removable) continue;
-      const batch = writeBatch(this.db);
-      for (let index = 0; index < FRIEND_SHELF_CHUNK_LIMIT; index += 1) batch.delete(doc(ref, 'chunks', String(index)));
-      await batch.commit();
+      await releaseIndexedPayload(ref, 'chunks', 0, FRIEND_SHELF_CHUNK_LIMIT);
       await runTransaction(this.db, async (tx) => {
         const registry = await tx.get(registryRef);
         if (!registry.exists()) return;

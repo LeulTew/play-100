@@ -3,6 +3,7 @@ import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/fi
 import { normalizeHandle, parseHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, reportDocumentId, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { ensureAccountActivity } from './account-lifecycle';
+import { releaseIndexedPayload } from './generation-cleanup';
 
 function timestamp(value: unknown): number {
   if (!(value instanceof Timestamp)) throw new Error('An online profile has an invalid update time.');
@@ -260,12 +261,7 @@ export class SocialStore {
         return data.count as number;
       });
       if (count === null) continue;
-      for (let start = 1; start <= count; start += 20) {
-        const batch = writeBatch(this.db);
-        for (let position = start; position < Math.min(start + 20, count + 1); position += 1) batch.delete(doc(item.ref, 'entries', String(position)));
-        await batch.commit();
-        if (afterDeleteBatch) await afterDeleteBatch();
-      }
+      await releaseIndexedPayload(item.ref, 'entries', 1, count, afterDeleteBatch);
       const registryRef = doc(this.db, 'publicProfiles', uid, 'metadata', 'registry');
       let quotaSupported = true;
       try { await getDocFromServer(registryRef); }

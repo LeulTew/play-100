@@ -137,4 +137,16 @@ describe('strict friend types and selected projection', () => {
     expect(() => parseFriendChunk({ index: 100, entries: [entry], ids: [entry.id] }, 100, 200)).toThrow();
     expect(() => parseFriendChunk({ index: 0, entries: Array(10).fill(entry), ids: Array(10).fill(entry.id) }, 0, 200)).toThrow();
   });
+  it('accepts a decreasing deleting countdown without weakening staging or ready progress validation', () => {
+    const generation = {
+      epoch: 1, settingsRevision: 1, source: { syncEpoch: 1, remoteRevision: 0 }, count: 3, digest: 'a'.repeat(64),
+      uploaded: 2, ids: ['manual:one', 'manual:two', 'manual:three'], status: 'deleting', createdAt: time,
+    };
+    for (const uploaded of [2, 1, 0]) expect(parseFriendGeneration({ ...generation, uploaded }).uploaded).toBe(uploaded);
+    for (const status of ['staging', 'ready', 'published']) {
+      expect(() => parseFriendGeneration({ ...generation, uploaded: 0, status })).toThrow();
+    }
+    expect(() => parseFriendGeneration({ ...generation, uploaded: 3 })).toThrow();
+    expect(() => parseFriendGeneration({ ...generation, uploaded: 0, ids: ['manual:one'] })).toThrow();
+  });
 });

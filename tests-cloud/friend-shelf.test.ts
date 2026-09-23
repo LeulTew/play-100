@@ -116,7 +116,7 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     await assertFails(getDocsFromServer(peerChunks));
     await assertFails(getDocsFromServer(query(peerChunks, limit(101))));
     await assertFails(setDoc(doc(a.db, 'friendShelves', a.uid, 'generations', id, 'chunks', '0'), { index: 0, entries: entries.slice(0, 2), ids: entries.slice(0, 2).map((item) => item.id) }));
-    if (sourceName === 'manual') {
+    if (sourceName === 'manual' || sourceName === 'freetogame') {
       await a.store.saveConfig(a.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, (await a.store.config(a.uid))!);
       expect(await a.store.cleanupSharing(a.uid)).toBe(1);
       expect((await getDocsFromServer(query(chunks, limit(100)))).size).toBe(0);

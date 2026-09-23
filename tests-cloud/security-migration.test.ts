@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { assertFails, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteApp, initializeApp } from 'firebase/app';
@@ -5,16 +6,18 @@ import type { FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemoryPersistence, initializeAuth, reload } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import {
-  connectFirestoreEmulator, deleteDoc, disableNetwork, doc, enableNetwork, getDocFromServer, getFirestore,
-  Timestamp, updateDoc, writeBatch,
+  collection, connectFirestoreEmulator, deleteDoc, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, query,
+  serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cancelUnusedRegistration, ensureAccountActivity, removeCancelledRegistration } from '../src/cloud/account-lifecycle';
 import { CloudStore } from '../src/cloud/cloud-store';
 import { FriendStore } from '../src/cloud/friend-store';
+import { FriendShelfStore } from '../src/cloud/friend-shelf-store';
 import { SocialStore } from '../src/cloud/social-store';
-import { accountScope, creatorRanks } from '../src/lib/cloud-types';
+import { releaseIndexedPayload } from '../src/cloud/generation-cleanup';
+import { accountScope, CHUNK_BYTES, creatorRanks, MAX_CHUNKS, MAX_SNAPSHOT_BYTES } from '../src/lib/cloud-types';
 import type { AvatarValue, PublicEntry, PublicProfile } from '../src/lib/community';
 import { FriendManagerFeed } from '../src/lib/friend-manager-feed';
 import { visibleFriendPairs } from '../src/lib/friend-manager';
@@ -220,7 +223,286 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     expect(await guest.friends.publicIdentity(uid)).toBeNull();
   });
 
+  it('cleans all four generation stores with one legacy-order fallback per retired generation only on old rules', async () => {
+    const owner = await actor();
+    const info = vi.spyOn(console, 'info');
+    const head = await owner.cloud.enable(null);
+    const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 3 });
+    await expect(owner.cloud.upload(state, head, async () => {
+      throw new Error('Leave a real partial private upload.');
+    })).rejects.toThrow('Leave a real partial private upload');
+    const privateRegistry = doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry');
+    const privateId = (await getDocFromServer(privateRegistry)).data()?.ids[0];
+    if (typeof privateId !== 'string') throw new Error('The private staging fixture is missing.');
+    await updateDoc(doc(owner.db, 'accounts', owner.uid, 'generations', privateId), { status: 'deleting' });
+    expect(await owner.cloud.cleanup()).toBe(1);
+    expect((await getDocFromServer(privateRegistry)).data()?.ids).toEqual([]);
+
+    await expect(owner.social.publish(owner.uid, publication('migration_cleanup'), initialControl, async () => {
+      throw new Error('Leave a real unpublished public upload.');
+    })).rejects.toThrow('Leave a real unpublished public upload');
+    expect(await owner.social.cleanup(owner.uid, true)).toBe(1);
+
+    await owner.friends.initialize(owner.uid);
+    const initial = await owner.friends.settings(owner.uid);
+    if (!initial) throw new Error('Friend settings are missing.');
+    const selected = await owner.friends.saveSettings(owner.uid, { enabled: true, selectedIds: [entry.id] }, initial);
+    await owner.friends.publishRanking(owner.uid, [entry], selected, { syncEpoch: head.epoch, remoteRevision: head.revision }, 0);
+    await owner.friends.saveSettings(owner.uid, { enabled: false, selectedIds: [] }, selected);
+    expect(await owner.friends.cleanupSharing(owner.uid)).toBe(1);
+    expect((await getDocFromServer(doc(owner.db, 'friendShareRegistry', owner.uid))).data()?.ids).toEqual([]);
+
+    const shelf = new FriendShelfStore(owner.db);
+    const selectedShelf = await shelf.saveConfig(owner.uid, {
+      enabled: true, selectedIds: [entry.id], consentSyncEpoch: head.epoch,
+    }, await shelf.initialize(owner.uid));
+    await shelf.publish(owner.uid, [{
+      id: entry.id, title: entry.title, year: entry.year, source: entry.source, sourceId: entry.sourceId, sourceUrl: entry.sourceUrl,
+    }], selectedShelf, { syncEpoch: head.epoch, remoteRevision: head.revision }, 0, () => true);
+    await shelf.saveConfig(owner.uid, { enabled: false, selectedIds: [], consentSyncEpoch: null }, selectedShelf);
+    expect(await shelf.cleanupSharing(owner.uid)).toBe(1);
+    expect((await getDocFromServer(doc(owner.db, 'friendShelfRegistry', owner.uid))).data()?.ids).toEqual([]);
+    expect(info.mock.calls.filter(([message]) =>
+      message === 'Payload release counters are not yet available; using the legacy cleanup order once.')).toHaveLength(policy === 'live-270f' ? 4 : 0);
+  }, 60000);
+
   if (policy === 'candidate') {
+    it('releases all 107+107 maximum transport chunks with shared holders, then purges the retained copy in account-deletion mode', async () => {
+      const owner = await actor();
+      const base = await owner.cloud.enable(null);
+      const maximum = async (label: string) => {
+        const overhead = new TextEncoder().encode(JSON.stringify({ payload: '' })).length;
+        const payload = Array.from({ length: MAX_CHUNKS }, (_, index) => {
+          const prefix = `${label}${String(index).padStart(4, '0')}`;
+          return prefix + label.repeat(CHUNK_BYTES - prefix.length);
+        }).join('').slice(0, MAX_SNAPSHOT_BYTES - overhead);
+        const value = await packSnapshot({ payload });
+        expect(value.manifest.bytes).toBe(MAX_SNAPSHOT_BYTES);
+        expect(value.chunks).toHaveLength(107);
+        expect(new Set(value.chunks.map(chunk => chunk.digest)).size).toBe(107);
+        return value;
+      };
+      const privateCopy = await maximum('P'); const ranking = await maximum('R');
+      const retired = crypto.randomUUID(); const kept = crypto.randomUUID();
+      const copyFor = (id: string) => ({
+        private: { ...privateCopy.manifest, generation: id }, ranking: { ...ranking.manifest, generation: id },
+        epoch: base.epoch, createdAt: aged(),
+      });
+      await seed({
+        [`syncHeads/${owner.uid}`]: { ...base, revision: 2, current: copyFor(kept).private, updatedAt: aged() },
+        [`creatorRanks/${owner.uid}`]: {
+          format: 1, epoch: base.epoch, revision: 2, current: copyFor(kept).ranking, previous: null, updatedAt: aged(),
+        },
+        [`accounts/${owner.uid}/metadata/registry`]: { ids: [retired, kept], revision: 2 },
+        [`accounts/${owner.uid}/generations/${retired}`]: { ...copyFor(retired), status: 'deleting' },
+        [`accounts/${owner.uid}/generations/${kept}`]: { ...copyFor(kept), status: 'ready' },
+      });
+      for (const [kind, chunks] of [['accounts', privateCopy.chunks], ['creatorRanks', ranking.chunks]] as const) {
+        for (let index = 0; index < chunks.length; index += 8) await seed(Object.fromEntries(chunks.slice(index, index + 8).map(chunk => [
+          `${kind}/${owner.uid}/chunks/${chunk.digest}`, { ...chunk, holders: [retired, kept], holder: kept, createdAt: aged() },
+        ])));
+      }
+      expect(await owner.cloud.cleanup()).toBe(1);
+      const registry = doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry');
+      expect((await getDocFromServer(registry)).data()?.ids).toEqual([kept]);
+      for (const [kind, chunks] of [['accounts', privateCopy.chunks], ['creatorRanks', ranking.chunks]] as const) {
+        for (const chunk of [chunks[0]!, chunks[106]!]) {
+          expect((await getDocFromServer(doc(owner.db, kind, owner.uid, 'chunks', chunk.digest))).data()?.holders).toEqual([kept]);
+        }
+      }
+      const head = await owner.cloud.head();
+      if (!head) throw new Error('The retained maximum-count head is missing.');
+      await owner.cloud.revoke(head, true);
+      expect(await owner.cloud.cleanup(true)).toBe(1);
+      expect((await getDocFromServer(registry)).data()?.ids).toEqual([]);
+      await environment.withSecurityRulesDisabled(async context => {
+        for (const kind of ['accounts', 'creatorRanks']) {
+          expect((await context.firestore().collection(`${kind}/${owner.uid}/chunks`).limit(1).get()).empty).toBe(true);
+        }
+      });
+    }, 180000);
+
+    it.each(['ranking', 'shelf'] as const)('cleans a full 100-chunk %s generation with active retained pointers within the release access budget', async kind => {
+      const owner = await actor();
+      const base = await owner.cloud.enable(null);
+      await owner.friends.initialize(owner.uid);
+      const settings = await owner.friends.settings(owner.uid);
+      if (!settings) throw new Error('Friend settings are missing.');
+      const rows = Array.from({ length: 200 }, (_, index): PublicEntry => ({
+        ...entry, position: index + 1, id: `wikidata:Q${index + 1}`, sourceId: `Q${index + 1}`, sourceUrl: `https://www.wikidata.org/wiki/Q${index + 1}`,
+      }));
+      const shelf = new FriendShelfStore(owner.db);
+      const selectedIds = rows.map(row => row.id);
+      const control = kind === 'ranking'
+        ? await owner.friends.saveSettings(owner.uid, { enabled: true, selectedIds }, settings)
+        : await shelf.saveConfig(owner.uid, { enabled: true, selectedIds, consentSyncEpoch: base.epoch }, await shelf.initialize(owner.uid));
+      const names = kind === 'ranking'
+        ? { collection: 'friendShares', head: 'friendShareHeads', registry: 'friendShareRegistry' }
+        : { collection: 'friendShelves', head: 'friendShelfHeads', registry: 'friendShelfRegistry' };
+      const [retired, current, previous] = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+      const common = { epoch: control.epoch, settingsRevision: control.revision, source: { syncEpoch: base.epoch, remoteRevision: base.revision } };
+      const sharedRows = kind === 'ranking' ? rows : rows.map(row => ({
+        id: row.id, title: row.title, year: row.year, source: row.source, sourceId: row.sourceId, sourceUrl: row.sourceUrl,
+      }));
+      const digest = createHash('sha256').update(JSON.stringify(sharedRows)).digest('hex');
+      const full = { ...common, count: 200, digest, uploaded: 100, ids: selectedIds, status: 'published', createdAt: aged() };
+      const entries: Record<string, object> = {
+        [`${names.registry}/${owner.uid}`]: { ids: [retired, current, previous], revision: 3 },
+        [`${names.head}/${owner.uid}`]: {
+          ...common, format: 1, revision: 3,
+          current: { generation: current, count: 200, digest },
+          previous: { generation: previous, count: 200, digest }, updatedAt: aged(),
+        },
+        [`${names.collection}/${owner.uid}/generations/${current}`]: full,
+        [`${names.collection}/${owner.uid}/generations/${previous}`]: full,
+        [`${names.collection}/${owner.uid}/generations/${retired}`]: full,
+      };
+      for (const id of [retired, current, previous]) for (let index = 0; index < 100; index += 1) {
+        const pair = sharedRows.slice(index * 2, index * 2 + 2);
+        entries[`${names.collection}/${owner.uid}/generations/${id}/chunks/${index}`] = {
+          index, ids: pair.map(row => row.id),
+          entries: pair,
+        };
+      }
+      await seed(entries);
+      const retiredRef = doc(owner.db, names.collection, owner.uid, 'generations', retired);
+      await updateDoc(retiredRef, { status: 'deleting' });
+      for (let start = 94; start < 100; start += 3) {
+        const stalePayloadOnly = writeBatch(owner.db);
+        for (let index = start; index < start + 3; index += 1) stalePayloadOnly.delete(doc(retiredRef, 'chunks', String(index)));
+        await stalePayloadOnly.commit();
+      }
+      expect((await getDocFromServer(retiredRef)).data()?.uploaded).toBe(100);
+      expect(kind === 'ranking' ? await owner.friends.cleanupSharing(owner.uid) : await shelf.cleanupSharing(owner.uid)).toBe(1);
+      expect((await getDocFromServer(doc(owner.db, names.registry, owner.uid))).data()?.ids).toEqual([current, previous]);
+      expect((await getDocsFromServer(query(collection(owner.db, names.collection, owner.uid, 'generations', retired, 'chunks'), limit(100)))).empty).toBe(true);
+      for (const id of [current, previous]) {
+        expect((await getDocsFromServer(query(collection(owner.db, names.collection, owner.uid, 'generations', id, 'chunks'), limit(100)))).size).toBe(100);
+      }
+    }, 60000);
+
+    it('locks private manifests and holder membership, including additions to a deleting generation', async () => {
+      const owner = await actor();
+      const head = await owner.cloud.enable(null);
+      const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 4 });
+      await expect(owner.cloud.upload(state, head, async () => {
+        throw new Error('Leave only the first private chunk.');
+      })).rejects.toThrow('Leave only the first private chunk');
+      const registry = await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'));
+      const id = registry.data()?.ids[0];
+      if (typeof id !== 'string') throw new Error('The staged generation is missing.');
+      const ref = doc(owner.db, 'accounts', owner.uid, 'generations', id);
+      const staged = (await getDocFromServer(ref)).data()!;
+      const unrelated = (await packSnapshot('outside this manifest')).chunks[0]!;
+      await assertFails(setDoc(doc(owner.db, 'accounts', owner.uid, 'chunks', unrelated.digest), {
+        ...unrelated, holders: [id], holder: id, createdAt: serverTimestamp(),
+      }));
+      await assertFails(updateDoc(ref, { private: { ...staged.private, chunks: [unrelated.digest] } }));
+      const ranking = (await packSnapshot(creatorRanks(state))).chunks[0]!;
+      expect(staged.ranking.chunks).toEqual([ranking.digest]);
+      await updateDoc(ref, { status: 'deleting' });
+      await assertFails(setDoc(doc(owner.db, 'creatorRanks', owner.uid, 'chunks', ranking.digest), {
+        ...ranking, holders: [id], holder: id, createdAt: serverTimestamp(),
+      }));
+      await assertFails(updateDoc(ref, { status: 'staging' }));
+      expect(await owner.cloud.cleanup()).toBe(1);
+    });
+
+    it('recovers all eight slots left deleting by a stale client whose payload deletions completed but parent deletion was denied', async () => {
+      const owner = await actor();
+      const head = await owner.cloud.enable(null);
+      const snapshots = await Promise.all(Array.from({ length: 8 }, (_, index) => packSnapshot({ stale: index })));
+      const entries: Record<string, object> = {
+        [`accounts/${owner.uid}/metadata/registry`]: { ids: snapshots.map(value => value.manifest.generation), revision: 8 },
+      };
+      for (const value of snapshots) entries[`accounts/${owner.uid}/generations/${value.manifest.generation}`] = {
+        private: value.manifest, ranking: value.manifest, epoch: head.epoch, status: 'deleting', createdAt: aged(),
+      };
+      await seed(entries);
+      const registry = doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry');
+      const firstId = snapshots[0]!.manifest.generation;
+      const staleFinish = writeBatch(owner.db);
+      staleFinish.delete(doc(owner.db, 'accounts', owner.uid, 'generations', firstId));
+      staleFinish.update(registry, { ids: snapshots.slice(1).map(value => value.manifest.generation), revision: 9 });
+      await expect(staleFinish.commit()).rejects.toMatchObject({ code: 'permission-denied' });
+      expect((await getDocFromServer(registry)).data()?.ids).toHaveLength(8);
+      expect(await owner.cloud.cleanup()).toBe(4);
+      expect(await owner.cloud.cleanup()).toBe(4);
+      expect((await getDocFromServer(registry)).data()?.ids).toEqual([]);
+      const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 6 });
+      const saved = await owner.cloud.upload(state, head);
+      expect(await owner.cloud.download(saved)).toEqual({ ...state, revision: 0, motion: 'auto' });
+    }, 60000);
+
+    it('advances both private release counters during account deletion even when their ranking chunk is deduplicated', async () => {
+      const owner = await actor();
+      const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 5 });
+      const first = await owner.cloud.upload(state, await owner.cloud.enable(null));
+      const edited = structuredClone(state);
+      edited.ranking[0]!.note = 'Only the private note changed.';
+      edited.revision += 1;
+      const second = await owner.cloud.upload(edited, first);
+      const summary = (await packSnapshot(creatorRanks(state))).chunks[0]!;
+      expect((await getDocFromServer(doc(owner.db, 'creatorRanks', owner.uid, 'chunks', summary.digest))).data()?.holders).toHaveLength(2);
+      await owner.cloud.revoke(second, true);
+      expect(await owner.cloud.cleanup(true)).toBe(2);
+      expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'))).data()?.ids).toEqual([]);
+      expect(await stored(`creatorRanks/${owner.uid}/chunks/${summary.digest}`)).toBeUndefined();
+      for (const manifest of [first.current, second.current]) {
+        if (!manifest) throw new Error('An uploaded private manifest is missing.');
+        for (const digest of manifest.chunks) expect(await stored(`accounts/${owner.uid}/chunks/${digest}`)).toBeUndefined();
+      }
+    });
+
+    it.each(['ranking', 'shelf'] as const)('blocks %s metadata-only slot reuse and forbids regaining released payload', async kind => {
+      const owner = await actor();
+      const head = await owner.cloud.enable(null);
+      await owner.friends.initialize(owner.uid);
+      const settings = await owner.friends.settings(owner.uid);
+      if (!settings) throw new Error('Friend settings are missing.');
+      const shelf = new FriendShelfStore(owner.db);
+      const control = kind === 'ranking'
+        ? await owner.friends.saveSettings(owner.uid, { enabled: true, selectedIds: [entry.id] }, settings)
+        : await shelf.saveConfig(owner.uid, { enabled: true, selectedIds: [entry.id], consentSyncEpoch: head.epoch }, await shelf.initialize(owner.uid));
+      const collection = kind === 'ranking' ? 'friendShares' : 'friendShelves';
+      const registry = doc(owner.db, kind === 'ranking' ? 'friendShareRegistry' : 'friendShelfRegistry', owner.uid);
+      const id = crypto.randomUUID();
+      const ref = doc(owner.db, collection, owner.uid, 'generations', id);
+      const generation = {
+        epoch: control.epoch, settingsRevision: control.revision, source: { syncEpoch: head.epoch, remoteRevision: head.revision },
+        count: 1, digest: 'a'.repeat(64), uploaded: 0, ids: [], status: 'staging', createdAt: serverTimestamp(),
+      };
+      const begin = writeBatch(owner.db);
+      begin.set(registry, { ids: [id], revision: 1 });
+      begin.set(ref, generation);
+      await begin.commit();
+      const row = kind === 'ranking' ? entry : {
+        id: entry.id, title: entry.title, year: entry.year, source: entry.source, sourceId: entry.sourceId, sourceUrl: entry.sourceUrl,
+      };
+      const chunk = { index: 0, entries: [row], ids: [row.id] };
+      const upload = writeBatch(owner.db);
+      upload.set(doc(ref, 'chunks', '0'), chunk);
+      upload.update(ref, { uploaded: 1, ids: [row.id], status: 'ready' });
+      await upload.commit();
+      await seed({ [`${collection}/${owner.uid}/generations/${id}`]: {
+        ...generation, uploaded: 1, ids: [row.id], status: 'ready', createdAt: aged(),
+      } });
+      await updateDoc(ref, { status: 'deleting' });
+      const early = writeBatch(owner.db);
+      early.delete(ref);
+      early.update(registry, { ids: [], revision: 2 });
+      await expect(early.commit()).rejects.toMatchObject({ code: 'permission-denied' });
+      await assertFails(updateDoc(ref, { uploaded: 0 }));
+      await releaseIndexedPayload(ref, 'chunks', 0, 100);
+      expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
+      const regain = writeBatch(owner.db);
+      regain.set(doc(ref, 'chunks', '0'), chunk);
+      regain.update(ref, { uploaded: 1, status: 'ready' });
+      await expect(regain.commit()).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(kind === 'ranking' ? await owner.friends.cleanupSharing(owner.uid) : await shelf.cleanupSharing(owner.uid)).toBe(1);
+      expect((await getDocFromServer(registry)).data()?.ids).toEqual([]);
+    });
+
     it('shrinks a valid twelve-generation legacy registry, then really uploads and downloads with retained rollback data', async () => {
       const owner = await actor();
       const base = await owner.cloud.enable(null);
@@ -279,7 +561,13 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         [`${path}/entries/1`]: entry,
       });
       expect(await stored(`publicProfiles/${owner.uid}/metadata/registry`)).toBeUndefined();
-      expect(await owner.social.cleanup(owner.uid, true)).toBe(1);
+      expect(await owner.social.cleanup(owner.uid, true, async () => {
+        expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
+        const regain = writeBatch(owner.db);
+        regain.set(doc(ref, 'entries', '1'), entry);
+        regain.update(ref, { uploaded: 1, status: 'ready' });
+        await expect(regain.commit()).rejects.toMatchObject({ code: 'permission-denied' });
+      })).toBe(1);
       expect(await stored(path)).toBeUndefined();
       expect(await stored(`${path}/entries/1`)).toBeUndefined();
       const published = await owner.social.publish(owner.uid, publication('migration_enrolled'), await owner.social.control(owner.uid));
@@ -327,7 +615,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect(await owner.social.ownProfile(owner.uid)).toBeNull();
     });
 
-    it('characterizes the open private payload-orphan limit: metadata slots can be reused while both chunk kinds survive', async () => {
+    it('blocks the private metadata-only orphan loop and permits slot reuse only after honest chunk release', async () => {
       const owner = await actor();
       const head = await owner.cloud.enable(null);
       const registry = doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry');
@@ -353,7 +641,11 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         const discardMetadata = writeBatch(owner.db);
         discardMetadata.delete(generation);
         discardMetadata.update(registry, { ids: [], revision: current.data()!.revision + 1 });
-        await discardMetadata.commit();
+        await expect(discardMetadata.commit()).rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(deleteDoc(generation)).rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(updateDoc(generation, { released: 2 })).rejects.toMatchObject({ code: 'permission-denied' });
+        expect((await getDocFromServer(registry)).data()?.ids).toEqual(ids);
+        expect(await owner.cloud.cleanup()).toBe(1);
         expect((await getDocFromServer(generation)).exists()).toBe(false);
         expect((await getDocFromServer(registry)).data()?.ids).toEqual([]);
       }
@@ -361,12 +653,11 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect(new Set(orphans.map(value => `${value.collection}/${value.digest}`)).size).toBe(4);
       for (const orphan of orphans) {
         const ref = doc(owner.db, orphan.collection, owner.uid, 'chunks', orphan.digest);
-        expect((await getDocFromServer(ref)).exists()).toBe(true);
-        await assertFails(deleteDoc(ref));
+        expect((await getDocFromServer(ref)).exists()).toBe(false);
       }
     });
 
-    it('characterizes the open public payload-orphan limit: unregistering metadata does not remove its entries', async () => {
+    it('blocks the public metadata-only orphan loop and permits slot reuse only after honest entry countdown', async () => {
       const owner = await actor();
       const registry = doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry');
       const generations: string[] = [];
@@ -383,7 +674,11 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         const discardMetadata = writeBatch(owner.db);
         discardMetadata.delete(ref);
         discardMetadata.update(registry, { ids: [], revision: current.data()!.revision + 1 });
-        await discardMetadata.commit();
+        await expect(discardMetadata.commit()).rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(deleteDoc(ref)).rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(updateDoc(ref, { uploaded: 0 })).rejects.toMatchObject({ code: 'permission-denied' });
+        expect((await getDocFromServer(registry)).data()?.ids).toEqual(ids);
+        expect(await owner.social.cleanup(owner.uid, true)).toBe(1);
         expect((await getDocFromServer(ref)).exists()).toBe(false);
         expect((await getDocFromServer(registry)).data()?.ids).toEqual([]);
       }
@@ -391,8 +686,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect(await owner.social.cleanup(owner.uid, true)).toBe(0);
       for (const id of generations) {
         const ref = doc(owner.db, 'publicProfiles', owner.uid, 'generations', id, 'entries', '1');
-        expect((await getDocFromServer(ref)).data()).toEqual(entry);
-        await expect(deleteDoc(ref)).rejects.toMatchObject({ code: 'permission-denied' });
+        expect((await getDocFromServer(ref)).exists()).toBe(false);
       }
     });
   }
