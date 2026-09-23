@@ -459,6 +459,7 @@ a.unranked-source { text-decoration: underline; text-underline-offset: 4px; }
 .progress-filter { display: grid; gap: 6px; min-width: 0; max-width: 250px; font-size: 14px; color: var(--ink); }
 .progress-filter select { width: 100%; min-height: 44px; max-width: 100%; background: var(--white); border: 1px solid #a5ac98; border-radius: 4px; padding: 8px 30px 8px 10px; font: inherit; color: var(--ink); }
 .completed-toggle { white-space: nowrap; padding-inline: 6px; gap: 5px; }
+.played-check .completed-toggle { max-width: 100%; white-space: normal; }
 .completed-toggle[aria-pressed="true"] { color: var(--ink); background: var(--lime); border-radius: 4px; }
 .view-controls { flex-wrap: wrap; }
 .my-games-navigation > .progress-filter { margin-block: 8px; }
