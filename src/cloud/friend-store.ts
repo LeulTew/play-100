@@ -20,6 +20,7 @@ import { parseHead } from './cloud-store';
 import { SocialStore } from './social-store';
 import { releaseIndexedPayload } from './generation-cleanup';
 import { ACCOUNT_LIMITS, AccountQuotaFull, occupyQuotaSlot, quotaRef, quotaSupported, readQuotaSlots, releaseQuotaSlot, requireVisibleCapacity } from './account-quota';
+import type { SlotQuotaKind } from './account-quota';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
@@ -628,6 +629,30 @@ export class FriendStore {
     }
     return deleted;
   }
+  private async releaseMissingQuotaIds(uid: string, kind: SlotQuotaKind): Promise<'empty' | 'more' | 'blocked'> {
+    const quota = quotaRef(this.db, uid, kind);
+    const snapshot = await getDocFromServer(quota);
+    if (!snapshot.exists()) return 'empty';
+    const ids: unknown = snapshot.data().ids;
+    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) {
+      throw new FriendStoreError('invalid', 'Account settings could not be read. Try again later.');
+    }
+    for (const id of ids.slice(0, 20)) {
+      const released = await runTransaction(this.db, async tx => {
+        const itemRef = doc(this.db, kind === 'groups' ? 'friendGroups' : 'friendBlocks', uid, 'items', id);
+        const [slots, item] = await Promise.all([readQuotaSlots(tx, quota, kind), tx.get(itemRef)]);
+        if (!slots.ids.includes(id)) return true;
+        if (item.exists()) return false;
+        releaseQuotaSlot(tx, quota, slots, id);
+        return true;
+      });
+      if (!released) return 'blocked';
+    }
+    const remaining = await getDocFromServer(quota);
+    if (!remaining.exists()) return 'empty';
+    if (!Array.isArray(remaining.data().ids)) throw new FriendStoreError('invalid', 'Account settings could not be read. Try again later.');
+    return remaining.data().ids.length ? 'more' : 'empty';
+  }
   async cleanupDeleted(uid: string): Promise<FriendCleanupResult> {
     const settings = await this.settings(uid);
     if (!settings?.deleted) throw new FriendStoreError('conflict', 'Reserve full social deletion before cleaning its data.');
@@ -671,6 +696,14 @@ export class FriendStore {
     await batch.commit();
     if (relations.size < 20 && groups.items.length < 20 && blocks.items.length < 20) {
       try {
+        let more = false;
+        for (const [kind, counted] of [['groups', groupsCounted], ['blocks', blocksCounted]] as const) {
+          if (!counted) continue;
+          const result = await this.releaseMissingQuotaIds(uid, kind);
+          if (result === 'blocked') return { deleted, done: false, message: 'Some account settings could not be removed. Try deleting again later.' };
+          more ||= result === 'more';
+        }
+        if (more) return { deleted, done: false };
         const quotas = writeBatch(this.db); quotas.delete(groupQuota); quotas.delete(blockQuota); quotas.delete(pairQuota);
         await quotas.commit();
         const remaining = await Promise.all([getDocFromServer(groupQuota), getDocFromServer(blockQuota), getDocFromServer(pairQuota)]);

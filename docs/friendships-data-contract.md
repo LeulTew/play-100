@@ -424,6 +424,17 @@ rules window, denied quota paths use the previous cleanup path; this is not
 evidence that new-schema data can be fully deleted after a rules rollback.
 Compatibility branches are temporary and must be removed after promotion.
 
+A rollback to older rules can remove an enrolled group/block without updating
+its ID registry. On re-promotion, final cleanup releases at most 20 such absent
+IDs per kind per pass: it reads the registry and item, then uses the existing
+one-ID removal rule, whose `existsAfter` proof costs one rules lookup. A present
+item or denied release stops completion; a larger orphan set returns a normal
+non-final result and continues within the bounded controller loop. The empty
+registry delete and absence check still run only after healing completes.
+These orphans are a rollback compatibility case, not a normal new-rules write.
+Backlog: group/block creation can remain blocked by orphan registry capacity
+until that cleanup is run.
+
 The emulator validates authorization and transitions, not production CPU or
 latency for list operations on as many as 1,000 IDs. Those production evaluation
 costs remain a review/operational limit; source tests are not a measurement.

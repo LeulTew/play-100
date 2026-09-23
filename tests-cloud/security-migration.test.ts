@@ -375,14 +375,48 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
   });
 
   if (policy === 'candidate') {
-    it('does not declare completion while a group quota record still refers to a missing item', async () => {
+    it('heals rollback orphan group and block IDs before removing their empty quota records', async () => {
       const owner = await actor();
       await owner.friends.initialize(owner.uid);
       await owner.friends.revokeForDeletion(owner.uid);
-      await seed({ [`accountQuotas/${owner.uid}/limits/groups`]: { ids: [crypto.randomUUID()], revision: 1 } });
+      await seed({
+        [`accountQuotas/${owner.uid}/limits/groups`]: { ids: [crypto.randomUUID()], revision: 1 },
+        [`accountQuotas/${owner.uid}/limits/blocks`]: { ids: ['RemovedDuringRollback'], revision: 1 },
+      });
+      expect((await owner.friends.cleanupDeleted(owner.uid)).done).toBe(true);
+      expect(await stored(`accountQuotas/${owner.uid}/limits/groups`)).toBeUndefined();
+      expect(await stored(`accountQuotas/${owner.uid}/limits/blocks`)).toBeUndefined();
+    });
+
+    it('releases at most twenty rollback orphan IDs per kind and continues without an error message', async () => {
+      const owner = await actor();
+      await owner.friends.initialize(owner.uid);
+      await owner.friends.revokeForDeletion(owner.uid);
+      await seed({
+        [`accountQuotas/${owner.uid}/limits/groups`]: { ids: [crypto.randomUUID()], revision: 1 },
+        [`accountQuotas/${owner.uid}/limits/blocks`]: { ids: Array.from({ length: 45 }, (_, index) => `Orphan-${index}`), revision: 1 },
+      });
+      expect(await owner.friends.cleanupDeleted(owner.uid)).toEqual({ deleted: 0, done: false });
+      expect((await getDocFromServer(quotaRef(owner.db, owner.uid, 'blocks'))).data()?.ids).toHaveLength(25);
+      expect(await owner.friends.cleanupDeleted(owner.uid)).toEqual({ deleted: 0, done: false });
+      expect((await getDocFromServer(quotaRef(owner.db, owner.uid, 'blocks'))).data()?.ids).toHaveLength(5);
+      expect((await owner.friends.cleanupDeleted(owner.uid)).done).toBe(true);
+      expect(await stored(`accountQuotas/${owner.uid}/limits/blocks`)).toBeUndefined();
+    });
+
+    it('keeps completion blocked when an item excluded by its missing index field still exists', async () => {
+      const owner = await actor();
+      await owner.friends.initialize(owner.uid);
+      await owner.friends.revokeForDeletion(owner.uid);
+      const id = crypto.randomUUID();
+      await seed({
+        [`accountQuotas/${owner.uid}/limits/groups`]: { ids: [id], revision: 1 },
+        [`friendGroups/${owner.uid}/items/${id}`]: { format: 1, name: 'Malformed retained fixture', participantUids: [owner.uid, 'KnownPeer'], revision: 1, createdAt: aged() },
+      });
       expect(await owner.friends.cleanupDeleted(owner.uid)).toMatchObject({
         done: false, message: 'Some account settings could not be removed. Try deleting again later.',
       });
+      expect(await stored(`friendGroups/${owner.uid}/items/${id}`)).toBeDefined();
     });
 
     it('preserves every legacy pair lifecycle in place without counting, converting or releasing its quota', async () => {
