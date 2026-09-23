@@ -6,10 +6,14 @@ import '@fontsource-variable/hanken-grotesk/wght.css';
 import App from './App';
 import DataUsePage from './components/DataUsePage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { startGuestLibraryLoad } from './lib/guest-library-startup';
 import './styles.css';
 import './personal.css';
 import './render-containment.css';
 
+const dataUsePage = /^\/data-use\/?$/.test(location.pathname);
+if (!dataUsePage) startGuestLibraryLoad();
+
 createRoot(document.getElementById('root')!).render(
-  <StrictMode><ErrorBoundary>{/^\/data-use\/?$/.test(location.pathname) ? <DataUsePage /> : <App />}</ErrorBoundary></StrictMode>,
+  <StrictMode><ErrorBoundary>{dataUsePage ? <DataUsePage /> : <App />}</ErrorBoundary></StrictMode>,
 );

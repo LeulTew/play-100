@@ -9,6 +9,7 @@ import type { Member } from './community';
 import { recordFriendRemovals } from './friend-selection-cache';
 import { recordFriendShelfRemovals } from './friend-shelf-selection-cache';
 import { friendShelfSelectionKey } from './friend-shelf-selection';
+import { clearMotionHint, rememberMotionHint } from './motion-hint';
 
 function conflict(message: string): Error {
   const error = new Error(message);
@@ -71,17 +72,20 @@ async function update(scope: LibraryScope, change: (current: ScopedLibrary) => S
     store.put(next, scope);
     return next;
   });
+  rememberMotionHint(scope, saved.state.motion);
   publishLibraryChange(scope);
   return saved;
 }
 
 export async function loadScopedLibrary(scope: LibraryScope, deviceMotion: MotionPreference = 'auto'): Promise<ScopedLibrary> {
-  return accountStorageTransaction(scope, (value, store) => {
+  const loaded = await accountStorageTransaction(scope, (value, store) => {
     if (value !== undefined) return parseScopedLibrary(value, scope);
     const empty = initial(scope, deviceMotion);
     store.put(empty, scope);
     return empty;
   });
+  rememberMotionHint(scope, loaded.state.motion);
+  return loaded;
 }
 
 export function commitScopedAction(scope: LibraryScope, action: PersonalAction): Promise<ScopedLibrary> {
@@ -184,6 +188,7 @@ export function rebaseScopedLibrary(scope: LibraryScope, head: SyncHead, expecte
 export async function deleteScopedLibrary(scope: LibraryScope): Promise<void> {
   scopeUid(scope);
   await accountStorageTransaction(scope, (_, store) => { store.delete(scope); store.delete(`friends-selection:v1:${scope}`); store.delete(friendShelfSelectionKey(scope)); store.delete(`friends-all-work:v2:${scope}`); });
+  clearMotionHint(scope);
   publishLibraryChange(scope);
 }
 

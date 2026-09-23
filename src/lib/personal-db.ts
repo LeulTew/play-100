@@ -1,6 +1,7 @@
 import { applyPersonalAction, emptyPersonalLibrary, migrateLegacyLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord, PersonalAction, PersonalLibraryLoad, PersonalLibraryState } from './personal-types';
 import { STORAGE_KEY } from './storage';
+import { rememberMotionHint } from './motion-hint';
 
 export const DB_NAME = 'play100-personal';
 export const DB_VERSION = 2;
@@ -221,7 +222,10 @@ export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Pr
     if (current === undefined || typeof current === 'object' && current !== null && 'version' in current && current.version === 2) return null;
     return parsePersonalLibrary(current);
   }, STATE_KEY, 'readonly');
-  if (existing) return { state: existing, notice: legacyNotice, migrated: false };
+  if (existing) {
+    rememberMotionHint('guest', existing.motion);
+    return { state: existing, notice: legacyNotice, migrated: false };
+  }
 
   // Initialization/upgrades still re-read under the write lock: a different tab
   // may have initialized or edited this key since the readonly snapshot.
@@ -240,6 +244,7 @@ export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Pr
     store.put(state, STATE_KEY);
     return { state, initialized: true, legacy: raw, upgraded: false };
   });
+  rememberMotionHint('guest', result.state.motion);
   if (result.initialized) {
     legacyNotice = result.legacy === null ? null : removeLegacy(result.legacy);
     publishLibraryChange();
@@ -259,6 +264,7 @@ export async function commitPersonalAction(action: PersonalAction): Promise<Pers
     store.put(updated, STATE_KEY);
     return updated;
   });
+  rememberMotionHint('guest', state.motion);
   publishLibraryChange();
   return state;
 }
@@ -281,6 +287,7 @@ export async function restorePersonalLibrary(state: PersonalLibraryState): Promi
     store.put(updated, STATE_KEY);
     return updated;
   });
+  rememberMotionHint('guest', restored.motion);
   publishLibraryChange();
   return restored;
 }
@@ -292,6 +299,7 @@ export async function resetPersonalLibrary(): Promise<PersonalLibraryLoad> {
     return empty;
   });
   legacyNotice = removeLegacy();
+  rememberMotionHint('guest', state.motion);
   publishLibraryChange();
   return { state, notice: legacyNotice, migrated: false };
 }

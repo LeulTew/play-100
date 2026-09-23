@@ -48,6 +48,7 @@ import type { MotionBoundary, MotionLocation } from './motion';
 import './motion/motion.css';
 import { loadCatalogDetail } from './lib/catalog-detail-preload';
 import { scheduleIdlePrefetch } from './lib/idle-prefetch';
+import { effectiveMotionPreference, readMotionHint } from './lib/motion-hint';
 
 const MyGamesPage = lazy(() => import('./components/personal/MyGamesPage'));
 const CatalogDetail = lazy(loadCatalogDetail);
@@ -132,7 +133,8 @@ export default function App() {
     return () => { window.removeEventListener('popstate', changed); window.removeEventListener('play100:navigate', changed); };
   }, []);
   const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account...' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
-  const effectiveMotion = library.status === 'loading' ? 'lite' : library.state.motion;
+  const motionHint = useMemo(() => readMotionHint(libraryScope), [libraryScope]);
+  const effectiveMotion = effectiveMotionPreference(library.status, library.state.motion, motionHint);
   const capabilities = useCapabilities(effectiveMotion);
   useEffect(() => {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;

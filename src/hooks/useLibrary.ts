@@ -5,6 +5,7 @@ import {
 } from '../lib/personal-db';
 import { applyPersonalAction, emptyPersonalLibrary, migrateLegacyLibrary } from '../lib/personal-library';
 import { STORAGE_KEY } from '../lib/storage';
+import { takeGuestLibraryLoad } from '../lib/guest-library-startup';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 
 interface Snapshot {
@@ -38,12 +39,12 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     if (current.current.status === 'temporary' && temporaryEdits.current) return;
     let canceled = false;
     const sequence = ++loadSequence.current;
-    const attempt = startupLoad.current ?? { records: canonicalRecords, promise: loadPersonalLibrary(canonicalRecords) };
+    const attempt = startupLoad.current ?? takeGuestLibraryLoad() ?? { records: canonicalRecords, promise: loadPersonalLibrary(canonicalRecords) };
     startupLoad.current = attempt;
     // Metadata arriving during the read can reuse its validated v3 result.
     // A failed legacy migration retries with the now-available canonical records.
     void attempt.promise.catch((error: unknown) => {
-      if (!canceled && sequence === loadSequence.current && attempt.records !== canonicalRecords) return loadPersonalLibrary(canonicalRecords);
+      if (!canceled && sequence === loadSequence.current && attempt.records !== canonicalRecords && canonicalRecords.length > 0) return loadPersonalLibrary(canonicalRecords);
       throw error;
     }).then((result) => {
       if (canceled || sequence !== loadSequence.current) return;
