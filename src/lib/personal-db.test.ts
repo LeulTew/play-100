@@ -1,4 +1,4 @@
-import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
+import { IDBFactory, IDBDatabase as FakeDatabase, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   closePersonalLibrary, commitPersonalAction, DB_NAME, DB_VERSION, loadPersonalLibrary,
@@ -164,6 +164,45 @@ describe('atomic private library removal', () => {
 });
 
 describe('IndexedDB initialization and migration', () => {
+  it('loads a 500-record v3 guest snapshot with one readonly get and no write or account-key read', async () => {
+    const dense = emptyPersonalLibrary();
+    dense.revision = 42;
+    dense.motion = 'lite';
+    for (let index = 0; index < 500; index += 1) {
+      const id = `manual:dense-${index}`;
+      dense.records[id] = { ...c, id, source: 'manual', sourceId: `dense-${index}`, title: `Game ${index}`, sourceUrl: null };
+      dense.progress[id] = { later: index < 3, completed: index % 3 === 0, played: index % 3 === 0 };
+      if (index < 3) dense.queueOrder.unshift(id);
+      dense.ranking.push({ id, score: index % 11, note: `Private opinion ${index}`, manualPosition: index === 0 ? 1 : null });
+    }
+    const expected = parsePersonalLibrary(dense);
+    await stored({ value: dense });
+    const tx = vi.spyOn(FakeDatabase.prototype, 'transaction');
+    const get = vi.spyOn(FakeObjectStore.prototype, 'get');
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put');
+    const loaded = await loadPersonalLibrary([]);
+    expect(loaded).toEqual({ state: expected, notice: null, migrated: false });
+    expect(tx.mock.calls.map(call => call[1])).toEqual(['readonly']);
+    expect(get.mock.calls.map(call => call[0])).toEqual([STATE_KEY]);
+    expect(put).not.toHaveBeenCalled();
+    tx.mockRestore(); get.mockRestore(); put.mockRestore();
+    expect(await stored()).toEqual(dense);
+    loaded.state.records['manual:dense-0'].title = 'Only the returned object';
+    expect((await loadPersonalLibrary(canonical)).state).toEqual(expected);
+  });
+
+  it('rechecks the current key when simultaneous readers initialize the library', async () => {
+    storage.setItem(STORAGE_KEY, legacy);
+    const peer = await secondClient();
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put');
+    const [first, second] = await Promise.all([loadPersonalLibrary(canonical), peer.loadPersonalLibrary(canonical)]);
+    expect(first.state).toEqual(second.state);
+    expect(first.state.queueOrder).toEqual([b.id, a.id]);
+    expect(put.mock.calls.filter(call => call[1] === STATE_KEY)).toHaveLength(1);
+    expect(await stored()).toEqual(first.state);
+    expect(storage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
   it('upgrades a version-one database with version-two rankings without guessing prior drag intent', async () => {
     const connection = await openForTest(1);
     const old = {

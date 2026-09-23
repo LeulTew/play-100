@@ -26,15 +26,26 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
   const records = useRef(canonicalRecords);
   const loadSequence = useRef(0);
   const temporaryEdits = useRef(false);
+  const startupLoad = useRef<{ records: LibraryRecord[]; promise: ReturnType<typeof loadPersonalLibrary> } | null>(null);
   records.current = canonicalRecords;
 
   const publish = useCallback((next: Snapshot) => { current.current = next; setSnapshot(next); }, []);
 
   useEffect(() => {
+    // Canonical records are needed for legacy migration, not for a loaded v3
+    // snapshot. Cross-tab updates have their own queued refresh below.
+    if (current.current.status === 'ready') return;
     if (current.current.status === 'temporary' && temporaryEdits.current) return;
     let canceled = false;
     const sequence = ++loadSequence.current;
-    void loadPersonalLibrary(canonicalRecords).then((result) => {
+    const attempt = startupLoad.current ?? { records: canonicalRecords, promise: loadPersonalLibrary(canonicalRecords) };
+    startupLoad.current = attempt;
+    // Metadata arriving during the read can reuse its validated v3 result.
+    // A failed legacy migration retries with the now-available canonical records.
+    void attempt.promise.catch((error: unknown) => {
+      if (!canceled && sequence === loadSequence.current && attempt.records !== canonicalRecords) return loadPersonalLibrary(canonicalRecords);
+      throw error;
+    }).then((result) => {
       if (canceled || sequence !== loadSequence.current) return;
       publish({ state: result.state, status: 'ready', warning: result.notice, error: null });
     }).catch((error: unknown) => {
@@ -51,6 +62,8 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
         state: fallback, status: 'temporary', error: null,
         warning: `${detail} Your existing saved data has not been overwritten. Changes now work in this tab only; download a backup before closing it, or reset device data in Settings.`,
       });
+    }).finally(() => {
+      if (startupLoad.current === attempt) startupLoad.current = null;
     });
     return () => { canceled = true; };
   }, [canonicalRecords, canonicalLoading, publish]);

@@ -149,12 +149,12 @@ function openDatabase(): Promise<IDBDatabase> {
   return pending;
 }
 
-async function transaction<T>(work: (current: unknown, store: IDBObjectStore) => T, key = STATE_KEY): Promise<T> {
+async function transaction<T>(work: (current: unknown, store: IDBObjectStore) => T, key = STATE_KEY, mode: IDBTransactionMode = 'readwrite'): Promise<T> {
   const connection = await openDatabase();
   return new Promise<T>((resolve, reject) => {
     let tx: IDBTransaction;
     try {
-      tx = connection.transaction(STORE_NAME, 'readwrite');
+      tx = connection.transaction(STORE_NAME, mode);
     } catch (cause) {
       reject(storageError(cause));
       return;
@@ -217,6 +217,14 @@ function removeLegacy(expectedRaw?: string): string | null {
 }
 
 export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Promise<PersonalLibraryLoad> {
+  const existing = await transaction((current) => {
+    if (current === undefined || typeof current === 'object' && current !== null && 'version' in current && current.version === 2) return null;
+    return parsePersonalLibrary(current);
+  }, STATE_KEY, 'readonly');
+  if (existing) return { state: existing, notice: legacyNotice, migrated: false };
+
+  // Initialization/upgrades still re-read under the write lock: a different tab
+  // may have initialized or edited this key since the readonly snapshot.
   const result = await transaction((current, store) => {
     if (current !== undefined) {
       const state = parsePersonalLibrary(current);
