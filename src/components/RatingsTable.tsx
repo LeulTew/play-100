@@ -57,18 +57,20 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
             {sortedHeader('Average', 'score', '/ 100')}
             <th scope="col">Your list</th>
           </tr></thead>
-          <tbody>{games.map((game) => (
+          <tbody>{games.map((game) => {
+            const compareRecord = getCompareRecord?.(game);
+            return (
             <tr key={game.slug} data-game={game.slug} className={selected.has(game.slug) ? 'row-selected' : ''}>
               {selecting && <td className="selection-column"><label className="select-control"><input type="checkbox" checked={selected.has(game.slug)} onChange={() => onSelect(game.slug)} aria-label={`Select ${game.title}`} /></label></td>}
               <td className="table-rank">{String(game.rank).padStart(2, '0')}</td>
-              <th scope="row" className="table-game"><RatingsGameLink game={game} filters={filters} onOpen={onOpen} compareRecord={getCompareRecord?.(game)} /><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
+              <th scope="row" className="table-game"><RatingsGameLink game={game} filters={filters} onOpen={onOpen} compareRecord={compareRecord} /><span>{game.genre} · {game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>{savedCopies?.(game)}</th>
               <td>{game.year}</td>
               <td className="numeric-score table-author-rating" title={game.authorRating?.rawValue}>{game.authorRating ? authorRatingText(game.authorRating) : <span aria-label="Original author rating unavailable">—</span>}</td>
               {criticColumns.map(({ key }) => <td key={key} className="numeric-score">{game.critics[key] === null ? <span aria-label="Unavailable">—</span> : game.critics[key]}</td>)}
               <td className="numeric-score table-average">{formatAverage(game.criticAverage)}</td>
-              <td><div className="table-progress"><PlayedToggle id={game.slug} title={game.title} played={Boolean(progress[game.slug]?.played)} completed={progress[game.slug]?.completed} busy={busy} compact onChange={value => onToggle(game.slug, 'played', value)} /><CompletedToggle title={game.title} completed={Boolean(progress[game.slug]?.completed)} busy={busy} onChange={value => onToggle(game.slug, 'completed', value)} /><button className="icon-button" disabled={busy} aria-pressed={Boolean(progress[game.slug]?.later)} aria-label={`${progress[game.slug]?.later ? 'Remove' : 'Add'} ${game.title} ${progress[game.slug]?.later ? 'from' : 'to'} play later`} onClick={() => onToggle(game.slug, 'later')}><Icon name="bookmark" width="18" height="18" /></button>{getCompareRecord && <ComparePinButton record={getCompareRecord(game)} compact disabled={busy} />}</div></td>
+              <td><div className="table-progress"><PlayedToggle id={game.slug} title={game.title} played={Boolean(progress[game.slug]?.played)} completed={progress[game.slug]?.completed} busy={busy} compact onChange={value => onToggle(game.slug, 'played', value)} /><CompletedToggle title={game.title} completed={Boolean(progress[game.slug]?.completed)} busy={busy} onChange={value => onToggle(game.slug, 'completed', value)} /><button className="icon-button" disabled={busy} aria-pressed={Boolean(progress[game.slug]?.later)} aria-label={`${progress[game.slug]?.later ? 'Remove' : 'Add'} ${game.title} ${progress[game.slug]?.later ? 'from' : 'to'} play later`} onClick={() => onToggle(game.slug, 'later')}><Icon name="bookmark" width="18" height="18" /></button>{compareRecord && <ComparePinButton record={compareRecord} compact disabled={busy} />}</div></td>
             </tr>
-          ))}</tbody>
+          ); })}</tbody>
         </table>
       </div>
       <p className="table-footnote">The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s original cached ratings and source notes are preserved, not recalculated. Your editable personal ratings live on My rankings and are separate from these source values.</p>

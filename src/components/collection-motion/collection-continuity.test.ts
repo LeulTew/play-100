@@ -11,6 +11,7 @@ import { AboutDialog } from '../AboutDialog';
 import RatingsTable from '../RatingsTable';
 import coverMetadata from '../../generated/cover-metadata.json';
 import * as compareSource from '../compare-tray/useCompareDragSource';
+import { CompareTrayContext } from '../compare-tray/compare-tray-context';
 import type { LibraryRecord } from '../../lib/personal-types';
 
 const raw: unknown = JSON.parse(readFileSync(new URL('../../../data/collection.json', import.meta.url), 'utf8'));
@@ -156,11 +157,17 @@ describe('collection continuity preserves the public presentation', () => {
     };
     const binding = vi.spyOn(compareSource, 'useCompareDragSource');
     const resolve = vi.fn(() => owned);
-    renderToStaticMarkup(h(RatingsTable, {
+    const tray = {
+      currentScope: 'guest', items: [], persistent: true, warning: null, error: null, status: '', dragging: false,
+      pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), dismissError: vi.fn(),
+    };
+    const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: tray }, h(RatingsTable, {
       games: [game], filters: { ...defaultFilters, view: 'table' }, progress: {},
       selecting: false, selected: new Set<string>(), busy: true, onSelect: vi.fn(),
       onOpen: vi.fn(), onToggle: vi.fn(), onSort: vi.fn(), getCompareRecord: resolve,
-    }));
+    })));
+    expect(html).toContain(`aria-label="Pin ${game.title} for comparison"`);
+    expect(tray.pin).not.toHaveBeenCalled();
     expect(resolve).toHaveBeenCalledExactlyOnceWith(game);
     expect(binding).toHaveBeenCalledExactlyOnceWith({ record: owned, sourceRef: { current: null } });
   });
