@@ -61,13 +61,14 @@ export default function CollectionPage({ collection, state, filters, busy, motio
   const progress = useMemo(() => catalogProgress(state, ownership), [state, ownership]);
   const onlineScope = filters.tier === 'all' && filters.list !== 'later' && effectiveProgressFilter(filters) === 'all';
   const online = useExtendedSearch(filters.q, Boolean(games) && onlineScope && filters.catalogs === 'on', games ?? []);
-  const results = filterGames(games ?? [], filters, progress, new Set(online.records.map(record => record.id)));
-  const extras = unrankedRecords(games ?? [], state.records, online.records);
-  const extraResults = filterUnranked(extras, filters, state.progress, new Set(online.records.map((record) => record.id)));
-  const resultRecords = [...results.map(recordFromGame), ...extraResults];
-  const currentSelection = new Set(resultRecords.filter((record) => selected.has(record.id)).map((record) => record.id));
+  const onlineIds = useMemo(() => new Set(online.records.map(record => record.id)), [online.records]);
+  const results = useMemo(() => filterGames(games ?? [], filters, progress, onlineIds), [games, filters, progress, onlineIds]);
+  const extras = useMemo(() => unrankedRecords(games ?? [], state.records, online.records), [games, state.records, online.records]);
+  const extraResults = useMemo(() => filterUnranked(extras, filters, state.progress, onlineIds), [extras, filters, state.progress, onlineIds]);
+  const resultRecords = useMemo(() => [...results.map(recordFromGame), ...extraResults], [results, extraResults]);
+  const currentSelection = useMemo(() => new Set(resultRecords.filter(record => selected.has(record.id)).map(record => record.id)), [resultRecords, selected]);
   const showExtended = extraResults.length > 0 || online.eligible;
-  const additions = unrankedRecords(games ?? [], state.records, []);
+  const additions = useMemo(() => unrankedRecords(games ?? [], state.records, []), [games, state.records]);
   const signature = createSearch(filters);
   useEffect(() => { setVisibleCount(PAGE_SIZE); setSelected(new Set()); }, [signature]);
   useEffect(() => {
@@ -78,8 +79,10 @@ export default function CollectionPage({ collection, state, filters, busy, motio
     });
     return () => cancelAnimationFrame(frame);
   }, [collection.status]);
-  const savedCount = Object.values(state.progress).filter((progress) => progress.later).length;
-  const completedCount = Object.values(state.progress).filter((progress) => progress.completed).length;
+  const { savedCount, completedCount } = useMemo(() => ({
+    savedCount: Object.values(state.progress).filter(progress => progress.later).length,
+    completedCount: Object.values(state.progress).filter(progress => progress.completed).length,
+  }), [state.progress]);
   useLayoutEffect(() => {
     if (browseRequest === handledBrowseRequest.current) return;
     handledBrowseRequest.current = browseRequest;

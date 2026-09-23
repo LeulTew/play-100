@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Filters, Game } from '../lib/types';
 import type { LibraryRecord } from '../lib/personal-types';
 import { defaultFilters, SORT_ORDERS } from '../lib/url';
@@ -30,8 +30,8 @@ interface CollectionControlsProps {
 
 export function CollectionControls({ games, filters, count, addedCount, unrankedCount, extraRecords, onlineScope, searching, savedCount, completedCount, onChange, onShare, selecting, onSelectMode, onFullLibrary }: CollectionControlsProps) {
   const searchSession = useRef(false);
-  const genres = [...new Set([...games, ...extraRecords].map((game) => game.genre).filter((genre): genre is string => genre !== null))].sort((a, b) => a.localeCompare(b));
-  const years = [...new Set([...games, ...extraRecords].map((game) => game.year).filter((year): year is number => year !== null))].sort((a, b) => b - a);
+  const genres = useMemo(() => [...new Set([...games, ...extraRecords].map(game => game.genre).filter((genre): genre is string => genre !== null))].sort((a, b) => a.localeCompare(b)), [games, extraRecords]);
+  const years = useMemo(() => [...new Set([...games, ...extraRecords].map(game => game.year).filter((year): year is number => year !== null))].sort((a, b) => b - a), [games, extraRecords]);
   const progress = effectiveProgressFilter(filters);
   const activeFilters = Boolean(filters.q || filters.genre || filters.year || filters.tier !== 'all' || filters.list !== 'all' || progress !== 'all');
   const secondaryCount = [Boolean(filters.genre), Boolean(filters.year), filters.tier !== 'all', filters.list !== 'all', progress !== 'all', filters.sort !== 'rank' || filters.direction === 'desc', filters.catalogs === 'off'].filter(Boolean).length;
