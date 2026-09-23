@@ -128,10 +128,10 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   lazy.sort((a, b) => b.gzipBytes - a.gzipBytes || a.file.localeCompare(b.file));
   const largestLazyRaw = [...lazy].sort((a, b) => b.rawBytes - a.rawBytes || a.file.localeCompare(b.file))[0] ?? null;
   const pwa: unknown = JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8'));
-  if (!object(pwa) || pwa.format !== 1 || !Array.isArray(pwa.core) || !object(pwa.budget) ||
-    typeof pwa.budget.metadataBytes !== 'number' || !Number.isSafeInteger(pwa.budget.metadataBytes) || pwa.budget.metadataBytes < 0) {
+  if (!object(pwa) || pwa.format !== 1 || !Array.isArray(pwa.core) || !object(pwa.budget)) {
     throw new Error('Invalid built PWA asset manifest.');
   }
+  if (pwa.budget.metadataBytes !== 32768) throw new Error('PWA format 1 must reserve exactly 32768 metadata bytes.');
   const coreFiles = new Set<string>();
   let coreBytes = 0;
   for (const asset of pwa.core) {

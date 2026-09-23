@@ -100,6 +100,15 @@ describe('offline built-output budgets', () => {
     await expect(measureBuild(directory)).rejects.toThrow(/Missing built asset/);
   });
 
+  it.each([0, 32767, 32769])('rejects changing the fixed format-1 metadata reserve to %s', async metadataBytes => {
+    const directory = await fixture();
+    const file = path.join(directory, 'pwa-assets.json');
+    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    manifest.budget.metadataBytes = metadataBytes;
+    await writeFile(file, JSON.stringify(manifest));
+    await expect(measureBuild(directory)).rejects.toThrow('PWA format 1 must reserve exactly 32768 metadata bytes.');
+  });
+
   it('passes exact limits and reports each exceeded metric as a failure', async () => {
     const measured = await measureBuild(await fixture());
     const limits = parseBudgetLimits({ version: 1, limits: measured.values });
