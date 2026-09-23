@@ -50,8 +50,10 @@ let browser: Browser;
 let base: string;
 beforeAll(async () => {
   server = await createServer({
-    optimizeDeps: { include: ['react', 'react-dom/client'] },
-    configFile: false, plugins: [react(), {
+    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-panel-guard-tests',
+    appType: 'custom',
+    plugins: [react(), {
       name: 'panel-guard-fixture',
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
@@ -62,20 +64,24 @@ beforeAll(async () => {
         });
       },
     }],
-    server: { host: '127.0.0.1', port: 0 },
+    server: { host: '127.0.0.1', port: 0, watch: null },
   });
+  expect(server.config.server.watch).toBeNull();
+  expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-panel-guard-tests$/);
   await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Panel fixture did not bind a port.');
   base = `http://127.0.0.1:${address.port}`;
   browser = await chromium.launch();
   const warmup = await browser.newPage();
+  const errors: string[] = [];
+  warmup.on('pageerror', error => errors.push(error.message));
   try {
     await warmup.goto(`${base}/__panel-guard`);
     await warmup.getByRole('button', { name: 'settings', exact: true }).waitFor();
     await warmup.evaluate('window.waitForSettings()');
     await warmup.evaluate('window.waitForAbout()');
-  } finally { await warmup.close(); }
+  } finally { await warmup.close(); expect(errors).toEqual([]); }
 }, 60_000);
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
@@ -86,6 +92,8 @@ afterAll(async () => {
 describe('secondary panel guard through the real hook', () => {
   it.each(['scope', 'opening'])('retains an explicit failed intent across %s changes', async boundary => {
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     await page.route('**/src/components/app/SettingsPanel.tsx', route => route.abort('failed'));
     try {
       await page.goto(`${base}/__panel-guard`);
@@ -94,7 +102,7 @@ describe('secondary panel guard through the real hook', () => {
       await browserExpect(page.locator('#message-state')).toHaveText(failure);
       await page.getByRole('button', { name: boundary, exact: true }).click();
       await browserExpect(page.locator('#message-state')).toHaveText(failure);
-    } finally { await page.close(); }
+    } finally { await page.close(); expect(errors).toEqual([]); }
   });
 
   it.each([
@@ -103,6 +111,8 @@ describe('secondary panel guard through the real hook', () => {
   ])('keeps %s intent while account opening is %s', async (intent, boundary) => {
     const about = intent !== 'settings';
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
     await page.route(about ? '**/src/components/AboutDialog.tsx' : '**/src/components/app/SettingsPanel.tsx', async route => {
@@ -121,11 +131,13 @@ describe('secondary panel guard through the real hook', () => {
       await browserExpect(page.locator('#message')).toBeEmpty();
       await page.getByRole('button', { name: 'close', exact: true }).click();
       expect(new URL(page.url()).searchParams.has('info')).toBe(false);
-    } finally { release(); await page.close(); }
+    } finally { release(); await page.close(); expect(errors).toEqual([]); }
   });
 
   it.each(['Escape', 'navigate', 'popstate', 'scope', 'close'])('consumes and cancels a held URL intent on %s', async cancellation => {
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
     await page.route('**/src/components/AboutDialog.tsx', async route => { await held; await route.continue(); });
@@ -138,11 +150,13 @@ describe('secondary panel guard through the real hook', () => {
       release();
       await page.evaluate('window.waitForAbout()');
       await browserExpect(page.locator('#panel')).toHaveText('none');
-    } finally { release(); await page.close(); }
+    } finally { release(); await page.close(); expect(errors).toEqual([]); }
   });
 
   it.each(['Escape', 'popstate', 'navigate', 'dismiss', 'close'])('atomically clears failed notice state after %s', async clear => {
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     await page.route('**/src/components/app/SettingsPanel.tsx', route => route.abort('failed'));
     try {
       await page.goto(`${base}/__panel-guard`);
@@ -154,7 +168,7 @@ describe('secondary panel guard through the real hook', () => {
       else await page.getByRole('button', { name: clear, exact: true }).click();
       await browserExpect(page.locator('#message-state')).toHaveText(JSON.stringify({ text: '', error: false }));
       await browserExpect(page.locator('#failure')).toHaveText('none');
-    } finally { await page.close(); }
+    } finally { await page.close(); expect(errors).toEqual([]); }
   });
 
   it.each([
@@ -162,6 +176,8 @@ describe('secondary panel guard through the real hook', () => {
   ])('retains %s URL intent through provisional scope resolution when %s', async (intent, phase) => {
     const about = intent === 'credits';
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
     await page.route(about ? '**/src/components/AboutDialog.tsx' : '**/src/components/app/SettingsPanel.tsx', async route => {
@@ -189,11 +205,13 @@ describe('secondary panel guard through the real hook', () => {
       await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
       await page.getByRole('button', { name: 'close', exact: true }).click();
       expect(new URL(page.url()).searchParams.has('info')).toBe(false);
-    } finally { release(); await page.close(); }
+    } finally { release(); await page.close(); expect(errors).toEqual([]); }
   });
 
   it.each(['close', 'navigate', 'Escape'])('does not open a late module after %s', async cancellation => {
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
     const requested = new Set<string>();
@@ -220,6 +238,6 @@ describe('secondary panel guard through the real hook', () => {
       await page.getByRole('button', { name: 'settings', exact: true }).click();
       await browserExpect(page.locator('#panel')).toHaveText('settings');
       expect(requested.size).toBe(1);
-    } finally { release(); await page.close(); }
+    } finally { release(); await page.close(); expect(errors).toEqual([]); }
   });
 });

@@ -5,7 +5,15 @@ import { expect, it } from 'vitest';
 it('keeps actual guest browsing and saving usable with invalid optional online configuration', async () => {
   const server = await createServer({
     mode: 'cloud-test',
+    cacheDir: 'node_modules/.vite-online-config-tests',
     server: { host: '127.0.0.1', port: 0 },
+    plugins: [{
+      name: 'online-config-fixture-watch',
+      config(config) {
+        // Vite's config merge skips null overrides; mutate watch directly.
+        config.server = { ...config.server, watch: null };
+      },
+    }],
     define: {
       'import.meta.env.VITE_USE_FIREBASE_EMULATORS': JSON.stringify('false'),
       'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify('invalid-config-fixture'),
@@ -14,6 +22,8 @@ it('keeps actual guest browsing and saving usable with invalid optional online c
   await server.listen();
   const browser = await chromium.launch({ headless: true });
   try {
+    expect(server.config.server.watch).toBeNull();
+    expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-online-config-tests$/);
     const address = server.httpServer?.address();
     if (!address || typeof address === 'string') throw new Error('The isolated config test server did not start.');
     const page = await browser.newPage({ reducedMotion: 'reduce' });

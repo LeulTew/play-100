@@ -50,7 +50,10 @@ let browser: Browser;
 let base: string;
 beforeAll(async () => {
   server = await createServer({
-    configFile: false, plugins: [react(), {
+    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-pwa-controls-tests',
+    appType: 'custom',
+    plugins: [react(), {
       name: 'direct-settings-pwa-fixture',
       configureServer(server) {
         server.middlewares.use((request, response, next) => {
@@ -61,8 +64,10 @@ beforeAll(async () => {
         });
       },
     }],
-    server: { host: '127.0.0.1', port: 0 },
+    server: { host: '127.0.0.1', port: 0, watch: null },
   });
+  expect(server.config.server.watch).toBeNull();
+  expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-pwa-controls-tests$/);
   await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('PWA controls fixture did not bind a port.');
@@ -78,6 +83,8 @@ afterAll(async () => {
 describe('direct Settings PWA connection', () => {
   it('connects without Menu or idle and explains the pending disabled control inside the native dialog', async () => {
     const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     try {
       await page.goto(`${base}/pwa-controls-fixture`);
       await browserExpect(page.getByRole('button', { name: 'Open Settings directly' })).toBeVisible();
@@ -92,6 +99,6 @@ describe('direct Settings PWA connection', () => {
       await browserExpect(dialog.getByRole('button', { name: 'Enable offline access', exact: true })).toBeEnabled();
       await browserExpect(dialog.getByRole('status').filter({ hasText: 'Loading offline controls…' })).toHaveCount(0);
       await browserExpect(dialog.locator('#settings-title')).toBeFocused();
-    } finally { await page.close(); }
+    } finally { await page.close(); expect(errors).toEqual([]); }
   });
 });
