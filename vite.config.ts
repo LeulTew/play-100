@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import catalogHandler from './api/catalog.ts';
 import catalogDetailHandler from './api/catalog-detail.ts';
 import { play100Pwa } from './scripts/pwa-build.ts';
+import { publicMetadataHtml } from './scripts/public-metadata.ts';
 import author from './author.json' with { type: 'json' };
 import { readFirebaseConfiguration } from './src/lib/online-config.ts';
 
@@ -50,7 +51,7 @@ export default defineConfig(({ mode }) => {
           { tag: 'link', attrs: { rel: 'preload', href: '/data/collection.json', as: 'fetch', type: 'application/json', crossorigin: 'anonymous' } },
         ];
         return {
-          html: siteOrigin ? html.replaceAll('https://play-100-collection.vercel.app', siteOrigin) : html,
+          html: publicMetadataHtml(html, siteOrigin),
           tags,
         };
       },
