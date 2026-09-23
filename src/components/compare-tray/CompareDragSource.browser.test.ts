@@ -192,9 +192,9 @@ beforeAll(async () => {
 }, 30_000);
 
 afterAll(async () => {
-  await browser?.close();
-  await browserServer?.close();
-  await server?.close();
+  const closed = await Promise.allSettled([browser?.close(), browserServer?.close(), server?.close()]);
+  const failures = closed.filter(result => result.status === 'rejected').map(result => result.reason);
+  if (failures.length) throw new AggregateError(failures, 'Compare fixture resource cleanup failed.');
   if (receiptPath && resourceReceipt) await writeFile(receiptPath, JSON.stringify({ ...resourceReceipt, closedAt: new Date().toISOString() }, null, 2));
 });
 
