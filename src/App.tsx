@@ -125,7 +125,7 @@ export default function App() {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
-  const { panel, setPanel, panelMessage, dismissPanelMessage } = useAppPanel(captureMenuFocusGuard, libraryScope, onlineOpening);
+  const { panel, setPanel, panelMessage, panelMessageError, dismissPanelMessage } = useAppPanel(captureMenuFocusGuard, libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled });
@@ -432,7 +432,7 @@ export default function App() {
     overlayKey: manualLink ? 'share' : panel,
   };
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
-  const visibleNotice = panelMessage || notice;
+  const visibleNotice = (!panel && !manualLink && !selectedSlug ? panelMessage : '') || notice;
 
   return (
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
@@ -508,6 +508,7 @@ export default function App() {
           onNavigate: navigate, onSettings: () => { setOfflineSettings(false); setPanel('settings'); },
           onOffline: pwaEnabled ? () => { setOfflineSettings(true); setPanel('settings'); } : undefined,
           onAbout: () => setPanel('about'), onClose: closePanel, captureFocusGuard: captureMenuFocusGuard,
+          status: panelMessage, statusError: panelMessageError,
         } } : null}
         about={panel === 'about' ? { onClose: () => {
           setPanel(null);
@@ -520,6 +521,7 @@ export default function App() {
           onReset: library.reset, onRestore: library.restore, state: library.state, persistent: library.status === 'ready', busy: libraryBusy,
           onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
           onClose: () => setPanel(null),
+          status: panelMessage, statusError: panelMessageError,
         } } : null}
         offlineSettings={pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined}
         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadSecondaryDialog, loadSecondaryDialogs, secondaryDialogReady } from '../lib/secondary-dialogs';
+import { loadSecondaryDialog, loadSecondaryDialogs, secondaryDialogReady, secondaryDialogsStarted } from '../lib/secondary-dialogs';
 import type { AppPanel } from '../lib/secondary-dialogs';
 import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
 
 export function useAppPanel(captureScope: () => () => boolean, scope: string, opening: boolean) {
   const [panel, commit] = useState<AppPanel>(null);
   const [message, setMessage] = useState('');
+  const [messageError, setMessageError] = useState(false);
   const generation = useRef(0);
   const alive = useRef(true);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -17,6 +18,7 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
   }
   const dismissPanelMessage = useCallback(() => setMessage(''), []);
   const warm = useCallback(() => {
+    if (secondaryDialogsStarted()) return;
     prefetchStop.current?.();
     prefetchStop.current = scheduleIdlePrefetch(loadSecondaryDialogs, 150, 'intent');
   }, []);
@@ -25,6 +27,7 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     const isCurrentScope = captureScope();
     clearTimeout(noticeTimer.current);
     setMessage('');
+    setMessageError(false);
     if (secondaryDialogReady(next)) {
       commit(next);
       return;
@@ -43,6 +46,7 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
       console.error('The requested dialog could not load.', error instanceof Error ? error.message : 'Unknown module error.');
       if (alive.current && generation.current === request && isCurrentScope()) {
         clearTimeout(noticeTimer.current);
+        setMessageError(true);
         setMessage(`${title} could not load. Check your connection and choose it again to retry.`);
       }
     });
@@ -75,5 +79,5 @@ export function useAppPanel(captureScope: () => () => boolean, scope: string, op
     };
   }, [setPanel, warm]);
   useEffect(() => { setMessage(''); }, [scope, opening]);
-  return { panel, setPanel, panelMessage: message, dismissPanelMessage };
+  return { panel, setPanel, panelMessage: message, panelMessageError: messageError, dismissPanelMessage };
 }

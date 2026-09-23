@@ -3,6 +3,7 @@ export function createRetryableModule<T>(importModule: () => Promise<T>) {
   let pending: Promise<T> | null = null;
   return {
     peek: () => value,
+    started: () => value !== null || pending !== null,
     load(): Promise<T> {
       if (value !== null) return Promise.resolve(value);
       if (pending) return pending;

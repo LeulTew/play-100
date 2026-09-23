@@ -6,7 +6,9 @@ describe('retryable modules used by credits, Settings and offline controls', () 
     let resolve!: (value: { ready: boolean }) => void;
     const importer = vi.fn(() => new Promise<{ ready: boolean }>(done => { resolve = done; }));
     const resource = createRetryableModule(importer);
+    expect(resource.started()).toBe(false);
     const first = resource.load();
+    expect(resource.started()).toBe(true);
     const second = resource.load();
     expect(second).toBe(first);
     expect(resource.peek()).toBeNull();
@@ -15,6 +17,7 @@ describe('retryable modules used by credits, Settings and offline controls', () 
     resolve(value);
     await expect(first).resolves.toBe(value);
     expect(resource.peek()).toBe(value);
+    expect(resource.started()).toBe(true);
     await expect(resource.load()).resolves.toBe(value);
     expect(importer).toHaveBeenCalledTimes(1);
   });
@@ -31,6 +34,7 @@ describe('retryable modules used by credits, Settings and offline controls', () 
       await resource.load().catch(failure);
       expect(failure).toHaveBeenCalledOnce();
       expect(resource.peek()).toBeNull();
+      expect(resource.started()).toBe(false);
       await expect(resource.load()).resolves.toEqual({ ready: true });
       expect(importer).toHaveBeenCalledTimes(2);
       await new Promise(resolve => setImmediate(resolve));
