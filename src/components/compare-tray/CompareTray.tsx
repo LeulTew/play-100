@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
+import type { AppPage } from '../../lib/types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { Dialog } from '../Dialog';
 import { Icon } from '../Icon';
@@ -15,7 +16,7 @@ export interface CompareTrayProps {
   resolveArtwork?: (record: LibraryRecord) => GameArtworkProps['artwork'];
   animate?: boolean;
   hidden?: boolean;
-  compact?: boolean;
+  page?: AppPage;
 }
 
 export function CompareTray(props: CompareTrayProps) {
@@ -23,7 +24,8 @@ export function CompareTray(props: CompareTrayProps) {
   return <ScopedCompareTray key={currentScope} {...props} />;
 }
 
-function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = false, hidden = false, compact = false }: CompareTrayProps) {
+function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = false, hidden = false, page }: CompareTrayProps) {
+  const compact = page !== undefined && page !== 'collection';
   const { items, unpin, clear, dismissError, warning, error, persistent, dragging } = useCompareTray();
   const controller = useContext(CompareDragSourceContext);
   const [open, setOpen] = useState(false);
