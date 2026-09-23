@@ -159,18 +159,24 @@ export function createDeferredPwaController(
         if (recovering) return false;
         recovering = true;
         const current = () => active && generation === request && guard.isCurrent() && guard.canReload();
+        let failureMessage = 'This page could not reload. Save your changes before reloading when connected.';
         try {
-          if (!await guard.prepare() || !current()) {
+          let prepared: boolean;
+          try { prepared = await guard.prepare(); }
+          catch (error) {
+            if (error instanceof Error && error.message) failureMessage = error.message;
+            throw error;
+          }
+          if (!prepared || !current()) {
             if (active && generation === request) publish({ ...state, message: 'Your edit or page changed. Save or correct it before reloading.' });
             return false;
           }
-          publish({ ...state, message: 'Checking your connection…' });
           const result = await guardedReload({ isCurrent: current });
-          if (active && generation === request) publish({ ...state, message: result === 'offline' ? offlineRecoveryMessage : result === 'unavailable' ? unavailableRecoveryMessage : '' });
+          if (active && generation === request) publish({ ...state, message: result === 'offline' ? offlineRecoveryMessage : result === 'unavailable' ? unavailableRecoveryMessage : result === 'cancelled' ? 'Your edit or page changed. Save or correct it before reloading.' : '' });
           return result === 'navigating';
         } catch (error) {
           console.error('Offline controls recovery could not finish.', error);
-          if (active && generation === request) publish({ ...state, message: 'This page could not reload. Save your changes before reloading when connected.' });
+          if (active && generation === request) publish({ ...state, message: failureMessage });
           return false;
         } finally { recovering = false; }
       }

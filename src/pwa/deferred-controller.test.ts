@@ -210,6 +210,17 @@ describe('after-load PWA controller', () => {
       let current = true;
       let clean = true;
       const guard = { prepare: vi.fn(async () => saved), isCurrent: () => current, canReload: () => clean };
+      const editMessage = 'Finish or clear unsubmitted forms, or return to The 100 before updating. Nothing was reloaded.';
+      const genericMessage = 'This page could not reload. Save your changes before reloading when connected.';
+      for (const cause of [new Error(editMessage), new Error(''), 'prepare failed']) {
+        const calls = guard.prepare.mock.calls.length;
+        guard.prepare.mockRejectedValueOnce(cause);
+        expect(await controller.applyUpdate(guard)).toBe(false);
+        expect(guard.prepare).toHaveBeenCalledTimes(calls + 1);
+        expect(controller.getSnapshot().message).toBe(cause instanceof Error && cause.message ? editMessage : genericMessage);
+        expect(fetch).not.toHaveBeenCalled();
+        expect(replace).not.toHaveBeenCalled();
+      }
       expect(await controller.applyUpdate(guard)).toBe(false);
       expect(fetch).not.toHaveBeenCalled();
       expect(replace).not.toHaveBeenCalled();
@@ -228,12 +239,21 @@ describe('after-load PWA controller', () => {
       expect(controller.getSnapshot().message).toBe("Play 100 didn't respond. Try again in a moment.");
       fetch.mockImplementationOnce(async () => { current = false; return { ok: true }; });
       expect(await controller.applyUpdate(guard)).toBe(false);
+      expect(controller.getSnapshot().message).toBe('Your edit or page changed. Save or correct it before reloading.');
       expect(replace).not.toHaveBeenCalled();
       current = true;
+      replace.mockImplementationOnce(() => { throw new Error('Navigation failed'); });
+      expect(await controller.applyUpdate(guard)).toBe(false);
+      expect(controller.getSnapshot().message).toBe(genericMessage);
+      replace.mockClear();
+      fetch.mockImplementationOnce(async () => {
+        expect(controller.getSnapshot().message).not.toBe('Checking your connection…');
+        return { ok: true };
+      });
       const reload = controller.applyUpdate(guard);
       expect(await controller.applyUpdate(guard)).toBe(false);
       expect(await reload).toBe(true);
-      expect(fetch).toHaveBeenCalledTimes(3);
+      expect(fetch).toHaveBeenCalledTimes(4);
       expect(replace).toHaveBeenCalledOnce();
       expect(replace).toHaveBeenCalledWith('https://play.test/?info=settings&catalogs=off');
       expect(controller.getSnapshot().message).toBe('');
