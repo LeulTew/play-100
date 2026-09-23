@@ -7,7 +7,7 @@ import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemo
 import type { User } from 'firebase/auth';
 import {
   collection, collectionGroup, connectFirestoreEmulator, deleteDoc, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, query,
-  serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch,
+  increment, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +18,7 @@ import { FriendShelfStore } from '../src/cloud/friend-shelf-store';
 import { FriendAllStore } from '../src/cloud/friend-all-store';
 import { SocialStore } from '../src/cloud/social-store';
 import { releaseIndexedPayload } from '../src/cloud/generation-cleanup';
+import { ACCOUNT_LIMITS, AccountQuotaFull, quotaRef } from '../src/cloud/account-quota';
 import { accountScope, CHUNK_BYTES, creatorRanks, MAX_CHUNKS, MAX_SNAPSHOT_BYTES } from '../src/lib/cloud-types';
 import type { AvatarValue, PublicEntry, PublicProfile } from '../src/lib/community';
 import { FriendManagerFeed } from '../src/lib/friend-manager-feed';
@@ -320,7 +321,103 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     }
   });
 
+  it('creates and removes groups and blocks with the declared old-rule compatibility path', async () => {
+    const owner = await actor(); const target = await actor();
+    await owner.friends.initialize(owner.uid);
+    const group = await owner.friends.saveGroup(owner.uid, { name: 'Bounded group', participantUids: [owner.uid, target.uid] }, 0);
+    await owner.friends.block(owner.uid, target.uid);
+    await owner.friends.unblock(owner.uid, target.uid);
+    await owner.friends.deleteGroup(owner.uid, group.id, group.revision);
+    if (policy === 'candidate') {
+      expect((await getDocFromServer(quotaRef(owner.db, owner.uid, 'groups'))).data()?.ids).toEqual([]);
+      expect((await getDocFromServer(quotaRef(owner.db, owner.uid, 'blocks'))).data()?.ids).toEqual([]);
+    } else {
+      expect(await stored(`accountQuotas/${owner.uid}/limits/groups`)).toBeUndefined();
+      expect(await stored(`accountQuotas/${owner.uid}/limits/blocks`)).toBeUndefined();
+    }
+  });
+
   if (policy === 'candidate') {
+    it.each(['groups', 'blocks'] as const)('enforces the %s registry cap and a visible product cap including frozen legacy records', async kind => {
+      const owner = await actor();
+      await owner.friends.initialize(owner.uid);
+      const cap = ACCOUNT_LIMITS[kind];
+      const ids = Array.from({ length: cap }, (_, index) => kind === 'groups' ? crypto.randomUUID() : `Blocked-${index}`);
+      const path = (id: string) => `${kind === 'groups' ? 'friendGroups' : 'friendBlocks'}/${owner.uid}/items/${id}`;
+      const value = (createdAt: Timestamp | ReturnType<typeof serverTimestamp>) => kind === 'groups'
+        ? { format: 1, name: 'Saved group', participantUids: [owner.uid, 'KnownPeer'], revision: 1, createdAt, updatedAt: createdAt }
+        : { createdAt };
+      for (let start = 0; start < ids.length; start += 400) {
+        await seed(Object.fromEntries(ids.slice(start, start + 400).map(id => [path(id), value(aged())])));
+      }
+      const quota = quotaRef(owner.db, owner.uid, kind);
+      await seed({ [quota.path]: { ids, revision: 1 } });
+      const nextId = kind === 'groups' ? crypto.randomUUID() : 'AnotherBlocked';
+      await assertFails(setDoc(doc(owner.db, path(nextId)), value(serverTimestamp())));
+      const over = writeBatch(owner.db);
+      over.set(doc(owner.db, path(nextId)), value(serverTimestamp()));
+      over.update(quota, { ids: [...ids, nextId], revision: 2 });
+      await assertFails(over.commit());
+      await assertFails(deleteDoc(doc(owner.db, path(ids[0]!))));
+      await assertFails(updateDoc(quota, { ids: ids.slice(1), revision: 2 }));
+      if (kind === 'groups') await owner.friends.deleteGroup(owner.uid, ids[0]!, 1);
+      else await owner.friends.unblock(owner.uid, ids[0]!);
+      expect((await getDocFromServer(quota)).data()?.ids).toHaveLength(cap - 1);
+      const legacyId = kind === 'groups' ? crypto.randomUUID() : 'LegacyBlocked';
+      const legacyRef = doc(owner.db, path(legacyId));
+      await seed({ [legacyRef.path]: value(aged()) });
+      expect((await getDocFromServer(legacyRef)).exists()).toBe(true);
+      if (kind === 'groups') {
+        await assertFails(updateDoc(legacyRef, { name: 'Not enrolled', revision: 2, updatedAt: serverTimestamp() }));
+        await expect(owner.friends.saveGroup(owner.uid, { name: 'Beyond product cap', participantUids: [owner.uid, 'KnownPeer'] }, 0)).rejects.toBeInstanceOf(AccountQuotaFull);
+        await owner.friends.deleteGroup(owner.uid, legacyId, 1);
+        await owner.friends.saveGroup(owner.uid, { name: 'One free slot', participantUids: [owner.uid, 'KnownPeer'] }, 0);
+      } else {
+        await assertFails(updateDoc(legacyRef, { createdAt: serverTimestamp() }));
+        await expect(owner.friends.block(owner.uid, nextId)).rejects.toBeInstanceOf(AccountQuotaFull);
+        await owner.friends.unblock(owner.uid, legacyId);
+        await owner.friends.block(owner.uid, nextId);
+      }
+      expect((await getDocFromServer(quota)).data()?.ids).toHaveLength(cap);
+    }, 120000);
+
+    it('bounds reports and releases a creator-resolved slot only with the exact counted report deletion', async () => {
+      const owner = await actor(); const moderator = await actor();
+      await seed({ '_owner/config': { uid: moderator.uid, email: moderator.email } });
+      const reports = Array.from({ length: ACCOUNT_LIMITS.reports }, (_, index) => `Target${index}_${owner.uid}`);
+      const quota = quotaRef(owner.db, owner.uid, 'reports');
+      await seed({
+        ...Object.fromEntries(reports.map((id, index) => [`reports/${id}`, {
+          reporterUid: owner.uid, targetUid: `Target${index}`, reason: 'Synthetic registered report', status: 'open', counted: true, createdAt: aged(),
+        }])),
+        [quota.path]: { count: reports.length, revision: 1, lastReport: reports.at(-1) },
+        'publicProfiles/NewReportTarget': { uid: 'NewReportTarget', published: true, hidden: false },
+      });
+      const id = `NewReportTarget_${owner.uid}`;
+      const ref = doc(owner.db, 'reports', id);
+      const report = { reporterUid: owner.uid, targetUid: 'NewReportTarget', reason: 'At cap', status: 'open', counted: true, createdAt: serverTimestamp() };
+      await assertFails(setDoc(ref, report));
+      const over = writeBatch(owner.db);
+      over.set(ref, report);
+      over.update(quota, { count: 101, revision: 2, lastReport: id });
+      await assertFails(over.commit());
+      await assertFails(deleteDoc(doc(owner.db, 'reports', reports[0]!)));
+      await assertFails(updateDoc(quota, { count: increment(-1), revision: increment(1), lastReport: reports[0] }));
+      await assertFails(getDocFromServer(quotaRef(moderator.db, owner.uid, 'reports')));
+      expect(await moderator.social.resolveReport(reports[0]!)).toBe(true);
+      expect((await getDocFromServer(quota)).data()?.count).toBe(99);
+      await assertFails(updateDoc(quota, { count: increment(-1), revision: increment(1), lastReport: reports[0] }));
+      const legacyId = `LegacyTarget_${owner.uid}`;
+      await seed({ [`reports/${legacyId}`]: { reporterUid: owner.uid, targetUid: 'LegacyTarget', reason: 'Legacy report', status: 'resolved', createdAt: aged() } });
+      await expect(owner.social.report(owner.uid, 'NewReportTarget', 'Wait for review')).rejects.toBeInstanceOf(AccountQuotaFull);
+      expect(await moderator.social.resolveReport(legacyId)).toBe(true);
+      expect((await getDocFromServer(quota)).data()?.count).toBe(99);
+      await owner.social.report(owner.uid, 'NewReportTarget', 'One free report slot');
+      expect((await getDocFromServer(quota)).data()?.count).toBe(100);
+      await owner.social.withdrawReport(id);
+      expect((await getDocFromServer(quota)).data()?.count).toBe(99);
+    });
+
     it('allows only an owner completion marker on the same deleted epoch and keeps ordinary head writes from changing it', async () => {
       const owner = await actor(); const other = await actor(); const fresh = await actor();
       const ref = doc(owner.db, 'syncHeads', owner.uid);

@@ -1,9 +1,10 @@
-import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, documentId, getDocFromServer, getDocs, increment, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
 import { normalizeHandle, parseHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, reportDocumentId, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { ensureAccountActivity } from './account-lifecycle';
 import { releaseIndexedPayload } from './generation-cleanup';
+import { ACCOUNT_LIMITS, AccountQuotaFull, quotaRef, quotaSupported, requireVisibleCapacity } from './account-quota';
 
 function timestamp(value: unknown): number {
   if (!(value instanceof Timestamp)) throw new Error('An online profile has an invalid update time.');
@@ -216,9 +217,23 @@ export class SocialStore {
     const reportId = reportDocumentId(targetUid, reporterUid);
     await ensureAccountActivity(this.db, reporterUid);
     const ref = doc(this.db, 'reports', reportId);
+    const quota = quotaRef(this.db, reporterUid, 'reports');
+    const counted = await quotaSupported(quota);
+    await requireVisibleCapacity<QueryDocumentSnapshot<DocumentData>>('reports', async cursor => {
+      const page = await getDocs(query(collection(this.db, 'reports'), where('reporterUid', '==', reporterUid), orderBy(documentId()),
+        ...(cursor ? [startAfter(cursor)] : []), limit(20)));
+      return { items: page.docs, cursor: page.size === 20 ? page.docs.at(-1) : undefined };
+    });
     await runTransaction(this.db, async (tx) => {
-      if ((await tx.get(ref)).exists()) throw new Error('You already reported this profile. The creator can review your existing report.');
-      tx.set(ref, { reporterUid, targetUid, reason: reason.trim(), status: 'open', createdAt: serverTimestamp() });
+      const [report, usage] = await Promise.all([tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null)]);
+      if (report.exists()) throw new Error('You already reported this profile. The creator can review your existing report.');
+      if (counted) {
+        const value = usage?.exists() ? usage.data() : { count: 0, revision: 0 };
+        if (!Number.isSafeInteger(value.count) || value.count < 0 || !Number.isSafeInteger(value.revision) || value.revision < 0) throw new Error('Your report count could not be read. Nothing was sent.');
+        if (value.count >= ACCOUNT_LIMITS.reports) throw new AccountQuotaFull('reports');
+        tx.set(quota, { count: value.count + 1, revision: value.revision + 1, lastReport: reportId });
+      }
+      tx.set(ref, { reporterUid, targetUid, reason: reason.trim(), status: 'open', createdAt: serverTimestamp(), ...(counted ? { counted: true } : {}) });
     });
   }
   async members(cursor?: QueryDocumentSnapshot<DocumentData>) {
@@ -234,10 +249,31 @@ export class SocialStore {
     });
     return { reports, cursor: result.size === 20 ? result.docs.at(-1) : undefined };
   }
-  async resolveReport(id: string): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, 'reports', id), { status: 'resolved' });
-    await batch.commit();
+  async withdrawReport(id: string): Promise<void> {
+    await runTransaction(this.db, async tx => {
+      const ref = doc(this.db, 'reports', id);
+      const report = await tx.get(ref);
+      if (!report.exists()) throw new Error('This report is no longer available.');
+      const data = report.data();
+      if (data.counted === true) tx.update(quotaRef(this.db, data.reporterUid, 'reports'), {
+        count: increment(-1), revision: increment(1), lastReport: id,
+      });
+      tx.delete(ref);
+    });
+  }
+  async resolveReport(id: string): Promise<boolean> {
+    try { await this.withdrawReport(id); return true; }
+    catch (cause) {
+      if (!denied(cause)) throw cause;
+      console.info('Report deletion is not available yet; resolving the legacy report once.');
+      await runTransaction(this.db, async tx => {
+        const ref = doc(this.db, 'reports', id);
+        const report = await tx.get(ref);
+        if (!report.exists() || report.data().counted === true || report.data().status !== 'open') throw cause;
+        tx.update(ref, { status: 'resolved' });
+      });
+      return false;
+    }
   }
   async restorePublicationPermission(uid: string): Promise<void> {
     await runTransaction(this.db, async (tx) => {
@@ -289,14 +325,18 @@ export class SocialStore {
     }
     const ownReports = await getDocs(query(collection(this.db, 'reports'), where('reporterUid', '==', uid), limit(20)));
     if (ownReports.size) {
-      const batch = writeBatch(this.db);
-      ownReports.docs.forEach((report) => batch.delete(report.ref));
-      await batch.commit();
+      for (const report of ownReports.docs) await this.withdrawReport(report.id);
       if (ownReports.size === 20) throw new Error('Some reports still need removal. Retry deletion to finish the next batch.');
     }
+    const quota = quotaRef(this.db, uid, 'reports');
+    const counted = await quotaSupported(quota);
     await runTransaction(this.db, async (tx) => {
       const ref = doc(this.db, 'publicProfiles', uid);
-      const profile = await tx.get(ref);
+      const [profile, usage] = await Promise.all([tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null)]);
+      if (usage?.exists()) {
+        if (usage.data().count !== 0) throw new Error('Some reports could not be removed. Try again, or contact the site owner before deleting this account.');
+        tx.delete(quota);
+      }
       if (profile.exists()) {
         tx.delete(doc(this.db, 'handles', profile.data().handle));
         tx.delete(ref);

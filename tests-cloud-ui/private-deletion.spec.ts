@@ -88,13 +88,28 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   }
 });
 
-for (const step of ['private', 'public', 'all', 'shelf', 'friends', 'marker'] as const) {
+for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'all', 'shelf', 'friends', 'marker'] as const) {
   test(`interruption at ${step} cleanup never records completion or removes Auth`, async ({ page, request }) => {
     const email = emailFor(`deletion-stop-${step}`);
     await createAccount(page, email);
     await verifyEmail(page, request, email);
     await enableSync(page, 'empty');
     const uid = await uidFor(request, email);
+    if (step === 'reports') {
+      const id = `Reported_${uid}`;
+      await writeManagerDocuments(request, {
+        [`reports/${id}`]: { reporterUid: uid, targetUid: 'Reported', reason: 'Synthetic pending report', status: 'open', counted: true, createdAt: new Date() },
+        [`accountQuotas/${uid}/limits/reports`]: { count: 1, revision: 1, lastReport: id },
+      });
+    } else if (step === 'groups' || step === 'blocks') {
+      const id = step === 'groups' ? crypto.randomUUID() : 'BlockedPeer';
+      await writeManagerDocuments(request, {
+        [`${step === 'groups' ? 'friendGroups' : 'friendBlocks'}/${uid}/items/${id}`]: step === 'groups'
+          ? { format: 1, name: 'Synthetic group', participantUids: [uid, 'KnownPeer'], revision: 1, createdAt: new Date(), updatedAt: new Date() }
+          : { createdAt: new Date() },
+        [`accountQuotas/${uid}/limits/${step}`]: { ids: [id], revision: 1 },
+      });
+    }
     if (step === 'all') await expect.poll(async () => {
       const policy = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/friendAllPolicies/${uid}`, {
         headers: { Authorization: 'Bearer owner' },
@@ -113,9 +128,14 @@ for (const step of ['private', 'public', 'all', 'shelf', 'friends', 'marker'] as
             return all ? stop() : original.call(this, all, options);
           };
         }
-      } else if (step === 'public') {
+      } else if (step === 'public' || step === 'reports') {
         const module: typeof import('../src/cloud/social-store') = await load('/src/cloud/social-store.ts');
-        module.SocialStore.prototype.deleteProfile = stop;
+        if (step === 'reports') module.SocialStore.prototype.withdrawReport = stop;
+        else module.SocialStore.prototype.deleteProfile = stop;
+      } else if (step === 'groups' || step === 'blocks') {
+        const module: typeof import('../src/cloud/friend-store') = await load('/src/cloud/friend-store.ts');
+        if (step === 'groups') module.FriendStore.prototype.deleteGroup = stop;
+        else Reflect.set(module.FriendStore.prototype, 'releaseBlock', stop);
       } else if (step === 'all') {
         const module: typeof import('../src/cloud/friend-all-store') = await load('/src/cloud/friend-all-store.ts');
         module.FriendAllStore.prototype.cleanupPage = stop;

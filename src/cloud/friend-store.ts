@@ -19,6 +19,7 @@ import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
 import { SocialStore } from './social-store';
 import { releaseIndexedPayload } from './generation-cleanup';
+import { occupyQuotaSlot, quotaRef, quotaSupported, readQuotaSlots, releaseQuotaSlot, requireVisibleCapacity } from './account-quota';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
@@ -211,19 +212,36 @@ export class FriendStore {
     const pairRef = this.pairRef(uid, otherUid); online();
     await this.graphReady(uid);
     const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
+    const quota = quotaRef(this.db, uid, 'blocks');
+    const counted = await quotaSupported(quota);
+    if (!(await getDocFromServer(ref)).exists()) await requireVisibleCapacity<FriendCursor>('blocks', cursor => this.listBlocks(uid, cursor));
     await runTransaction(this.db, async (tx) => {
       online();
-      const [pair, block] = await Promise.all([tx.get(pairRef), tx.get(ref)]);
+      const [pair, block, slots] = await Promise.all([tx.get(pairRef), tx.get(ref), counted ? readQuotaSlots(tx, quota, 'blocks') : Promise.resolve(null)]);
       const current = pair.exists() ? parseFriendPair(pair.data()) : null;
-      if (!block.exists()) tx.set(ref, { createdAt: serverTimestamp() });
+      if (!block.exists()) {
+        if (slots) occupyQuotaSlot(tx, quota, slots, otherUid, 'blocks');
+        tx.set(ref, { createdAt: serverTimestamp() });
+      }
       if (current && (current.state === 'pending' || current.state === 'accepted')) tx.update(pairRef, { state: 'removed', epoch: current.epoch + 1, inviteSlot: null, updatedAt: serverTimestamp() });
     });
   }
   async unblock(uid: string, otherUid: string): Promise<void> {
     friendPairId(uid, otherUid); online();
     await this.graphReady(uid);
+    await this.releaseBlock(uid, otherUid);
+  }
+  private async releaseBlock(uid: string, otherUid: string): Promise<void> {
     const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
-    await runTransaction(this.db, async (tx) => { online(); if ((await tx.get(ref)).exists()) tx.delete(ref); });
+    const quota = quotaRef(this.db, uid, 'blocks');
+    const counted = await quotaSupported(quota);
+    await runTransaction(this.db, async tx => {
+      online();
+      const [block, slots] = await Promise.all([tx.get(ref), counted ? readQuotaSlots(tx, quota, 'blocks') : Promise.resolve(null)]);
+      if (!block.exists()) return;
+      tx.delete(ref);
+      if (slots) releaseQuotaSlot(tx, quota, slots, otherUid);
+    });
   }
   async listBlocks(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendBlock>> {
     const result = await getDocsFromServer(query(collection(this.db, 'friendBlocks', friendUid(uid), 'items'), orderBy(documentId()), ...(cursor ? [startAfter(cursor)] : []), limit(20)));
@@ -450,10 +468,16 @@ export class FriendStore {
   async saveGroup(uid: string, input: { id?: string; name: string; participantUids: string[] }, expectedRevision: number): Promise<FriendGroup> {
     const id = input.id ? friendUuid(input.id) : crypto.randomUUID(); const name = friendName(input.name, 80); const participantUids = friendParticipants(input.participantUids);
     const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', id); online();
+    const quota = quotaRef(this.db, uid, 'groups');
+    const counted = await quotaSupported(quota);
+    if (!(await getDocFromServer(ref)).exists()) await requireVisibleCapacity<FriendCursor>('groups', cursor => this.listGroups(uid, cursor));
     const existing = await runTransaction(this.db, async (tx) => {
-      const snap = await tx.get(ref); const current = snap.exists() ? parseFriendGroup(id, snap.data()) : null;
+      const [snap, slots] = await Promise.all([tx.get(ref), counted ? readQuotaSlots(tx, quota, 'groups') : Promise.resolve(null)]);
+      const current = snap.exists() ? parseFriendGroup(id, snap.data()) : null;
       if (input.id && expectedRevision === 0 && current && current.name === name && current.participantUids.join('|') === participantUids.join('|')) return current;
       if ((current?.revision ?? 0) !== expectedRevision) conflict('This saved group changed. Reload before saving.');
+      if (slots && current && !slots.ids.includes(id)) throw new FriendStoreError('limit', 'This older group cannot be edited. Remove it and save a new group with your changes.');
+      if (slots && !current) occupyQuotaSlot(tx, quota, slots, id, 'groups');
       tx.set(ref, { format: 1, name, participantUids, revision: expectedRevision + 1, createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
       return null;
     });
@@ -464,10 +488,13 @@ export class FriendStore {
   }
   async deleteGroup(uid: string, id: string, expectedRevision: number): Promise<void> {
     const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', friendUuid(id)); online();
+    const quota = quotaRef(this.db, uid, 'groups');
+    const counted = await quotaSupported(quota);
     await runTransaction(this.db, async (tx) => {
-      const snap = await tx.get(ref);
+      const [snap, slots] = await Promise.all([tx.get(ref), counted ? readQuotaSlots(tx, quota, 'groups') : Promise.resolve(null)]);
       if (!snap.exists() || parseFriendGroup(id, snap.data()).revision !== expectedRevision) conflict('This saved group changed or was already deleted.');
       tx.delete(ref);
+      if (slots) releaseQuotaSlot(tx, quota, slots, id);
     });
   }
   async exportPage(uid: string, cursors: { relations?: FriendCursor; groups?: FriendCursor; blocks?: FriendCursor } = {}): Promise<FriendExportPage> {
@@ -530,12 +557,11 @@ export class FriendStore {
       getDocsFromServer(this.relationsQuery(uid)), this.listGroups(uid), this.listBlocks(uid),
       getDocsFromServer(query(collection(this.db, 'friendInvites'), where('ownerUid', '==', uid), orderBy(documentId()), limit(20))),
     ]);
-    for (const docs of [relations.docs,
-      groups.items.map((group) => ({ ref: doc(this.db, 'friendGroups', uid, 'items', group.id) })),
-      blocks.items.map((block) => ({ ref: doc(this.db, 'friendBlocks', uid, 'items', block.uid) }))]) {
-      if (!docs.length) continue;
-      const batch = writeBatch(this.db); docs.forEach((item) => batch.delete(item.ref)); await batch.commit(); deleted += docs.length;
+    if (relations.size) {
+      const batch = writeBatch(this.db); relations.docs.forEach(item => batch.delete(item.ref)); await batch.commit(); deleted += relations.size;
     }
+    for (const group of groups.items) { await this.deleteGroup(uid, group.id, group.revision); deleted += 1; }
+    for (const block of blocks.items) { await this.releaseBlock(uid, block.uid); deleted += 1; }
     let inviteCount = invites.size;
     if (invites.size) {
       const batch = writeBatch(this.db);

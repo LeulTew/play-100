@@ -150,6 +150,9 @@ test('the creator can inspect and hide a reported public profile even without a 
     await admin.getByRole('dialog').getByRole('button', { name: 'Hide public profile', exact: true }).click();
     await admin.getByRole('dialog').getByRole('button', { name: 'Hide and pause publishing', exact: true }).click();
     await expect(admin.getByRole('dialog')).toContainText('Publishing is paused');
+    await admin.keyboard.press('Escape');
+    await report.getByRole('button', { name: 'Resolve and remove', exact: true }).click();
+    await expect(report).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole('heading', { name: 'This ranking is not available.', exact: true })).toBeVisible();
   } finally {

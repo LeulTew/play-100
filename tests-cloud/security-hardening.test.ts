@@ -60,9 +60,13 @@ describe('S3 report and friendship boundaries', () => {
     });
     const ref = user(reporterUid).doc(`reports/${targetUid}_${reporterUid}`);
     await assertSucceeds(ref.get());
-    await assertSucceeds(ref.set({
-      reporterUid, targetUid, reason: 'Fixture report', status: 'open', createdAt: serverTimestamp(),
-    }));
+    const db = user(reporterUid);
+    const create = db.batch();
+    create.set(db.doc(`reports/${targetUid}_${reporterUid}`), {
+      reporterUid, targetUid, reason: 'Fixture report', status: 'open', createdAt: serverTimestamp(), counted: true,
+    });
+    create.set(db.doc(`accountQuotas/${reporterUid}/limits/reports`), { count: 1, revision: 1, lastReport: `${targetUid}_${reporterUid}` });
+    await assertSucceeds(create.commit());
     await assertSucceeds(ref.get());
   });
 

@@ -454,14 +454,41 @@ service cloud.firestore {
       allow create: if accountActive(request.auth.uid)
         && reportUid(request.auth.uid) && reportUid(request.resource.data.targetUid)
         && (!exists(/databases/$(database)/documents/syncHeads/$(request.auth.uid)) || !head(request.auth.uid).deleted)
-        && request.resource.data.keys().hasOnly(['reporterUid', 'targetUid', 'reason', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['reporterUid', 'targetUid', 'reason', 'status', 'createdAt', 'counted'])
+        && request.resource.data.counted == true && reportCountAdded(request.auth.uid, reportId)
         && request.resource.data.reporterUid == request.auth.uid && request.resource.data.targetUid is string
         && request.resource.data.targetUid != request.auth.uid && reportId == request.resource.data.targetUid + '_' + request.auth.uid
         && request.resource.data.reason is string && request.resource.data.reason.size() >= 1 && request.resource.data.reason.size() <= 400
         && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time
         && liveProfile(request.resource.data.targetUid);
-      allow update: if creator() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'resolved';
-      allow delete: if own(resource.data.reporterUid) && head(request.auth.uid).deleted;
+      allow update: if false;
+      allow delete: if (own(resource.data.reporterUid) || creator())
+        && (!('counted' in resource.data) || (resource.data.counted == true && reportCountReleased(resource.data.reporterUid, reportId)));
+    }
+    function reportQuotaShape(data) {
+      return data.keys().hasOnly(['count', 'revision', 'lastReport']) && data.keys().hasAll(['count', 'revision', 'lastReport'])
+        && data.count is int && data.count >= 0 && data.revision is int && data.revision >= 1
+        && data.lastReport is string && data.lastReport.matches('^[A-Za-z0-9-]{1,128}_[A-Za-z0-9-]{1,128}$');
+    }
+    function reportCountAdded(uid, id) {
+      let path = quotaPath(uid, 'reports');
+      let after = getAfter(path).data;
+      return after.lastReport == id && after.count <= 100
+        && (exists(path) ? after.count == get(path).data.count + 1 : after.count == 1);
+    }
+    function reportCountReleased(uid, id) {
+      let before = get(quotaPath(uid, 'reports')).data;
+      let after = getAfter(quotaPath(uid, 'reports')).data;
+      return after.lastReport == id && after.count == before.count - 1;
+    }
+    function reportQuotaCreation(uid, data) {
+      let path = /databases/$(database)/documents/reports/$(data.lastReport);
+      let report = getAfter(path).data;
+      return !exists(path) && report.reporterUid == uid && report.counted == true && report.createdAt == request.time;
+    }
+    function reportQuotaRemoval(uid, data) {
+      let path = /databases/$(database)/documents/reports/$(data.lastReport);
+      return exists(path) && get(path).data.reporterUid == uid && get(path).data.counted == true && !existsAfter(path);
     }
     // Friendship data is separate from all legacy member/private/public formats.
     function fUid(uid) { return uid is string && uid.matches('^[A-Za-z0-9_-]{1,128}$'); }
@@ -593,14 +620,58 @@ service cloud.firestore {
           : fOwnLive(request.auth.uid) && fPairTransition(resource.data, request.resource.data));
       allow delete: if verified() && request.auth.uid in resource.data.participants && fDeleted(request.auth.uid);
     }
+    function quotaPath(uid, kind) { return /databases/$(database)/documents/accountQuotas/$(uid)/limits/$(kind); }
+    function slotItemPath(uid, kind, id) {
+      return kind == 'groups' ? /databases/$(database)/documents/friendGroups/$(uid)/items/$(id)
+        : /databases/$(database)/documents/friendBlocks/$(uid)/items/$(id);
+    }
+    function quotaSlots(data) {
+      return fKeys(data, ['ids', 'revision']) && data.ids is list && data.ids.toSet().size() == data.ids.size()
+        && fInt(data.revision, 1, 9007199254740991);
+    }
+    function quotaAdded(uid, kind, id) {
+      return (kind == 'groups' ? fUuid(id) : fUid(id))
+        && getAfter(slotItemPath(uid, kind, id)).data.createdAt == request.time;
+    }
+    function quotaContains(uid, kind, id) {
+      return exists(quotaPath(uid, kind)) && get(quotaPath(uid, kind)).data.ids.hasAny([id]);
+    }
+    function quotaReleased(uid, kind, id) {
+      return !quotaContains(uid, kind, id) || !getAfter(quotaPath(uid, kind)).data.ids.hasAny([id]);
+    }
+    match /accountQuotas/{uid}/limits/{kind} {
+      allow get: if own(uid) && kind in ['groups', 'blocks', 'reports'];
+      allow list: if false;
+      allow create: if kind in ['groups', 'blocks'] && accountActive(uid) && quotaSlots(request.resource.data)
+        && request.resource.data.revision == 1 && request.resource.data.ids.size() == 1
+        && quotaAdded(uid, kind, request.resource.data.ids[0]);
+      allow update: if kind in ['groups', 'blocks'] && own(uid) && quotaSlots(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1
+        && ((request.resource.data.ids.size() <= (kind == 'groups' ? 50 : 1000)
+            && request.resource.data.ids.size() == resource.data.ids.size() + 1
+            && request.resource.data.ids == resource.data.ids.concat([request.resource.data.ids[request.resource.data.ids.size() - 1]])
+            && quotaAdded(uid, kind, request.resource.data.ids[request.resource.data.ids.size() - 1]))
+          || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
+            && !existsAfter(slotItemPath(uid, kind, resource.data.ids.removeAll(request.resource.data.ids)[0]))));
+      allow delete: if kind in ['groups', 'blocks'] && own(uid) && resource.data.ids.size() == 0;
+      allow create: if kind == 'reports' && own(uid) && reportQuotaShape(request.resource.data)
+        && request.resource.data.count == 1 && request.resource.data.revision == 1 && reportQuotaCreation(uid, request.resource.data);
+      allow update: if kind == 'reports' && reportQuotaShape(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1
+        && ((own(uid) && request.resource.data.count <= 100 && request.resource.data.count == resource.data.count + 1
+            && reportQuotaCreation(uid, request.resource.data))
+          || ((own(uid) || creator()) && request.resource.data.count == resource.data.count - 1 && reportQuotaRemoval(uid, request.resource.data)));
+      allow delete: if kind == 'reports' && own(uid) && resource.data.count == 0;
+    }
     match /friendBlocks/{uid}/items/{otherUid} {
       allow get: if own(uid);
       allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if fOwnLive(uid) && fUid(otherUid) && uid != otherUid
         && fKeys(request.resource.data, ['createdAt']) && request.resource.data.createdAt == request.time
+        && getAfter(quotaPath(uid, 'blocks')).data.ids.hasAny([otherUid])
         && (!existsAfter(fPairPath(uid, otherUid)) || getAfter(fPairPath(uid, otherUid)).data.state in ['declined', 'cancelled', 'removed']);
       allow update: if false;
-      allow delete: if own(uid);
+      allow delete: if own(uid) && quotaReleased(uid, 'blocks', otherUid);
     }
     function fInviteShape(data) {
       return fKeys(data, ['format', 'ownerUid', 'slot', 'displayName', 'avatar', 'createdAt', 'state', 'acceptedBy'])
@@ -843,10 +914,11 @@ service cloud.firestore {
       allow get: if own(uid);
       allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if fOwnLive(uid) && fUuid(id) && fGroup(request.resource.data)
+        && getAfter(quotaPath(uid, 'groups')).data.ids.hasAny([id])
         && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time;
-      allow update: if fOwnLive(uid) && fGroup(request.resource.data)
+      allow update: if fOwnLive(uid) && quotaContains(uid, 'groups', id) && fGroup(request.resource.data)
         && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if own(uid);
+      allow delete: if own(uid) && quotaReleased(uid, 'groups', id);
     }
     // Independent selected-library shelf. Legacy ranking and identity grants stay unchanged.
     function sConfig(uid) { return get(/databases/$(database)/documents/friendShelfSettings/$(uid)).data; }
