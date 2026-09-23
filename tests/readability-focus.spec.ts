@@ -25,7 +25,9 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('button', { name: 'Settings & backups', exact: true }).click();
       const settings = page.locator('.settings-dialog');
       await expect(settings.locator('#settings-title')).toBeFocused();
-      await settings.getByRole('radio', { name: mode === 'lite' ? /^Lite/ : /^Full/ }).check();
+      const preference = settings.getByRole('radio', { name: mode === 'lite' ? /^Lite/ : /^Full/ });
+      await preference.click();
+      await expect(preference).toBeChecked();
       await expect(page.locator('html')).toHaveAttribute('data-motion', mode === 'full' ? 'on' : 'off');
       await expect(page.locator('.toast-visible')).toContainText('Visual preference saved.');
       const started = Date.now();
