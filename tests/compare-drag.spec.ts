@@ -252,21 +252,23 @@ for (const kind of ['queue', 'ranking'] as const) {
   });
 }
 
-test('coarse Compare grip remains a 44px Pin alternative with native scrolling and dock clearance at 320px', async ({ page, isMobile }) => {
+test('coarse cards expose one 44px Pin path without a focusable drag handle at 320px', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'The narrow coarse-pointer layout is a separate required path.');
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/discover?q=0%20A.D.&catalogs=off');
   const card = page.locator('[data-catalog-id="wikidata:Q161234"]');
   const grip = card.locator('.compare-drag-handle');
-  await expect(grip).toBeVisible();
-  await expect(grip).toBeEnabled();
-  await grip.scrollIntoViewIfNeeded();
-  const bounds = await grip.boundingBox();
-  if (!bounds) throw new Error('The coarse Compare grip has no hit target.');
+  await expect(grip).toBeHidden();
+  await expect(grip).toHaveAttribute('aria-hidden', 'true');
+  await expect(grip).toHaveAttribute('tabindex', '-1');
+  const pin = card.getByRole('button', { name: 'Pin 0 A.D. for comparison', exact: true });
+  await pin.scrollIntoViewIfNeeded();
+  const bounds = await pin.boundingBox();
+  if (!bounds) throw new Error('The coarse Compare Pin has no hit target.');
   expect(bounds.width).toBeGreaterThanOrEqual(44);
   expect(bounds.height).toBeGreaterThanOrEqual(44);
   const before = await readLibrary(page);
-  await grip.tap();
+  await pin.tap();
   await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open],.compare-drag-ghost')).toHaveCount(0);
   const geometry = await page.evaluate(() => ({

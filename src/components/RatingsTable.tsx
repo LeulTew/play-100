@@ -9,6 +9,7 @@ import { PlayedToggle } from './PlayedToggle';
 import { CompletedToggle } from './CompletedToggle';
 import { author, authorRatingText } from '../lib/author';
 import { useCompareDragSource } from './compare-tray/useCompareDragSource';
+import { ComparePinButton } from './compare-tray/ComparePinButton';
 
 interface RatingsTableProps {
   games: Game[];
@@ -65,7 +66,7 @@ export default function RatingsTable({ games, filters, progress, selecting, sele
               <td className="numeric-score table-author-rating" title={game.authorRating?.rawValue}>{game.authorRating ? authorRatingText(game.authorRating) : <span aria-label="Original author rating unavailable">—</span>}</td>
               {criticColumns.map(({ key }) => <td key={key} className="numeric-score">{game.critics[key] === null ? <span aria-label="Unavailable">—</span> : game.critics[key]}</td>)}
               <td className="numeric-score table-average">{formatAverage(game.criticAverage)}</td>
-              <td><div className="table-progress"><PlayedToggle id={game.slug} title={game.title} played={Boolean(progress[game.slug]?.played)} completed={progress[game.slug]?.completed} busy={busy} compact onChange={value => onToggle(game.slug, 'played', value)} /><CompletedToggle title={game.title} completed={Boolean(progress[game.slug]?.completed)} busy={busy} onChange={value => onToggle(game.slug, 'completed', value)} /><button className="icon-button" disabled={busy} aria-pressed={Boolean(progress[game.slug]?.later)} aria-label={`${progress[game.slug]?.later ? 'Remove' : 'Add'} ${game.title} ${progress[game.slug]?.later ? 'from' : 'to'} play later`} onClick={() => onToggle(game.slug, 'later')}><Icon name="bookmark" width="18" height="18" /></button></div></td>
+              <td><div className="table-progress"><PlayedToggle id={game.slug} title={game.title} played={Boolean(progress[game.slug]?.played)} completed={progress[game.slug]?.completed} busy={busy} compact onChange={value => onToggle(game.slug, 'played', value)} /><CompletedToggle title={game.title} completed={Boolean(progress[game.slug]?.completed)} busy={busy} onChange={value => onToggle(game.slug, 'completed', value)} /><button className="icon-button" disabled={busy} aria-pressed={Boolean(progress[game.slug]?.later)} aria-label={`${progress[game.slug]?.later ? 'Remove' : 'Add'} ${game.title} ${progress[game.slug]?.later ? 'from' : 'to'} play later`} onClick={() => onToggle(game.slug, 'later')}><Icon name="bookmark" width="18" height="18" /></button>{getCompareRecord && <ComparePinButton record={getCompareRecord(game)} compact disabled={busy} />}</div></td>
             </tr>
           ))}</tbody>
         </table>

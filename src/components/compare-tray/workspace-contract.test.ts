@@ -153,7 +153,7 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('Drop to pin for comparison');
     expect(html).toContain('data-compare-drag-grip=""');
   });
-  it('describes the coarse Compare handle as a Pin button, never a touch drag affordance', () => {
+  it('removes the duplicate coarse Compare handle from layout, focus and the accessibility tree', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value },
       h(MotionPolicyContext.Provider, { value: { ...staticMotionPolicy, coarsePointer: true } },
         h(CompareDragHandle, { record: alpha }))));
@@ -162,6 +162,9 @@ describe('tray and image rendering contract', () => {
     expect(html).not.toContain('Drag to tray');
     expect(html).not.toContain('drag with a mouse');
     expect(html).toContain('draggable="false"');
+    expect(html).toContain('hidden=""');
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('tabindex="-1"');
   });
   it('retains the compact collection state for real pins and storage messages while dragging', () => {
     for (const content of [
