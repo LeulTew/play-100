@@ -1,3 +1,5 @@
+import { ModuleLoadFailure } from './chunk-recovery';
+
 export function createRetryableModule<T>(importModule: () => Promise<T>) {
   let value: T | null = null;
   let pending: Promise<T> | null = null;
@@ -12,8 +14,7 @@ export function createRetryableModule<T>(importModule: () => Promise<T>) {
         pending = null;
         return module;
       }, error => {
-        pending = null;
-        throw error;
+        throw new ModuleLoadFailure(error);
       });
       return pending;
     },

@@ -13,6 +13,7 @@ import { recordFromGame } from './lib/personal-types';
 import { Icon } from './components/Icon';
 import { SiteFooter } from './components/SiteFooter';
 import { useAppPanel } from './hooks/useAppPanel';
+import { ChunkRecovery } from './components/ChunkRecovery';
 import { usePwa } from './pwa';
 import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
@@ -125,7 +126,7 @@ export default function App() {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
-  const { panel, setPanel, panelMessage, panelMessageError, dismissPanelMessage } = useAppPanel(captureMenuFocusGuard, libraryScope, onlineOpening);
+  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage } = useAppPanel(captureMenuFocusGuard, libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled });
@@ -433,6 +434,9 @@ export default function App() {
   };
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
   const visibleNotice = (!panel && !manualLink && !selectedSlug ? panelMessage : '') || notice;
+  const panelRecovery = panelFailure && <ChunkRecovery key={panelFailure} message={panelMessage}
+    intent={panelFailure === 'about' ? 'credits' : 'settings'}
+    label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'} />;
 
   return (
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
@@ -508,7 +512,7 @@ export default function App() {
           onNavigate: navigate, onSettings: () => { setOfflineSettings(false); setPanel('settings'); },
           onOffline: pwaEnabled ? () => { setOfflineSettings(true); setPanel('settings'); } : undefined,
           onAbout: () => setPanel('about'), onClose: closePanel, captureFocusGuard: captureMenuFocusGuard,
-          status: panelMessage, statusError: panelMessageError,
+          status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
         } } : null}
         about={panel === 'about' ? { onClose: () => {
           setPanel(null);
@@ -521,11 +525,11 @@ export default function App() {
           onReset: library.reset, onRestore: library.restore, state: library.state, persistent: library.status === 'ready', busy: libraryBusy,
           onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
           onClose: () => setPanel(null),
-          status: panelMessage, statusError: panelMessageError,
+          status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
         } } : null}
         offlineSettings={pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined}
         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
-      <div className={`toast ${visibleNotice ? 'toast-visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
+      <div className={`toast ${visibleNotice ? 'toast-visible' : ''}`} role={panelRecovery ? undefined : 'status'} aria-live={panelRecovery ? undefined : 'polite'} aria-atomic="true">{!panel && !manualLink && !selectedSlug && panelRecovery ? panelRecovery : visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
       {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}
     </LibraryModeContext.Provider>
       );

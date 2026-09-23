@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRetryableModule } from './retryable-module';
+import { isModuleLoadFailure } from './chunk-recovery';
 
 describe('retryable modules used by credits, Settings and offline controls', () => {
   it('coalesces concurrent intents and exposes the resolved module synchronously', async () => {
@@ -22,7 +23,7 @@ describe('retryable modules used by credits, Settings and offline controls', () 
     expect(importer).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['AboutDialog', 'SettingsPanel', 'PWA client'])('%s chunk rejection is handled and a subsequent attempt retries', async () => {
+  it.each(['AboutDialog', 'SettingsPanel', 'PWA client'])('%s chunk rejection is terminal without unhandled rejections', async () => {
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
     try {
@@ -31,23 +32,28 @@ describe('retryable modules used by credits, Settings and offline controls', () 
         .mockResolvedValue({ ready: true });
       const resource = createRetryableModule(importer);
       const failure = vi.fn();
-      await resource.load().catch(failure);
+      const rejected = resource.load();
+      await rejected.catch(failure);
       expect(failure).toHaveBeenCalledOnce();
+      expect(isModuleLoadFailure(failure.mock.calls[0]![0])).toBe(true);
       expect(resource.peek()).toBeNull();
-      expect(resource.started()).toBe(false);
-      await expect(resource.load()).resolves.toEqual({ ready: true });
-      expect(importer).toHaveBeenCalledTimes(2);
+      expect(resource.started()).toBe(true);
+      expect(resource.load()).toBe(rejected);
+      await expect(resource.load()).rejects.toBe(failure.mock.calls[0]![0]);
+      expect(importer).toHaveBeenCalledTimes(1);
       await new Promise(resolve => setImmediate(resolve));
       expect(unhandled).not.toHaveBeenCalled();
     } finally { process.off('unhandledRejection', unhandled); }
   });
 
-  it('also releases a synchronously throwing import attempt', async () => {
+  it('also retains a synchronously throwing import failure with its cause', async () => {
     const importer = vi.fn<() => Promise<string>>()
       .mockImplementationOnce(() => { throw new Error('import shim failed'); })
       .mockResolvedValue('ready');
     const resource = createRetryableModule(importer);
-    await expect(resource.load()).rejects.toThrow('import shim failed');
-    await expect(resource.load()).resolves.toBe('ready');
+    const rejected = resource.load();
+    await expect(rejected).rejects.toMatchObject({ cause: new Error('import shim failed') });
+    expect(resource.load()).toBe(rejected);
+    expect(importer).toHaveBeenCalledOnce();
   });
 });

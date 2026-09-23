@@ -81,7 +81,7 @@ describe('secondary panel guard through the real hook', () => {
       await page.goto(`${base}/__panel-guard`);
       await page.getByRole('button', { name: 'settings', exact: true }).click();
       await browserExpect(page.locator('#message-state')).toHaveText(JSON.stringify({
-        text: 'Settings could not load. Check your connection and choose it again to retry.', error: true,
+        text: "Settings didn't load.", error: true,
       }));
       if (clear === 'Escape') await page.keyboard.press('Escape');
       else await page.getByRole('button', { name: clear, exact: true }).click();

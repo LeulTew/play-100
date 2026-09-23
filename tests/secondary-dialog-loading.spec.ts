@@ -64,7 +64,7 @@ test('an 800ms Settings chunk retains the Menu and its focus, then opens the rea
   await expect(page.locator('dialog[open]')).toHaveCount(1);
 });
 
-test('an aborted Settings chunk announces its error and the same item retries without reloading', async ({ page }) => {
+test('an aborted Settings chunk requires an explicit connected reload and restores Settings', async ({ page }) => {
   const asset = await dialogAsset();
   let attempts = 0;
   await page.route(`**${asset}`, route => ++attempts === 1 ? route.abort('failed') : route.continue());
@@ -75,11 +75,36 @@ test('an aborted Settings chunk announces its error and the same item retries wi
   const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
   const trigger = menu.getByRole('button', { name: 'Settings & backups', exact: true });
   await trigger.click();
-  await expect(menu.getByRole('status')).toContainText('Settings could not load.');
-  await expect(menu.getByRole('status')).toHaveClass('inline-error');
-  await expect(page.locator('.toast')).not.toContainText('Settings could not load.');
+  const alert = menu.getByRole('alert');
+  await expect(alert).toContainText("Settings didn't load.");
+  await expect(page.locator('.toast')).not.toContainText("Settings didn't load.");
   await expect(trigger).toBeFocused();
   await trigger.click();
+  await expect(alert).toContainText("Settings didn't load.");
+  expect(attempts).toBe(1);
+  const original = page.url();
+  const reload = alert.getByRole('button', { name: 'Reload and open Settings', exact: true });
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
+  await reload.click();
+  await expect(alert).toContainText("You're offline. Reconnect, then try again.");
+  expect(page.url()).toBe(original);
+  expect(attempts).toBe(1);
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: true }));
+  let reachable = false;
+  let probes = 0;
+  await page.route('**/*', route => {
+    if (route.request().method() !== 'HEAD') return route.fallback();
+    probes++;
+    return route.fulfill({ status: reachable ? 200 : 503 });
+  });
+  await reload.click();
+  await expect.poll(() => probes).toBe(1);
+  await expect(reload).toBeEnabled();
+  await expect(alert).toContainText("You're offline. Reconnect, then try again.");
+  expect(page.url()).toBe(original);
+  reachable = true;
+  await reload.click();
+  await page.waitForURL(url => url.searchParams.get('info') === 'settings');
   await expect(page.locator('#settings-title')).toBeFocused();
   expect(attempts).toBe(2);
   expect(unhandled).toEqual([]);
@@ -157,7 +182,7 @@ test('credits requested inside Settings announces inside that modal instead of t
   } finally { release(); }
 });
 
-test('Settings credits failure stays in the persistent modal status and retries from the focused trigger', async ({ page }) => {
+test('Settings credits failure stays in its modal and restores credits only after guarded reload', async ({ page }) => {
   const asset = await dialogAsset('src/components/AboutDialog.tsx');
   let attempts = 0;
   await page.route(`**${asset}`, route => ++attempts === 1 ? route.abort('failed') : route.continue());
@@ -170,11 +195,26 @@ test('Settings credits failure stays in the persistent modal status and retries 
   await expect(status).toBeEmpty();
   expect(await status.evaluate(element => element.getBoundingClientRect().height)).toBe(0);
   await trigger.click();
-  await expect(status).toHaveText('Credits could not load. Check your connection and choose it again to retry.');
-  await expect(status.locator('p')).toHaveClass('inline-error');
+  const alert = settings.getByRole('alert');
+  await expect(alert).toContainText("Credits didn't load.");
+  await expect(alert).toHaveClass('inline-error');
   await expect(trigger).toBeFocused();
-  await expect(page.locator('.toast')).not.toContainText('Credits could not load.');
+  await expect(page.locator('.toast')).not.toContainText("Credits didn't load.");
   await trigger.click();
+  await expect(alert).toContainText("Credits didn't load.");
+  expect(attempts).toBe(1);
+  const reload = alert.getByRole('button', { name: 'Reload and open credits', exact: true });
+  const original = page.url();
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
+  await reload.click();
+  await expect(alert).toContainText("You're offline. Reconnect, then try again.");
+  expect(page.url()).toBe(original);
+  expect(attempts).toBe(1);
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: true }));
+  await page.route('**/*', route => route.request().method() === 'HEAD'
+    ? route.fulfill({ status: 200 }) : route.fallback());
+  await reload.click();
+  await page.waitForURL(url => url.searchParams.get('info') === 'credits');
   await expect(page.locator('#about-title')).toBeFocused();
   expect(attempts).toBe(2);
 });

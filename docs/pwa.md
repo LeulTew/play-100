@@ -56,6 +56,14 @@ app references to that stylesheet fail the build-budget check.
 
 ## Updates and recovery
 
+Failed app-module imports are terminal for the current document, including
+failures in shared JavaScript or CSS dependencies. Recovery never reloads
+automatically: the visible action checks connectivity with a network-only
+five-second `HEAD /` probe before replacing the current URL. The worker does
+not intercept non-GET requests. Settings and credits restore their explicit
+intent through `info=settings` or `info=credits`, preserving other URL parameters.
+An offline or failed probe leaves the current app and recovery action available.
+
 The stable worker URL uses `updateViaCache: 'none'`. Installing a new version
 first fills a separate bounded cache and writes its ready marker last. A failed
 install preserves the working version. Quota or offline failures remain
