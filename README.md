@@ -224,19 +224,54 @@ npm run preview -- --port 4187 --strictPort
 The preview is at `http://127.0.0.1:4187`. A strict port avoids accidentally
 replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
-## Targeted checks
+## Quality checks
 
-Choose the relevant commands and selectors for a change. The current delivery
-contract does not run an aggregate local CI pipeline or GitHub Actions.
+Pull requests and pushes to `main` run SHA-pinned GitHub Actions with read-only
+repository access and no deployment credentials. CodeQL alone can upload code
+scanning results; it also runs weekly. Dependabot checks npm and actions weekly,
+grouping minor/patch updates with at most five open version-update PRs per ecosystem.
+
+| CI job | Checks |
+| --- | --- |
+| Quality | ESLint, project and Functions types, unit/mounted tests, production build, offline data validators |
+| Browser (production) | Built preview on port 4187, desktop and mobile |
+| Browser (development) | Source-module fixtures on a Vite server at port 4187, desktop and mobile |
+| Auth and Firestore | Java 21, the lockfile-pinned Firebase CLI, and credential-free `demo-play100` emulator tests |
+| CodeQL | JavaScript/TypeScript analysis without running an application build |
+
+Local equivalents (choose the relevant checks for a change):
 
 ```powershell
-npm run validate:data
-npm test
+npm ci
+npx playwright install --with-deps chromium
 npm run lint
+npx --no-install tsc -b
+npm run typecheck:functions
+npm test -- --maxWorkers=1
 npm run build
-npx playwright install chromium --only-shell
+npm run validate:data
+npm run validate:discovery
 npm run test:e2e
+$env:PLAY100_TEST_BUILD = 'development'
+npm run test:e2e
+Remove-Item Env:PLAY100_TEST_BUILD
+npm run test:cloud
 ```
+
+CI also installs Chrome for the explicitly Chrome-based mounted, native-zoom and
+H.264 film tests; local runs need an existing Chrome installation or
+`npx playwright install chrome` (which installs at the platform's default location).
+`test:cloud` needs Java 21 and uses the existing `firebase-tools` lockfile pin
+(currently 15.30.1), not a global CLI or production project. Both data validators
+read checked-in files only; CI never runs the online catalog collector.
+
+The two browser partitions are disjoint; fixtures importing live `/src` modules
+run in development rather than being skipped or changing their assertions.
+Failure reports, screenshots and retained traces are uploaded for seven days.
+Existing actor-gated Menu/account and sign-in-sheet UI cases still need dedicated
+local emulator setup; CI does not create those actors or enable production
+accounts. The headed native-hidden-window case remains opt-in and is not a
+headless CI proof. Profile-specific desktop/mobile skips retain their intent.
 
 The browser suite covers desktop and mobile, pagination, exact source order,
 search/filter/sort history, native-scale ratings tables, bulk actions, actual
@@ -704,12 +739,12 @@ explicit HTTPS origin override; set it as above for the local prebuilt release,
 where Vercel system variables may be unavailable. Local preview does not guess a public origin.
 The shared social card describes the collection, not private visitor progress.
 
-This local/prebuilt path avoids hosted application builds and CI usage. Keep
+This local/prebuilt deployment path is separate from the quality CI above. Keep
 pulled environment files private and out of source archives, and remove only
 the staging copy's `.vercel\.env.production.local` after publication.
 The source is now published on the public `LeulTew/play-100` repository. Its
-initial `main` publication is not a PR merge. No hosted CI workflows or automatic
-Vercel Git-build integration are installed; use the local/prebuilt path.
+initial `main` publication is not a PR merge. CI does not deploy, and no automatic
+Vercel Git-build integration is installed; use the explicit local/prebuilt path.
 
 ## Credits and design
 

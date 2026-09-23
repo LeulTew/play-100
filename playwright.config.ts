@@ -1,14 +1,31 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const deployedUrl = process.env.PLAY100_BASE_URL;
+const developmentFixtures = process.env.PLAY100_TEST_BUILD === 'development';
+// These fixtures import the app's live /src modules; a built preview cannot serve them.
+const sourceFixtureSpecs = [
+  '**/library-pagination.spec.ts',
+  '**/menu.spec.ts',
+  '**/menu-account.spec.ts',
+  '**/played-ranking.spec.ts',
+  '**/progress-semantics.spec.ts',
+  '**/public-browsing.spec.ts',
+  '**/publication-draft.spec.ts',
+  '**/ranking-picker-identity.spec.ts',
+  '**/ranking-removal.spec.ts',
+  '**/route-list-motion.spec.ts',
+];
 export default defineConfig({
   testDir: './tests',
+  testMatch: developmentFixtures ? sourceFixtureSpecs : '**/*.spec.ts',
+  testIgnore: developmentFixtures ? [] : sourceFixtureSpecs,
   fullyParallel: true,
-  workers: 3,
+  forbidOnly: Boolean(process.env.CI),
+  workers: process.env.CI ? 2 : 3,
   retries: 0,
   timeout: 45000,
   expect: { timeout: 10000 },
-  reporter: [['list']],
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     launchOptions: { args: ['--enable-unsafe-swiftshader'] },
     baseURL: deployedUrl ?? 'http://127.0.0.1:4187',
@@ -20,7 +37,9 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 393, height: 851 } } },
   ],
   webServer: deployedUrl ? undefined : {
-    command: 'npm run preview -- --port 4187 --strictPort',
+    command: developmentFixtures
+      ? 'npm run dev -- --port 4187 --strictPort'
+      : 'npm run preview -- --port 4187 --strictPort',
     url: 'http://127.0.0.1:4187',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

@@ -321,6 +321,6 @@ the original workbook must not be modified.
 The user authorized public source publication under `LeulTew/play-100` and
 visible site/enhanced-workbook attribution to Leul Tewodros Agonafer, with the
 verified GitHub repository, LinkedIn and Telegram `@fabbin` links in `author.json`.
-This does not authorize publishing private browser libraries, credentials, CI
-workflows or an automatic Vercel Git integration. The original archive stays
-byte-identical.
+This does not authorize publishing private browser libraries, credentials or an
+automatic Vercel Git integration. Quality-only CI and Dependabot updates are
+authorized; deployment remains explicit. The original archive stays byte-identical.
