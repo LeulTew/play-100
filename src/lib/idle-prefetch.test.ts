@@ -154,6 +154,23 @@ describe('background-only module prefetch', () => {
     expect(requestIdle).toHaveBeenCalledOnce();
   });
 
+  it('schedules essential PWA connection on all device classes, but still only after load/idle', () => {
+    hints.connection = { saveData: true, effectiveType: '2g' };
+    hints.deviceMemory = 1;
+    documentState.hidden = true;
+    documentState.readyState = 'loading';
+    reducedMotion = true;
+    const load = vi.fn().mockResolvedValue({});
+    const stop = scheduleIdlePrefetch(load, 1200, 'essential');
+    expect(requestIdle).not.toHaveBeenCalled();
+    events.dispatchEvent(new Event('load'));
+    expect(requestIdle).toHaveBeenCalledWith(expect.any(Function), { timeout: 1200 });
+    expect(load).not.toHaveBeenCalled();
+    idle?.();
+    expect(load).toHaveBeenCalledOnce();
+    stop();
+  });
+
   it('uses a cancelable delayed fallback only when idle callbacks are unavailable', async () => {
     Reflect.deleteProperty(window, 'requestIdleCallback');
     const load = vi.fn().mockResolvedValue({});

@@ -2,16 +2,16 @@ import { isConstrainedDevice } from './device-capabilities';
 import type { DeviceHints } from './device-capabilities';
 
 export function scheduleIdlePrefetch(
-  load: () => Promise<unknown>, timeout?: number, mode: 'background' | 'intent' = 'background',
+  load: () => Promise<unknown>, timeout?: number, mode: 'background' | 'intent' | 'essential' = 'background',
 ): () => void {
   let canceled = false;
   let idle: number | undefined;
   let timer: number | undefined;
   let frame: number | undefined;
-  const allowed = () => !canceled && !document.hidden && (
+  const allowed = () => !canceled && (mode === 'essential' || !document.hidden && (
     mode === 'intent' ? !(navigator as DeviceHints).connection?.saveData :
       !isConstrainedDevice(navigator) && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
+  ));
   const run = () => {
     idle = undefined;
     timer = undefined;

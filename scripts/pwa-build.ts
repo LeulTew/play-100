@@ -17,6 +17,7 @@ export const PWA_ROOTS = [
   'src/lib/discovery-catalog.ts', 'src/lib/google-intent.ts',
   'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
   'src/components/AboutDialog.tsx', 'src/components/app/SettingsPanel.tsx',
+  'src/pwa/client-entry.ts',
 ] as const;
 const publicCore = [
   '/index.html', '/manifest.webmanifest', '/pwa/offline.html', '/pwa/fallback.css', '/favicon.svg',

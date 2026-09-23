@@ -8,5 +8,12 @@ export interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ settings, offline }: SettingsPanelProps) {
-  return <SettingsDialog {...settings} offlineControls={offline ? <PwaControls {...offline} /> : undefined} />;
+  const controls = offline ? {
+    ...offline,
+    pwa: {
+      ...offline.pwa,
+      online: offline.pwa.online && (offline.pwa.controlsReady !== false || Boolean(offline.pwa.error) && !offline.pwa.moduleError),
+    },
+  } : undefined;
+  return <SettingsDialog {...settings} offlineControls={controls ? <PwaControls {...controls} /> : undefined} />;
 }

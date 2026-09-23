@@ -18,6 +18,11 @@ main entry, Discover, CatalogDetail and MyGames (Library, Queue and Ranking),
 the guarded update executor, deferred catalog/intent utilities and the Data use
 disclosure body, including their static imports, CSS and WOFF2 fonts. The
 disclosure body's presence does not make the Data use route an offline shell.
+The deferred PWA controller has an explicit `client-entry.ts` root; its static
+closure includes the client even when Vite emits that implementation as a shared chunk.
+Its eager adapter captures browser install/connectivity events without registering
+a worker. A failed client-entry import is terminal: Settings offers guarded reload
+through the existing pending-edit guard, not another import or offline preparation.
 The manifest, brand icons,
 offline explanation and local collection/Discover metadata complete the core.
 

@@ -16,7 +16,7 @@ import { useAppPanel } from './hooks/useAppPanel';
 import { ChunkRecovery } from './components/ChunkRecovery';
 import { isModuleLoadFailure } from './lib/chunk-recovery';
 import { visibleMenuTrigger } from './lib/dialog-focus';
-import { usePwa } from './pwa';
+import { usePwa } from './pwa/usePwa';
 import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
 import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR, onlineWasRequested, rememberOnlineRequest, resolveOnlineRequest } from './lib/online-availability';
@@ -132,7 +132,7 @@ export default function App() {
   const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage, panelFromMenu } = useAppPanel(libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
-  const pwa = usePwa({ enabled: pwaEnabled });
+  const pwa = usePwa({ enabled: pwaEnabled, menuOpen: panel === 'menu' });
   const updateState = useRef({ busy: libraryBusy, panel });
   updateState.current = { busy: libraryBusy, panel };
   const inputGeneration = useRef(0);

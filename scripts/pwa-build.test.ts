@@ -131,6 +131,7 @@ describe('generated public PWA build closure', () => {
     'src/lib/discovery-catalog.ts', 'src/lib/google-intent.ts',
     'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
     'src/components/AboutDialog.tsx', 'src/components/app/SettingsPanel.tsx',
+    'src/pwa/client-entry.ts',
   ])('keeps the previously eager %s tools in the explicit offline closure', root => {
     expect(PWA_ROOTS).toContain(root);
     const entries = manifest();
@@ -139,6 +140,30 @@ describe('generated public PWA build closure', () => {
     expect(pwaCorePaths(entries)).toContain(`/${entry.file}`);
     delete entries[root];
     expect(() => pwaCorePaths(entries)).toThrow('missing required Vite entry');
+  });
+
+  it('requires the stable client entry and includes its shared client and update closure', () => {
+    const entries = manifest();
+    const root = 'src/pwa/client-entry.ts';
+    const shared = '_client-CAvSls-1.js';
+    entries[root] = { file: 'assets/client-entry-12345678.js', imports: [shared], isDynamicEntry: true };
+    entries[shared] = {
+      file: 'assets/client-CAvSls-1.js', imports: ['index.html', '_shared'],
+      dynamicImports: ['src/pwa/apply-update.ts'],
+    };
+    entries['src/pwa/apply-update.ts']!.imports = [shared];
+    const updateFile = entries['src/pwa/apply-update.ts']!.file;
+    expect(entries['src/pwa/client.ts']).toBeUndefined();
+    expect(pwaCorePaths(entries)).toEqual(expect.arrayContaining([
+      '/assets/client-entry-12345678.js', '/assets/client-CAvSls-1.js',
+      '/assets/index-12345678.js', '/assets/shared-12345678.js', `/${updateFile}`,
+    ]));
+    const client = entries[shared]!;
+    delete entries[shared];
+    expect(() => pwaCorePaths(entries)).toThrow(`missing required Vite entry ${shared}`);
+    entries[shared] = client;
+    delete entries[root];
+    expect(() => pwaCorePaths(entries)).toThrow(`missing required Vite entry ${root}`);
   });
 
   it('declares stable root installation identity and distinct any/maskable sizes', async () => {
