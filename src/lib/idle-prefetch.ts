@@ -17,7 +17,7 @@ export function scheduleIdlePrefetch(
     timer = undefined;
     if (!allowed()) return;
     void load().catch(() => {
-      console.warn('Background page preloading failed. Opening the page will retry the normal load.');
+      console.warn('Background page preloading failed. Explicit use will offer reload recovery.');
     });
   };
   const schedule = () => {

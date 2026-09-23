@@ -29,6 +29,7 @@ export interface PwaState {
   readonly online: boolean;
   readonly message: string;
   readonly error: string;
+  readonly moduleError?: boolean;
 }
 
 export interface PwaUpdateGuard {

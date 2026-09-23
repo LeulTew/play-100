@@ -31,5 +31,12 @@ describe('offline controls copy preserves readiness and privacy boundaries', () 
     expect(loading).toContain('<div role="status"><p>Loading offline controls...</p></div>');
     expect(loading).toContain('<p class="inline-error" role="alert">Connection failed.</p>');
     expect(loading).not.toContain('aria-live="polite"');
+    const recovery = renderToStaticMarkup(createElement(PwaControls, {
+      pwa: { ...pwa, moduleError: true, error: "The update controls didn't load.", updateState: 'waiting' },
+      onUpdate: vi.fn(async () => false),
+    }));
+    expect(recovery).toContain('role="alert"');
+    expect(recovery).toContain('Reload this page');
+    expect(recovery).not.toContain('Review app update');
   });
 });

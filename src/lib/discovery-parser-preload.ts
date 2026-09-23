@@ -1,1 +1,3 @@
-export const loadDiscoveryParser = () => import('./discovery-catalog');
+import { createRetryableModule } from './retryable-module';
+
+export const loadDiscoveryParser = createRetryableModule(() => import('./discovery-catalog')).load;

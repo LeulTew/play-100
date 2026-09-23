@@ -69,6 +69,18 @@ or a hint error to clear. Explicit panel requests survive account transitions;
 URL-restored intents are consumed on close or cancellation, including a scope
 switch, and never reopen after Escape or navigation.
 
+Page-module failures stay inside the route, with the header and navigation
+available; catalog-detail failures stay inside a closable dialog. Parser-module
+failures use the same reload action, while catalog data failures still allow a
+normal data retry. Failed update-control imports preserve the waiting worker and
+require the existing edit guard plus the network probe before recovery reload.
+Decorative 3D failures retain the illustrated fallback without a reload action
+or repeated imports. Background module prefetch failures remain non-disruptive;
+explicit use exposes the terminal failure and its recovery action.
+When a URL panel intent accompanies an existing `game` link, its pending or
+failed notice stays in a native dialog above the game, not in an inert page toast;
+cancelling that intent retains the game URL.
+
 The stable worker URL uses `updateViaCache: 'none'`. Installing a new version
 first fills a separate bounded cache and writes its ready marker last. A failed
 install preserves the working version. Quota or offline failures remain

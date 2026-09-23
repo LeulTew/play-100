@@ -4,6 +4,8 @@ import { DISCOVERY_CATALOG_URL } from './discovery-catalog';
 import { catalogFixture } from './discovery-test-fixtures';
 import { searchDiscoveryItems, defaultDiscoveryFilters } from './discovery-search';
 import * as parserPreload from './discovery-parser-preload';
+import { ModuleLoadFailure, isModuleLoadFailure } from './chunk-recovery';
+import { createRetryableModule } from './retryable-module';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 const signal = () => new AbortController().signal;
@@ -72,11 +74,17 @@ describe('lazy bounded public seed loading', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it('surfaces a failed parser import and permits a fresh explicit retry', async () => {
-    vi.spyOn(parserPreload, 'loadDiscoveryParser').mockRejectedValueOnce(new Error('Parser module unavailable'));
+  it('distinguishes a terminal parser import from a retryable data request', async () => {
+    const importer = vi.fn<() => ReturnType<typeof parserPreload.loadDiscoveryParser>>()
+      .mockRejectedValue(new Error('Parser module unavailable'));
+    const resource = createRetryableModule(importer);
+    vi.spyOn(parserPreload, 'loadDiscoveryParser').mockImplementation(resource.load);
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(catalogFixture)))));
     const load = createDiscoveryLoader();
-    await expect(load(signal())).rejects.toThrow('Parser module unavailable');
-    expect(await load(signal())).toEqual(catalogFixture);
+    const error = await load(signal()).catch(error => error);
+    expect(error).toBeInstanceOf(ModuleLoadFailure);
+    expect(isModuleLoadFailure(error)).toBe(true);
+    await expect(load(signal())).rejects.toBe(error);
+    expect(importer).toHaveBeenCalledOnce();
   });
 });

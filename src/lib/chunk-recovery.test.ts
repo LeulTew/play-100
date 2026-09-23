@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { guardedReload, isModuleLoadFailure, ModuleLoadFailure } from './chunk-recovery';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 function fixture(online = true) {
   const replace = vi.fn();
@@ -42,6 +42,37 @@ describe('explicit module recovery', () => {
   it('cancels a probe after unmount or navigation', async () => {
     const { replace } = fixture();
     expect(await guardedReload({ isCurrent: () => false })).toBe('cancelled');
+    expect(replace).not.toHaveBeenCalled();
+  });
+  it('keeps a probe bounded to five seconds and does not reload after a timeout', async () => {
+    const { replace, fetch } = fixture();
+    const abort = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(abort.signal);
+    fetch.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      abort.signal.addEventListener('abort', () => reject(abort.signal.reason), { once: true });
+    }));
+    const recovery = guardedReload();
+    abort.abort(new DOMException('Timed out', 'TimeoutError'));
+    expect(await recovery).toBe('offline');
+    expect(timeout).toHaveBeenCalledWith(5000);
+    expect(replace).not.toHaveBeenCalled();
+  });
+  it('does not reload a different URL after an in-flight probe', async () => {
+    const { replace, fetch } = fixture();
+    fetch.mockImplementationOnce(async () => {
+      location.href = 'https://play.test/discover';
+      return { ok: true };
+    });
+    expect(await guardedReload()).toBe('cancelled');
+    expect(replace).not.toHaveBeenCalled();
+  });
+  it('does not reload when the connection drops during the probe', async () => {
+    const { replace, fetch } = fixture();
+    fetch.mockImplementationOnce(async () => {
+      vi.stubGlobal('navigator', { onLine: false });
+      return { ok: true };
+    });
+    expect(await guardedReload()).toBe('offline');
     expect(replace).not.toHaveBeenCalled();
   });
 });

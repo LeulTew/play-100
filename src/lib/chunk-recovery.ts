@@ -24,6 +24,7 @@ export async function guardedReload({ intent, isCurrent = () => true }: {
     const response = await fetch('/', { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (!response.ok) return 'offline';
   } catch { return 'offline'; }
+  if (!navigator.onLine) return 'offline';
   if (!isCurrent() || location.href !== original) return 'cancelled';
   if (intent) url.searchParams.set('info', intent);
   location.replace(url.href);

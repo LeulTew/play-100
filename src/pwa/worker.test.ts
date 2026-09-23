@@ -265,6 +265,7 @@ describe('native worker install, offline and update lifetime', () => {
     const fixture = workerFixture();
     for (const request of [
       new Request(`${origin}/api/enrichment?id=one`),
+      new Request(`${origin}/`, { method: 'HEAD', cache: 'no-store' }),
       new Request(`${origin}/__/auth/handler?code=private`),
       new Request('https://firestore.googleapis.com/private'),
       new Request(`${origin}/data/collection.json?uid=private`),

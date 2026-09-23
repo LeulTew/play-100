@@ -5,10 +5,13 @@ import CollectionPage from '../CollectionPage';
 import { OnlineBoundary } from '../OnlineBoundary';
 import { RouteFallback } from './RouteFallback';
 import type { RouteFallbackProps } from './RouteFallback';
+import { createRetryableModule } from '../../lib/retryable-module';
+import { ChunkBoundary } from '../ChunkBoundary';
+import { ChunkRecovery } from '../ChunkRecovery';
 
-const MyGamesPage = lazy(() => import('../personal/MyGamesPage'));
-const DiscoverPage = lazy(() => import('../catalog/DiscoverPage'));
-const OnlineController = lazy(() => import('../../cloud/OnlineController'));
+const MyGamesPage = lazy(createRetryableModule(() => import('../personal/MyGamesPage')).load);
+const DiscoverPage = lazy(createRetryableModule(() => import('../catalog/DiscoverPage')).load);
+const OnlineController = lazy(createRetryableModule(() => import('../../cloud/OnlineController')).load);
 
 type PublicContent =
   | { kind: 'private-library' }
@@ -39,6 +42,6 @@ function publicContent(content: PublicContent, route: AppPage) {
 export function RouteHost({ route, scope, online, content }: RouteHostProps) {
   return <>
     {online && <OnlineBoundary onDevice={online.onDevice}><Suspense fallback={online.fallback ? <RouteFallback {...online.fallback} /> : null}><OnlineController {...online.props} /></Suspense></OnlineBoundary>}
-    {content?.kind === 'unconfigured' ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : content && <Suspense fallback={<RouteFallback route={route} kind="public-page" />}><div key={scope}>{publicContent(content, route)}</div></Suspense>}
+    {content?.kind === 'unconfigured' ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : content && <ChunkBoundary key={`${route}:${scope}`} fallback={<section className="app-page data-error"><ChunkRecovery message="This page didn't load." /></section>}><Suspense fallback={<RouteFallback route={route} kind="public-page" />}><div key={scope}>{publicContent(content, route)}</div></Suspense></ChunkBoundary>}
   </>;
 }

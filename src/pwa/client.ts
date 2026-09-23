@@ -1,4 +1,8 @@
 import type { BeforeInstallPromptEvent, PwaController, PwaState, PwaUpdateGuard } from './types';
+import { createRetryableModule } from '../lib/retryable-module';
+import { guardedReload, isModuleLoadFailure, offlineRecoveryMessage } from '../lib/chunk-recovery';
+
+const updateModule = createRetryableModule(() => import('./apply-update'));
 
 const channel = 'play100-pwa-v1';
 const versionPattern = /^[a-f0-9]{64}$/;
@@ -293,7 +297,17 @@ export function createPwaController(): PwaController {
       }
       applying = true;
       try {
-        const { executePwaUpdate } = await import('./apply-update');
+        if (state.moduleError) {
+          if (!await preparePwaUpdate(guard) || !current(start)) {
+            publish({ message: 'Your edit or page changed. Save or correct it before reloading.' });
+            return false;
+          }
+          const result = await guardedReload({ isCurrent: () => current(start) && guard.isCurrent() && guard.canReload() });
+          if (current(start) && result === 'offline') publish({ message: offlineRecoveryMessage });
+          if (current(start) && result === 'cancelled') publish({ message: 'Your edit or page changed. Save or correct it before reloading.' });
+          return result === 'navigating';
+        }
+        const { executePwaUpdate } = await updateModule.load();
         return await executePwaUpdate(waiting, reloadOnly, guard, {
           isCurrent: () => current(start),
           waiting: () => registration?.waiting ?? null,
@@ -303,7 +317,10 @@ export function createPwaController(): PwaController {
         });
       } catch (cause) {
         publish({ updateState: requestedVersion ? 'reload-required' : registration?.waiting ? 'waiting' : 'none' });
-        report('The update controls could not load. Your page was not reloaded. Reconnect and retry.', cause);
+        if (isModuleLoadFailure(cause)) {
+          publish({ moduleError: true });
+          report("The update controls didn't load.", cause);
+        } else report(cause instanceof Error ? cause.message : 'The requested update or reload could not finish.', cause);
         return false;
       } finally { applying = false; }
     },

@@ -92,13 +92,22 @@ test('an aborted Settings chunk requires an explicit connected reload and restor
   await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: true }));
   let reachable = false;
   let probes = 0;
-  await page.route('**/*', route => {
+  let releaseProbe!: () => void;
+  const heldProbe = new Promise<void>(resolve => { releaseProbe = resolve; });
+  await page.route('**/*', async route => {
     if (route.request().method() !== 'HEAD') return route.fallback();
     probes++;
+    await heldProbe;
     return route.fulfill({ status: reachable ? 200 : 503 });
   });
-  await reload.click();
-  await expect.poll(() => probes).toBe(1);
+  try {
+    await reload.click();
+    await expect.poll(() => probes).toBe(1);
+    const checking = alert.getByRole('button', { name: 'Checking connection...', exact: true });
+    await expect(checking).toBeDisabled();
+    await expect(checking).toHaveAttribute('aria-busy', 'true');
+    expect(page.url()).toBe(original);
+  } finally { releaseProbe(); }
   await expect(reload).toBeEnabled();
   await expect(alert).toContainText("You're offline. Reconnect, then try again.");
   expect(page.url()).toBe(original);
@@ -223,4 +232,20 @@ test('Settings credits failure stays in its modal and restores credits only afte
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page).not.toHaveURL(/info=/);
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
+});
+
+test('a failed URL panel above a game retains a usable modal recovery and the game URL', async ({ page }) => {
+  const asset = await dialogAsset('src/components/AboutDialog.tsx');
+  await page.route(`**${asset}`, route => route.abort('failed'));
+  await page.goto('/?game=the-witcher-3-wild-hunt&info=credits&catalogs=off');
+  await expect(page.locator('#game-title')).toBeAttached();
+  const failure = page.getByRole('dialog', { name: 'Dialog unavailable', exact: true });
+  await expect(failure.getByRole('alert')).toContainText("Credits didn't load.");
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
+  await failure.getByRole('button', { name: 'Reload and open credits', exact: true }).click();
+  await expect(failure.getByRole('alert')).toContainText("You're offline. Reconnect, then try again.");
+  await failure.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(failure).toHaveCount(0);
+  await expect(page).not.toHaveURL(/info=/);
+  await expect(page).toHaveURL(url => url.searchParams.get('game') === 'the-witcher-3-wild-hunt');
 });

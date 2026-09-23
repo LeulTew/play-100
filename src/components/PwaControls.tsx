@@ -10,6 +10,7 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
 }) {
   const [confirm, setConfirm] = useState(false);
   const [updateError, setUpdateError] = useState('');
+  const [recovering, setRecovering] = useState(false);
   const pending = pwa.offlineState === 'preparing' || pwa.updateState === 'applying';
   return <details className="device-settings pwa-settings" open={open}>
     <summary>Install &amp; offline access</summary>
@@ -30,9 +31,16 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
     <p className="section-help">Public app files, metadata and recently viewed bundled artwork have storage limits.
       Workbooks, films, cloud pages and live-provider responses are not downloaded for offline use.</p>
     <div role="status">{pwa.message && <p>{pwa.message}</p>}</div>
-    {pwa.error && <p className="inline-error" role="alert">{pwa.error}</p>}
+    {pwa.error && !pwa.moduleError && <p className="inline-error" role="alert">{pwa.error}</p>}
+    {pwa.moduleError && <div className="inline-error" role="alert"><p>{pwa.error}</p><button className="text-button" disabled={recovering} aria-busy={recovering} onClick={() => {
+      setRecovering(true);
+      void onUpdate().catch(cause => {
+        console.error('The requested reload could not start.', cause);
+        setUpdateError('This page could not reload. Save your changes before reloading when connected.');
+      }).finally(() => setRecovering(false));
+    }}>{recovering ? 'Checking connection...' : 'Reload this page'}</button></div>}
     {updateError && <p className="inline-error" role="alert">{updateError}</p>}
-    {(pwa.updateState === 'waiting' || pwa.updateState === 'reload-required') && (confirm
+    {!pwa.moduleError && (pwa.updateState === 'waiting' || pwa.updateState === 'reload-required') && (confirm
       ? <div className="reset-confirmation" role="group" aria-label="Confirm app update">
         <p>Updating reloads this page. Finish or clear unsubmitted forms first. Pending ratings and notes must save successfully;
           a new edit, changed page or another open Play 100 window prevents this reload.</p>
@@ -41,8 +49,8 @@ export default function PwaControls({ pwa, open = false, onUpdate }: {
           <button className="button button-dark" disabled={pending} onClick={() => {
             setUpdateError('');
             void onUpdate().then(() => setConfirm(false)).catch(cause => {
-              console.error('App update controls could not load.', cause instanceof Error ? cause.message : 'Unknown update error.');
-              setUpdateError('Update controls could not load. Your page was not reloaded. Reconnect and retry.');
+              console.error('The requested app update could not finish.', cause instanceof Error ? cause.message : 'Unknown update error.');
+              setUpdateError('The requested update could not finish. Your page was not reloaded.');
               setConfirm(false);
             });
           }}>Save and update this page</button>

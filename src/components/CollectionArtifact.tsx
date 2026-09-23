@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import ArtifactStill from './scene/ArtifactStill';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
+import { createRetryableModule } from '../lib/retryable-module';
 import './scene/artifact.css';
+
+const sceneModule = createRetryableModule(() => import('./scene/CollectionScene'));
 
 export interface CollectionArtifactProps {
   quality: 'auto' | 'full' | 'lite';
@@ -115,7 +118,7 @@ export default function CollectionArtifact({
       setState({ ready: false, status: 'loading', reason: null });
       try {
         if (!createScene) {
-          const module = await import('./scene/CollectionScene');
+          const module = await sceneModule.load();
           if (cancelled || failed) return;
           createScene = module.createCollectionScene;
           if (!isActive()) setState({ ready: false, status: 'waiting', reason: null });

@@ -8,6 +8,7 @@ import { DISCOVERY_GENRE_FAMILIES, parseDiscoveryGenreFamily } from '../../lib/d
 import { useDiscoverSearch } from '../../hooks/useDiscoverSearch';
 import { useDiscoveryUrl } from '../../hooks/useDiscoveryUrl';
 import { Icon } from '../Icon';
+import { ChunkRecovery } from '../ChunkRecovery';
 import { SelectionBar } from '../SelectionBar';
 import type { SelectionAction } from '../SelectionBar';
 import ManualGameForm from '../personal/ManualGameForm';
@@ -125,7 +126,7 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
       {selecting && <p className="section-help">Selection applies to this page. Changing pages or filters clears the selection.</p>}
       {selecting && <SelectionBar context="discover" count={selection.length} total={records.length} busy={busy} onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))} onClear={() => setSelected(new Set())} onDone={() => { setSelecting(false); setSelected(new Set()); }} onAction={(action) => { void bulk(action); }} />}
       {collection.status === 'error' && <div className="discovery-notice" role="alert"><p>The 100 could not load. {collection.error} Reload it before browsing so matching catalog games use the original entry.</p><button className="text-button" onClick={collection.retry}>Reload The 100</button></div>}
-      {seed.error && <div className="discovery-notice" role="alert"><p>Local catalog unavailable. {seed.error} The 100 remains searchable. {filters.catalogs === 'off' ? 'Online lookup is off.' : 'Trying online catalogs instead.'}</p><button className="text-button" onClick={seed.retry}>Reload local catalog</button></div>}
+      {seed.moduleError ? <ChunkRecovery message="The catalog tools didn't load." /> : seed.error && <div className="discovery-notice" role="alert"><p>Local catalog unavailable. {seed.error} The 100 remains searchable. {filters.catalogs === 'off' ? 'Online lookup is off.' : 'Trying online catalogs instead.'}</p><button className="text-button" onClick={seed.retry}>Reload local catalog</button></div>}
       {catalogLoading && !records.length && <ul className={`discovery-skeleton discovery-cards-${filters.view}`} aria-hidden="true" inert>
         {Array.from({ length: DISCOVERY_PAGE_SIZE }, (_, index) => <li className="discovery-card-skeleton" key={index}>
           <div className="discovery-card-art"><span className="discovery-skeleton-print" /></div>

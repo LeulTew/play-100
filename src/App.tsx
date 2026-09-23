@@ -14,6 +14,7 @@ import { Icon } from './components/Icon';
 import { SiteFooter } from './components/SiteFooter';
 import { useAppPanel } from './hooks/useAppPanel';
 import { ChunkRecovery } from './components/ChunkRecovery';
+import { isModuleLoadFailure } from './lib/chunk-recovery';
 import { usePwa } from './pwa';
 import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
@@ -61,7 +62,7 @@ function CompareTrayBindings({ needsArtwork, previewId, resolvedRecordId, onReso
   needsArtwork: boolean;
   resolvedRecordId: string | null;
   previewId: string | null; onResolvePreview: (record: LibraryRecord) => void;
-  children: (tray: ReturnType<typeof useCompareTray>, artwork: ReadonlyMap<string, CatalogArtwork>, previewLoading: boolean) => ReactNode;
+  children: (tray: ReturnType<typeof useCompareTray>, artwork: ReadonlyMap<string, CatalogArtwork>, previewLoading: boolean, previewModuleError: boolean) => ReactNode;
 }) {
   const tray = useCompareTray();
   const publicPreview = Boolean(previewId && /^(wikidata:Q[1-9]\d*|freetogame:[1-9]\d*)$/.test(previewId));
@@ -73,7 +74,8 @@ function CompareTrayBindings({ needsArtwork, previewId, resolvedRecordId, onReso
   // Resolved identity controls loading, never replacement preview metadata.
   const record = resolvedRecordId ? undefined : trayRecord ?? catalog.catalog?.items.find((item) => item.record.id === previewId)?.record;
   useEffect(() => { if (record) onResolvePreview(record); }, [record, onResolvePreview]);
-  return children(tray, artwork, publicPreview && !knownRecordId && !record && (catalog.status === 'idle' || catalog.status === 'loading'));
+  return children(tray, artwork, publicPreview && !knownRecordId && !record && (catalog.status === 'idle' || catalog.status === 'loading'),
+    Boolean(publicPreview && !knownRecordId && !record && catalog.moduleError));
 }
 
 function actionMessage(action: PersonalAction): string {
@@ -161,6 +163,7 @@ export default function App() {
   const closePanel = useCallback(() => setPanel(null), [setPanel]);
   const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({ scope: 'guest', records: new Map() });
   const [notice, setNotice] = useState('');
+  const [toolFailure, setToolFailure] = useState<{ scope: string; page: AppPage } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = useCallback((message: string) => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -359,7 +362,8 @@ export default function App() {
       if (warning) notify(warning);
     } catch (cause) {
       if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation) {
-        notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.');
+        if (isModuleLoadFailure(cause)) setToolFailure({ scope: libraryScope, page });
+        else notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.');
       } else console.warn('A comparison operation failed after its page or account changed. No stale navigation was applied.');
     }
   };
@@ -434,7 +438,7 @@ export default function App() {
   };
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
   const visibleNotice = (!panel && !manualLink && !selectedSlug ? panelMessage : '') || notice;
-  const panelRecovery = panelFailure && <ChunkRecovery key={panelFailure} message={panelMessage}
+  const panelRecovery = panelFailure && <ChunkRecovery key={panelFailure} message={panelFailure === 'about' ? "Credits didn't load." : "Settings didn't load."}
     intent={panelFailure === 'about' ? 'credits' : 'settings'}
     label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'} />;
 
@@ -442,7 +446,7 @@ export default function App() {
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
     <AppMotionBindings mainRef={mainRef} page={page} boundary={motionBoundary} motionLocation={motionLocation} navigation={navigationGeneration} blocked={motionBlocked} onOpen={openGame} preparePreview={preparePreview}>
     {({ openCollection, preview, previewFromDiscover, origin, interaction }) => (
-    <CompareTrayProvider scope={libraryScope} interaction={interaction}><CompareTrayBindings needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)} previewId={transientPreview?.authority ? null : selectedSlug} resolvedRecordId={selectedRecord?.id ?? null} onResolvePreview={rememberPreview}>{(tray, artwork, previewLoading) => {
+    <CompareTrayProvider scope={libraryScope} interaction={interaction}><CompareTrayBindings needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)} previewId={transientPreview?.authority ? null : selectedSlug} resolvedRecordId={selectedRecord?.id ?? null} onResolvePreview={rememberPreview}>{(tray, artwork, previewLoading, previewModuleError) => {
       const pinnedIds = catalogPinnedIds(tray.items);
       const pin = (record: LibraryRecord) => {
         if (onlineOpening || activeScope.current !== libraryScope) { notify('Wait for the correct account before pinning a game.'); return false; }
@@ -455,6 +459,7 @@ export default function App() {
       <AppHeader page={page} onlineAvailable={ONLINE_AVAILABLE} libraryScope={libraryScope} libraryLabel={libraryMode.label} syncStatus={online?.status ?? 'device'} headerIdentity={headerIdentity} savedCount={savedCount} animate={capabilities.animate} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onQueue={() => navigate('library', { list: 'later' })} onMenu={() => setPanel('menu')} onAccount={() => { void accountEntry(); }} onIntent={prefetchAppTools} />
       <GlobalBanners warning={warning} onlineConfigError={ONLINE_CONFIG_ERROR} offline={pwaEnabled && !pwa.online} offlineReady={pwa.offlineState === 'ready'} hintError={hintError} onSettings={() => setPanel('settings')} onAccount={() => { void accountEntry(); }} onDeviceOnly={() => { setHintError(''); void rememberOnlineRequest(false); }} />
       <main id="page-main" ref={mainRef}>
+        {toolFailure?.scope === libraryScope && toolFailure.page === page && <ChunkRecovery message="The comparison tools didn't load." />}
         <RouteHost route={page} scope={libraryScope}
           online={ONLINE_AVAILABLE && (onlineRequested || cloudPage) ? {
             onDevice: () => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); },
@@ -505,7 +510,8 @@ export default function App() {
         } } : null}
         loadingGame={Boolean(selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening)}
         canonicalError={awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening ? { message: collection.error, retry: collection.retry } : null}
-        missingGame={Boolean(selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord)}
+        metadataFailure={previewModuleError}
+        missingGame={Boolean(selectedSlug && !awaitingCanonicalPreview && !previewLoading && !previewModuleError && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord)}
         onCloseGame={closeGame}
         menu={panel === 'menu' ? { key: libraryScope, props: {
           page, gamesView, filters, onlineAvailable: ONLINE_AVAILABLE, creator: Boolean(!onlineOpening && online?.identity?.verified && online.creator),
@@ -514,11 +520,7 @@ export default function App() {
           onAbout: () => setPanel('about'), onClose: closePanel, captureFocusGuard: captureMenuFocusGuard,
           status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
         } } : null}
-        about={panel === 'about' ? { onClose: () => {
-          setPanel(null);
-          const params = new URLSearchParams(location.search);
-          if (params.has('info')) { params.delete('info'); history.replaceState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}`); }
-        } } : null}
+        about={panel === 'about' ? { onClose: () => setPanel(null) } : null}
         settings={panel === 'settings' ? { key: libraryScope, props: {
           motion: library.state.motion, reducedMotion: capabilities.reducedMotion, constrained: capabilities.constrained,
           saved: savedCount, completed: completedCount, warning, onMotion: motion => { void perform({ type: 'set-motion', motion }); },
@@ -528,6 +530,10 @@ export default function App() {
           status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
         } } : null}
         offlineSettings={pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined}
+        panelNotice={!panel && !manualLink && selectedSlug && (panelMessage || panelRecovery) ? {
+          title: panelFailure ? 'Dialog unavailable' : panelMessage,
+          content: panelRecovery || <p role="status">{panelMessage}</p>, onClose: closePanel,
+        } : null}
         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
       <div className={`toast ${visibleNotice ? 'toast-visible' : ''}`} role={panelRecovery ? undefined : 'status'} aria-live={panelRecovery ? undefined : 'polite'} aria-atomic="true">{!panel && !manualLink && !selectedSlug && panelRecovery ? panelRecovery : visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
       {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}
