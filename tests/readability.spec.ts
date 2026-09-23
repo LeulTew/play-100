@@ -24,7 +24,7 @@ async function surfaces(page: Page, spacing = false) {
   if (spacing) await page.addStyleTag({ content: textSpacingCSS });
   await expect(page.locator('.game-card')).toHaveCount(24);
   for (const view of ['Grid', 'List', 'Table']) {
-    await page.getByRole('button', { name: `${view} view`, exact: true }).click();
+    await page.getByRole('button', { name: view === 'Table' ? 'Ratings table view' : `${view} view`, exact: true }).click();
     await audit(`Collection ${view}`);
     if (view === 'Table') {
       const table = page.getByRole('region', { name: /ratings/i });
