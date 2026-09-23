@@ -91,6 +91,26 @@ before enabling that traffic. Roll back by un-enforcing, not by weakening rules.
 The per-instance API limiter is not global per-IP protection; Vercel WAF and
 its deployment evidence remain with the parent/integrator.
 
+### Preview referrers and production smoke
+
+Preview and candidate origins are intentionally excluded from the browser
+API-key referrer allowlist. The allowed referrers are the production origin
+`https://play-100-collection.vercel.app/` and the existing
+`https://play100-online-48823b32.firebaseapp.com/` helper origin. This is distinct
+from the Auth authorized-domain list above. A blocked preview request is expected,
+not a reason to broaden the key's restrictions or record an online/Auth pass.
+Real online and Auth smoke tests therefore run on production only, after
+promotion and with operator approval. Local demo-emulator tests use synthetic
+configuration and remain the pre-promotion validation path.
+
+**Promotion-time option, not performed:** after verifying the proxied
+`/__/auth/*` sign-in, linking and reauthentication flows on production, the parent
+may remove firebaseapp.com from the key's referrer allowlist if no legitimate
+request still requires that origin. Recheck those production flows and retain
+the prior allowlist for rollback. This option does not remove the proxy
+destinations or change Auth authorized domains, and no allowlist write is made
+by this source change.
+
 ## Stage 1 compatibility and validation
 
 The new client still works with live 270f rules. Publish it before tightening
@@ -189,7 +209,9 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
    reserved/orphan handles, and the new-client/old-rules path before publication.
 3. Deploy and promote the compatible client first. Verify report submission,
    outgoing request labels, cancelled recovery, publish/rename/cleanup and
-   shared-device removal with owned test accounts. This lane never deploys.
+   shared-device removal with approved accounts on production after promotion;
+   preview/candidate origins intentionally cannot perform the real online/Auth
+   smoke. This lane never deploys or runs those account actions.
 4. Only the parent publishes the reviewed rules. Read them back and hash the
    exact bytes; record the full SHA and deployed release, not a truncated prefix.
 5. Smoke-test owner access, reporter missing/existing symmetry, incoming/outgoing
