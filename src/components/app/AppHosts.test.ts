@@ -100,6 +100,16 @@ describe('route fallback host', () => {
 });
 
 describe('navigation and dialog hosts', () => {
+  it.each([0, 1, 2])('names the header queue count without repeating its purpose (%i)', savedCount => {
+    const html = renderToStaticMarkup(createElement(AppHeader, {
+      page: 'collection', onlineAvailable: false, libraryScope: 'guest', libraryLabel: 'Device only', syncStatus: 'device',
+      headerIdentity: null, savedCount, animate: false, menuOpen: false,
+      pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onQueue: vi.fn(), onMenu: vi.fn(), onAccount: vi.fn(),
+    }));
+    expect(html).toContain(`aria-label="Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'}"`);
+    expect(html).not.toContain('in your queue');
+  });
+
   it('retains header selectors, navigation order and verified display inputs', () => {
     const html = renderToStaticMarkup(createElement(AppHeader, {
       page: 'discover', onlineAvailable: true, libraryScope: 'guest', libraryLabel: 'Device only', syncStatus: 'device',
@@ -115,7 +125,7 @@ describe('navigation and dialog hosts', () => {
     expect(html).not.toContain('title="Device only"');
     expect(html).toContain('aria-label="Download enhanced Excel workbook"');
     expect(html).not.toContain('title="Download Excel"');
-    expect(html).toContain('aria-label="Play later, 3 games in your queue"');
+    expect(html).toContain('aria-label="Play later, 3 games"');
     expect(html).toContain('class="saved-count"><span class="sr-only">3</span>');
   });
 
