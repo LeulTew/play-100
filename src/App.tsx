@@ -46,9 +46,11 @@ import type { PreparedPreview } from './AppMotionBindings';
 import { MotionProvider } from './motion';
 import type { MotionBoundary, MotionLocation } from './motion';
 import './motion/motion.css';
+import { loadCatalogDetail } from './lib/catalog-detail-preload';
+import { scheduleIdlePrefetch } from './lib/idle-prefetch';
 
 const MyGamesPage = lazy(() => import('./components/personal/MyGamesPage'));
-const CatalogDetail = lazy(() => import('./components/personal/CatalogDetail'));
+const CatalogDetail = lazy(loadCatalogDetail);
 const DiscoverPage = lazy(() => import('./components/catalog/DiscoverPage'));
 const OnlineController = lazy(() => import('./cloud/OnlineController'));
 const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game', games: 'My games', library: 'My games - Library', rankings: 'My games - Ranking', discover: 'Discover more games', account: 'Account', community: 'Community', publish: 'Publish ranking', profile: 'A shared ranking', creator: 'Creator desk', friends: 'Friends', friend: 'Friend', invite: 'Invitation', compare: 'Compare rankings', 'friend-sharing': 'Friends sharing', 'friend-shelf': 'Shared games' };
@@ -132,6 +134,10 @@ export default function App() {
   const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account...' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
   const effectiveMotion = library.status === 'loading' ? 'lite' : library.state.motion;
   const capabilities = useCapabilities(effectiveMotion);
+  useEffect(() => {
+    if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
+    return scheduleIdlePrefetch(loadCatalogDetail);
+  }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
   const [panel, setPanel] = useState<'menu' | 'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;

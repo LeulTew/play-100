@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MotionPreference } from '../lib/types';
+import { isConstrainedDevice } from '../lib/device-capabilities';
 
 interface ConnectionHint extends EventTarget {
   saveData?: boolean;
@@ -17,12 +18,7 @@ function readCapabilities() {
     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     coarsePointer: window.matchMedia('(pointer: coarse)').matches,
     hidden: document.hidden,
-    constrained: Boolean(
-      nav.connection?.saveData ||
-      ['slow-2g', '2g'].includes(nav.connection?.effectiveType ?? '') ||
-      (nav.deviceMemory !== undefined && nav.deviceMemory <= 4) ||
-      (nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 2),
-    ),
+    constrained: isConstrainedDevice(nav),
   };
 }
 
