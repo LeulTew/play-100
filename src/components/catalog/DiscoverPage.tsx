@@ -73,6 +73,8 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
   const localRange = localReady && filters.online === 'auto' && local.length > DISCOVERY_PAGE_SIZE
     ? `${localPage.start}–${localPage.end} of ${local.length} catalog games`
     : filters.q.trim() ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}` : `${local.length} games · Illustrated first`;
+  const catalogStatus = catalogLoading ? 'Loading the catalog' : collection.status === 'error' ? 'Catalog unavailable'
+    : seed.error && filters.source !== 'collection' ? 'Catalog incomplete' : localRange;
   return (
     <section className="app-page discovery-page" aria-labelledby="discover-title">
       <header className="discovery-heading"><h1 id="discover-title" tabIndex={-1} data-page-heading>Discover</h1><button className="text-button" onClick={onLibrary}>My games<Icon name="arrow" width="17" height="17" /></button></header>
@@ -103,7 +105,7 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
         {activeFilters > 0 && <button className="text-button" onClick={() => change({ progress: 'all', genreFamily: '', genre: '', year: '', source: 'all', offset: 0, online: 'auto' })}>Clear filters</button>}
       </BrowseFilters>
       <div className="discovery-results-heading">
-        <div><h2 ref={resultsHeading} id="discovery-results-title" tabIndex={-1}>Catalog games</h2><p role="status" aria-live="polite" aria-atomic="true">{catalogLoading ? 'Loading the catalog' : collection.status === 'error' ? 'Catalog unavailable' : localRange}</p></div>
+        <div><h2 ref={resultsHeading} id="discovery-results-title" tabIndex={-1}>Catalog games</h2><p role="status" aria-live="polite" aria-atomic="true">{catalogStatus}</p></div>
         <div className="discovery-view" role="group" aria-label="Catalog view"><button className="icon-button" aria-label="Grid view" aria-pressed={filters.view === 'grid'} onClick={() => change({ view: 'grid' })}><Icon name="grid" /></button><button className="icon-button" aria-label="List view" aria-pressed={filters.view === 'list'} onClick={() => change({ view: 'list' })}><Icon name="list" /></button></div>
         <button className="text-button" disabled={catalogLoading && !records.length} aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelected(new Set()); }}><Icon name="select" width="17" height="17" />{selecting ? 'Done selecting' : 'Select games'}</button>
       </div>

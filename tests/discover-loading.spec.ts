@@ -100,3 +100,15 @@ test('a failed original catalog is an explicit recovery state, not an endless sk
   await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'false');
   await expect(page.locator('.discovery-skeleton')).toHaveCount(0);
 });
+
+test('a failed seed reports incomplete coverage while retaining known original games and retry', async ({ page }) => {
+  await page.route('**/data/discovery/catalog.v1.json', route => route.fulfill({ status: 503, body: 'Controlled local catalog failure.' }));
+  await page.goto('/discover?catalogs=off&include100=on');
+  await expect(page.getByRole('button', { name: 'Reload local catalog', exact: true })).toBeVisible();
+  await expect(page.locator('.discovery-results-heading [role="status"]')).toHaveText('Catalog incomplete');
+  await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('.discovery-card')).toHaveCount(24);
+  await expect(page.locator('.discovery-skeleton')).toHaveCount(0);
+  await page.locator('.discovery-card h3 button').first().click();
+  await expect(page.locator('.game-dialog[open]')).toBeVisible();
+});
