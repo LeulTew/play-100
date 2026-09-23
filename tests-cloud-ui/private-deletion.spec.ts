@@ -226,5 +226,5 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
     if (typeof release !== 'function') throw new Error('The deletion probe has not started.');
     release();
   });
-  await expect(page.getByRole('region', { name: "Deletion isn't finished", exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: "Deletion isn't finished", exact: true }).getByRole('status')).toHaveText('Some online data is still stored.');
 });

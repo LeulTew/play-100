@@ -92,7 +92,7 @@ export function AccountPage(props: AccountPageProps) {
     </section>}
     {head?.deleted && <section className="account-notice" aria-labelledby="deletion-notice-title">
       <h2 id="deletion-notice-title">{deletionState === 'complete' ? 'Online copy deleted' : deletionState === 'incomplete' ? "Deletion isn't finished" : 'Deletion was requested'}</h2>
-      <p role={deletionState === 'checking' ? 'status' : undefined}>{deletionState === 'complete' ? 'Online saving and sharing are off. The copy on this device is still here.' : deletionState === 'incomplete' ? 'Some online data is still stored.' : deletionState === 'checking' ? "Checking what's still stored online..." : "We couldn't confirm everything was removed."}</p>
+      <p role="status">{deletionState === 'complete' ? 'Online saving and sharing are off. The copy on this device is still here.' : deletionState === 'incomplete' ? 'Some online data is still stored.' : deletionState === 'checking' ? "Checking what's still stored online..." : "We couldn't confirm everything was removed."}</p>
       <div className="button-row">
         {deletionState !== 'complete' && <button className="button button-dark" disabled={busy} onClick={() => setConfirmation('delete-copy')}>Finish deleting</button>}
         {(deletionState === 'complete' || deletionState === 'incomplete') && <button className="text-button" disabled={busy} onClick={() => setConfirmation('delete-account')}>Delete account</button>}
