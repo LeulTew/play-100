@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionPreference } from '../lib/types';
 import { Dialog } from './Dialog';
@@ -14,7 +14,7 @@ interface SettingsDialogProps {
   saved: number;
   completed: number;
   warning: string | null;
-  onMotion: (value: MotionPreference) => void;
+  onMotion: (value: MotionPreference) => Promise<boolean>;
   onReset: () => Promise<boolean>;
   state: PersonalLibraryState;
   persistent: boolean;
@@ -33,12 +33,31 @@ interface SettingsDialogProps {
 export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount, offlineControls, status = '', statusError = false, recovery, getReturnFocus }: SettingsDialogProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
+  const [pendingMotion, setPendingMotion] = useState<MotionPreference | null>(null);
+  const [motionFailed, setMotionFailed] = useState(false);
+  const savingMotion = useRef(false);
+  const selectedMotion = pendingMotion ?? motion;
+  const changeMotion = async (value: MotionPreference) => {
+    if (savingMotion.current || busy || value === motion) return;
+    savingMotion.current = true;
+    setPendingMotion(value);
+    setMotionFailed(false);
+    try {
+      if (!await onMotion(value)) setMotionFailed(true);
+    } catch (error: unknown) {
+      console.error('The visual experience preference could not be saved.', error);
+      setMotionFailed(true);
+    } finally {
+      savingMotion.current = false;
+      setPendingMotion(null);
+    }
+  };
   const mode = useLibraryMode();
   return (
     <Dialog open titleId="settings-title" onClose={onClose} getReturnFocus={getReturnFocus} className="info-dialog settings-dialog" motion={{ preset: 'dialog', enterMs: 160 }}>
       <h2 id="settings-title" data-autofocus tabIndex={-1}>Make it<br />your speed.</h2>
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
-      <div role="status">{status && !recovery && <p className={status && statusError ? 'inline-error' : undefined}>{status}</p>}</div>
+      <div role="status">{status && !recovery && <p className={status && statusError ? 'inline-error' : undefined}>{status}</p>}{motionFailed && <p className="inline-error">Your visual experience could not be saved. The saved preference is still selected. Please try again.</p>}</div>
       {recovery}
       {onAccount && <div className="settings-account"><p><strong>{mode.label}</strong>{mode.scope === 'guest' ? ' — this guest library has not been uploaded.' : ' — you are using a separate account library.'}</p><button className="text-button" onClick={onAccount}>Account, saving &amp; privacy<Icon name="user" width="18" height="18" /></button></div>}
       {offlineControls}
@@ -49,8 +68,8 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
           ['full', 'Full', 'The interactive 3D collection.'],
           ['lite', 'Lite', 'Original static art. No effects.'],
         ] as const).map(([value, label, description]) => (
-          <label key={value} className={`motion-option ${motion === value ? 'selected' : ''}`}>
-            <input type="radio" name="visual-experience" value={value} checked={motion === value} disabled={busy} onChange={() => onMotion(value)} />
+          <label key={value} className={`motion-option ${selectedMotion === value ? 'selected' : ''}`}>
+            <input type="radio" name="visual-experience" value={value} checked={selectedMotion === value} disabled={busy && pendingMotion === null} aria-disabled={pendingMotion !== null || undefined} onChange={() => { void changeMotion(value); }} />
             <span><strong>{label}</strong><small>{description}</small></span>
           </label>
         ))}

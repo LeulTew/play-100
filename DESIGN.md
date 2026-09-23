@@ -162,6 +162,10 @@ Depth belongs to the overlapping numbered jackets and the optional sculptural ar
 
 The real Three.js canvas is a lazy enhancement with the original SVG still as its useful fallback. Explicit **Auto / Full / Lite** choices remain available. Do not keep animation loops running offscreen, in hidden documents or against system reduced-motion preferences. A quality choice never gates search, filtering, details or private tracking.
 
+Settings shows a motion choice immediately while saving it, without disabling
+the focused radio during that save. Further changes wait for the pending save.
+A failed save restores the saved choice and announces the failure in Settings.
+
 On touch/coarse-pointer devices, **Auto** starts the real 3D scene only when the
 visitor requests the fan interaction; **Full** still starts it automatically.
 The original illustration stays useful before activation. This is a device

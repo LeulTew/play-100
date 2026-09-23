@@ -525,7 +525,7 @@ export default function App() {
         about={panel === 'about' ? { onClose: () => setPanel(null), getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined } : null}
         settings={panel === 'settings' ? { key: libraryScope, props: {
           motion: library.state.motion, reducedMotion: capabilities.reducedMotion, constrained: capabilities.constrained,
-          saved: savedCount, completed: completedCount, warning, onMotion: motion => { void perform({ type: 'set-motion', motion }); },
+          saved: savedCount, completed: completedCount, warning, onMotion: motion => perform({ type: 'set-motion', motion }),
           onReset: library.reset, onRestore: library.restore, state: library.state, persistent: library.status === 'ready', busy: libraryBusy,
           onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
           onClose: () => setPanel(null),
