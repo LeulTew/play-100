@@ -40,7 +40,7 @@ export function CompareTrayProvider({ scope, children, interaction }: CompareTra
   }, [scope, store, controller]);
   useEffect(() => { controller.refresh(); }, [controller, interaction]);
   const value = useMemo(() => ({
-    ...snapshot, currentScope: scope, pin: controller.pin, unpin: store.unpin, clear: controller.clear,
+    ...snapshot, currentScope: scope, pin: controller.pin, unpin: store.unpin, clear: controller.clear, dismissError: store.dismissError,
   }), [snapshot, scope, store, controller]);
   return <CompareTrayContext.Provider value={value}><CompareDragSourceContext.Provider value={controller}>{children}</CompareDragSourceContext.Provider><span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{snapshot.status}</span></CompareTrayContext.Provider>;
 }

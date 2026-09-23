@@ -6,6 +6,7 @@ export interface CompareTrayContextValue extends CompareTraySnapshot {
   pin: CompareTrayStore['pin'];
   unpin: CompareTrayStore['unpin'];
   clear: CompareTrayStore['clear'];
+  dismissError: CompareTrayStore['dismissError'];
 }
 
 export const CompareTrayContext = createContext<CompareTrayContextValue | null>(null);

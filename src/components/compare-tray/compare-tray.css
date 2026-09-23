@@ -2,7 +2,8 @@
 html:has(.compare-tray-dock) { scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 12px); }
 html:has(.toast-visible) { scroll-padding-bottom: calc(25px + var(--toast-height, 64px) + 16px); }
 html:has(.compare-tray-dock):has(.toast-visible) { scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px + var(--toast-height, 64px) + 16px); }
-.compare-tray-reserve { height: calc(var(--compare-tray-height, 88px) + 20px); }
+.compare-tray-reserve { height: calc(var(--compare-tray-height, 88px) + var(--compare-tray-bottom) + 12px); }
+body:has(.compare-tray-reserve) { padding-bottom: 0; }
 /* Also clear the toast's existing 15px entrance translation. */
 body:has(.compare-tray-dock) .toast { bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px); }
 button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
@@ -13,7 +14,7 @@ button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
   button.compare-drag-handle { cursor: grab; }
   .compare-drag-handle:active { cursor: grabbing; }
 }
-.compare-tray-dock { position: fixed; z-index: 34; inset-inline-end: var(--gutter); bottom: var(--compare-tray-bottom); display: flex; align-items: center; gap: 16px; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 12px 8px 8px; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 8px 24px #20231e24; }
+.compare-tray-dock { position: fixed; z-index: 34; inset-inline-end: var(--gutter); bottom: var(--compare-tray-bottom); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 12px 8px 8px; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 8px 24px #20231e24; }
 .compare-tray-expand { display: flex; gap: 14px; min-width: 0; min-height: 54px; align-items: center; padding: 4px 8px; background: none; text-align: left; overflow-wrap: anywhere; }
 .compare-tray-expand > span:not(.compare-tray-stack) { display: flex; flex-direction: column; gap: 2px; }
 .compare-tray-expand strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -32,7 +33,8 @@ button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
 .compare-tray-action { min-width: 0; padding-inline: 17px; overflow-wrap: anywhere; }
 .compare-tray-action-context { display: block; font-size: 12px; font-weight: 500; }
 .compare-tray-storage-mark { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 22px; height: 22px; background: var(--lime); border: 1px solid var(--ink); border-radius: 50%; }
-.compare-tray-error { position: absolute; bottom: calc(100% + 8px); inset-inline: 0; padding: 12px 16px; border: 1px solid var(--ink); border-radius: 4px; background: var(--paper); color: var(--ink); font-size: 13px; line-height: 1.5; }
+.compare-tray-error { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; max-width: 42ch; padding: 8px 0 0; border-top: 1px solid var(--line); color: var(--ink); font-size: 13px; line-height: 1.5; }
+.compare-tray-error p { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .compare-tray-sheet { width: min(620px, calc(100% - 32px)); }
 .compare-tray-sheet .dialog-inner { padding: 32px; }
 .compare-tray-sheet h2 { font-size: 38px; padding-right: 44px; margin-bottom: 12px; }
@@ -49,6 +51,9 @@ button.compare-drag-handle { display: inline-flex; touch-action: manipulation; }
 .compare-tray-warning { margin-top: 20px; padding-block: 12px; border-block: 1px solid var(--line); font-size: 13px; }
 .compare-tray-warning .text-button { font-size: 13px; }
 html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
+body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-dock:not([data-dragging="true"]) { grid-template-columns: minmax(0, 1fr); width: fit-content; }
+body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-dock:not([data-dragging="true"]) :is(.compare-tray-stack, .compare-tray-action) { display: none; }
+body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-expand > span > span { display: block; }
 @media (max-width: 760px) {
   :root { --compare-tray-bottom: calc(var(--mobile-nav-height, calc(66px + env(safe-area-inset-bottom, 0px))) + 12px); }
   html:has(.toast-visible):not(:has(.compare-tray-dock)) { scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--toast-height, 64px) + 16px); }
@@ -56,6 +61,7 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-search { margin-top: 8px; }
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-utilities, body:has(.compare-tray-dock[data-has-content="true"]) .collection-extra-actions { margin-bottom: 8px; }
   .compare-tray-dock { inset-inline: 10px; max-width: none; justify-content: space-between; gap: 8px; padding: 5px 8px; }
+  body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-dock:not([data-dragging="true"]) { inset-inline-start: auto; max-width: calc(100% - 20px); }
   .compare-tray-expand { min-height: 48px; gap: 10px; padding-inline: 3px; }
   .compare-tray-stack { min-width: 30px; }
   .compare-tray-expand strong { font-size: 14px; }

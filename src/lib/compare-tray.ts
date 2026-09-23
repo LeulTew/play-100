@@ -140,6 +140,9 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
     reportError(error: string) {
       if (isCurrent()) publish({ ...snapshot, error, status: error });
     },
+    dismissError() {
+      if (isCurrent()) publish({ ...snapshot, error: null, status: '' });
+    },
     pin(record: LibraryRecord): boolean {
       if (!isCurrent()) return false;
       let valid: LibraryRecord;

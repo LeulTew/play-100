@@ -23,7 +23,7 @@ export function CompareTray(props: CompareTrayProps) {
 }
 
 function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = false, hidden = false }: CompareTrayProps) {
-  const { items, unpin, clear, warning, error, persistent, dragging } = useCompareTray();
+  const { items, unpin, clear, dismissError, warning, error, persistent, dragging } = useCompareTray();
   const controller = useContext(CompareDragSourceContext);
   const [open, setOpen] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
@@ -98,13 +98,13 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
       </button>
       <button type="button" className="button button-lime compare-tray-action" aria-label="Compare rankings with friends" disabled={!items.length} onClick={compare}><span>Compare rankings <span className="compare-tray-action-context">with friends</span></span><Icon name="arrow" width="18" height="18" /></button>
       {warning && <span className="compare-tray-storage-mark" aria-label="Tray storage needs attention" title="Open the tray to review its storage warning"><Icon name="info" width="17" height="17" /></span>}
-      {error && <p className="compare-tray-error">{error}</p>}
+      {error && <div className="compare-tray-error"><p>{error}</p><button type="button" className="icon-button" aria-label="Dismiss Compare tray message" onClick={() => { dismissError(); expand.current?.focus({ preventScroll: true }); }}><Icon name="close" width="18" height="18" /></button></div>}
     </aside>}
     <Dialog open={open && !hidden} titleId={`${id}-title`} descriptionId={`${id}-description`} onClose={close} className="compare-tray-sheet">
       <h2 ref={sheetTitle} id={`${id}-title`} tabIndex={-1} data-autofocus>Compare tray</h2>
       <p id={`${id}-description`} className="compare-tray-description">{items.length ? `${items.length} of 6 games. Choose friends to compare their rankings of these games.` : 'Pin a game while browsing to hold it here.'} Pinning does not save, rate or share a game.</p>
       {warning && <div className="compare-tray-warning" role="alert"><p>{warning}</p><button type="button" className="text-button" onClick={() => { clear(); sheetTitle.current?.focus(); }}>Reset saved tray</button></div>}
-      {error && <p className="inline-error" role="alert">{error}</p>}
+      {error && <div className="compare-tray-error"><p>{error}</p><button type="button" className="icon-button" aria-label="Dismiss Compare tray message" onClick={() => { dismissError(); sheetTitle.current?.focus({ preventScroll: true }); }}><Icon name="close" width="18" height="18" /></button></div>}
       <ul ref={list} className="compare-tray-games" aria-label="Pinned games">
         {items.map((record) => <li key={record.id}>
           <GameArtwork record={record} artwork={resolveArtwork?.(record)} />

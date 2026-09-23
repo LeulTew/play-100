@@ -124,7 +124,7 @@ describe('workspace embedding contract', () => {
 });
 
 describe('tray and image rendering contract', () => {
-  const value = { currentScope: 'guest', items: [alpha], persistent: true, warning: null, error: null, status: '', dragging: false, pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), beginDrag: vi.fn(() => null), cancelDrag: vi.fn(), dropGame: vi.fn(() => true) };
+  const value = { currentScope: 'guest', items: [alpha], persistent: true, warning: null, error: null, status: '', dragging: false, pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), dismissError: vi.fn(), beginDrag: vi.fn(() => null), cancelDrag: vi.fn(), dropGame: vi.fn(() => true) };
   it('exposes button and keyboard-native pin controls, a dock and an explicitly named chooser', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value }, h(ComparePinButton, { record: alpha }), h(CompareTray, { onCompare: vi.fn() })));
     expect(html).toContain('aria-pressed="true"');

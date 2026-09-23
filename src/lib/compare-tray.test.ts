@@ -22,6 +22,23 @@ function memory() {
 const saved = (items: unknown, scope = 'guest') => JSON.stringify({ version: 1, scope, items });
 
 describe('Compare tray reference validation', () => {
+  it('dismisses limit feedback without changing pins or storage and announces the next failed attempt', () => {
+    const { storage } = memory();
+    let current = true;
+    const store = createCompareTrayStore('guest', () => storage, () => current);
+    for (let id = 1; id <= 6; id += 1) expect(store.pin(game(id))).toBe(true);
+    expect(store.pin(game(7))).toBe(false);
+    const before = store.getSnapshot();
+    const writes = vi.mocked(storage.setItem).mock.calls.length;
+    store.dismissError();
+    expect(store.getSnapshot()).toEqual({ ...before, error: null, status: '' });
+    expect(storage.setItem).toHaveBeenCalledTimes(writes);
+    expect(store.pin(game(7))).toBe(false);
+    expect(store.getSnapshot().status).toMatch(/six games/);
+    current = false;
+    store.dismissError();
+    expect(store.getSnapshot().error).toMatch(/six games/);
+  });
   it('uses bounded indexed data slots, never a custom Array iterator or accessor', () => {
     const input = [game(1)];
     const iterate = vi.fn(() => { throw new Error('Iterator must never run'); });
