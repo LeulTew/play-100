@@ -74,6 +74,19 @@ const patch = (page: Page, value: Patch) => page.evaluate(value => window.public
 
 test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });
 
+test('a legacy reserved handle explains its rejection before preview and permits a compliant rename', async ({ page }) => {
+  await mount(page, { existing: true });
+  await patch(page, { existing: { ...profile, handle: 'support_team' } });
+  await expect(field(page, 'public-handle')).toHaveValue('support_team');
+  await expect(field(page, 'public-handle')).toHaveAttribute('aria-invalid', 'true');
+  await expect(panel(page).getByRole('alert')).toContainText('reserved');
+  await expect(panel(page).getByRole('button', { name: 'Preview public snapshot', exact: true })).toBeDisabled();
+  await field(page, 'public-handle').fill('my_new_games');
+  await expect(field(page, 'public-handle')).toHaveAttribute('aria-invalid', 'false');
+  await expect(panel(page).getByRole('button', { name: 'Preview public snapshot', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => window.publicationDraftProbe.calls.publications)).toEqual([]);
+});
+
 test('late owned publication hydrates untouched public fields and listing, not the private member identity', async ({ page }) => {
   await mount(page);
   await expect(field(page, 'public-name')).toHaveValue('Auth fallback');

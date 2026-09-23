@@ -7,7 +7,7 @@ export { parseAvatarDescriptor as parseAvatar } from './avatar';
 
 export const PUBLIC_LIMIT = 200;
 export const PUBLIC_SOURCE_URL_LIMIT = 2048;
-export const RESERVED_HANDLES = ['admin', 'administrator', 'creator', 'leul', 'leultew', 'play100', 'play-100', 'support', 'system', 'moderator', 'firebase', 'account', 'community', 'settings', 'official'];
+export const RESERVED_HANDLES = ['admin', 'creator', 'leul', 'play100', 'support', 'system', 'moderator', 'firebase', 'account', 'community', 'settings', 'official'];
 export type AvatarValue = AvatarDescriptor;
 export interface Member {
   uid: string; displayName: string; avatar: AvatarValue; createdAt: number; updatedAt: number;

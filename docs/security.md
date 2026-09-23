@@ -33,13 +33,47 @@ The decliner may initiate sooner. Firestore compares the existing server-written
 `updatedAt` against `request.time`; the new timestamp must equal request.time.
 The client says only that a request cannot be sent right now, not why.
 
-## Evidence still owned by the operator
+## Dated H14 black-box evidence and accepted risks
 
-App Check enforcement, API-key restrictions, email enumeration protection,
-required password policy and minimal authorized domains need current console
-evidence from the parent. No console state is inferred or changed here.
-The per-instance API limiter is not a global per-IP limit; a Vercel WAF policy
-and its evidence remain with the parent/integrator.
+The parent performed read-only public-API probes on **2026-09-23**, using the
+public web key from live 270f (redacted in the receipt). The console canvas was
+signed out; no credentials were entered and no writes were made. This is
+**black-box readback, not console readback**. Operator-held receipt:
+`firebase-h14-evidence-20260923.json`, SHA-256
+`9b10b5d1efc660b268faf7fdb1f5c370ea9e5cf9ff216e8a59b353ccb2f74f0f`.
+
+- Referrer restriction: empty/foreign Referer returned
+  `403 API_KEY_HTTP_REFERRER_BLOCKED`; the app origin returned 200. A Referer
+  header is client-asserted, so this is browser-abuse friction, not authentication.
+- API restriction: Books returned `403 API_KEY_SERVICE_BLOCKED`; Generative
+  Language is disabled in the project.
+- Enumeration protection: createAuthUri returned only kind/sessionId, without
+  registered/provider enumeration fields.
+- Password policy: ENFORCE, minimum 12 and maximum 4096, no character classes.
+- Authorized domains: exactly `play-100-collection.vercel.app`,
+  `play100-online-48823b32.firebaseapp.com`, and
+  `play100-online-48823b32.web.app`; no localhost.
+- reCAPTCHA email/password/phone protection was not enabled
+  (`ENFORCEMENT_STATE_UNSPECIFIED`).
+- App Check was not configured/enforced: no client SDK and requests without its
+  token reached ordinary rule evaluation. This is not an App Check assurance.
+- An unauthenticated missing publicProfiles get returned 404 under live 270f,
+  independently confirming the H4 existence distinction.
+
+App Check remains an **accepted risk with a plan**: Spark quotas bound cost,
+while auth/ownership rules and the proposed caps constrain permitted writes.
+Quota denial of service remains possible. reCAPTCHA would add third-party
+scripts/cookies, widen CSP and require a Data Use disclosure change; it is not
+silently enabled by this batch. reCAPTCHA Auth protection is likewise not adopted
+now given enumeration protection, the password policy and rules controls; revisit
+if abuse appears.
+
+If adopted later, initialize App Check lazily on the online path with reCAPTCHA
+Enterprise, ship that client first, observe verified-request ratios for at least
+seven days, then enforce Firestore followed by Auth. Update CSP and Data Use
+before enabling that traffic. Roll back by un-enforcing, not by weakening rules.
+The per-instance API limiter is not global per-IP protection; Vercel WAF and
+its deployment evidence remain with the parent/integrator.
 
 ## Stage 1 compatibility and validation
 
@@ -104,7 +138,10 @@ swallow authorization failures.
 New handle claims reject reserved prefixes, including `leul_tew`,
 `play100_official` and `support_team`. Existing syntax-valid legacy handles remain
 readable so an owner can rename/unpublish; new publication requires a compliant
-handle. The publish transaction already deletes the old handle when changing it;
+handle, and the publication UI shows the reserved reason before preview.
+Prefix blocking deliberately also rejects benign names beginning `account`,
+`system` or `creator`; that over-blocking is an anti-impersonation choice.
+The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion. An existing handle resolves only while
 its profile still points to it, including owner reads. Legacy orphan handles
 do not redirect to unrelated current identities; owners/operators may remove
@@ -141,7 +178,8 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
 5. Smoke-test owner access, reporter missing/existing symmetry, incoming/outgoing
    identity reads, declined-sender/decliner behavior, ordinary and cancelled
    deletion, public/missing/hidden profiles, handle rename, quota cleanup and
-   shared-device dirty-copy refusal.
+   shared-device dirty-copy refusal. An unauthenticated GET of a missing
+   `publicProfiles/{uid}` must be denied (it was 404 on live 270f).
 6. If a guard fails, stop promotion. Roll back with the retained previously
    published rules artifact identified by `971b0fe6…` (the parent must verify
    its full SHA). Do not reconstruct it or delete new registry/lifecycle data.
@@ -230,4 +268,4 @@ Google-template helper policy is not included in that main-style removal.
 | Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
 | H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; parent/I per-IP WAF evidence required |
 | H12 npm ci/signatures | Build/CI only; no runtime account change |
-| H14 console controls | Pending parent's current console/readback evidence, including App Check |
+| H14 controls | Parent's dated black-box evidence above; App Check/reCAPTCHA accepted risks, not enforced. Authenticated console still required for UID setup and rules publication. |

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { normalizeHandle, parseAvatar, parsePublicEntry, projectPublicRanking, recordFromPublic } from './community';
+import { normalizeHandle, parseAvatar, parsePublicEntry, projectPublicRanking, recordFromPublic, RESERVED_HANDLES } from './community';
 import { parseCollection } from './collection';
 import { applyPersonalAction, emptyPersonalLibrary } from './personal-library';
 import { recordFromGame } from './personal-types';
@@ -54,5 +54,11 @@ describe('explicit public projection and safe imports', () => {
   it('normalizes safe handles and reserves impersonation/system names', () => {
     expect(normalizeHandle('  Green_Games  ')).toBe('green_games');
     for (const handle of ['admin', 'leul', 'play100', 'leul_tew', 'play100_official', 'support_team', '_name', 'two words', 'xx', 'x'.repeat(25)]) expect(() => normalizeHandle(handle)).toThrow();
+  });
+  it('keeps the client reserved prefixes identical to the rules alternation', () => {
+    const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+    const prefixes = /!handle\.matches\('\^\(([^)]+)\)\.\*'\)/.exec(rules)?.[1]?.split('|');
+    expect(prefixes).toBeDefined();
+    expect(prefixes?.sort()).toEqual([...RESERVED_HANDLES].sort());
   });
 });
