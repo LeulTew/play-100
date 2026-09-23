@@ -66,6 +66,9 @@ export function extractQueries(file: string, text: string): QueryShape[] {
   if (/\b(?:runQuery|structuredQuery)\b/.test(text)) {
     throw new Error(`${file}: runQuery/structuredQuery requires a reviewed extractor.`);
   }
+  if (/[?&]orderBy=|(['"`])orderBy\1/.test(text)) {
+    throw new Error(`${file}: REST orderBy requires a reviewed extractor.`);
+  }
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const bindings = new Map<string, string>();
   const namespaces = new Set<string>();

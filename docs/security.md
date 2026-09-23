@@ -251,9 +251,12 @@ and `creatorRanks.current`, `previous`. There are no wildcard overrides or
 composite removals. The existing five exemptions remain unchanged.
 `chunks.index ASC` and `generations.createdAt ASC` remain available.
 
-The query/index audit enumerates current source, immutable 270f query-source
-fixtures, and the release runbook's formal operator-query contract. Unknown
-query indirection fails closed. Both the field order and array-CONTAINS support
+The query/index audit enumerates `src/`, `api/` and `scripts/` (tests, declarations
+and the audit pair excluded), immutable 270f query-source fixtures, and the
+release runbook's formal operator-query contract. Admin method chains,
+`runQuery`/`structuredQuery` bodies and REST `orderBy` fail closed until a
+reviewed extractor exists; emulator-only test REST reads stay outside these
+roots. Unknown query indirection also fails closed. Both field order and array-CONTAINS support
 are checked, and none of the new exempt paths (including descendants of map
 exemptions) may be queried. Rule get/getAfter comparisons and field projections
 are not index-requiring queries.

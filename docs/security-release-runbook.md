@@ -79,6 +79,7 @@ keeps `generations.createdAt ASC`. No rules, grants, caps or schemas change.
    270f source modules and the formal operator inventory below. It checks aliases,
    conditional fields, query-array builders, ASC/DESC/CONTAINS, map descendants,
    and unsupported indirection. CI needs no private path or historical Git fetch.
+   Scope: `src/`, `api/`, `scripts/` excluding tests, declarations and the audit pair; Admin chains, `runQuery`/`structuredQuery` bodies and REST `orderBy` fail closed until a reviewed extractor exists, while emulator-only test REST reads stay outside these roots.
 3. **Deploy:** only the parent deploys the reviewed candidate. No `--force`, no
    composite/override deletion, and no accepting deletion prompts. If the tool
    proposes deleting any existing definition, abort and review. Approved

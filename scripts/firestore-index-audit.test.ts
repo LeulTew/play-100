@@ -228,6 +228,22 @@ describe('STORAGE-02 exact query/index contract', () => {
     }
   });
 
+  it.each(auditedRoots)('rejects REST ordering in %s without rejecting bound SDK ordering', directory => {
+    for (const source of [
+      "fetch('https://firestore.example/v1/projects/demo/databases/(default)/documents/chunks?pageSize=5&orderBy=digest');",
+      "fetch('https://firestore.example/v1/projects/demo/databases/(default)/documents/chunks?orderBy=digest');",
+      "params.set('orderBy', 'digest');",
+      'params.set("orderBy", "digest");',
+      "params.set(`orderBy`, 'digest');",
+      'const body = \'{"orderBy":"digest"}\';',
+    ]) {
+      expect(() => extractQueries(`${directory}/probe.ts`, source)).toThrow(/REST orderBy requires a reviewed extractor/);
+    }
+    expect(extractQueries(`${directory}/probe.ts`, `
+      import { query, collection, orderBy } from 'firebase/firestore';
+      function f(db) { return query(collection(db, 'chunks'), orderBy('index')); }`)).toHaveLength(1);
+  });
+
   it.each([
     "db.collection('x').where('digest', '==', 1);",
     "db.collection('x').orderBy('digest');",
