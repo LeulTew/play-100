@@ -393,6 +393,41 @@ Rules additionally require active account lifecycle and nondeleted friend
 settings on both sides for content/acceptance. No friend read path grants access
 to members, private chunks, creator ranks or raw library state.
 
+## Account quota records
+
+`accountQuotas/{uid}/limits/groups` and `/blocks` store `{ ids, revision }`.
+New groups are limited to 50 and new blocks to 1,000 per account. Creation must
+register the exact new item atomically; removing a slot requires the item's
+verified deletion. These fixed quota kinds do not create an unbounded registry
+of registries.
+
+Legacy unenrolled groups and blocks remain readable and deletable. Group name
+and participant edits keep their existing lifecycle and do not enroll the group
+or change a count. The client product scan includes legacy and registered items;
+the server's storage bound is the frozen legacy item set plus the new-item cap.
+Updating a legacy group is not permission to create an unregistered new one.
+
+`accountQuotas/{uid}/limits/reports` stores `{ count, revision, lastReport }`.
+New reports carry `counted: true` and increment that reporter's count, capped at
+100. The product cap counts open reports only; resolved legacy reports do not
+use open-report capacity. Pagination checks the raw scanned page size even if a
+page contains no open reports. Report deletion releases exactly its counted
+slot. The creator can resolve/remove a report without reading the reporter's
+quota; the reporter can remove it only after their private sync head is marked
+deleted, as part of account-data cleanup.
+
+Full social cleanup caches quota support only for that cleanup pass. After group
+and block items are gone, it removes their empty quota documents in a separate
+final batch and checks absence. A retained quota record keeps `done: false` and
+prevents the final account-completion marker. During the initial client-before-
+rules window, denied quota paths use the previous cleanup path; this is not
+evidence that new-schema data can be fully deleted after a rules rollback.
+Compatibility branches are temporary and must be removed after promotion.
+
+The emulator validates authorization and transitions, not production CPU or
+latency for list operations on as many as 1,000 IDs. Those production evaluation
+costs remain a review/operational limit; source tests are not a measurement.
+
 ## Cost and operational limits
 
 No Functions, paid TTL, polling, global presence or per-friend write fanout.

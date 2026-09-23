@@ -231,10 +231,10 @@ export class FriendStore {
     await this.graphReady(uid);
     await this.releaseBlock(uid, otherUid);
   }
-  private async releaseBlock(uid: string, otherUid: string): Promise<void> {
+  private async releaseBlock(uid: string, otherUid: string, quotaAvailable?: boolean): Promise<void> {
     const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
     const quota = quotaRef(this.db, uid, 'blocks');
-    const counted = await quotaSupported(quota);
+    const counted = quotaAvailable ?? await quotaSupported(quota);
     await runTransaction(this.db, async tx => {
       online();
       const [block, slots] = await Promise.all([tx.get(ref), counted ? readQuotaSlots(tx, quota, 'blocks') : Promise.resolve(null)]);
@@ -286,7 +286,7 @@ export class FriendStore {
     try { await create(false); }
     catch (cause) {
       if (!retiring || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-      console.info('Invitation deletion is not available yet; using the legacy slot replacement once.');
+      console.info('Invitation deletion is not available yet; this replacement uses the previous slot path.');
       try { await create(true); } catch (fallback) {
         if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied') throw cause;
         throw fallback;
@@ -336,7 +336,7 @@ export class FriendStore {
     try { await revoke(false); }
     catch (cause) {
       if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-      console.info('Invitation deletion is not available yet; revoking the legacy link once.');
+      console.info('Invitation deletion is not available yet; this change uses the previous revocation path.');
       try { await revoke(true); } catch (fallback) {
         if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied') throw cause;
         throw fallback;
@@ -476,7 +476,6 @@ export class FriendStore {
       const current = snap.exists() ? parseFriendGroup(id, snap.data()) : null;
       if (input.id && expectedRevision === 0 && current && current.name === name && current.participantUids.join('|') === participantUids.join('|')) return current;
       if ((current?.revision ?? 0) !== expectedRevision) conflict('This saved group changed. Reload before saving.');
-      if (slots && current && !slots.ids.includes(id)) throw new FriendStoreError('limit', 'This older group cannot be edited. Remove it and save a new group with your changes.');
       if (slots && !current) occupyQuotaSlot(tx, quota, slots, id, 'groups');
       tx.set(ref, { format: 1, name, participantUids, revision: expectedRevision + 1, createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
       return null;
@@ -486,10 +485,10 @@ export class FriendStore {
       const result = await this.readCommitted(ref, (data) => parseFriendGroup(id, data)); if (!result) conflict(); return result;
     });
   }
-  async deleteGroup(uid: string, id: string, expectedRevision: number): Promise<void> {
+  async deleteGroup(uid: string, id: string, expectedRevision: number, quotaAvailable?: boolean): Promise<void> {
     const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', friendUuid(id)); online();
     const quota = quotaRef(this.db, uid, 'groups');
-    const counted = await quotaSupported(quota);
+    const counted = quotaAvailable ?? await quotaSupported(quota);
     await runTransaction(this.db, async (tx) => {
       const [snap, slots] = await Promise.all([tx.get(ref), counted ? readQuotaSlots(tx, quota, 'groups') : Promise.resolve(null)]);
       if (!snap.exists() || parseFriendGroup(id, snap.data()).revision !== expectedRevision) conflict('This saved group changed or was already deleted.');
@@ -553,6 +552,8 @@ export class FriendStore {
     if (!settings?.deleted) throw new FriendStoreError('conflict', 'Reserve full social deletion before cleaning its data.');
     online();
     let deleted = await this.cleanupSharing(uid);
+    const groupQuota = quotaRef(this.db, uid, 'groups'); const blockQuota = quotaRef(this.db, uid, 'blocks');
+    const [groupsCounted, blocksCounted] = await Promise.all([quotaSupported(groupQuota), quotaSupported(blockQuota)]);
     const [relations, groups, blocks, invites] = await Promise.all([
       getDocsFromServer(this.relationsQuery(uid)), this.listGroups(uid), this.listBlocks(uid),
       getDocsFromServer(query(collection(this.db, 'friendInvites'), where('ownerUid', '==', uid), orderBy(documentId()), limit(20))),
@@ -560,8 +561,8 @@ export class FriendStore {
     if (relations.size) {
       const batch = writeBatch(this.db); relations.docs.forEach(item => batch.delete(item.ref)); await batch.commit(); deleted += relations.size;
     }
-    for (const group of groups.items) { await this.deleteGroup(uid, group.id, group.revision); deleted += 1; }
-    for (const block of blocks.items) { await this.releaseBlock(uid, block.uid); deleted += 1; }
+    for (const group of groups.items) { await this.deleteGroup(uid, group.id, group.revision, groupsCounted); deleted += 1; }
+    for (const block of blocks.items) { await this.releaseBlock(uid, block.uid, blocksCounted); deleted += 1; }
     let inviteCount = invites.size;
     if (invites.size) {
       const batch = writeBatch(this.db);
@@ -569,7 +570,7 @@ export class FriendStore {
       try { await batch.commit(); deleted += invites.size; }
       catch (cause) {
         if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-        console.info('Invitation deletion is not available yet; closing legacy links once.');
+        console.info('Invitation deletion is not available yet; this cleanup uses the previous link-closing path.');
         const legacy = await this.listInvites(uid);
         const close = writeBatch(this.db);
         legacy.items.forEach(invite => close.set(doc(this.db, 'friendInvites', invite.token), { ownerUid: uid, state: 'closed' }));
@@ -586,6 +587,18 @@ export class FriendStore {
     const batch = writeBatch(this.db);
     batch.delete(this.ref('friendIdentities', uid)); batch.delete(this.ref('friendShareHeads', uid)); batch.delete(this.ref('friendShareRegistry', uid));
     await batch.commit();
+    if (groups.items.length < 20 && blocks.items.length < 20) {
+      try {
+        const quotas = writeBatch(this.db); quotas.delete(groupQuota); quotas.delete(blockQuota);
+        await quotas.commit();
+        const remaining = await Promise.all([getDocFromServer(groupQuota), getDocFromServer(blockQuota)]);
+        if (remaining.some(value => value.exists())) return { deleted, done: false, message: 'Some account settings still need removal. Try deleting again later.' };
+      } catch (cause) {
+        if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+        if (groupsCounted || blocksCounted) return { deleted, done: false, message: 'Some account settings could not be removed. Try deleting again later.' };
+        console.info('Account count controls are unavailable; this cleanup uses the previous rules path.');
+      }
+    }
     return { deleted, done: relations.size < 20 && groups.items.length < 20 && blocks.items.length < 20 && inviteCount < 20 };
   }
 }

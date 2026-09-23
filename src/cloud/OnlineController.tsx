@@ -682,6 +682,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         if (!shelfCleanup.done) throw new Error('Some shared games still need cleanup. Retry deletion before removing this account.');
         for (let index = 0; index < 100; index += 1) {
           const cleaned = await friends.store.cleanupDeleted(user.uid);
+          if (cleaned.message) throw new Error(cleaned.message);
           if (cleaned.done) break;
           if (index === 99) throw new Error('Some connections still need cleanup. Retry account deletion to continue.');
         }

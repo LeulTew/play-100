@@ -27,7 +27,7 @@ export async function quotaSupported(ref: DocumentReference<DocumentData>): Prom
   try { await getDocFromServer(ref); return true; }
   catch (cause) {
     if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-    console.info('Account count controls are not available yet; using the existing client-first write path once.');
+    console.info('Account count controls are not available yet; this change uses the previous write path.');
     return false;
   }
 }
@@ -54,15 +54,18 @@ export function releaseQuotaSlot(tx: Transaction, ref: DocumentReference<Documen
 }
 
 export async function requireVisibleCapacity<Cursor>(
-  kind: AccountQuotaKind, read: (cursor?: Cursor) => Promise<{ items: readonly unknown[]; cursor: Cursor | undefined }>,
+  kind: AccountQuotaKind, read: (cursor?: Cursor) => Promise<{ items: readonly unknown[]; scanned?: number; cursor: Cursor | undefined }>,
 ) {
   let count = 0;
   let cursor: Cursor | undefined;
   do {
     const page = await read(cursor);
+    const scanned = page.scanned ?? page.items.length;
+    if (!Number.isSafeInteger(scanned) || scanned < page.items.length || (scanned === 0 && page.cursor)) {
+      throw new Error('The saved list could not be counted. Refresh before adding another item.');
+    }
     count += page.items.length;
     if (count >= ACCOUNT_LIMITS[kind]) throw new AccountQuotaFull(kind);
-    if (!page.items.length && page.cursor) throw new Error('The saved list could not be counted. Refresh before adding another item.');
     cursor = page.cursor;
   } while (cursor);
 }

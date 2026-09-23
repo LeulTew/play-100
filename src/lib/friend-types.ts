@@ -65,7 +65,7 @@ export interface FriendExportPage {
   format: 1; identity: FriendIdentity | null; settings: FriendSettings | null;
   relations: FriendPage<FriendPair>; groups: FriendPage<FriendGroup>; blocks: FriendPage<FriendBlock>;
 }
-export interface FriendCleanupResult { deleted: number; done: boolean }
+export interface FriendCleanupResult { deleted: number; done: boolean; message?: string }
 export interface FriendGeneration {
   epoch: number; settingsRevision: number; count: number; digest: string; uploaded: number;
   source: FriendSourceRevision; ids: string[]; status: 'staging' | 'ready' | 'published' | 'deleting'; createdAt: number;

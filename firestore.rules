@@ -462,7 +462,7 @@ service cloud.firestore {
         && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time
         && liveProfile(request.resource.data.targetUid);
       allow update: if false;
-      allow delete: if (own(resource.data.reporterUid) || creator())
+      allow delete: if ((own(resource.data.reporterUid) && head(request.auth.uid).deleted) || creator())
         && (!('counted' in resource.data) || (resource.data.counted == true && reportCountReleased(resource.data.reporterUid, reportId)));
     }
     function reportQuotaShape(data) {
@@ -653,7 +653,7 @@ service cloud.firestore {
             && quotaAdded(uid, kind, request.resource.data.ids[request.resource.data.ids.size() - 1]))
           || (request.resource.data.ids.size() == resource.data.ids.size() - 1 && resource.data.ids.hasAll(request.resource.data.ids)
             && !existsAfter(slotItemPath(uid, kind, resource.data.ids.removeAll(request.resource.data.ids)[0]))));
-      allow delete: if kind in ['groups', 'blocks'] && own(uid) && resource.data.ids.size() == 0;
+      allow delete: if kind in ['groups', 'blocks'] && own(uid) && (resource == null || resource.data.ids.size() == 0);
       allow create: if kind == 'reports' && own(uid) && reportQuotaShape(request.resource.data)
         && request.resource.data.count == 1 && request.resource.data.revision == 1 && reportQuotaCreation(uid, request.resource.data);
       allow update: if kind == 'reports' && reportQuotaShape(request.resource.data)
@@ -661,7 +661,7 @@ service cloud.firestore {
         && ((own(uid) && request.resource.data.count <= 100 && request.resource.data.count == resource.data.count + 1
             && reportQuotaCreation(uid, request.resource.data))
           || ((own(uid) || creator()) && request.resource.data.count == resource.data.count - 1 && reportQuotaRemoval(uid, request.resource.data)));
-      allow delete: if kind == 'reports' && own(uid) && resource.data.count == 0;
+      allow delete: if kind == 'reports' && own(uid) && (resource == null || resource.data.count == 0);
     }
     match /friendBlocks/{uid}/items/{otherUid} {
       allow get: if own(uid);
@@ -916,7 +916,7 @@ service cloud.firestore {
       allow create: if fOwnLive(uid) && fUuid(id) && fGroup(request.resource.data)
         && getAfter(quotaPath(uid, 'groups')).data.ids.hasAny([id])
         && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time;
-      allow update: if fOwnLive(uid) && quotaContains(uid, 'groups', id) && fGroup(request.resource.data)
+      allow update: if fOwnLive(uid) && fGroup(request.resource.data)
         && request.resource.data.revision == resource.data.revision + 1 && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if own(uid) && quotaReleased(uid, 'groups', id);
     }

@@ -337,7 +337,29 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     }
   });
 
+  it('removes group and block quota records at full social deletion without breaking the old-rule path', async () => {
+    const owner = await actor(); const target = await actor();
+    await owner.friends.initialize(owner.uid);
+    await owner.friends.saveGroup(owner.uid, { name: 'Removed on deletion', participantUids: [owner.uid, target.uid] }, 0);
+    await owner.friends.block(owner.uid, target.uid);
+    await owner.friends.revokeForDeletion(owner.uid);
+    expect((await owner.friends.cleanupDeleted(owner.uid)).done).toBe(true);
+    expect(await stored(`accountQuotas/${owner.uid}/limits/groups`)).toBeUndefined();
+    expect(await stored(`accountQuotas/${owner.uid}/limits/blocks`)).toBeUndefined();
+    expect((await owner.friends.cleanupDeleted(owner.uid)).done).toBe(true);
+  });
+
   if (policy === 'candidate') {
+    it('does not declare completion while a group quota record still refers to a missing item', async () => {
+      const owner = await actor();
+      await owner.friends.initialize(owner.uid);
+      await owner.friends.revokeForDeletion(owner.uid);
+      await seed({ [`accountQuotas/${owner.uid}/limits/groups`]: { ids: [crypto.randomUUID()], revision: 1 } });
+      expect(await owner.friends.cleanupDeleted(owner.uid)).toMatchObject({
+        done: false, message: 'Some account settings could not be removed. Try deleting again later.',
+      });
+    });
+
     it.each(['groups', 'blocks'] as const)('enforces the %s registry cap and a visible product cap including frozen legacy records', async kind => {
       const owner = await actor();
       await owner.friends.initialize(owner.uid);
@@ -368,10 +390,12 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       await seed({ [legacyRef.path]: value(aged()) });
       expect((await getDocFromServer(legacyRef)).exists()).toBe(true);
       if (kind === 'groups') {
-        await assertFails(updateDoc(legacyRef, { name: 'Not enrolled', revision: 2, updatedAt: serverTimestamp() }));
+        await updateDoc(legacyRef, { name: 'Legacy edit stays unenrolled', revision: 2, updatedAt: serverTimestamp() });
+        expect((await getDocFromServer(quota)).data()?.ids).not.toContain(legacyId);
         await expect(owner.friends.saveGroup(owner.uid, { name: 'Beyond product cap', participantUids: [owner.uid, 'KnownPeer'] }, 0)).rejects.toBeInstanceOf(AccountQuotaFull);
-        await owner.friends.deleteGroup(owner.uid, legacyId, 1);
-        await owner.friends.saveGroup(owner.uid, { name: 'One free slot', participantUids: [owner.uid, 'KnownPeer'] }, 0);
+        await owner.friends.deleteGroup(owner.uid, legacyId, 2);
+        const added = await owner.friends.saveGroup(owner.uid, { name: 'One free slot', participantUids: [owner.uid, 'KnownPeer'] }, 0);
+        expect((await owner.friends.saveGroup(owner.uid, { id: added.id, name: 'Enrolled edit', participantUids: added.participantUids }, added.revision)).name).toBe('Enrolled edit');
       } else {
         await assertFails(updateDoc(legacyRef, { createdAt: serverTimestamp() }));
         await expect(owner.friends.block(owner.uid, nextId)).rejects.toBeInstanceOf(AccountQuotaFull);
@@ -408,14 +432,28 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect((await getDocFromServer(quota)).data()?.count).toBe(99);
       await assertFails(updateDoc(quota, { count: increment(-1), revision: increment(1), lastReport: reports[0] }));
       const legacyId = `LegacyTarget_${owner.uid}`;
-      await seed({ [`reports/${legacyId}`]: { reporterUid: owner.uid, targetUid: 'LegacyTarget', reason: 'Legacy report', status: 'resolved', createdAt: aged() } });
+      await seed({ [`reports/${legacyId}`]: { reporterUid: owner.uid, targetUid: 'LegacyTarget', reason: 'Legacy report', status: 'open', createdAt: aged() } });
       await expect(owner.social.report(owner.uid, 'NewReportTarget', 'Wait for review')).rejects.toBeInstanceOf(AccountQuotaFull);
       expect(await moderator.social.resolveReport(legacyId)).toBe(true);
       expect((await getDocFromServer(quota)).data()?.count).toBe(99);
       await owner.social.report(owner.uid, 'NewReportTarget', 'One free report slot');
       expect((await getDocFromServer(quota)).data()?.count).toBe(100);
+      await assertFails(owner.social.withdrawReport(id));
+      await owner.cloud.revoke(await owner.cloud.head(), true);
       await owner.social.withdrawReport(id);
       expect((await getDocFromServer(quota)).data()?.count).toBe(99);
+    });
+
+    it('does not count one hundred resolved legacy reports as open reporting capacity', async () => {
+      const owner = await actor();
+      await seed({
+        ...Object.fromEntries(Array.from({ length: 100 }, (_, index) => [`reports/Resolved${index}_${owner.uid}`, {
+          reporterUid: owner.uid, targetUid: `Resolved${index}`, reason: 'Previously reviewed', status: 'resolved', createdAt: aged(),
+        }])),
+        'publicProfiles/AfterReview': { uid: 'AfterReview', published: true, hidden: false },
+      });
+      await owner.social.report(owner.uid, 'AfterReview', 'This new report is open.');
+      expect((await getDocFromServer(quotaRef(owner.db, owner.uid, 'reports'))).data()?.count).toBe(1);
     });
 
     it('allows only an owner completion marker on the same deleted epoch and keeps ordinary head writes from changing it', async () => {

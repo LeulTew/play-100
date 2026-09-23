@@ -25,4 +25,11 @@ describe('bounded account product limits', () => {
     await expect(requireVisibleCapacity('groups', async () => { throw new Error('Offline'); })).rejects.toThrow('Offline');
     await expect(requireVisibleCapacity('groups', async () => ({ items: [], cursor: 'unchanged' }))).rejects.toThrow(/could not be counted/);
   });
+  it('continues through a page with no open reports when raw documents were still scanned', async () => {
+    const read = vi.fn()
+      .mockResolvedValueOnce({ items: [], scanned: 20, cursor: 'resolved-page' })
+      .mockResolvedValueOnce({ items: ['open-report'], scanned: 1, cursor: undefined });
+    await expect(requireVisibleCapacity<string>('reports', read)).resolves.toBeUndefined();
+    expect(read).toHaveBeenCalledTimes(2);
+  });
 });

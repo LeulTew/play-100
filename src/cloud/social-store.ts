@@ -222,7 +222,8 @@ export class SocialStore {
     await requireVisibleCapacity<QueryDocumentSnapshot<DocumentData>>('reports', async cursor => {
       const page = await getDocs(query(collection(this.db, 'reports'), where('reporterUid', '==', reporterUid), orderBy(documentId()),
         ...(cursor ? [startAfter(cursor)] : []), limit(20)));
-      return { items: page.docs, cursor: page.size === 20 ? page.docs.at(-1) : undefined };
+      return { items: page.docs.filter(report => report.data().status === 'open'), scanned: page.size,
+        cursor: page.size === 20 ? page.docs.at(-1) : undefined };
     });
     await runTransaction(this.db, async (tx) => {
       const [report, usage] = await Promise.all([tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null)]);
@@ -265,7 +266,7 @@ export class SocialStore {
     try { await this.withdrawReport(id); return true; }
     catch (cause) {
       if (!denied(cause)) throw cause;
-      console.info('Report deletion is not available yet; resolving the legacy report once.');
+      console.info('Report deletion is not available yet; this review uses the previous resolution path.');
       await runTransaction(this.db, async tx => {
         const ref = doc(this.db, 'reports', id);
         const report = await tx.get(ref);
