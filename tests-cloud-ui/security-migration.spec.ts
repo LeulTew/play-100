@@ -47,13 +47,13 @@ for (const policy of ['live-270f', 'candidate'] as const) test.describe(`profile
     await page.getByRole('button', { name: 'Delete online copy', exact: true }).click();
     await page.getByLabel('Confirm your password', { exact: true }).fill(password);
     await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
-    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Cleanup permission is not available yet');
-    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('No saved library or snapshot payload was removed');
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Deletion is paused');
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Nothing has been deleted yet');
     expect([await countPayload('accounts'), await countPayload('creatorRanks')]).toEqual(before);
     await page.reload();
     await expect(page.locator('.account-heading')).toContainText(email);
     await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Online deletion', exact: true })).toContainText('Cloud saving and sharing are off');
+    await expect(page.getByRole('region', { name: 'Deletion was requested', exact: true })).toContainText("We couldn't confirm everything was removed");
   });
 
   test('sent rows show the published source or an unavailable profile without substituting private identity', async ({ page, context, request, baseURL }) => {

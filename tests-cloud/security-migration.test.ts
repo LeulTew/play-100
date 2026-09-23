@@ -275,13 +275,15 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     if (policy === 'live-270f') {
       const pending = owner.cloud.cleanup(true, options);
       await expect(pending).rejects.toBeInstanceOf(DeletionListPermissionPending);
-      await expect(pending).rejects.toThrow('No saved library or snapshot payload was removed');
+      await expect(pending).rejects.toThrow('Nothing has been deleted yet');
+      expect(await owner.cloud.probeDeletedCopy()).toBe('unknown');
       for (const digest of saved.current!.chunks) expect(await stored(`accounts/${owner.uid}/chunks/${digest}`)).toBeDefined();
       expect(await stored(`accounts/${owner.uid}/generations/${saved.current!.generation}`)).toBeDefined();
       expect(owner.auth.currentUser?.uid).toBe(owner.uid);
     } else {
       expect(await owner.cloud.cleanup(true, options)).toBe(1);
       expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
+      expect(await owner.cloud.probeDeletedCopy()).toBe('complete');
     }
   });
 
@@ -352,6 +354,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       }
       await seed(entries);
       const deleting = await owner.cloud.revoke(saved, true);
+      expect(await owner.cloud.probeDeletedCopy()).toBe('incomplete');
       await expect(owner.cloud.cleanup(true, {
         expectedDeletionEpoch: deleting.epoch,
         onProgress: async ({ confirmed }) => { if (confirmed === 20) await disableNetwork(owner.db); },
@@ -368,6 +371,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         expect((await getDocsFromServer(query(collection(fresh.db, kind, owner.uid, 'chunks'), limit(20)))).empty).toBe(true);
       }
       expect(fresh.auth.currentUser?.uid).toBe(owner.uid);
+      expect(await resumed.probeDeletedCopy()).toBe('complete');
     }, 60000);
 
     it('aborts a purge when the deleted epoch changes and retains the remaining payload and Auth account', async () => {

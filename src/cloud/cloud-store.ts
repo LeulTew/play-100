@@ -7,7 +7,8 @@ import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseFriendAllHead } from '../lib/friend-all-transport';
 import { PRIVATE_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
-import { onlineError } from './errors';
+
+export type DeletionCopyState = 'complete' | 'incomplete' | 'unknown';
 
 export interface DeletionCleanupOptions {
   isCurrent?: () => boolean;
@@ -17,16 +18,23 @@ export interface DeletionCleanupOptions {
 
 export class DeletionCleanupInterrupted extends Error {
   constructor(readonly kind: 'private' | 'ranking', readonly confirmed: number, cause: unknown) {
-    super(`${kind === 'private' ? 'Private library' : 'Ranking summary'} cleanup is incomplete. ${confirmed} chunk deletions were confirmed in this attempt. The account has not been removed. Retry deletion from Account when connected and quota is available. ${onlineError(cause)}`, { cause });
+    const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';
+    super(code === 'resource-exhausted'
+      ? 'Deletion stopped before it finished. Your account is still here. The online service has reached a limit; try again later or contact the site owner.'
+      : 'Deletion stopped before it finished. Your account is still here. Check your connection, then choose Finish deleting.', { cause });
     this.name = 'DeletionCleanupInterrupted';
   }
 }
 
 export class DeletionListPermissionPending extends Error {
   constructor(cause: unknown) {
-    super('Deletion paused. No saved library or snapshot payload was removed. Cloud saving and sharing are off. Cleanup permission is not available yet. Try again in a few minutes.', { cause });
+    super('Deletion is paused. Nothing has been deleted yet. Online saving and sharing are off. Try again in a few minutes.', { cause });
     this.name = 'DeletionListPermissionPending';
   }
+}
+
+class DeletionNeedsAnotherPass extends Error {
+  constructor() { super("There's more to delete. Choose Finish deleting again to continue."); this.name = 'DeletionNeedsAnotherPass'; }
 }
 
 export class RemoteConflict extends Error {
@@ -71,6 +79,23 @@ export class CloudStore {
   async head(): Promise<SyncHead | null> {
     const result = await getDocFromServer(this.headRef());
     return result.exists() ? parseHead(result.data()) : null;
+  }
+
+  async probeDeletedCopy(): Promise<DeletionCopyState> {
+    try {
+      const [registry, library, ranking, profile] = await Promise.all([
+        getDocFromServer(this.registryRef()),
+        getDocsFromServer(query(collection(this.db, 'accounts', this.uid, 'chunks'), limit(1))),
+        getDocsFromServer(query(collection(this.db, 'creatorRanks', this.uid, 'chunks'), limit(1))),
+        getDocFromServer(doc(this.db, 'publicProfiles', this.uid)),
+      ]);
+      if (registry.exists() && !Array.isArray(registry.data().ids)) throw new Error('The deletion check could not read its saved state.');
+      return !library.empty || !ranking.empty || profile.exists() || (registry.exists() && registry.data().ids.length > 0)
+        ? 'incomplete' : 'complete';
+    } catch (cause) {
+      console.warn('The online-copy deletion check could not finish.', cause && typeof cause === 'object' && 'code' in cause ? cause.code : 'unreadable-state');
+      return 'unknown';
+    }
   }
 
   watch(onHead: (head: SyncHead | null) => void, onError: (error: Error) => void): () => void {
@@ -250,7 +275,7 @@ export class CloudStore {
               throw cause;
             });
           if (chunks.empty) break;
-          if (page === 100) throw new Error('More stored chunks remain. Retry deletion to continue the next bounded pass.');
+          if (page === 100) throw new DeletionNeedsAnotherPass();
           for (let start = 0; start < chunks.size; start += 10) {
             const batch = chunks.docs.slice(start, start + 10);
             await runTransaction(this.db, async tx => {
@@ -266,7 +291,7 @@ export class CloudStore {
           }
         }
       } catch (cause) {
-        if (cause instanceof DeletionListPermissionPending) throw cause;
+        if (cause instanceof DeletionListPermissionPending || cause instanceof DeletionNeedsAnotherPass) throw cause;
         throw new DeletionCleanupInterrupted(kind, confirmed, cause);
       }
     }
@@ -290,7 +315,7 @@ export class CloudStore {
     const registry = await getDocFromServer(this.registryRef());
     if (!registry.exists()) { await guardDeletion(); return 0; }
     const ids: unknown = registry.data().ids;
-    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error('Online generation metadata is invalid. Cleanup stopped before account removal; contact the creator if retrying does not resolve it.');
+    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error("Your online data couldn't be read, so deletion stopped. Try again later. If this keeps happening, contact the site owner.");
     let count = 0;
     const deletedChunks = new Set<string>();
     for (const id of ids) {
@@ -305,7 +330,7 @@ export class CloudStore {
         const candidate = await tx.get(this.generationRef(id));
         if (!candidate.exists() || retained.has(id)) return null;
         const data = candidate.data();
-        if (!(data.createdAt instanceof Timestamp)) throw new Error('Online cleanup timestamp is invalid.');
+        if (!(data.createdAt instanceof Timestamp)) throw new Error("Your online data couldn't be read. Try again later, or contact the site owner.");
         const age = Date.now() - data.createdAt.toMillis();
         if (!all && data.status !== 'deleting' && age < (data.status === 'staging' ? 300000 : 30000)) return null;
         const manifests = { private: parseManifest(data.private), ranking: parseManifest(data.ranking) };
@@ -318,7 +343,7 @@ export class CloudStore {
         if (!data) return;
         const holders: unknown = data.holders;
         if (!Array.isArray(holders) || !holders.every(holder => typeof holder === 'string')) {
-          throw new Error('Online chunk references are invalid; cleanup was stopped.');
+          throw new Error("Your online data couldn't be checked, so cleanup stopped. Try again later, or contact the site owner.");
         }
         const kept = holders.filter(holder => holder !== id);
         if (kept.length === holders.length) return;
@@ -336,7 +361,7 @@ export class CloudStore {
           const released: unknown = data && 'released' in data ? data.released : 0;
           if (!data || data.status !== 'deleting' || typeof released !== 'number' ||
             !Number.isSafeInteger(released) || released < 0 || released > parts.length) {
-            throw new Error('Online payload release metadata is invalid. Cleanup was stopped.');
+            throw new Error("Your online data couldn't be checked, so deletion stopped. Try again later, or contact the site owner.");
           }
           if (released === parts.length) return { remaining: null, removed: [] };
           const end = Math.min(parts.length, released + PRIVATE_RELEASE_BATCH);
@@ -359,7 +384,7 @@ export class CloudStore {
         result.removed.forEach(key => deletedChunks.add(key));
         return result.remaining;
       }, async () => {
-        if (deletionEpoch !== null) throw new Error('The server cannot verify payload release yet. Refresh the app and retry deletion; the account was not removed.');
+        if (deletionEpoch !== null) throw new Error("This version of the app can't finish deleting. Refresh the page, then choose Finish deleting.");
         const removeAll = all && (await this.head())?.deleted === true;
         for (const part of parts) {
           const ref = this.chunkRef(part.kind, part.digest);
@@ -393,7 +418,7 @@ export class CloudStore {
         throw new Error('The account or deletion state changed. Cleanup stopped.');
       }
       if (registry.exists()) {
-        if (!Array.isArray(registry.data().ids) || registry.data().ids.length) throw new Error('Some generations remain. Retry deletion before removing the account.');
+        if (!Array.isArray(registry.data().ids) || registry.data().ids.length) throw new Error("There's more to delete. Choose Finish deleting again to continue.");
         tx.delete(this.registryRef());
       }
     });

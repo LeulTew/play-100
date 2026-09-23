@@ -25,7 +25,7 @@ import { AvatarPicker } from '../components/avatar/AvatarPicker';
 import { Dialog } from '../components/Dialog';
 import { cloudAuth, cloudDb, firebaseApp, initialAuthUser } from './firebase-client';
 import { creatorAccess, deleteOwnMember } from './cloud-store';
-import type { CloudStore } from './cloud-store';
+import type { CloudStore, DeletionCopyState } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
 import { onlineError, popupCancelled } from './errors';
@@ -104,6 +104,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const [returnSheet, setReturnSheet] = useState(false);
   const [startupError, setStartupError] = useState('');
   const [deletionApproval, setDeletionApproval] = useState<GoogleDeletionApproval | null>(null);
+  const [deletionNotice, setDeletionNotice] = useState<{ key: string; state: DeletionCopyState } | null>(null);
+  const deletionProbe = useRef<{ key: string; result: Promise<DeletionCopyState> } | null>(null);
   const handledGoogleReturn = useRef<string | null>(null);
   const navigation = useRef({ page, onCloseSheet, onNavigate });
   navigation.current = { page, onCloseSheet, onNavigate };
@@ -295,6 +297,24 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     return () => { alive = false; };
   }, [identity?.uid, identity?.verified, accountReady, refresh, sync.profileAvailable, sync.profileConnection, reportProfileError]);
   useEffect(() => { if (sync.remote && uid) setHeadSnapshot({ uid, value: sync.remote }); }, [sync.remote, uid]);
+  const deletionKey = page === 'account' && identity?.verified && head?.deleted
+    ? `${identity.uid}:${authSessionEpoch.current}:${head.epoch}:${head.revision}` : null;
+  useEffect(() => {
+    if (!deletionKey) {
+      deletionProbe.current = null;
+      setDeletionNotice(null);
+      return;
+    }
+    if (busy || !sync.store) return;
+    let alive = true;
+    const cached = deletionProbe.current;
+    const probe = cached?.key === deletionKey ? cached : { key: deletionKey, result: sync.store.probeDeletedCopy() };
+    deletionProbe.current = probe;
+    void probe.result.then(state => {
+      if (alive && deletionProbe.current === probe) setDeletionNotice({ key: deletionKey, state });
+    });
+    return () => { alive = false; };
+  }, [deletionKey, busy, sync.store]);
   useEffect(() => {
     if (!uid || !scope || !identity?.verified || !sync.profileAvailable) return;
     let alive = true;
@@ -548,6 +568,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     return run(async () => {
       const signedIn = cloudAuth.currentUser;
       if (!signedIn || signedIn.uid !== identityRef.current?.uid || !scope) throw new Error('Sign in to the account you want to delete.');
+      deletionProbe.current = null;
+      setDeletionNotice(null);
       const session = authSessionEpoch.current;
       const targetKind = removeAccount ? 'account' : 'copy';
       if (!navigator.onLine) throw new Error('Connect before deleting cloud data. No success is reported until deletion finishes.');
@@ -627,15 +649,15 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       setHeadSnapshot({ uid: user.uid, value: deleting });
       const ownsDeletion = () => cloudAuth.currentUser?.uid === user.uid &&
         identityRef.current?.uid === user.uid && authSessionEpoch.current === session;
-      setMessage('Removing private online payloads. Your account remains until the checked cleanup steps finish.');
+      setMessage('Deleting your online library...');
       await store.cleanup(true, {
         expectedDeletionEpoch: deleting.epoch, isCurrent: ownsDeletion,
-        onProgress: ({ kind, confirmed }) => {
+        onProgress: ({ kind }) => {
           if (!ownsDeletion()) throw new Error('The account changed. Cleanup stopped.');
-          setMessage(`Removing ${kind === 'private' ? 'private library' : 'ranking summary'} payloads; ${confirmed} chunk deletions confirmed in this attempt.`);
+          setMessage(kind === 'private' ? 'Deleting your online library...' : 'Deleting your ranking summary...');
         },
       });
-      setMessage('Removing registered public and shared snapshots. Historical parentless snapshots require the operator inventory.');
+      setMessage('Deleting shared and public copies...');
       if (!removeAccount) {
         await friends.store.cleanupSharing(user.uid);
         await shelf.store.cleanupSharing(user.uid);
@@ -646,7 +668,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before shared-data cleanup completed.');
           const result = await automatic.store.cleanupPage(user.uid, kind);
           if (result.done) break;
-          setMessage(`Deleting shared ${kind === 'games' ? 'games' : 'rankings'}; confirmed batches are not repeated.`);
+          setMessage('Deleting shared and public copies...');
           if (index === 249) throw new Error('Some shared account records still need cleanup. Retry deletion to continue.');
         }
       }
@@ -664,7 +686,9 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         catch (cause) {
           if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'auth/requires-recent-login') {
             setDeletionApproval(null);
-            throw new Error('Your sign-in still exists. Confirm deletion again; Firebase needs a recent sign-in. Completed cleanup can be resumed without restoring deleted data.', { cause });
+            throw new Error(identityRef.current?.providers.includes('password')
+              ? 'Your online data is deleted. To delete your sign-in, confirm your password again.'
+              : 'Your online data is deleted. Confirm with Google again to delete your sign-in.', { cause });
           }
           throw cause;
         }
@@ -672,7 +696,10 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         await rememberOnlineRequest(false); setIdentity(null); onNavigate('collection');
       } else {
         await account.refresh(); await refresh();
-        setMessage('Online library and registered snapshots were removed. This account device copy is retained. Historical parentless public or shared data requires the operator inventory; content-free revocation markers remain.');
+        const key = `${user.uid}:${session}:${deleting.epoch}:${deleting.revision}`;
+        deletionProbe.current = { key, result: Promise.resolve('complete') };
+        setDeletionNotice({ key, state: 'complete' });
+        setMessage('Your online copy was deleted. The copy on this device is still here.');
       }
     }, removeAccount);
   };
@@ -721,7 +748,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         </section> :
         page === 'creator' ? <CreatorPage key={identity.uid} social={social} allowed={isCreator} verified={identity.verified} onAccount={() => onNavigate('account')} /> :
         page === 'publish' ? <PublishPage key={identity.uid} social={social} identity={identity} member={member} avatar={avatar} state={activeController.state} games={games} existing={profile} isCreator={isCreator} onAccount={() => onNavigate('account')} onPublished={(next) => { if (cloudAuth.currentUser?.uid === next.uid) { setProfile(next); onProfile(next.handle); } }} /> :
-        <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} cancelledRegistration={cancelledUid === identity.uid} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
+        <AccountPage key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`} identity={identity} cancelledRegistration={cancelledUid === identity.uid} deletionState={deletionNotice && deletionNotice.key === deletionKey ? deletionNotice.state : 'unknown'} member={member} cache={account.snapshot} guest={guest.state} head={head} remoteReady={headSnapshot?.uid === identity.uid} status={active ? sync.status : 'device'} error={visibleError || account.error || sync.error} message={visibleMessage} cleanupWarning={sync.cleanupWarning} busy={busy || account.controller.busy} resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))} isCreator={isCreator} avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
           onAvatar={() => setAvatarOpen(true)} onName={(name) => run(async () => {
             const { user } = verifiedIdentity();
             await social.saveMemberName(user.uid, name, avatar);
