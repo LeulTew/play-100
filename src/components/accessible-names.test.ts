@@ -44,6 +44,7 @@ describe('composite control accessible names', () => {
     expect(pin).not.toContain('aria-pressed');
     expect(pin?.includes('disabled=""')).toBe(pinned);
     expect(pin).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
+    expect(pin).toContain('<path d="m3 7 9-4 9 4-9 4-9-4Z"></path><path d="M3 12l9 4 9-4M3 17l9 4 9-4" fill="none"></path>');
   });
 
   it.each([false, true])('keeps the discovery queue name stable with pressed=%s', selected => {

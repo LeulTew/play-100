@@ -22,7 +22,7 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
     shuffle: <><path d="M3 6h3l12 12h3M3 18h3L18 6h3m-4-4 4 4-4 4m0 4 4 4-4 4" /></>,
     share: <><path d="M12 16V3m-4 4 4-4 4 4M5 11v10h14V11" /></>,
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10v.1" /></>,
-    stack: <><path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4" /></>,
+    stack: <><path d="m3 7 9-4 9 4-9 4-9-4Z" /><path d="M3 12l9 4 9-4M3 17l9 4 9-4" fill="none" /></>,
     copy: <><rect x="8" y="8" width="12" height="13" rx="1" /><path d="M16 8V3H3v13h5" /></>,
     table: <><rect x="3" y="4" width="18" height="16" rx="1" /><path d="M3 9h18M3 14h18M9 4v16" /></>,
     select: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="m8 12 3 3 5-6" /></>,
