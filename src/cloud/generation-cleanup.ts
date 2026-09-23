@@ -2,6 +2,7 @@ import { doc, getDocFromServer, runTransaction, writeBatch } from 'firebase/fire
 import type { DocumentData, DocumentReference } from 'firebase/firestore';
 
 export const PAYLOAD_RELEASE_BATCH = 4;
+export const PRIVATE_RELEASE_BATCH = 2;
 
 export async function runPayloadCleanup(
   maxSteps: number, step: () => Promise<number | null>, legacy: () => Promise<void>, afterStep?: () => Promise<void>,

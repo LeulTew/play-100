@@ -160,13 +160,12 @@ service cloud.firestore {
     function privateReleaseProgress(uid, id, before, after) {
       let released = 'released' in before ? before.released : 0;
       let total = before.private.chunks.size() + before.ranking.chunks.size();
+      // Four positions could consume all 20 transaction accesses. Two retain headroom, including chunk-read authorization.
       return before.status == 'deleting' && after.diff(before).affectedKeys().hasOnly(['released'])
         && released is int && released >= 0 && after.released is int
-        && after.released > released && after.released <= released + 4 && after.released <= total
+        && after.released > released && after.released <= released + 2 && after.released <= total
         && privateIndexFreed(uid, id, before, released, after.released)
-        && privateIndexFreed(uid, id, before, released + 1, after.released)
-        && privateIndexFreed(uid, id, before, released + 2, after.released)
-        && privateIndexFreed(uid, id, before, released + 3, after.released);
+        && privateIndexFreed(uid, id, before, released + 1, after.released);
     }
     function validChunk(data, id) {
       return data.keys().hasOnly(['digest', 'data', 'bytes', 'createdAt', 'holders', 'holder'])

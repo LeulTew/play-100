@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { runPayloadCleanup } from './generation-cleanup';
+import { PRIVATE_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
 
 const denied = () => Object.assign(new Error('Rules do not support the countdown.'), { code: 'permission-denied' });
 
 describe('bounded payload-cleanup compatibility', () => {
+  it('keeps private release below the former zero-headroom transaction boundary in both rules and client', () => {
+    const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+    expect(PRIVATE_RELEASE_BATCH).toBe(2);
+    expect(rules.match(/after\.released > released && after\.released <= released \+ (\d+)/)?.[1]).toBe(String(PRIVATE_RELEASE_BATCH));
+  });
   it('falls back once on the first unsupported countdown and never retries it in a loop', async () => {
     const step = vi.fn(async () => { throw denied(); });
     const legacy = vi.fn(async () => {});

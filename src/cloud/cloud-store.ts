@@ -6,7 +6,7 @@ import type { CreatorRank, SnapshotChunk, SnapshotManifest, SyncHead } from '../
 import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot } from '../lib/snapshot-transport';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseFriendAllHead } from '../lib/friend-all-transport';
-import { PAYLOAD_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
+import { PRIVATE_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
 
 export class RemoteConflict extends Error {
   readonly head: SyncHead;
@@ -248,7 +248,7 @@ export class CloudStore {
         if (kept.length) tx.update(ref, { holders: kept, holder: id });
         else tx.delete(ref);
       };
-      await runPayloadCleanup(Math.ceil(parts.length / PAYLOAD_RELEASE_BATCH) + 1, async () => {
+      await runPayloadCleanup(Math.ceil(parts.length / PRIVATE_RELEASE_BATCH) + 1, async () => {
         const result = await runTransaction(this.db, async tx => {
           const [candidate, head] = await Promise.all([tx.get(this.generationRef(id)), tx.get(this.headRef())]);
           const data = candidate.data();
@@ -258,7 +258,7 @@ export class CloudStore {
             throw new Error('Online payload release metadata is invalid. Cleanup was stopped.');
           }
           if (released === parts.length) return { remaining: null, removed: [] };
-          const end = Math.min(parts.length, released + PAYLOAD_RELEASE_BATCH);
+          const end = Math.min(parts.length, released + PRIVATE_RELEASE_BATCH);
           const unique = [...new Map(parts.slice(released, end).map(part => [`${part.kind}:${part.digest}`, part])).entries()];
           const removeAll = all && head.exists() && parseHead(head.data()).deleted;
           const removed: string[] = [];
