@@ -131,59 +131,140 @@ UI suite; never point these actors at production.
 
 ## Storage caps and legacy compatibility
 
-The private snapshot envelope remains 20 MiB / 107 chunks to retain the existing
-10,000-record and backup format. Its registry now admits eight generations, with
-current/previous plus staging/retry headroom and the existing bounded cleanup
-before allocation. At the cap, save failure is explicit and local edits remain.
-Already oversized registries can shrink one retired generation per transaction;
-they cannot allocate more until below the cap. Legacy chunk holder metadata
-remains readable/removable while that cleanup proceeds.
+**H5 remains a release gate until the integrator verifies the complete candidate
+and the parent reviews its receipts.** The original metadata-only deletion loop
+is retained in history as a reproduced counterexample, not an accepted risk.
+Candidate rules now keep the generation/slot until its payload has been released:
 
-New public generations require atomic enrollment in an owner-only
-`publicProfiles/{uid}/metadata/registry` capped at four IDs. A generation is
-removed from that registry in the same transaction that deletes its retired
-metadata. Publication runs existing age/retained-pointer-aware cleanup before
-staging. It never deletes the current published generation to make room.
-Older unregistered generations predate this enforcement and require the existing
-owner cleanup or operator inventory; rules cannot retroactively count subcollection
-documents. Their cleanup remains allowed, and new generation creation cannot
-bypass enrollment.
+- Private generations count released positions through immutable private and
+  ranking manifests. Each two-position step proves the chunk absent or the
+  generation removed from its holders. Parent deletion requires every position
+  released; a deleting generation cannot gain new holders.
+- Public entries and selected friend ranking/shelf chunks count `uploaded`
+  down in steps of at most three, proving each suffix document absent after the
+  write. Parent deletion requires zero; deleting parents cannot receive uploads.
+- New public generations register atomically, up to four. Selected ranking and
+  shelf registries stay at three each. Private registry capacity stays at eight.
+  Current/previous copies occupy two positions; 30-second ready and five-minute
+  staging grace mean a cap of three/four has not demonstrated burst-save liveness.
+  No smaller private registry is part of this change.
+- Format3 All-sharing jobs count physical rows across epochs, not just active
+  rows in one epoch. A specific row deletion must release its count atomically;
+  a job cannot be removed until zero. Legacy format2 rows remain owner-readable
+  and deletable, with their separately inventoried footprint.
 
-For client-first rollout only, a specific permission-denied on the new registry
-get selects and logs the legacy publication protocol. Network/unreadable-state
-errors do not. Once new rules are active, verified owner reads of the registry
-are permitted and every new generation requires enrollment; falling back cannot
-bypass the server cap.
+Groups, blocks and open reports have registered-new caps of 50, 1,000 and 100.
+Pairs have a 1,000-document cap attributed to the actual creator, including an
+invite's accepter. Every pair state counts until physical deletion. A declined
+pair retains its slot and server timestamp for 30 days; ordinary early deletion
+cannot bypass that cooldown. Legacy pairs retain their original shape and
+in-place lifecycle, never acquire attribution, and never release a counted slot.
+Legacy group edits likewise remain supported without enrollment. New records
+cannot use the unenrolled legacy write path under candidate rules.
 
-**Open limit: these are tracked-generation caps, not a cumulative payload bound.**
-Neither private generation deletion nor public generation deletion proves that
-the associated chunks/entries were deleted first. A malicious verified owner can
-write a small valid generation, mark it deleting, delete/unregister only its
-metadata, and allocate a new generation in the freed slot. Repeating this leaves
-payload behind while every registry remains below eight/four IDs. The client
-deletes payload before metadata, but rules cannot trust clients to do that.
-New payload-orphan growth is therefore **not blocked**, not just a legacy-data
-inventory problem, and H5 storage-exhaustion closure is incomplete.
+The private envelope remains 20 MiB / 107 chunks. A new ranking allocation is
+limited to 16 MiB / 86 chunks. The real parser constants imply an upper JSON
+bound of `10,000 * (42 + 200 + 6*200 + 5 + 32) + 1 = 14,790,001` bytes, below
+16,777,216. The serializer fixture uses actual control characters and lone
+surrogates, not already-escaped strings. Generic legacy 20 MiB manifests,
+payload reads, previous heads and cleanup remain supported. No private source
+URL limit was added.
 
-Normal cleanup cannot rediscover those private chunks through an empty registry
-or those public entries through absent generation documents. Entry deletion also
-requires its generation's `deleting` marker; absent metadata can prevent ordinary
-owner cleanup. Restoring metadata or another repair may recover access, but there
-is no supported orphan-recovery flow or rule-level byte ceiling in this batch.
-An operator must inventory payload as well as generation metadata and decide
-the existing-data purge scope. The parent requires a separately reviewed repair:
-this is an **open release-candidate gate**, not an accepted residual risk.
-No repair, privilege expansion, collection scan in the client, or
-production inventory was performed by this lane.
+Staging-to-ready remains a status-only transition and does not revalidate its
+manifests. The creator summary's `current` write therefore separately requires
+the 16 MiB envelope even for an older READY generation; `previous` deliberately
+retains the generic <=20 MiB manifest check. The real generator's
+14,790,001-byte upper bound fits, so no representable client ranking is excluded.
 
-The eight/four limits bound the cooperative client's tracked working set against
-Spark's 1 GiB allowance, not malicious total storage or global billing.
-Eight worst-case tracked private and ranking manifests
-at 20 MiB each can still require roughly 427 MiB after base64, before indexes and
-metadata; orphan payload is additional and unbounded by the registry counts.
-Typical ranking summaries are much smaller. The operator must review
-actual legacy use, billing/quota alerts and account-level abuse; no number of
-accounts is guaranteed to fit within 1 GiB.
+Client-first compatibility is narrow and temporary: unsupported quota GETs or
+the first unsupported release/counting operation select the prior path for that
+attempt. Offline/malformed data is not a compatibility success. Remove these
+branches after the promotion window. In particular, full deletion on old rules
+stops at the missing deletion-mode LIST permission rather than falling back to
+registry-only deletion.
+
+### Conditional per-account storage ceiling
+
+This is an ordinary verified account's **attributed** footprint, not all rows it
+may receive from other accounts. The configured creator's cross-UID moderation
+and Admin writes are privileged operator powers, not an untrusted-user quota.
+Bounds assume current rules, reconciled ledgers, and the checked-in index policy
+actually deployed. Existing legacy records are an additional term `L`: use their
+full allowed envelopes, not just today's bytes, where an existing generation or
+mutable legacy record can still grow within its schema.
+
+Rules cannot verify base64 content against the declared digest/byte count.
+Therefore private wire accounting uses `107 * 262144 = 26.75 MiB` per generation
+and new ranking wire accounting uses `86 * 262144 = 21.5 MiB`, rather than only
+the decoded byte labels. Eight combined generations allow **386 MiB** of encoded
+payload. Old 20 MiB ranking generations can contribute up to another 42 MiB
+across eight retained generations until replaced; over-cap legacy registries,
+parentless payload and stale holders are separately included in `L`.
+
+The following conservative reserves include document names/field overhead and
+indexes, not just payload. They are analytical ceilings, not measured typical
+usage. Names budget a UID of up to 128 UTF-8 characters; string reserves use up
+to four UTF-8 bytes per permitted character. Private chunk `data` and selected
+chunk `entries`, All-row `entry`, and selection strings use the existing index
+exemptions. Single-field and ordered composite reserves are respectively 2 KiB
+and 4 KiB unless the smaller global-document path is explicitly noted.
+
+| Store / rule-enforced new count | Document/payload reserve | Index reserve and total ceiling |
+| --- | --- | --- |
+| Private/ranking chunks: `8*(107+86)=1544` | 386 MiB base64 + 8 KiB overhead/chunk | At most 8 live holders after reconciliation; 16 single-field entries/chunk at 2 KiB = 48.25 MiB indexes. Chunk subtotal 446.3125 MiB |
+| Private generations (8), sync head (1), creator head (1), registry (1) | Opaque manifest metadata can approach the platform 1 MiB/document limit; do not assume its chunk-list elements are all small | Use the platform 8 MiB total-index limit for each of the ten opaque documents, plus 64 KiB registry reserve: subtotal 90.0625 MiB |
+| Public entries: `4*200=800`, plus four generation docs/profile/control/handle/registry | 8 KiB/entry; 256 KiB combined metadata reserve | Up to 16 single-field entries at 4 KiB/entry-document: subtotal 56.5 MiB |
+| Selected ranking and shelf: each `3*100` chunks | 8 KiB/chunk, 512 KiB including indexes per generation, 256 KiB controls/head/registry | Four single-field entries at 2 KiB/chunk: 6.4375 MiB per store, 12.875 MiB combined |
+| All games and ranking: `2*10000` rows plus five policy/head/job docs | 8 KiB/row; 320 KiB combined control reserve | Ten scalar single-field entries at 2 KiB and up to five composites at 4 KiB/row: subtotal 937.8125 MiB |
+| Groups: 50 plus ID registry | 2 KiB/group | 16 single-field entries at 2 KiB/group; 128 KiB registry reserve: 1.7852 MiB |
+| Blocks: 1,000 plus ID registry | 1 KiB/block | Two single-field entries at 2 KiB/block; 2,176 KiB registry reserve including 1,000 ID indexes: 7.0079 MiB |
+| Reports: 100 counted plus counter | 3 KiB/report | Twelve single-field entries at 2 KiB/report; 16 KiB counter reserve: 2.6524 MiB |
+| Pairs: 1,000 attributed plus counter | 2 KiB/pair | Global paths fit 1 KiB/index entry: 22 single-field plus six array-expanded composite entries; 16 KiB counter reserve: 29.3125 MiB |
+| Invitations: 20 current tokens + 20 slots | 2 KiB/token and 1 KiB/slot | Global token paths: 21 entries at 1 KiB/token; two at 1 KiB/slot: 0.5079 MiB |
+| Remaining fixed account/member/identity markers | No unbounded child collection; avatar descriptors are fixed fields, not uploaded files | 1 MiB combined document/index reserve |
+
+The rounded total is **less than 1,590 MiB + L** under those conservative
+reserves. This deliberately loose ceiling exceeds Spark's 1 GiB project
+allowance: finite per-account caps do **not** prove that even one pathological
+maximum account fits, and are not an "exhaustion fixed" or billing guarantee.
+Changing production indexes changes this accounting; unmatched indexes require
+recalculation before claiming it. The independent platform fallback is the
+bounded document count times the platform document/index limits, not an
+assumption that index storage is free.
+
+The fresh attributed document-count ceiling is 25,177, including chunks,
+entries, generation documents, fixed heads/settings/markers, all four quota
+records, invite slots and the current handle. Platform document/index ceilings
+still supply a finite fallback if the detailed index inventory is unavailable,
+but that much looser bound is not a useful promise about Spark capacity.
+
+`ranking-envelope.test.ts` emits exact serialized and base64 sizes for a
+deterministic 100-record fixture, a 1,000-record fixture and the maximum escaping
+fixture. These are synthetic examples, not observed user averages. Their current
+execution receipts must be recorded by I; the source lane does not invent
+measured sizes.
+
+For the representative fixture's literal ASCII fields, source arithmetic predicts
+the following totals. They are **calculated expectations, not executed results**:
+
+| Records | Private JSON bytes | Ranking JSON bytes | Private base64 characters | Ranking base64 characters |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 35,831 | 7,737 | 47,776 | 10,316 |
+| 1,000 | 363,588 | 80,280 | 484,784 | 107,040 |
+
+The fixture includes progress, a quarter of records queued, scores or null, and
+a 29-character note on every tenth record. The real serializer output must
+confirm or correct these expectations before the release receipt calls them
+measured; neither example substitutes for the representable-maximum case.
+
+Spark's project-wide 20,000 writes/day and storage limits still permit disruption,
+including from multiple verified accounts. App Check is not configured and
+remains an explicit user follow-up, not an assumed protection. The operator
+response is to contain writes, disable the abusive Auth user and revoke sessions,
+then inventory and separately approve a purge. Disabling Auth alone does not
+instantly invalidate every already-issued ID token. See the
+[release and repair runbook](security-release-runbook.md) before either repair
+or rollback; a rollback to the old rules suspends these invariants.
 
 ### Self-contained migration coverage
 
@@ -205,11 +286,12 @@ valid expired 12-generation private state shrinking before an actual save and
 readback, unregistered public cleanup then enrollment, and reserved legacy handles
 unpublishing/renaming while same-handle republishing is rejected.
 
-Two tiny counterexample cases deliberately characterize the **open** payload
-limit: real payload writes, metadata-only deletion/unregistration, reallocation,
-surviving orphan payload and inability of normal cleanup to find it. Their
-success would confirm the limitation, not a security fix. They are not a
-large-payload, storage-exhaustion or timing benchmark.
+The original two-iteration counterexamples are retained in commit history.
+Candidate cases now deny metadata-only deletion and slot reuse, then execute
+honest cleanup. Additional sources exercise 107+107 legacy chunks, 100-chunk
+selected snapshots, 200 public entries, stale deleting slots, physical All
+counts, quota release proofs and the 20/21-access calibration. A passing narrow
+case is not a full-candidate proof.
 
 The existing `tests-cloud-ui/cancelled-registration.spec.ts` exercises the same
 real UI removal against both frozen and candidate rules. The new
@@ -247,10 +329,20 @@ handle, and the publication UI shows the reserved reason before preview.
 Prefix blocking deliberately also rejects benign names beginning `account`,
 `system` or `creator`; that over-blocking is an anti-impersonation choice.
 The publish transaction already deletes the old handle when changing it;
-rules now require that atomic deletion. An existing handle resolves only while
+rules now require that atomic deletion on both rename and profile deletion.
+Deleting/recreating a profile cannot leave a new hoarded claim behind. Full
+profile cleanup also removes and verifies its empty public-generation registry;
+nonempty or inconsistent settings keep deletion incomplete. An existing handle resolves only while
 its profile still points to it, including owner reads. Legacy orphan handles
 do not redirect to unrelated current identities; owners/operators may remove
 them, but no blanket public handle listing is enabled.
+
+A profile can reference a missing or foreign-owned handle only after an
+out-of-protocol/admin change: publishing requires the after-handle owner to equal
+the profile UID, and handle deletion requires an absent or renamed profile.
+Promotion inventory checks both those broken profile references and handles
+whose owner's profile is absent or points elsewhere. Do not overwrite another
+owner's claim to repair a malformed profile.
 
 ## Creator identity and shared devices
 
@@ -275,8 +367,10 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
 2. Run central unit/types/lint/build, the complete demo rules suite and the
    separately configured demo UI cases. Review legacy generation inventories,
    payload orphans (not just registry counts), reserved/orphan handles, and the
-   new-client/old-rules path before publication. Record the operator's decision
-   on the open payload-orphan limit; do not mark H5 closed from count tests.
+   new-client/old-rules path before publication. Complete the read-only ledger
+   and orphan inventory in the runbook, recording zero where none exist.
+   Read back existing indexes, deploy only the additive required entries, and
+   wait for READY before client promotion; never accept an index deletion prompt.
 3. Deploy and promote the compatible client first. Verify report submission,
    outgoing request labels, cancelled recovery, publish/rename/cleanup and
    shared-device removal with approved accounts on production after promotion;
@@ -289,21 +383,26 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
    deletion, public/missing/hidden profiles, handle rename, quota cleanup and
    shared-device dirty-copy refusal. An unauthenticated GET of a missing
    `publicProfiles/{uid}` must be denied (it was 404 on live 270f).
-6. If a guard fails, stop promotion. Roll back with the retained previously
-   published rules artifact identified by `971b0fe6…` (the parent must verify
-   its full SHA). Do not reconstruct it or delete new registry/lifecycle data.
-   Restore a compatible client only after reviewing lost protections; keep the
-   `_owner/config.uid` addition, which old email rules ignore.
+6. If a guard fails, stop promotion and prefer roll-forward. The default rollback
+   is client-only with current rules kept; the emergency option is write-frozen
+   rules. A last-resort rules rollback to the retained `971b0fe6...` artifact
+   suspends H5 bounds and requires exact operator ledger repair after new rules
+   return. Follow the runbook's order and degradation matrix, not a blind reset.
 
 | Change | LIVE 270f client with new rules | Required sequence |
 | --- | --- | --- |
-| F1 report confidentiality | Delimiter-safe own reports work; underscore-UID missing reads/creates and third-party probes deny | Report-path validation client first; custom UID format support is not claimed |
+| F1 report confidentiality | Own missing/existing reads remain compatible for delimiter-safe IDs; H5 now additionally denies old uncounted report writes | Counted-report client first; custom UID format support is not claimed |
 | H1 cancelled recovery | Old client still cannot self-remove a verified cancelled sign-in | Recovery client first |
 | H2 pending identity | Old outgoing list reads are denied instead of a name/icon | Public-snapshot client first |
 | H3 declined retry | Old immediate retry receives denial; no neutral precheck | New client first |
 | H4 profile oracle | Old direct ownProfile calls may surface denial for missing peers | Null-mapping client first |
 | H5 private registry eight | Old allocation can exceed client-side cap and receive denial; shrinking works | New cleanup/cap client first; inventory oversized data |
 | H5 public registry four | Old generation creation lacks enrollment and is denied | New compatibility client first, then rules |
+| H5 verified release | Old parent deletion lacks release/countdown proof and is denied; new cleanup resumes safely | Current cleanup client before rules |
+| H5 groups/blocks/reports/pairs | Old creates lack registration/counter proof; old pending acceptance and re-request lack own proof touches | Current client first; old-client safety-action limits are explicit in runbook |
+| H5 counted All format3 | Old format2 row/job writes are denied, and old parsers cannot read the new format | Current sharing client and additive READY indexes first |
+| H5 deletion marker | Old parsers cannot read a head carrying cleanupEpoch; old full-deletion flow cannot prove completion | Keep a compatible current client during repair; no old-client full-deletion claim |
+| Ranking 16 MiB allocation | Normal old generator output fits; new oversized raw allocations are denied, old 20 MiB reads/cleanup remain | Cap is separately droppable; private remains 20 MiB |
 | H6 reserved/atomic handle | Old transaction already releases its old handle; old reserved claims are denied | New validation/read compatibility client first |
 | H7 creator UID | Old client asks the same ownerAccess endpoint | Console UID addition before rules |
 | H11 device removal | Old Sign out still retains its cache | New optional client action; no rule dependency |

@@ -225,9 +225,10 @@ removing Auth. Copy deletion uses the acknowledged v2 Stop once, not redundant
 v1 mutations through potentially stale listener reads. Cleanup remains retryable
 after the private head has already been deleted.
 
-#### Focused acceptance evidence
+#### Historical format2 acceptance evidence
 
-These are actual scoped checks, not a full CI/performance campaign or a perfect
+The following records the earlier format2 rollout, not execution evidence for
+the H5 format3 candidate. These were scoped checks, not a full CI/performance campaign or a perfect
 security claim. The new rule prototype was exercised with separate owner, friend
 and stranger clients, malformed create/update fields, forged progress, replay,
 missing authority, stale source, live revocation and quota/ACK failures.
@@ -346,12 +347,25 @@ bounded regular expression and enforce uniqueness without unchecked arrays.
 The API always exposes `selectedIds: string[]`.
 
 `friendIdentities/{uid}` contains only chosen display name, local avatar descriptor
-and version/timestamp metadata. Reads require an active, nonblocked pending or
-accepted pair; owners can read their own identity for cleanup/export.
+and version/timestamp metadata. Pending access is recipient-to-requester only;
+outgoing rows use the published snapshot. Accepted access requires an active,
+nonblocked pair; owners can read their own identity for cleanup/export.
 
 `friendPairs/{lexicographicallySmallerUid}~{largerUid}` is one canonical state
 machine. Its exact participants never change. Every transition increments the
 epoch; pending acceptance is recipient-only. No reciprocal half-edge is possible.
+New format2 pairs add immutable `creatorUid`, the actual document writer; an
+invite-created pair belongs to its accepter, not `from`. The creator's bounded
+counter counts the document in every state until physical deletion. Format1
+legacy pairs keep their shape and in-place lifecycle forever; they are never
+counted, converted or used to release a slot. Accept/re-request uses the same
+caller-owned proof touch without increasing that count.
+
+Decline keeps its server timestamp and slot for 30 days. Early deletion cannot
+bypass it; cancelled/removed and expired-declined pairs can be removed, with the
+existing full-account-deletion exception. A mutually intended invitation may
+accept an existing declined pair in place, subject to current token, block and
+lifetime proofs. A re-created pending pair at epoch1 grants no accepted access.
 Pair documents contain only relationship metadata, no identity, scores or tokens.
 Participant-only gets and bounded queries may include inactive/deleted
 relationship metadata until cleanup; they are not data-access grants. Keeping
@@ -369,9 +383,18 @@ not silently change already-issued links. Revoke/recreate a link to update it.
 An active invite must match its slot. At most 20 active capabilities can exist.
 Expired/consumed slots can be reused; anonymous list/query is denied. Acceptance
 atomically consumes the invitation and authorizes the canonical pair through
-`getAfter`, referring only to the slot number in pair metadata. Cleanup replaces
-used/revoked invites with an immutable `{ ownerUid, state: 'closed' } tombstone:
-no name, avatar, recipient or timestamps. Tombstones prevent capability replay.
+`getAfter`, referring only to the slot number in pair metadata. The candidate
+deletes a token before its slot can be reused; revoke deletes token and slot.
+No new unbounded closed-token history is kept. Old tombstones are legacy residue,
+not an allocation escape. The client always mints fresh random tokens; it does
+not rely on permanent server storage of every previously used nonce.
+
+Acceptance reads the public token from the server before its transaction. The
+transaction reads only the pair and accepter's own counter; commit rules recheck
+the current token state, expiry, slot, blocks and lifetimes with mutual
+consumed/accepted proofs. A denied commit performs one readback to choose neutral
+unavailable or retry copy, not a loop. Concurrent revoke, consumption and
+replacement must leave neither a partial pair nor a quota increment.
 
 `friendShareHeads/{uid}` has current/previous manifests and monotonic revision.
 `friendShareRegistry/{uid}` bounds generations to three (current, previous, one
@@ -439,6 +462,28 @@ The emulator validates authorization and transitions, not production CPU or
 latency for list operations on as many as 1,000 IDs. Those production evaluation
 costs remain a review/operational limit; source tests are not a measurement.
 
+`accountQuotas/{uid}/limits/pairs` stores `{ count, revision, lastPair }`, with a
+cap of 1,000 creator-attributed live documents. Caller-owned same-count touches
+authorize in-place accepts/re-requests without reading a peer counter. Physical
+release uses an exact before-pair/after-absence proof and `increment(-1)`;
+revision does not change on release. The authorized counterparty can still learn
+the resulting count from `transformResults`; no zero-leak receipt claim is made.
+Empty quota documents are removed at full account deletion.
+
+Only a capacity failure starts pair cleanup: creatorUid=caller, participant
+constraint, terminal states, oldest first, limit20 per page and bounded pages.
+Young declined rows are skipped. One freed slot permits one allocation retry;
+an index still building yields a plain retry error only on that at-cap path.
+
+These invariants do **not** survive a rollback to rules `971b0fe6...`. Prefer
+roll-forward, then client-only rollback with current rules, then write-frozen
+emergency rules. An old-rules rollback suspends H5 bounds until new rules return,
+operator-written exact per-UID transactions reconcile markers/counters, and
+independent recount plus deleted-account orphan inventory succeed. For every
+ledger's invariant, exact verification read and safe mismatch response, see
+[the release and repair runbook](security-release-runbook.md). No Admin tooling
+or dependency is shipped here.
+
 ## Cost and operational limits
 
 No Functions, paid TTL, polling, global presence or per-friend write fanout.
@@ -458,7 +503,32 @@ Revocation prevents new server reads, not erasure of content already copied.
 
 ### Authorization-read budget
 
-The following counts are a code-level inventory of distinct document states
+Current H5 changed-path counts are pessimistic and do not assume repeated
+`get()` calls are free:
+
+| Operation | Maximum per operation | Atomic group |
+| --- | ---: | ---: |
+| Private release, two manifest positions | 4 | 10 including chunk-read authorization |
+| Public indexed release, three entries | 3 | 12 |
+| Selected ranking / shelf release, three chunks | 4 / 5 | 15 / 18 |
+| Deleted-owner LIST20 / ten-delete purge | 1 | 10 for deletion transaction |
+| Final cleanupEpoch marker | 0 | 0 rule lookups; one actual head read/write |
+| Known format2 row batch, four deletes | 0 candidate / at most4 old | 0 candidate / 16 old |
+| All format3 row + physical-count job | 8 / 3 | 11 |
+| Group create / edit / counted delete | 6 / 5 / 3 | 8 / 5 / 4 |
+| Block creation plus pair removal | 8 | 16 |
+| Report create / deleted-owner removal / creator resolution | 7 / 3 / 5 | 9 / 7 / 9 including creator's protected read |
+| New/re-requested pair + caller proof | 8 / 9 | 17 |
+| Ordinary acceptance + caller proof | 7 | 14 |
+| Invite acceptance writes | 8 | 19; standalone token read at most7 |
+| Counted pair release | 3 | 6 |
+| Orphan group/block ID repair | 1 | 1 |
+
+These source counts still require the named emulator paths and the 20/21
+calibration in the candidate receipt. New index query shapes are separately
+pinned to their exact production index entries.
+
+The historical selected-mode counts below were a code-level inventory of distinct document states
 looked up by one rule evaluation, including before/after states separately.
 Firestore may cache repeated calls; the emulator cases exercise the real writes.
 They are not a claim that a rules test ran when an execution slot is unavailable.
@@ -504,10 +574,10 @@ the exact changed keys: upload progress validates complete chunk length, uploade
 count, accumulated IDs, global uniqueness, count bound and derived status;
 publication/deletion change status only. Immutable metadata is inherited from
 the validated creation rather than repeatedly evaluated on every upload.
-Legacy private/public documents and rules are unchanged. Friend sharing has not
-been deployed, so there is no production friend-data migration; old larger-chunk
-friend writes fail the new exact chunk-size/position rules rather than silently
-truncating content.
+At the time of those early chunk-size trials, the receipt recorded no production
+friend-data migration. That is not a claim that today's production data is empty.
+The current H5 candidate follows the release runbook's actual legacy inventory,
+format migration and rollback requirements; it does not silently truncate data.
 
 The five-entry diagnostic also failed on **chunk zero** (`uploaded: 0`), ruling
 out a failure that only grows with previously uploaded IDs. Its expression
