@@ -334,7 +334,7 @@ export class SocialStore {
       const ref = doc(this.db, 'publicProfiles', uid);
       const [profile, usage] = await Promise.all([tx.get(ref), counted ? tx.get(quota) : Promise.resolve(null)]);
       if (usage?.exists()) {
-        if (usage.data().count !== 0) throw new Error('Some reports could not be removed. Try again, or contact the site owner before deleting this account.');
+        if (usage.data().count !== 0) throw new Error('Some reports could not be removed, so account deletion stopped. Try again later.');
         tx.delete(quota);
       }
       if (profile.exists()) {

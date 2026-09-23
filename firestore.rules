@@ -1313,11 +1313,10 @@ service cloud.firestore {
       return fKeys(data, ['format', 'epoch', 'token', 'step', 'active', 'entry'])
         && data.format == 3 && aId(id) && fInt(data.epoch, 1, 9007199254740991) && fUuid(data.token)
         && fInt(data.step, 1, 20000) && data.active == true
-        && (!data.active ? data.entry == null : data.entry is map
-          && (kind == 'games' ? sEntry(data.entry, id)
+        && data.entry is map && (kind == 'games' ? sEntry(data.entry, id)
             : fInt(data.entry.position, 1, 10000) && fPackedEntry(data.entry, id, data.entry.position)
               && data.entry.title.matches('^[^\\x00-\\x1f\\x7f]+$') && !data.entry.title.matches('^\\s+$')
-              && (data.entry.sourceUrl == null || data.entry.sourceUrl.size() <= 2048)));
+              && (data.entry.sourceUrl == null || data.entry.sourceUrl.size() <= 2048));
     }
     function aRowWrite(uid, kind, id, data) {
       let job = aJob(uid, kind);
@@ -1354,14 +1353,14 @@ service cloud.firestore {
       allow list: if request.query.limit != null
         && ((own(uid) && request.query.limit <= 100) || (request.query.limit <= 25 && aRowsReadable(uid, 'games', resource.data)));
       allow create, update: if aRowWrite(uid, 'games', id, request.resource.data);
-      allow delete: if own(uid) && (resource.data.format == 2 || aRowDelete(uid, 'games', id));
+      allow delete: if own(uid) && (resource == null || resource.data.format == 2 || aRowDelete(uid, 'games', id));
     }
     match /friendAllRankings/{uid}/entries/{id} {
       allow get: if own(uid) || aRowGet(uid, 'ranking');
       allow list: if request.query.limit != null
         && ((own(uid) && request.query.limit <= 100) || (request.query.limit <= 25 && aRowsReadable(uid, 'ranking', resource.data)));
       allow create, update: if aRowWrite(uid, 'ranking', id, request.resource.data);
-      allow delete: if own(uid) && (resource.data.format == 2 || aRowDelete(uid, 'ranking', id));
+      allow delete: if own(uid) && (resource == null || resource.data.format == 2 || aRowDelete(uid, 'ranking', id));
     }
     match /{document=**} { allow read, write: if false; }
   }

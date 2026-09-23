@@ -160,31 +160,47 @@ formats below retain their current bounds and selected-mode semantics.
 revisions plus private-saving consent. The `friendAllHeads/{uid}/views/{kind}`
 documents carry a ready/updating state, count, digest and source revision, not a
 selection array. Private `friendAllJobs/{uid}/views/{kind}` records store progress,
-the target count, total changes (at most20,000), and only the last one or two IDs.
+the target count, total changes (at most20,000), and the last changed ID.
 `friendAllGames/{uid}/entries/{id}` and `friendAllRankings/{uid}/entries/{id}`
 hold strictly validated single-game metadata or metadata plus position/score.
 Every create and update has ownership, required/exclusive fields, source,
 length/type and mutation-progress guards.
 
-Each atomic group writes at most two records and one job. Membership counts are
-verified against the before/after rows; a ready head requires confirmed complete
-progress. Removed rows are content-free tombstones and are pruned in bounded
-owner batches. An interrupted job resumes from its server-confirmed inventory,
+Format 3 writes one row and one job per atomic step. Its physical row count
+survives epochs and decreases only with a verified row deletion; a ready head
+requires confirmed complete progress. Removed format 3 rows are deleted, not
+turned into uncounted tombstones. Frozen legacy format 2 rows remain owner-readable
+and deletable; unmigrated heads retain their existing peer access. The old-rule
+fallback writes at most two rows and one job per step.
+An interrupted job resumes from its server-confirmed inventory,
 including a lost response after an actual commit. An ordinary warm score edit
 uses one row mutation group rather than rewriting the inventory.
 
-A cold unchanged publication first verifies head/source/digest, the policy and
+With a format 3 head, a cold unchanged publication first verifies head/source/digest, the policy and
 both v1 bindings in a read-only transaction: **zero inventory queries and zero
 writes**. A cold changed or interrupted publication needs cursor inventory reads
 of at most100 rows per request; that cost is not disguised as a constant read.
 Friend pages are at most25 rows; exact lookups check at most6 document identities
-and recheck the head before returning. Composite indexes cover active epoch plus
-title/position. The nested entry payload is exempt from unused single-field
+and recheck the head before returning. Composite indexes cover format, epoch,
+active and title/position for counted head3 queries (legacy queries stay
+unchanged). The nested entry payload is exempt from unused single-field
 indexes.
 
-A first10,000-game metadata projection costs15,000 row/job writes; the ranking
-projection costs another15,000, plus bounded control/head writes. This exceeds
-Spark's20,000-write daily quota. An account-bound IndexedDB cooldown and server
+A first 10,000-game format 3 projection costs approximately 20,000 row/job writes;
+metadata plus ranking costs approximately 40,000, plus control/head writes. That
+is twice Spark's project-wide 20,000-write daily quota. The temporary format 2
+fallback retains 15,000 writes per projection, 30,000 for both.
+
+After an epoch change, counted-row release currently uses two reads and two
+writes per row, sequentially. 10,000 rows therefore need 20,000 reads and 20,000
+writes; at an illustrative 300ms per transaction, that is about 50 minutes, not a
+measured guarantee. Known frozen format 2 rows instead use delete-only batches of
+four (zero rule lookups under candidate rules; up to 16 under the old-rule
+compatibility path). A concurrent rewrite to format 3 causes that batch to deny
+rather than freeing an unaccounted row. Multi-row counted release is deferred
+until a separate access-budget proof justifies it.
+
+An account-bound IndexedDB cooldown and server
 progress survive reload. The UI labels each path's confirmed progress, and does
 not say Up to date until both heads match the current private ACK. Browser
 availability and the real quota still determine when unfinished work can run.

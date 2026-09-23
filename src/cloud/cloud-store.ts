@@ -20,7 +20,7 @@ export class DeletionCleanupInterrupted extends Error {
   constructor(readonly kind: 'private' | 'ranking', readonly confirmed: number, cause: unknown) {
     const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';
     super(code === 'resource-exhausted'
-      ? 'Deletion stopped before it finished. Your account is still here. The online service has reached a limit; try again later or contact the site owner.'
+      ? 'Deletion stopped because the online service reached a limit. Your account is still here; try again later.'
       : 'Deletion stopped before it finished. Your account is still here. Check your connection, then choose Finish deleting.', { cause });
     this.name = 'DeletionCleanupInterrupted';
   }
@@ -329,7 +329,7 @@ export class CloudStore {
     const registry = await getDocFromServer(this.registryRef());
     if (!registry.exists()) { await guardDeletion(); return 0; }
     const ids: unknown = registry.data().ids;
-    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error("Your online data couldn't be read, so deletion stopped. Try again later. If this keeps happening, contact the site owner.");
+    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error("Your online data couldn't be read, so deletion stopped. Try again later.");
     let count = 0;
     const deletedChunks = new Set<string>();
     for (const id of ids) {
@@ -344,7 +344,7 @@ export class CloudStore {
         const candidate = await tx.get(this.generationRef(id));
         if (!candidate.exists() || retained.has(id)) return null;
         const data = candidate.data();
-        if (!(data.createdAt instanceof Timestamp)) throw new Error("Your online data couldn't be read. Try again later, or contact the site owner.");
+        if (!(data.createdAt instanceof Timestamp)) throw new Error("Your online data couldn't be read. Try again later.");
         const age = Date.now() - data.createdAt.toMillis();
         if (!all && data.status !== 'deleting' && age < (data.status === 'staging' ? 300000 : 30000)) return null;
         const manifests = { private: parseManifest(data.private), ranking: parseManifest(data.ranking) };
@@ -357,7 +357,7 @@ export class CloudStore {
         if (!data) return;
         const holders: unknown = data.holders;
         if (!Array.isArray(holders) || !holders.every(holder => typeof holder === 'string')) {
-          throw new Error("Your online data couldn't be checked, so cleanup stopped. Try again later, or contact the site owner.");
+          throw new Error("Your online data couldn't be checked, so cleanup stopped. Try again later.");
         }
         const kept = holders.filter(holder => holder !== id);
         if (kept.length === holders.length) return;
@@ -375,7 +375,7 @@ export class CloudStore {
           const released: unknown = data && 'released' in data ? data.released : 0;
           if (!data || data.status !== 'deleting' || typeof released !== 'number' ||
             !Number.isSafeInteger(released) || released < 0 || released > parts.length) {
-            throw new Error("Your online data couldn't be checked, so deletion stopped. Try again later, or contact the site owner.");
+            throw new Error("Your online data couldn't be checked, so deletion stopped. Try again later.");
           }
           if (released === parts.length) return { remaining: null, removed: [] };
           const end = Math.min(parts.length, released + PRIVATE_RELEASE_BATCH);

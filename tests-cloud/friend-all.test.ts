@@ -80,6 +80,34 @@ const games = (count: number): FriendShelfEntry[] => Array.from({ length: count 
 const ranks = (count: number): PublicEntry[] => games(count).map((entry, index) => ({ ...entry, position: index + 1, score: index === 0 ? 0 : null }));
 
 describe('All-sharing bounded SDK transport', () => {
+  it('batch-deletes known legacy rows without per-row transactions and denies an uncounted concurrent format3 deletion', async () => {
+    const a = await client(); const policy = await enable(a);
+    await a.all.setPolicy(a.uid, false, 'explicit', await a.all.controls(a.uid), () => true);
+    const ids = Array.from({ length: 5 }, (_, index) => `manual:legacy-${index}`);
+    for (const [index, id] of ids.entries()) await seed(`friendAllGames/${a.uid}/entries/${id}`, {
+      format: 2, epoch: policy.epoch, token: crypto.randomUUID(), step: index + 1, active: false, entry: null,
+    });
+    const transactions = vi.mocked(runTransaction).mock.calls.length;
+    const batches = vi.mocked(writeBatch).mock.calls.length;
+    expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 5, done: false });
+    expect(vi.mocked(runTransaction).mock.calls.length).toBe(transactions);
+    expect(vi.mocked(writeBatch).mock.calls.length - batches).toBe(2);
+    const ref = doc(a.db, 'friendAllGames', a.uid, 'entries', games(1)[0]!.id);
+    const token = crypto.randomUUID();
+    await seed(ref.path, { format: 2, epoch: policy.epoch, token, step: 1, active: true, entry: games(1)[0] });
+    const observed = await getDocsFromServer(query(collection(a.db, 'friendAllGames', a.uid, 'entries'), limit(100)));
+    await seed(ref.path, { format: 3, epoch: policy.epoch, token, step: 1, active: true, entry: games(1)[0] });
+    await seed(`friendAllJobs/${a.uid}/views/games`, {
+      format: 3, epoch: policy.epoch, policyRevision: policy.revision, source, token, digest: 'a'.repeat(64),
+      targetCount: 1, count: 1, total: 1, applied: 1, last: [ref.id], headRevision: 1, updatedAt: Timestamp.now(),
+    });
+    const staleBatch = writeBatch(a.db);
+    observed.docs.forEach(row => staleBatch.delete(row.ref));
+    await assertFails(staleBatch.commit());
+    expect((await getDocFromServer(ref)).data()?.format).toBe(3);
+    expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).data()?.count).toBe(1);
+  });
+
   it('migrates an old head automatically and rejects same-epoch frozen rows or an unfiltered peer query on the new head', async () => {
     const a = await client(); const b = await client();
     const policy = await enable(a); await enable(b); await connect(a, b);
@@ -155,7 +183,7 @@ describe('All-sharing bounded SDK transport', () => {
       return prior;
     });
     await expect(a.all.publish(a.uid, 'games', games(1), policy, source, () => true))
-      .rejects.toThrow('Sharing could not start. Refresh the app or remove older shared copies, then try again.');
+      .rejects.toThrow('Sharing could not start. Refresh the page, then try again.');
     expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).exists()).toBe(false);
     expect((await getDocFromServer(doc(a.db, 'friendAllHeads', a.uid, 'views', 'games'))).exists()).toBe(false);
   });

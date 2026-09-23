@@ -552,7 +552,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       if (!done.blocks) blocks.push(...data.blocks.items);
       done.relations ||= !data.relations.cursor; done.groups ||= !data.groups.cursor; done.blocks ||= !data.blocks.cursor;
       if (done.relations && done.groups && done.blocks) break;
-      if (index === 99) throw new Error('This account export is larger than one download operation. Contact the creator before deleting it.');
+      if (index === 99) throw new Error('This account export is too large to download at once. Save a library backup in Settings before deleting anything.');
       cursors = { relations: data.relations.cursor, groups: data.groups.cursor, blocks: data.blocks.cursor };
     }
     const sharedGames = await shelf.store.exportOwn(identity.uid);
