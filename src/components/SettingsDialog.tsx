@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionPreference } from '../lib/types';
 import { Dialog } from './Dialog';
@@ -31,6 +31,7 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount, offlineControls, status = '', statusError = false, recovery, getReturnFocus }: SettingsDialogProps) {
+  const motionId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [pendingMotion, setPendingMotion] = useState<MotionPreference | null>(null);
@@ -87,8 +88,8 @@ export function SettingsDialog({ motion, reducedMotion, constrained, saved, comp
           ['lite', 'Lite', 'Original static art. No effects.'],
         ] as const).map(([value, label, description]) => (
           <label key={value} className={`motion-option ${selectedMotion === value ? 'selected' : ''}`}>
-            <input type="radio" name="visual-experience" aria-label={`${label}, ${description}`} value={value} checked={selectedMotion === value} disabled={busy && !saving} onChange={() => { void changeMotion(value); }} />
-            <span><strong>{label}</strong><small>{description}</small></span>
+            <input type="radio" name="visual-experience" aria-labelledby={`${motionId}-${value}-label`} aria-describedby={`${motionId}-${value}-description`} value={value} checked={selectedMotion === value} disabled={busy && !saving} onChange={() => { void changeMotion(value); }} />
+            <span><strong id={`${motionId}-${value}-label`}>{label}</strong><small id={`${motionId}-${value}-description`}>{description}</small></span>
           </label>
         ))}
       </fieldset>

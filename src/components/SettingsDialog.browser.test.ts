@@ -145,8 +145,11 @@ for (const mobile of [false, true]) {
 
     it('separates each visible preference label from its supporting description in the exact name', async () => {
       await withPage(async page => {
-        for (const name of ['Auto, Touchscreens start 3D on demand.', 'Full, The interactive 3D collection.', 'Lite, Original static art. No effects.']) {
-          await browserExpect(page.getByRole('radio', { name, exact: true })).toHaveCount(1);
+        for (const [name, description] of [['Auto', 'Touchscreens start 3D on demand.'], ['Full', 'The interactive 3D collection.'], ['Lite', 'Original static art. No effects.']] as const) {
+          const option = page.getByRole('radio', { name, exact: true });
+          await browserExpect(option).toHaveCount(1);
+          await browserExpect(option).toHaveAccessibleDescription(description);
+          await browserExpect(option).not.toHaveAttribute('aria-label');
         }
       });
     });
