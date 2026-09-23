@@ -55,7 +55,10 @@ export function createDeferredPwaController(
     installed = true; prompt = null;
     publish({ ...state, installState: 'installed', message: 'Play 100 was added by this browser.' });
   };
-  const online = () => publish({ ...state, online: navigator.onLine });
+  const online = () => {
+    publish({ ...state, online: navigator.onLine });
+    if (!navigator.onLine) void ensure();
+  };
   const stopCapture = () => {
     window.removeEventListener('beforeinstallprompt', capturePrompt);
     window.removeEventListener('appinstalled', captureInstalled);
@@ -117,6 +120,7 @@ export function createDeferredPwaController(
       window.addEventListener('online', online);
       window.addEventListener('offline', online);
       stopIdle = scheduleIdlePrefetch(ensure, 1200, 'essential');
+      if (!navigator.onLine) void ensure();
       return () => {
         active = false;
         generation += 1;

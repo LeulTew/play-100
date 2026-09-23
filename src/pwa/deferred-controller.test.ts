@@ -16,7 +16,7 @@ function fixture() {
     cancelIdleCallback: () => { idle = undefined; },
   });
   const document = { readyState: 'loading' };
-  const navigator = { serviceWorker, onLine: false, userAgent: 'Fixture desktop', maxTouchPoints: 0 };
+  const navigator = { serviceWorker, onLine: true, userAgent: 'Fixture desktop', maxTouchPoints: 0 };
   vi.stubGlobal('window', window);
   vi.stubGlobal('document', document);
   vi.stubGlobal('navigator', navigator);
@@ -91,22 +91,37 @@ describe('after-load PWA controller', () => {
     stop();
   });
 
-  it('retains the original initial contract and tracks offline before importing or registering', async () => {
+  it('retains the original initial contract and defers connection until load/idle when online', async () => {
     expect(initialDeferredPwaState).toEqual(client.initialPwaState);
     const env = fixture();
     const load = vi.fn(async () => client);
     const controller = createDeferredPwaController(load);
     const stop = controller.connect();
-    expect(controller.getSnapshot().online).toBe(false);
-    expect(load).not.toHaveBeenCalled();
-    env.navigator.onLine = true;
-    env.window.dispatchEvent(new Event('online'));
     expect(controller.getSnapshot().online).toBe(true);
+    expect(load).not.toHaveBeenCalled();
     env.window.dispatchEvent(new Event('load'));
     expect(load).not.toHaveBeenCalled();
     env.runIdle();
     await vi.waitFor(() => expect(env.serviceWorker.getRegistration).toHaveBeenCalledOnce());
     expect(load).toHaveBeenCalledOnce();
+    expect(env.serviceWorker.register).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it.each(['startup', 'offline event'])('connects without waiting for load or idle when offline at %s', async when => {
+    const env = fixture();
+    if (when === 'startup') env.navigator.onLine = false;
+    const load = vi.fn(async () => client);
+    const controller = createDeferredPwaController(load);
+    const stop = controller.connect();
+    if (when === 'offline event') {
+      env.navigator.onLine = false;
+      env.window.dispatchEvent(new Event('offline'));
+    }
+    expect(controller.getSnapshot().online).toBe(false);
+    await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+    expect(env.window.requestIdleCallback).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(env.serviceWorker.getRegistration).toHaveBeenCalledOnce());
     expect(env.serviceWorker.register).not.toHaveBeenCalled();
     stop();
   });

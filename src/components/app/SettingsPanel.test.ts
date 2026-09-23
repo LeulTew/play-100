@@ -36,6 +36,7 @@ describe('Settings PWA adapter readiness', () => {
     expect(button?.includes('disabled=""')).toBe(disabled);
     expect(html).toContain('data-autofocus="true" tabindex="-1">Make it');
     expect(html).not.toContain('Preparing offline files...');
+    expect(html.includes('Loading offline controls…')).toBe(!ready && !error);
     expect(input.offline?.pwa.prepareOffline).not.toHaveBeenCalled();
     expect(html.includes('Reload this page')).toBe(moduleError);
   });

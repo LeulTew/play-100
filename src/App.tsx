@@ -132,7 +132,7 @@ export default function App() {
   const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage, panelFromMenu } = useAppPanel(libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
-  const pwa = usePwa({ enabled: pwaEnabled, menuOpen: panel === 'menu' });
+  const pwa = usePwa({ enabled: pwaEnabled, wantControls: panel === 'menu' || panel === 'settings' });
   const updateState = useRef({ busy: libraryBusy, panel });
   updateState.current = { busy: libraryBusy, panel };
   const inputGeneration = useRef(0);
