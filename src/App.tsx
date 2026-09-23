@@ -153,8 +153,9 @@ export default function App() {
     // A loading sheet can unmount while the same sign-in invocation is still open.
     if (current && accountPanelOpen.current) return null;
     compareSignInOrigin.current = null;
-    const action = current ? document.querySelector<HTMLElement>('.compare-tray-action') : null;
-    if (usableReturnFocusTarget(action)) return action;
+    const action = current ? ['.compare-tray-action', '.compare-tray-expand']
+      .map(selector => document.querySelector<HTMLElement>(selector)).find(usableReturnFocusTarget) : null;
+    if (action) return action;
     return [...document.querySelectorAll<HTMLElement>('.account-nav, [data-page-heading], #collection-title')]
       .find(usableReturnFocusTarget) ?? null;
   }, []);
