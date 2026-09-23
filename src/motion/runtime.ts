@@ -413,7 +413,11 @@ export function createMotionRuntime(
         pending = session;
         if (!session) { if (entry) finishOrigin(entry); return; }
         const frame = requestAnimationFrame(() => {
-          if (!session.isCurrent()) { session.cancel('superseded'); return; }
+          if (!session.isCurrent()) {
+            session.cancel('superseded');
+            if (entry) finishOrigin(entry);
+            return;
+          }
           session.finish();
           pending = null;
           try { work(); }

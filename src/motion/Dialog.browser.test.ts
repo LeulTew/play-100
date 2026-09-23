@@ -36,6 +36,9 @@ declare global {
       routeAttempt(): boolean;
       failRelease(): void;
       failOpen(): void;
+      staleFrame(change: 'boundary' | 'policy'): Promise<{
+        aborted: boolean; subscriptions: number; flights: number; sourceVisible: boolean; targetReads: number;
+      }>;
     };
   }
 }
@@ -57,6 +60,7 @@ import { createElement as h, StrictMode, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Dialog } from '/src/components/Dialog.tsx';
 import { MotionProvider, useMotionRuntime } from '/src/motion/index.ts';
+import { createMotionRuntime } from '/src/motion/runtime.ts';
 import '/src/styles.css';
 import '/src/motion/motion.css';
 
@@ -206,6 +210,72 @@ window.motionFixture = {
       throw new Error('Synthetic motion startup failure.');
     };
   },
+  async staleFrame(change) {
+    let snapshot = {
+      policy: { animate: true, reducedMotion: false, coarsePointer: false, hidden: false, constrained: false },
+      boundary: { scopeKey: 'guest', generation: 0, blocked: false },
+      location: { viewKey: '/isolated', requestedDetailKey: null, displayedDetailKey: null, navigationGeneration: 0, overlayKey: null },
+    };
+    let subscriptions = 0;
+    const isolated = createMotionRuntime(() => snapshot, () => null);
+    isolated.mount();
+    const source = document.getElementById('source-art');
+    const trigger = document.getElementById('source-trigger');
+    const hint = isolated.originHint({
+      surface: 'collection', presentationId: 'isolated-game', source, trigger,
+      visual: { kind: 'jacket', rank: 7 },
+    });
+    if (!hint) throw new Error('The isolated visible source could not supply a motion hint.');
+    const captured = isolated.captureOrigin(hint, {
+      requestedDetailKey: 'isolated-game', displayedDetailKey: 'isolated-game',
+      guard: { isCurrent: () => true, subscribe() {
+        subscriptions += 1;
+        return () => { subscriptions -= 1; };
+      } },
+    });
+    if (!captured) throw new Error('The isolated source could not capture a lease.');
+    snapshot = { ...snapshot, location: { ...snapshot.location,
+      requestedDetailKey: 'isolated-game', displayedDetailKey: 'isolated-game', navigationGeneration: 1,
+    } };
+    const dialog = document.createElement('dialog');
+    dialog.className = 'dialog';
+    const inner = document.createElement('div');
+    inner.className = 'dialog-inner';
+    const target = document.createElement('div');
+    target.style.cssText = 'width:144px;height:108px';
+    let targetReads = 0;
+    target.getBoundingClientRect = () => { targetReads += 1; return nativeRect.call(target); };
+    inner.append(target);
+    const slot = document.createElement('div');
+    slot.className = 'dialog-motion-slot';
+    slot.inert = true;
+    dialog.append(inner, slot);
+    document.body.append(dialog);
+    dialog.showModal();
+    const handle = isolated.openDialog(dialog, inner, slot, {
+      preset: 'sheet', continuity: { target: { current: target }, lease: captured },
+    });
+    // Change what read() sees without update()/an interruption eagerly clearing the lease.
+    // This exercises the scheduled callback's own stale-session exit.
+    snapshot = change === 'boundary'
+      ? { ...snapshot, boundary: { ...snapshot.boundary, generation: 1 } }
+      : { ...snapshot, policy: { ...snapshot.policy, animate: false } };
+    try {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      return {
+        aborted: captured.signal.aborted, subscriptions, targetReads,
+        flights: slot.querySelectorAll('[data-motion-visual]').length,
+        sourceVisible: getComputedStyle(source).visibility === 'visible' && source.getBoundingClientRect().width > 0,
+      };
+    } finally {
+      handle.prepareClose();
+      dialog.close();
+      isolated.forgetDialog(dialog);
+      handle.closed();
+      isolated.dispose();
+      dialog.remove();
+    }
+  },
 };
 render();
 </script></body></html>`;
@@ -270,6 +340,14 @@ const detail = () => page.getByRole('dialog', { name: 'Public game', exact: true
 const stats = () => page.evaluate(() => window.motionFixture.stats);
 
 describe('native Dialog motion lifecycle', () => {
+  it.each(['boundary', 'policy'] as const)('releases an origin when %s changes before its scheduled frame', async change => {
+    expect(await page.evaluate(value => window.motionFixture.staleFrame(value), change)).toEqual({
+      aborted: true, subscriptions: 0, flights: 0, sourceVisible: true, targetReads: 0,
+    });
+    await browserExpect(activeVisuals()).toHaveCount(0);
+    await browserExpect(page.locator('dialog[open]')).toHaveCount(0);
+  });
+
   it('focuses and accepts input immediately while animation completion is held', async () => {
     await page.getByRole('button', { name: 'Open game', exact: true }).click();
     await browserExpect(page.locator('#detail-title')).toBeFocused();
