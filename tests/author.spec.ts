@@ -47,7 +47,7 @@ test('Leul original values are visible by default and never become visitor ratin
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);
   expect((await readLibrary(page)).ranking[0]?.score).toBeNull();
   await page.goto('/my-rankings');
-  const ownRating = page.getByRole('spinbutton', { name: 'Your rating for The Witcher 3: Wild Hunt', exact: true });
+  const ownRating = page.getByRole('spinbutton', { name: 'Your rating / 10 for The Witcher 3: Wild Hunt', exact: true });
   await expect(ownRating).toHaveValue('');
   await ownRating.fill('4');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(4);

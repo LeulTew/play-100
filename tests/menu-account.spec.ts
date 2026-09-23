@@ -7,7 +7,7 @@ const alpha = { email: process.env.PLAY100_MENU_ALPHA_EMAIL, uid: process.env.PL
 const beta = { email: process.env.PLAY100_MENU_BETA_EMAIL, uid: process.env.PLAY100_MENU_BETA_UID };
 const game = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Menu', exact: true });
-const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating for ${game.title}`, exact: true });
+const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true });
 
 async function followMenu(page: Page, name: string) {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();

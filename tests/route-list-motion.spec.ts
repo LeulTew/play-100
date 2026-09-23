@@ -149,7 +149,7 @@ test('a real invalid Ranking draft stays in place and cannot trigger a tab arriv
   const workspace = page.locator(fixture);
   const tabs = workspace.getByRole('navigation', { name: 'My games views' });
   await tabs.getByRole('button', { name: 'Ranking, 3', exact: true }).click();
-  const input = workspace.getByRole('spinbutton', { name: 'Your rating for Red Dead Redemption 2', exact: true });
+  const input = workspace.getByRole('spinbutton', { name: 'Your rating / 10 for Red Dead Redemption 2', exact: true });
   await input.fill('11');
   const arrivals = await arrivalEvents(page, 'tab');
   await tabs.getByRole('button', { name: 'Library, 500', exact: true }).click();

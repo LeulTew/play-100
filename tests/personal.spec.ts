@@ -154,7 +154,7 @@ test('personal rankings accept unplayed and historical games, scores and notes',
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
   await expect(page.getByRole('checkbox', { name: 'I have played it: My historical game', exact: true })).not.toBeChecked();
-  const score = page.getByRole('spinbutton', { name: 'Your rating for My historical game', exact: true });
+  const score = page.getByRole('spinbutton', { name: 'Your rating / 10 for My historical game', exact: true });
   await score.fill('9.4');
   await score.press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(9.4);
@@ -163,7 +163,7 @@ test('personal rankings accept unplayed and historical games, scores and notes',
   await page.getByRole('textbox', { name: 'Your note for My historical game', exact: true }).press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.note).toContain('not personal play experience');
   await page.reload();
-  await expect(page.getByRole('spinbutton', { name: 'Your rating for My historical game', exact: true })).toHaveValue('9.4');
+  await expect(page.getByRole('spinbutton', { name: 'Your rating / 10 for My historical game', exact: true })).toHaveValue('9.4');
   const saved = await readLibrary(page);
   const id = saved.ranking[0]?.id;
   if (!id) throw new Error('Personal game missing.');

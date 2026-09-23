@@ -19,7 +19,7 @@ async function prepare(page: Page) {
 }
 
 async function rate(page: Page, game: typeof a, value: string) {
-  await page.getByRole('spinbutton', { name: `Your rating for ${game.title}`, exact: true }).fill(value);
+  await page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true }).fill(value);
   await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score).toBe(value ? Number(value) : null);
 }
 
@@ -66,7 +66,7 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   await expect(dialog.getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const played = dialog.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
   await expect(played).toBeChecked();
-  await dialog.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true }).fill('8.5');
+  await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('8.5');
   await dialog.getByRole('spinbutton').press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
   await page.evaluate(async id => {
@@ -184,7 +184,7 @@ test('failed rating autosave keeps the prior score and does not retry in a backg
     };
     document.documentElement.dataset.failRatingSave = 'yes';
   });
-  await page.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true }).fill('9');
+  await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9');
   await expect(page.locator(`[data-record-id="${a.id}"] .inline-error`)).toContainText('could not be saved');
   const attempts = await page.evaluate(() => document.documentElement.dataset.ratingSaveAttempts);
   await page.waitForTimeout(1600);

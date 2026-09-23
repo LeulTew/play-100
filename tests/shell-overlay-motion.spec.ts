@@ -26,7 +26,7 @@ if (!firstGame) throw new Error('The shell fixture requires the first original g
 const first = recordFromGame(firstGame);
 const menu = (page: Page) => page.getByRole('dialog', { name: 'Menu', exact: true });
 const menuTrigger = (page: Page) => page.getByRole('button', { name: 'Menu', exact: true });
-const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
 const errors = new WeakMap<Page, string[]>();
 
 async function seedGuest(page: Page, motion: MotionPreference = 'full') {

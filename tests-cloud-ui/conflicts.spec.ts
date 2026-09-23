@@ -16,13 +16,13 @@ test('offline edits survive a newer online head and conflict replacement is boun
     const peer = await peerContext.newPage();
     await signIn(peer, email); await expectRestoredSync(peer); await peer.goto('/my-rankings');
     await page.goto('/my-rankings');
-    await expect(page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeVisible();
-    await expect(page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeEnabled();
+    await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeEnabled();
     await context.setOffline(true);
-    await page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true }).fill('6');
+    await page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('6');
     await page.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score).toBe(6);
-    await peer.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true }).fill('9');
+    await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('9');
     await peer.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(peer, uid)).sync.dirty, { timeout: 30000 }).toBe(false);
     await context.setOffline(false);

@@ -66,7 +66,7 @@ test('detail opens before enrichment, keeps source scales separate and does not 
   await card.getByRole('button', { name: title, exact: true }).click();
   const dialog = page.getByRole('dialog', { name: title, exact: true });
   await expect(dialog.getByRole('heading', { name: title, exact: true })).toBeFocused();
-  await expect(dialog.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeEnabled();
   await expect(dialog).toContainText('Loading public ratings');
   release();
   await expect(dialog.locator('.catalog-review-list')).toContainText('83/100');

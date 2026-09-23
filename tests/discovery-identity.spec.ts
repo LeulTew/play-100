@@ -41,7 +41,7 @@ async function installLibrary(page: Page, state: PersonalLibraryState) {
 }
 
 async function rate(scope: Page | Locator, value: string) {
-  const input = scope.getByRole('spinbutton', { name: `Your rating for ${rdr.title}`, exact: true });
+  const input = scope.getByRole('spinbutton', { name: `Your rating / 10 for ${rdr.title}`, exact: true });
   await input.fill(value); await input.press('Enter');
 }
 
@@ -72,7 +72,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   const detail = detailFor(page);
   await expect(detail).toContainText('#01 in the collection');
   await expect(detail).toContainText("Leul's original rating");
-  await expect(detail.getByRole('spinbutton', { name: `Your rating for ${rdr.title}` })).toHaveValue('8.7');
+  await expect(detail.getByRole('spinbutton', { name: `Your rating / 10 for ${rdr.title}`, exact: true })).toHaveValue('8.7');
   await detail.getByRole('button', { name: 'Completed', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[canonical.id]).toEqual({ played: true, completed: false, later: true });
   await detail.getByRole('button', { name: 'Close dialog', exact: true }).click();

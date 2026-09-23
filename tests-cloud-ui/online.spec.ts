@@ -11,7 +11,7 @@ test('verified opt-in copies a guest library and a second browser loads the acco
   const email = emailFor('two-device');
   await page.goto(`/?game=${game.id}`);
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('spinbutton', { name: `Your rating for ${game.title}`, exact: true }).fill('8.4');
+  await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true }).fill('8.4');
   await dialog.getByRole('spinbutton').press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.4);
   await dialog.getByRole('button', { name: 'Play later', exact: true }).click();
@@ -34,14 +34,14 @@ test('verified opt-in copies a guest library and a second browser loads the acco
     expect((await readAccount(peer, uid)).state.ranking[0]?.score).toBe(8.4);
     expect((await readLibrary(peer)).ranking).toEqual([]);
     await peer.goto('/my-rankings');
-    await peer.getByRole('spinbutton', { name: `Your rating for ${game.title}`, exact: true }).fill('9.1');
+    await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true }).fill('9.1');
     await expect.poll(async () => (await readAccount(peer, uid)).state.ranking[0]?.score).toBe(9.1);
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score, { timeout: 30000 }).toBe(9.1);
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
     expect(await readLibrary(page)).toEqual(originalGuest);
     await page.goto('/my-rankings');
-    await expect(page.getByRole('spinbutton', { name: `Your rating for ${game.title}`, exact: true })).toHaveValue('8.4');
+    await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true })).toHaveValue('8.4');
   } finally { await second.close(); }
 });
 
@@ -106,7 +106,7 @@ test('remembered-account restoration never exposes an editable guest fallback wh
     await expect(waiting.getByRole('status')).toHaveText('Waiting for the correct guest or account scope before allowing edits.');
     expect((await readLibrary(page)).ranking[0]?.score).toBe(5);
     release?.();
-    await expect(page.getByRole('spinbutton', { name: `Your rating for ${game.title}`, exact: true })).toHaveValue('5');
+    await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true })).toHaveValue('5');
     await page.getByRole('spinbutton').fill('6.3'); await page.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score).toBe(6.3);
     expect((await readLibrary(page)).ranking[0]?.score).toBe(5);

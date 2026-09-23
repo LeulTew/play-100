@@ -101,7 +101,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('Original workbook score, based on the game&#x27;s rank.');
     expect(html).not.toContain('Workbook rank-based rating.');
     expect(html).toContain('Workbook snapshot. Not live or independently verified.');
-    expect(html).toContain(`aria-label="Your rating for ${game.title}"`);
+    expect(html).toContain(`aria-label="Your rating / 10 for ${game.title}"`);
     expect(html).toContain('value="4.25"');
     expect(html.match(/<input\b/g)).toHaveLength(1);
     expect(html.match(/id="game-title"/g)).toHaveLength(1);
@@ -143,7 +143,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html.match(/Why it made the list/g)).toHaveLength(1);
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Existing saved copies'));
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Play later'));
-    expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Your rating for'));
+    expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Your rating / 10 for'));
     if (game.sourceNote) {
       const note = renderToStaticMarkup(h('p', null, h('strong', null, 'From the source workbook'), h('br'), game.sourceNote));
       expect(html).toContain(note);

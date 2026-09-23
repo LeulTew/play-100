@@ -40,7 +40,7 @@ test('a cross-tab identity change flushes the old account draft without exposing
     await expect(peer).toHaveURL(/\/$/);
     await signIn(peer, firstEmail);
     await peer.goto('/my-rankings');
-    await expect(peer.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toHaveValue('8.3');
+    await expect(peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toHaveValue('8.3');
     expect((await readAccount(peer, nextUid)).state.records).toEqual({});
   } finally { await peer.close(); }
 });

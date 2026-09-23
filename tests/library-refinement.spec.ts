@@ -16,7 +16,7 @@ async function prepareRanking(page: Page, isMobile: boolean) {
     await expect.poll(async () => (await readLibrary(page)).ranking.some((entry) => entry.id === game.id)).toBe(true);
   }
   await page.getByRole('button', { name: 'Close game picker', exact: true }).click();
-  const input = page.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true });
+  const input = page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true });
   await input.fill('5');
   await input.press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.score).toBe(5);
@@ -37,7 +37,7 @@ for (const field of ['score', 'note'] as const) {
     const before = await readLibrary(page);
     await pauseAutosave(page);
     if (field === 'score') {
-      await page.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true }).fill('9.25');
+      await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9.25');
     } else {
       await page.locator(`[data-record-id="${a.id}"] .ranking-note summary`).click();
       await page.getByRole('textbox', { name: `Your note for ${a.title}`, exact: true }).fill('A pending note, saved when I go Back.');
@@ -55,14 +55,14 @@ for (const field of ['score', 'note'] as const) {
 test('original-game details accept a separate personal rating and bind pending edits to the correct next game', async ({ page }) => {
   await page.goto(`/?game=${b.id}`);
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('spinbutton', { name: `Your rating for ${b.title}`, exact: true }).fill('4');
+  await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${b.title}`, exact: true }).fill('4');
   await dialog.getByRole('spinbutton').press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === b.id)?.score).toBe(4);
   await page.goto(`/?game=${a.id}`);
   await expect(dialog.locator('.author-rating-detail')).toContainText('10.0');
   await expect(dialog.getByRole('spinbutton')).toHaveValue('');
   await pauseAutosave(page);
-  await dialog.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true }).fill('8.75');
+  await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('8.75');
   await dialog.getByRole('button', { name: 'Next game', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: b.title, exact: true })).toBeVisible();
   await expect(dialog.getByRole('spinbutton')).toHaveValue('4');
@@ -103,7 +103,7 @@ test('leaving after a failed autosave does not retry the rejected edit or overwr
     };
     document.documentElement.dataset.rejectExitSave = 'yes';
   });
-  await page.getByRole('spinbutton', { name: `Your rating for ${a.title}`, exact: true }).fill('9');
+  await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9');
   await expect(page.locator('.ranking-row-content .inline-error')).toContainText('could not be saved');
   const attempts = await page.evaluate(() => document.documentElement.dataset.exitWriteAttempts);
   await page.goBack();

@@ -146,7 +146,7 @@ test('missing art preserves the public metadata, working controls and honest fal
   await expect(dialog.getByText('Artwork unavailable', { exact: true })).toBeVisible();
   await expect(dialog.locator('.game-artwork-disclosure')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
-  await expect(dialog.getByRole('spinbutton', { name: `Your rating for ${withoutArtItem.record.title}`, exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${withoutArtItem.record.title}`, exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();

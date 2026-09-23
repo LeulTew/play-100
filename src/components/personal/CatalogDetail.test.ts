@@ -74,7 +74,7 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).not.toContain('game-artwork-disclosure');
     expect(html).toContain('Play later');
     expect(html).toContain('Completed');
-    expect(html).toContain(`Your rating for ${discoveryFixture.record.title}`);
+    expect(html).toContain(`Your rating / 10 for ${discoveryFixture.record.title}`);
     expect(html).toContain('Preview only.');
     expect(html).toContain('Add to My games from Discover');
     expect(html).toContain('The 100 stays unchanged.');

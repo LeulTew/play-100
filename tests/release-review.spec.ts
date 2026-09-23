@@ -12,7 +12,7 @@ async function prepareRanking(page: Page) {
   await page.getByRole('button', { name: `Add ${title} to ranking`, exact: true }).click();
   await expect(page.locator('.personal-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Close game picker', exact: true }).click();
-  const score = page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true });
+  const score = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
   await score.fill('7');
   await score.press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(7);
@@ -30,10 +30,10 @@ for (const field of ['score', 'note'] as const) {
     await peer.goto('/my-rankings');
     await expect(peer.locator('.personal-row')).toHaveCount(1);
     const currentInput = field === 'score'
-      ? page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })
+      ? page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
       : page.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
     const otherInput = field === 'score'
-      ? peer.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })
+      ? peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
       : peer.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
     if (field === 'note') await peer.locator('.ranking-note summary').click();
     await currentInput.focus();
@@ -54,9 +54,9 @@ test('an actual dirty draft is preserved through another-tab updates and saves i
   const peer = await context.newPage();
   await peer.goto('/my-rankings');
   await expect(peer.locator('.personal-row')).toHaveCount(1);
-  const current = page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true });
+  const current = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
   await current.fill('8.5');
-  const remote = peer.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true });
+  const remote = peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
   await remote.fill('9');
   await remote.press('Tab');
   await expect.poll(async () => (await readLibrary(peer)).ranking[0]?.score).toBe(9);
@@ -70,7 +70,7 @@ test('an actual dirty draft is preserved through another-tab updates and saves i
 
 test('invalid native number input never clears a previously saved personal score', async ({ page }) => {
   await prepareRanking(page);
-  const score = page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true });
+  const score = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
   await score.focus();
   await score.press('ControlOrMeta+A');
   await score.press('e');

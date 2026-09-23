@@ -12,8 +12,17 @@ import { DiscoveryCard } from './catalog/DiscoveryCard';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import RatingsTable from './RatingsTable';
 import { CompletedToggle } from './CompletedToggle';
+import { PersonalRatingInput } from './personal/PersonalRatingInput';
 
 describe('composite control accessible names', () => {
+  it('includes the whole visible rating label before the game context', () => {
+    const html = renderToStaticMarkup(h(PersonalRatingInput, {
+      title: discoveryFixture.record.title, value: null, busy: false, onCommit: vi.fn(async () => true),
+    }));
+    expect(html).toContain('<label class="personal-score">Your rating / 10<input');
+    expect(html).toContain(`aria-label="Your rating / 10 for ${discoveryFixture.record.title}"`);
+  });
+
   it.each([false, true])('keeps the completion name stable with a distinct non-color cue for pressed=%s', completed => {
     const html = renderToStaticMarkup(h(CompletedToggle, {
       title: discoveryFixture.record.title, completed, onChange: vi.fn(),

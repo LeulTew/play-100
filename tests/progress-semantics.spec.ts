@@ -130,7 +130,7 @@ test('progress-filter changes flush valid drafts, block invalid drafts and never
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
   const records = await seed(page, request);
   await page.goto('/my-games?tab=ranking');
-  const rating = editor(page).getByRole('spinbutton', { name: `Your rating for ${records[0]!.title}`, exact: true });
+  const rating = editor(page).getByRole('spinbutton', { name: `Your rating / 10 for ${records[0]!.title}`, exact: true });
   await rating.fill('11');
   await page.getByLabel('Progress', { exact: true }).selectOption('completed');
   await expect(page.getByLabel('Progress', { exact: true })).toHaveValue('all');

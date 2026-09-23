@@ -8,7 +8,7 @@ const first = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
 const second = { id: 'mass-effect-2', title: 'Mass Effect 2' };
 const menu = (page: Page) => page.getByRole('dialog', { name: 'Menu', exact: true });
 const trigger = (page: Page) => page.getByRole('button', { name: 'Menu', exact: true });
-const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
 
 async function openMenu(page: Page) {
   await trigger(page).click();
@@ -303,7 +303,7 @@ test('Return to edit focuses the exact rejected note without relying on an inval
   await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();
   await expect(menu(page).getByRole('alert')).toContainText('Your edit has not saved');
   await note.evaluate(input => input.removeAttribute('aria-invalid'));
-  const otherRating = page.getByRole('spinbutton', { name: `Your rating for ${second.title}`, exact: true });
+  const otherRating = page.getByRole('spinbutton', { name: `Your rating / 10 for ${second.title}`, exact: true });
   await otherRating.evaluate(input => input.setAttribute('aria-invalid', 'true'));
   await menu(page).getByRole('button', { name: 'Return to edit', exact: true }).click();
   await expect(note).toBeFocused();

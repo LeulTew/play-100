@@ -72,12 +72,12 @@ test('a guest inline rating keeps its original save target while another tab res
   await page.locator('.manual-add form').getByRole('button').click();
   await expect.poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === title)).toBe(true);
   await page.locator('.wordmark').first().click();
-  await expect(page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeVisible();
   const peer = await context.newPage();
   try {
     await page.clock.install({ time: new Date('2026-09-14T12:00:00Z') });
     await page.clock.pauseAt(new Date('2026-09-14T12:00:10Z'));
-    await page.getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true }).fill('7.2');
+    await page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('7.2');
     await signIn(peer, email);
     await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(7.2);
     expect((await readAccount(peer, uid)).state.records).toEqual({});

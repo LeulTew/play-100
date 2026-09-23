@@ -150,7 +150,7 @@ for (const view of ['grid', 'list'] as const) {
     await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeFocused();
     await expect.poll(() => page.evaluate(() => window.__collectionMotionProbe.calls.length)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.__collectionMotionProbe.calls.some(call => call.containsEditor))).toBe(false);
-    const input = dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+    const input = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
     await expectStationaryEditor(input);
     await input.fill('8.75');
     await expect(input).toBeFocused();
@@ -221,7 +221,7 @@ test('nested save, selection and Pin controls never enroll a detail origin', asy
 test('direct links and next/previous preserve current-record drafts without a new motion key', async ({ page }) => {
   await page.goto(`/?game=${first.id}&catalogs=off`);
   const dialog = page.locator('.game-dialog');
-  const input = dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+  const input = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
   await expect(input).toBeVisible();
   await page.clock.install({ time: new Date('2026-09-21T08:00:00Z') });
   await page.clock.pauseAt(new Date('2026-09-21T08:00:10Z'));
@@ -234,11 +234,11 @@ test('direct links and next/previous preserve current-record drafts without a ne
   await dialog.getByRole('button', { name: 'Next game', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: second.title, exact: true })).toBeFocused();
   await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(8.25);
-  const nextInput = dialog.getByRole('spinbutton', { name: `Your rating for ${second.title}`, exact: true });
+  const nextInput = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${second.title}`, exact: true });
   await expect(nextInput).toHaveValue('');
   await nextInput.fill('4.5');
   await dialog.getByRole('button', { name: 'Previous game', exact: true }).click();
-  await expect(dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true })).toHaveValue('8.25');
+  await expect(dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true })).toHaveValue('8.25');
   await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === second.id)?.score).toBe(4.5);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -340,7 +340,7 @@ test('320px coarse detail keeps visible Pin, native artwork and reachable 44px c
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
   expect(bounds.y).toBeGreaterThanOrEqual(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const input = dialog.getByRole('spinbutton', { name: `Your rating for ${first.title}`, exact: true });
+  const input = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
   await expectStationaryEditor(input);
   await input.fill('6.25');
   await close.tap();

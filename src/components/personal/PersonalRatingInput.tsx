@@ -55,7 +55,7 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
   return (
     <>
       <label className="personal-score">Your rating / 10<input ref={input} type="number" inputMode="decimal" min="0" max="10" step="any"
-        value={draft} placeholder="—" disabled={busy} aria-label={`Your rating for ${title}`}
+        value={draft} placeholder="—" disabled={busy} aria-label={`Your rating / 10 for ${title}`}
         aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
         onChange={(event) => {
           if (!edited) commit.current = onCommit;

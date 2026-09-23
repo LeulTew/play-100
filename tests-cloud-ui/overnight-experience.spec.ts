@@ -214,7 +214,7 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await card(page).getByRole('button', { name: 'Add to ranking', exact: true }).click();
   await page.goto('/my-rankings');
   await expect(tab(page, 'Ranking')).toHaveAttribute('aria-current', 'page');
-  await row(page).getByRole('spinbutton', { name: `Your rating for ${title}`, exact: true }).fill('8.4');
+  await row(page).getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('8.4');
   await tab(page, 'Library').click();
   await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === kcd)?.score).toBe(8.4);
   await tab(page, 'Ranking').click();

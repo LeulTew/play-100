@@ -116,7 +116,7 @@ test('changing a family cannot discard an invalid pending rating or replace its 
   await openBrowsingFilters(page);
   const card = page.locator('[data-catalog-id="red-dead-redemption-2"]');
   await card.getByText('Actions & source', { exact: true }).click();
-  const rating = card.getByRole('spinbutton', { name: 'Your rating for Red Dead Redemption 2', exact: true });
+  const rating = card.getByRole('spinbutton', { name: 'Your rating / 10 for Red Dead Redemption 2', exact: true });
   await rating.fill('11');
   const before = await readLibrary(page);
   const url = page.url();

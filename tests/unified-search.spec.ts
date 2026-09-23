@@ -18,7 +18,7 @@ async function mockGames(page: Page) {
 }
 
 async function rate(page: Page, record: LibraryRecord, value: string) {
-  await row(page, record).getByRole('spinbutton', { name: `Your rating for ${record.title}`, exact: true }).fill(value);
+  await row(page, record).getByRole('spinbutton', { name: `Your rating / 10 for ${record.title}`, exact: true }).fill(value);
   await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score).toBe(value ? Number(value) : null);
 }
 
@@ -108,8 +108,8 @@ test('search ratings preserve manual ranking slots and notes while played and ra
   const peer = await context.newPage();
   await peer.goto('/my-rankings');
   await row(page, b).getByRole('spinbutton').focus();
-  await peer.getByRole('spinbutton', { name: `Your rating for ${b.title}`, exact: true }).fill('8');
-  await peer.getByRole('spinbutton', { name: `Your rating for ${b.title}`, exact: true }).press('Tab');
+  await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${b.title}`, exact: true }).fill('8');
+  await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${b.title}`, exact: true }).press('Tab');
   await expect(row(page, b).getByRole('spinbutton')).toHaveValue('8');
   await peer.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(peer)).progress[a.id]?.played).toBe(true);
