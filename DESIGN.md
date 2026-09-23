@@ -121,7 +121,7 @@ Control-specific hover and destructive colors remain component variants, not an 
 
 ## Typography
 
-Barlow Condensed supplies the compact, box-art display voice; Hanken Grotesk Variable carries body text and controls. The original artifact SVG still declares `"Hanken Grotesk", sans-serif`; do not mistake that local fallback for the root body stack.
+Barlow Condensed supplies the compact, box-art display voice; Hanken Grotesk Variable carries body text and controls. The decorative artifact SVG uses non-text print marks, with readable captions outside the scaled illustration.
 
 Use the extracted display roles rather than an oversized generic hero: desktop tops out at the documented display maximum, mobile uses `display-mobile`, and widths up to 380px use `display-compact`. Intermediate layouts also reduce the headline. The compact role changes size only; it retains the display weight, tracking and line height.
 
@@ -166,6 +166,11 @@ On touch/coarse-pointer devices, **Auto** starts the real 3D scene only when the
 visitor requests the fan interaction; **Full** still starts it automatically.
 The original illustration stays useful before activation. This is a device
 performance policy, not a benchmark-specific or user-agent exception.
+
+Lite, system reduced motion, resource-saving Auto and a failed WebGL scene show
+the settled illustration without a Fan out control. Eligible touch Auto keeps
+the explicit Fan out action that starts 3D; unavailable rendering never leaves
+an interactive promise behind.
 
 ## Shapes
 

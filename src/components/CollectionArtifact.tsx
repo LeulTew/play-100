@@ -46,8 +46,10 @@ export default function CollectionArtifact({
   const [requested, setRequested] = useState(false);
   const [state, setState] = useState<SceneState>({ ready: false, status: 'waiting', reason: null });
   const motionReduced = reducedMotion || systemReduced;
+  const motionAllowed = !motionReduced && quality !== 'lite' && (quality === 'full' || !constrained);
   const needsInteraction = quality === 'auto' && coarsePointer && !requested;
-  const canRender = !motionReduced && quality !== 'lite' && (quality === 'full' || !constrained) && !needsInteraction;
+  const canRender = motionAllowed && !needsInteraction;
+  const canInteract = motionAllowed && state.status !== 'fallback';
   const sceneQuality = quality === 'full' ? 'full' : 'auto';
 
   useEffect(() => {
@@ -218,12 +220,12 @@ export default function CollectionArtifact({
       className="collection-artifact"
       data-render-mode={renderMode}
       data-scene-status={status}
-      data-fanned={fanned}
-      data-activation={needsInteraction ? 'on-demand' : 'automatic'}
+      data-fanned={canInteract && fanned}
+      data-activation={canInteract ? needsInteraction ? 'on-demand' : 'automatic' : 'static'}
       aria-describedby={captionId}
     >
       <div ref={stageRef} className="artifact-stage" aria-hidden="true">
-        <ArtifactStill fanned={fanned} />
+        <ArtifactStill fanned={canInteract && fanned} />
         <div ref={hostRef} className="artifact-canvas" />
       </div>
       <figcaption className="artifact-footer">
@@ -231,7 +233,7 @@ export default function CollectionArtifact({
           <span className="artifact-caption-title">Good things, collected.</span>
           <span className="artifact-status" role="status" aria-live="polite">{explanation}</span>
         </div>
-        <button
+        {canInteract && <button
           type="button"
           className="artifact-control"
           onClick={() => { setRequested(true); setFanned((value) => !value); }}
@@ -243,7 +245,7 @@ export default function CollectionArtifact({
               : <path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" />}
           </svg>
           {fanned ? 'Stack up' : 'Fan out'}
-        </button>
+        </button>}
       </figcaption>
     </figure>
   );
