@@ -211,7 +211,15 @@ async function openFixture(touch = false, width = 1280) {
   });
   await page.goto(`${origin}/__compare-source-test`);
   await browserExpect(page.locator('#source-title')).toBeVisible();
-  await browserExpect(page.locator('.compare-drag-handle')).toBeEnabled();
+  if (touch) {
+    await browserExpect(page.locator('.compare-drag-handle')).toBeHidden();
+    await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('aria-hidden', 'true');
+    await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('tabindex', '-1');
+    await browserExpect(page.locator('#source-controls > button[aria-pressed]')).toBeEnabled();
+  } else {
+    await browserExpect(page.locator('.compare-drag-handle')).toBeVisible();
+    await browserExpect(page.locator('.compare-drag-handle')).toBeEnabled();
+  }
 }
 
 beforeEach(async () => {
@@ -403,15 +411,15 @@ describe('Compare source browser contract', () => {
     }
   });
 
-  it('keeps a coarse tap and pre-hold vertical pan native, including the 320px grip target', async () => {
+  it('keeps a coarse tap and pre-hold vertical pan native, including the 320px dedicated Pin target', async () => {
     await context.close();
     await openFixture(true, 320);
     await page.locator('#source-title').tap();
     expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(1);
-    const grip = await page.locator('.compare-drag-handle').boundingBox();
-    if (!grip) throw new Error('The visible coarse Compare grip is missing.');
-    expect(grip.width).toBeGreaterThanOrEqual(44);
-    expect(grip.height).toBeGreaterThanOrEqual(44);
+    const pin = await page.locator('#source-controls > button[aria-pressed]').boundingBox();
+    if (!pin) throw new Error('The visible dedicated Compare Pin is missing.');
+    expect(pin.width).toBeGreaterThanOrEqual(44);
+    expect(pin.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const title = await page.locator('#source-title').boundingBox();
     if (!title) throw new Error('The pan source title is missing.');
@@ -433,21 +441,27 @@ describe('Compare source browser contract', () => {
     it.each(['icon center', 'button padding'] as const)(`uses the native touch %s as Pin only and preserves the next title tap at ${width}px`, async target => {
       await context.close();
       await openFixture(true, width);
-      const grip = page.locator('.compare-drag-handle');
-      await browserExpect(grip).toHaveAccessibleName('Pin Manual fixture title to the Compare tray');
-      await browserExpect(grip).toHaveAttribute('title', 'Pin to the Compare tray');
-      expect(await grip.evaluate(node => getComputedStyle(node).touchAction)).toBe('manipulation');
-      const box = await grip.boundingBox();
+      const pin = page.locator('#source-controls > button[aria-pressed]');
+      await browserExpect(pin).toHaveAccessibleName('Pin Manual fixture title for comparison');
+      await browserExpect(pin).toHaveAttribute('title', 'Pin for comparison');
+      expect(await pin.evaluate(node => getComputedStyle(node).touchAction)).toBe('manipulation');
+      const box = await pin.boundingBox();
       expect(box?.width).toBeGreaterThanOrEqual(44);
       expect(box?.height).toBeGreaterThanOrEqual(44);
       await observePinInput();
       const cdp = await context.newCDPSession(page);
       try {
-        await nativeTouchTap(cdp, target === 'icon center' ? grip.locator('svg') : grip, target === 'button padding');
+        await nativeTouchTap(cdp, target === 'icon center' ? pin.locator('svg') : pin, target === 'button padding');
         await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+        expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
+        await browserExpect(pin).toHaveAttribute('aria-pressed', 'true');
         await nativeTouchTap(cdp, page.locator('#source-title'));
         await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(1);
-        await nativeTouchTap(cdp, grip, true);
+        await nativeTouchTap(cdp, pin, true);
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+        await browserExpect(pin).toHaveAttribute('aria-pressed', 'false');
+        await nativeTouchTap(cdp, pin, true);
+        await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
         await nativeTouchTap(cdp, page.locator('#source-title'));
         await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(2);
         expect(await page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
@@ -457,18 +471,20 @@ describe('Compare source browser contract', () => {
         expect(receipt.events.some(event => event.type === 'click' && event.trusted && event.pointerType === 'touch')).toBe(true);
         expect(receipt.events.filter(event => event.type.startsWith('pointer')).every(event => !event.prevented)).toBe(true);
         await browserExpect(page.locator('.compare-drag-ghost,[data-compare-dragging]')).toHaveCount(0);
+        await browserExpect(page.locator('#rating')).toHaveValue('7');
+        await browserExpect(page.locator('#note')).toHaveValue('Keep this private draft');
       } finally { await cdp.detach(); }
     });
 
-    it(`keeps a native pan from the Pin handle back to page top and the next title tap at ${width}px`, async () => {
+    it(`keeps a native pan from the dedicated Pin back to page top and the next title tap at ${width}px`, async () => {
       await context.close();
       await openFixture(true, width);
       await observePinInput();
       await page.evaluate(() => window.scrollTo({ top: 100, behavior: 'instant' }));
       await browserExpect.poll(() => page.evaluate(() => scrollY)).toBe(100);
-      const grip = await page.locator('.compare-drag-handle').boundingBox();
-      if (!grip) throw new Error('The native Pin handle is missing.');
-      const start = { x: grip.x + grip.width / 2, y: grip.y + grip.height / 2 };
+      const pin = await page.locator('#source-controls > button[aria-pressed]').boundingBox();
+      if (!pin) throw new Error('The native dedicated Pin is missing.');
+      const start = { x: pin.x + pin.width / 2, y: pin.y + pin.height / 2 };
       const cdp = await context.newCDPSession(page);
       let held = false;
       try {
@@ -487,6 +503,8 @@ describe('Compare source browser contract', () => {
         expect(receipt.ghosts).toBe(0);
         expect(receipt.sourceActivations).toBe(0);
         await browserExpect(page.locator('.compare-drag-ghost,.compare-tray-dock')).toHaveCount(0);
+        await browserExpect(page.locator('#rating')).toHaveValue('7');
+        await browserExpect(page.locator('#note')).toHaveValue('Keep this private draft');
       } finally {
         try { if (held) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }); }
         finally { await cdp.detach(); }
