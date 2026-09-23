@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 test('table rows expose the same bounded metadata-only comparison path', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await installGuestLibrary(page, libraryFixture(0));
   await page.goto('/?view=table&catalogs=off');
   await expect(page.locator('.ratings-table tbody tr')).toHaveCount(24);
   await expect(page.locator('.table-progress button[aria-label^="Pin "]')).toHaveCount(24);
