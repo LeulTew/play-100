@@ -108,7 +108,7 @@ test('play queue reorders by keyboard and accessible arrows, then survives reloa
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([first, second, third]);
   await page.reload();
   await expect(page.locator('.personal-row').first()).toHaveAttribute('data-record-id', first);
-  await page.getByRole('searchbox', { name: 'Search your library' }).fill('Mass');
+  await page.getByRole('searchbox', { name: 'Search your queue' }).fill('Mass');
   await expect(page.locator('.personal-row')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Drag Mass Effect 2 to reorder your queue', exact: true })).toBeDisabled();
   expect(new URL(page.url()).searchParams.has('q')).toBe(false);
