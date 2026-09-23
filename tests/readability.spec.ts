@@ -59,8 +59,11 @@ async function surfaces(page: Page, spacing = false) {
   await expect(page.locator('#about-title')).toBeVisible();
   await audit('About');
   await closeDialog(page);
-  await page.goto(`/discover?catalogs=off&q=${encodeURIComponent(providerRecord.title)}`);
+  await page.goto('/discover?catalogs=off');
   if (spacing) await page.addStyleTag({ content: textSpacingCSS });
+  await expect(page.locator('.discovery-cards > li')).toHaveCount(24);
+  await audit('Discover catalog');
+  await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill(providerRecord.title);
   const card = page.locator('.discovery-card').filter({ has: page.getByRole('button', { name: providerRecord.title, exact: true }) });
   await expect(card).toHaveCount(1);
   await audit('Discover with provider result');
