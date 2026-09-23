@@ -50,7 +50,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         <div className="detail-place"><span>#{String(game.rank).padStart(2, '0')} in the collection</span><span>{game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span></div>
         <h2 id="game-title" tabIndex={-1} data-autofocus>{game.title}</h2>
         <p className="detail-byline">{game.year}<span> / </span>{game.studio}</p>
-        <div className="author-rating-detail"><div><strong>{author.shortName}'s original rating</strong><p>Workbook rank-based rating.</p></div><span title={game.authorRating?.rawValue}>{authorRatingText(game.authorRating)}{game.authorRating && <small> / 10</small>}</span></div>
+        <div className="author-rating-detail"><div><strong>{author.shortName}'s original rating</strong><p>Original workbook score, based on the game's rank.</p></div><span title={game.authorRating?.rawValue}>{authorRatingText(game.authorRating)}{game.authorRating && <small> / 10</small>}</span></div>
         <div className="detail-cover" ref={artworkRef}><GameCover key={game.slug} game={game} large eager /></div>
         <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
         {game.slug === 'hitman-world-of-assassination' && <p className="source-note">Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.</p>}

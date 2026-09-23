@@ -7,6 +7,7 @@ import { createSearch, defaultFilters } from '../../lib/url';
 import type { Game } from '../../lib/types';
 import { GameCard } from '../GameCard';
 import { GameDetail } from '../GameDetail';
+import { AboutDialog } from '../AboutDialog';
 import RatingsTable from '../RatingsTable';
 import coverMetadata from '../../generated/cover-metadata.json';
 import * as compareSource from '../compare-tray/useCompareDragSource';
@@ -57,6 +58,8 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('data-motion-owned');
     expect(html).toContain('9.9696969696969688');
     expect(html).toContain("Leul&#x27;s original rating");
+    expect(html).toContain('Original workbook score, based on the game&#x27;s rank.');
+    expect(html).not.toContain('Workbook rank-based rating.');
     expect(html).toContain('Workbook snapshot. Not live or independently verified.');
     expect(html).toContain(`aria-label="Your rating for ${game.title}"`);
     expect(html).toContain('value="4.25"');
@@ -65,6 +68,13 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html.match(/<img\b/g)).toHaveLength(1);
     expect(html).toContain(`width="${dimensions[game.slug]?.width}" height="${dimensions[game.slug]?.height}"`);
     expect(onRate).not.toHaveBeenCalled();
+  });
+
+  it('explains source ratings plainly without changing their precision or personal boundary', () => {
+    const html = renderToStaticMarkup(h(AboutDialog, { onClose: vi.fn() }));
+    expect(html).toContain('original workbook scores, based on each game&#x27;s rank');
+    expect(html).toContain('including rounded or text-based results, rather than recalculating them');
+    expect(html).toContain('never prefilled');
   });
 
   it('retains source caveats instead of changing facts to improve a transition', () => {
