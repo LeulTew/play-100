@@ -49,15 +49,8 @@ export default defineConfig(({ mode }) => {
           })),
           { tag: 'link', attrs: { rel: 'preload', href: '/data/collection.json', as: 'fetch', type: 'application/json', crossorigin: 'anonymous' } },
         ];
-        if (siteOrigin) tags.push(
-          { tag: 'link', attrs: { rel: 'canonical', href: `${siteOrigin}/` } },
-          { tag: 'meta', attrs: { property: 'og:url', content: `${siteOrigin}/` } },
-          { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
-          { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
-          { tag: 'meta', attrs: { property: 'og:image:alt', content: 'Play 100. Good games. Great escapes. One hundred games worth making time for.' } },
-        );
         return {
-          html: siteOrigin ? html.replace('content="/social-card.png"', `content="${siteOrigin}/social-card.png"`) : html,
+          html: siteOrigin ? html.replaceAll('https://play-100-collection.vercel.app', siteOrigin) : html,
           tags,
         };
       },
