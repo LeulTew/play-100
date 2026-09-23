@@ -30,11 +30,33 @@ test('an 800ms Settings chunk retains the Menu and its focus, then opens the rea
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
   const trigger = menu.getByRole('button', { name: 'Settings & backups', exact: true });
-  await trigger.click();
-  await expect(menu).toBeVisible();
-  await expect(trigger).toBeFocused();
-  await expect(menu.getByRole('status')).toContainText('Opening Settings...');
-  await expect(menu.getByRole('status')).toBeVisible();
+  const notice = await menu.evaluateHandle(dialog => {
+    const observation = { visible: false, focused: false, pageToast: false };
+    const observer = new MutationObserver(() => {
+      const status = dialog.querySelector<HTMLElement>('[role="status"]');
+      if (!status?.textContent?.includes('Opening Settings...') || !dialog.matches('[open]') ||
+        status.closest('[inert], [hidden]') || status.getClientRects().length === 0 ||
+        getComputedStyle(status).visibility !== 'visible') return;
+      observation.visible = true;
+      observation.focused = dialog.contains(document.activeElement) &&
+        document.activeElement?.textContent?.trim() === 'Settings & backups';
+      observation.pageToast = document.querySelector('.toast')?.textContent?.includes('Opening Settings...') ?? false;
+      observer.disconnect();
+    });
+    observer.observe(dialog, { subtree: true, childList: true, characterData: true, attributes: true });
+    return { observation, stop: () => observer.disconnect() };
+  });
+  try {
+    await trigger.click();
+    await expect(menu).toBeVisible();
+    await expect(trigger).toBeFocused();
+    await expect.poll(() => notice.evaluate(probe => probe.observation)).toEqual({
+      visible: true, focused: true, pageToast: false,
+    });
+  } finally {
+    await notice.evaluate(probe => probe.stop());
+    await notice.dispose();
+  }
   await expect(page.locator('.toast')).not.toContainText('Opening Settings...');
   await expect(page.locator('#settings-title')).toBeFocused();
   await expect(menu).toHaveCount(0);
