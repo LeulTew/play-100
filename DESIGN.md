@@ -142,6 +142,9 @@ table alone retains its labelled horizontal scroll region.
 
 **The Rank Rule.** Keep canonical rank visible; sorting changes presentation, never the displayed authored rank.
 
+Cover thumbnails are the owner's workbook art at native resolution, never enlarged.
+Higher-resolution replacements for mapped originals in `data/assets` flow through `npm run prepare:assets` without component changes.
+
 ## Layout
 
 - Desktop pairs the left-aligned introduction with the numbered dimensional stack. The sticky, ruled header has an 80px minimum height; search and actual games follow in ordinary document flow.
