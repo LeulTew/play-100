@@ -215,6 +215,17 @@ Pending-navigation and save-error
 feedback belongs inside the dialog; the underlying editor stays mounted until
 its valid edits commit. Escape cancels the transition without discarding work.
 
+Native dialogs measure scrollbar compensation before `showModal`, then lock
+the body and focus the existing heading or control once from JavaScript.
+Nested locks retain the first body's styles until the final dialog closes.
+Return-target visibility is resolved before close/unlock writes; native focus
+and required editor scrolling do not wait for visual completion. Optional motion
+measures destinations in a cancellable animation frame, while modal registration
+remains immediate. Only the inner subtree uses style containment, never layout
+or paint containment on a dialog or its motion hosts. Public catalog enrichment
+starts in a cancellable task after a frame, not in the shell's opening effect;
+closing or changing its scope cancels both queued work and existing requests.
+
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the
 same width bounds as the actual select, not on the combined label/control

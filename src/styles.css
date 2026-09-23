@@ -222,7 +222,7 @@ svg { flex-shrink: 0; }
 
 .dialog { position: fixed; border: 0; padding: 0; color: var(--ink); background: var(--paper); width: min(100% - 36px, 620px); max-width: none; max-height: calc(100dvh - 48px); border-radius: 7px; overscroll-behavior: contain; scroll-padding-block: 16px; overflow-wrap: anywhere; box-shadow: 0 16px 80px #14190f30; }
 .dialog::backdrop { background: #20231e8a; }
-.dialog-inner { position: relative; padding: 48px; min-height: 100%; }
+.dialog-inner { position: relative; padding: 48px; min-height: 100%; contain: style; }
 .dialog-close { position: absolute; top: 14px; right: 14px; z-index: 3; border-radius: 50%; background: var(--paper); }
 .dialog-close:hover { background: #e3e8d6; }
 .dialog h2 { font-family: var(--display); font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: -.018em; margin-bottom: 20px; }

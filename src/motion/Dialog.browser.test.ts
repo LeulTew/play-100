@@ -379,6 +379,7 @@ describe('native Dialog motion lifecycle', () => {
   it('keeps utility entry stable across inline options rerenders and uses current preferred focus', async () => {
     await page.getByRole('button', { name: 'Open menu', exact: true }).click();
     await browserExpect(page.locator('#utility-title')).toBeFocused();
+    await browserExpect.poll(async () => (await stats()).effects.length).toBeGreaterThan(0);
     const count = (await stats()).effects.length;
     const renders = (await stats()).renders;
     await page.locator('#utility-draft').fill('Keep this live draft');
@@ -421,7 +422,7 @@ describe('native Dialog motion lifecycle', () => {
     await page.evaluate(() => window.motionFixture.open('local'));
     await browserExpect(page.locator('#detail-title')).toBeFocused();
     await browserExpect(activeVisuals()).toHaveCount(0);
-    expect((await stats()).effects.some(effect => effect.target === 'public-target')).toBe(true);
+    await browserExpect.poll(async () => (await stats()).effects.some(effect => effect.target === 'public-target')).toBe(true);
     expect((await stats()).effects.every(effect => effect.target === 'public-target' && effect.duration <= 160)).toBe(true);
     expect((await stats()).sourceReads).toBe(0);
     expect(await page.locator('.dialog-inner').evaluate(element => getComputedStyle(element).transform)).toBe('none');
@@ -460,9 +461,11 @@ describe('native Dialog motion lifecycle', () => {
     for (let index = 0; index < 3; index += 1) {
       await page.getByRole('button', { name: 'Open game', exact: true }).click();
       await browserExpect(page.locator('#detail-title')).toBeFocused();
+      await browserExpect.poll(async () => (await stats()).effects.filter(effect => effect.target === 'sprite:enter').length).toBe(index + 1);
       await browserExpect(activeVisuals()).toHaveCount(0);
       await page.keyboard.press('Escape');
       await browserExpect(detail()).toHaveCount(0);
+      await browserExpect.poll(async () => (await stats()).effects.filter(effect => effect.target === 'sprite:return').length).toBe(index + 1);
       await browserExpect(activeVisuals()).toHaveCount(0);
     }
     const effects = (await stats()).effects;

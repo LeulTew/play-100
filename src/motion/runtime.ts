@@ -404,9 +404,26 @@ export function createMotionRuntime(
       notify('modal');
       dialogs.add(dialog);
       let entrance: MotionSession | null = null;
+      let pending: MotionSession | null = null;
       let prepared: MotionRect | null = null;
       let closed = false;
       const target = options ? options.continuity?.target.current ?? null : null;
+      const nextFrame = (work: () => void) => {
+        const session = runtime.startMotionSession({ channel: 'dialog', guard: entry?.guard });
+        pending = session;
+        if (!session) { if (entry) finishOrigin(entry); return; }
+        const frame = requestAnimationFrame(() => {
+          if (!session.isCurrent()) { session.cancel('superseded'); return; }
+          session.finish();
+          pending = null;
+          try { work(); }
+          catch {
+            if (entry) finishOrigin(entry);
+            console.error('Dialog motion failed. Native dialog behavior remains available.');
+          }
+        });
+        session.addCleanup(() => cancelAnimationFrame(frame));
+      };
       const localArrival = () => {
         if (!options || !eligible()) return;
         if (options.continuity) {
@@ -426,26 +443,31 @@ export function createMotionRuntime(
         environment.now() - entry.created <= MOTION_ORIGIN_TTL && publicTarget(target ?? null) && target) {
         entry.phase = 'open';
         entry.openedNavigation = read().location.navigationGeneration;
-        const destination = nativeSlot(dialog, slot) && imageReady(target, entry.hint.visual) ? measure(target) : null;
-        if (destination && slot) {
-          const to = fitMotionVisual(entry.hint.visual, destination);
-          entrance = fly(entry, slot, entry.start, to, 'enter');
-        } else {
-          finishOrigin(entry);
-          localArrival();
-        }
+        nextFrame(() => {
+          if (!dialog.open || !expectedOpen(entry)) { finishOrigin(entry); return; }
+          const destination = nativeSlot(dialog, slot) && imageReady(target, entry.hint.visual) ? measure(target) : null;
+          if (destination && slot) {
+            const to = fitMotionVisual(entry.hint.visual, destination);
+            entrance = fly(entry, slot, entry.start, to, 'enter');
+          } else {
+            finishOrigin(entry);
+            localArrival();
+          }
+        });
       } else {
         if (entry) finishOrigin(entry);
-        localArrival();
+        if (options && eligible()) nextFrame(localArrival);
       }
       return {
         cancel() {
           prepared = null;
+          pending?.cancel('policy');
           entrance?.cancel('policy');
           if (entry) finishOrigin(entry);
         },
         prepareClose() {
           if (closed) return;
+          pending?.cancel('unmount');
           if (entry && canReturn(entry)) {
             prepared = entry.interrupted ?? (entry.sprite ? measure(entry.sprite) : target ? measure(target) : null);
             if (prepared && !entry.interrupted && !entry.sprite) prepared = fitMotionVisual(entry.hint.visual, prepared);
@@ -455,6 +477,7 @@ export function createMotionRuntime(
         closed() {
           if (closed) return;
           closed = true;
+          pending?.cancel('unmount');
           entrance?.cancel('unmount');
           dialogs.delete(dialog);
           if (!entry || origin !== entry) return;
@@ -463,12 +486,17 @@ export function createMotionRuntime(
           if (prepared && canReturn(entry) && host?.isConnected && !dialogs.size &&
             !document.querySelector('dialog[open]') && publicTarget(source ?? null) && source &&
             imageReady(source, entry.hint.visual)) {
-            const destination = measure(source);
-            if (destination) {
-              entry.phase = 'return';
-              fly(entry, host, prepared, fitMotionVisual(entry.hint.visual, destination), 'return');
-              return;
-            }
+            const from = prepared;
+            nextFrame(() => {
+              if (!canReturn(entry) || !host.isConnected || dialogs.size || document.querySelector('dialog[open]') ||
+                !publicTarget(source) || !imageReady(source, entry.hint.visual)) { finishOrigin(entry); return; }
+              const destination = measure(source);
+              if (destination) {
+                entry.phase = 'return';
+                fly(entry, host, from, fitMotionVisual(entry.hint.visual, destination), 'return');
+              } else finishOrigin(entry);
+            });
+            return;
           }
           // StrictMode's connected teardown is not a semantic dismissal.
           if (dialog.isConnected && expectedOpen(entry)) {

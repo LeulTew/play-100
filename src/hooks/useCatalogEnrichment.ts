@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { CatalogEnrichmentSession, enrichmentRequestKey } from '../lib/catalog-enrichment-session';
+import { afterFrame } from '../lib/after-frame';
 
 export interface PublicCatalogLookup {
   online: boolean;
@@ -20,8 +21,8 @@ export function useCatalogEnrichment(id: string, lookup?: PublicCatalogLookup) {
   const scopeKey = lookup?.scopeKey ?? '';
   const key = enrichmentRequestKey({ id, allowed, online, scopeKey, connected });
   useEffect(() => {
-    session.start({ id, allowed, online, scopeKey, connected });
-    return session.cancel;
+    const cancelStart = afterFrame(() => session.start({ id, allowed, online, scopeKey, connected }));
+    return () => { cancelStart(); session.cancel(); };
   }, [id, allowed, online, scopeKey, connected, session]);
   const current = snapshot.key === key ? snapshot : { key, status: 'idle' as const, data: null, error: null, cached: false };
   return { ...current, retry: session.retry, connected };

@@ -4,32 +4,11 @@ import { Icon } from './Icon';
 import { visibleFocusTarget, visibleMenuTrigger } from '../lib/dialog-focus';
 import { useMotionController } from '../motion/useMotion';
 import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
-
-let bodyLocks = 0;
-let originalOverflow = '';
-let originalPadding = '';
+import { showLockedDialog } from './dialog-lifecycle';
 
 function runDialogMotion(work: () => void) {
   try { work(); }
   catch { console.error('Dialog motion failed. Native dialog behavior remains available.'); }
-}
-
-function lockBody() {
-  if (bodyLocks === 0) {
-    originalOverflow = document.body.style.overflow;
-    originalPadding = document.body.style.paddingRight;
-    const gap = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-  }
-  bodyLocks += 1;
-  return () => {
-    bodyLocks -= 1;
-    if (bodyLocks === 0) {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPadding;
-    }
-  };
 }
 
 interface DialogProps {
@@ -63,27 +42,26 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
     const dialog = ref.current;
     if (!dialog || !open) return;
     const previousFocus = document.activeElement;
-    dialog.showModal();
-    const unlock = lockBody();
-    dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
+    const focusTarget = dialog.querySelector<HTMLElement>('[data-autofocus]');
+    const unlock = showLockedDialog(dialog, focusTarget);
     runDialogMotion(() => {
       if (inner.current) visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
     });
     return () => {
       const ending = visual.current;
       visual.current = null;
+      const canReturnTo = (target: HTMLElement | null): target is HTMLElement =>
+        Boolean(target && !dialog.contains(target) && visibleFocusTarget(target));
+      const preferred = returnFocus.current?.() ?? null;
+      const reveal = canReturnTo(preferred);
+      const target = reveal ? preferred
+        : previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus) ? previousFocus
+        : [...document.querySelectorAll<HTMLElement>('[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]')].find(canReturnTo) ??
+          visibleMenuTrigger();
       dialog.close();
       unlock();
-      const preferred = returnFocus.current?.() ?? null;
-      if (visibleFocusTarget(preferred)) {
-        preferred.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-        preferred.focus({ preventScroll: true });
-      } else if (previousFocus instanceof HTMLElement && previousFocus !== document.body && visibleFocusTarget(previousFocus)) {
-        previousFocus.focus({ preventScroll: true });
-      } else {
-        ([...document.querySelectorAll<HTMLElement>('[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]')].find(visibleFocusTarget) ??
-          visibleMenuTrigger())?.focus({ preventScroll: true });
-      }
+      if (reveal) target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      if (target && document.activeElement !== target) target.focus({ preventScroll: true });
       controller.forgetDialog(dialog);
       runDialogMotion(() => ending?.closed());
     };
