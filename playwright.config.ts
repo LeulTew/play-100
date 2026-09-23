@@ -23,6 +23,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   workers: process.env.CI ? 2 : 3,
   retries: 0,
+  globalSetup: developmentFixtures ? './tests/dev-warmup.ts' : undefined,
   timeout: 45000,
   expect: { timeout: 10000 },
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
@@ -40,7 +41,7 @@ export default defineConfig({
     command: developmentFixtures
       ? 'npm run dev -- --port 4187 --strictPort'
       : 'npm run preview -- --port 4187 --strictPort',
-    url: 'http://127.0.0.1:4187',
+    url: developmentFixtures ? 'http://127.0.0.1:4187/src/main.tsx' : 'http://127.0.0.1:4187',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
