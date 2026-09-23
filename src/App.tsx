@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { useCollection } from './hooks/useCollection';
 import { useLibrary } from './hooks/useLibrary';
@@ -11,13 +11,6 @@ import type { AppPage, Filters } from './lib/types';
 import type { LibraryRecord, PersonalAction } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
 import { Icon } from './components/Icon';
-import CollectionPage from './components/CollectionPage';
-import { GameDetail } from './components/GameDetail';
-import { AboutDialog } from './components/AboutDialog';
-import { SettingsDialog } from './components/SettingsDialog';
-import { MenuDialog } from './components/MenuDialog';
-import { Dialog } from './components/Dialog';
-import CountUp from './components/bits/CountUp';
 import { SiteFooter } from './components/SiteFooter';
 import PwaControls from './components/PwaControls';
 import { usePwa } from './pwa';
@@ -27,9 +20,8 @@ import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR, onlineWasRequested, rememberOnli
 import type { OnlineBridge } from './cloud/ui-types';
 import { LibraryModeContext } from './lib/library-mode';
 import { flushPendingEdits, hasPendingEdits } from './hooks/useExitSave';
-import { OnlineBoundary } from './components/OnlineBoundary';
 import { captureInviteContinuation } from './lib/invite-continuation';
-import { CompareDragHandle, CompareTray, CompareTrayProvider, useCompareTray } from './components/compare-tray';
+import { CompareDragHandle, CompareTrayProvider, useCompareTray } from './components/compare-tray';
 import { useDiscoveryCatalog } from './hooks/useDiscoveryCatalog';
 import { indexDiscoveryArtwork } from './lib/discovery-catalog';
 import type { CatalogArtwork } from './lib/discovery-catalog';
@@ -50,12 +42,13 @@ import { loadCatalogDetail } from './lib/catalog-detail-preload';
 import { scheduleIdlePrefetch } from './lib/idle-prefetch';
 import { effectiveMotionPreference, readMotionHint } from './lib/motion-hint';
 import { GlobalBanners } from './components/app/GlobalBanners';
-import { RouteFallback } from './components/app/RouteFallback';
+import { useNavigationScope } from './hooks/useNavigationScope';
+import { AppHeader } from './components/app/AppHeader';
+import { MobileNav } from './components/app/MobileNav';
+import { TrayHost } from './components/app/TrayHost';
+import { RouteHost } from './components/app/RouteHost';
+import { DialogHost } from './components/app/DialogHost';
 
-const MyGamesPage = lazy(() => import('./components/personal/MyGamesPage'));
-const CatalogDetail = lazy(loadCatalogDetail);
-const DiscoverPage = lazy(() => import('./components/catalog/DiscoverPage'));
-const OnlineController = lazy(() => import('./cloud/OnlineController'));
 const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game', games: 'My games', library: 'My games - Library', rankings: 'My games - Ranking', discover: 'Discover more games', account: 'Account', community: 'Community', publish: 'Publish ranking', profile: 'A shared ranking', creator: 'Creator desk', friends: 'Friends', friend: 'Friend', invite: 'Invitation', compare: 'Compare rankings', 'friend-sharing': 'Friends sharing', 'friend-shelf': 'Shared games' };
 const noPreviewSubscription = () => () => {};
 interface PreviewedRecord { record: LibraryRecord; authority?: PreviewAuthority }
@@ -125,15 +118,7 @@ export default function App() {
   const libraryBusy = library.busy || library.status === 'loading' || onlineOpening;
   const libraryScope = online?.scope ?? 'guest';
   const headerIdentity = online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
-  const activeScope = useRef(libraryScope);
-  const scopeGeneration = useRef(0);
-  if (activeScope.current !== libraryScope) { activeScope.current = libraryScope; scopeGeneration.current += 1; }
-  const navigationGeneration = useRef(0);
-  useEffect(() => {
-    const changed = () => { navigationGeneration.current += 1; };
-    window.addEventListener('popstate', changed); window.addEventListener('play100:navigate', changed);
-    return () => { window.removeEventListener('popstate', changed); window.removeEventListener('play100:navigate', changed); };
-  }, []);
+  const { activeScope, scopeGeneration, navigationGeneration, captureFocusGuard: captureMenuFocusGuard } = useNavigationScope(libraryScope);
   const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account...' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
   const motionHint = useMemo(() => readMotionHint(libraryScope), [libraryScope]);
   const effectiveMotion = effectiveMotionPreference(library.status, library.state.motion, motionHint);
@@ -174,11 +159,6 @@ export default function App() {
       .find(usableReturnFocusTarget) ?? null;
   }, []);
   const closePanel = useCallback(() => setPanel(null), []);
-  const captureMenuFocusGuard = useCallback(() => {
-    const startedScope = scopeGeneration.current;
-    const startedNavigation = navigationGeneration.current;
-    return () => scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation;
-  }, []);
   const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({ scope: 'guest', records: new Map() });
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -222,7 +202,7 @@ export default function App() {
     const success = await saveAction(action);
     if (success && activeScope.current === libraryScope) notify(`${actionMessage(action)}${storageStatus === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`);
     return success;
-  }, [saveAction, storageStatus, notify, libraryScope, onlineOpening]);
+  }, [saveAction, storageStatus, notify, libraryScope, onlineOpening, activeScope]);
   const rememberPreview = useCallback((record: LibraryRecord, authority?: PreviewAuthority) => {
     setPreviewedRecords((previous) => {
       const known = previous.records.get(record.id);
@@ -461,50 +441,81 @@ export default function App() {
       return (
     <LibraryModeContext.Provider value={libraryMode}>
       <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>Skip to {page === 'collection' ? 'the collection' : 'page content'}</a>
-      <header className={`site-header ${ONLINE_AVAILABLE ? 'site-header-online' : ''}`}>
-        <a className="wordmark" href={pageHref('collection')} onClick={(event) => { void navigateLink(event, 'collection'); }}><span className="logo-symbol" aria-hidden="true"><span /></span>PLAY<span>100</span><i aria-hidden="true">.</i><span className="sr-only"> Home</span></a>
-        <nav className="desktop-nav" aria-label="Main navigation">
-          <a href={pageHref('collection')} aria-current={page === 'collection' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'collection'); }}>The 100</a>
-          <a href={pageHref('discover')} aria-current={page === 'discover' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'discover'); }}>Discover</a>
-          <a href={pageHref('games')} aria-current={['games', 'library', 'rankings'].includes(page) ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'games'); }}>My games</a>
-          {ONLINE_AVAILABLE && <a href={pageHref('friends')} aria-current={['friends', 'friend', 'compare', 'friend-sharing', 'friend-shelf'].includes(page) ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'friends'); }}>Friends</a>}
-        </nav>
-        <div className="header-actions">
-          <button className="saved-nav" onClick={() => navigate('library', { list: 'later' })}><Icon name="bookmark" width="19" height="19" /><span className="saved-nav-label">Play later</span><CountUp key={libraryScope} to={savedCount} animate={capabilities.animate} className="saved-count" /><span className="sr-only"> games in your queue</span></button>
-          <a className="icon-button header-download" href="/downloads/Play-100-Collection.xlsx" download aria-label="Download enhanced Excel workbook" title="Download Excel"><Icon name="download" /></a>
-          <button className="menu-nav" aria-haspopup="dialog" aria-expanded={panel === 'menu'} onClick={() => setPanel('menu')}><Icon name="menu" width="20" height="20" />Menu</button>
-          {ONLINE_AVAILABLE && <a className={`account-nav sync-${online?.status ?? 'device'}`} href="/account" aria-label={`Account${headerIdentity ? ` for ${headerIdentity.name}` : ''} ${libraryMode.label}`} title={libraryMode.label} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); void accountEntry(); } }}><span className="account-nav-avatar" aria-hidden="true">{headerIdentity ? <img src={headerIdentity.avatarSrc} width="32" height="32" alt="" draggable={false} /> : <Icon name="user" width="20" height="20" />}</span><span className="account-nav-copy"><strong>{headerIdentity?.name ?? 'Account'}</strong>{' '}<small>{libraryMode.label}</small></span></a>}
-        </div>
-      </header>
+      <AppHeader page={page} onlineAvailable={ONLINE_AVAILABLE} libraryScope={libraryScope} libraryLabel={libraryMode.label} syncStatus={online?.status ?? 'device'} headerIdentity={headerIdentity} savedCount={savedCount} animate={capabilities.animate} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onQueue={() => navigate('library', { list: 'later' })} onMenu={() => setPanel('menu')} onAccount={() => { void accountEntry(); }} />
       <GlobalBanners warning={warning} onlineConfigError={ONLINE_CONFIG_ERROR} offline={pwaEnabled && !pwa.online} offlineReady={pwa.offlineState === 'ready'} hintError={hintError} onSettings={() => setPanel('settings')} onAccount={() => { void accountEntry(); }} onDeviceOnly={() => { setHintError(''); void rememberOnlineRequest(false); }} />
       <main id="page-main" ref={mainRef}>
-        {ONLINE_AVAILABLE && (onlineRequested || cloudPage) && <OnlineBoundary onDevice={() => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); }}><Suspense fallback={cloudPage ? <RouteFallback route={page} kind="cloud-page" /> : panel === 'account' ? <RouteFallback route={page} kind="account-sheet" onClose={() => setPanel(null)} getReturnFocus={getSignInReturnFocus} /> : null}><OnlineController page={page} publicHandle={publicHandle} invitation={invitation} showSheet={panel === 'account'} guest={guestLibrary} games={games ?? []} onBridge={setOnline} onCloseSheet={() => setPanel(null)} getSignInReturnFocus={getSignInReturnFocus} onNavigate={navigate} onProfile={openProfile} onOpenRecord={preview} onShare={(title, url) => { void share(title, url, false); }} onPinRecord={pin} artwork={artwork} /></Suspense></OnlineBoundary>}
-        {cloudPage && !ONLINE_AVAILABLE ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : !cloudPage && <Suspense fallback={<RouteFallback route={page} kind="public-page" />}><div key={libraryScope}>
-          {privateLoading ? <RouteFallback route={page} kind="private-library" /> : personalPage === 'library' || personalPage === 'rankings' ? <MyGamesPage friendSharing={libraryScope !== 'guest' ? online?.friendSharing : undefined} scope={libraryScope} view={gamesView} onViewChange={changeGamesView} state={library.state} filters={filters} busy={libraryBusy} animate={capabilities.animate} onFilters={updateFilters} onAction={perform} onOpen={openGame} onDiscover={() => navigate('discover')} onBrowse={() => navigate('collection')} availableRecords={[...allRecords.values()]} persistent={library.status === 'ready'} onPublish={ONLINE_AVAILABLE ? () => navigate('publish') : undefined} onPin={pin} onUnpin={tray.unpin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : page === 'discover' ? <DiscoverPage collection={collection} state={library.state} busy={libraryBusy} onAction={perform} onLibrary={() => navigate('games')} onCommunity={ONLINE_AVAILABLE ? () => navigate('community') : undefined} onPreview={previewFromDiscover} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} /> : <CollectionPage collection={collection} state={library.state} filters={filters} busy={libraryBusy} motion={effectiveMotion} animate={capabilities.animate} reducedMotion={capabilities.reducedMotion} coarsePointer={capabilities.coarsePointer} constrained={capabilities.constrained} onFilters={updateFilters} onAction={perform} onOpen={openCollection} onPreview={previewFromDiscover} onShare={() => shareView()} onFullLibrary={() => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' })} notify={notify} onPin={pin} pinnedIds={pinnedIds} renderDragHandle={dragHandle} />}
-        </div></Suspense>}
+        <RouteHost route={page} scope={libraryScope}
+          online={ONLINE_AVAILABLE && (onlineRequested || cloudPage) ? {
+            onDevice: () => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); },
+            fallback: cloudPage ? { route: page, kind: 'cloud-page' } : panel === 'account' ? { route: page, kind: 'account-sheet', onClose: () => setPanel(null), getReturnFocus: getSignInReturnFocus } : null,
+            props: {
+              page, publicHandle, invitation, showSheet: panel === 'account', guest: guestLibrary, games: games ?? [], onBridge: setOnline,
+              onCloseSheet: () => setPanel(null), getSignInReturnFocus, onNavigate: navigate, onProfile: openProfile, onOpenRecord: preview,
+              onShare: (title, url) => { void share(title, url, false); }, onPinRecord: pin, artwork,
+            },
+          } : null}
+          content={cloudPage ? !ONLINE_AVAILABLE ? { kind: 'unconfigured' } : null : privateLoading ? { kind: 'private-library' } :
+            personalPage === 'library' || personalPage === 'rankings' ? { kind: 'personal', props: {
+              friendSharing: libraryScope !== 'guest' ? online?.friendSharing : undefined, scope: libraryScope, view: gamesView,
+              onViewChange: changeGamesView, state: library.state, filters, busy: libraryBusy, animate: capabilities.animate,
+              onFilters: updateFilters, onAction: perform, onOpen: openGame, onDiscover: () => navigate('discover'),
+              onBrowse: () => navigate('collection'), availableRecords: [...allRecords.values()], persistent: library.status === 'ready',
+              onPublish: ONLINE_AVAILABLE ? () => navigate('publish') : undefined, onPin: pin, onUnpin: tray.unpin, pinnedIds, renderDragHandle: dragHandle,
+            } } : page === 'discover' ? { kind: 'discover', props: {
+              collection, state: library.state, busy: libraryBusy, onAction: perform, onLibrary: () => navigate('games'),
+              onCommunity: ONLINE_AVAILABLE ? () => navigate('community') : undefined, onPreview: previewFromDiscover, onPin: pin, pinnedIds, renderDragHandle: dragHandle,
+            } } : { kind: 'collection', props: {
+              collection, state: library.state, filters, busy: libraryBusy, motion: effectiveMotion, animate: capabilities.animate,
+              reducedMotion: capabilities.reducedMotion, coarsePointer: capabilities.coarsePointer, constrained: capabilities.constrained,
+              onFilters: updateFilters, onAction: perform, onOpen: openCollection, onPreview: previewFromDiscover, onShare: () => shareView(),
+              onFullLibrary: () => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' }),
+              notify, onPin: pin, pinnedIds, renderDragHandle: dragHandle,
+            } }} />
       </main>
       <SiteFooter onAbout={() => setPanel('about')} onEffects={() => setPanel('settings')} effects={library.state.motion} />
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        <a href={pageHref('collection')} aria-current={page === 'collection' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'collection', {}, browse); }}><Icon name="grid" width="20" height="20" /><span>The 100</span></a>
-        <a href={pageHref('discover')} aria-current={page === 'discover' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'discover'); }}><Icon name="search" width="20" height="20" /><span>Discover</span></a>
-        <a href={pageHref('games')} aria-current={['games', 'library', 'rankings'].includes(page) && (ONLINE_AVAILABLE || gamesView !== 'ranking') ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'games'); }}><Icon name="bookmark" width="20" height="20" /><span>My games</span></a>
-        {ONLINE_AVAILABLE ? <a href={pageHref('friends')} aria-current={['friends', 'friend', 'compare', 'friend-sharing', 'friend-shelf'].includes(page) ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'friends'); }}><Icon name="user" width="20" height="20" /><span>Friends</span></a> : <a href={pageHref('rankings')} aria-current={personalPage === 'rankings' ? 'page' : undefined} onClick={(event) => { void navigateLink(event, 'rankings'); }}><Icon name="rank" width="20" height="20" /><span>Ranking</span></a>}
-        <button aria-haspopup="dialog" aria-expanded={panel === 'menu'} onClick={() => setPanel('menu')}><Icon name="menu" width="20" height="20" /><span>Menu</span></button>
-      </nav>
-      <CompareTray onCompare={(records) => { void compareGames(records); }} onPreview={preview} resolveArtwork={(record) => artwork.get(record.id)} animate={capabilities.animate} hidden={onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink)} />
-      {selectedGame && selectedPersonalRecord && !onlineOpening && <GameDetail key={`${libraryScope}:${selectedPersonalRecord.id}`} game={selectedGame} motionOrigin={origin} state={library.state.progress[selectedPersonalRecord.id]} previous={games?.[selectedGame.rank - 2]} next={games?.[selectedGame.rank]} onClose={closeGame} onOpen={openGame} onToggle={toggle} onShare={() => shareView(selectedGame.slug)} shareFeedback={notice || library.error || ''} busy={libraryBusy} played={library.state.progress[selectedPersonalRecord.id]?.played} onPlayed={value => toggle(selectedGame.slug, 'played', value)} rankingPosition={rankingPosition || null} onRank={rankSelected} personalRating={library.state.ranking.find((entry) => entry.id === selectedPersonalRecord.id)?.score ?? null} onRate={(score) => perform({ type: 'rate-game', record: selectedPersonalRecord, score })} savedCopies={<SavedCatalogCopies canonicalId={selectedGame.slug} copies={ownership.get(selectedGame.slug)} onOpen={record => openGame(record.id)} />} />}
-      {!selectedGame && selectedRecord && !onlineOpening && <Suspense fallback={null}><CatalogDetail key={`${libraryScope}:${selectedRecord.id}`} record={selectedRecord} artwork={artwork.get(selectedRecord.id)} motionOrigin={origin} publicLookup={publicLookup} saved={Boolean(library.state.records[selectedRecord.id])} progress={library.state.progress[selectedRecord.id]} rankingPosition={rankingPosition || null} rating={library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null} busy={libraryBusy} onClose={closeGame} onAction={performDetailAction} onRankings={() => navigate('rankings')} /></Suspense>}
-      {selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening && <Dialog open titleId="loading-game-title" onClose={closeGame} className="info-dialog"><h2 id="loading-game-title" data-autofocus tabIndex={-1}>Opening game...</h2><p role="status">Looking up its public catalog metadata.</p></Dialog>}
-      {awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening && <Dialog open titleId="canonical-game-error-title" onClose={closeGame} className="info-dialog"><h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>The original game could not load.</h2><p>{collection.error} Your saved records have not changed.</p><button className="button button-dark" onClick={collection.retry}>Reload The 100</button></Dialog>}
-      {selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord && <Dialog open titleId="missing-game-title" onClose={closeGame} className="info-dialog"><h2 id="missing-game-title" data-autofocus tabIndex={-1}>{page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."}</h2><p>{page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}</p><button className="button button-dark" onClick={closeGame}>Back to the collection<Icon name="arrow" /></button></Dialog>}
-      {panel === 'menu' && <MenuDialog key={libraryScope} page={page} gamesView={gamesView} filters={filters} onlineAvailable={ONLINE_AVAILABLE} creator={Boolean(!onlineOpening && online?.identity?.verified && online.creator)} onNavigate={navigate} onSettings={() => { setOfflineSettings(false); setPanel('settings'); }} onOffline={pwaEnabled ? () => { setOfflineSettings(true); setPanel('settings'); } : undefined} onAbout={() => setPanel('about')} onClose={closePanel} captureFocusGuard={captureMenuFocusGuard} />}
-      {panel === 'about' && <AboutDialog onClose={() => {
-        setPanel(null);
-        const params = new URLSearchParams(location.search);
-        if (params.has('info')) { params.delete('info'); history.replaceState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}`); }
-      }} />}
-      {panel === 'settings' && <SettingsDialog key={libraryScope} motion={library.state.motion} reducedMotion={capabilities.reducedMotion} constrained={capabilities.constrained} saved={savedCount} completed={completedCount} warning={warning} onMotion={(motion) => { void perform({ type: 'set-motion', motion }); }} onReset={library.reset} onRestore={library.restore} state={library.state} persistent={library.status === 'ready'} busy={libraryBusy} onAbout={() => setPanel('about')} onAccount={ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined} offlineControls={pwaEnabled ? <PwaControls pwa={pwa} open={offlineSettings} onUpdate={applyPwaUpdate} /> : undefined} onClose={() => setPanel(null)} />}
-      {manualLink && <Dialog open titleId="share-title" onClose={closeManualLink} className="info-dialog share-dialog"><h2 id="share-title" data-autofocus tabIndex={-1}>Good games are better shared.</h2><p>This browser couldn't share or copy automatically. Select this public link and copy it to send to a friend. Your private progress isn't included.</p><label htmlFor="share-link">Shareable link</label><input id="share-link" value={manualLink} readOnly onFocus={(event) => event.target.select()} /><button className="button button-dark" onClick={() => { const input = document.getElementById('share-link'); if (input instanceof HTMLInputElement) { input.focus(); input.select(); } }}><Icon name="copy" width="18" height="18" />Select link to copy</button></Dialog>}
+      <MobileNav page={page} personalPage={personalPage} gamesView={gamesView} onlineAvailable={ONLINE_AVAILABLE} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onBrowseLink={event => { void navigateLink(event, 'collection', {}, browse); }} onMenu={() => setPanel('menu')} />
+      <TrayHost page={page} tray={{ onCompare: records => { void compareGames(records); }, onPreview: preview, resolveArtwork: record => artwork.get(record.id), animate: capabilities.animate, hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink) }} />
+      <DialogHost page={page}
+        game={selectedGame && selectedPersonalRecord && !onlineOpening ? { key: `${libraryScope}:${selectedPersonalRecord.id}`, props: {
+          game: selectedGame, motionOrigin: origin, state: library.state.progress[selectedPersonalRecord.id],
+          previous: games?.[selectedGame.rank - 2], next: games?.[selectedGame.rank], onClose: closeGame, onOpen: openGame, onToggle: toggle,
+          onShare: () => shareView(selectedGame.slug), shareFeedback: notice || library.error || '', busy: libraryBusy,
+          played: library.state.progress[selectedPersonalRecord.id]?.played, onPlayed: value => toggle(selectedGame.slug, 'played', value),
+          rankingPosition: rankingPosition || null, onRank: rankSelected,
+          personalRating: library.state.ranking.find(entry => entry.id === selectedPersonalRecord.id)?.score ?? null,
+          onRate: score => perform({ type: 'rate-game', record: selectedPersonalRecord, score }),
+          savedCopies: <SavedCatalogCopies canonicalId={selectedGame.slug} copies={ownership.get(selectedGame.slug)} onOpen={record => openGame(record.id)} />,
+        } } : null}
+        catalog={!selectedGame && selectedRecord && !onlineOpening ? { key: `${libraryScope}:${selectedRecord.id}`, props: {
+          record: selectedRecord, artwork: artwork.get(selectedRecord.id), motionOrigin: origin, publicLookup,
+          saved: Boolean(library.state.records[selectedRecord.id]), progress: library.state.progress[selectedRecord.id],
+          rankingPosition: rankingPosition || null, rating: library.state.ranking.find(entry => entry.id === selectedRecord.id)?.score ?? null,
+          busy: libraryBusy, onClose: closeGame, onAction: performDetailAction, onRankings: () => navigate('rankings'),
+        } } : null}
+        loadingGame={Boolean(selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening)}
+        canonicalError={awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening ? { message: collection.error, retry: collection.retry } : null}
+        missingGame={Boolean(selectedSlug && !awaitingCanonicalPreview && !previewLoading && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord)}
+        onCloseGame={closeGame}
+        menu={panel === 'menu' ? { key: libraryScope, props: {
+          page, gamesView, filters, onlineAvailable: ONLINE_AVAILABLE, creator: Boolean(!onlineOpening && online?.identity?.verified && online.creator),
+          onNavigate: navigate, onSettings: () => { setOfflineSettings(false); setPanel('settings'); },
+          onOffline: pwaEnabled ? () => { setOfflineSettings(true); setPanel('settings'); } : undefined,
+          onAbout: () => setPanel('about'), onClose: closePanel, captureFocusGuard: captureMenuFocusGuard,
+        } } : null}
+        about={panel === 'about' ? { onClose: () => {
+          setPanel(null);
+          const params = new URLSearchParams(location.search);
+          if (params.has('info')) { params.delete('info'); history.replaceState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}`); }
+        } } : null}
+        settings={panel === 'settings' ? { key: libraryScope, props: {
+          motion: library.state.motion, reducedMotion: capabilities.reducedMotion, constrained: capabilities.constrained,
+          saved: savedCount, completed: completedCount, warning, onMotion: motion => { void perform({ type: 'set-motion', motion }); },
+          onReset: library.reset, onRestore: library.restore, state: library.state, persistent: library.status === 'ready', busy: libraryBusy,
+          onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
+          offlineControls: pwaEnabled ? <PwaControls pwa={pwa} open={offlineSettings} onUpdate={applyPwaUpdate} /> : undefined,
+          onClose: () => setPanel(null),
+        } } : null}
+        manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
       <div className={`toast ${notice ? 'toast-visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{notice && <><Icon name="info" width="19" height="19" /><span>{notice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><Icon name="close" width="17" height="17" /></button></>}</div>
       {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}
     </LibraryModeContext.Provider>

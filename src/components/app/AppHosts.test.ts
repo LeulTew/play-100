@@ -4,6 +4,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { GlobalBanners } from './GlobalBanners';
 import type { GlobalBannersProps } from './GlobalBanners';
 import { RouteFallback } from './RouteFallback';
+import { AppHeader } from './AppHeader';
+import { MobileNav } from './MobileNav';
+import { DialogHost } from './DialogHost';
+import type { DialogHostProps } from './DialogHost';
+
+const dialogs = (): DialogHostProps => ({
+  page: 'collection', game: null, catalog: null, loadingGame: false, canonicalError: null, missingGame: false,
+  onCloseGame: vi.fn(), menu: null, about: null, settings: null, manualShare: null,
+});
 
 const bannerProps = (): GlobalBannersProps => ({
   warning: null, onlineConfigError: null, offline: false, offlineReady: false, hintError: '',
@@ -50,6 +59,49 @@ describe('route fallback host', () => {
     expect(html).toContain(heading);
     expect(html).toContain(explanation);
     expect(html).not.toContain('<dialog');
+  });
+
+  describe('navigation and dialog hosts', () => {
+    it('retains header selectors, navigation order and verified display inputs', () => {
+      const html = renderToStaticMarkup(createElement(AppHeader, {
+        page: 'discover', onlineAvailable: true, libraryScope: 'guest', libraryLabel: 'Device only', syncStatus: 'device',
+        headerIdentity: null, savedCount: 3, animate: false, menuOpen: true,
+        pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onQueue: vi.fn(), onMenu: vi.fn(), onAccount: vi.fn(),
+      }));
+      expect(html).toMatch(/^<header class="site-header site-header-online">/);
+      expect(html).toContain('class="menu-nav" aria-haspopup="dialog" aria-expanded="true"');
+      expect(html).toContain('href="/discover" aria-current="page"');
+      expect(html.indexOf('>The 100</a>')).toBeLessThan(html.indexOf('>Discover</a>'));
+      expect(html.indexOf('>Discover</a>')).toBeLessThan(html.indexOf('>My games</a>'));
+      expect(html).toContain('aria-label="Account Device only"');
+      expect(html).toContain('class="saved-count"><span class="sr-only">3</span>');
+    });
+
+    it.each([false, true])('retains mobile online navigation choice (online=%s)', onlineAvailable => {
+      const html = renderToStaticMarkup(createElement(MobileNav, {
+        page: 'games', personalPage: 'rankings', gamesView: 'ranking', onlineAvailable, menuOpen: false,
+        pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onBrowseLink: vi.fn(), onMenu: vi.fn(),
+      }));
+      expect(html).toMatch(/^<nav class="mobile-nav" aria-label="Mobile navigation">/);
+      expect(html).toContain(onlineAvailable ? 'href="/friends"' : 'href="/rankings" aria-current="page"');
+      expect(html).not.toContain(onlineAvailable ? 'href="/rankings"' : 'href="/friends"');
+    });
+
+    it('does not mount dialogs or wrappers for inactive branches', () => {
+      expect(renderToStaticMarkup(createElement(DialogHost, dialogs()))).toBe('');
+    });
+
+    it('preserves separate missing-game scope copy and the native manual-share dialog', () => {
+      const missing = renderToStaticMarkup(createElement(DialogHost, { ...dialogs(), page: 'games', missingGame: true }));
+      expect(missing).toContain('Guest and account libraries stay separate.');
+      expect(missing).toContain('id="missing-game-title"');
+      const sharing = renderToStaticMarkup(createElement(DialogHost, {
+        ...dialogs(), manualShare: { link: 'https://example.com/?game=one', onClose: vi.fn() },
+      }));
+      expect(sharing).toContain('aria-labelledby="share-title"');
+      expect(sharing).toContain('id="share-link"');
+      expect(sharing).toContain('Your private progress isn&#x27;t included.');
+    });
   });
 
   it('keeps cold sign-in in a native dialog with its existing focus target', () => {
