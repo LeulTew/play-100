@@ -30,7 +30,7 @@ function visibleFocusTarget(target: HTMLElement | null): target is HTMLElement {
     target.getClientRects().length > 0 && getComputedStyle(target).visibility === 'visible');
 }
 
-export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onOffline, onAbout, onClose, captureFocusGuard, status = '', statusError = false, recovery }: MenuDialogProps) {
+export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onOffline, onAbout, onClose, captureFocusGuard, status = '', statusError = false, recovery: moduleRecovery }: MenuDialogProps) {
   const active = useRef(true);
   const changing = useRef(false);
   const recovery = useRef<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
@@ -94,8 +94,8 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
   return <Dialog open titleId="menu-title" onClose={close} className="menu-dialog" getReturnFocus={getReturnFocus} motion={{ preset: 'dialog', enterMs: 180 }}>
     <h2 id="menu-title" data-autofocus tabIndex={-1}>Menu</h2>
     <div className="menu-feedback">
-      <p role="status" className={!saving && status && statusError && !recovery ? 'inline-error' : undefined}>{saving ? 'Saving your open edit...' : recovery ? '' : status}</p>
-      {recovery}
+      <p role="status" className={!saving && status && statusError && !moduleRecovery ? 'inline-error' : undefined}>{saving ? 'Saving your open edit...' : moduleRecovery ? '' : status}</p>
+      {moduleRecovery}
       {error && <div role="alert"><p>{error}</p><button className="text-button" onClick={() => {
         returnToEditor.current = true;
         active.current = false;
