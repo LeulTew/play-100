@@ -3,6 +3,7 @@
   "framework": "vite",
   "trailingSlash": false,
   "buildCommand": "npm run build",
+  "installCommand": "npm ci",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/my-games", "destination": "/index.html" },
@@ -18,8 +19,6 @@
     { "source": "/__/auth/iframe", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/iframe" },
     { "source": "/__/auth/iframe.js", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/iframe.js" },
     { "source": "/__/auth/experiments.js", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/experiments.js" },
-    { "source": "/__/auth/links", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/links" },
-    { "source": "/__/auth/links.js", "destination": "https://play100-online-48823b32.firebaseapp.com/__/auth/links.js" },
     { "source": "/my-library", "destination": "/index.html" },
     { "source": "/my-rankings", "destination": "/index.html" },
     { "source": "/discover", "destination": "/index.html" },
@@ -36,9 +35,43 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://play100-online-48823b32.firebaseapp.com; frame-src 'self' https://play100-online-48823b32.firebaseapp.com https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" }
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com; frame-src 'self' https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" }
       ]
+    },
+    {
+      "source": "/social-card.png",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/social-card.svg",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/favicon.svg",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/pwa/icon-192.png",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/pwa/icon-512.png",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/pwa/icon-maskable-192.png",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/pwa/icon-maskable-512.png",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
+    },
+    {
+      "source": "/pwa/apple-touch-icon.png",
+      "headers": [{ "key": "Cross-Origin-Resource-Policy", "value": "cross-origin" }]
     },
     {
       "source": "/__/auth/:path*",

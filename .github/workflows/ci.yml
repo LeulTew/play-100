@@ -27,6 +27,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --no-audit --no-fund
+      - run: npm audit signatures
       - run: npm run lint
       - run: npx --no-install tsc -b
       - run: npm run typecheck:functions
@@ -59,6 +60,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --no-audit --no-fund
+      - run: npm audit signatures
       # Chrome is also required by the native zoom and H.264 film cases.
       - run: npx --no-install playwright install --with-deps chromium chrome
       - if: matrix.suite == 'production'
@@ -94,6 +96,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci --no-audit --no-fund
+      - run: npm audit signatures
       # Uses the local firebase-tools version pinned by package-lock.json.
       # The existing script selects demo-play100 and only Auth/Firestore.
       - run: npm run test:cloud

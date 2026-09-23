@@ -164,3 +164,70 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
 
 Stage 2 adds `social-profile.test.ts`, legacy/cap/handle/UID emulator cases,
 and scoped-cache deletion race tests. All are unrun in the source lane.
+
+## Headers, auth proxy and supply chain
+
+The main document uses COOP `same-origin` and CORP `same-origin`, without COEP.
+Source Google sign-in, linking and reauthentication use redirect methods only;
+no popup methods or window.opener flow were found. Its validated production
+authDomain is the application origin. The now-redundant firebaseapp.com origin
+is removed from main connect-src/frame-src; upstream proxy destinations and the
+separate auth-helper policy are not changed by that removal.
+
+CORP `cross-origin` overrides apply only to `/social-card.png`,
+`/social-card.svg`, `/favicon.svg`, `/pwa/icon-192.png`, `/pwa/icon-512.png`,
+`/pwa/icon-maskable-192.png`, `/pwa/icon-maskable-512.png` and
+`/pwa/apple-touch-icon.png`. These are public social/launcher assets, not account
+or API resources. The integrator must verify actual header override behavior,
+scraper image access and redirect sign-in on the intended origin.
+
+The auth proxy's static `firebase-auth-helper` nonce is an **accepted residual
+risk**, not a random per-request nonce. A GET-only hash pin would become stale
+when Google's served template changes, and POST/action behavior can vary its
+inline content; shipping that pin without owning the upstream template can
+break sign-in. No reflected injection point has been established, but the
+same-origin Google template is not an absolute protection boundary.
+The old proxy had seven fixed paths with no-store and no wildcard destinations.
+The application uses password reset/verification, not email-link sign-in:
+`sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent. The unused
+`/__/auth/links` and `/__/auth/links.js` rewrites are removed, leaving five fixed
+handler/iframe/experiment paths. Their no-store headers and separate template
+nonce/CSP remain; removal needs the integrator's auth-flow smoke checks.
+
+Vercel installs with `npm ci`; each CI dependency install is followed by
+`npm audit signatures`. Registry availability/signature failures remain real
+failures for review, not reasons to bypass integrity. This does not replace
+Dependabot, CodeQL or runtime testing.
+
+### CSP style candidate: separate acceptance gate
+
+Static source inspection found an inline noscript style in index.html and an
+inline style block in the offline fallback. Public SVG assets use presentation
+attributes, not style attributes/blocks. Application React style props, motion
+objects and dnd-kit transforms use CSSOM; Three r186's canvas path uses
+canvas.style width/height/display and a data-engine attribute. These are not
+evidence of a successful strict-CSP browser run.
+
+Firebase Auth 12.19.0 passes a style object to dynamically loaded gapi.iframes.
+The inspected public gapi api.js loader contained no literal style setAttribute/
+cssText write; platform.js contained two cssText assignments. The dynamically
+loaded iframe module is not a pinned application asset. Browser compatibility
+therefore remains uncertain and must be proved on the exact headers, including
+the sign-in sheet, redirect flow, avatars, WebGL, dialogs, drag/reorder, noscript
+and offline pages.
+
+Any removal of main `style-src 'unsafe-inline'` ships only as the separately
+identified final candidate commit. I must retain it only after an owned real
+browser records **zero CSP violations** on all required surfaces. If that proof
+fails, drop only the candidate and record the concrete remaining style source;
+do not weaken the rest of this batch or claim strict CSP passed. The separate
+Google-template helper policy is not included in that main-style removal.
+
+| Remaining rollout item | LIVE 270f compatibility / owner |
+| --- | --- |
+| H8 nonce and five helper routes | Static nonce accepted risk; unused email-link paths removed, auth smoke required |
+| H9 COOP/CORP and main auth-origin reduction | Redirect-only source compatible; verify final public headers and share-image override |
+| Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
+| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; parent/I per-IP WAF evidence required |
+| H12 npm ci/signatures | Build/CI only; no runtime account change |
+| H14 console controls | Pending parent's current console/readback evidence, including App Check |
