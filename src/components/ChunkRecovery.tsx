@@ -22,10 +22,11 @@ export function ChunkRecovery({ message, intent, label = 'Reload this page' }: {
       if (pending.current) return;
       pending.current = true;
       setBusy(true);
-      setNotice('');
+      setNotice('Checking your connection…');
       void guardedReload({ intent, isCurrent: () => active.current }).then(result => {
         if (active.current && result === 'offline') setNotice(offlineRecoveryMessage);
         if (active.current && result === 'unavailable') setNotice(unavailableRecoveryMessage);
+        if (active.current && result === 'cancelled') setNotice('');
       }).catch(error => {
         console.error('The requested reload could not start.', error);
         if (active.current) setNotice('This page could not reload. Use your browser to reload when connected.');
@@ -33,6 +34,6 @@ export function ChunkRecovery({ message, intent, label = 'Reload this page' }: {
         pending.current = false;
         if (active.current) setBusy(false);
       });
-    }}>{busy ? 'Checking connection...' : label}</button>
+    }}>{label}</button>
   </div>;
 }

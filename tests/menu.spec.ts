@@ -68,6 +68,15 @@ test.beforeEach(async ({ context, page, baseURL }) => {
       await expect(page.locator('#game-title')).toBeFocused();
       await page.keyboard.press('Escape');
       await expect(page.locator('#collection-title')).toBeFocused();
+      const footer = page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true });
+      await footer.click();
+      await expect(page.locator('#about-title')).toBeFocused();
+      await footer.evaluate(element => element.setAttribute('disabled', ''));
+      await page.locator('[data-page-heading], #collection-title, main h1').evaluateAll(headings => {
+        for (const heading of headings) heading.removeAttribute('tabindex');
+      });
+      await page.keyboard.press('Escape');
+      await expect(trigger(page)).toBeFocused();
     });
   }
   await page.emulateMedia({ reducedMotion: 'reduce' });

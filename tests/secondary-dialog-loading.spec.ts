@@ -104,12 +104,12 @@ test('an aborted Settings chunk requires an explicit connected reload and restor
   try {
     await reload.click();
     await expect.poll(() => probes).toBe(1);
-    const checking = alert.getByRole('button', { name: 'Checking connection...', exact: true });
-    await expect(checking).toHaveAttribute('aria-disabled', 'true');
-    await expect(checking).toHaveAttribute('aria-busy', 'true');
-    await expect(checking).toBeFocused();
+    await expect(alert.getByRole('status')).toHaveText('Checking your connection…');
+    await expect(reload).toHaveAttribute('aria-disabled', 'true');
+    await expect(reload).toHaveAttribute('aria-busy', 'true');
+    await expect(reload).toBeFocused();
     await expect(alert.getByRole('alert')).toHaveText("Settings didn't load.");
-    await checking.press('Enter');
+    await reload.press('Enter');
     expect(probes).toBe(1);
     expect(page.url()).toBe(original);
   } finally { releaseProbe(); }

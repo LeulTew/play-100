@@ -81,7 +81,7 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
       } else if (previousFocus instanceof HTMLElement && previousFocus !== document.body && visibleFocusTarget(previousFocus)) {
         previousFocus.focus({ preventScroll: true });
       } else {
-        ([...document.querySelectorAll<HTMLElement>('[data-page-heading], #collection-title, main h1')].find(visibleFocusTarget) ??
+        ([...document.querySelectorAll<HTMLElement>('[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]')].find(visibleFocusTarget) ??
           visibleMenuTrigger())?.focus({ preventScroll: true });
       }
       controller.forgetDialog(dialog);
