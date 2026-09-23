@@ -53,9 +53,9 @@ button.compare-drag-handle[hidden] { display: none; }
 .compare-tray-warning { margin-top: 20px; padding-block: 12px; border-block: 1px solid var(--line); font-size: 13px; }
 .compare-tray-warning .text-button { font-size: 13px; }
 html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
-body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-dock:not([data-dragging="true"]) { grid-template-columns: minmax(0, 1fr); width: fit-content; }
-body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-dock:not([data-dragging="true"]) :is(.compare-tray-stack, .compare-tray-action) { display: none; }
-body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-expand > span > span { display: block; }
+:is(.compare-tray-dock[data-compact="true"], body:has(#collection[data-empty="true"]) .compare-tray-dock):not([data-dragging="true"]) { grid-template-columns: minmax(0, 1fr); width: fit-content; }
+:is(.compare-tray-dock[data-compact="true"], body:has(#collection[data-empty="true"]) .compare-tray-dock):not([data-dragging="true"]) :is(.compare-tray-stack, .compare-tray-action) { display: none; }
+:is(.compare-tray-dock[data-compact="true"], body:has(#collection[data-empty="true"]) .compare-tray-dock) .compare-tray-expand > span > span { display: block; }
 @media (max-width: 760px) {
   :root { --compare-tray-bottom: calc(var(--mobile-nav-height, calc(66px + env(safe-area-inset-bottom, 0px))) + 12px); }
   html:has(.toast-visible):not(:has(.compare-tray-dock)) { scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--toast-height, 64px) + 16px); }
@@ -63,7 +63,7 @@ body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #coll
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-search { margin-top: 8px; }
   body:has(.compare-tray-dock[data-has-content="true"]) .collection-utilities, body:has(.compare-tray-dock[data-has-content="true"]) .collection-extra-actions { margin-bottom: 8px; }
   .compare-tray-dock { inset-inline: 10px; max-width: none; justify-content: space-between; gap: 8px; padding: 5px 8px; }
-  body:not(:has(#collection .game-card, #collection .ratings-table tbody tr, #collection .discovery-card)) .compare-tray-dock:not([data-dragging="true"]) { inset-inline-start: auto; max-width: calc(100% - 20px); }
+  :is(.compare-tray-dock[data-compact="true"], body:has(#collection[data-empty="true"]) .compare-tray-dock):not([data-dragging="true"]) { inset-inline-start: auto; max-width: calc(100% - 20px); }
   .compare-tray-expand { min-height: 48px; gap: 10px; padding-inline: 3px; }
   .compare-tray-stack { min-width: 30px; }
   .compare-tray-expand strong { font-size: 14px; }

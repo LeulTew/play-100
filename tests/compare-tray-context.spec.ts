@@ -15,6 +15,13 @@ for (const width of [320, 393, 768, 1440]) {
     }
     const dock = page.locator('.compare-tray-dock');
     await expect(dock.locator('.compare-tray-error')).toContainText('six games');
+    const failedPin = page.getByRole('button', { name: `Pin ${libraryRecords[6].title} for comparison`, exact: true });
+    await expect(failedPin).toBeFocused();
+    const failedHit = await failedPin.evaluate(element => {
+      const bounds = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+    });
+    expect(failedHit).toBe(true);
     const errorBounds = await dock.evaluate(element => {
       const dock = element.getBoundingClientRect();
       const error = element.querySelector('.compare-tray-error')!.getBoundingClientRect();

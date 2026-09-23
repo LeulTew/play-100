@@ -125,7 +125,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
         </div>
         <div className="hero-art"><CollectionArtifact quality={motion} reducedMotion={reducedMotion} constrained={constrained} /></div>
       </section>}
-      <section className="collection-section" id="collection" aria-labelledby="collection-title">
+      <section className="collection-section" id="collection" aria-labelledby="collection-title" data-empty={collection.status === 'ready' && resultRecords.length === 0}>
         {collection.status === 'ready' ? <>
           {!collection.data.collection.authorRatingsAreOriginal && <div className="source-version-notice" role="status"><p>This cached collection does not include {author.shortName}'s original ratings yet. No substitute values are shown.</p><button className="text-button" onClick={collection.retry}>Refresh original ratings<Icon name="arrow" width="16" height="16" /></button></div>}
           <CollectionControls games={collection.data.games} filters={filters} count={resultRecords.length} addedCount={additions.length} unrankedCount={extraResults.length} extraRecords={extras} onlineScope={onlineScope} searching={online.loading} savedCount={savedCount} completedCount={completedCount} onChange={onFilters} onShare={onShare} selecting={selecting} onSelectMode={() => { setSelecting((value) => !value); setSelected(new Set()); }} onFullLibrary={onFullLibrary} />

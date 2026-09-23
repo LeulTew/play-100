@@ -15,6 +15,7 @@ export interface CompareTrayProps {
   resolveArtwork?: (record: LibraryRecord) => GameArtworkProps['artwork'];
   animate?: boolean;
   hidden?: boolean;
+  compact?: boolean;
 }
 
 export function CompareTray(props: CompareTrayProps) {
@@ -22,7 +23,7 @@ export function CompareTray(props: CompareTrayProps) {
   return <ScopedCompareTray key={currentScope} {...props} />;
 }
 
-function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = false, hidden = false }: CompareTrayProps) {
+function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = false, hidden = false, compact = false }: CompareTrayProps) {
   const { items, unpin, clear, dismissError, warning, error, persistent, dragging } = useCompareTray();
   const controller = useContext(CompareDragSourceContext);
   const [open, setOpen] = useState(false);
@@ -59,6 +60,14 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
       }
     };
     measure();
+    const focused = document.activeElement;
+    if (error && node && focused instanceof HTMLElement && focused.closest('.game-card, .discovery-card, .ratings-table, .personal-records')) {
+      const target = focused.getBoundingClientRect();
+      const obstruction = node.getBoundingClientRect();
+      if (target.bottom > obstruction.top && target.top < obstruction.bottom && target.right > obstruction.left && target.left < obstruction.right) {
+        focused.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      }
+    }
     const observer = new ResizeObserver(measure);
     [header, navigation, toast, node].forEach(element => { if (element) observer.observe(element); });
     node?.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark').forEach(element => observer.observe(element));
@@ -66,7 +75,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
       observer.disconnect();
       for (const property of ['--compare-tray-height', '--site-header-height', '--mobile-nav-height', '--toast-height']) root.style.removeProperty(property);
     };
-  }, [hasTray, hidden, error, warning]);
+  }, [hasTray, hidden, compact, error, warning]);
   useEffect(() => {
     const onVisibility = () => setDocumentVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
@@ -87,7 +96,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   };
   return <>
     {hasContent && !hidden && <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />}
-    {hasTray && !hidden && <aside ref={dockRef} className="compare-tray-dock" aria-label="Pinned games for comparison" data-animate={animate && documentVisible ? 'true' : 'false'} data-dragging={dragging} data-has-content={hasContent}
+    {hasTray && !hidden && <aside ref={dockRef} className="compare-tray-dock" aria-label="Pinned games for comparison" data-compact={compact} data-animate={animate && documentVisible ? 'true' : 'false'} data-dragging={dragging} data-has-content={hasContent}
       onDragOver={(event) => controller?.nativeOver(event.nativeEvent)}
       onDrop={(event) => controller?.nativeDrop(event.nativeEvent)}>
       {dragging && <span className="compare-tray-drop-label"><Icon name="plus" width="20" height="20" />Drop to pin for comparison</span>}
