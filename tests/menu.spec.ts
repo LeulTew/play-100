@@ -51,6 +51,25 @@ test.beforeEach(async ({ context, page, baseURL }) => {
     if (url.pathname === '/api/catalog') return route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } });
     return route.continue();
   });
+
+  for (const width of [390, 1280]) {
+    test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the heading`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/?catalogs=off');
+      for (const name of ['Settings & backups', 'About & credits']) {
+        await openMenu(page);
+        await menu(page).getByRole('button', { name, exact: true }).click();
+        await expect(page.locator(name === 'About & credits' ? '#about-title' : '#settings-title')).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(trigger(page)).toBeVisible();
+        await expect(trigger(page)).toBeFocused();
+      }
+      await page.goto(`/?game=${first.id}&catalogs=off`);
+      await expect(page.locator('#game-title')).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#collection-title')).toBeFocused();
+    });
+  }
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 

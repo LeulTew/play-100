@@ -27,14 +27,15 @@ interface SettingsDialogProps {
   status?: string;
   statusError?: boolean;
   recovery?: ReactNode;
+  getReturnFocus?: () => HTMLElement | null;
 }
 
-export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount, offlineControls, status = '', statusError = false, recovery }: SettingsDialogProps) {
+export function SettingsDialog({ motion, reducedMotion, constrained, saved, completed, warning, onMotion, onReset, onClose, state, persistent, busy, onRestore, onAbout, onAccount, offlineControls, status = '', statusError = false, recovery, getReturnFocus }: SettingsDialogProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const mode = useLibraryMode();
   return (
-    <Dialog open titleId="settings-title" onClose={onClose} className="info-dialog settings-dialog" motion={{ preset: 'dialog', enterMs: 160 }}>
+    <Dialog open titleId="settings-title" onClose={onClose} getReturnFocus={getReturnFocus} className="info-dialog settings-dialog" motion={{ preset: 'dialog', enterMs: 160 }}>
       <h2 id="settings-title" data-autofocus tabIndex={-1}>Make it<br />your speed.</h2>
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
       <div role="status">{status && !recovery && <p className={status && statusError ? 'inline-error' : undefined}>{status}</p>}</div>

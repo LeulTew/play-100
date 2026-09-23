@@ -86,12 +86,36 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
   } finally { release(); }
 });
 
-test('failed disclosure code shows the existing recovery path instead of silently omitting the details', async ({ page }) => {
-  await page.route(bodyModule, route => route.abort('failed'));
+test('failed disclosure code keeps its public shell and restores all details only after explicit reload', async ({ page }) => {
+  let modules = 0;
+  const dataRequests: string[] = [];
+  page.on('request', request => {
+    if (/\/(?:api\/|data\/)|googleapis\.com|firebaseio\.com|\/sw\.js/.test(request.url())) dataRequests.push(request.url());
+  });
+  await page.route(bodyModule, route => ++modules === 1 ? route.abort('failed') : route.continue());
   await page.goto('/data-use');
-  await expect(page.getByRole('heading', { name: "Let's get you back to the games.", exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Reload the collection', exact: true })).toBeVisible();
+  await expect(page.locator('.site-header')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Data use', exact: true })).toBeVisible();
+  await expect(page.locator('#data-use').getByRole('alert')).toHaveText("This page didn't load.");
+  await expect(page.locator('.app-error')).toHaveCount(0);
+  await expect(page.locator('#data-use h2')).toHaveCount(0);
   expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
+  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0);
+  expect(modules).toBe(1);
+  await page.route('**/*', route => route.request().method() === 'HEAD'
+    ? route.fulfill({ status: 200 }) : route.fallback());
+  await Promise.all([
+    page.waitForEvent('framenavigated', frame => frame === page.mainFrame()),
+    page.getByRole('button', { name: 'Reload this page', exact: true }).click(),
+  ]);
+  await expect(page.locator('#data-use h2')).toHaveCount(9);
+  await expect(page.locator('.site-header')).toBeVisible();
+  expect(modules).toBe(2);
+  expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
+  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0);
+  const publicCollectionPreload = new URL('/data/collection.json', page.url()).href;
+  expect(dataRequests.filter(url => url !== publicCollectionPreload)).toEqual([]);
+  expect(dataRequests.length).toBeLessThanOrEqual(2);
 });
 
 test('explicit offline preparation retains the unvisited disclosure body in the public core', async ({ page, context }) => {

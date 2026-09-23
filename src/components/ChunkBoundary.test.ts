@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ChunkBoundary } from './ChunkBoundary';
 import { ModuleLoadFailure } from '../lib/chunk-recovery';
 
@@ -20,5 +20,13 @@ describe('local lazy-module containment', () => {
     const bug = new Error('Invalid render state');
     boundary.state = ChunkBoundary.getDerivedStateFromError(bug);
     expect(() => boundary.render()).toThrow(bug);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      boundary.componentDidCatch(bug);
+      expect(log).not.toHaveBeenCalled();
+      const failure = new ModuleLoadFailure(bug);
+      boundary.componentDidCatch(failure);
+      expect(log).toHaveBeenCalledWith('An app module did not load.', failure);
+    } finally { log.mockRestore(); }
   });
 });

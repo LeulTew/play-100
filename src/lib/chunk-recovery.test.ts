@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { guardedReload, isModuleLoadFailure, ModuleLoadFailure } from './chunk-recovery';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 function fixture(online = true) {
   const replace = vi.fn();
@@ -36,7 +36,7 @@ describe('explicit module recovery', () => {
     const { replace, fetch } = fixture();
     if (kind === 'network') fetch.mockRejectedValueOnce(new Error('offline'));
     else fetch.mockResolvedValueOnce({ ok: false });
-    expect(await guardedReload()).toBe('offline');
+    expect(await guardedReload()).toBe(kind === 'status' ? 'unavailable' : 'offline');
     expect(replace).not.toHaveBeenCalled();
   });
   it('cancels a probe after unmount or navigation', async () => {
@@ -74,5 +74,27 @@ describe('explicit module recovery', () => {
     });
     expect(await guardedReload()).toBe('offline');
     expect(replace).not.toHaveBeenCalled();
+  });
+  it('supports successful probes without AbortSignal.timeout and clears the fallback timer', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('AbortSignal', {});
+    const { replace } = fixture();
+    expect(await guardedReload()).toBe('navigating');
+    expect(replace).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('aborts a stalled fallback probe at five seconds and clears its timer', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('AbortSignal', {});
+    const { fetch, replace } = fixture();
+    fetch.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      const options = vi.mocked(globalThis.fetch).mock.calls[0]?.[1];
+      options?.signal?.addEventListener('abort', () => reject(new Error('Aborted')), { once: true });
+    }));
+    const result = guardedReload();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(await result).toBe('offline');
+    expect(replace).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

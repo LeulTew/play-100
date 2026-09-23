@@ -15,6 +15,7 @@ import { SiteFooter } from './components/SiteFooter';
 import { useAppPanel } from './hooks/useAppPanel';
 import { ChunkRecovery } from './components/ChunkRecovery';
 import { isModuleLoadFailure } from './lib/chunk-recovery';
+import { visibleMenuTrigger } from './lib/dialog-focus';
 import { usePwa } from './pwa';
 import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
@@ -128,7 +129,7 @@ export default function App() {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
-  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage } = useAppPanel(libraryScope);
+  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage, panelFromMenu } = useAppPanel(libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled });
@@ -441,6 +442,7 @@ export default function App() {
   const panelRecovery = panelFailure && <ChunkRecovery key={panelFailure} message={panelFailure === 'about' ? "Credits didn't load." : "Settings didn't load."}
     intent={panelFailure === 'about' ? 'credits' : 'settings'}
     label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'} />;
+  const toastRecovery = !panel && !manualLink && !selectedSlug && panelRecovery;
 
   return (
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
@@ -520,7 +522,7 @@ export default function App() {
           onAbout: () => setPanel('about'), onClose: closePanel, captureFocusGuard: captureMenuFocusGuard,
           status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
         } } : null}
-        about={panel === 'about' ? { onClose: () => setPanel(null) } : null}
+        about={panel === 'about' ? { onClose: () => setPanel(null), getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined } : null}
         settings={panel === 'settings' ? { key: libraryScope, props: {
           motion: library.state.motion, reducedMotion: capabilities.reducedMotion, constrained: capabilities.constrained,
           saved: savedCount, completed: completedCount, warning, onMotion: motion => { void perform({ type: 'set-motion', motion }); },
@@ -528,6 +530,7 @@ export default function App() {
           onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
           onClose: () => setPanel(null),
           status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
+          getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined,
         } } : null}
         offlineSettings={pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined}
         panelNotice={!panel && !manualLink && selectedSlug && (panelMessage || panelRecovery) ? {
@@ -535,7 +538,7 @@ export default function App() {
           content: panelRecovery || <p role="status">{panelMessage}</p>, onClose: closePanel,
         } : null}
         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
-      <div className={`toast ${visibleNotice ? 'toast-visible' : ''}`} role={panelRecovery ? undefined : 'status'} aria-live={panelRecovery ? undefined : 'polite'} aria-atomic="true">{!panel && !manualLink && !selectedSlug && panelRecovery ? panelRecovery : visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
+      <div className={`toast ${visibleNotice || toastRecovery ? 'toast-visible' : ''}`} role={toastRecovery ? undefined : 'status'} aria-live={toastRecovery ? undefined : 'polite'} aria-atomic="true">{toastRecovery ? <>{toastRecovery}<button className="icon-button" aria-label="Dismiss loading error" onClick={() => { dismissPanelMessage(); visibleMenuTrigger()?.focus({ preventScroll: true }); }}><Icon name="close" width="17" height="17" /></button></> : visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); if (!panelRecovery) dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
       {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}
     </LibraryModeContext.Provider>
       );

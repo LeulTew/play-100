@@ -1,6 +1,6 @@
 import type { BeforeInstallPromptEvent, PwaController, PwaState, PwaUpdateGuard } from './types';
 import { createRetryableModule } from '../lib/retryable-module';
-import { guardedReload, isModuleLoadFailure, offlineRecoveryMessage } from '../lib/chunk-recovery';
+import { guardedReload, isModuleLoadFailure, offlineRecoveryMessage, unavailableRecoveryMessage } from '../lib/chunk-recovery';
 
 const updateModule = createRetryableModule(() => import('./apply-update'));
 
@@ -304,6 +304,7 @@ export function createPwaController(): PwaController {
           }
           const result = await guardedReload({ isCurrent: () => current(start) && guard.isCurrent() && guard.canReload() });
           if (current(start) && result === 'offline') publish({ message: offlineRecoveryMessage });
+          if (current(start) && result === 'unavailable') publish({ message: unavailableRecoveryMessage });
           if (current(start) && result === 'cancelled') publish({ message: 'Your edit or page changed. Save or correct it before reloading.' });
           return result === 'navigating';
         }

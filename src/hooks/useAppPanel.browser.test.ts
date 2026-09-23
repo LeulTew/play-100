@@ -21,19 +21,20 @@ window.waitForAbout = async () => {
 };
 window.requestIdleCallback = () => 1;
 window.cancelIdleCallback = () => {};
-let scope = 'guest', opening = true;
+let scope = 'guest', opening = !new URLSearchParams(location.search).has('settled');
 const root = createRoot(document.getElementById('root'));
 function Harness() {
-  const result = useAppPanel(scope);
+  const result = useAppPanel(scope, opening);
   return h('main', null,
     h('output', { id: 'panel' }, result.panel || 'none'),
     h('output', { id: 'message' }, result.panelMessage),
     h('output', { id: 'message-state' }, JSON.stringify({ text: result.panelMessage, error: result.panelMessageError })),
     h('output', { id: 'opening' }, String(opening)),
+    h('output', { id: 'failure' }, result.panelFailure || 'none'),
     ...['menu', 'about', 'settings', null].map(panel => h('button', {
       key: panel || 'close', onClick: () => result.setPanel(panel)
     }, panel || 'close')),
-    h('button', { onClick: () => { scope = 'account:two'; render(); } }, 'scope'),
+    h('button', { onClick: () => { scope = scope === 'account:two' ? 'account:three' : 'account:two'; render(); } }, 'scope'),
     h('button', { onClick: () => { opening = !opening; render(); } }, 'opening'),
     h('button', { onClick: () => window.dispatchEvent(new Event('play100:navigate')) }, 'navigate'),
     h('button', { onClick: () => window.dispatchEvent(new Event('popstate')) }, 'popstate'),
@@ -125,7 +126,7 @@ describe('secondary panel guard through the real hook', () => {
     const held = new Promise<void>(resolve => { release = resolve; });
     await page.route('**/src/components/AboutDialog.tsx', async route => { await held; await route.continue(); });
     try {
-      await page.goto(`${base}/__panel-guard?info=credits`);
+      await page.goto(`${base}/__panel-guard?info=credits${cancellation === 'scope' ? '&settled=1' : ''}`);
       await browserExpect(page.locator('#message')).toHaveText('Opening credits...');
       if (cancellation === 'Escape') await page.keyboard.press('Escape');
       else await page.getByRole('button', { name: cancellation, exact: true }).click();
@@ -148,7 +149,43 @@ describe('secondary panel guard through the real hook', () => {
       if (clear === 'Escape') await page.keyboard.press('Escape');
       else await page.getByRole('button', { name: clear, exact: true }).click();
       await browserExpect(page.locator('#message-state')).toHaveText(JSON.stringify({ text: '', error: false }));
+      await browserExpect(page.locator('#failure')).toHaveText('none');
     } finally { await page.close(); }
+  });
+
+  it.each([
+    ['credits', 'held'], ['credits', 'open'], ['settings', 'held'], ['settings', 'open'],
+  ])('retains %s URL intent through provisional scope resolution when %s', async (intent, phase) => {
+    const about = intent === 'credits';
+    const page = await browser.newPage();
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    await page.route(about ? '**/src/components/AboutDialog.tsx' : '**/src/components/app/SettingsPanel.tsx', async route => {
+      await held;
+      await route.continue();
+    });
+    const wait = about ? 'window.waitForAbout()' : 'window.waitForSettings()';
+    try {
+      await page.goto(`${base}/__panel-guard?info=${intent}`);
+      await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits...' : 'Opening Settings...');
+      if (phase === 'open') {
+        release();
+        await page.evaluate(wait);
+        await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
+      }
+      await page.getByRole('button', { name: 'scope', exact: true }).click();
+      await browserExpect(page.locator('#opening')).toHaveText('true');
+      await page.getByRole('button', { name: 'opening', exact: true }).click();
+      await browserExpect(page.locator('#opening')).toHaveText('false');
+      release();
+      await page.evaluate(wait);
+      await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
+      expect(new URL(page.url()).searchParams.get('info')).toBe(intent);
+      await page.getByRole('button', { name: 'scope', exact: true }).click();
+      await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
+      await page.getByRole('button', { name: 'close', exact: true }).click();
+      expect(new URL(page.url()).searchParams.has('info')).toBe(false);
+    } finally { release(); await page.close(); }
   });
 
   it.each(['close', 'navigate', 'Escape'])('does not open a late module after %s', async cancellation => {

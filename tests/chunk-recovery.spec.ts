@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const [route, root] of [
-  ['/games?catalogs=off', 'src/components/personal/MyGamesPage.tsx'],
+  ['/my-games?catalogs=off', 'src/components/personal/MyGamesPage.tsx'],
   ['/discover?catalogs=off', 'src/components/catalog/DiscoverPage.tsx'],
   ['/data-use', 'src/components/DataUseContent.tsx'],
 ] as const) {
@@ -25,8 +25,8 @@ for (const [route, root] of [
     let requests = 0;
     await page.route(`**/${asset}`, request => ++requests === 1 ? request.abort('failed') : request.continue());
     await page.goto(route);
-    const alert = page.getByRole('alert').filter({ hasText: "This page didn't load." });
-    await expect(alert).toBeVisible();
+    const alert = page.locator('.inline-error').filter({ hasText: "This page didn't load." });
+    await expect(alert.getByRole('alert')).toBeVisible();
     await expect(page.locator('.site-header')).toBeVisible();
     await expect(page.locator('.app-error')).toHaveCount(0);
     expect(requests).toBe(1);

@@ -4,6 +4,7 @@ import { flushPendingEdits } from '../hooks/useExitSave';
 import type { AppPage, Filters } from '../lib/types';
 import type { MyGamesTab } from '../lib/my-games-navigation';
 import { pageDestination } from '../lib/page-navigation';
+import { visibleFocusTarget } from '../lib/dialog-focus';
 import { DataUseLink } from './DataUseLink';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
@@ -23,11 +24,6 @@ interface MenuDialogProps {
   status?: string;
   statusError?: boolean;
   recovery?: ReactNode;
-}
-
-function visibleFocusTarget(target: HTMLElement | null): target is HTMLElement {
-  return Boolean(target?.isConnected && !target.matches(':disabled') && !target.closest('[hidden], [inert], dialog:not([open])') &&
-    target.getClientRects().length > 0 && getComputedStyle(target).visibility === 'visible');
 }
 
 export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator, onNavigate, onSettings, onOffline, onAbout, onClose, captureFocusGuard, status = '', statusError = false, recovery: moduleRecovery }: MenuDialogProps) {

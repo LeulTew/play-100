@@ -43,6 +43,10 @@ it('retains a waiting worker and protects edits before a connected recovery relo
     expect(controller.getSnapshot().message).toBe("You're offline. Reconnect, then try again.");
     expect(replace).not.toHaveBeenCalled();
     browser.onLine = true;
+    network.mockResolvedValueOnce({ ok: false });
+    expect(await controller.applyUpdate(guard)).toBe(false);
+    expect(controller.getSnapshot().message).toBe("Play 100 didn't respond. Try again in a moment.");
+    expect(replace).not.toHaveBeenCalled();
     network.mockImplementationOnce(async () => { current = false; return { ok: true }; });
     expect(await controller.applyUpdate(guard)).toBe(false);
     expect(replace).not.toHaveBeenCalled();

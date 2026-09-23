@@ -63,11 +63,16 @@ five-second `HEAD /` probe before replacing the current URL. The worker does
 not intercept non-GET requests. Settings and credits restore their explicit
 intent through `info=settings` or `info=credits`, preserving other URL parameters.
 An offline or failed probe leaves the current app and recovery action available.
+HTTP errors report an unavailable site rather than claiming the device is offline.
+Browsers without `AbortSignal.timeout` use a cleared five-second abort timer.
 Credits do not depend on account readiness. Settings opens with the current
 library's existing busy/disabled controls rather than waiting for authentication
 or a hint error to clear. Explicit panel requests survive account transitions;
-URL-restored intents are consumed on close or cancellation, including a scope
-switch, and never reopen after Escape or navigation.
+URL-restored intents survive provisional authentication and adopt its first
+settled scope. Only a later settled-scope switch cancels a still-pending intent;
+an already-open panel stays open. Intents are consumed on close or cancellation,
+and never reopen after Escape or navigation. Page-hosted errors have a touch-sized
+dismiss action that returns focus to the visible Menu trigger.
 
 Page-module failures stay inside the route, with the header and navigation
 available; catalog-detail failures stay inside a closable dialog. Parser-module

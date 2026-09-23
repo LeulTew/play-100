@@ -20,6 +20,7 @@ test('cold Settings opens and closes natively without loading update execution o
   await expect(page.getByRole('button', { name: 'Enable offline access', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.settings-dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
   expect(deferredRequests).toEqual([]);
 });

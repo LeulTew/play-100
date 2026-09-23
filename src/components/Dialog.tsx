@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
+import { visibleFocusTarget, visibleMenuTrigger } from '../lib/dialog-focus';
 import { useMotionController } from '../motion/useMotion';
 import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
 
@@ -73,16 +74,15 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
       visual.current = null;
       dialog.close();
       unlock();
-      const preferred = returnFocus.current?.();
-      if (preferred?.isConnected && !preferred.matches(':disabled') && preferred.getClientRects().length > 0 &&
-        !preferred.closest('[hidden], [inert]') && getComputedStyle(preferred).visibility === 'visible') {
+      const preferred = returnFocus.current?.() ?? null;
+      if (visibleFocusTarget(preferred)) {
         preferred.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
         preferred.focus({ preventScroll: true });
-      } else if (previousFocus instanceof HTMLElement && previousFocus !== document.body &&
-        previousFocus.isConnected && !previousFocus.matches(':disabled') && !previousFocus.closest('[hidden], [inert], dialog:not([open])')) {
+      } else if (previousFocus instanceof HTMLElement && previousFocus !== document.body && visibleFocusTarget(previousFocus)) {
         previousFocus.focus({ preventScroll: true });
       } else {
-        document.querySelector<HTMLElement>('.menu-nav, [data-page-heading], #collection-title')?.focus({ preventScroll: true });
+        ([...document.querySelectorAll<HTMLElement>('[data-page-heading], #collection-title, main h1')].find(visibleFocusTarget) ??
+          visibleMenuTrigger())?.focus({ preventScroll: true });
       }
       controller.forgetDialog(dialog);
       runDialogMotion(() => ending?.closed());
