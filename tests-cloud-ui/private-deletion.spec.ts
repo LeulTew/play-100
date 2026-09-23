@@ -88,7 +88,7 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   }
 });
 
-for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'all', 'shelf', 'friends', 'marker'] as const) {
+for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs', 'all', 'shelf', 'friends', 'marker'] as const) {
   test(`interruption at ${step} cleanup never records completion or removes Auth`, async ({ page, request }) => {
     const email = emailFor(`deletion-stop-${step}`);
     await createAccount(page, email);
@@ -108,6 +108,13 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'all', '
           ? { format: 1, name: 'Synthetic group', participantUids: [uid, 'KnownPeer'], revision: 1, createdAt: new Date(), updatedAt: new Date() }
           : { createdAt: new Date() },
         [`accountQuotas/${uid}/limits/${step}`]: { ids: [id], revision: 1 },
+      });
+    } else if (step === 'pairs') {
+      const peer = 'RetainedPeer'; const participants = [uid, peer].sort(); const id = participants.join('~');
+      await writeManagerDocuments(request, {
+        [`friendPairs/${id}`]: { format: 2, creatorUid: uid, a: participants[0], b: participants[1], participants,
+          from: uid, state: 'pending', epoch: 1, inviteSlot: null, createdAt: new Date(), updatedAt: new Date() },
+        [`accountQuotas/${uid}/limits/pairs`]: { count: 1, revision: 1, lastPair: id },
       });
     }
     if (step === 'all') await expect.poll(async () => {
@@ -132,9 +139,10 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'all', '
         const module: typeof import('../src/cloud/social-store') = await load('/src/cloud/social-store.ts');
         if (step === 'reports') module.SocialStore.prototype.withdrawReport = stop;
         else module.SocialStore.prototype.deleteProfile = stop;
-      } else if (step === 'groups' || step === 'blocks') {
+      } else if (step === 'groups' || step === 'blocks' || step === 'pairs') {
         const module: typeof import('../src/cloud/friend-store') = await load('/src/cloud/friend-store.ts');
         if (step === 'groups') module.FriendStore.prototype.deleteGroup = stop;
+        else if (step === 'pairs') module.FriendStore.prototype.releasePair = stop;
         else Reflect.set(module.FriendStore.prototype, 'releaseBlock', stop);
       } else if (step === 'all') {
         const module: typeof import('../src/cloud/friend-all-store') = await load('/src/cloud/friend-all-store.ts');

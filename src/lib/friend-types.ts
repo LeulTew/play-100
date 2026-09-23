@@ -33,10 +33,11 @@ export interface FriendIdentity {
   format: 1; uid: string; displayName: string; avatar: AvatarValue; revision: number; updatedAt: number;
 }
 export type FriendPairState = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'removed';
-export interface FriendPair {
-  format: 1; a: string; b: string; participants: [string, string]; from: string;
+interface FriendPairBase {
+  a: string; b: string; participants: [string, string]; from: string;
   state: FriendPairState; epoch: number; inviteSlot: number | null; createdAt: number; updatedAt: number;
 }
+export type FriendPair = FriendPairBase & ({ format: 1; creatorUid?: never } | { format: 2; creatorUid: string });
 export interface FriendSettings {
   format: 1; enabled: boolean; deleted: boolean; selectedIds: string[]; epoch: number; revision: number; updatedAt: number;
 }
@@ -131,14 +132,21 @@ export function parseFriendSettings(value: unknown): FriendSettings {
   return { format: version(row.format), enabled, deleted, selectedIds, epoch: integer(row.epoch, 1), revision: integer(row.revision, 1), updatedAt: time(row.updatedAt) };
 }
 export function parseFriendPair(value: unknown): FriendPair {
-  const row = object(value, 'format,a,b,participants,from,state,epoch,inviteSlot,createdAt,updatedAt');
+  if (!value || typeof value !== 'object' || !('format' in value) || (value.format !== 1 && value.format !== 2)) invalid();
+  const row = object(value, value.format === 2
+    ? 'format,a,b,participants,from,state,epoch,inviteSlot,createdAt,updatedAt,creatorUid'
+    : 'format,a,b,participants,from,state,epoch,inviteSlot,createdAt,updatedAt');
   const a = friendUid(row.a); const b = friendUid(row.b); const from = friendUid(row.from);
   if (a >= b || !Array.isArray(row.participants) || row.participants.length !== 2 || row.participants[0] !== a || row.participants[1] !== b ||
     ![a, b].includes(from) || typeof row.state !== 'string' || !['pending', 'accepted', 'declined', 'cancelled', 'removed'].includes(row.state)) invalid();
-  return {
-    format: version(row.format), a, b, participants: [a, b], from, state: row.state as FriendPairState, epoch: integer(row.epoch, 1),
+  const pair: FriendPairBase = {
+    a, b, participants: [a, b], from, state: row.state as FriendPairState, epoch: integer(row.epoch, 1),
     inviteSlot: row.inviteSlot === null ? null : integer(row.inviteSlot, 0, 19), createdAt: time(row.createdAt), updatedAt: time(row.updatedAt),
   };
+  if (row.format === 1) return { ...pair, format: 1 };
+  const creatorUid = friendUid(row.creatorUid);
+  if (creatorUid !== a && creatorUid !== b) invalid();
+  return { ...pair, format: 2, creatorUid };
 }
 export function parseFriendManifest(value: unknown): FriendManifest {
   const row = object(value, 'generation,digest,count');

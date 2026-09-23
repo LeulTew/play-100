@@ -28,6 +28,7 @@ import { applyPersonalAction, emptyPersonalLibrary } from '../src/lib/personal-l
 import type { LibraryRecord } from '../src/lib/personal-types';
 import { commitScopedAction, loadScopedLibrary } from '../src/lib/scoped-library';
 import { packLibrary, packSnapshot, parseManifest } from '../src/lib/snapshot-transport';
+import { friendPairId } from '../src/lib/friend-types';
 import { candidateRules, live270fRules, migrationEmulators } from './fixtures/migration-rules';
 
 const avatar: AvatarValue = { version: 1, seed: 'b'.repeat(32), palette: 'moss' };
@@ -117,6 +118,14 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     await environment.withSecurityRulesDisabled(async context => {
       value = (await context.firestore().doc(path).get()).data();
     });
+    return value;
+  }
+  async function peer(handle: string) {
+    const value = await actor();
+    await value.cloud.enable(null);
+    await value.friends.initialize(value.uid);
+    await value.friends.saveIdentity(value.uid, { displayName: 'Pair fixture', avatar }, 0);
+    await value.social.publish(value.uid, publication(handle), initialControl);
     return value;
   }
 
@@ -349,6 +358,22 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     expect((await owner.friends.cleanupDeleted(owner.uid)).done).toBe(true);
   });
 
+  it('keeps request/accept/cancel compatible with the declared policy and charges only new counted pairs', async () => {
+    const a = await peer('request_peer_a'); const b = await peer('request_peer_b');
+    let pair = await a.friends.sendRequest(a.uid, b.uid);
+    expect(pair.format).toBe(policy === 'candidate' ? 2 : 1);
+    if (pair.format === 2) expect(pair.creatorUid).toBe(a.uid);
+    pair = await b.friends.respond(b.uid, a.uid, 'accept', pair.epoch);
+    pair = await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
+    pair = await b.friends.sendRequest(b.uid, a.uid);
+    pair = await b.friends.respond(b.uid, a.uid, 'cancel', pair.epoch);
+    expect(pair.state).toBe('cancelled');
+    if (policy === 'candidate') {
+      expect((await getDocFromServer(quotaRef(a.db, a.uid, 'pairs'))).data()?.count).toBe(1);
+      expect((await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data()?.count).toBe(0);
+    } else expect(await stored(`accountQuotas/${a.uid}/limits/pairs`)).toBeUndefined();
+  });
+
   if (policy === 'candidate') {
     it('does not declare completion while a group quota record still refers to a missing item', async () => {
       const owner = await actor();
@@ -359,6 +384,175 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         done: false, message: 'Some account settings could not be removed. Try deleting again later.',
       });
     });
+
+    it('preserves every legacy pair lifecycle in place without counting, converting or releasing its quota', async () => {
+      const a = await peer('legacy_pair_a'); const b = await peer('legacy_pair_b'); const c = await peer('legacy_pair_c');
+      await a.friends.sendRequest(a.uid, c.uid);
+      const [left, right] = [a.uid, b.uid].sort();
+      const id = friendPairId(a.uid, b.uid);
+      const ref = doc(a.db, 'friendPairs', id);
+      await seed({ [ref.path]: {
+        format: 1, a: left, b: right, participants: [left, right], from: a.uid,
+        state: 'pending', epoch: 1, inviteSlot: null, createdAt: aged(), updatedAt: Timestamp.now(),
+      } });
+      const aQuota = quotaRef(a.db, a.uid, 'pairs');
+      const bQuota = quotaRef(b.db, b.uid, 'pairs');
+      const forbiddenConversion = writeBatch(b.db);
+      forbiddenConversion.update(doc(b.db, 'friendPairs', id), { creatorUid: b.uid, state: 'accepted', epoch: 2, updatedAt: serverTimestamp() });
+      forbiddenConversion.set(bQuota, { count: 0, revision: 1, lastPair: id });
+      await assertFails(forbiddenConversion.commit());
+      let pair = await b.friends.respond(b.uid, a.uid, 'accept', 1);
+      pair = await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
+      pair = await a.friends.sendRequest(a.uid, b.uid);
+      pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
+      await expect(a.friends.sendRequest(a.uid, b.uid)).rejects.toThrow("You can't send this person a request right now.");
+      await assertFails(a.friends.releasePair(a.uid, b.uid));
+      pair = await b.friends.sendRequest(b.uid, a.uid);
+      pair = await b.friends.respond(b.uid, a.uid, 'cancel', pair.epoch);
+      pair = await a.friends.sendRequest(a.uid, b.uid);
+      pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
+      expect(pair.format).toBe(1);
+      expect((await getDocFromServer(ref)).data()).not.toHaveProperty('creatorUid');
+      expect((await getDocFromServer(aQuota)).data()?.count).toBe(1);
+      expect((await getDocFromServer(bQuota)).data()?.count).toBe(0);
+      const expired = (await getDocFromServer(ref)).data()!;
+      await seed({ [ref.path]: { ...expired, updatedAt: Timestamp.fromMillis(Date.now() - 31 * 86400000) } });
+      const illegalRelease = writeBatch(a.db);
+      illegalRelease.delete(ref);
+      illegalRelease.update(aQuota, { count: increment(-1), lastPair: id });
+      await assertFails(illegalRelease.commit());
+      expect(await b.friends.releasePair(b.uid, a.uid)).toBe(true);
+      expect((await getDocFromServer(aQuota)).data()?.count).toBe(1);
+      expect((await getDocFromServer(bQuota)).data()?.count).toBe(0);
+    }, 60000);
+
+    it('denies legacy acceptance when blocked or when the peer was retired, without changing either count', async () => {
+      const a = await peer('legacy_block_a'); const b = await peer('legacy_block_b');
+      const [left, right] = [a.uid, b.uid].sort(); const id = friendPairId(a.uid, b.uid);
+      await seed({
+        [`friendPairs/${id}`]: { format: 1, a: left, b: right, participants: [left, right], from: a.uid, state: 'pending',
+          epoch: 1, inviteSlot: null, createdAt: aged(), updatedAt: Timestamp.now() },
+        [`friendBlocks/${a.uid}/items/${b.uid}`]: { createdAt: Timestamp.now() },
+      });
+      await assertFails(b.friends.respond(b.uid, a.uid, 'accept', 1));
+      await a.friends.unblock(a.uid, b.uid);
+      await a.friends.revokeForDeletion(a.uid);
+      await assertFails(b.friends.respond(b.uid, a.uid, 'accept', 1));
+      expect(await stored(`accountQuotas/${b.uid}/limits/pairs`)).toBeUndefined();
+      expect((await b.friends.pair(b.uid, a.uid))?.state).toBe('pending');
+    });
+
+    it('retains a declined counted slot for thirty days and requires an exact cross-account delete before release', async () => {
+      const a = await peer('counted_pair_a'); const b = await peer('counted_pair_b');
+      const settings = await a.friends.settings(a.uid);
+      if (!settings) throw new Error('The sender settings are missing.');
+      const sharing = await a.friends.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, settings);
+      await a.friends.publishRanking(a.uid, [entry], sharing, { syncEpoch: 1, remoteRevision: 0 }, 0);
+      let pair = await a.friends.sendRequest(a.uid, b.uid);
+      pair = await b.friends.respond(b.uid, a.uid, 'accept', pair.epoch);
+      expect((await b.friends.ranking(a.uid)).entries).toEqual([entry]);
+      pair = await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
+      pair = await a.friends.sendRequest(a.uid, b.uid);
+      pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
+      const id = friendPairId(a.uid, b.uid);
+      const quota = quotaRef(a.db, a.uid, 'pairs');
+      expect((await getDocFromServer(quota)).data()?.count).toBe(1);
+      const recent = await stored(`friendPairs/${id}`);
+      await seed({ [`friendPairs/${id}`]: { ...recent, updatedAt: Timestamp.fromMillis(Date.now() - 29 * 86400000) } });
+      await expect(a.friends.sendRequest(a.uid, b.uid)).rejects.toThrow("You can't send this person a request right now.");
+      await assertFails(updateDoc(doc(b.db, 'friendPairs', id), { epoch: pair.epoch + 1, updatedAt: serverTimestamp() }));
+      await assertFails(a.friends.releasePair(a.uid, b.uid));
+      await assertFails(b.friends.releasePair(b.uid, a.uid));
+      const before = await stored(`friendPairs/${id}`);
+      await seed({ [`friendPairs/${id}`]: { ...before, updatedAt: Timestamp.fromMillis(Date.now() - 31 * 86400000) } });
+      await assertFails(deleteDoc(doc(b.db, 'friendPairs', id)));
+      await assertFails(updateDoc(quotaRef(b.db, a.uid, 'pairs'), { count: increment(-1), lastPair: id }));
+      await assertFails(getDocFromServer(quotaRef(b.db, a.uid, 'pairs')));
+      const revision = (await getDocFromServer(quota)).data()?.revision;
+      expect(await b.friends.releasePair(b.uid, a.uid)).toBe(true);
+      expect((await getDocFromServer(quota)).data()?.count).toBe(0);
+      expect((await getDocFromServer(quota)).data()?.revision).toBe(revision);
+      await assertFails(updateDoc(quotaRef(b.db, a.uid, 'pairs'), { count: increment(-1), lastPair: id }));
+      const renewed = await a.friends.sendRequest(a.uid, b.uid);
+      expect(renewed).toMatchObject({ format: 2, creatorUid: a.uid, state: 'pending', epoch: 1 });
+      await assertFails(b.friends.ranking(a.uid));
+    });
+
+    it('denies creation at the attributed pair cap, then frees one eligible slot and retries only after a real cancellation', async () => {
+      const a = await peer('pair_cap_a'); const b = await peer('pair_cap_b'); const c = await peer('pair_cap_c');
+      const original = await a.friends.sendRequest(a.uid, b.uid);
+      const quota = quotaRef(a.db, a.uid, 'pairs');
+      const ids = Array.from({ length: ACCOUNT_LIMITS.pairs - 1 }, (_, index) => `PreviousPeer${index}`);
+      for (let start = 0; start < ids.length; start += 400) {
+        await seed(Object.fromEntries(ids.slice(start, start + 400).map(other => {
+          const [left, right] = [a.uid, other].sort();
+          return [`friendPairs/${friendPairId(a.uid, other)}`, {
+            format: 2, creatorUid: a.uid, a: left, b: right, participants: [left, right], from: a.uid, state: 'pending',
+            epoch: 1, inviteSlot: null, createdAt: aged(), updatedAt: aged(),
+          }];
+        })));
+      }
+      await seed({ [quota.path]: { count: ACCOUNT_LIMITS.pairs, revision: 1, lastPair: friendPairId(a.uid, b.uid) } });
+      const id = friendPairId(a.uid, c.uid); const [left, right] = [a.uid, c.uid].sort();
+      const beyond = writeBatch(a.db);
+      beyond.set(doc(a.db, 'friendPairs', id), { format: 2, creatorUid: a.uid, a: left, b: right, participants: [left, right],
+        from: a.uid, state: 'pending', epoch: 1, inviteSlot: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      beyond.update(quota, { count: ACCOUNT_LIMITS.pairs + 1, revision: 2, lastPair: id });
+      await assertFails(beyond.commit());
+      await expect(a.friends.sendRequest(a.uid, c.uid)).rejects.toBeInstanceOf(AccountQuotaFull);
+      expect((await getDocFromServer(doc(a.db, 'friendPairs', id))).exists()).toBe(false);
+      await a.friends.respond(a.uid, b.uid, 'cancel', original.epoch);
+      const release = vi.spyOn(a.friends, 'releasePair');
+      expect(await a.friends.sendRequest(a.uid, c.uid)).toMatchObject({ creatorUid: a.uid, state: 'pending' });
+      expect(release).toHaveBeenCalledTimes(1);
+      expect((await getDocFromServer(doc(a.db, 'friendPairs', friendPairId(a.uid, b.uid)))).exists()).toBe(false);
+      expect((await getDocFromServer(quota)).data()?.count).toBe(ACCOUNT_LIMITS.pairs);
+    }, 120000);
+
+    it.each(['cancel', 'remove'] as const)('releases a freshly %s pair without waiting for the decline cooldown', async action => {
+      const a = await peer(`eligible_${action}_a`); const b = await peer(`eligible_${action}_b`);
+      let pair = await a.friends.sendRequest(a.uid, b.uid);
+      if (action === 'remove') pair = await b.friends.respond(b.uid, a.uid, 'accept', pair.epoch);
+      pair = await a.friends.respond(a.uid, b.uid, action, pair.epoch);
+      expect(await b.friends.releasePair(b.uid, a.uid, pair.epoch)).toBe(true);
+      expect((await getDocFromServer(quotaRef(a.db, a.uid, 'pairs'))).data()?.count).toBe(0);
+    });
+
+    it.each([1, 2] as const)('accepts a mutually intended invite over a declined format%s pair without re-attributing or increasing its count', async format => {
+      const a = await peer(`mutual_invite_a${format}`); const b = await peer(`mutual_invite_b${format}`); const c = await peer(`mutual_invite_c${format}`);
+      await b.friends.sendRequest(b.uid, c.uid);
+      let pair = await a.friends.sendRequest(a.uid, b.uid);
+      pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
+      const id = friendPairId(a.uid, b.uid);
+      if (format === 1) {
+        const value = (await getDocFromServer(doc(a.db, 'friendPairs', id))).data()!;
+        const { creatorUid: omitted, ...legacy } = value;
+        expect(omitted).toBe(a.uid);
+        await seed({ [`friendPairs/${id}`]: { ...legacy, format: 1 }, [`accountQuotas/${a.uid}/limits/pairs`]: { count: 0, revision: 2, lastPair: id } });
+      }
+      const before = (await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data()?.count;
+      const invite = await a.friends.createInvite(a.uid);
+      const accepted = await b.friends.acceptInvite(b.uid, invite.token);
+      expect(accepted).toMatchObject({ format, state: 'accepted', from: a.uid });
+      if (accepted.format === 2) expect(accepted.creatorUid).toBe(a.uid);
+      else expect(accepted).not.toHaveProperty('creatorUid');
+      expect((await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data()?.count).toBe(before);
+      expect((await getDocFromServer(quotaRef(a.db, a.uid, 'pairs'))).data()?.count).toBe(format === 2 ? 1 : 0);
+    }, 60000);
+
+    it('charges a newly invite-created pair to the accepter and releases a counterparty-created pair during account deletion', async () => {
+      const a = await peer('invite_owner_a'); const b = await peer('invite_owner_b'); const c = await peer('invite_owner_c');
+      await b.friends.sendRequest(b.uid, c.uid);
+      const invite = await a.friends.createInvite(a.uid);
+      const pair = await b.friends.acceptInvite(b.uid, invite.token);
+      expect(pair).toMatchObject({ format: 2, creatorUid: b.uid, from: a.uid, state: 'accepted' });
+      expect((await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data()?.count).toBe(2);
+      await a.friends.revokeForDeletion(a.uid);
+      expect((await a.friends.cleanupDeleted(a.uid)).done).toBe(true);
+      expect((await getDocFromServer(quotaRef(a.db, a.uid, 'pairs'))).exists()).toBe(false);
+      expect((await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data()?.count).toBe(1);
+      expect((await getDocFromServer(doc(b.db, 'friendPairs', friendPairId(a.uid, b.uid)))).exists()).toBe(false);
+    }, 60000);
 
     it.each(['groups', 'blocks'] as const)('enforces the %s registry cap and a visible product cap including frozen legacy records', async kind => {
       const owner = await actor();

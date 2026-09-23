@@ -1,8 +1,8 @@
 import {
-  collection, doc, documentId, getDocFromServer, getDocsFromServer, limit, onSnapshot, orderBy,
+  collection, doc, documentId, getDocFromServer, getDocsFromServer, increment, limit, onSnapshot, orderBy,
   query, runTransaction, serverTimestamp, startAfter, where, writeBatch,
 } from 'firebase/firestore';
-import type { DocumentData, DocumentReference, DocumentSnapshot, Firestore, Query, QueryDocumentSnapshot } from 'firebase/firestore';
+import type { DocumentData, DocumentReference, DocumentSnapshot, Firestore, Query, QueryDocumentSnapshot, Transaction } from 'firebase/firestore';
 import { parseAvatar } from '../lib/community';
 import type { AvatarValue, PublicEntry } from '../lib/community';
 import {
@@ -19,7 +19,7 @@ import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
 import { SocialStore } from './social-store';
 import { releaseIndexedPayload } from './generation-cleanup';
-import { occupyQuotaSlot, quotaRef, quotaSupported, readQuotaSlots, releaseQuotaSlot, requireVisibleCapacity } from './account-quota';
+import { ACCOUNT_LIMITS, AccountQuotaFull, occupyQuotaSlot, quotaRef, quotaSupported, readQuotaSlots, releaseQuotaSlot, requireVisibleCapacity } from './account-quota';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
@@ -42,7 +42,7 @@ function page<T>(rows: QueryDocumentSnapshot<DocumentData>[], parse: (row: Query
 }
 function errorValue(cause: unknown): Error { return cause instanceof Error ? cause : new Error('Friend data could not be read. Try again.'); }
 function unavailableInvite(cause: unknown): never {
-  if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') {
+  if (cause && typeof cause === 'object' && 'code' in cause && (cause.code === 'permission-denied' || cause.code === 'not-found')) {
     throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
   }
   throw cause;
@@ -169,10 +169,66 @@ export class FriendStore {
       try { next(page(result.docs, (row) => parseFriendPair(row.data()))); } catch (cause) { error(errorValue(cause)); }
     }, error);
   }
+  private async touchPairCount(tx: Transaction, uid: string, id: string, created: boolean) {
+    const ref = quotaRef(this.db, uid, 'pairs');
+    const snapshot = await tx.get(ref);
+    const value = snapshot.exists() ? snapshot.data() : { count: 0, revision: 0 };
+    if (!Number.isSafeInteger(value.count) || value.count < 0 || !Number.isSafeInteger(value.revision) || value.revision < 0) {
+      throw new FriendStoreError('invalid', 'Your connection count could not be read. Refresh the page, then try again.');
+    }
+    if (created && value.count >= ACCOUNT_LIMITS.pairs) throw new AccountQuotaFull('pairs');
+    tx.set(ref, { count: value.count + Number(created), revision: value.revision + 1, lastPair: id });
+  }
+  async releasePair(uid: string, otherUid: string, expectedEpoch?: number): Promise<boolean> {
+    online();
+    const ref = this.pairRef(uid, otherUid);
+    return runTransaction(this.db, async tx => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists()) return false;
+      const current = parseFriendPair(snapshot.data());
+      if (expectedEpoch !== undefined && current.epoch !== expectedEpoch) conflict();
+      if (current.format === 2) tx.update(quotaRef(this.db, current.creatorUid, 'pairs'), {
+        count: increment(-1), lastPair: ref.id,
+      });
+      tx.delete(ref);
+      return true;
+    });
+  }
+  private async freePairCapacity(uid: string): Promise<void> {
+    let cursor: FriendCursor | undefined;
+    for (let page = 0; page < Math.ceil(ACCOUNT_LIMITS.pairs / 20); page += 1) {
+      const rows = await getDocsFromServer(query(collection(this.db, 'friendPairs'),
+        where('participants', 'array-contains', uid), where('creatorUid', '==', uid),
+        where('state', 'in', ['cancelled', 'removed', 'declined']), orderBy('updatedAt'),
+        ...(cursor ? [startAfter(cursor)] : []), limit(20))).catch(cause => {
+        if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'failed-precondition') {
+          throw new FriendStoreError('limit', 'Connection cleanup is not ready yet. Try again later.');
+        }
+        throw cause;
+      });
+      for (const row of rows.docs) {
+        const pair = parseFriendPair(row.data());
+        if (pair.state === 'declined' && Date.now() < pair.updatedAt + FRIEND_REQUEST_COOLDOWN_MS) continue;
+        const peer = pair.a === uid ? pair.b : pair.a;
+        if (await this.releasePair(uid, peer, pair.epoch)) return;
+      }
+      if (rows.size < 20) return;
+      cursor = rows.docs.at(-1);
+    }
+  }
+  private async withPairCapacity<T>(uid: string, operation: () => Promise<T>): Promise<T> {
+    try { return await operation(); }
+    catch (cause) {
+      if (!(cause instanceof AccountQuotaFull)) throw cause;
+      await this.freePairCapacity(uid);
+      return operation();
+    }
+  }
   async sendRequest(uid: string, otherUid: string): Promise<FriendPair> {
     const ref = this.pairRef(uid, otherUid); online();
     await this.graphReady(uid);
-    const epoch = await runTransaction(this.db, async (tx) => {
+    const counted = await quotaSupported(quotaRef(this.db, uid, 'pairs'));
+    const epoch = await this.withPairCapacity(uid, () => runTransaction(this.db, async (tx) => {
       online();
       const snap = await tx.get(ref); const current = snap.exists() ? parseFriendPair(snap.data()) : null;
       if (current?.state === 'accepted') conflict('You are already friends.');
@@ -181,12 +237,15 @@ export class FriendStore {
         throw new FriendStoreError('request-unavailable', requestUnavailable);
       }
       const [a, b] = [uid, otherUid].sort();
+      if (counted) await this.touchPairCount(tx, uid, ref.id, current === null);
       tx.set(ref, {
-        format: 1, a, b, participants: [a, b], from: uid, state: 'pending', epoch: (current?.epoch ?? 0) + 1, inviteSlot: null,
+        format: current?.format ?? (counted ? 2 : 1),
+        ...(current?.format === 2 ? { creatorUid: current.creatorUid } : !current && counted ? { creatorUid: uid } : {}),
+        a, b, participants: [a, b], from: uid, state: 'pending', epoch: (current?.epoch ?? 0) + 1, inviteSlot: null,
         createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp(),
       });
       return (current?.epoch ?? 0) + 1;
-    });
+    }));
     return this.afterCommit({ operation: 'send-request', uid, otherUid, epoch }, async () => {
       const result = await this.readCommitted(ref, parseFriendPair); if (!result) conflict(); return result;
     });
@@ -194,6 +253,7 @@ export class FriendStore {
   async respond(uid: string, otherUid: string, action: 'accept' | 'decline' | 'cancel' | 'remove', expectedEpoch: number): Promise<FriendPair> {
     const ref = this.pairRef(uid, otherUid); online();
     await this.graphReady(uid);
+    const counted = action === 'accept' && await quotaSupported(quotaRef(this.db, uid, 'pairs'));
     await runTransaction(this.db, async (tx) => {
       online();
       const snap = await tx.get(ref); const current = snap.exists() ? parseFriendPair(snap.data()) : null;
@@ -202,6 +262,7 @@ export class FriendStore {
       if ((action === 'accept' || action === 'decline') && current.from === uid) conflict('Only the recipient can respond to this request.');
       if (action === 'cancel' && current.from !== uid) conflict('Only the sender can cancel this request.');
       const state: FriendPairState = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : action === 'cancel' ? 'cancelled' : 'removed';
+      if (counted) await this.touchPairCount(tx, uid, ref.id, false);
       tx.update(ref, { state, epoch: current.epoch + 1, inviteSlot: null, updatedAt: serverTimestamp() });
     });
     return this.afterCommit({ operation: 'respond', uid, otherUid, epoch: expectedEpoch + 1 }, async () => {
@@ -346,26 +407,46 @@ export class FriendStore {
   async acceptInvite(uid: string, tokenInput: string): Promise<FriendPair> {
     friendUid(uid); const token = friendToken(tokenInput); online();
     await this.graphReady(uid);
+    const counted = await quotaSupported(quotaRef(this.db, uid, 'pairs'));
+    const inviteRef = doc(this.db, 'friendInvites', token);
+    let commitStarted = false;
     let accepted: { ownerUid: string; epoch: number };
     try {
-      accepted = await runTransaction(this.db, async (tx) => {
+      const snap = await getDocFromServer(inviteRef);
+      if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
+      const invite = parseFriendInvite(token, snap.data()); const ownerUid = invite.ownerUid;
+      if (uid === ownerUid) throw new FriendStoreError('invalid', 'You cannot accept your own invitation.');
+      if (invite.expiresAt <= Date.now()) throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
+      commitStarted = true;
+      accepted = await this.withPairCapacity(uid, () => runTransaction(this.db, async (tx) => {
         online();
-        const inviteRef = doc(this.db, 'friendInvites', token);
-        const snap = await tx.get(inviteRef);
-        if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
-        const invite = parseFriendInvite(token, snap.data()); const ownerUid = invite.ownerUid;
-        if (uid === ownerUid) throw new FriendStoreError('invalid', 'You cannot accept your own invitation.');
-        if (invite.expiresAt <= Date.now()) throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
         const ref = this.pairRef(uid, ownerUid); const pair = await tx.get(ref);
         const current = pair.exists() ? parseFriendPair(pair.data()) : null;
         if (current?.state === 'accepted') conflict('You are already friends.');
         const [a, b] = [uid, ownerUid].sort();
-        tx.set(ref, { format: 1, a, b, participants: [a, b], from: ownerUid, state: 'accepted', epoch: (current?.epoch ?? 0) + 1, inviteSlot: invite.slot,
+        if (counted) await this.touchPairCount(tx, uid, ref.id, current === null);
+        tx.set(ref, { format: current?.format ?? (counted ? 2 : 1),
+          ...(current?.format === 2 ? { creatorUid: current.creatorUid } : !current && counted ? { creatorUid: uid } : {}),
+          a, b, participants: [a, b], from: ownerUid, state: 'accepted', epoch: (current?.epoch ?? 0) + 1, inviteSlot: invite.slot,
           createdAt: pair.exists() ? pair.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
         tx.update(inviteRef, { state: 'consumed', acceptedBy: uid });
         return { ownerUid, epoch: (current?.epoch ?? 0) + 1 };
-      });
-    } catch (cause) { return unavailableInvite(cause); }
+      }));
+    } catch (cause) {
+      if (!commitStarted || !cause || typeof cause !== 'object' || !('code' in cause) ||
+        (cause.code !== 'permission-denied' && cause.code !== 'not-found')) return unavailableInvite(cause);
+      let latest: DocumentSnapshot<DocumentData>;
+      try { latest = await getDocFromServer(inviteRef); }
+      catch (checkError) {
+        if (checkError && typeof checkError === 'object' && 'code' in checkError &&
+          (checkError.code === 'permission-denied' || checkError.code === 'not-found')) return unavailableInvite(checkError);
+        throw new FriendStoreError('unavailable', 'The invitation could not be checked. Try again later.');
+      }
+      if (!latest.exists() || latest.data().state !== 'active' || parseFriendInvite(token, latest.data()).expiresAt <= Date.now()) {
+        throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
+      }
+      throw new FriendStoreError('unavailable', 'The invitation could not be accepted. Refresh the page, then try again.');
+    }
     return this.afterCommit({ operation: 'accept-invite', uid, otherUid: accepted.ownerUid, epoch: accepted.epoch }, async () => {
       const result = await this.readCommitted(this.pairRef(uid, accepted.ownerUid), parseFriendPair); if (!result) conflict(); return result;
     });
@@ -552,14 +633,15 @@ export class FriendStore {
     if (!settings?.deleted) throw new FriendStoreError('conflict', 'Reserve full social deletion before cleaning its data.');
     online();
     let deleted = await this.cleanupSharing(uid);
-    const groupQuota = quotaRef(this.db, uid, 'groups'); const blockQuota = quotaRef(this.db, uid, 'blocks');
-    const [groupsCounted, blocksCounted] = await Promise.all([quotaSupported(groupQuota), quotaSupported(blockQuota)]);
+    const groupQuota = quotaRef(this.db, uid, 'groups'); const blockQuota = quotaRef(this.db, uid, 'blocks'); const pairQuota = quotaRef(this.db, uid, 'pairs');
+    const [groupsCounted, blocksCounted, pairsCounted] = await Promise.all([quotaSupported(groupQuota), quotaSupported(blockQuota), quotaSupported(pairQuota)]);
     const [relations, groups, blocks, invites] = await Promise.all([
       getDocsFromServer(this.relationsQuery(uid)), this.listGroups(uid), this.listBlocks(uid),
       getDocsFromServer(query(collection(this.db, 'friendInvites'), where('ownerUid', '==', uid), orderBy(documentId()), limit(20))),
     ]);
-    if (relations.size) {
-      const batch = writeBatch(this.db); relations.docs.forEach(item => batch.delete(item.ref)); await batch.commit(); deleted += relations.size;
+    for (const item of relations.docs) {
+      const pair = parseFriendPair(item.data());
+      await this.releasePair(uid, pair.a === uid ? pair.b : pair.a, pair.epoch); deleted += 1;
     }
     for (const group of groups.items) { await this.deleteGroup(uid, group.id, group.revision, groupsCounted); deleted += 1; }
     for (const block of blocks.items) { await this.releaseBlock(uid, block.uid, blocksCounted); deleted += 1; }
@@ -587,15 +669,15 @@ export class FriendStore {
     const batch = writeBatch(this.db);
     batch.delete(this.ref('friendIdentities', uid)); batch.delete(this.ref('friendShareHeads', uid)); batch.delete(this.ref('friendShareRegistry', uid));
     await batch.commit();
-    if (groups.items.length < 20 && blocks.items.length < 20) {
+    if (relations.size < 20 && groups.items.length < 20 && blocks.items.length < 20) {
       try {
-        const quotas = writeBatch(this.db); quotas.delete(groupQuota); quotas.delete(blockQuota);
+        const quotas = writeBatch(this.db); quotas.delete(groupQuota); quotas.delete(blockQuota); quotas.delete(pairQuota);
         await quotas.commit();
-        const remaining = await Promise.all([getDocFromServer(groupQuota), getDocFromServer(blockQuota)]);
+        const remaining = await Promise.all([getDocFromServer(groupQuota), getDocFromServer(blockQuota), getDocFromServer(pairQuota)]);
         if (remaining.some(value => value.exists())) return { deleted, done: false, message: 'Some account settings still need removal. Try deleting again later.' };
       } catch (cause) {
         if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-        if (groupsCounted || blocksCounted) return { deleted, done: false, message: 'Some account settings could not be removed. Try deleting again later.' };
+        if (groupsCounted || blocksCounted || pairsCounted) return { deleted, done: false, message: 'Some account settings could not be removed. Try deleting again later.' };
         console.info('Account count controls are unavailable; this cleanup uses the previous rules path.');
       }
     }

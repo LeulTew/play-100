@@ -8,6 +8,7 @@ import {
   collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, orderBy, query, runTransaction,
   serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
+import type { Firestore, Transaction, TransactionOptions } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FriendStore } from '../src/cloud/friend-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
@@ -18,7 +19,8 @@ import type { AvatarValue, PublicEntry } from '../src/lib/community';
 
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return { ...actual, runTransaction: vi.fn(actual.runTransaction) };
+  return { ...actual, runTransaction: vi.fn(actual.runTransaction), getDocFromServer: vi.fn(actual.getDocFromServer),
+    getDocsFromServer: vi.fn(actual.getDocsFromServer) };
 });
 
 const [firestoreHost, firestorePort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
@@ -38,6 +40,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
   vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
+  vi.mocked(getDocFromServer).mockReset().mockImplementation(actual.getDocFromServer);
+  vi.mocked(getDocsFromServer).mockReset().mockImplementation(actual.getDocsFromServer);
   await environment.clearFirestore();
 });
 afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); await Promise.all(apps.splice(0).map((app) => deleteApp(app))); });
@@ -93,6 +97,48 @@ function pairData(a: string, b: string, from: string, state = 'accepted') {
 }
 
 describe('canonical friendship requests and private relationship metadata', () => {
+  it('uses plain index-building copy only at the pair cap and leaves ordinary requests unaffected', async () => {
+    const a = await client(); const b = await client();
+    const quotaPath = `accountQuotas/${a.uid}/limits/pairs`;
+    await seed(quotaPath, { count: 1000, revision: 1, lastPair: friendPairId(a.uid, b.uid) });
+    vi.mocked(getDocsFromServer).mockRejectedValueOnce(Object.assign(new Error('Index still building'), { code: 'failed-precondition' }));
+    await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toThrow('Connection cleanup is not ready yet. Try again later.');
+    expect(vi.mocked(getDocsFromServer)).toHaveBeenCalledTimes(1);
+    expect(await a.store.pair(a.uid, b.uid)).toBeNull();
+    await seed(quotaPath, { count: 0, revision: 1, lastPair: friendPairId(a.uid, b.uid) });
+    expect((await a.store.sendRequest(a.uid, b.uid)).state).toBe('pending');
+    expect(vi.mocked(getDocsFromServer)).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['revoked', 'consumed', 'replaced', 'recipient-retired'] as const)('does not accept a token %s after preview and leaves no partial pair or quota write', async change => {
+    const owner = await client(); const recipient = await client();
+    const invite = await owner.store.createInvite(owner.uid);
+    const other = change === 'consumed' ? await client() : null;
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const readsBefore = vi.mocked(getDocFromServer).mock.calls.length;
+    vi.mocked(runTransaction).mockImplementationOnce(async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) => {
+      if (change === 'recipient-retired') await recipient.store.revokeForDeletion(recipient.uid);
+      else if (other) await other.store.acceptInvite(other.uid, invite.token);
+      else {
+        await owner.store.revokeInvite(owner.uid, invite.token);
+        if (change === 'replaced') {
+          const next = await owner.store.createInvite(owner.uid);
+          expect(next.slot).toBe(invite.slot);
+          expect(next.token).not.toBe(invite.token);
+        }
+      }
+      return actual.runTransaction(db, operation, options);
+    });
+    await expect(recipient.store.acceptInvite(recipient.uid, invite.token)).rejects.toMatchObject({
+      code: change === 'recipient-retired' ? 'unavailable' : 'invite-unavailable',
+    });
+    expect(vi.mocked(getDocFromServer).mock.calls.slice(readsBefore)
+      .filter(([ref]) => ref.firestore === recipient.db && ref.path === `friendInvites/${invite.token}`)).toHaveLength(2);
+    expect(await recipient.store.pair(recipient.uid, owner.uid)).toBeNull();
+    expect((await getDocFromServer(doc(recipient.db, 'accountQuotas', recipient.uid, 'limits', 'pairs'))).exists()).toBe(false);
+    if (other) expect((await other.store.pair(other.uid, owner.uid))?.state).toBe('accepted');
+  });
+
   it('returns authoritative initialized settings while a prior missing-document watch remains active', async () => {
     const a = await client(false, false);
     let stop: (() => void) | undefined;

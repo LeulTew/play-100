@@ -96,6 +96,10 @@ describe('strict friend types and selected projection', () => {
     expect(() => parseFriendPair({ ...pair, from: 'stranger' })).toThrow();
     expect(() => parseFriendPair({ ...pair, epoch: Number.MAX_SAFE_INTEGER + 1 })).toThrow();
     expect(() => parseFriendPair({ ...pair, state: ['pending'] })).toThrow();
+    expect(parseFriendPair({ ...pair, format: 2, creatorUid: 'bob' })).toMatchObject({ format: 2, creatorUid: 'bob' });
+    expect(() => parseFriendPair({ ...pair, creatorUid: 'alice' })).toThrow();
+    expect(() => parseFriendPair({ ...pair, format: 2 })).toThrow();
+    expect(() => parseFriendPair({ ...pair, format: 2, creatorUid: 'stranger' })).toThrow();
   });
   it('bounds private groups and source revision markers', () => {
     const id = crypto.randomUUID();

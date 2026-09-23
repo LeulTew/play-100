@@ -4,6 +4,20 @@ import indexes from '../../firestore.indexes.json';
 import { FRIEND_ALL_TRACKED_WRITE_GROUP } from './friend-all-transport';
 
 describe('counted All-sharing production query indexes', () => {
+  it('pins the only creator-attributed capacity cleanup query to its exact index', () => {
+    expect(indexes.indexes.filter(index => index.collectionGroup === 'friendPairs' && index.fields.some(field => field.fieldPath === 'creatorUid')))
+      .toEqual([{
+        collectionGroup: 'friendPairs', queryScope: 'COLLECTION', fields: [
+          { fieldPath: 'participants', arrayConfig: 'CONTAINS' },
+          { fieldPath: 'creatorUid', order: 'ASCENDING' },
+          { fieldPath: 'state', order: 'ASCENDING' },
+          { fieldPath: 'updatedAt', order: 'ASCENDING' },
+        ],
+      }]);
+    const store = readFileSync(new URL('../cloud/friend-store.ts', import.meta.url), 'utf8');
+    expect(store).toContain("where('participants', 'array-contains', uid), where('creatorUid', '==', uid)");
+    expect(store).toContain("where('state', 'in', ['cancelled', 'removed', 'declined']), orderBy('updatedAt')");
+  });
   it.each(['entry.title', 'entry.position'])('declares the exact format/epoch/active query shape with %s ordering', ordered => {
     const fields = ['format', 'epoch', 'active', ordered].map(fieldPath => ({ fieldPath, order: 'ASCENDING' }));
     expect(indexes.indexes).toContainEqual({ collectionGroup: 'entries', queryScope: 'COLLECTION', fields });

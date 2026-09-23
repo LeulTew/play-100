@@ -2,7 +2,7 @@ import { doc, getDocFromServer } from 'firebase/firestore';
 import type { DocumentData, DocumentReference, Firestore, Transaction } from 'firebase/firestore';
 import { friendUid, friendUuid } from '../lib/friend-types';
 
-export const ACCOUNT_LIMITS = { groups: 50, blocks: 1000, reports: 100 } as const;
+export const ACCOUNT_LIMITS = { groups: 50, blocks: 1000, reports: 100, pairs: 1000 } as const;
 export type AccountQuotaKind = keyof typeof ACCOUNT_LIMITS;
 export type SlotQuotaKind = 'groups' | 'blocks';
 export interface QuotaSlots { ids: string[]; revision: number }
@@ -14,6 +14,7 @@ export class AccountQuotaFull extends Error {
       groups: "You've reached 50 groups. Remove one to add another.",
       blocks: "You've reached 1,000 blocked people. Unblock someone before adding another.",
       reports: "You've reached 100 reports. Wait for a review before sending another.",
+      pairs: "You've reached 1,000 connections and requests. Cancel a request, remove a connection, or try again later.",
     }[kind]);
     this.name = 'AccountQuotaFull';
   }

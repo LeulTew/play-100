@@ -562,19 +562,18 @@ service cloud.firestore {
       allow delete: if own(uid) && fDeleted(uid);
     }
     function fPairShape(data, id) {
-      return fKeys(data, ['format', 'a', 'b', 'participants', 'from', 'state', 'epoch', 'inviteSlot', 'createdAt', 'updatedAt'])
-        && data.format == 1 && fUid(data.a) && fUid(data.b) && data.a < data.b && id == data.a + '~' + data.b
+      let keys = ['format', 'a', 'b', 'participants', 'from', 'state', 'epoch', 'inviteSlot', 'createdAt', 'updatedAt'];
+      return (data.format == 1 ? fKeys(data, keys)
+          : data.format == 2 && fKeys(data, keys.concat(['creatorUid'])) && fUid(data.creatorUid) && data.creatorUid in data.participants)
+        && fUid(data.a) && fUid(data.b) && data.a < data.b && id == data.a + '~' + data.b
         && data.participants == [data.a, data.b] && data.from in data.participants
         && data.state in ['pending', 'accepted', 'declined', 'cancelled', 'removed']
         && fInt(data.epoch, 1, 9007199254740991) && (data.inviteSlot == null || fInt(data.inviteSlot, 0, 19))
         && data.createdAt is timestamp && data.updatedAt == request.time;
     }
     function fRequest(data) {
-      let other = data.from == data.a ? data.b : data.a;
       return data.from == request.auth.uid && data.state == 'pending' && data.inviteSlot == null
-        && fLive(data.a) && fLive(data.b) && fUnblocked(data.a, data.b)
-        && exists(/databases/$(database)/documents/friendSettings/$(data.from))
-        && exists(/databases/$(database)/documents/friendIdentities/$(data.from)) && liveProfile(other);
+        && fKnownLive(data.from) && exists(/databases/$(database)/documents/friendIdentities/$(data.from));
     }
     function fInviteCurrent(data, token) {
       return data.state == 'active' && data.createdAt <= request.time
@@ -587,38 +586,64 @@ service cloud.firestore {
       let after = getAfter(/databases/$(database)/documents/friendInvites/$(token)).data;
       return pair.state == 'accepted' && pair.inviteSlot != null && pair.from != request.auth.uid
         && before.ownerUid == pair.from && before.slot == pair.inviteSlot
-        && before.state == 'active' && fKnownLive(request.auth.uid)
+        && before.state == 'active'
         && after.state == 'consumed' && after.acceptedBy == request.auth.uid;
     }
     function fPairTransition(before, after) {
       return (before.state == 'pending' && after.from == before.from && after.inviteSlot == null
-          && ((after.state == 'accepted' && request.auth.uid != before.from
-              && exists(/databases/$(database)/documents/friendSettings/$(request.auth.uid))
-              && fLive(before.a) && fLive(before.b) && fUnblocked(before.a, before.b))
-            || (after.state == 'declined' && request.auth.uid != before.from)
+          && ((after.state == 'declined' && request.auth.uid != before.from)
             || (after.state == 'cancelled' && request.auth.uid == before.from)))
         || (after.state == 'removed' && after.from == before.from && after.inviteSlot == null
           && (before.state == 'accepted' || (before.state == 'pending'
-            && existsAfter(/databases/$(database)/documents/friendBlocks/$(request.auth.uid)/items/$(request.auth.uid == before.a ? before.b : before.a)))))
-        || (before.state in ['declined', 'cancelled', 'removed'] && fRequest(after)
-          && (before.state != 'declined' || after.from != before.from
-            || (before.updatedAt is timestamp && request.time >= before.updatedAt + duration.value(30, 'd'))))
-        || (before.state != 'accepted' && fInviteProof(after));
+            && existsAfter(/databases/$(database)/documents/friendBlocks/$(request.auth.uid)/items/$(request.auth.uid == before.a ? before.b : before.a)))));
+    }
+    function fPairTouchMatches(before, after, id, created) {
+      return after.lastPair == id && after.count == before.count + (created ? 1 : 0) && after.revision == before.revision + 1;
+    }
+    function fPairTouch(uid, id, created) {
+      let path = quotaPath(uid, 'pairs');
+      let after = getAfter(path).data;
+      return exists(path) ? fPairTouchMatches(get(path).data, after, id, created)
+        : after.lastPair == id && after.count == (created ? 1 : 0) && after.revision == 1;
+    }
+    function fPairAction(before, after, id) {
+      return after.state == 'accepted' && after.inviteSlot != null && before.state != 'accepted'
+        ? fPairTouch(request.auth.uid, id, false) && fInviteProof(after)
+        : after.state == 'pending'
+          ? before.state in ['declined', 'cancelled', 'removed'] && fRequest(after) && fPairTouch(request.auth.uid, id, false)
+            && (before.state != 'declined' || after.from != before.from
+              || request.time >= before.updatedAt + duration.value(30, 'd'))
+          : after.state == 'accepted'
+            ? before.state == 'pending' && after.from == before.from && after.inviteSlot == null
+              && request.auth.uid != before.from && fKnownLive(request.auth.uid) && fPairTouch(request.auth.uid, id, false)
+            : fOwnLive(request.auth.uid) && fPairTransition(before, after);
+    }
+    function fPairDeletable(data) {
+      return data.state in ['cancelled', 'removed']
+        || (data.state == 'declined' && request.time >= data.updatedAt + duration.value(30, 'd'))
+        || fDeleted(request.auth.uid);
+    }
+    function fPairReleased(uid, id) {
+      let before = get(quotaPath(uid, 'pairs')).data;
+      let after = getAfter(quotaPath(uid, 'pairs')).data;
+      return after.lastPair == id && after.count == before.count - 1 && after.revision == before.revision;
     }
     match /friendPairs/{id} {
       allow get: if fOwnPairId(id) && (resource == null || request.auth.uid in resource.data.participants);
       // Metadata queries need only the caller's participant constraint, not 20 per-row authorization lookups.
       allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && request.auth.uid in resource.data.participants;
       allow create: if verified() && request.auth.uid in request.resource.data.participants
-        && fPairShape(request.resource.data, id) && request.resource.data.epoch == 1 && request.resource.data.createdAt == request.time
+        && fPairShape(request.resource.data, id) && request.resource.data.format == 2 && request.resource.data.creatorUid == request.auth.uid
+        && request.resource.data.epoch == 1 && request.resource.data.createdAt == request.time && fPairTouch(request.auth.uid, id, true)
         && (fRequest(request.resource.data) || fInviteProof(request.resource.data));
       allow update: if verified() && request.auth.uid in resource.data.participants
         && fPairShape(request.resource.data, id) && request.resource.data.a == resource.data.a && request.resource.data.b == resource.data.b
+        && request.resource.data.format == resource.data.format
+        && (resource.data.format == 1 || request.resource.data.creatorUid == resource.data.creatorUid)
         && request.resource.data.epoch == resource.data.epoch + 1 && request.resource.data.createdAt == resource.data.createdAt
-        && (request.resource.data.state == 'accepted' && request.resource.data.inviteSlot != null && resource.data.state != 'accepted'
-          ? fInviteProof(request.resource.data)
-          : fOwnLive(request.auth.uid) && fPairTransition(resource.data, request.resource.data));
-      allow delete: if verified() && request.auth.uid in resource.data.participants && fDeleted(request.auth.uid);
+        && fPairAction(resource.data, request.resource.data, id);
+      allow delete: if verified() && request.auth.uid in resource.data.participants && fPairDeletable(resource.data)
+        && (resource.data.format == 1 || fPairReleased(resource.data.creatorUid, id));
     }
     function quotaPath(uid, kind) { return /databases/$(database)/documents/accountQuotas/$(uid)/limits/$(kind); }
     function slotItemPath(uid, kind, id) {
@@ -639,8 +664,33 @@ service cloud.firestore {
     function quotaReleased(uid, kind, id) {
       return !quotaContains(uid, kind, id) || !getAfter(quotaPath(uid, kind)).data.ids.hasAny([id]);
     }
+    function pairQuotaShape(data) {
+      return fKeys(data, ['count', 'revision', 'lastPair']) && fInt(data.count, 0, 9007199254740991)
+        && fInt(data.revision, 1, 9007199254740991) && data.lastPair is string
+        && data.lastPair.matches('^[A-Za-z0-9_-]{1,128}~[A-Za-z0-9_-]{1,128}$');
+    }
+    function pairQuotaAuthority(uid, pair) {
+      let other = pair.a == uid ? pair.b : pair.a;
+      return uid in pair.participants && pair.updatedAt == request.time
+        && (pair.state == 'pending'
+          ? pair.from == uid && fLive(other) && fUnblocked(uid, other) && liveProfile(other)
+          : pair.state == 'accepted' && pair.from != uid
+            && (pair.inviteSlot != null ? fKnownLive(uid) : fKnownLive(other) && fUnblocked(uid, other)));
+    }
+    function pairQuotaWrite(uid, data, created) {
+      let pair = getAfter(/databases/$(database)/documents/friendPairs/$(data.lastPair)).data;
+      return (!created || (pair.format == 2 && pair.creatorUid == uid && pair.createdAt == request.time))
+        && pairQuotaAuthority(uid, pair);
+    }
+    function pairQuotaRemoval(uid, data) {
+      let path = /databases/$(database)/documents/friendPairs/$(data.lastPair);
+      return exists(path) && pairQuotaReleaseOwner(get(path).data, uid) && !existsAfter(path);
+    }
+    function pairQuotaReleaseOwner(pair, uid) {
+      return verified() && pair.format == 2 && pair.creatorUid == uid && request.auth.uid in pair.participants;
+    }
     match /accountQuotas/{uid}/limits/{kind} {
-      allow get: if own(uid) && kind in ['groups', 'blocks', 'reports'];
+      allow get: if own(uid) && kind in ['groups', 'blocks', 'reports', 'pairs'];
       allow list: if false;
       allow create: if kind in ['groups', 'blocks'] && accountActive(uid) && quotaSlots(request.resource.data)
         && request.resource.data.revision == 1 && request.resource.data.ids.size() == 1
@@ -662,6 +712,17 @@ service cloud.firestore {
             && reportQuotaCreation(uid, request.resource.data))
           || ((own(uid) || creator()) && request.resource.data.count == resource.data.count - 1 && reportQuotaRemoval(uid, request.resource.data)));
       allow delete: if kind == 'reports' && own(uid) && (resource == null || resource.data.count == 0);
+      allow create: if kind == 'pairs' && own(uid) && pairQuotaShape(request.resource.data)
+        && request.resource.data.count in [0, 1] && request.resource.data.revision == 1
+        && pairQuotaWrite(uid, request.resource.data, request.resource.data.count == 1);
+      allow update: if kind == 'pairs' && pairQuotaShape(request.resource.data)
+        && ((own(uid) && request.resource.data.revision == resource.data.revision + 1
+          && ((request.resource.data.count == resource.data.count && pairQuotaWrite(uid, request.resource.data, false))
+            || (request.resource.data.count == resource.data.count + 1 && request.resource.data.count <= 1000
+              && pairQuotaWrite(uid, request.resource.data, true))))
+          || (request.resource.data.count == resource.data.count - 1 && request.resource.data.revision == resource.data.revision
+            && pairQuotaRemoval(uid, request.resource.data)));
+      allow delete: if kind == 'pairs' && own(uid) && (resource == null || resource.data.count == 0);
     }
     match /friendBlocks/{uid}/items/{otherUid} {
       allow get: if own(uid);

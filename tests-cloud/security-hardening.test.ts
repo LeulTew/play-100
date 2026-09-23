@@ -122,12 +122,13 @@ describe('S3 report and friendship boundaries', () => {
 
   it('prevents immediate re-request by a declined sender, but allows the decliner to initiate', async () => {
     await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'declined') });
-    await assertFails(user('Alice').doc('friendPairs/Alice~Bob').update({
-      from: 'Alice', state: 'pending', epoch: 2, updatedAt: serverTimestamp(),
-    }));
-    await assertSucceeds(user('Bob').doc('friendPairs/Alice~Bob').update({
-      from: 'Bob', state: 'pending', epoch: 2, updatedAt: serverTimestamp(),
-    }));
+    for (const uid of ['Alice', 'Bob']) {
+      const db = user(uid); const request = db.batch();
+      request.update(db.doc('friendPairs/Alice~Bob'), { from: uid, state: 'pending', epoch: 2, updatedAt: serverTimestamp() });
+      request.set(db.doc(`accountQuotas/${uid}/limits/pairs`), { count: 0, revision: 1, lastPair: 'Alice~Bob' });
+      if (uid === 'Alice') await assertFails(request.commit());
+      else await assertSucceeds(request.commit());
+    }
   });
 
   it('uses the enforced server update time for the 30-day cooldown, never a forged client timestamp', async () => {
@@ -135,9 +136,10 @@ describe('S3 report and friendship boundaries', () => {
     await assertFails(user('Alice').doc('friendPairs/Alice~Bob').update({
       from: 'Alice', state: 'pending', epoch: 2, updatedAt: Timestamp.fromMillis(0),
     }));
-    await assertSucceeds(user('Alice').doc('friendPairs/Alice~Bob').update({
-      from: 'Alice', state: 'pending', epoch: 2, updatedAt: serverTimestamp(),
-    }));
+    const db = user('Alice'); const request = db.batch();
+    request.update(db.doc('friendPairs/Alice~Bob'), { from: 'Alice', state: 'pending', epoch: 2, updatedAt: serverTimestamp() });
+    request.set(db.doc('accountQuotas/Alice/limits/pairs'), { count: 0, revision: 1, lastPair: 'Alice~Bob' });
+    await assertSucceeds(request.commit());
   });
 
   it('does not reveal hidden or missing public profiles to other accounts', async () => {
