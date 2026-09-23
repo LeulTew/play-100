@@ -209,7 +209,7 @@ export function createCompareDragSession(
       try {
         const valid = parseCompareTray(serializeCompareTray(scope, [record]), scope)[0];
         const token = createToken();
-        if (!valid || !/^[a-f0-9-]{36}$/i.test(token)) throw new Error('A safe drag could not be started. Use Pin to compare instead.');
+        if (!valid || !/^[a-f0-9-]{36}$/i.test(token)) throw new Error('A safe drag could not be started. Use Pin for comparison instead.');
         active = { token, record: valid };
         store.setDragging(true);
         // Only an opaque one-use token crosses DataTransfer, never an account ID or game metadata.
@@ -225,7 +225,7 @@ export function createCompareDragSession(
       const pending = active;
       cancelDrag();
       if (!pending || token.length !== 36 || token !== pending.token) {
-        store.reportError('This drag has expired or belongs to another tab. Use Pin to compare instead.');
+        store.reportError('This drag has expired or belongs to another tab. Use Pin for comparison instead.');
         return false;
       }
       return store.pin(pending.record);

@@ -52,7 +52,7 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
     await expect(dock).toHaveAttribute('data-dragging', 'true');
     await expect(dock).toContainText('Drop to pin');
     await expect(page.locator('.compare-drag-ghost')).toHaveCount(1);
-    await expect(page.locator('.compare-drag-ghost')).toHaveText('Pin to Compare');
+    await expect(page.locator('.compare-drag-ghost')).toHaveText('Pin for comparison');
     await expect(page.locator('.drag-preview,dialog[open]')).toHaveCount(0);
     expect(await trayRaw(page)).toBeNull();
     const target = await dock.boundingBox();
@@ -171,7 +171,7 @@ for (const scenario of publicSources) {
     const dock = page.getByRole('complementary', { name: 'Pinned games for comparison', exact: true });
     await expect(dock).toContainText('Drop to pin');
     await expect(page.locator('.compare-drag-ghost')).toHaveCount(1);
-    await expect(page.locator('.compare-drag-ghost')).toHaveText('Pin to Compare');
+    await expect(page.locator('.compare-drag-ghost')).toHaveText('Pin for comparison');
     const target = await dock.boundingBox();
     if (!target) throw new Error('The actual Compare target is not laid out.');
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });

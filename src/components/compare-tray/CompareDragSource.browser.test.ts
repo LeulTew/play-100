@@ -304,7 +304,7 @@ describe('Compare source browser contract', () => {
     expect(transfer?.types).toEqual([COMPARE_DRAG_TYPE]);
     expect(transfer?.values[COMPARE_DRAG_TYPE]).toMatch(/^[a-f0-9-]{36}$/i);
     await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
-    await browserExpect(page.locator('.compare-drag-ghost')).toHaveText('Pin to Compare');
+    await browserExpect(page.locator('.compare-drag-ghost')).toHaveText('Pin for comparison');
     expect(await page.locator('.compare-drag-ghost input,.compare-drag-ghost textarea,.compare-drag-ghost img,[data-compare-token]').count()).toBe(0);
     await nativeDrop();
     await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
@@ -554,7 +554,7 @@ describe('Compare source browser contract', () => {
       // Cross the UA's touchmove delivery threshold after the hold, not its pre-hold slop.
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 24, y: y + 24 }] });
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
-      await browserExpect(page.locator('.compare-drag-ghost')).toHaveText('Pin to Compare');
+      await browserExpect(page.locator('.compare-drag-ghost')).toHaveText('Pin for comparison');
       const dock = await page.locator('.compare-tray-dock').boundingBox();
       if (!dock) throw new Error('The touch drop target is missing.');
       const endX = dock.x + dock.width / 2, endY = dock.y + dock.height / 2;

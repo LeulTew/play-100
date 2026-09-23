@@ -222,7 +222,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
   const makeGhost = (gesture: Gesture) => {
     const ghost = document.createElement('div');
     ghost.className = 'compare-drag-ghost';
-    ghost.textContent = 'Pin to Compare';
+    ghost.textContent = 'Pin for comparison';
     ghost.setAttribute('aria-hidden', 'true');
     ghost.inert = true;
     if (gesture.native) ghost.setAttribute('data-native', '');
@@ -279,7 +279,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         try {
           gesture.node.setPointerCapture(gesture.pointerId);
         } catch {
-          store.reportError('This drag was interrupted. Use Pin to compare instead.');
+          store.reportError('This drag was interrupted. Use Pin for comparison instead.');
           cancel();
           return;
         }
@@ -442,7 +442,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       }
       if (!event.dataTransfer) {
         event.preventDefault();
-        store.reportError('A safe drag could not be started. Use Pin to compare instead.');
+        store.reportError('A safe drag could not be started. Use Pin for comparison instead.');
         cancel();
         return;
       }
@@ -454,7 +454,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         event.dataTransfer.setDragImage(gesture.ghost, 16, 16);
       } catch {
         event.preventDefault();
-        store.reportError('A safe drag could not be started. Use Pin to compare instead.');
+        store.reportError('A safe drag could not be started. Use Pin for comparison instead.');
         cancel();
       }
     },

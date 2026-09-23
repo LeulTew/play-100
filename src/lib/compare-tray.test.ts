@@ -83,7 +83,7 @@ describe('Compare tray reference validation', () => {
       for (const other of [nextToken, 'x'.repeat(100_000), JSON.stringify(game(1))]) {
         drag.beginDrag(game(1));
         expect(drag.dropGame(other)).toBe(false);
-        expect(store.getSnapshot().error).toMatch(/expired/);
+        expect(store.getSnapshot().error).toBe('This drag has expired or belongs to another tab. Use Pin for comparison instead.');
       }
       drag.beginDrag(game(1));
       drag.cancelDrag();
