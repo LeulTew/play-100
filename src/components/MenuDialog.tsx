@@ -112,7 +112,8 @@ export function MenuDialog({ page, gamesView, filters, onlineAvailable, creator,
           </ul>
         </section>
         {onlineAvailable && <section aria-labelledby="menu-people">
-          <h3 id="menu-people">People &amp; sharing</h3>
+          <h3 id="menu-people">Online sharing</h3>
+          <p className="section-help">An account is needed to share or compare with friends.</p>
           <ul className="menu-links">
             {link('Friends', 'friends')}
             {link('Compare', 'compare')}

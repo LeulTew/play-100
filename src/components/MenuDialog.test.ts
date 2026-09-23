@@ -31,6 +31,17 @@ describe('Menu visibility and location contract', () => {
     expect(render(true, false)).toContain('href="/account"');
   });
 
+  it('explains the account boundary without reordering or hiding destinations', () => {
+    const html = render(true, false);
+    expect(html).toContain('Online sharing</h3>');
+    expect(html).toContain('An account is needed to share or compare with friends.');
+    const paths = ['/friends', '/compare', '/community', '/publish', '/friends/sharing', '/friends/sharing/games', '/account'];
+    const positions = paths.map(path => html.indexOf(`href="${path}"`));
+    expect(positions.every(position => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(render(false, false)).not.toContain('Online sharing');
+  });
+
   it.each([
     ['games', 'library', '/my-games'],
     ['library', 'queue', '/my-games?tab=queue'],
