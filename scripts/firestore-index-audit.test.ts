@@ -236,6 +236,10 @@ describe('STORAGE-02 exact query/index contract', () => {
       'params.set("orderBy", "digest");',
       "params.set(`orderBy`, 'digest');",
       'const body = \'{"orderBy":"digest"}\';',
+      "['pageSize=5', 'orderBy=digest'].join('&');",
+      "new URLSearchParams({ pageSize: '5', orderBy: 'digest' });",
+      "function f(orderBy: string) { return new URLSearchParams({ orderBy }); }",
+      "const params: Record<string, string> = {}; params.orderBy = 'digest';",
     ]) {
       expect(() => extractQueries(`${directory}/probe.ts`, source)).toThrow(/REST orderBy requires a reviewed extractor/);
     }

@@ -256,10 +256,10 @@ and the audit pair excluded), immutable 270f query-source fixtures, and the
 release runbook's formal operator-query contract. Admin method chains,
 `runQuery`/`structuredQuery` bodies and REST `orderBy` fail closed until a
 reviewed extractor exists; emulator-only test REST reads stay outside these
-roots. Unknown query indirection also fails closed. Both field order and array-CONTAINS support
-are checked, and none of the new exempt paths (including descendants of map
-exemptions) may be queried. Rule get/getAfter comparisons and field projections
-are not index-requiring queries.
+roots. Unknown query indirection also fails closed. Both field order and
+array-CONTAINS support are checked, and none of the new exempt paths (including
+descendants of map exemptions) may be queried. Rule get/getAfter comparisons
+and field projections are not index-requiring queries.
 
 | Changed reserve | Accepted H5 reserve | STORAGE-02 conditional reserve | Loose-model reduction |
 | --- | ---: | ---: | ---: |

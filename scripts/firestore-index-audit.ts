@@ -66,7 +66,7 @@ export function extractQueries(file: string, text: string): QueryShape[] {
   if (/\b(?:runQuery|structuredQuery)\b/.test(text)) {
     throw new Error(`${file}: runQuery/structuredQuery requires a reviewed extractor.`);
   }
-  if (/[?&]orderBy=|(['"`])orderBy\1/.test(text)) {
+  if (/\borderBy=|(['"`])orderBy\1/.test(text)) {
     throw new Error(`${file}: REST orderBy requires a reviewed extractor.`);
   }
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
@@ -197,6 +197,15 @@ export function extractQueries(file: string, text: string): QueryShape[] {
   const queries: QueryShape[] = [];
   const primitiveCalls: ts.CallExpression[] = [];
   walk(source, node => {
+    if ((ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+      ts.isIdentifier(node.name) && node.name.text === 'orderBy') {
+      fail(node, 'REST orderBy requires a reviewed extractor.');
+    }
+    if (ts.isBinaryExpression(node) &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      ts.isPropertyAccessExpression(node.left) && node.left.name.text === 'orderBy') {
+      fail(node, 'REST orderBy requires a reviewed extractor.');
+    }
     if (ts.isIdentifier(node) || ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
       const referenced = sdkName(node);
       const memberName = ts.isIdentifier(node) && ts.isPropertyAccessExpression(node.parent) && node.parent.name === node;
