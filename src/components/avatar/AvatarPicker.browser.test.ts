@@ -112,10 +112,11 @@ beforeAll(async () => {
   browser = await chromium.launch({ channel: 'chrome', headless: true });
 }, 30_000);
 
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   await browser?.close();
   await server?.close();
-});
+}, 60_000);
 
 beforeEach(async () => {
   if (!browser) throw new Error('Avatar test browser is unavailable.');

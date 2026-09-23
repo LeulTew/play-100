@@ -93,12 +93,13 @@ beforeAll(async () => {
   if (receiptPath) await writeFile(receiptPath, JSON.stringify(receipt, null, 2));
 }, 30_000);
 
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   await browser?.close();
   await browserServer?.close();
   await server?.close();
   if (receiptPath && receipt) await writeFile(receiptPath, JSON.stringify({ ...receipt, closedAt: new Date().toISOString() }, null, 2));
-});
+}, 60_000);
 
 beforeEach(async () => {
   if (!browser) throw new Error('No owned counter browser.');

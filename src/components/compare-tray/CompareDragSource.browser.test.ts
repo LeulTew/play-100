@@ -191,12 +191,13 @@ beforeAll(async () => {
   if (receiptPath) await writeFile(receiptPath, JSON.stringify(resourceReceipt, null, 2));
 }, 30_000);
 
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const closed = await Promise.allSettled([browser?.close(), browserServer?.close(), server?.close()]);
   const failures = closed.filter(result => result.status === 'rejected').map(result => result.reason);
   if (failures.length) throw new AggregateError(failures, 'Compare fixture resource cleanup failed.');
   if (receiptPath && resourceReceipt) await writeFile(receiptPath, JSON.stringify({ ...resourceReceipt, closedAt: new Date().toISOString() }, null, 2));
-});
+}, 60_000);
 
 async function openFixture(touch = false, width = 1280) {
   if (!browser) throw new Error('The Compare test browser is unavailable.');

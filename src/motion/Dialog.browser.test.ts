@@ -314,7 +314,8 @@ beforeAll(async () => {
   console.info(`Native motion fixture: ${origin}; owner Node PID ${process.pid}.`);
 }, 30_000);
 
-afterAll(async () => { await browser?.close(); await server?.close(); });
+// Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
+afterAll(async () => { await browser?.close(); await server?.close(); }, 60_000);
 
 beforeEach(async () => {
   if (!browser) throw new Error('The motion test browser is unavailable.');
