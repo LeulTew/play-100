@@ -700,17 +700,17 @@ export class FriendStore {
         for (const [kind, counted] of [['groups', groupsCounted], ['blocks', blocksCounted]] as const) {
           if (!counted) continue;
           const result = await this.releaseMissingQuotaIds(uid, kind);
-          if (result === 'blocked') return { deleted, done: false, message: 'Some account settings remain. Choose Finish deleting to continue.' };
+          if (result === 'blocked') return { deleted, done: false, message: 'Some account settings remain. Choose Delete account to continue.' };
           more ||= result === 'more';
         }
         if (more) return { deleted, done: false };
         const quotas = writeBatch(this.db); quotas.delete(groupQuota); quotas.delete(blockQuota); quotas.delete(pairQuota);
         await quotas.commit();
         const remaining = await Promise.all([getDocFromServer(groupQuota), getDocFromServer(blockQuota), getDocFromServer(pairQuota)]);
-        if (remaining.some(value => value.exists())) return { deleted, done: false, message: 'Some account settings remain. Choose Finish deleting to continue.' };
+        if (remaining.some(value => value.exists())) return { deleted, done: false, message: 'Some account settings remain. Choose Delete account to continue.' };
       } catch (cause) {
         if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-        if (groupsCounted || blocksCounted || pairsCounted) return { deleted, done: false, message: 'Some account settings remain. Choose Finish deleting to continue.' };
+        if (groupsCounted || blocksCounted || pairsCounted) return { deleted, done: false, message: 'Some account settings remain. Choose Delete account to continue.' };
         console.info('Account count controls are unavailable; this cleanup uses the previous rules path.');
       }
     }

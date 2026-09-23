@@ -679,12 +679,12 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       }
       if (removeAccount) {
         const shelfCleanup = await shelf.store.cleanupDeleted(user.uid);
-        if (!shelfCleanup.done) throw new Error('Some shared games are still stored. Choose Finish deleting to continue.');
+        if (!shelfCleanup.done) throw new Error('Some shared games are still stored. Choose Delete account to continue.');
         for (let index = 0; index < 100; index += 1) {
           const cleaned = await friends.store.cleanupDeleted(user.uid);
           if (cleaned.message) throw new Error(cleaned.message);
           if (cleaned.done) break;
-          if (index === 99) throw new Error('Some connections are still stored. Choose Finish deleting to continue.');
+          if (index === 99) throw new Error('Some connections are still stored. Choose Delete account to continue.');
         }
         const marked = await store.markCleanupComplete(deleting.epoch, ownsDeletion);
         deletionMarked = true;

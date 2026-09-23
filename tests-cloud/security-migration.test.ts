@@ -468,7 +468,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         [`friendGroups/${owner.uid}/items/${id}`]: { format: 1, name: 'Malformed retained fixture', participantUids: [owner.uid, 'KnownPeer'], revision: 1, createdAt: aged() },
       });
       expect(await owner.friends.cleanupDeleted(owner.uid)).toMatchObject({
-        done: false, message: 'Some account settings remain. Choose Finish deleting to continue.',
+        done: false, message: 'Some account settings remain. Choose Delete account to continue.',
       });
       expect(await stored(`friendGroups/${owner.uid}/items/${id}`)).toBeDefined();
     });

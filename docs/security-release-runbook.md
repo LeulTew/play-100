@@ -297,8 +297,9 @@ cloud cleanup that only needs recent Auth confirmation.
 | Public cleanup pass limit | “Retry deletion to continue safely.” | “Some older public copies are still stored. Choose Finish deleting to continue.” |
 | Report page remains | “Retry deletion to finish the next batch.” | “Some reports are still stored. Choose Finish deleting to continue.” |
 | Public registry still exists after final transaction | “Some publication settings still need removal. Try deleting again later.” | “Some publication settings remain. Choose Finish deleting to continue.” |
-| Full social quota cleanup blocked/nonempty | “Some account settings could not be removed / still need removal. Try deleting again later.” | “Some account settings remain. Choose Finish deleting to continue.” |
-| Controller All/shelf/relationship pass limits | “Retry deletion” / “Retry account deletion” | “Some shared copies / shared games / connections are still stored. Choose Finish deleting to continue.” |
+| Full social quota cleanup blocked/nonempty (account-only) | “Some account settings could not be removed / still need removal. Try deleting again later.”; initial i named Finish deleting | “Some account settings remain. Choose Delete account to continue.” |
+| Controller All pass limit (shared copy/account path) | “Retry deletion” | “Some shared copies are still stored. Choose Finish deleting to continue.” |
+| Controller shelf/relationship completion (account-only) | “Retry deletion” / “Retry account deletion”; initial i named Finish deleting | “Some shared games / connections are still stored. Choose Delete account to continue.” |
 | Account/session changed during any cleanup | “Cleanup stopped” or “Nothing was deleted” | “The signed-in account changed. Return to the same account before continuing.” Finish deleting may no longer belong to the visible account |
 | Deleted epoch or retained copy changed | Technical state/snapshot wording | “Online saving changed” / “A saved copy changed. Refresh the page before continuing.” No instruction to continue a stale deletion |
 | Final marker/last Auth guard changed | “The account changed. Deletion was not confirmed.” | Account/online-saving state changed; refresh. The final Auth guard also states the sign-in remains |
@@ -324,3 +325,9 @@ The unit and emulator assertions retain the same predicates and now check the
 new strings. The real UI source checks that the interrupted-deletion instruction
 matches the visible Finish deleting action after closing its confirmation.
 All changed-source execution remains the integrator's UNRUN work item.
+
+After an interrupted account deletion, **Finish deleting** completes the online
+copy only, and **Delete account** then removes the sign-in (two steps).
+Account-only leftovers therefore name Delete account, which is visible for the
+incomplete state; the open confirmation can also retry that same account path.
+A target-aware single-step resume remains backlog **DEL-RESUME-01**.
