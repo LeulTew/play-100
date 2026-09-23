@@ -32,7 +32,7 @@ button.compare-drag-handle[hidden] { display: none; }
 .compare-drag-ghost { position: fixed; z-index: 39; top: 0; left: 0; display: flex; align-items: center; gap: 12px; width: 176px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--ink); border-radius: 4px; color: var(--ink); background: var(--paper); font-family: inherit; font-size: 15px; font-weight: 650; line-height: 1.25; pointer-events: none; contain: layout paint; }
 .compare-drag-ghost::before { content: ""; flex: 0 0 14px; height: 18px; border: 1px solid currentColor; box-shadow: 3px -3px 0 -1px var(--paper), 3px -3px 0 var(--ink); }
 .compare-drag-ghost[data-native] { left: -10000px; }
-button.compare-tray-action { display: var(--tray-extra, inline-flex); min-width: 0; padding-inline: 17px; overflow-wrap: anywhere; }
+button.compare-tray-action { display: var(--tray-extra, inline-flex); }
 .compare-tray-action-context { display: block; font-size: 12px; font-weight: 500; }
 .compare-tray-storage-mark { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 22px; height: 22px; background: var(--lime); border: 1px solid var(--ink); border-radius: 50%; }
 .compare-tray-error { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; max-width: 42ch; padding: 8px 0 0; border-top: 1px solid var(--line); color: var(--ink); font-size: 13px; line-height: 1.5; }
@@ -66,7 +66,6 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
   .compare-tray-stack { min-width: 30px; }
   .compare-tray-expand strong { font-size: 14px; }
   .compare-tray-expand > span > span { display: var(--tray-label, none); }
-  .compare-tray-action { min-height: 44px; padding: 10px 14px; font-size: 14px; gap: 8px; }
   .compare-tray-sheet { margin: auto 0 0; width: 100%; border-radius: 7px 7px 0 0; max-height: calc(100dvh - max(24px, env(safe-area-inset-top, 0px))); }
   .compare-tray-sheet .dialog-inner { padding: 26px 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
   .compare-tray-sheet h2 { font-size: 34px; }

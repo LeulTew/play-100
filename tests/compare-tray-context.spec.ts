@@ -23,6 +23,12 @@ for (const width of [320, 393, 768, 1440]) {
       return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
     });
     expect(failedHit).toBe(true);
+    const action = dock.locator('.compare-tray-action');
+    await expect(action).toBeVisible();
+    await expect(action).toHaveCSS('padding-inline-start', '22px');
+    await expect(action).toHaveCSS('padding-inline-end', '22px');
+    await expect(action).toHaveCSS('min-height', '48px');
+    await expect(action).toHaveCSS('font-size', '15px');
     const errorBounds = await dock.evaluate(element => {
       const dock = element.getBoundingClientRect();
       const error = element.querySelector('.compare-tray-error')!.getBoundingClientRect();
