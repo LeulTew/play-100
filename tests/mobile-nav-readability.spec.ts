@@ -102,7 +102,9 @@ for (const width of [320, 393]) {
     await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
     await expect(pin).toHaveAttribute('aria-pressed', 'false');
     await pin.tap();
-    await expect(card.getByRole('button', { name: `Unpin ${title} from comparison`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    const pinned = card.getByRole('button', { name: `Pinned ${title} for comparison`, exact: true });
+    await expect(pinned).toHaveAttribute('aria-pressed', 'true');
+    await expect(pinned).toBeDisabled();
     await expect(page.locator('.compare-tray-dock')).toBeVisible();
     await expect(page.locator('.compare-tray-dock').getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
     const actual = await readNavigation(page);
