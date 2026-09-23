@@ -3,16 +3,16 @@ import { assertFails, initializeTestEnvironment } from '@firebase/rules-unit-tes
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteApp, initializeApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
-import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemoryPersistence, initializeAuth, reload } from 'firebase/auth';
+import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemoryPersistence, initializeAuth, reload, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import {
-  collection, connectFirestoreEmulator, deleteDoc, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, query,
+  collection, collectionGroup, connectFirestoreEmulator, deleteDoc, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer, getFirestore, limit, query,
   serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cancelUnusedRegistration, ensureAccountActivity, removeCancelledRegistration } from '../src/cloud/account-lifecycle';
-import { CloudStore } from '../src/cloud/cloud-store';
+import { CloudStore, DeletionCleanupInterrupted, DeletionListPermissionPending } from '../src/cloud/cloud-store';
 import { FriendStore } from '../src/cloud/friend-store';
 import { FriendShelfStore } from '../src/cloud/friend-shelf-store';
 import { SocialStore } from '../src/cloud/social-store';
@@ -266,6 +266,25 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       message === 'Payload release counters are not yet available; using the legacy cleanup order once.')).toHaveLength(policy === 'live-270f' ? 4 : 0);
   }, 60000);
 
+  it('requires deletion-mode LIST permission before deleting any private payload, never falling back to registry-only account removal', async () => {
+    const owner = await actor();
+    const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 6 });
+    const saved = await owner.cloud.upload(state, await owner.cloud.enable(null));
+    const deleting = await owner.cloud.revoke(saved, true);
+    const options = { expectedDeletionEpoch: deleting.epoch };
+    if (policy === 'live-270f') {
+      const pending = owner.cloud.cleanup(true, options);
+      await expect(pending).rejects.toBeInstanceOf(DeletionListPermissionPending);
+      await expect(pending).rejects.toThrow('No saved library or snapshot payload was removed');
+      for (const digest of saved.current!.chunks) expect(await stored(`accounts/${owner.uid}/chunks/${digest}`)).toBeDefined();
+      expect(await stored(`accounts/${owner.uid}/generations/${saved.current!.generation}`)).toBeDefined();
+      expect(owner.auth.currentUser?.uid).toBe(owner.uid);
+    } else {
+      expect(await owner.cloud.cleanup(true, options)).toBe(1);
+      expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
+    }
+  });
+
   if (policy === 'candidate') {
     it('cleans ten old public entries in three-position steps while another generation remains live and published', async () => {
       const owner = await actor(); const guest = session();
@@ -290,6 +309,90 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect((await owner.social.ownProfile(owner.uid))?.generation).toBe(current.generation);
       expect(await guest.social.entries(current)).toEqual([entry]);
       expect((await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).data()?.ids).toEqual([current.generation]);
+    });
+
+    it('allows only deletion-mode owner chunk lists of at most twenty, never peers, guests or collection-group scans', async () => {
+      const owner = await actor(); const other = await actor(); const guest = session();
+      const head = await owner.cloud.enable(null);
+      for (const kind of ['accounts', 'creatorRanks']) {
+        await expect(getDocsFromServer(query(collection(owner.db, kind, owner.uid, 'chunks'), limit(20))))
+          .rejects.toMatchObject({ code: 'permission-denied' });
+      }
+      const deleting = await owner.cloud.revoke(head, true);
+      for (const kind of ['accounts', 'creatorRanks']) {
+        expect((await getDocsFromServer(query(collection(owner.db, kind, owner.uid, 'chunks'), limit(20)))).empty).toBe(true);
+        for (const client of [other, guest]) {
+          await expect(getDocsFromServer(query(collection(client.db, kind, owner.uid, 'chunks'), limit(20))))
+            .rejects.toMatchObject({ code: 'permission-denied' });
+        }
+        await expect(getDocsFromServer(query(collection(owner.db, kind, owner.uid, 'chunks'), limit(21))))
+          .rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(getDocsFromServer(collection(owner.db, kind, owner.uid, 'chunks')))
+          .rejects.toMatchObject({ code: 'permission-denied' });
+      }
+      await expect(getDocsFromServer(query(collectionGroup(owner.db, 'chunks'), limit(20))))
+        .rejects.toMatchObject({ code: 'permission-denied' });
+      await seed({ [`syncHeads/${owner.uid}`]: { ...deleting, deleted: false, enabled: true, epoch: deleting.epoch + 1, updatedAt: Timestamp.now() } });
+      for (const kind of ['accounts', 'creatorRanks']) {
+        await expect(getDocsFromServer(query(collection(owner.db, kind, owner.uid, 'chunks'), limit(20))))
+          .rejects.toMatchObject({ code: 'permission-denied' });
+      }
+    });
+
+    it('pauses on a real network interruption after confirmed deletion and resumes orphan discovery with a fresh signed-in client', async () => {
+      const owner = await actor();
+      const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 6 });
+      const saved = await owner.cloud.upload(state, await owner.cloud.enable(null));
+      const orphanGeneration = crypto.randomUUID();
+      const entries: Record<string, object> = {};
+      for (let index = 0; index < 41; index += 1) {
+        const chunk = (await packSnapshot({ orphan: index })).chunks[0]!;
+        entries[`accounts/${owner.uid}/chunks/${chunk.digest}`] = { ...chunk, holders: [orphanGeneration], holder: orphanGeneration, createdAt: aged() };
+        if (index < 3) entries[`creatorRanks/${owner.uid}/chunks/${chunk.digest}`] = { ...chunk, holders: [orphanGeneration], holder: orphanGeneration, createdAt: aged() };
+      }
+      await seed(entries);
+      const deleting = await owner.cloud.revoke(saved, true);
+      await expect(owner.cloud.cleanup(true, {
+        expectedDeletionEpoch: deleting.epoch,
+        onProgress: async ({ confirmed }) => { if (confirmed === 20) await disableNetwork(owner.db); },
+      })).rejects.toMatchObject({ name: 'DeletionCleanupInterrupted', confirmed: 20, cause: { code: 'unavailable' } });
+      expect(await stored(`accounts/${owner.uid}/generations/${saved.current!.generation}`)).toBeDefined();
+      expect(owner.auth.currentUser?.uid).toBe(owner.uid);
+      await enableNetwork(owner.db);
+      const fresh = session();
+      await signInWithEmailAndPassword(fresh.auth, owner.email, password);
+      const resumed = new CloudStore(fresh.db, owner.uid);
+      expect(await resumed.cleanup(true, { expectedDeletionEpoch: deleting.epoch })).toBe(1);
+      expect((await getDocFromServer(doc(fresh.db, 'accounts', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
+      for (const kind of ['accounts', 'creatorRanks']) {
+        expect((await getDocsFromServer(query(collection(fresh.db, kind, owner.uid, 'chunks'), limit(20)))).empty).toBe(true);
+      }
+      expect(fresh.auth.currentUser?.uid).toBe(owner.uid);
+    }, 60000);
+
+    it('aborts a purge when the deleted epoch changes and retains the remaining payload and Auth account', async () => {
+      const owner = await actor();
+      const base = await owner.cloud.enable(null);
+      const generation = crypto.randomUUID();
+      const entries: Record<string, object> = {};
+      for (let index = 0; index < 21; index += 1) {
+        const chunk = (await packSnapshot({ interrupted: index })).chunks[0]!;
+        entries[`accounts/${owner.uid}/chunks/${chunk.digest}`] = { ...chunk, holders: [generation], holder: generation, createdAt: aged() };
+      }
+      await seed(entries);
+      const deleting = await owner.cloud.revoke(base, true);
+      await expect(owner.cloud.cleanup(true, {
+        expectedDeletionEpoch: deleting.epoch,
+        onProgress: async ({ confirmed }) => {
+          if (confirmed === 10) await seed({ [`syncHeads/${owner.uid}`]: {
+            ...deleting, enabled: true, deleted: false, epoch: deleting.epoch + 1, revision: deleting.revision + 1, updatedAt: Timestamp.now(),
+          } });
+        },
+      })).rejects.toBeInstanceOf(DeletionCleanupInterrupted);
+      await environment.withSecurityRulesDisabled(async context => {
+        expect((await context.firestore().collection(`accounts/${owner.uid}/chunks`).get()).size).toBe(11);
+      });
+      expect(owner.auth.currentUser?.uid).toBe(owner.uid);
     });
 
     it('releases all 107+107 maximum transport chunks with shared holders, then purges the retained copy in account-deletion mode', async () => {
@@ -339,7 +442,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       if (!head) throw new Error('The retained maximum-count head is missing.');
       await owner.cloud.revoke(head, true);
       expect(await owner.cloud.cleanup(true)).toBe(1);
-      expect((await getDocFromServer(registry)).data()?.ids).toEqual([]);
+      expect((await getDocFromServer(registry)).exists()).toBe(false);
       await environment.withSecurityRulesDisabled(async context => {
         for (const kind of ['accounts', 'creatorRanks']) {
           expect((await context.firestore().collection(`${kind}/${owner.uid}/chunks`).limit(1).get()).empty).toBe(true);
@@ -471,7 +574,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       expect((await getDocFromServer(doc(owner.db, 'creatorRanks', owner.uid, 'chunks', summary.digest))).data()?.holders).toHaveLength(2);
       await owner.cloud.revoke(second, true);
       expect(await owner.cloud.cleanup(true)).toBe(2);
-      expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'))).data()?.ids).toEqual([]);
+      expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
       expect(await stored(`creatorRanks/${owner.uid}/chunks/${summary.digest}`)).toBeUndefined();
       for (const manifest of [first.current, second.current]) {
         if (!manifest) throw new Error('An uploaded private manifest is missing.');

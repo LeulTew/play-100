@@ -88,6 +88,14 @@ export function AccountPage(props: AccountPageProps) {
       <p>{CANCELLED_REGISTRATION_MESSAGE}</p>
       <button className="button button-outline" disabled={busy} onClick={() => setConfirmation('delete-account')}>Remove cancelled sign-in</button>
     </section>}
+    {head?.deleted && <section className="account-notice" aria-label="Online deletion">
+      <p>Deletion was requested. Finish deleting to check for remaining online data. Cloud saving and sharing are off; your sign-in is not removed without account-deletion confirmation.</p>
+      <div className="button-row">
+        <button className="button button-dark" disabled={busy} onClick={() => setConfirmation('delete-copy')}>Finish deleting</button>
+        <button className="text-button" disabled={busy} onClick={() => setConfirmation('delete-account')}>Finish deleting account</button>
+      </div>
+      <p>If you only deleted the online copy, sign in again and explicitly enable saving to keep using this account.</p>
+    </section>}
     <div className="account-columns"><div className="account-primary">
       <section className="sync-panel" aria-labelledby="sync-title">
         <div className="section-title-line"><h2 id="sync-title">Online saving</h2><span className={`sync-state sync-${status}`} role="status">{identity.verified ? SYNC_LABELS[status] : identity.verificationPending ? 'Sign-in needs attention' : 'Verify your email'}</span></div>
@@ -95,7 +103,7 @@ export function AccountPage(props: AccountPageProps) {
           <button className="button button-dark" disabled={busy || resendIn > 0} onClick={() => { void onVerify(); }}>{resendIn ? `Resend in ${resendIn}s` : 'Send verification email'}</button>
           <button className="button button-outline" disabled={busy} onClick={() => { void onRefreshIdentity(); }}>I verified my email</button>
         </div> : !active ? <form onSubmit={(event) => { event.preventDefault(); if (validName() && validChoice && remoteReady && cache && !busy) void onConnect(selected, name.trim()); }}>
-          {head && (!head.enabled || head.deleted) && <p className="account-notice">Online saving was {head.deleted ? 'deleted' : 'stopped'}. Enable it only if you want to resume.</p>}
+          {head && (!head.enabled || head.deleted) && <p className="account-notice">Online saving is {head.deleted ? 'marked for deletion' : 'stopped'}. Enabling it starts saving again; it does not finish pending cleanup.</p>}
           {!remoteReady ? <p role="status">Checking saved copies...</p> : choices.length === 1 ? <p className="connection-source"><strong>{choices[0]?.label}</strong><span>{choices[0]?.detail}</span></p> :
             <fieldset className="connect-choices" disabled={busy}><legend>Start with</legend>{choices.map((item) => <label key={item.value}>
               <input type="radio" name="connection-copy" value={item.value} checked={selected === item.value} onChange={() => setChoice(item.value)} />
@@ -149,6 +157,7 @@ export function AccountPage(props: AccountPageProps) {
     {confirmation && <Dialog open titleId="account-confirm-title" onClose={() => { if (!busy) closeConfirmation(); }} className="info-dialog">
       <h2 id="account-confirm-title">{confirmation === 'signout-device' ? "Remove this device's account copy?" : confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : cancelledRegistration ? 'Remove cancelled sign-in?' : identity.verified ? 'Delete your account?' : 'Cancel this registration?'}</h2>
       {cancelledRegistration && confirmation === 'delete-account' && <p>This removes the cancelled sign-in and its account copy on this device. You can then register again with the same email. Your guest library stays here.</p>}
+      {identity.verified && !cancelledRegistration && confirmation.startsWith('delete') && <p>Cleanup is resumable. If quota, connection or permissions stop it, sign in later and use Finish deleting. Historical parentless public or shared snapshots need the operator's inventory and separately approved purge.</p>}
       <p>{confirmation === 'signout-device' ? 'Sign out and remove only this account copy, its recovery data and sharing caches from this device. Your guest library and online copy are not deleted. Unsynced or newly changed data prevents removal.' : confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? 'Replace this account’s device library with the online copy. A recovery copy stays here.' : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish its ranking and stop older sessions from restoring it. Export a backup first. Your guest library stays here.'}</p>
       {(confirmation === 'delete-copy' || confirmation === 'delete-account') && identity.providers.includes('password') && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
       {googleConfirmation && <p className="section-help">{googleConfirmed ? 'Google confirmed this account. Confirm below to delete.' : 'Confirm with Google in this tab, then return here. Returning does not delete anything.'}</p>}

@@ -324,7 +324,7 @@ test('account export and reversible/full deletion include the independent shelf 
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('status').filter({ hasText: 'Online content was deleted.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Online library and registered snapshots were removed.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Shared games: off', exact: true })).toBeVisible();
   expect((await readAccount(page, owner.uid)).state.records[kcd]?.title).toBe(title);
   await page.locator('input[name="connection-copy"][value="cached"]').check();

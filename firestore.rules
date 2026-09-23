@@ -114,7 +114,8 @@ service cloud.firestore {
     }
     match /accounts/{uid}/metadata/registry {
       allow get: if own(uid);
-      allow list, delete: if false;
+      allow list: if false;
+      allow delete: if own(uid) && head(uid).deleted && resource.data.ids.size() == 0;
       allow create: if own(uid) && head(uid).enabled && !head(uid).deleted
         && request.resource.data.keys().hasOnly(['ids', 'revision'])
         && request.resource.data.ids is list && request.resource.data.ids.size() == 1 && request.resource.data.revision == 1
@@ -200,7 +201,7 @@ service cloud.firestore {
     }
     match /accounts/{uid}/chunks/{id} {
       allow get: if own(uid) && !head(uid).deleted;
-      allow list: if false;
+      allow list: if own(uid) && head(uid).deleted && request.query.limit != null && request.query.limit <= 20;
       allow create: if chunkCreate(uid, id, 'private');
       allow update: if chunkUpdate(uid, id, 'private');
       allow delete: if chunkDelete(uid);
@@ -220,7 +221,7 @@ service cloud.firestore {
     }
     match /creatorRanks/{uid}/chunks/{id} {
       allow get: if (own(uid) || creator()) && !head(uid).deleted;
-      allow list: if false;
+      allow list: if own(uid) && head(uid).deleted && request.query.limit != null && request.query.limit <= 20;
       allow create: if chunkCreate(uid, id, 'ranking');
       allow update: if chunkUpdate(uid, id, 'ranking');
       allow delete: if chunkDelete(uid);

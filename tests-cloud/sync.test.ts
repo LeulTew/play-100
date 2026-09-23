@@ -110,7 +110,7 @@ describe('real Auth and Firestore snapshot transactions', () => {
     await assertFails(getDocFromServer(doc(db, 'accounts', user.uid, 'chunks', digest)));
     expect(await store.cleanup(true)).toBeGreaterThan(0);
     const registry = await getDocFromServer(doc(db, 'accounts', user.uid, 'metadata', 'registry'));
-    expect(registry.data()?.ids).toEqual([]);
+    expect(registry.exists()).toBe(false);
     await assertFails(store.enable(deleted));
   });
 

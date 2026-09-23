@@ -617,16 +617,30 @@ export default function OnlineController({ page, publicHandle, invitation, showS
             await shelf.acceptConfig(stopped);
           }
         }
-        await friends.store.cleanupSharing(user.uid);
-        await shelf.store.cleanupSharing(user.uid);
       }
       await account.waitForWrites();
       if (cloudAuth.currentUser?.uid !== user.uid || identityRef.current?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before cleanup. Nothing was deleted.');
       if (account.snapshot) await pauseScopedLibrary(target);
       await ensureAccountActivity(cloudDb, user.uid);
       await social.unpublish(user.uid, await social.control(user.uid), true);
-      await store.revoke(await store.head(), true);
-      await store.cleanup(true); await social.deleteProfile(user.uid); await deleteOwnMember(cloudDb, user.uid);
+      const deleting = await store.revoke(await store.head(), true);
+      setHeadSnapshot({ uid: user.uid, value: deleting });
+      const ownsDeletion = () => cloudAuth.currentUser?.uid === user.uid &&
+        identityRef.current?.uid === user.uid && authSessionEpoch.current === session;
+      setMessage('Removing private online payloads. Your account remains until the checked cleanup steps finish.');
+      await store.cleanup(true, {
+        expectedDeletionEpoch: deleting.epoch, isCurrent: ownsDeletion,
+        onProgress: ({ kind, confirmed }) => {
+          if (!ownsDeletion()) throw new Error('The account changed. Cleanup stopped.');
+          setMessage(`Removing ${kind === 'private' ? 'private library' : 'ranking summary'} payloads; ${confirmed} chunk deletions confirmed in this attempt.`);
+        },
+      });
+      setMessage('Removing registered public and shared snapshots. Historical parentless snapshots require the operator inventory.');
+      if (!removeAccount) {
+        await friends.store.cleanupSharing(user.uid);
+        await shelf.store.cleanupSharing(user.uid);
+      }
+      await social.deleteProfile(user.uid); await deleteOwnMember(cloudDb, user.uid);
       if (await automatic.store.policy(user.uid)) for (const kind of ['games', 'ranking'] as const) {
         for (let index = 0; index < 250; index += 1) {
           if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The account changed before shared-data cleanup completed.');
@@ -644,11 +658,21 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           if (cleaned.done) break;
           if (index === 99) throw new Error('Some connections still need cleanup. Retry account deletion to continue.');
         }
-        await deleteUser(user); await deleteScopedLibrary(target);
+        const finalHead = await store.head();
+        if (!ownsDeletion() || !finalHead?.deleted || finalHead.epoch !== deleting.epoch) throw new Error('The account or deletion state changed. The sign-in was not removed.');
+        try { await deleteUser(user); }
+        catch (cause) {
+          if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'auth/requires-recent-login') {
+            setDeletionApproval(null);
+            throw new Error('Your sign-in still exists. Confirm deletion again; Firebase needs a recent sign-in. Completed cleanup can be resumed without restoring deleted data.', { cause });
+          }
+          throw cause;
+        }
+        await deleteScopedLibrary(target);
         await rememberOnlineRequest(false); setIdentity(null); onNavigate('collection');
       } else {
         await account.refresh(); await refresh();
-        setMessage('Online content was deleted. This account device copy is retained. A minimal content-free revocation marker prevents stale tabs from recreating deleted data.');
+        setMessage('Online library and registered snapshots were removed. This account device copy is retained. Historical parentless public or shared data requires the operator inventory; content-free revocation markers remain.');
       }
     }, removeAccount);
   };

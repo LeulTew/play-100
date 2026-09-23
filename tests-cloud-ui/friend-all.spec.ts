@@ -292,7 +292,7 @@ test('All export and reversible then full deletion retain the device copy and re
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await page.evaluate(() => window.allDeleteCalls)).toEqual({ ranking: 0, shelf: 0 });
-  await expect(page.getByRole('status').filter({ hasText: 'Online content was deleted.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Online library and registered snapshots were removed.' })).toBeVisible();
   expect(await sdk(page, 'heads')).toEqual({ games: null, ranking: null });
   expect((await readAccount(page, uid)).state.records['manual:all-delete']).toBeTruthy();
   await page.locator('input[name="connection-copy"][value="cached"]').check();
@@ -339,14 +339,14 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Synthetic resumable All cleanup interruption');
-  await expect(page.getByRole('status').filter({ hasText: 'Online content was deleted.' })).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'Online library and registered snapshots were removed.' })).toHaveCount(0);
   expect((await readAccount(page, uid)).state.records['manual:cleanup']).toBeTruthy();
   await page.locator('.account-danger > summary').click();
   await page.getByRole('button', { name: 'Delete online copy', exact: true }).click();
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('status').filter({ hasText: 'Online content was deleted.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Online library and registered snapshots were removed.' })).toBeVisible();
   expect(await sdk(page, 'heads')).toEqual({ games: null, ranking: null });
   expect((await readAccount(page, uid)).state.records['manual:cleanup']).toBeTruthy();
 });

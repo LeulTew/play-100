@@ -5,14 +5,14 @@ export const INDEXED_RELEASE_BATCH = 3;
 export const PRIVATE_RELEASE_BATCH = 2;
 
 export async function runPayloadCleanup(
-  maxSteps: number, step: () => Promise<number | null>, legacy: () => Promise<void>, afterStep?: () => Promise<void>,
+  maxSteps: number, step: () => Promise<number | null>, legacy: () => Promise<void>, afterStep?: () => Promise<void>, allowLegacy = true,
 ): Promise<void> {
   let confirmed = false;
   for (let index = 0; index < maxSteps; index += 1) {
     let remaining: number | null;
     try { remaining = await step(); }
     catch (cause) {
-      if (confirmed || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+      if (confirmed || !allowLegacy || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
       console.info('Payload release counters are not yet available; using the legacy cleanup order once.');
       await legacy();
       return;

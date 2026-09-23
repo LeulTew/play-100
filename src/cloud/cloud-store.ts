@@ -1,4 +1,4 @@
-import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
 import type { DocumentData, DocumentReference, Firestore, Transaction } from 'firebase/firestore';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import { creatorRanks } from '../lib/cloud-types';
@@ -7,6 +7,27 @@ import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseFriendAllHead } from '../lib/friend-all-transport';
 import { PRIVATE_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
+import { onlineError } from './errors';
+
+export interface DeletionCleanupOptions {
+  isCurrent?: () => boolean;
+  expectedDeletionEpoch?: number;
+  onProgress?: (progress: { kind: 'private' | 'ranking'; confirmed: number }) => void | Promise<void>;
+}
+
+export class DeletionCleanupInterrupted extends Error {
+  constructor(readonly kind: 'private' | 'ranking', readonly confirmed: number, cause: unknown) {
+    super(`${kind === 'private' ? 'Private library' : 'Ranking summary'} cleanup is incomplete. ${confirmed} chunk deletions were confirmed in this attempt. The account has not been removed. Retry deletion from Account when connected and quota is available. ${onlineError(cause)}`, { cause });
+    this.name = 'DeletionCleanupInterrupted';
+  }
+}
+
+export class DeletionListPermissionPending extends Error {
+  constructor(cause: unknown) {
+    super('Deletion paused. No saved library or snapshot payload was removed. Cloud saving and sharing are off. Cleanup permission is not available yet. Try again in a few minutes.', { cause });
+    this.name = 'DeletionListPermissionPending';
+  }
+}
 
 export class RemoteConflict extends Error {
   readonly head: SyncHead;
@@ -214,17 +235,73 @@ export class CloudStore {
     return new Set([parsed.current?.generation, parsed.previous?.generation].filter((id): id is string => Boolean(id)));
   }
 
-  async cleanup(all = false): Promise<number> {
+  private async purgeDeletedPayload(epoch: number, options: DeletionCleanupOptions): Promise<void> {
+    let confirmed = 0;
+    for (const kind of ['private', 'ranking'] as const) {
+      try {
+        for (let page = 0; page <= 100; page += 1) {
+          if (options.isCurrent?.() === false) throw new Error('The account session changed. Deletion stopped.');
+          const chunks = await getDocsFromServer(query(collection(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks'), limit(20)))
+            .catch(async cause => {
+              if (confirmed === 0 && cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') {
+                const head = await this.head();
+                if (options.isCurrent?.() !== false && head?.deleted && head.epoch === epoch) throw new DeletionListPermissionPending(cause);
+              }
+              throw cause;
+            });
+          if (chunks.empty) break;
+          if (page === 100) throw new Error('More stored chunks remain. Retry deletion to continue the next bounded pass.');
+          for (let start = 0; start < chunks.size; start += 10) {
+            const batch = chunks.docs.slice(start, start + 10);
+            await runTransaction(this.db, async tx => {
+              const snapshot = await tx.get(this.headRef());
+              const head = snapshot.exists() ? parseHead(snapshot.data()) : null;
+              if (options.isCurrent?.() === false || !head?.deleted || head.epoch !== epoch) {
+                throw new Error('The deletion state changed. Review Account before continuing.');
+              }
+              batch.forEach(chunk => tx.delete(chunk.ref));
+            });
+            confirmed += batch.length;
+            if (options.onProgress) await options.onProgress({ kind, confirmed });
+          }
+        }
+      } catch (cause) {
+        if (cause instanceof DeletionListPermissionPending) throw cause;
+        throw new DeletionCleanupInterrupted(kind, confirmed, cause);
+      }
+    }
+  }
+
+  async cleanup(all = false, options: DeletionCleanupOptions = {}): Promise<number> {
+    const deletion = all ? await this.head() : null;
+    const deletionEpoch = deletion?.deleted ? deletion.epoch : null;
+    if (options.expectedDeletionEpoch !== undefined && deletionEpoch !== options.expectedDeletionEpoch) {
+      throw new Error('The deletion state changed. Review Account before continuing.');
+    }
+    if (deletionEpoch !== null) await this.purgeDeletedPayload(deletionEpoch, options);
+    const guardDeletion = async () => {
+      if (options.isCurrent?.() === false) throw new Error('The account session changed. Cleanup stopped.');
+      if (deletionEpoch !== null) {
+        const head = await this.head();
+        if (!head?.deleted || head.epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
+      }
+    };
+    await guardDeletion();
     const registry = await getDocFromServer(this.registryRef());
-    if (!registry.exists()) return 0;
+    if (!registry.exists()) { await guardDeletion(); return 0; }
     const ids: unknown = registry.data().ids;
-    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error('Online cleanup metadata is invalid. Nothing was deleted.');
+    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error('Online generation metadata is invalid. Cleanup stopped before account removal; contact the creator if retrying does not resolve it.');
     let count = 0;
     const deletedChunks = new Set<string>();
     for (const id of ids) {
       if (!all && count >= 4) break;
       const generation = await runTransaction(this.db, async (tx) => {
+        if (options.isCurrent?.() === false) throw new Error('The account session changed. Cleanup stopped.');
         const retained = await this.retained(tx);
+        if (deletionEpoch !== null) {
+          const head = await tx.get(this.headRef());
+          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
+        }
         const candidate = await tx.get(this.generationRef(id));
         if (!candidate.exists() || retained.has(id)) return null;
         const data = candidate.data();
@@ -251,6 +328,10 @@ export class CloudStore {
       await runPayloadCleanup(Math.ceil(parts.length / PRIVATE_RELEASE_BATCH) + 1, async () => {
         const result = await runTransaction(this.db, async tx => {
           const [candidate, head] = await Promise.all([tx.get(this.generationRef(id)), tx.get(this.headRef())]);
+          if (options.isCurrent?.() === false || (deletionEpoch !== null &&
+            (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch))) {
+            throw new Error('The account or deletion state changed. Cleanup stopped.');
+          }
           const data = candidate.data();
           const released: unknown = data && 'released' in data ? data.released : 0;
           if (!data || data.status !== 'deleting' || typeof released !== 'number' ||
@@ -262,12 +343,13 @@ export class CloudStore {
           const unique = [...new Map(parts.slice(released, end).map(part => [`${part.kind}:${part.digest}`, part])).entries()];
           const removeAll = all && head.exists() && parseHead(head.data()).deleted;
           const removed: string[] = [];
-          if (removeAll) {
+          // A purged deleted epoch needs only progress writes, including deduplicated positions.
+          if (deletionEpoch === null && removeAll) {
             for (const [key, part] of unique) if (!deletedChunks.has(key)) {
               tx.delete(this.chunkRef(part.kind, part.digest));
               removed.push(key);
             }
-          } else {
+          } else if (deletionEpoch === null) {
             const chunks = await Promise.all(unique.map(([, part]) => tx.get(this.chunkRef(part.kind, part.digest))));
             for (const chunk of chunks) releaseHeld(tx, chunk.ref, chunk.data());
           }
@@ -277,6 +359,7 @@ export class CloudStore {
         result.removed.forEach(key => deletedChunks.add(key));
         return result.remaining;
       }, async () => {
+        if (deletionEpoch !== null) throw new Error('The server cannot verify payload release yet. Refresh the app and retry deletion; the account was not removed.');
         const removeAll = all && (await this.head())?.deleted === true;
         for (const part of parts) {
           const ref = this.chunkRef(part.kind, part.digest);
@@ -289,9 +372,14 @@ export class CloudStore {
             deletedChunks.add(key);
           } else await runTransaction(this.db, async tx => releaseHeld(tx, ref, (await tx.get(ref)).data()));
         }
-      });
+      }, undefined, deletionEpoch === null);
       await runTransaction(this.db, async (tx) => {
+        if (options.isCurrent?.() === false) throw new Error('The account session changed. Cleanup stopped.');
         const retained = await this.retained(tx);
+        if (deletionEpoch !== null) {
+          const head = await tx.get(this.headRef());
+          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('The deletion state changed. Cleanup stopped.');
+        }
         const current = await tx.get(this.registryRef());
         if (retained.has(id)) throw new Error('A retained snapshot changed during cleanup. Nothing further was deleted.');
         if (current.exists()) tx.update(this.registryRef(), { ids: current.data().ids.filter((value: string) => value !== id), revision: current.data().revision + 1 });
@@ -299,6 +387,17 @@ export class CloudStore {
       });
       count += 1;
     }
+    if (deletionEpoch !== null) await runTransaction(this.db, async tx => {
+      const [head, registry] = await Promise.all([tx.get(this.headRef()), tx.get(this.registryRef())]);
+      if (options.isCurrent?.() === false || !head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) {
+        throw new Error('The account or deletion state changed. Cleanup stopped.');
+      }
+      if (registry.exists()) {
+        if (!Array.isArray(registry.data().ids) || registry.data().ids.length) throw new Error('Some generations remain. Retry deletion before removing the account.');
+        tx.delete(this.registryRef());
+      }
+    });
+    await guardDeletion();
     return count;
   }
 }

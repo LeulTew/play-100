@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { candidateRules, live270fRules } from '../tests-cloud/fixtures/migration-rules';
-import { authOrigin, createAccount, emailFor, enableSync, firestoreOrigin, uidFor, verifyEmail } from './helpers';
+import { authOrigin, createAccount, emailFor, enableSync, firestoreOrigin, password, uidFor, verifyEmail } from './helpers';
 import { managerPair, pairPath, writeManagerDocuments } from './friend-manager-fixtures';
 
 for (const policy of ['live-270f', 'candidate'] as const) test.describe(`profile read migration with ${policy} rules`, () => {
@@ -23,6 +23,37 @@ for (const policy of ['live-270f', 'candidate'] as const) test.describe(`profile
         await restored.cleanup();
       }
     }
+  });
+
+  if (policy === 'live-270f') test('a deployment-window LIST denial keeps payload intact and leaves Finish deleting visible after reload', async ({ page, context, request, baseURL }) => {
+    if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Use the owned emulator-bound UI.');
+    await context.route('**/*', route => [new URL(baseURL).origin, authOrigin, firestoreOrigin].includes(new URL(route.request().url()).origin)
+      ? route.continue() : route.abort('blockedbyclient'));
+    const email = emailFor('deletion-permission-window');
+    await createAccount(page, email);
+    await verifyEmail(page, request, email);
+    await enableSync(page, 'empty');
+    const uid = await uidFor(request, email);
+    const countPayload = async (kind: string) => {
+      const result = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/${kind}/${uid}/chunks?pageSize=20`, {
+        headers: { Authorization: 'Bearer owner' },
+      });
+      expect(result.ok()).toBe(true);
+      return ((await result.json()).documents ?? []).length;
+    };
+    const before = [await countPayload('accounts'), await countPayload('creatorRanks')];
+    expect(before[0]).toBeGreaterThan(0);
+    await page.locator('.account-danger summary').click();
+    await page.getByRole('button', { name: 'Delete online copy', exact: true }).click();
+    await page.getByLabel('Confirm your password', { exact: true }).fill(password);
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Cleanup permission is not available yet');
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText('No saved library or snapshot payload was removed');
+    expect([await countPayload('accounts'), await countPayload('creatorRanks')]).toEqual(before);
+    await page.reload();
+    await expect(page.locator('.account-heading')).toContainText(email);
+    await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Online deletion', exact: true })).toContainText('Cloud saving and sharing are off');
   });
 
   test('sent rows show the published source or an unavailable profile without substituting private identity', async ({ page, context, request, baseURL }) => {

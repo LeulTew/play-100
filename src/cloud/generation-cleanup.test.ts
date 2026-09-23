@@ -31,6 +31,8 @@ describe('bounded payload-cleanup compatibility', () => {
       .rejects.toMatchObject({ code: 'unavailable' });
     await expect(runPayloadCleanup(3, async () => 0, legacy, async () => { throw denied(); }))
       .rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(runPayloadCleanup(3, async () => { throw denied(); }, legacy, undefined, false))
+      .rejects.toMatchObject({ code: 'permission-denied' });
     expect(legacy).not.toHaveBeenCalled();
   });
   it('terminates on zero or already-released payload and surfaces nonprogress instead of freeing a slot', async () => {
