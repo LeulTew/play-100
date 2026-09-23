@@ -125,6 +125,21 @@ Barlow Condensed supplies the compact, box-art display voice; Hanken Grotesk Var
 
 Use the extracted display roles rather than an oversized generic hero: desktop tops out at the documented display maximum, mobile uses `display-mobile`, and widths up to 380px use `display-compact`. Intermediate layouts also reduce the headline. The compact role changes size only; it retains the display weight, tracking and line height.
 
+Informative text has a **12px computed minimum**, including metadata, counts,
+credits and operational status. Body and action roles remain 13–17px; use
+weight, spacing and line height rather than smaller type to distinguish utility
+text. Only explicitly `aria-hidden` illustration lettering may use 11px.
+Card identities and metadata can wrap without changing the numbered jackets or
+native-size artwork. Increased text spacing must not clip controls or labels.
+
+In forced colors, system-color borders, outlines and underlines distinguish
+focus and selected states without depending on lime fills. Native inputs and
+currentColor icons retain the user's palette; do not force brand colors.
+The shared tray observer measures the header, bottom navigation and notification
+as well as the dock for scroll clearance. Ordinary mobile navigation stays
+66px high with a 12px dock gap; increased text spacing may grow it. The ratings
+table alone retains its labelled horizontal scroll region.
+
 **The Rank Rule.** Keep canonical rank visible; sorting changes presentation, never the displayed authored rank.
 
 ## Layout
@@ -182,7 +197,7 @@ Navigation uses real links, `aria-current="page"` and a visible Current label;
 dialogs use buttons. There is no `role="menu"` or arrow-key command model.
 Chalk, ink, flat lime, Barlow headings and Hanken labels remain unchanged, with
 no new decorative art, shadow or animation. Menu uses a 36px desktop / 32px mobile
-heading, 15px links, 14px group and feedback labels, and an 11px Current marker;
+heading, 15px links, 14px group and feedback labels, and a 12px Current marker;
 these are scoped utility roles, not a change to the site's display scale.
 Pending-navigation and save-error
 feedback belongs inside the dialog; the underlying editor stays mounted until

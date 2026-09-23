@@ -44,20 +44,27 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   const hasTray = hasContent || dragging;
   useLayoutEffect(() => {
     const node = dock.current;
-    if (!node || hidden || !hasTray) return;
     const root = document.documentElement;
+    const header = document.querySelector('.site-header');
+    const navigation = document.querySelector('.mobile-nav');
+    const toast = document.querySelector('.toast');
     const measure = () => {
-      const bounds = node.getBoundingClientRect();
-      const top = Math.min(bounds.top, ...Array.from(node.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark'), element => element.getBoundingClientRect().top));
-      root.style.setProperty('--compare-tray-height', `${Math.ceil(bounds.bottom - top)}px`);
+      for (const [element, property] of [[header, '--site-header-height'], [navigation, '--mobile-nav-height'], [toast, '--toast-height']] as const) {
+        if (element) root.style.setProperty(property, `${Math.ceil(element.getBoundingClientRect().height)}px`);
+      }
+      if (node && !hidden && hasTray) {
+        const bounds = node.getBoundingClientRect();
+        const top = Math.min(bounds.top, ...Array.from(node.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark'), element => element.getBoundingClientRect().top));
+        root.style.setProperty('--compare-tray-height', `${Math.ceil(bounds.bottom - top)}px`);
+      }
     };
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    node.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark').forEach(element => observer.observe(element));
+    [header, navigation, toast, node].forEach(element => { if (element) observer.observe(element); });
+    node?.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark').forEach(element => observer.observe(element));
     return () => {
       observer.disconnect();
-      root.style.removeProperty('--compare-tray-height');
+      for (const property of ['--compare-tray-height', '--site-header-height', '--mobile-nav-height', '--toast-height']) root.style.removeProperty(property);
     };
   }, [hasTray, hidden, error, warning]);
   useEffect(() => {

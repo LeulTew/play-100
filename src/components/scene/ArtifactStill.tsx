@@ -16,7 +16,7 @@ function CoverPrint({ design }: { design: FolioDesign }) {
       <rect width="220" height="150" fill={design.paper} />
       <path d="M12 0V150" stroke={design.accent} strokeWidth="8" />
       <path d="M21 32H201M21 132H201" stroke={design.ink} strokeWidth=".65" opacity=".5" />
-      <text x="22" y="20" fill={design.ink} fontSize="6.2" fontWeight="700" letterSpacing=".8">
+      <text x="22" y="20" fill={design.ink} fontSize="11" fontWeight="700" letterSpacing=".2">
         PLAY 100 / COLLECTION
       </text>
       <text x="201" y="24" textAnchor="end" fill={design.ink} fontSize="18" fontWeight="800">
@@ -28,7 +28,7 @@ function CoverPrint({ design }: { design: FolioDesign }) {
             {P100_GLYPHS.map((glyph, index) => <path key={index} d={glyphPath(glyph)} />)}
           </g>
           <rect x="22" y="119" width="179" height="13" fill={design.accent} />
-          <text x="29" y="128" fill={design.ink} fontSize="6" fontWeight="800" letterSpacing="1.2">
+          <text x="29" y="129" fill={design.ink} fontSize="11" fontWeight="800" letterSpacing=".4">
             ROOM FOR PLAY.
           </text>
         </>
@@ -62,7 +62,7 @@ function CoverPrint({ design }: { design: FolioDesign }) {
           <path d="M100 119V92h24v27" stroke={design.accent} strokeWidth="12" />
         </g>
       )}
-      <text x="22" y="143" fill={design.ink} fontSize="5.5" letterSpacing="1">
+      <text x="22" y="144" fill={design.ink} fontSize="11" letterSpacing=".1">
         VOL. {design.number} / OPEN &amp; EXPLORE
       </text>
       <path d="M182 139h19m-5-3 5 3-5 3" stroke={design.ink} strokeWidth=".8" fill="none" />
@@ -85,7 +85,7 @@ export default function ArtifactStill({ fanned }: ArtifactStillProps) {
         <path d="m49 300 36-4m-20-7 4 18m458-45 36-4m-20-7 4 18M271 224l3 12m40 92 3 13" />
         <path d="m83 322 15-5m30 18 12-7m344-103-9 9m-49-15-5 8" strokeWidth="1.5" />
       </g>
-      <g fill={ARTIFACT_COLORS.graphite} opacity=".62" fontSize="7" fontWeight="600" letterSpacing="1.6">
+      <g fill={ARTIFACT_COLORS.graphite} opacity=".62" fontSize="11" fontWeight="600" letterSpacing=".6">
         <text x="63" y="335">P100 / ARCHIVE</text>
         <text x="478" y="219">01—06</text>
         <text x="427" y="329">MADE TO OPEN</text>

@@ -57,6 +57,7 @@
 
 .artifact-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -65,16 +66,17 @@
 
 .artifact-caption {
   display: grid;
+  flex: 1 1 140px;
   gap: 5px;
   min-width: 0;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
 .artifact-caption-title {
   font-weight: 700;
-  letter-spacing: .065em;
+  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
