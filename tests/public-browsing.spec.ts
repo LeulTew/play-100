@@ -313,7 +313,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill(pinnedGame.title);
   const card = page.locator(`[data-catalog-id="${pinnedGame.id}"]`);
   await expect(card).toBeVisible();
-  await card.getByRole('button', { name: `Pin ${pinnedGame.title} for comparison`, exact: true }).click();
+  await card.getByRole('button', { name: `Pin for comparison: ${pinnedGame.title}`, exact: true }).click();
   const targetsBefore = await page.locator('.compare-tray-dock button').evaluateAll(buttons => buttons.map(button => ({
     label: button.getAttribute('aria-label') ?? button.textContent,
     width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height,

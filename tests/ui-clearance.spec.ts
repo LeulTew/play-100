@@ -130,7 +130,7 @@ for (const mode of modes) {
       const before = await readLibrary(page);
       if (width === 320) {
         for (const record of originals.slice(5, 7)) {
-          await page.getByRole('button', { name: `Pin ${record.title} for comparison`, exact: true }).tap();
+          await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).tap();
         }
         await expect(page.locator('.compare-tray-error')).toBeVisible();
       }

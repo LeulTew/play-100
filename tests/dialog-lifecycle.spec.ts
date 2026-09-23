@@ -198,7 +198,7 @@ for (const length of ['short', 'long'] as const) {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await seed(page);
     const game = libraryRecords[0];
-    await page.getByRole('button', { name: `Pin ${game.title} for comparison`, exact: true }).click();
+    await page.getByRole('button', { name: `Pin for comparison: ${game.title}`, exact: true }).click();
     if (length === 'short') await page.goto('/?q=NoMatchGeometryFixture&catalogs=off');
     await expect(page.locator('.compare-tray-dock')).toBeVisible();
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));

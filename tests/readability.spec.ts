@@ -35,7 +35,7 @@ async function surfaces(page: Page, spacing = false) {
   await page.getByRole('button', { name: 'Grid view', exact: true }).click();
   await openBrowsingFilters(page);
   await audit('Expanded collection filters');
-  await page.locator('.game-card').first().getByRole('button', { name: `Pin ${libraryRecords[0].title} for comparison`, exact: true }).click();
+  await page.locator('.game-card').first().getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
   await expect(page.locator('.compare-tray-dock')).toBeVisible();
   await audit('Pinned comparison dock');
   if (await page.evaluate(() => matchMedia('(forced-colors: active)').matches)) {

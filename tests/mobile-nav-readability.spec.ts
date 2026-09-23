@@ -98,12 +98,14 @@ for (const width of [320, 393]) {
     await expect(page.locator('.game-card')).toHaveCount(24);
     const card = page.locator('.game-card').first();
     const title = (await card.locator('h3').innerText()).trim();
-    const pin = card.getByRole('button', { name: `Pin ${title} for comparison`, exact: true });
+    const pin = card.getByRole('button', { name: `Pin for comparison: ${title}`, exact: true });
     await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
-    await expect(pin).toHaveAttribute('aria-pressed', 'false');
+    await expect(pin).not.toHaveAttribute('aria-pressed');
+    await expect(pin.locator('svg')).toHaveAttribute('fill', 'none');
     await pin.tap();
-    const pinned = card.getByRole('button', { name: `Pinned ${title} for comparison`, exact: true });
-    await expect(pinned).toHaveAttribute('aria-pressed', 'true');
+    const pinned = card.getByRole('button', { name: `Pinned for comparison: ${title}`, exact: true });
+    await expect(pinned).not.toHaveAttribute('aria-pressed');
+    await expect(pinned.locator('svg')).toHaveAttribute('fill', 'currentColor');
     await expect(pinned).toBeDisabled();
     await expect(page.locator('.compare-tray-dock')).toBeVisible();
     await expect(page.locator('.compare-tray-dock').getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();

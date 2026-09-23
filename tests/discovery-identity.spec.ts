@@ -57,8 +57,8 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await card.getByRole('button', { name: `Add to My games: ${rdr.title}`, exact: true }).click();
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
-  await card.getByRole('button', { name: `Pin ${rdr.title} for comparison`, exact: true }).click();
-  await expect(card.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
+  await card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true }).click();
+  await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
   await card.getByText('Actions & source', { exact: true }).click();
   await rate(page, '8.7');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.7);
@@ -85,7 +85,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(page.locator('[data-game="red-dead-redemption-2"]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(0);
   await expect(page.locator('.result-summary strong')).toHaveText('1');
-  await expect(page.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/discover?q=Red%20Dead&catalogs=off&include100=on');
@@ -129,7 +129,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
-  await expect(card.getByRole('button', { name: `Pinned ${rdr.title} for comparison`, exact: true })).toBeDisabled();
+  await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
   await expect(card).toContainText('Progress and ratings use your existing saved catalog copy.');
   await card.getByText('Actions & source', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('7.3');
@@ -205,7 +205,7 @@ test('both owned copies keep conflicting opinions and manual names remain separa
   await expect(page.locator('[data-unranked-id]')).toHaveAttribute('data-unranked-id', manual.id);
   await page.goto('/my-games');
   await expect(page.locator('.my-games-editor:visible [data-record-id]')).toHaveCount(3);
-  await page.locator(`.my-games-editor:visible [data-record-id="${canonical.id}"]`).getByRole('button', { name: `Unpin ${rdr.title} from comparison`, exact: true }).click();
+  await page.locator(`.my-games-editor:visible [data-record-id="${canonical.id}"]`).getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true }).click();
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items)).toEqual([]);
   const actual = await readLibrary(page);
   expect(actual.records).toEqual(state.records);

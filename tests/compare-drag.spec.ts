@@ -262,7 +262,7 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
   await expect(grip).toBeHidden();
   await expect(grip).toHaveAttribute('aria-hidden', 'true');
   await expect(grip).toHaveAttribute('tabindex', '-1');
-  const pin = card.getByRole('button', { name: 'Pin 0 A.D. for comparison', exact: true });
+  const pin = card.getByRole('button', { name: 'Pin for comparison: 0 A.D.', exact: true });
   await pin.scrollIntoViewIfNeeded();
   const bounds = await pin.boundingBox();
   if (!bounds) throw new Error('The coarse Compare Pin has no hit target.');

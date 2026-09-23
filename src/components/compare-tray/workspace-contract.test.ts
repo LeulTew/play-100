@@ -32,6 +32,30 @@ const props = {
 };
 
 describe('workspace embedding contract', () => {
+  it.each([false, true])('keeps editor Pin names stable with pressed=%s', selected => {
+    const pinProps = { onPin: vi.fn(), onUnpin: vi.fn(), pinnedIds: new Set(selected ? ['alpha'] : []) };
+    const library = renderToStaticMarkup(h(LibraryPage, { ...props, ...pinProps }));
+    const ranking = renderToStaticMarkup(h(RankingsPage, { ...props, ...pinProps }));
+    for (const html of [library, ranking]) {
+      expect(html).toContain(`aria-pressed="${selected}" aria-label="Pin for comparison: Alpha game"`);
+      const pin = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes('aria-label="Pin for comparison: Alpha game"'));
+      expect(pin).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
+    }
+    expect(library).toContain('title="Pin for comparison"');
+    expect(ranking).toContain('</svg>Pin for comparison</button>');
+  });
+
+  it.each([false, true])('uses add-only editor Pin names when no unpin action is supplied (pinned=%s)', pinned => {
+    const pinProps = { onPin: vi.fn(), pinnedIds: new Set(pinned ? ['alpha'] : []) };
+    for (const html of [renderToStaticMarkup(h(LibraryPage, { ...props, ...pinProps })), renderToStaticMarkup(h(RankingsPage, { ...props, ...pinProps }))]) {
+      const pin = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: Alpha game"`));
+      expect(pin).toBeDefined();
+      expect(pin).not.toContain('aria-pressed');
+      expect(pin?.includes('disabled=""')).toBe(pinned);
+      expect(pin).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
+    }
+  });
+
   it.each([0, 1, 25, 26, 500])('keeps Library counts and bounded rows with %i records, without unnecessary page controls', total => {
     const records = Array.from({ length: total }, (_, index) => ({ ...alpha, id: `game-${index}`, sourceId: `game-${index}`, title: `Game ${index}` }));
     const html = renderToStaticMarkup(h(LibraryPage, {
@@ -117,8 +141,8 @@ describe('workspace embedding contract', () => {
   it('embeds metadata-only pins without enabling any personal action', () => {
     const onAction = vi.fn(async () => true);
     const html = renderToStaticMarkup(h(MyGamesPage, { ...props, onAction, scope: 'guest', view: 'library', onViewChange: vi.fn(), onPin: vi.fn(), onUnpin: vi.fn(), pinnedIds: new Set(['alpha']) }));
-    expect(html).toContain('Unpin Alpha game from comparison');
-    expect(html).toContain('Pin Beta game for comparison');
+    expect(html).toContain('aria-pressed="true" aria-label="Pin for comparison: Alpha game"');
+    expect(html).toContain('aria-pressed="false" aria-label="Pin for comparison: Beta game"');
     expect(onAction).not.toHaveBeenCalled();
   });
   it('mounts one optional drag slot per record beside Pin in both editors, never inside a button', () => {
@@ -136,6 +160,18 @@ describe('workspace embedding contract', () => {
 
 describe('tray and image rendering contract', () => {
   const value = { currentScope: 'guest', items: [alpha], persistent: true, warning: null, error: null, status: '', dragging: false, pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), dismissError: vi.fn(), beginDrag: vi.fn(() => null), cancelDrag: vi.fn(), dropGame: vi.fn(() => true) };
+  it.each([false, true])('keeps full and compact pin names stable with pressed=%s', pinned => {
+    for (const compact of [false, true]) {
+      const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, items: pinned ? [alpha] : [] } },
+        h(ComparePinButton, { record: alpha, compact })));
+      expect(html).toContain(`aria-pressed="${pinned}" aria-label="Pin for comparison: Alpha game"`);
+      if (compact) expect(html).toContain('title="Pin for comparison"');
+      else expect(html).not.toContain('title=');
+      expect(html).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
+      if (!compact) expect(html).toContain('</svg>Pin for comparison</button>');
+    }
+  });
+
   it.each([undefined, 'collection', 'games', 'discover'] as const)('limits contextual compaction to a supplied non-collection page (%s)', page => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value }, h(CompareTray, { page, onCompare: vi.fn() })));
     expect(html).toContain(`data-compact="${page !== undefined && page !== 'collection'}"`);
@@ -144,7 +180,7 @@ describe('tray and image rendering contract', () => {
   it('exposes button and keyboard-native pin controls, a dock and an explicitly named chooser', () => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value }, h(ComparePinButton, { record: alpha }), h(CompareTray, { onCompare: vi.fn() })));
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('Unpin Alpha game from comparison');
+    expect(html).toContain('aria-pressed="true" aria-label="Pin for comparison: Alpha game"');
     expect(html).toContain('compare-tray-reserve');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('Choose friends');

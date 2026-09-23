@@ -64,7 +64,7 @@ test('canonical Discover covers and comparison thumbnails never enlarge workbook
   await expectNativeLayout(page, '.discovery-card .game-cover img');
   const cards = page.locator('.discovery-card');
   for (const index of [0, 1, 2]) {
-    await cards.nth(index).getByRole('button', { name: /^Pin .* for comparison$/, exact: false }).click();
+    await cards.nth(index).getByRole('button', { name: /^Pin for comparison: / }).click();
   }
   await expect(page.locator('.compare-tray-dock')).toBeVisible();
   await expect(page.locator('.compare-tray-dock img[src^="/covers/"]')).toHaveCount(3);

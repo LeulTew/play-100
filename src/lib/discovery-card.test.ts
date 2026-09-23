@@ -14,7 +14,7 @@ describe('compact catalog card markup', () => {
     expect(html).toContain('loading="lazy"');
     expect(html).toContain('decoding="async"');
     expect(html).toContain('Add to My games: Kingdom Come: Deliverance');
-    expect(html).toContain('Pin Kingdom Come: Deliverance for comparison');
+    expect(html).toContain('Pin for comparison: Kingdom Come: Deliverance');
     expect(html).toContain('Actions &amp; source');
     expect(html).toContain(artworkFixture.sourceUrl);
     expect(html).toContain(artworkFixture.licenseUrl);
@@ -28,7 +28,7 @@ describe('compact catalog card markup', () => {
     const html = renderToStaticMarkup(createElement(DiscoveryCard, { record: discoveryFixture.record, state: emptyPersonalLibrary(), busy: true, onAction: vi.fn(), onPin: vi.fn() }));
     expect(html).toContain('Artwork unavailable');
     expect(html).not.toContain('<img');
-    expect(html).toMatch(/aria-label="Pin Kingdom Come: Deliverance for comparison" aria-pressed="false"/);
+    expect(html).toContain('aria-label="Pin for comparison: Kingdom Come: Deliverance"');
     expect(html).not.toMatch(/disabled=""[^>]*aria-label="Pin/);
   });
   it('does not copy source HTML credit into markup', () => {

@@ -166,7 +166,7 @@ describe('collection continuity preserves the public presentation', () => {
       selecting: false, selected: new Set<string>(), busy: true, onSelect: vi.fn(),
       onOpen: vi.fn(), onToggle: vi.fn(), onSort: vi.fn(), getCompareRecord: resolve,
     })));
-    expect(html).toContain(`aria-label="Pin ${game.title} for comparison"`);
+    expect(html).toContain(`aria-label="Pin for comparison: ${game.title}"`);
     expect(tray.pin).not.toHaveBeenCalled();
     expect(resolve).toHaveBeenCalledExactlyOnceWith(game);
     expect(binding).toHaveBeenCalledExactlyOnceWith({ record: owned, sourceRef: { current: null } });

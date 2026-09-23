@@ -210,9 +210,9 @@ test('nested save, selection and Pin controls never enroll a detail origin', asy
   const select = card.getByRole('checkbox', { name: `Select ${first.title}`, exact: true });
   await select.check();
   await expect(select).toBeChecked();
-  const pin = card.getByRole('button', { name: `Pin ${first.title} for comparison`, exact: true });
+  const pin = card.getByRole('button', { name: `Pin for comparison: ${first.title}`, exact: true });
   await pin.click();
-  await expect(card.getByRole('button', { name: `Pinned ${first.title} for comparison`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(card.getByRole('button', { name: `Pinned for comparison: ${first.title}`, exact: true })).toBeDisabled();
   await expect(page.locator('.game-dialog')).toHaveCount(0);
   expect(new URL(page.url()).searchParams.has('game')).toBe(false);
   expect(await page.evaluate(() => window.__collectionMotionProbe.calls)).toEqual([]);
@@ -296,15 +296,15 @@ test('a real desktop title drag pins without opening, then keyboard and a fresh 
   test.skip(isMobile, 'Native fine-pointer drag; the separate coarse test exercises visible Pin.');
   await page.goto('/?view=list&catalogs=off');
   await page.locator(`.game-card[data-game="${second.id}"]`).getByRole('button', {
-    name: `Pin ${second.title} for comparison`, exact: true,
+    name: `Pin for comparison: ${second.title}`, exact: true,
   }).click();
   const dock = page.locator('.compare-tray-dock');
   await expect(dock).toBeVisible();
   const link = await prepareSource(page);
   await link.dragTo(dock, { targetPosition: { x: 20, y: 20 } });
   await expect(page.locator(firstCard).getByRole('button', {
-    name: `Pinned ${first.title} for comparison`, exact: true,
-  })).toHaveAttribute('aria-pressed', 'true');
+    name: `Pinned for comparison: ${first.title}`, exact: true,
+  })).toBeDisabled();
   expect(new URL(page.url()).searchParams.has('game')).toBe(false);
   await expect(page.locator('.game-dialog')).toHaveCount(0);
   await link.focus();
@@ -322,11 +322,11 @@ test('320px coarse detail keeps visible Pin, native artwork and reachable 44px c
   await page.goto('/?view=list&catalogs=off');
   const link = await prepareSource(page);
   await page.locator(firstCard).getByRole('button', {
-    name: `Pin ${first.title} for comparison`, exact: true,
+    name: `Pin for comparison: ${first.title}`, exact: true,
   }).tap();
   await expect(page.locator(firstCard).getByRole('button', {
-    name: `Pinned ${first.title} for comparison`, exact: true,
-  })).toHaveAttribute('aria-pressed', 'true');
+    name: `Pinned for comparison: ${first.title}`, exact: true,
+  })).toBeDisabled();
   await link.tap();
   const dialog = page.locator('.game-dialog');
   await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeVisible();

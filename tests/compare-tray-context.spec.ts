@@ -11,12 +11,12 @@ for (const width of [320, 393, 768, 1440]) {
     await page.goto('/?catalogs=off');
     await expect(page.locator('.game-card')).toHaveCount(24);
     for (const record of libraryRecords.slice(0, 7)) {
-      await page.getByRole('button', { name: `Pin ${record.title} for comparison`, exact: true }).click();
+      await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
     }
 
     const dock = page.locator('.compare-tray-dock');
     await expect(dock.locator('.compare-tray-error')).toContainText('six games');
-    const failedPin = page.getByRole('button', { name: `Pin ${libraryRecords[6].title} for comparison`, exact: true });
+    const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true });
     await expect(failedPin).toBeFocused();
     const failedHit = await failedPin.evaluate(element => {
       const bounds = element.getBoundingClientRect();
@@ -96,7 +96,7 @@ for (const width of [320, 393]) {
     await installGuestLibrary(page, libraryFixture(3));
     test.skip(await page.locator('.account-nav').count() === 0, 'Requires the centrally configured online build; no remote account requests are allowed.');
     await page.goto('/?catalogs=off');
-    await page.getByRole('button', { name: `Pin ${libraryRecords[0].title} for comparison`, exact: true }).click();
+    await page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
     const before = await readLibrary(page);
     for (const route of ['/my-games?tab=library&catalogs=off', '/?q=NoMatchContextFixture&catalogs=off']) {
       await page.goto(route);

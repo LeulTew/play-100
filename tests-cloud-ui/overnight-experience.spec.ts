@@ -150,16 +150,16 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
     const target = await dock.boundingBox(); if (!target) throw new Error('The real tray drop target is not laid out.');
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
     await page.mouse.up();
-    await expect(card(page, ids[0]!).getByRole('button', { name: /^Pinned .* for comparison$/ })).toBeDisabled();
+    await expect(card(page, ids[0]!).getByRole('button', { name: /^Pinned for comparison: / })).toBeDisabled();
   } else {
     await expect(card(page, ids[0]!).locator('.compare-drag-handle')).toBeVisible();
-    await card(page, ids[0]!).getByRole('button', { name: /^Pin .* for comparison$/ }).click();
+    await card(page, ids[0]!).getByRole('button', { name: /^Pin for comparison: / }).click();
   }
   for (const id of ids.slice(1, 6)) {
-    const button = card(page, id).getByRole('button', { name: /^Pin .* for comparison$/ });
+    const button = card(page, id).getByRole('button', { name: /^Pin for comparison: / });
     await button.focus(); await button.press('Enter');
   }
-  await card(page, ids[6]!).getByRole('button', { name: /^Pin .* for comparison$/ }).click();
+  await card(page, ids[6]!).getByRole('button', { name: /^Pin for comparison: / }).click();
   await expect(page.locator('.compare-tray-error')).toContainText('six games');
   expect((await readLibrary(page)).records).toEqual({});
   await page.reload();
@@ -239,7 +239,7 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
 test('an explicit unranked shelf stays independent, updates after removal, stops in an open viewer and hands pinned games to private comparisons', async ({ page, browser, request, viewport, isMobile }, testInfo) => {
   test.setTimeout(180000);
   await saveCatalogGame(page);
-  await card(page).getByRole('button', { name: `Pin ${title} for comparison`, exact: true }).click();
+  await card(page).getByRole('button', { name: `Pin for comparison: ${title}`, exact: true }).click();
   const owner = await account(page, request, 'shelf-ui-owner', 'QA Shelf Owner', 'guest');
   await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toContain(kcd);
@@ -415,7 +415,7 @@ test('tray Compare resets the mounted comparison filters and page without changi
       for (const game of data.games.slice(0, 30)) await library.commitScopedAction(`account:demo-play100:${uid}`, { type: 'rate-game', record: records.recordFromGame(game), score: 7 });
     }, viewer.uid);
     await peer.goto('/my-games');
-    await workspace(peer).getByRole('button', { name: 'Pin Red Dead Redemption 2 for comparison', exact: true }).click();
+    await workspace(peer).getByRole('button', { name: 'Pin for comparison: Red Dead Redemption 2', exact: true }).click();
     await peer.getByRole('complementary', { name: 'Pinned games for comparison', exact: true }).getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
     await peer.getByLabel('QA Comparison Owner', { exact: true }).check();
     await peer.getByLabel('Games', { exact: true }).selectOption('common-ranked');

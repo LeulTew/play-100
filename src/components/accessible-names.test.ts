@@ -13,6 +13,19 @@ import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import RatingsTable from './RatingsTable';
 
 describe('composite control accessible names', () => {
+  it.each([false, true])('names discovery Pin as an add-only action (pinned=%s)', pinned => {
+    const record = discoveryFixture.record;
+    const html = renderToStaticMarkup(h(DiscoveryCard, {
+      record, state: emptyPersonalLibrary(), busy: false, pinned, onPin: vi.fn(), onAction: vi.fn(async () => true),
+    }));
+    const pin = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}"`));
+    expect(pin).toBeDefined();
+    expect(pin).toContain(`</svg>${pinned ? 'Pinned' : 'Pin'}</button>`);
+    expect(pin).not.toContain('aria-pressed');
+    expect(pin?.includes('disabled=""')).toBe(pinned);
+    expect(pin).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
+  });
+
   it('distinguishes provider disclosures in the same status group without changing their visible labels', () => {
     const html = renderToStaticMarkup(h(CatalogSourceStatus, {
       sources: emptySources().map(source => ({ ...source, status: 'ready' as const, notices: ['Provider-specific coverage.'] })),

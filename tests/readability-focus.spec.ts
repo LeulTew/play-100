@@ -12,7 +12,7 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       await installGuestLibrary(page, fixture);
       await page.goto('/?catalogs=off');
       await expect(page.locator('.game-card')).toHaveCount(24);
-      await page.locator('.game-card').first().getByRole('button', { name: `Pin ${libraryRecords[0].title} for comparison`, exact: true }).click();
+      await page.locator('.game-card').first().getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
       await page.evaluate(() => document.fonts.ready);
       const normal = await page.locator('.mobile-nav').evaluate(element => ({
         nav: element.getBoundingClientRect().height,
