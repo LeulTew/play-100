@@ -8,8 +8,14 @@ export interface PwaAsset {
 export interface PwaBuildManifest {
   readonly format: 1;
   readonly version: string;
+  readonly documentPolicy: PwaDocumentPolicy;
   readonly core: readonly PwaAsset[];
   readonly images: readonly PwaAsset[];
+}
+
+export interface PwaDocumentPolicy {
+  readonly headers: readonly { readonly name: string; readonly value: string }[];
+  readonly sha256: string;
 }
 
 export type PwaInstallState = 'unavailable' | 'prompt' | 'ios-instructions' | 'installed';

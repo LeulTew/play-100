@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import type { Manifest } from 'vite';
-import { pwaCorePaths, PWA_ROOTS } from './pwa-build';
+import { pwaBuildVersion, pwaCorePaths, pwaDocumentPolicy, PWA_ROOTS } from './pwa-build';
 import { PWA_ICONS, renderPwaIcons } from './pwa-icons';
 
 function manifest(): Manifest {
@@ -36,8 +36,43 @@ describe('generated public PWA build closure', () => {
     expect(files).toContain('/assets/brand-12345678.woff2');
     expect(files).toContain('/data/collection.json');
     expect(files).toContain('/data/discovery/catalog.v1.json');
+    expect(files).toContain('/pwa/fallback.css');
     expect(files.some(file => /OnlineController|CollectionScene|\.woff$|\.mp4$|\.xlsx$/.test(file))).toBe(false);
     expect(new Set(files).size).toBe(files.length);
+  });
+
+  it('embeds only main security headers, not the auth template, cookie or private headers', () => {
+    const policy = pwaDocumentPolicy({ headers: [
+      { source: '/__/auth/:path*', headers: [{ key: 'Content-Security-Policy', value: "script-src 'nonce-template'" }] },
+      { source: '/((?!__/auth/).*)', headers: [
+        { key: 'Content-Security-Policy', value: "default-src 'self'; style-src 'self' 'unsafe-inline'" },
+        { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+        { key: 'Set-Cookie', value: 'fixture=not-embedded' },
+        { key: 'X-Private-Fixture', value: 'not-embedded' },
+      ] },
+    ] });
+    expect(policy.headers).toEqual([
+      { name: 'content-security-policy', value: "default-src 'self'; style-src 'self' 'unsafe-inline'" },
+      { name: 'cross-origin-opener-policy', value: 'same-origin' },
+    ]);
+    expect(policy.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(policy)).not.toContain('not-embedded');
+    expect(JSON.stringify(policy)).not.toContain('nonce-template');
+    expect(() => pwaDocumentPolicy({ headers: [] })).toThrow(/exactly one main/);
+  });
+
+  it('changes the worker version for header-only deployments and reproduces it on policy rollback', () => {
+    const config = (value: string) => ({ headers: [{ source: '/((?!__/auth/).*)', headers: [
+      { key: 'Content-Security-Policy', value },
+    ] }] });
+    const original = pwaDocumentPolicy(config("default-src 'self'; style-src 'self' 'unsafe-inline'"));
+    const tightened = pwaDocumentPolicy(config("default-src 'self'; style-src 'self'"));
+    const restored = pwaDocumentPolicy(config("default-src 'self'; style-src 'self' 'unsafe-inline'"));
+    expect(original.sha256).not.toBe(tightened.sha256);
+    expect(pwaBuildVersion([], [], 'same worker and asset bytes', original))
+      .not.toBe(pwaBuildVersion([], [], 'same worker and asset bytes', tightened));
+    expect(pwaBuildVersion([], [], 'same worker and asset bytes', original))
+      .toBe(pwaBuildVersion([], [], 'same worker and asset bytes', restored));
   });
 
   it('fails a missing offline route or unexpected cloud import instead of shipping partial success', () => {

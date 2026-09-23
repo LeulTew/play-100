@@ -1,4 +1,4 @@
-import type { PwaAsset, PwaBuildManifest, PwaWorkerClient, PwaWorkerHost } from './types';
+import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy, PwaWorkerClient, PwaWorkerHost } from './types';
 
 export const PWA_CACHE_PREFIX = 'play100-pwa-v1-';
 export const PWA_BUDGET = {
@@ -7,13 +7,17 @@ export const PWA_BUDGET = {
   metadataBytes: 32 * 1024, clients: 16,
 } as const;
 const channel = 'play100-pwa-v1';
+export const PWA_DOCUMENT_HEADERS = [
+  'content-security-policy', 'cross-origin-opener-policy', 'cross-origin-resource-policy',
+  'referrer-policy', 'x-content-type-options', 'x-frame-options', 'permissions-policy',
+] as const;
 const queryKeys = new Set([
   'q', 'genre', 'year', 'tier', 'list', 'sort', 'direction', 'view', 'catalogs', 'progress',
   'game', 'tab', 'source', 'offset', 'online', 'info', 'genreFamily', 'include100',
 ]);
 const shellRoutes = new Set(['/', '/index.html', '/discover', '/my-games', '/my-library', '/my-rankings']);
 const publicFiles = new Set([
-  '/index.html', '/favicon.svg', '/manifest.webmanifest', '/pwa/offline.html',
+  '/index.html', '/favicon.svg', '/manifest.webmanifest', '/pwa/offline.html', '/pwa/fallback.css',
   '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/icon-maskable-192.png',
   '/pwa/icon-maskable-512.png', '/pwa/apple-touch-icon.png',
   '/data/collection.json', '/data/discovery/catalog.v1.json',
@@ -44,7 +48,29 @@ export function pwaAppWindows(clients: readonly PwaWorkerClient[], origin: strin
   return windows;
 }
 
+export function parsePwaDocumentPolicy(input: unknown): PwaDocumentPolicy {
+  if (!input || typeof input !== 'object' || !('headers' in input) || !Array.isArray(input.headers) ||
+    !('sha256' in input) || typeof input.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(input.sha256) ||
+    input.headers.length > PWA_DOCUMENT_HEADERS.length || new TextEncoder().encode(JSON.stringify(input.headers)).length > 8192) {
+    throw new Error('The offline document security policy is invalid.');
+  }
+  const names = new Set<string>();
+  const headers: Array<{ name: string; value: string }> = [];
+  for (const entry of input.headers) {
+    if (!entry || typeof entry !== 'object' || !('name' in entry) || typeof entry.name !== 'string' ||
+      !PWA_DOCUMENT_HEADERS.some(name => name === entry.name) || names.has(entry.name) ||
+      !('value' in entry) || typeof entry.value !== 'string' || !entry.value.trim() || /[\r\n\0]/.test(entry.value)) {
+      throw new Error('The offline document security policy contains an unapproved header.');
+    }
+    names.add(entry.name);
+    headers.push({ name: entry.name, value: entry.value });
+  }
+  if (!names.has('content-security-policy')) throw new Error('The offline document security policy has no CSP.');
+  return { headers, sha256: input.sha256 };
+}
+
 export function validatePwaManifest(manifest: PwaBuildManifest): void {
+  parsePwaDocumentPolicy(manifest.documentPolicy);
   if (manifest.format !== 1 || !/^[a-f0-9]{64}$/.test(manifest.version) ||
     manifest.core.length + 2 > PWA_BUDGET.coreFiles || manifest.images.length > 1024) {
     throw new Error('The offline manifest is invalid or exceeds its entry budget.');
@@ -79,8 +105,19 @@ function contentTypeMatches(asset: PwaAsset, contentType: string): boolean {
   return types[asset.type].includes(mime);
 }
 
+function documentResponse(response: Response, policy: PwaDocumentPolicy, status = response.status): Response {
+  const headers = new Headers();
+  for (const name of ['content-type', 'content-length', 'cache-control']) {
+    const value = response.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
+  for (const header of policy.headers) headers.set(header.name, header.value);
+  return new Response(response.body, { status, headers });
+}
+
 export async function verifiedPwaResponse(
   response: Response, asset: PwaAsset, expectedUrl: string, crypto: PwaWorkerHost['crypto'],
+  documentPolicy: PwaDocumentPolicy,
 ): Promise<Response> {
   if (response.status !== 200 || response.redirected ||
     !['basic', 'default'].includes(response.type) ||
@@ -107,10 +144,15 @@ export async function verifiedPwaResponse(
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
     .map(value => value.toString(16).padStart(2, '0')).join('');
   if (offset !== asset.bytes || hash !== asset.sha256) throw new Error('An offline asset did not match this release.');
-  return new Response(bytes, {
-    status: 200,
-    headers: { 'Content-Type': response.headers.get('content-type') ?? '', 'Content-Length': String(bytes.length) },
+  const headers = new Headers({
+    'Content-Type': response.headers.get('content-type') ?? '', 'Content-Length': String(bytes.length),
   });
+  if (asset.type !== 'html') for (const name of PWA_DOCUMENT_HEADERS) {
+    const value = response.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
+  const verified = new Response(bytes, { status: 200, headers });
+  return asset.type === 'html' ? documentResponse(verified, documentPolicy) : verified;
 }
 
 interface ClientBinding {
@@ -144,11 +186,23 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
   };
   const fetchAsset = async (asset: PwaAsset) => {
     const input = request(asset.url);
-    return verifiedPwaResponse(await scope.fetch(input), asset, input.url, scope.crypto);
+    return verifiedPwaResponse(await scope.fetch(input), asset, input.url, scope.crypto, manifest.documentPolicy);
+  };
+  const verifyPolicy = async (policy: PwaDocumentPolicy) => {
+    const bytes = new TextEncoder().encode(JSON.stringify(policy.headers));
+    const hash = [...new Uint8Array(await scope.crypto.subtle.digest('SHA-256', bytes))]
+      .map(value => value.toString(16).padStart(2, '0')).join('');
+    if (hash !== policy.sha256) throw new Error('The offline document policy digest does not match this version.');
   };
   const ready = async () => {
     const cache = await scope.caches.open(coreName);
-    if (!await cache.match(readyUrl)) return false;
+    const marker = await cache.match(readyUrl);
+    if (!marker) return false;
+    const value: unknown = await marker.json();
+    if (!value || typeof value !== 'object' || !('version' in value) || value.version !== manifest.version ||
+      !('documentPolicy' in value)) return false;
+    const policy = parsePwaDocumentPolicy(value.documentPolicy);
+    if (policy.sha256 !== manifest.documentPolicy.sha256) return false;
     const entries = await cache.keys();
     const urls = new Set(entries.map(entry => entry.url));
     return manifest.core.every(asset => urls.has(new URL(asset.url, origin).href));
@@ -232,13 +286,14 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
   };
   const fallback = async () => {
     const html = await (await scope.caches.open(coreName)).match(`${origin}/pwa/offline.html`);
-    return new Response(html ? await html.arrayBuffer() : 'This page needs a connection. Offline access is not ready.', {
+    return documentResponse(new Response(html?.body ?? 'This page needs a connection. Offline access is not ready.', {
       status: 503, headers: { 'Content-Type': html ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
-    });
+    }), manifest.documentPolicy);
   };
 
   scope.addEventListener('install', event => {
     event.waitUntil((async () => {
+      await verifyPolicy(manifest.documentPolicy);
       const keys = (await scope.caches.keys()).filter(key => corePattern.test(key) && key !== coreName);
       if (keys.length >= 3) {
         await tell('error', 'Apply the waiting update or close other tabs before preparing another offline version.');
@@ -251,7 +306,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
         // A failed fetch never leaves a ready marker or replaces the working version.
         for (const asset of manifest.core) await cache.put(request(asset.url), await fetchAsset(asset));
         await cache.put(readyUrl, new Response(JSON.stringify({
-          version: manifest.version, created: Date.now(), core: manifest.core,
+          version: manifest.version, created: Date.now(), core: manifest.core, documentPolicy: manifest.documentPolicy,
         }), { headers: { 'Content-Type': 'application/json' } }));
         await tell('ready', 'Offline public files are ready. Reopen the page or installed app to use them offline.');
       } catch (cause) {
@@ -351,7 +406,8 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
             await tell('error', 'This offline page could not be assigned a safe version. Reconnect or close extra windows, then retry.');
             return fallback();
           }
-          return await cache.match(`${origin}/index.html`) ?? fallback();
+          const shell = await cache.match(`${origin}/index.html`);
+          return shell ? documentResponse(shell, manifest.documentPolicy) : fallback();
         })();
       } else response = (async () => {
         try {
@@ -391,13 +447,26 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
               return new Response('The previous page version is unavailable. Save your work before reloading.', { status: 503 });
             }
             const prior = await scope.caches.open(name);
-            return await prior.match(request(asset.url)) ??
-              new Response('The previous page version is unavailable. Save your work before reloading.', { status: 503 });
+            const response = await prior.match(request(asset.url));
+            if (!response) return new Response('The previous page version is unavailable. Save your work before reloading.', { status: 503 });
+            if (asset.type !== 'html') return response;
+            try {
+              const marker = await prior.match(readyUrl);
+              const previous: unknown = marker ? await marker.json() : null;
+              if (!previous || typeof previous !== 'object' || !('version' in previous) || previous.version !== version ||
+                !('documentPolicy' in previous)) throw new Error('The previous document policy is not bound to this version.');
+              const policy = parsePwaDocumentPolicy(previous.documentPolicy);
+              await verifyPolicy(policy);
+              return documentResponse(response, policy);
+            } catch {
+              await tell('error', 'The previous offline document has no verified security policy. Save your work before reloading.');
+              return fallback();
+            }
           }
         }
         const cache = await scope.caches.open(coreName);
         const hit = await cache.match(request(asset.url));
-        if (hit) return hit;
+        if (hit) return asset.type === 'html' ? documentResponse(hit, manifest.documentPolicy) : hit;
         try {
           const response = await fetchAsset(asset);
           try { await cache.put(request(asset.url), response.clone()); }
@@ -449,6 +518,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
         await bindClients([source.id], data.previousVersion);
         await (await scope.caches.open(coreName)).put(readyUrl, new Response(JSON.stringify({
           version: manifest.version, created: Date.now(), core: manifest.core, previousVersion: data.previousVersion,
+          documentPolicy: manifest.documentPolicy,
         })));
         // No cache await may separate this last census from requesting activation.
         if (!await soleRequester(source.id)) {

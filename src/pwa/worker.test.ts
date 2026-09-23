@@ -1,7 +1,7 @@
 import { createHash, webcrypto } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { installPwaWorker, isPublicPwaFile, isPwaShellNavigation, pwaAppWindows, PWA_BUDGET, PWA_CACHE_PREFIX, validatePwaManifest, verifiedPwaResponse } from './worker';
-import type { PwaAsset, PwaBuildManifest, PwaFetchEvent, PwaMessageEvent, PwaWorkerClient, PwaWorkerHost } from './types';
+import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy, PwaFetchEvent, PwaMessageEvent, PwaWorkerClient, PwaWorkerHost } from './types';
 
 const origin = 'https://play.test';
 const version = 'a'.repeat(64);
@@ -12,7 +12,17 @@ const coreUrls = ['/index.html', '/pwa/offline.html', '/data/collection.json', '
 const assets: PwaAsset[] = coreUrls.map(url => ({
   url, bytes: fixtureBytes.length, sha256: hash, type: url.endsWith('.html') ? 'html' : url.endsWith('.js') ? 'script' : 'json',
 }));
-const manifest: PwaBuildManifest = { format: 1, version, core: assets, images: [] };
+function documentPolicy(csp = "default-src 'self'; style-src 'self' 'unsafe-inline'"): PwaDocumentPolicy {
+  const headers = [
+    { name: 'content-security-policy', value: csp },
+    { name: 'cross-origin-opener-policy', value: 'same-origin' },
+    { name: 'cross-origin-resource-policy', value: 'same-origin' },
+    { name: 'x-content-type-options', value: 'nosniff' },
+  ];
+  return { headers, sha256: createHash('sha256').update(JSON.stringify(headers)).digest('hex') };
+}
+const policy = documentPolicy();
+const manifest: PwaBuildManifest = { format: 1, version, documentPolicy: policy, core: assets, images: [] };
 const cacheKey = (input: RequestInfo | URL) => input instanceof Request ? input.url : String(input);
 
 function deferred() {
@@ -119,16 +129,92 @@ describe('PWA positive cache boundaries', () => {
   });
   it('validates actual decoded bytes, type and release digest instead of trusting a 200/login page', async () => {
     const asset = assets[2]!;
-    await expect(verifiedPwaResponse(new Response(fixtureBytes, { headers: { 'Content-Type': 'application/json' } }), asset, `${origin}${asset.url}`, webcrypto)).resolves.toBeInstanceOf(Response);
+    await expect(verifiedPwaResponse(new Response(fixtureBytes, { headers: { 'Content-Type': 'application/json' } }), asset, `${origin}${asset.url}`, webcrypto, policy)).resolves.toBeInstanceOf(Response);
     for (const response of [
       new Response('login', { headers: { 'Content-Type': 'text/html' } }),
       new Response('changed', { headers: { 'Content-Type': 'application/json' } }),
       new Response(fixtureBytes, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private' } }),
       new Response(fixtureBytes, { status: 401, headers: { 'Content-Type': 'application/json' } }),
-    ]) await expect(verifiedPwaResponse(response, asset, `${origin}${asset.url}`, webcrypto)).rejects.toThrow();
+    ]) await expect(verifiedPwaResponse(response, asset, `${origin}${asset.url}`, webcrypto, policy)).rejects.toThrow();
     const redirected = new Response(fixtureBytes, { headers: { 'Content-Type': 'application/json' } });
     Object.defineProperty(redirected, 'redirected', { value: true });
-    await expect(verifiedPwaResponse(redirected, asset, `${origin}${asset.url}`, webcrypto)).rejects.toThrow();
+    await expect(verifiedPwaResponse(redirected, asset, `${origin}${asset.url}`, webcrypto, policy)).rejects.toThrow();
+  });
+});
+
+describe('version-bound offline security headers', () => {
+  it('uses the embedded document policy and never copies cookies or arbitrary response headers', async () => {
+    const asset = assets[0]!;
+    const response = await verifiedPwaResponse(new Response(fixtureBytes, { headers: {
+      'Content-Type': 'text/html', 'Content-Security-Policy': 'default-src *',
+      'Set-Cookie': 'fixture=never-store', 'X-Private-Fixture': 'never-store',
+    } }), asset, `${origin}${asset.url}`, webcrypto, policy);
+    for (const header of policy.headers) expect(response.headers.get(header.name)).toBe(header.value);
+    expect(response.headers.get('Set-Cookie')).toBeNull();
+    expect(response.headers.get('X-Private-Fixture')).toBeNull();
+  });
+
+  it('refuses a malformed or disallowed policy instead of installing headerless HTML', async () => {
+    expect(() => validatePwaManifest({ ...manifest, documentPolicy: { headers: [], sha256: policy.sha256 } })).toThrow(/no CSP/);
+    expect(() => validatePwaManifest({ ...manifest, documentPolicy: {
+      ...policy, headers: [...policy.headers, { name: 'set-cookie', value: 'fixture=not-allowed' }],
+    } })).toThrow(/unapproved/);
+    const corrupted = workerFixture(false, { ...manifest, documentPolicy: { ...policy, sha256: '0'.repeat(64) } });
+    await expect(corrupted.lifetime('install')).rejects.toThrow(/policy digest/);
+    expect(corrupted.fetch).not.toHaveBeenCalled();
+  });
+
+  it('serves the embedded policy on the shell and offline fallback without relying on network headers', async () => {
+    const fixture = workerFixture();
+    await fixture.lifetime('install');
+    fixture.fetch.mockRejectedValue(new Error('Offline'));
+    const shell = await fixture.response(navigation(`${origin}/my-games?tab=queue`));
+    const fallback = await fixture.response(navigation(`${origin}/account`));
+    expect(shell?.status).toBe(200);
+    expect(fallback?.status).toBe(503);
+    for (const response of [shell, fallback]) {
+      for (const header of policy.headers) expect(response?.headers.get(header.name)).toBe(header.value);
+      expect(response?.headers.get('Set-Cookie')).toBeNull();
+    }
+    expect(fallback?.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('preserves the previous document policy instead of applying a newer policy to old HTML', async () => {
+    const fixture = workerFixture(true);
+    await fixture.lifetime('install');
+    const oldPolicy = documentPolicy("default-src 'self'; style-src 'none'");
+    const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
+    await old.put(`${origin}/pwa/__ready__`, new Response(JSON.stringify({
+      version: nextVersion, created: 1, documentPolicy: oldPolicy,
+    })));
+    await old.put(`${origin}/index.html`, new Response('old document', { headers: {
+      'Content-Type': 'text/html', 'Set-Cookie': 'fixture=not-preserved',
+    } }));
+    await (await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`))
+      .put(`${origin}/pwa/__clients__`, new Response(JSON.stringify({ one: nextVersion })));
+    const previous = await fixture.response(new Request(`${origin}/index.html`));
+    expect(await previous?.text()).toBe('old document');
+    expect(previous?.headers.get('Content-Security-Policy')).toBe(oldPolicy.headers[0]?.value);
+    expect(previous?.headers.get('Content-Security-Policy')).not.toBe(policy.headers[0]?.value);
+    expect(previous?.headers.get('Set-Cookie')).toBeNull();
+  });
+
+  it.each(['missing', 'corrupt', 'wrong-version'] as const)('rejects a %s prior HTML policy while retaining correctly bound old metadata', async kind => {
+    const fixture = workerFixture(true);
+    await fixture.lifetime('install');
+    const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
+    await old.put(`${origin}/pwa/__ready__`, new Response(JSON.stringify({
+      version: kind === 'wrong-version' ? version : nextVersion, created: 1,
+      ...(kind === 'missing' ? {} : { documentPolicy: { ...policy, sha256: kind === 'corrupt' ? '0'.repeat(64) : policy.sha256 } }),
+    })));
+    await old.put(`${origin}/index.html`, new Response('headerless old shell'));
+    await old.put(`${origin}/data/collection.json`, new Response('old compatible metadata'));
+    await (await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`))
+      .put(`${origin}/pwa/__clients__`, new Response(JSON.stringify({ one: nextVersion })));
+    const previous = await fixture.response(new Request(`${origin}/index.html`));
+    expect(previous?.status).toBe(503);
+    expect(previous?.headers.get('Content-Security-Policy')).toBe(policy.headers[0]?.value);
+    expect(await (await fixture.response(new Request(`${origin}/data/collection.json`)))?.text()).toBe('old compatible metadata');
   });
 });
 
@@ -290,7 +376,9 @@ describe('native worker install, offline and update lifetime', () => {
     const fixture = workerFixture(true);
     await fixture.lifetime('install');
     const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
-    await old.put(`${origin}/pwa/__ready__`, new Response(JSON.stringify({ version: nextVersion, created: 1 })));
+    await old.put(`${origin}/pwa/__ready__`, new Response(JSON.stringify({
+      version: nextVersion, created: 1, documentPolicy: documentPolicy("default-src 'self'; style-src 'none'"),
+    })));
     await old.put(`${origin}/index.html`, new Response('previous shell'));
     await old.put(`${origin}/data/collection.json`, new Response('previous metadata'));
     const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`);

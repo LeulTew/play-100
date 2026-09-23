@@ -4,8 +4,8 @@ import path from 'node:path';
 import ts from 'typescript';
 import type { Manifest, Plugin, ResolvedConfig } from 'vite';
 import { PWA_ICONS, writePwaIcons } from './pwa-icons';
-import { isPublicPwaFile, PWA_BUDGET, validatePwaManifest } from '../src/pwa/worker';
-import type { PwaAsset, PwaBuildManifest } from '../src/pwa/types';
+import { isPublicPwaFile, parsePwaDocumentPolicy, PWA_BUDGET, PWA_DOCUMENT_HEADERS, validatePwaManifest } from '../src/pwa/worker';
+import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy } from '../src/pwa/types';
 
 export const PWA_ROOTS = [
   'index.html', 'src/components/personal/MyGamesPage.tsx',
@@ -16,7 +16,7 @@ export const PWA_ROOTS = [
   'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
 ] as const;
 const publicCore = [
-  '/index.html', '/manifest.webmanifest', '/pwa/offline.html', '/favicon.svg',
+  '/index.html', '/manifest.webmanifest', '/pwa/offline.html', '/pwa/fallback.css', '/favicon.svg',
   '/data/collection.json', '/data/discovery/catalog.v1.json',
   ...PWA_ICONS.map(icon => `/pwa/${icon.file}`),
 ];
@@ -54,6 +54,35 @@ function assetType(url: string): PwaAsset['type'] {
 }
 const digest = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
+export function pwaDocumentPolicy(configuration: unknown): PwaDocumentPolicy {
+  if (!configuration || typeof configuration !== 'object' || !('headers' in configuration) || !Array.isArray(configuration.headers)) {
+    throw new Error('The deployment security-header configuration is missing.');
+  }
+  const matches = configuration.headers.filter(rule => rule && typeof rule === 'object' &&
+    'source' in rule && rule.source === '/((?!__/auth/).*)');
+  const rule: unknown = matches[0];
+  if (matches.length !== 1 || !rule || typeof rule !== 'object' || !('headers' in rule) || !Array.isArray(rule.headers)) {
+    throw new Error('The deployment must have exactly one main document security-header rule.');
+  }
+  const headers: Array<{ name: string; value: string }> = [];
+  for (const name of PWA_DOCUMENT_HEADERS) {
+    const entries = rule.headers.filter(entry => entry && typeof entry === 'object' &&
+      'key' in entry && typeof entry.key === 'string' && entry.key.toLowerCase() === name);
+    if (entries.length > 1) throw new Error(`Duplicate document security header: ${name}`);
+    const entry: unknown = entries[0];
+    if (!entry) continue;
+    if (typeof entry !== 'object' || !('value' in entry) || typeof entry.value !== 'string') throw new Error(`Invalid document security header: ${name}`);
+    headers.push({ name, value: entry.value });
+  }
+  return parsePwaDocumentPolicy({ headers, sha256: digest(JSON.stringify(headers)) });
+}
+
+export function pwaBuildVersion(
+  core: readonly PwaAsset[], images: readonly PwaAsset[], worker: string, documentPolicy: PwaDocumentPolicy,
+): string {
+  return digest(JSON.stringify({ core, images, worker, documentPolicySha256: documentPolicy.sha256 }));
+}
+
 async function describeAsset(output: string, url: string): Promise<PwaAsset> {
   if (!isPublicPwaFile(url)) throw new Error('Refusing to inventory an unapproved offline asset.');
   const bytes = await readFile(path.join(output, ...url.slice(1).split('/')));
@@ -83,8 +112,9 @@ export async function generatePwaBuild(root: string, output: string): Promise<Pw
   if (result.diagnostics?.some(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error)) {
     throw new Error('The offline worker could not be emitted.');
   }
+  const documentPolicy = pwaDocumentPolicy(JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8')));
   const manifest: PwaBuildManifest = {
-    format: 1, version: digest(JSON.stringify({ core, images, worker: result.outputText })), core, images,
+    format: 1, version: pwaBuildVersion(core, images, result.outputText, documentPolicy), core, images, documentPolicy,
   };
   validatePwaManifest(manifest);
   const script = `${result.outputText}\ninstallPwaWorker(self, ${JSON.stringify(manifest)});\n`;

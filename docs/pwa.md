@@ -26,6 +26,14 @@ Response type, byte length and SHA-256 are checked. Redirects, login pages,
 private/no-store responses, authorization-bearing requests and unexpected data
 cannot become offline public assets.
 
+The build also embeds an allowlisted main-document security policy and includes
+its digest in the worker version. Cached shell and offline fallback HTML retain
+CSP and isolation headers, including across header-only deployments/rollbacks.
+Previous-version HTML uses its own recorded policy, never newer critical CSS or
+script hashes. Legacy headerless HTML returns a protected offline error instead
+of being described as protected; correctly bound old JSON/chunks are unchanged.
+No cookies or arbitrary/private response headers enter the embedded policy.
+
 The worker never stores APIs (including enrichment), auth helpers, Firebase,
 Google, account responses, user queries, private game state, passwords or forms.
 It never requests push permission or adds background sync/another IndexedDB

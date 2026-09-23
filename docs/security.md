@@ -254,12 +254,47 @@ therefore remains uncertain and must be proved on the exact headers, including
 the sign-in sheet, redirect flow, avatars, WebGL, dialogs, drag/reorder, noscript
 and offline pages.
 
-Any removal of main `style-src 'unsafe-inline'` ships only as the separately
-identified final candidate commit. I must retain it only after an owned real
-browser records **zero CSP violations** on all required surfaces. If that proof
-fails, drop only the candidate and record the concrete remaining style source;
-do not weaken the rest of this batch or claim strict CSP passed. The separate
-Google-template helper policy is not included in that main-style removal.
+The live 270f worker rebuilt cached responses with only Content-Type and length,
+dropping their security headers. SW-served HTML therefore lacked CSP and
+isolation headers even when network HTML had them. Closing this defense-in-depth
+gap is a **retained fix**, independent of whether strict style permission passes
+its browser gate.
+
+The build embeds an allowlisted `documentPolicy` from the final effective main
+Vercel rule: CSP, COOP, CORP, referrer policy, nosniff, framing and permissions.
+Its digest participates in the PWA version, so a header-only deploy or rollback
+changes the worker/core identity. Cookies, auth-template policy and arbitrary
+private headers are never copied into that policy. The worker verifies its
+policy digest before installation and serves it on cached shell and offline
+fallback documents instead of trusting whichever headers a fetch returned.
+
+Each ready core records its own document policy. A retained old HTML response
+keeps that old policy rather than a newer CSP containing incompatible critical
+CSS/script hashes. Legacy headerless prior HTML is refused with a protected
+offline error; its correctly bound JSON and hashed chunks remain available.
+Already-open pre-update documents are not silently reloaded or retroactively
+declared CSP-protected. An explicit new navigation loads the new protected shell.
+
+Noscript/offline declarations are externalized to `/pwa/fallback.css`, included
+in the bounded offline core, in the same retained change. These styles work under
+the current policy and do not depend on removing `unsafe-inline`.
+
+Only the final main-style policy change and its specific test are droppable.
+I must retain that strict candidate only after an owned real browser records
+**zero CSP violations** with the intended headers present. If it fails, omit
+only that final candidate; keep security-header retention and fallback styling.
+The Google-template helper policy is not included in main-style tightening.
+The first-paint pipeline's inline critical CSS requires its exact sha256 in
+style-src when strict style is used. Adding a hash or nonce can itself cause
+`unsafe-inline` to be ignored, so merely leaving that keyword is not proof of an
+unchanged allowance. First-paint HTML changes run only in a build-time post
+`transformIndexHtml`, before the PWA `writeBundle`; there are no later HTML or
+configuration writes. The committed root `vercel.json` is the sole policy source,
+including the fixed boot-script hash. The read-only `check:csp` acceptance gate
+then checks final HTML against that policy and the emitted document policy.
+Whichever integration lands second must add the printed final critical-style
+hash when applying strict style and keep those exact hashes aligned; a directive
+mixing `unsafe-inline` with a hash/nonce is not an accepted intermediate policy.
 
 | Remaining rollout item | LIVE 270f compatibility / owner |
 | --- | --- |

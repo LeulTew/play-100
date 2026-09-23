@@ -1,0 +1,19 @@
+.no-script-main {
+  max-width: 42rem;
+  margin: 4rem auto;
+  padding: 1.5rem;
+  font-family: sans-serif;
+  line-height: 1.6;
+}
+
+.offline-page {
+  margin: 0;
+  color: #20231e;
+  background: #f3f3e9;
+  font: 1rem/1.6 system-ui, sans-serif;
+}
+
+.offline-page main { max-width: 38rem; margin: 10vh auto; padding: 1.5rem; }
+.offline-page h1 { font-size: 2rem; line-height: 1.1; }
+.offline-page a { color: inherit; display: inline-flex; align-items: center; min-height: 44px; margin-right: 1rem; }
+.offline-page a:focus-visible { outline: 3px solid #426515; outline-offset: 4px; }
