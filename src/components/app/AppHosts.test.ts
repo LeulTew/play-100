@@ -50,15 +50,18 @@ describe('app status host', () => {
 
 describe('route fallback host', () => {
   it.each([
-    ['public-page', '<h2>Opening your page...</h2>', 'Your games stay right where you left them.'],
-    ['cloud-page', '<h1>Loading...</h1>', 'Loading...'],
-    ['private-library', '<h2>Opening your saved library...</h2>', 'Waiting for the correct guest or account scope before allowing edits.'],
-  ] as const)('retains the %s status markup', (kind, heading, explanation) => {
+    ['public-page', 'Loading My games...'],
+    ['cloud-page', 'Loading My games...'],
+    ['private-library', 'Waiting for the correct guest or account scope before allowing edits.'],
+  ] as const)('retains a truthful %s status without guessing private contents', (kind, explanation) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route: 'games', kind }));
-    expect(html).toContain('class="page-loading" role="status"');
-    expect(html).toContain(heading);
+    expect(html).toContain('class="app-page route-fallback" data-route="games"');
+    expect(html).toContain('role="status" aria-live="polite"');
+    expect(html).toContain('<h1>My games</h1>');
     expect(html).toContain(explanation);
     expect(html).not.toContain('<dialog');
+    expect(html).toContain('aria-hidden="true" inert=""');
+    expect(html).not.toMatch(/<(input|button)\b/);
   });
 
   describe('navigation and dialog hosts', () => {
@@ -111,7 +114,9 @@ describe('route fallback host', () => {
     expect(html).toContain('<dialog');
     expect(html).toContain('aria-labelledby="loading-account-title"');
     expect(html).toContain('id="loading-account-title"');
-    expect(html).toContain('data-autofocus="true" tabindex="-1">Opening sign-in...</h2>');
+    expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
+    expect(html).toContain('role="status" aria-live="polite">Opening sign-in...</p>');
+    expect(html).not.toContain('<input');
     expect(onClose).not.toHaveBeenCalled();
     expect(getReturnFocus).not.toHaveBeenCalled();
   });

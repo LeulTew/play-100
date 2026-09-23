@@ -226,6 +226,11 @@ loading status instead of an incomplete count. Static, noninteractive placeholde
 share the grid/list artwork, title, metadata and action anatomy; known collection
 cards remain usable. Errors replace the loading state with the existing recovery.
 
+Lazy-route fallbacks use destination headings with static card, ruled-list or
+form anatomy from eager styles, never zero counts or guessed private content.
+The cold sign-in placeholder remains a static native dialog with its original
+close and return-focus contract; loading a route never enables an unfinished form.
+
 Unranked matches and saved additions use an open ruled list below the original
 100, not fake numbered jackets or empty critic-score cells. Source attribution
 and a restrained Unranked label distinguish public metadata from the visitor's
