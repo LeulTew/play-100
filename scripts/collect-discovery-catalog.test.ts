@@ -60,7 +60,7 @@ it('preserves collector trimming and exact ASCII control rejection for text and 
 });
 
 afterEach(async () => {
-  for (const root of temporaryRoots.splice(0)) await rm(root, { recursive: true, force: true });
+  for (const root of temporaryRoots.splice(0)) await rm(root, { recursive: true, force: true, maxRetries: 5 });
 });
 async function temporaryRoot(): Promise<string> {
   const root = await mkdtemp(path.join(os.tmpdir(), 'play100-discovery-test-'));

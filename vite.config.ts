@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { loadEnv } from 'vite';
 import type { HtmlTagDescriptor } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -63,7 +63,25 @@ export default defineConfig(({ mode }) => {
     assetsInlineLimit: 0,
   },
   test: {
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+    // These files drive real Chromium through Playwright, so mirror Vitest's browser-mode budgets.
+    // Everything else keeps the Node defaults.
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, 'src/**/*.browser.test.ts'],
+        },
+      },
+      {
+        test: {
+          name: 'browser',
+          include: ['src/**/*.browser.test.ts'],
+          testTimeout: 15_000,
+          hookTimeout: 30_000,
+        },
+      },
+    ],
   },
   };
 });

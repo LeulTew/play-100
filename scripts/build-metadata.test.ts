@@ -16,7 +16,7 @@ async function fixture() {
   return { root, output };
 }
 afterEach(async () => {
-  for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true });
+  for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true, maxRetries: 5 });
 });
 
 describe('private build metadata', () => {
