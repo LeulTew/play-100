@@ -48,14 +48,16 @@ export class SyncRevoked extends Error {
 
 export function parseHead(value: DocumentData): SyncHead {
   const fields = ['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'];
+  if ('cleanupEpoch' in value) fields.push('cleanupEpoch');
   if (Object.keys(value).sort().join() !== fields.sort().join() || value.format !== 1 ||
     !Number.isSafeInteger(value.epoch) || value.epoch < 1 || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
     typeof value.enabled !== 'boolean' || typeof value.deleted !== 'boolean' ||
-    !(value.updatedAt instanceof Timestamp)) throw new Error('The online sync head has an unsupported format. Your local data has not been replaced.');
+    !(value.updatedAt instanceof Timestamp) || ('cleanupEpoch' in value && (!Number.isSafeInteger(value.cleanupEpoch) || value.cleanupEpoch < 1))) throw new Error('The online sync head has an unsupported format. Your local data has not been replaced.');
   return {
     format: 1, epoch: value.epoch, revision: value.revision, enabled: value.enabled, deleted: value.deleted,
     current: value.current === null ? null : parseManifest(value.current),
     previous: value.previous === null ? null : parseManifest(value.previous), updatedAt: value.updatedAt.toMillis(),
+    ...('cleanupEpoch' in value ? { cleanupEpoch: value.cleanupEpoch } : {}),
   };
 }
 
@@ -81,7 +83,8 @@ export class CloudStore {
     return result.exists() ? parseHead(result.data()) : null;
   }
 
-  async probeDeletedCopy(): Promise<DeletionCopyState> {
+  async probeDeletedCopy(head?: Pick<SyncHead, 'deleted' | 'epoch' | 'cleanupEpoch'>): Promise<DeletionCopyState> {
+    if (head?.deleted && head.cleanupEpoch === head.epoch) return 'complete';
     try {
       const [registry, library, ranking, profile] = await Promise.all([
         getDocFromServer(this.registryRef()),
@@ -91,11 +94,21 @@ export class CloudStore {
       ]);
       if (registry.exists() && !Array.isArray(registry.data().ids)) throw new Error('The deletion check could not read its saved state.');
       return !library.empty || !ranking.empty || profile.exists() || (registry.exists() && registry.data().ids.length > 0)
-        ? 'incomplete' : 'complete';
+        ? 'incomplete' : 'unknown';
     } catch (cause) {
       console.warn('The online-copy deletion check could not finish.', cause && typeof cause === 'object' && 'code' in cause ? cause.code : 'unreadable-state');
       return 'unknown';
     }
+  }
+
+  async markCleanupComplete(epoch: number, isCurrent: () => boolean): Promise<SyncHead> {
+    return runTransaction(this.db, async tx => {
+      const snapshot = await tx.get(this.headRef());
+      const head = snapshot.exists() ? parseHead(snapshot.data()) : null;
+      if (!isCurrent() || !head?.deleted || head.epoch !== epoch) throw new Error('The account changed. Deletion was not confirmed.');
+      if (head.cleanupEpoch !== epoch) tx.update(this.headRef(), { cleanupEpoch: epoch });
+      return { ...head, cleanupEpoch: epoch };
+    });
   }
 
   watch(onHead: (head: SyncHead | null) => void, onError: (error: Error) => void): () => void {
@@ -148,6 +161,7 @@ export class CloudStore {
       const next: SyncHead = {
         format: 1, epoch: (current?.epoch ?? 0) + 1, revision: current ? current.revision + 1 : 0,
         enabled: true, deleted: false, current: current?.current ?? null, previous: current?.previous ?? null, updatedAt: Date.now(),
+        ...(current?.cleanupEpoch === undefined ? {} : { cleanupEpoch: current.cleanupEpoch }),
       };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
       for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });

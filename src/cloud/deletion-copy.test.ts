@@ -18,11 +18,22 @@ beforeEach(() => {
 afterAll(() => deleteApp(app));
 
 describe('bounded read-only deletion notice probe', () => {
-  it('reports complete using exactly four reads and no cleanup writes', async () => {
-    expect(await store.probeDeletedCopy()).toBe('complete');
+  it('exposes completion marking as a callable sibling method, not a nested probe declaration', () => {
+    expect(typeof store.markCleanupComplete).toBe('function');
+  });
+  it('never calls an empty four-read probe complete without the final marker', async () => {
+    expect(await store.probeDeletedCopy()).toBe('unknown');
     expect(reads.document).toHaveBeenCalledTimes(2);
     expect(reads.list).toHaveBeenCalledTimes(2);
     expect(reads.writes).not.toHaveBeenCalled();
+  });
+  it('reports complete with zero probe reads only for a marker matching the currently deleted epoch', async () => {
+    expect(await store.probeDeletedCopy({ deleted: true, epoch: 3, cleanupEpoch: 3 })).toBe('complete');
+    expect(reads.document).not.toHaveBeenCalled();
+    expect(reads.list).not.toHaveBeenCalled();
+    expect(reads.writes).not.toHaveBeenCalled();
+    expect(await store.probeDeletedCopy({ deleted: true, epoch: 5, cleanupEpoch: 3 })).toBe('unknown');
+    expect(await store.probeDeletedCopy({ deleted: false, epoch: 4, cleanupEpoch: 3 })).toBe('unknown');
   });
   it.each(['library', 'ranking', 'registry', 'profile'])('reports incomplete when %s still exists', async kind => {
     if (kind === 'library') reads.list.mockResolvedValueOnce({ empty: false });

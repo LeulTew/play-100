@@ -44,6 +44,7 @@ export interface SyncHead {
   current: SnapshotManifest | null;
   previous: SnapshotManifest | null;
   updatedAt: number;
+  cleanupEpoch?: number;
 }
 
 export interface SyncMetadata {

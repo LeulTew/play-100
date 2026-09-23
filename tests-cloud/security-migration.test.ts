@@ -283,11 +283,47 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     } else {
       expect(await owner.cloud.cleanup(true, options)).toBe(1);
       expect((await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'))).exists()).toBe(false);
-      expect(await owner.cloud.probeDeletedCopy()).toBe('complete');
+      expect(await owner.cloud.probeDeletedCopy()).toBe('unknown');
     }
   });
 
   if (policy === 'candidate') {
+    it('allows only an owner completion marker on the same deleted epoch and keeps ordinary head writes from changing it', async () => {
+      const owner = await actor(); const other = await actor(); const fresh = await actor();
+      const ref = doc(owner.db, 'syncHeads', owner.uid);
+      const base = await owner.cloud.enable(null);
+      await assertFails(updateDoc(ref, { cleanupEpoch: base.epoch }));
+      await assertFails(setDoc(doc(fresh.db, 'syncHeads', fresh.uid), {
+        format: 1, epoch: 1, revision: 0, enabled: false, deleted: true, current: null, previous: null,
+        updatedAt: serverTimestamp(), cleanupEpoch: 1,
+      }));
+      const deleting = await owner.cloud.revoke(base, true);
+      await assertFails(updateDoc(doc(other.db, 'syncHeads', owner.uid), { cleanupEpoch: deleting.epoch }));
+      for (const cleanupEpoch of [deleting.epoch - 1, deleting.epoch + 1, String(deleting.epoch)]) {
+        await assertFails(updateDoc(ref, { cleanupEpoch }));
+      }
+      await assertFails(updateDoc(ref, { cleanupEpoch: deleting.epoch, unexpected: true }));
+      await assertFails(updateDoc(ref, {
+        cleanupEpoch: deleting.epoch, epoch: deleting.epoch + 1, revision: deleting.revision + 1, updatedAt: serverTimestamp(),
+      }));
+      const marked = await owner.cloud.markCleanupComplete(deleting.epoch, () => true);
+      expect(marked.cleanupEpoch).toBe(deleting.epoch);
+      expect(await owner.cloud.probeDeletedCopy(marked)).toBe('complete');
+      await assertFails(updateDoc(ref, {
+        enabled: true, deleted: false, epoch: deleting.epoch + 1, revision: deleting.revision + 1,
+        cleanupEpoch: deleting.epoch + 1, updatedAt: serverTimestamp(),
+      }));
+      await seed({ [ref.path]: { ...marked, updatedAt: Timestamp.fromMillis(1) } });
+      const resumed = await owner.cloud.enable(await owner.cloud.head());
+      expect(resumed).toMatchObject({ deleted: false, cleanupEpoch: deleting.epoch, epoch: deleting.epoch + 1 });
+      await expect(owner.cloud.markCleanupComplete(deleting.epoch, () => true)).rejects.toThrow(/changed/);
+      const repeated = await owner.cloud.revoke(resumed, true);
+      expect(repeated.cleanupEpoch).toBe(deleting.epoch);
+      expect(repeated.epoch).toBe(deleting.epoch + 2);
+      expect(await owner.cloud.probeDeletedCopy(repeated)).not.toBe('complete');
+      await assertFails(updateDoc(ref, { cleanupEpoch: deleting.epoch }));
+    });
+
     it('cleans ten old public entries in three-position steps while another generation remains live and published', async () => {
       const owner = await actor(); const guest = session();
       await owner.cloud.enable(null);
@@ -371,7 +407,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
         expect((await getDocsFromServer(query(collection(fresh.db, kind, owner.uid, 'chunks'), limit(20)))).empty).toBe(true);
       }
       expect(fresh.auth.currentUser?.uid).toBe(owner.uid);
-      expect(await resumed.probeDeletedCopy()).toBe('complete');
+      expect(await resumed.probeDeletedCopy()).toBe('unknown');
     }, 60000);
 
     it('aborts a purge when the deleted epoch changes and retains the remaining payload and Auth account', async () => {

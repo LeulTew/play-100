@@ -14,7 +14,7 @@ import type { DeletionCopyState } from './cloud-store';
 export type ConnectionChoice = 'guest' | 'online' | 'empty' | 'cached';
 export interface AccountPageProps {
   cancelledRegistration?: boolean;
-  deletionState?: DeletionCopyState;
+  deletionState?: DeletionCopyState | 'checking';
   identity: AccountIdentity; member: Member | null; cache: ScopedLibrary | null; guest: PersonalLibraryState;
   head: SyncHead | null; remoteReady: boolean; status: SyncStatus; error: string; message: string; cleanupWarning: string;
   busy: boolean; resendIn: number; isCreator: boolean; avatar: ReactNode;
@@ -34,7 +34,7 @@ export function AccountPage(props: AccountPageProps) {
   const { identity, member, cache, guest, head, remoteReady, status, error, message, cleanupWarning, busy, resendIn,
     isCreator, avatar, googleDeletion, onDismissDeletion, onAvatar, onName, onConnect, onVerify, onRefreshIdentity,
     onSignOut, onLinkGoogle, onRetry, onCleanup, onPause, onDownload, onUseRemote, onUseLocal, onDelete,
-    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames, cancelledRegistration = false, onSignOutAndRemove, deletionState = 'unknown' } = props;
+    onPublish, onCommunity, onCreator, onFriends, onCompare, friendsSharing, sharedGames, cancelledRegistration = false, onSignOutAndRemove, deletionState = 'checking' } = props;
   const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
   const [name, setName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
@@ -92,10 +92,10 @@ export function AccountPage(props: AccountPageProps) {
     </section>}
     {head?.deleted && <section className="account-notice" aria-labelledby="deletion-notice-title">
       <h2 id="deletion-notice-title">{deletionState === 'complete' ? 'Online copy deleted' : deletionState === 'incomplete' ? "Deletion isn't finished" : 'Deletion was requested'}</h2>
-      <p>{deletionState === 'complete' ? 'Online saving and sharing are off. The copy on this device is still here.' : deletionState === 'incomplete' ? 'Some online data is still stored.' : "We couldn't confirm everything was removed."}</p>
+      <p role={deletionState === 'checking' ? 'status' : undefined}>{deletionState === 'complete' ? 'Online saving and sharing are off. The copy on this device is still here.' : deletionState === 'incomplete' ? 'Some online data is still stored.' : deletionState === 'checking' ? "Checking what's still stored online..." : "We couldn't confirm everything was removed."}</p>
       <div className="button-row">
         {deletionState !== 'complete' && <button className="button button-dark" disabled={busy} onClick={() => setConfirmation('delete-copy')}>Finish deleting</button>}
-        {deletionState !== 'unknown' && <button className="text-button" disabled={busy} onClick={() => setConfirmation('delete-account')}>Delete account</button>}
+        {(deletionState === 'complete' || deletionState === 'incomplete') && <button className="text-button" disabled={busy} onClick={() => setConfirmation('delete-account')}>Delete account</button>}
       </div>
       <p>To use online saving again, turn it on below; this starts a new online copy.</p>
     </section>}

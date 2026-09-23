@@ -35,11 +35,12 @@ service cloud.firestore {
         && value.bytes > (value.chunks.size() - 1) * 196608 && value.bytes <= value.chunks.size() * 196608;
     }
     function headShape(data) {
-      return data.keys().hasOnly(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
+      return data.keys().hasOnly(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt', 'cleanupEpoch'])
         && data.keys().hasAll(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
         && data.format == 1 && data.epoch is int && data.epoch >= 1
         && data.revision is int && data.revision >= 0
         && data.enabled is bool && data.deleted is bool
+        && (!('cleanupEpoch' in data) || (data.cleanupEpoch is int && data.cleanupEpoch >= 1))
         && (data.current == null || manifest(data.current))
         && (data.previous == null || manifest(data.previous))
         && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.current == null && data.previous == null));
@@ -88,12 +89,16 @@ service cloud.firestore {
       allow get: if own(uid);
       allow list, delete: if false;
       allow create: if accountActive(uid) && headShape(request.resource.data)
+        && !('cleanupEpoch' in request.resource.data)
         && request.resource.data.epoch == 1 && request.resource.data.revision == 0
         && request.resource.data.current == null && request.resource.data.previous == null
         && ((request.resource.data.enabled && !request.resource.data.deleted && get(/databases/$(database)/documents/members/$(uid)).data.consentVersion == 1)
           || (request.resource.data.deleted && !request.resource.data.enabled));
-      allow update: if accountActive(uid) && headShape(request.resource.data)
-        && request.resource.data.revision == resource.data.revision + 1
+      allow update: if request.resource.data.revision == resource.data.revision + 1
+        && accountActive(uid) && headShape(request.resource.data)
+        && ('cleanupEpoch' in resource.data
+          ? 'cleanupEpoch' in request.resource.data && request.resource.data.cleanupEpoch == resource.data.cleanupEpoch
+          : !('cleanupEpoch' in request.resource.data))
         && aSourcePulses(uid)
         && (
           (resource.data.enabled && !resource.data.deleted && request.resource.data.enabled && !request.resource.data.deleted
@@ -111,6 +116,9 @@ service cloud.firestore {
             && request.resource.data.current == resource.data.current && request.resource.data.previous == resource.data.previous
             && (!resource.data.deleted || timestamp.value(request.auth.token.auth_time * 1000) > resource.data.updatedAt))
         );
+      allow update: if own(uid) && resource.data.deleted == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cleanupEpoch'])
+        && request.resource.data.cleanupEpoch is int && request.resource.data.cleanupEpoch == resource.data.epoch;
     }
     match /accounts/{uid}/metadata/registry {
       allow get: if own(uid);
