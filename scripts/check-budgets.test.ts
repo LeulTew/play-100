@@ -7,7 +7,7 @@ import { budgetRows, eagerHtmlFiles, measureBuild, parseBudgetLimits } from './c
 
 const folders: string[] = [];
 const source: Record<string, string> = {
-  'index.html': '<script type="module" src="/assets/main-12345678.js"></script><link rel="modulepreload" href="/assets/shared-12345678.js"><link rel="stylesheet" href="/assets/main-12345678.css">',
+  'index.html': '<script type="module" src="/assets/main-12345678.js"></script><link rel="modulepreload" href="/assets/shared-12345678.js"><link rel="stylesheet" href="/assets/main-12345678.css"><noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>',
   'assets/main-12345678.js': 'import "./shared-12345678.js"; export const value = 1;',
   'assets/shared-12345678.js': 'export const shared = 2;',
   'assets/nested-12345678.js': 'export const nested = 3;',
@@ -15,12 +15,15 @@ const source: Record<string, string> = {
   'assets/lazy-12345678.js': 'export const lazy = "Only on demand";',
   'assets/lazy-12345678.css': '.lazy { color: green; }',
   'data/collection.json': '{"games":[]}',
+  'pwa/offline.html': '<link rel="stylesheet" href="/pwa/fallback.css"><h1>Offline</h1>',
+  'pwa/fallback.css': '.fallback { color: black; }',
 };
 
-async function fixture() {
+async function fixture(inline = '') {
   const directory = await mkdtemp(path.join(tmpdir(), 'play100-budget-test-'));
   folders.push(directory);
-  for (const [file, content] of Object.entries(source)) {
+  const contents: Record<string, string> = { ...source, 'index.html': source['index.html']! + inline };
+  for (const [file, content] of Object.entries(contents)) {
     const target = path.join(directory, ...file.split('/'));
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, content);
@@ -32,8 +35,8 @@ async function fixture() {
     nested: { file: 'assets/nested-12345678.js', imports: ['index.html'] },
     lazy: { file: 'assets/lazy-12345678.js', css: ['assets/lazy-12345678.css'] },
   }));
-  const core = ['index.html', 'data/collection.json'].map(file => ({
-    url: `/${file}`, bytes: Buffer.byteLength(source[file]!),
+  const core = ['index.html', 'data/collection.json', 'pwa/offline.html', 'pwa/fallback.css'].map(file => ({
+    url: `/${file}`, bytes: Buffer.byteLength(contents[file]!),
   }));
   await writeFile(path.join(directory, 'pwa-assets.json'), JSON.stringify({
     format: 1, core, coreBytes: core.reduce((sum, entry) => sum + entry.bytes, 0),
@@ -57,6 +60,7 @@ describe('offline built-output budgets', () => {
       <link rel="preload" as="font" href="/assets/font.woff2">
       <script type="application/json">{"example": true}</script>
       <script>const example = '<link rel="stylesheet" href="/not-a-real-style.css">'</script>
+      <noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>
     `)).toEqual(['assets/main.js', 'assets/shared.js', 'assets/style.css']);
   });
 
@@ -85,10 +89,64 @@ describe('offline built-output budgets', () => {
     expect(measured.largestLazyRaw?.file).toBe('assets/lazy-12345678.js');
     expect(measured.values.largestLazyRawBytes).toBe(Buffer.byteLength(source['assets/lazy-12345678.js']!));
     expect(measured.values.largestLazyGzipBytes).toBe(gzipSync(source['assets/lazy-12345678.js']!, { level: 9 }).byteLength);
-    expect(measured.values.pwaCoreFiles).toBe(4);
-    expect(measured.values.pwaCoreBytes).toBe(Buffer.byteLength(source['index.html']!) + Buffer.byteLength(source['data/collection.json']!) + 32768);
+    expect(measured.standaloneCss.map(asset => asset.file)).toEqual(['pwa/fallback.css']);
+    expect(measured.values.standaloneCssRawBytes).toBe(Buffer.byteLength(source['pwa/fallback.css']!));
+    expect(measured.values.standaloneCssGzipBytes).toBe(gzipSync(source['pwa/fallback.css']!, { level: 9 }).byteLength);
+    expect(measured.combinedCssRawBytes).toBe(measured.values.cssRawBytes + measured.values.standaloneCssRawBytes);
+    expect(measured.combinedCssGzipBytes).toBe(measured.values.cssGzipBytes + measured.values.standaloneCssGzipBytes);
+    expect(measured.values.pwaCoreFiles).toBe(6);
+    expect(measured.values.pwaCoreBytes).toBe(['index.html', 'data/collection.json', 'pwa/offline.html', 'pwa/fallback.css']
+      .reduce((sum, file) => sum + Buffer.byteLength(source[file]!), 32768));
   });
 
+  it.each([
+    ['index.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
+    ['extra.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
+    ['extra.html', '<noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>'],
+  ])('rejects a standalone stylesheet outside the two allowed document scopes: %s', async (file, markup) => {
+    const directory = await fixture();
+    await writeFile(path.join(directory, file), (file === 'index.html' ? source[file]! : '') + markup);
+    await expect(measureBuild(directory)).rejects.toThrow(/Standalone stylesheet is only allowed/);
+  });
+
+  it('rejects app chunk and CSS-import references to standalone styles', async () => {
+    const directory = await fixture();
+    const file = path.join(directory, '.vite', 'manifest.json');
+    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    manifest.lazy.css.push('pwa/fallback.css');
+    await writeFile(file, JSON.stringify(manifest));
+    await expect(measureBuild(directory)).rejects.toThrow(/Standalone stylesheet referenced by Vite app chunk/);
+    manifest.lazy.css.pop();
+    await writeFile(file, JSON.stringify(manifest));
+    await writeFile(path.join(directory, 'assets', 'main-12345678.css'), '@import "../pwa/fallback.css";');
+    await expect(measureBuild(directory)).rejects.toThrow(/Standalone stylesheet imported by app CSS/);
+  });
+
+  it('reports active inline critical CSS in its HTML without changing the emitted-CSS series', async () => {
+    const css = '.critical { display: block; }';
+    const before = await measureBuild(await fixture());
+    const after = await measureBuild(await fixture(`<style>${css}</style>`));
+    expect(after.inlineCss).toHaveLength(1);
+    expect(after.inlineCss[0]?.rawBytes).toBe(Buffer.byteLength(css));
+    expect(after.values.cssRawBytes).toBe(before.values.cssRawBytes);
+    expect(after.values.cssGzipBytes).toBe(before.values.cssGzipBytes);
+    expect(after.values.eagerCombinedGzipBytes).toBe(before.values.eagerCombinedGzipBytes);
+    expect(after.values.standaloneCssRawBytes).toBe(before.values.standaloneCssRawBytes);
+    const expected = source['index.html']! + `<style>${css}</style>`;
+    expect(after.html.find(asset => asset.file === 'index.html')).toMatchObject({
+      rawBytes: Buffer.byteLength(expected), gzipBytes: gzipSync(expected, { level: 9 }).byteLength,
+    });
+  });
+
+  it('requires standalone styles to remain inside the bounded offline core', async () => {
+    const directory = await fixture();
+    const file = path.join(directory, 'pwa-assets.json');
+    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    manifest.core = manifest.core.filter((asset: { url: string }) => asset.url !== '/pwa/fallback.css');
+    manifest.coreBytes = manifest.core.reduce((sum: number, asset: { bytes: number }) => sum + asset.bytes, 0);
+    await writeFile(file, JSON.stringify(manifest));
+    await expect(measureBuild(directory)).rejects.toThrow(/Standalone CSS must also be included/);
+  });
   it('fails inconsistent or missing output instead of trusting manifest byte declarations', async () => {
     const directory = await fixture();
     const file = path.join(directory, 'pwa-assets.json');

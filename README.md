@@ -275,7 +275,13 @@ accounts. The headed native-hidden-window case remains opt-in and is not a
 headless CI proof. Profile-specific desktop/mobile skips retain their intent.
 `check:budgets` reads the existing `dist` without rebuilding or network access;
 `budgets.json` records the enforced eager JS+CSS/PWA caps and provisional
-270f CSS/lazy limits. The PWA browser spec checks explicit preparation and
+270f app-CSS/lazy limits. App CSS is the Vite output under `assets`; standalone
+`pwa` stylesheets have a separate measured cap and must be in the PWA core.
+They may be linked only by the offline document or the app's `noscript` fallback,
+not active app documents, chunk dependencies or CSS imports. Combined CSS
+totals remain visible. HTML bytes, including active inline critical CSS, are
+reported separately rather than changing the emitted-CSS baseline series.
+The PWA browser spec checks explicit preparation and
 offline local routes in isolated contexts, not OS installation or update races.
 See [the remaining manual PWA release checks](docs/pwa.md#manual-release-checks).
 

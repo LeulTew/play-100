@@ -41,6 +41,18 @@ describe('generated public PWA build closure', () => {
     expect(new Set(files).size).toBe(files.length);
   });
 
+  it('keeps the standalone stylesheet in the core but outside the active app document', async () => {
+    const files = pwaCorePaths(manifest());
+    expect(files.filter(file => file === '/pwa/fallback.css')).toHaveLength(1);
+    const html = await readFile(path.join(process.cwd(), 'index.html'), 'utf8');
+    const noscript = /<noscript\b[^>]*>([\s\S]*?)<\/noscript>/i.exec(html)?.[1];
+    expect(noscript).toContain('href="/pwa/fallback.css"');
+    expect(html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ''))
+      .not.toContain('href="/pwa/fallback.css"');
+    const offline = await readFile(path.join(process.cwd(), 'public', 'pwa', 'offline.html'), 'utf8');
+    expect(offline).toContain('href="/pwa/fallback.css"');
+  });
+
   it('embeds only main security headers, not the auth template, cookie or private headers', () => {
     const policy = pwaDocumentPolicy({ headers: [
       { source: '/__/auth/:path*', headers: [{ key: 'Content-Security-Policy', value: "script-src 'nonce-template'" }] },

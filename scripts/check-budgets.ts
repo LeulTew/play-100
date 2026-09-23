@@ -5,6 +5,7 @@ import { gzipSync } from 'node:zlib';
 
 const metrics = [
   'eagerCombinedGzipBytes', 'cssRawBytes', 'cssGzipBytes',
+  'standaloneCssRawBytes', 'standaloneCssGzipBytes',
   'pwaCoreBytes', 'pwaCoreFiles', 'largestLazyRawBytes', 'largestLazyGzipBytes',
 ] as const;
 type Metric = typeof metrics[number];
@@ -16,6 +17,11 @@ export interface BuildMeasurement {
   eagerJsGzipBytes: number;
   eagerCssGzipBytes: number;
   css: AssetSize[];
+  standaloneCss: AssetSize[];
+  inlineCss: AssetSize[];
+  html: AssetSize[];
+  combinedCssRawBytes: number;
+  combinedCssGzipBytes: number;
   largestLazy: AssetSize | null;
   largestLazyRaw: AssetSize | null;
   pwa: { assetFiles: number; assetBytes: number; metadataBytes: number; metadataFiles: number };
@@ -35,7 +41,8 @@ export function parseBudgetLimits(input: unknown): BudgetLimits {
   };
   return {
     eagerCombinedGzipBytes: read('eagerCombinedGzipBytes'), cssRawBytes: read('cssRawBytes'),
-    cssGzipBytes: read('cssGzipBytes'), pwaCoreBytes: read('pwaCoreBytes'),
+    cssGzipBytes: read('cssGzipBytes'), standaloneCssRawBytes: read('standaloneCssRawBytes'),
+    standaloneCssGzipBytes: read('standaloneCssGzipBytes'), pwaCoreBytes: read('pwaCoreBytes'),
     pwaCoreFiles: read('pwaCoreFiles'), largestLazyRawBytes: read('largestLazyRawBytes'),
     largestLazyGzipBytes: read('largestLazyGzipBytes'),
   };
@@ -54,27 +61,55 @@ function localFile(value: string): string {
   return file;
 }
 
-export function eagerHtmlFiles(html: string): string[] {
-  const files = new Set<string>();
-  let modules = 0;
+function activeHtml(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/(<script\b[^>]*>)[\s\S]*?<\/script\s*>/gi, '$1</script>')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript\s*>/gi, '');
+}
+
+function documentTags(html: string) {
   const markup = html.replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/(<script\b[^>]*>)[\s\S]*?<\/script\s*>/gi, '$1</script>');
+    .replace(/(<script\b[^>]*>)[\s\S]*?<\/script\s*>/gi, '$1</script>')
+    .replace(/(<style\b[^>]*>)[\s\S]*?<\/style\s*>/gi, '$1</style>');
+  const tags: { name: string; attributes: Map<string, string> }[] = [];
   for (const tag of markup.matchAll(/<(script|link)\b([^>]*?)>/gi)) {
     const attributes = new Map<string, string>();
     for (const attribute of (tag[2] ?? '').matchAll(/([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
       attributes.set(attribute[1]!.toLowerCase(), attribute[2] ?? attribute[3] ?? attribute[4] ?? '');
     }
+    tags.push({ name: tag[1]!.toLowerCase(), attributes });
+  }
+  return tags;
+}
+
+export function eagerHtmlFiles(html: string): string[] {
+  const files = new Set<string>();
+  let modules = 0;
+  for (const { name, attributes } of documentTags(activeHtml(html))) {
     const rel = attributes.get('rel')?.toLowerCase().split(/\s+/) ?? [];
-    if (tag[1]?.toLowerCase() === 'script' && attributes.get('type')?.toLowerCase() === 'module' && attributes.has('src')) {
+    if (name === 'script' && attributes.get('type')?.toLowerCase() === 'module' && attributes.has('src')) {
       modules += 1;
       files.add(localFile(attributes.get('src')!));
-    } else if (tag[1]?.toLowerCase() === 'link' && attributes.has('href') &&
+    } else if (name === 'link' && attributes.has('href') &&
       (rel.includes('modulepreload') || rel.includes('stylesheet'))) {
       files.add(localFile(attributes.get('href')!));
     }
   }
   if (!modules) throw new Error('dist/index.html has no external module entry.');
   return [...files].sort();
+}
+
+function standalone(file: string): boolean {
+  return file.startsWith('pwa/') && file.endsWith('.css');
+}
+
+function rejectStandaloneImports(css: string, from: string): void {
+  for (const match of css.matchAll(/@import\s+(?:url\(\s*)?["']?([^"')\s;]+)/gi)) {
+    const url = new URL(match[1]!, `https://build.invalid/${from}`);
+    if (url.origin === 'https://build.invalid' && standalone(localFile(url.href))) {
+      throw new Error(`Standalone stylesheet imported by app CSS: ${from}`);
+    }
+  }
 }
 
 async function buildFiles(root: string, relative = ''): Promise<string[]> {
@@ -100,9 +135,41 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     sizes.set(file, result);
     return result;
   };
-  const eagerFiles = new Set(eagerHtmlFiles(await readFile(path.join(root, 'index.html'), 'utf8')));
+  const html = await readFile(path.join(root, 'index.html'), 'utf8');
+  const eagerFiles = new Set(eagerHtmlFiles(html));
+  const inlineCss: AssetSize[] = [];
+  const documents: AssetSize[] = [];
+  for (const document of [...files].filter(file => file.endsWith('.html'))) {
+    const source = await readFile(path.join(root, ...document.split('/')), 'utf8');
+    documents.push({ file: document, rawBytes: Buffer.byteLength(source),
+      gzipBytes: gzipSync(source, { level: 9 }).byteLength });
+    const active = activeHtml(source);
+    if (document !== 'pwa/offline.html') {
+      for (const { name, attributes } of documentTags(document === 'index.html' ? active : source)) {
+        const rel = attributes.get('rel')?.toLowerCase().split(/\s+/) ?? [];
+        if (name !== 'link' || !attributes.has('href') ||
+          !rel.some(value => ['stylesheet', 'preload', 'prefetch'].includes(value))) continue;
+        if (standalone(localFile(attributes.get('href')!))) {
+          throw new Error(`Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`);
+        }
+      }
+      for (const [index, match] of Array.from(active.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)).entries()) {
+        const css = match[1]!;
+        rejectStandaloneImports(css, document);
+        inlineCss.push({ file: `${document}#inline-${index}.css`, rawBytes: Buffer.byteLength(css),
+          gzipBytes: gzipSync(css, { level: 9 }).byteLength });
+      }
+    }
+  }
   const manifest: unknown = JSON.parse(await readFile(path.join(root, '.vite', 'manifest.json'), 'utf8'));
   if (!object(manifest)) throw new Error('Invalid Vite build manifest.');
+  for (const [key, chunk] of Object.entries(manifest)) {
+    if (!object(chunk) || chunk.css === undefined) continue;
+    if (!Array.isArray(chunk.css) || chunk.css.some(value => typeof value !== 'string')) throw new Error(`Invalid Vite css: ${key}`);
+    if (chunk.css.some(value => standalone(localFile(`/${value}`)))) {
+      throw new Error(`Standalone stylesheet referenced by Vite app chunk: ${key}`);
+    }
+  }
   const visited = new Set<string>();
   const visit = (key: string) => {
     if (visited.has(key)) return;
@@ -122,8 +189,15 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   for (const [key, chunk] of Object.entries(manifest)) {
     if (object(chunk) && typeof chunk.file === 'string' && eagerFiles.has(localFile(`/${chunk.file}`))) visit(key);
   }
+  if ([...eagerFiles].some(standalone)) throw new Error('Standalone CSS cannot enter the JavaScript-enabled eager graph.');
   const eager = await Promise.all([...eagerFiles].sort().map(size));
-  const css = await Promise.all([...files].filter(file => file.endsWith('.css')).map(size));
+  const allCss = [...files].filter(file => file.endsWith('.css'));
+  if (allCss.some(file => !file.startsWith('assets/') && !standalone(file))) {
+    throw new Error('A stylesheet is outside the declared app/standalone CSS scopes.');
+  }
+  const css = await Promise.all(allCss.filter(file => file.startsWith('assets/')).map(size));
+  const standaloneCss = await Promise.all(allCss.filter(standalone).map(size));
+  for (const asset of css) rejectStandaloneImports(await readFile(path.join(root, ...asset.file.split('/')), 'utf8'), asset.file);
   const lazy = await Promise.all([...files].filter(file => file.startsWith('assets/') && file.endsWith('.js') && !eagerFiles.has(file)).map(size));
   lazy.sort((a, b) => b.gzipBytes - a.gzipBytes || a.file.localeCompare(b.file));
   const largestLazyRaw = [...lazy].sort((a, b) => b.rawBytes - a.rawBytes || a.file.localeCompare(b.file))[0] ?? null;
@@ -144,6 +218,9 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     coreBytes += actual.rawBytes;
   }
   if (!coreFiles.size || pwa.coreBytes !== coreBytes) throw new Error('PWA core byte total is missing or inconsistent.');
+  if (standaloneCss.some(asset => !coreFiles.has(asset.file))) {
+    throw new Error('Standalone CSS must also be included in the bounded PWA core.');
+  }
   // Format 1 reserves the ready marker and page-version map in addition to public files.
   const metadataFiles = 2;
   return {
@@ -151,6 +228,8 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
       eagerCombinedGzipBytes: eager.reduce((sum, asset) => sum + asset.gzipBytes, 0),
       cssRawBytes: css.reduce((sum, asset) => sum + asset.rawBytes, 0),
       cssGzipBytes: css.reduce((sum, asset) => sum + asset.gzipBytes, 0),
+      standaloneCssRawBytes: standaloneCss.reduce((sum, asset) => sum + asset.rawBytes, 0),
+      standaloneCssGzipBytes: standaloneCss.reduce((sum, asset) => sum + asset.gzipBytes, 0),
       pwaCoreBytes: coreBytes + pwa.budget.metadataBytes,
       pwaCoreFiles: coreFiles.size + metadataFiles,
       largestLazyRawBytes: largestLazyRaw?.rawBytes ?? 0,
@@ -159,7 +238,10 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     eager,
     eagerJsGzipBytes: eager.filter(asset => asset.file.endsWith('.js')).reduce((sum, asset) => sum + asset.gzipBytes, 0),
     eagerCssGzipBytes: eager.filter(asset => asset.file.endsWith('.css')).reduce((sum, asset) => sum + asset.gzipBytes, 0),
-    css, largestLazy: lazy[0] ?? null, largestLazyRaw,
+    css, standaloneCss, inlineCss, html: documents,
+    combinedCssRawBytes: [...css, ...standaloneCss].reduce((sum, asset) => sum + asset.rawBytes, 0),
+    combinedCssGzipBytes: [...css, ...standaloneCss].reduce((sum, asset) => sum + asset.gzipBytes, 0),
+    largestLazy: lazy[0] ?? null, largestLazyRaw,
     pwa: { assetFiles: coreFiles.size, assetBytes: coreBytes, metadataBytes: pwa.budget.metadataBytes, metadataFiles },
   };
 }
@@ -177,6 +259,11 @@ async function main() {
   const rows = budgetRows(measured, limits);
   console.table(rows);
   console.log(`Eager JS gzip9: ${measured.eagerJsGzipBytes}; eager CSS gzip9: ${measured.eagerCssGzipBytes}. The enforced eager cap covers both.`);
+  console.log(`App CSS (Vite assets): ${measured.values.cssRawBytes} raw / ${measured.values.cssGzipBytes} gzip9.`);
+  console.log(`Standalone-document CSS: ${measured.values.standaloneCssRawBytes} raw / ${measured.values.standaloneCssGzipBytes} gzip9; also counted in PWA core.`);
+  console.log(`Combined CSS, reported without a combined gate: ${measured.combinedCssRawBytes} raw / ${measured.combinedCssGzipBytes} gzip9.`);
+  console.log(`HTML (including inline styles): ${measured.html.map(asset => `${asset.file}: ${asset.rawBytes} raw / ${asset.gzipBytes} gzip9`).join('; ')}`);
+  console.log(`Active inline CSS: ${measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0)} raw bytes, already included in the HTML totals; fragment gzip values are not added to transfer totals.`);
   console.log(`Eager JS/CSS (deduplicated, gzip level 9 per file): ${measured.eager.map(asset => asset.file).join(', ')}`);
   console.log(`PWA: ${measured.pwa.assetFiles} public files / ${measured.pwa.assetBytes} bytes, plus ${measured.pwa.metadataFiles} metadata entries / ${measured.pwa.metadataBytes} reserved bytes.`);
   if (measured.largestLazy) console.log(`Largest lazy gzip chunk: ${measured.largestLazy.file}`);

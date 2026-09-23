@@ -15,7 +15,10 @@ standalone display mode supplies that indication.
 Preparing offline access is explicit, not a first-visit download. The build
 generates `sw.js` and `pwa-assets.json` from Vite's manifest. Named roots are the
 main entry, Discover, CatalogDetail and MyGames (Library, Queue and Ranking),
-including their static imports, CSS and WOFF2 fonts. The manifest, brand icons,
+the guarded update executor, deferred catalog/intent utilities and the Data use
+disclosure body, including their static imports, CSS and WOFF2 fonts. The
+disclosure body's presence does not make the Data use route an offline shell.
+The manifest, brand icons,
 offline explanation and local collection/Discover metadata complete the core.
 
 The core has hard build/install limits of 48 entries, 2 MiB decoded total and
@@ -45,6 +48,11 @@ of substituting private data or silently switching account scope.
 Videos, spreadsheets, 3D and the online controller are not precached. Existing
 media/download behavior is unchanged. The public Data use page bypasses PWA
 registration; it still does not bootstrap an account.
+
+`/pwa/fallback.css` belongs to the standalone offline document and the app's
+`noscript` fallback, not the JavaScript-enabled app stylesheet graph. Its
+separate byte gate does not exempt it from the core entry/byte budget. Active
+app references to that stylesheet fail the build-budget check.
 
 ## Updates and recovery
 

@@ -4,6 +4,8 @@
     "eagerCombinedGzipBytes": 175542,
     "cssRawBytes": 135620,
     "cssGzipBytes": 27720,
+    "standaloneCssRawBytes": 603,
+    "standaloneCssGzipBytes": 330,
     "pwaCoreBytes": 2097152,
     "pwaCoreFiles": 48,
     "largestLazyRawBytes": 1115037,
@@ -22,10 +24,17 @@
     "largestLazyRawBytes": 1061940,
     "largestLazyGzipBytes": 273186
   },
+  "standaloneBaseline": {
+    "file": "pwa/fallback.css",
+    "rawBytes": 574,
+    "gzipBytes": 314,
+    "introducedBy": "S3 retained standalone-document security headers"
+  },
   "notes": {
-    "fixed": "The enforced eager cap includes entry JS, modulepreload/static-import JS and eager CSS. The existing PWA cap includes its two metadata entries and reserved metadata bytes.",
-    "provisional": "CSS and largest-lazy caps were frozen at ceil(270f observed value * 1.05), before Round 3 treatment results. They are provisional, not performance claims.",
+    "fixed": "The enforced eager cap includes JS-enabled entry/static-import JS and eager stylesheets. Noscript-only standalone CSS is excluded there, but included in its own gate and the PWA core. HTML, including active inline CSS, is reported separately. Existing PWA metadata reservations are unchanged.",
+    "provisional": "App CSS and largest-lazy caps remain ceil(270f observed value * 1.05). Standalone CSS uses ceil(574 raw / 314 gzip9 * 1.05), separately authorized when S3 introduced that class. Combined CSS totals remain reported.",
     "compression": "gzip level 9, independently per file, summed after deduplication. Fonts, JSON and the root worker are not part of the eager JS+CSS gate.",
-    "lazy": "All emitted assets/*.js outside the eager set; raw and gzip maxima are measured separately. The root service worker is excluded."
+    "lazy": "All emitted assets/*.js outside the eager set; raw and gzip maxima are measured separately. The root service worker is excluded.",
+    "cssScopes": "App CSS is Vite-emitted assets/*.css. Standalone pwa/*.css may only be linked from pwa/offline.html or index.html noscript, never an app chunk or CSS import, and must be in the bounded PWA core. Active inline styles are reported in the full HTML raw/gzip measurements rather than silently added to or removed from the emitted-CSS baseline series."
   }
 }
