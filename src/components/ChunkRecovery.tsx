@@ -24,9 +24,7 @@ export function ChunkRecovery({ message, intent, label = 'Reload this page' }: {
       setBusy(true);
       setNotice('Checking your connection…');
       void guardedReload({ intent, isCurrent: () => active.current }).then(result => {
-        if (active.current && result === 'offline') setNotice(offlineRecoveryMessage);
-        if (active.current && result === 'unavailable') setNotice(unavailableRecoveryMessage);
-        if (active.current && result === 'cancelled') setNotice('');
+        if (active.current) setNotice(result === 'offline' ? offlineRecoveryMessage : result === 'unavailable' ? unavailableRecoveryMessage : '');
       }).catch(error => {
         console.error('The requested reload could not start.', error);
         if (active.current) setNotice('This page could not reload. Use your browser to reload when connected.');

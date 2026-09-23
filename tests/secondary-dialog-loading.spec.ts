@@ -118,6 +118,35 @@ test('an aborted Settings chunk requires an explicit connected reload and restor
   await expect(alert.getByRole('status')).toContainText("Play 100 didn't respond. Try again in a moment.");
   expect(page.url()).toBe(original);
   reachable = true;
+  const beforeUnloadGuard = await page.evaluateHandle(() => {
+    function keepRecoveryPage(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = 'Keep this page open.';
+    }
+    window.addEventListener('beforeunload', keepRecoveryPage);
+    return keepRecoveryPage;
+  });
+  const dismissed = new Promise<void>((resolve, reject) => {
+    page.once('dialog', dialog => {
+      void (async () => {
+        try { expect(dialog.type()).toBe('beforeunload'); }
+        finally { await dialog.dismiss(); }
+      })().then(resolve, reject);
+    });
+  });
+  const probesBeforeCancelledReload = probes;
+  try {
+    await Promise.all([dismissed, reload.click()]);
+    expect(page.url()).toBe(original);
+    await expect(alert.getByRole('status')).toBeEmpty();
+    await expect(reload).toHaveAttribute('aria-disabled', 'false');
+    await expect(reload).toHaveAttribute('aria-busy', 'false');
+    await expect(reload).toBeFocused();
+    expect(probes).toBe(probesBeforeCancelledReload + 1);
+  } finally {
+    await beforeUnloadGuard.evaluate(guard => window.removeEventListener('beforeunload', guard));
+    await beforeUnloadGuard.dispose();
+  }
   await reload.click();
   await page.waitForURL(url => url.searchParams.get('info') === 'settings');
   await expect(page.locator('#settings-title')).toBeFocused();
