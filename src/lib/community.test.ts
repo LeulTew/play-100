@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { normalizeHandle, parseAvatar, parsePublicEntry, projectPublicRanking, recordFromPublic, RESERVED_HANDLES } from './community';
+import { normalizeHandle, parseAvatar, parsePublicEntry, projectPublicRanking, recordFromPublic, reportDocumentId, RESERVED_HANDLES } from './community';
 import { parseCollection } from './collection';
 import { applyPersonalAction, emptyPersonalLibrary } from './personal-library';
 import { recordFromGame } from './personal-types';
@@ -60,5 +60,19 @@ describe('explicit public projection and safe imports', () => {
     const prefixes = /!handle\.matches\('\^\(([^)]+)\)\.\*'\)/.exec(rules)?.[1]?.split('|');
     expect(prefixes).toBeDefined();
     expect(prefixes?.sort()).toEqual([...RESERVED_HANDLES].sort());
+  });
+  it('uses exactly one report separator for provider-shaped and hyphenated demo UIDs', () => {
+    const target = 'A'.repeat(28);
+    const reporter = 'b'.repeat(28);
+    expect(reportDocumentId(target, reporter)).toBe(`${target}_${reporter}`);
+    expect(reportDocumentId('target-demo', 'reporter-demo')).toBe('target-demo_reporter-demo');
+  });
+  it('rejects underscores in either report UID instead of producing an ambiguous persisted ID', () => {
+    expect(() => reportDocumentId('Target_Alice', 'Bob')).toThrow(/Reports require account IDs/);
+    expect(() => reportDocumentId('Target', 'Alice_Bob')).toThrow(/Reports require account IDs/);
+    for (const uid of ['', 'a'.repeat(129), 'with/slash']) {
+      expect(() => reportDocumentId(uid, 'Reporter')).toThrow(/Reports require account IDs/);
+      expect(() => reportDocumentId('Target', uid)).toThrow(/Reports require account IDs/);
+    }
   });
 });

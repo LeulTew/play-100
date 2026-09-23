@@ -12,6 +12,22 @@ belongs to its reporter and the configured creator. Third parties must receive
 permission-denied for both outcomes. List queries retain their owner/creator
 constraints and 20-row cap.
 
+The `targetUid_reporterUid` format requires both UIDs to be free of `_`; this is
+the local report-path assumption for Firebase-assigned email/password and Google
+provider UIDs, not a universal constraint on custom/imported accounts.
+The report builder and create rule explicitly reject `_` in either UID: such an
+account cannot create a new report or be its target, and is never misattributed.
+Existing report access still checks its stored reporter field, not an inferred
+suffix. Global UID validators and hyphenated demo identities are unchanged.
+Introducing custom UIDs requires revisiting the report ID format first.
+
+The parent reviewed the supported sign-in source paths: Firebase assigns IDs for
+email/password and Google redirect, and the app has no custom-token, user-import,
+Admin or anonymous-sign-in path. Custom/imported/Admin-created users would be
+operator-only additions, not a supported app flow today. No existing-user export
+was provided; this does not assert that every stored account has a particular
+UID length or character set.
+
 ## Registration recovery
 
 A cancelled lifecycle is immutable, including after email verification. It
@@ -81,7 +97,8 @@ The new client still works with live 270f rules. Publish it before tightening
 rules: the old client's outgoing-pending identity reads will be denied by the
 new policy, and its immediate declined retry will be rejected. The report
 transaction already reads only its own missing/existing report and needs no
-client change. Cancelled recovery uses the existing lifecycle own-get permission
+ID change for delimiter-safe UIDs; the client now rejects unsupported report IDs
+before any persistence. Cancelled recovery uses the existing lifecycle own-get permission
 and deletes through Firebase Auth, not a new rule mutation.
 
 Unrun source coverage: `tests-cloud/security-hardening.test.ts`,
@@ -188,7 +205,7 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
 
 | Change | LIVE 270f client with new rules | Required sequence |
 | --- | --- | --- |
-| F1 report confidentiality | Own report transaction still works; third-party probes deny | Client unchanged for this path |
+| F1 report confidentiality | Delimiter-safe own reports work; underscore-UID missing reads/creates and third-party probes deny | Report-path validation client first; custom UID format support is not claimed |
 | H1 cancelled recovery | Old client still cannot self-remove a verified cancelled sign-in | Recovery client first |
 | H2 pending identity | Old outgoing list reads are denied instead of a name/icon | Public-snapshot client first |
 | H3 declined retry | Old immediate retry receives denial; no neutral precheck | New client first |

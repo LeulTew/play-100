@@ -1,6 +1,6 @@
 import { collection, doc, getDocFromServer, getDocs, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, startAfter, Timestamp, where, writeBatch } from 'firebase/firestore';
 import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
-import { normalizeHandle, parseHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, PUBLIC_LIMIT } from '../lib/community';
+import { normalizeHandle, parseHandle, parseAvatar, parsePublicationEntry, parsePublicEntry, reportDocumentId, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { ensureAccountActivity } from './account-lifecycle';
 
@@ -212,8 +212,9 @@ export class SocialStore {
   }
   async report(reporterUid: string, targetUid: string, reason: string): Promise<void> {
     if (!reason.trim() || reason.trim().length > 400 || reporterUid === targetUid) throw new Error('Use 1-400 characters to describe a problem with another profile.');
+    const reportId = reportDocumentId(targetUid, reporterUid);
     await ensureAccountActivity(this.db, reporterUid);
-    const ref = doc(this.db, 'reports', `${targetUid}_${reporterUid}`);
+    const ref = doc(this.db, 'reports', reportId);
     await runTransaction(this.db, async (tx) => {
       if ((await tx.get(ref)).exists()) throw new Error('You already reported this profile. The creator can review your existing report.');
       tx.set(ref, { reporterUid, targetUid, reason: reason.trim(), status: 'open', createdAt: serverTimestamp() });

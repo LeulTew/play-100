@@ -50,6 +50,48 @@ describe('S3 report and friendship boundaries', () => {
     await assertFails(user('Alice').doc('reports/Bob_Third_Alice').get());
   });
 
+  it.each([
+    ['A'.repeat(28), 'B'.repeat(28)],
+    ['reporter-demo', 'target-demo'],
+  ])('allows delimiter-safe reporter %s to read and create only its own report', async (reporterUid, targetUid) => {
+    await seed({
+      [`accountLifecycle/${reporterUid}`]: { state: 'active' },
+      [`publicProfiles/${targetUid}`]: { uid: targetUid, published: true, hidden: false },
+    });
+    const ref = user(reporterUid).doc(`reports/${targetUid}_${reporterUid}`);
+    await assertSucceeds(ref.get());
+    await assertSucceeds(ref.set({
+      reporterUid, targetUid, reason: 'Fixture report', status: 'open', createdAt: serverTimestamp(),
+    }));
+    await assertSucceeds(ref.get());
+  });
+
+  it.each([
+    ['Reporter_Custom', 'Bob'],
+    ['Alice', 'Target_Custom'],
+  ])('fails closed on report creation for ambiguous UID pair %s and %s', async (reporterUid, targetUid) => {
+    await seed({
+      [`accountLifecycle/${reporterUid}`]: { state: 'active' },
+      [`publicProfiles/${targetUid}`]: { uid: targetUid, published: true, hidden: false },
+    });
+    const ref = user(reporterUid).doc(`reports/${targetUid}_${reporterUid}`);
+    await expect(ref.get()).rejects.toMatchObject({ code: 'permission-denied' });
+    await assertFails(ref.set({
+      reporterUid, targetUid, reason: 'Fixture report', status: 'open', createdAt: serverTimestamp(),
+    }));
+  });
+
+  it('never attributes an existing ambiguous legacy ID to another reporter segment', async () => {
+    await seed({
+      'reports/Target_Alice_Bob': {
+        reporterUid: 'Alice_Bob', targetUid: 'Target', reason: 'Legacy fixture', status: 'open', createdAt: Timestamp.now(),
+      },
+    });
+    await expect(user('Bob').doc('reports/Target_Alice_Bob').get()).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(user('Bob').doc('reports/Missing_Alice_Bob').get()).rejects.toMatchObject({ code: 'permission-denied' });
+    await assertSucceeds(user('Alice_Bob').doc('reports/Target_Alice_Bob').get());
+  });
+
   it('keeps a cancelled lifecycle immutable and blocks content even after email verification', async () => {
     await assertSucceeds(user('Cancelled', false).doc('accountLifecycle/Cancelled').set({ state: 'cancelled' }));
     const verified = user('Cancelled');

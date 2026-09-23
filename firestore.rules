@@ -391,14 +391,19 @@ service cloud.firestore {
         && (!exists(/databases/$(database)/documents/publicProfiles/$(uid)) || !profile(uid).published || profile(uid).generation != generationId);
     }
     match /reports/{reportId} {
+      function reportUid(uid) {
+        return uid is string && uid.matches('^[A-Za-z0-9-]{1,128}$');
+      }
       function ownReportId() {
         let segments = reportId.split('_');
-        return segments.size() == 2 && segments[1] == request.auth.uid;
+        return segments.size() == 2 && reportUid(segments[0]) && reportUid(segments[1])
+          && segments[1] == request.auth.uid;
       }
       allow get: if verified() && ((resource == null && ownReportId())
         || (resource != null && (resource.data.reporterUid == request.auth.uid || creator())));
       allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && (creator() || resource.data.reporterUid == request.auth.uid);
       allow create: if accountActive(request.auth.uid)
+        && reportUid(request.auth.uid) && reportUid(request.resource.data.targetUid)
         && (!exists(/databases/$(database)/documents/syncHeads/$(request.auth.uid)) || !head(request.auth.uid).deleted)
         && request.resource.data.keys().hasOnly(['reporterUid', 'targetUid', 'reason', 'status', 'createdAt'])
         && request.resource.data.reporterUid == request.auth.uid && request.resource.data.targetUid is string

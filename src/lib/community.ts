@@ -25,6 +25,14 @@ export interface PublicProfile {
 export interface PublicControl { epoch: number; hidden: boolean; deleted: boolean }
 export interface ProfileReport { id: string; reporterUid: string; targetUid: string; reason: string; status: 'open' | 'resolved'; createdAt: number }
 
+export function reportDocumentId(targetUid: string, reporterUid: string): string {
+  // The persisted separator must not also occur inside either account ID.
+  if (![targetUid, reporterUid].every(uid => /^[A-Za-z0-9-]{1,128}$/.test(uid))) {
+    throw new Error('Reports require account IDs containing only letters, numbers or hyphens. No report was sent.');
+  }
+  return `${targetUid}_${reporterUid}`;
+}
+
 export function normalizeHandle(value: string): string {
   const handle = parseHandle(value);
   if (RESERVED_HANDLES.some(reserved => handle.startsWith(reserved))) throw new Error('System and creator handle prefixes are reserved. Choose another handle.');
