@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint . --max-warnings 0",
     "typecheck:functions": "tsc -p tsconfig.functions.json --noEmit",
+    "check:budgets": "tsx scripts/check-budgets.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:cloud": "firebase emulators:exec --project demo-play100 --only auth,firestore \"vitest run --config vitest.cloud.config.ts\"",
