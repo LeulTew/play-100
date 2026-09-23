@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { assertDeferredBundleModules, eagerHtmlFiles } from './check-budgets';
 import ts from 'typescript';
 import type { Manifest, Plugin, ResolvedConfig } from 'vite';
 import { PWA_ICONS, writePwaIcons } from './pwa-icons';
@@ -14,6 +15,7 @@ export const PWA_ROOTS = [
   'src/components/DataUseContent.tsx',
   'src/lib/discovery-catalog.ts', 'src/lib/google-intent.ts',
   'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
+  'src/components/AboutDialog.tsx', 'src/components/app/SettingsPanel.tsx',
 ] as const;
 const publicCore = [
   '/index.html', '/manifest.webmanifest', '/pwa/offline.html', '/pwa/fallback.css', '/favicon.svg',
@@ -135,9 +137,10 @@ export function play100Pwa(): Plugin {
     apply: 'build',
     config: () => ({ build: { manifest: true } }),
     configResolved(config) { resolved = config; },
-    async writeBundle() {
+    async writeBundle(_options, bundle) {
       if (!resolved || resolved.base !== '/') throw new Error('Play 100 offline scope requires the existing origin-root deployment.');
       const output = path.resolve(resolved.root, resolved.build.outDir);
+      assertDeferredBundleModules(resolved.root, bundle, eagerHtmlFiles(await readFile(path.join(output, 'index.html'), 'utf8')));
       await generatePwaBuild(resolved.root, output);
     },
   };

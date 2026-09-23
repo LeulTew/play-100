@@ -111,6 +111,34 @@ describe('background-only module prefetch', () => {
     cancel();
   });
 
+  it('warms Menu intent only after a paint and idle, even on low-memory/2g devices, but never Save-Data', () => {
+    let frame: FrameRequestCallback | undefined;
+    Object.assign(window, {
+      requestAnimationFrame: vi.fn((callback: FrameRequestCallback) => { frame = callback; return 1; }),
+      cancelAnimationFrame: vi.fn(),
+    });
+    hints.deviceMemory = 2;
+    hints.connection = { effectiveType: '2g' };
+    reducedMotion = true;
+    const load = vi.fn().mockResolvedValue({});
+    const stop = scheduleIdlePrefetch(load, 150, 'intent');
+    expect(requestIdle).not.toHaveBeenCalled();
+    frame?.(1);
+    expect(requestIdle).not.toHaveBeenCalled();
+    frame?.(2);
+    expect(requestIdle).toHaveBeenCalledWith(expect.any(Function), { timeout: 150 });
+    idle?.();
+    expect(load).toHaveBeenCalledOnce();
+    stop();
+    load.mockClear();
+    hints.connection.saveData = true;
+    const cancel = scheduleIdlePrefetch(load, 150, 'intent');
+    frame?.(3);
+    idle?.();
+    expect(load).not.toHaveBeenCalled();
+    cancel();
+  });
+
   it('cancels pending load/idle callbacks and stale invocations cannot import', () => {
     const load = vi.fn().mockResolvedValue({});
     const cancel = scheduleIdlePrefetch(load);

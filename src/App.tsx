@@ -12,7 +12,7 @@ import type { LibraryRecord, PersonalAction } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
 import { Icon } from './components/Icon';
 import { SiteFooter } from './components/SiteFooter';
-import PwaControls from './components/PwaControls';
+import { useAppPanel } from './hooks/useAppPanel';
 import { usePwa } from './pwa';
 import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
@@ -125,7 +125,7 @@ export default function App() {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
-  const [panel, setPanel] = useState<'menu' | 'about' | 'settings' | 'account' | null>(() => new URLSearchParams(location.search).get('info') === 'credits' ? 'about' : null);
+  const { panel, setPanel, panelMessage, dismissPanelMessage } = useAppPanel(captureMenuFocusGuard, libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled });
@@ -157,7 +157,7 @@ export default function App() {
     return [...document.querySelectorAll<HTMLElement>('.account-nav, [data-page-heading], #collection-title')]
       .find(usableReturnFocusTarget) ?? null;
   }, []);
-  const closePanel = useCallback(() => setPanel(null), []);
+  const closePanel = useCallback(() => setPanel(null), [setPanel]);
   const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({ scope: 'guest', records: new Map() });
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -432,6 +432,7 @@ export default function App() {
     overlayKey: manualLink ? 'share' : panel,
   };
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
+  const visibleNotice = panelMessage || notice;
 
   return (
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
@@ -518,11 +519,11 @@ export default function App() {
           saved: savedCount, completed: completedCount, warning, onMotion: motion => { void perform({ type: 'set-motion', motion }); },
           onReset: library.reset, onRestore: library.restore, state: library.state, persistent: library.status === 'ready', busy: libraryBusy,
           onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
-          offlineControls: pwaEnabled ? <PwaControls pwa={pwa} open={offlineSettings} onUpdate={applyPwaUpdate} /> : undefined,
           onClose: () => setPanel(null),
         } } : null}
+        offlineSettings={pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined}
         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
-      <div className={`toast ${notice ? 'toast-visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{notice && <><Icon name="info" width="19" height="19" /><span>{notice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><Icon name="close" width="17" height="17" /></button></>}</div>
+      <div className={`toast ${visibleNotice ? 'toast-visible' : ''}`} role="status" aria-live="polite" aria-atomic="true">{visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
       {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}
     </LibraryModeContext.Provider>
       );

@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+export { assertDeferredBundleModules } from './eager-module-guard';
 
 const metrics = [
   'eagerCombinedGzipBytes', 'cssRawBytes', 'cssGzipBytes',

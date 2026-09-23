@@ -2,6 +2,7 @@ import type { AppPage } from './types';
 import { isConstrainedDevice } from './device-capabilities';
 import { loadCatalogDetail } from './catalog-detail-preload';
 import { loadDiscoveryParser } from './discovery-parser-preload';
+import { loadSecondaryDialogs } from './secondary-dialogs';
 
 export const loadComparisonTools = () => Promise.all([
   import('./comparison-game-filter'), import('./friend-comparison-intent'),
@@ -10,6 +11,7 @@ const loadGoogleIntent = () => import('./google-intent');
 
 export const loadAppTools = () => Promise.all([
   loadCatalogDetail(), loadDiscoveryParser(), loadGoogleIntent(), loadComparisonTools(),
+  loadSecondaryDialogs(),
 ]);
 
 export function prefetchAppTools(route: AppPage): void {

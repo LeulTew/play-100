@@ -120,6 +120,7 @@ describe('generated public PWA build closure', () => {
   it.each([
     'src/lib/discovery-catalog.ts', 'src/lib/google-intent.ts',
     'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
+    'src/components/AboutDialog.tsx', 'src/components/app/SettingsPanel.tsx',
   ])('keeps the previously eager %s tools in the explicit offline closure', root => {
     expect(PWA_ROOTS).toContain(root);
     const entries = manifest();
