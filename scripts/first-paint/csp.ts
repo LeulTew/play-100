@@ -85,7 +85,20 @@ function withoutBlockContents(html: string): string {
  * stale too. Mixing 'unsafe-inline' with a hash or nonce is refused because browsers then ignore
  * 'unsafe-inline'. Inline event-handler attributes are never allowed.
  */
-export function cspProblems(documents: readonly CspDocument[], policy: string): string[] {
+export interface CspCheckOptions {
+  /**
+   * Style hashes of the other first-paint shell variant, which count as used. Only the build knows
+   * them; check:csp, which sees one variant's output, passes 'unchecked' instead.
+   */
+  readonly otherVariantStyles?: readonly string[] | 'unchecked';
+}
+
+/** Whether inline styles are allowed without hashes (style-src, or default-src, has 'unsafe-inline'). */
+export function allowsInlineStyles(policy: string): boolean {
+  return (directiveSources(policy, 'style-src') ?? directiveSources(policy, 'default-src') ?? []).includes("'unsafe-inline'");
+}
+
+export function cspProblems(documents: readonly CspDocument[], policy: string, options: CspCheckOptions = {}): string[] {
   const problems: string[] = [];
   const fallback = directiveSources(policy, 'default-src') ?? [];
   const scriptSources = directiveSources(policy, 'script-src') ?? fallback;
@@ -114,6 +127,14 @@ export function cspProblems(documents: readonly CspDocument[], policy: string): 
     if (handler) problems.push(`${entry.name} has an inline event-handler attribute, which script-src blocks: ${handler[0].slice(0, 80)}`);
     const styleAttribute = styleInline ? null : /<[a-z][^>]*?\sstyle\s*=/i.exec(markup);
     if (styleAttribute) problems.push(`${entry.name} has an inline style attribute, which strict style-src blocks: ${styleAttribute[0].slice(0, 80)}`);
+  }
+  const otherStyles = options.otherVariantStyles ?? [];
+  if (otherStyles === 'unchecked') used.style = new Set(styleHashes);
+  else {
+    for (const source of otherStyles) {
+      used.style.add(source);
+      if (!styleInline && !styleSources.includes(source)) problems.push(`The other shell variant's inline style ${source} is not allowed: add it to style-src in vercel.json.`);
+    }
   }
   for (const [kind, hashes] of [['script', scriptHashes], ['style', styleHashes]] as const) {
     for (const hash of hashes) {

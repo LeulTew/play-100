@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
@@ -6,6 +9,7 @@ import {
   assertCharsetDeclaration, assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss, firstPaintShell,
   firstPaintVariant, fontFaceCopies, inlineFirstPaintShell, minifyShellCss, stripBootScript,
 } from './plugin.ts';
+import { sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -255,5 +259,38 @@ describe('first-paint index.html', () => {
     expect(typeof html === 'string' && html.includes(`<script>${stripBootScript(bootJs)}</script>`)).toBe(true);
     expect(logged).toHaveLength(1);
     expect(logged[0]).toMatch(/^first-paint shell: offline header; <meta charset> at byte 359; inline style \d+ B 'sha256-[\w+/=]+'; inline script \d+ B 'sha256-[\w+/=]+'$/);
+  });
+
+  it('under a strict style-src requires exactly the inline styles of both shell variants', async () => {
+    const appCss = `${FONT_FACES}.site-header{display:flex}.site-header-online{color:red}`;
+    const styles = Object.fromEntries(await Promise.all((['offline', 'online'] as const).map(async variant => [variant, sha256Source((await inlineFirstPaintShell({
+      html: builtIndexHtml(), variant, shellCss, bootScript: bootJs, readStylesheet: () => appCss,
+    })).style)] as const)));
+    expect(styles.offline).not.toBe(styles.online);
+    const root = await mkdtemp(path.join(tmpdir(), 'play100-strict-style-'));
+    try {
+      await mkdir(path.join(root, 'src', 'first-paint'), { recursive: true });
+      await writeFile(path.join(root, 'src', 'first-paint', 'shell.css'), shellCss);
+      await writeFile(path.join(root, 'src', 'first-paint', 'boot.js'), bootJs);
+      const build = async (styleSources: string) => {
+        const csp = `default-src 'self'; script-src 'self' ${sha256Source(stripBootScript(bootJs))}; style-src 'self' ${styleSources}`;
+        await writeFile(path.join(root, 'vercel.json'), JSON.stringify({ headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: csp }] }] }));
+        const plugin = firstPaintShell({ variant: 'offline' });
+        const logged: string[] = [];
+        if (typeof plugin.configResolved !== 'function') throw new Error('The shell plugin must read the resolved root.');
+        await plugin.configResolved.call({} as never, { root, logger: { info: (message: string) => logged.push(message) } } as never);
+        const hook = plugin.transformIndexHtml;
+        if (!hook || typeof hook === 'function') throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
+        const bundle = { 'assets/index-BBBBBBBB.css': { type: 'asset', fileName: 'assets/index-BBBBBBBB.css', source: appCss } };
+        await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
+        return logged;
+      };
+      expect((await build(`${styles.offline} ${styles.online}`))[0]).toContain(`; online variant inline style ${styles.online}`);
+      await expect(build(styles.offline!)).rejects.toThrow(`other shell variant's inline style ${styles.online}`);
+      await expect(build(styles.online!)).rejects.toThrow(`add ${styles.offline} to style-src`);
+      await expect(build(`${styles.offline} ${styles.online} ${sha256Source('old{}')}`)).rejects.toThrow(`${sha256Source('old{}')}, which matches no inline style`);
+    } finally {
+      await rm(root, { recursive: true, force: true, maxRetries: 5 });
+    }
   });
 });

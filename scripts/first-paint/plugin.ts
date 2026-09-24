@@ -3,7 +3,7 @@ import path from 'node:path';
 import Beasties from 'beasties';
 import type { Logger as BeastiesLogger, Options as BeastiesOptions } from 'beasties';
 import type { Plugin, ResolvedConfig } from 'vite';
-import { cspProblems, inlineBlocks, mainDocumentPolicy } from './csp.ts';
+import { allowsInlineStyles, cspProblems, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
 import { ROOT_OPEN, SHELL_OPEN, STYLESHEET_MARKER, normalizeShellWhitespace, removeShell, selectShellVariant, shellRegion, shellText } from './shell-html.ts';
 import type { ShellVariant } from './shell-html.ts';
 
@@ -17,8 +17,9 @@ import type { ShellVariant } from './shell-html.ts';
  *    head script. The style holds copies of the app's latin web-font faces under names of their
  *    own, the entry-stylesheet rules beasties selects for the shell, and src/first-paint/shell.css;
  *  - moves the entry stylesheet <link> from <head> to right after #root;
- *  - fails the build unless vercel.json allows the inline script by its exact hash, and unless the
- *    <meta charset> declaration fits within the document's first 1024 bytes.
+ *  - fails the build unless vercel.json allows the inline script by its exact hash (and, under a
+ *    strict style-src, exactly the inline styles of both variants), and unless the <meta charset>
+ *    declaration fits within the document's first 1024 bytes.
  *
  * A parser-inserted stylesheet in <body> does not block painting the content before it, but it
  * still blocks deferred and module scripts (HTML "script-blocking style sheet"; Chromium also
@@ -304,22 +305,28 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
         }
         const bundle = context.bundle;
         const source = (file: string) => readFileSync(path.resolve(root, file), 'utf8');
-        const result = await inlineFirstPaintShell({
+        const input = {
           html,
-          variant,
           shellCss: source('src/first-paint/shell.css'),
           bootScript: source('src/first-paint/boot.js'),
-          readStylesheet: href => {
+          readStylesheet: (href: string) => {
             const asset = bundle[href.slice(1)];
             if (!asset || asset.type !== 'asset') throw new Error(`The stylesheet ${href} is not in the build output.`);
             return typeof asset.source === 'string' ? asset.source : new TextDecoder().decode(asset.source);
           },
-        });
+        };
+        const result = await inlineFirstPaintShell({ ...input, variant });
         const charset = assertCharsetDeclaration(result.html);
-        const problems = cspProblems([{ name: 'index.html', html: result.html }], mainDocumentPolicy(JSON.parse(source('vercel.json'))));
+        const policy = mainDocumentPolicy(JSON.parse(source('vercel.json')));
+        // A strict style-src must list the other variant's inline style too (vercel.json serves both
+        // kinds of build), and nothing else.
+        const other = variant === 'online' ? 'offline' : 'online';
+        const otherVariantStyles = allowsInlineStyles(policy) ? [] : [sha256Source((await inlineFirstPaintShell({ ...input, variant: other })).style)];
+        const problems = cspProblems([{ name: 'index.html', html: result.html }], policy, { otherVariantStyles });
         if (problems.length) throw new Error(`The first-paint shell does not match vercel.json:\n${problems.join('\n')}`);
         const blocks = inlineBlocks(result.html).map(block => `inline ${block.kind} ${block.bytes} B ${block.source}`);
-        logger?.info(`first-paint shell: ${variant} header; <meta charset> at byte ${charset}; ${blocks.join('; ')}`);
+        const others = otherVariantStyles.map(hash => `; ${other} variant inline style ${hash}`).join('');
+        logger?.info(`first-paint shell: ${variant} header; <meta charset> at byte ${charset}; ${blocks.join('; ')}${others}`);
         return result.html;
       },
     },

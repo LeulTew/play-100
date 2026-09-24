@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { checkCsp, emittedDocumentPolicy } from '../check-csp.ts';
-import { cspProblems, directiveSources, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
+import { allowsInlineStyles, cspProblems, directiveSources, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
 import { stripBootScript } from './plugin.ts';
 
 const vercel: unknown = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
@@ -95,6 +95,26 @@ describe('CSP problems', () => {
       .toEqual([`style-src in vercel.json allows ${sha256Source('old{}')}, which matches no inline style in the build (stale hash).`]);
   });
 
+  it('requires and accepts the other shell variant style, or leaves stale styles unchecked for check:csp', () => {
+    const both = policy.replace("'unsafe-inline'", `${sha256Source('a{color:red}')} ${sha256Source('other{}')}`);
+    const documents = [{ name: 'index.html', html: page }];
+    expect(cspProblems(documents, both, { otherVariantStyles: [sha256Source('other{}')] })).toEqual([]);
+    expect(cspProblems(documents, both, { otherVariantStyles: 'unchecked' })).toEqual([]);
+    expect(cspProblems(documents, both)).toEqual([expect.stringContaining(`${sha256Source('other{}')}, which matches no inline style`)]);
+    expect(cspProblems(documents, policy.replace("'unsafe-inline'", sha256Source('a{color:red}')), { otherVariantStyles: [sha256Source('other{}')] }))
+      .toEqual([`The other shell variant's inline style ${sha256Source('other{}')} is not allowed: add it to style-src in vercel.json.`]);
+    expect(cspProblems([{ name: 'index.html', html: page.replace('a{color:red}', 'x{}') }], both, { otherVariantStyles: 'unchecked' }))
+      .toEqual([expect.stringContaining(`add ${sha256Source('x{}')} to style-src`)]);
+    expect(cspProblems(documents, policy, { otherVariantStyles: [sha256Source('other{}')] })).toEqual([]);
+  });
+
+  it('knows when inline styles need no hashes', () => {
+    expect(allowsInlineStyles(policy)).toBe(true);
+    expect(allowsInlineStyles("default-src 'self' 'unsafe-inline'")).toBe(true);
+    expect(allowsInlineStyles(`default-src 'self' 'unsafe-inline'; style-src 'self' ${sha256Source('a')}`)).toBe(false);
+    expect(allowsInlineStyles("default-src 'self'")).toBe(false);
+  });
+
   it('refuses style attributes only once style-src is strict', () => {
     const styled = page.replace('<body>', '<body><div style="color:red"></div>');
     expect(cspProblems([{ name: 'index.html', html: styled }], policy)).toEqual([]);
@@ -132,6 +152,15 @@ describe('check:csp', () => {
       lines: [`index.html inline style #0: 12 B ${sha256Source('a{color:red}')}`, `index.html inline script #1: 21 B ${sha256Source(script)}`],
       problems: [],
     });
+  });
+
+  it('accepts a strict style-src that also lists the other shell variant, but not a missing style hash', async () => {
+    const strict = policy.replace("'unsafe-inline'", `${sha256Source('a{color:red}')} ${sha256Source('other{}')}`);
+    const strictConfiguration = { headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: strict }] }] };
+    const root = await dist({ 'index.html': page, 'pwa-assets.json': manifest(strict) });
+    expect((await checkCsp(root, strictConfiguration)).problems).toEqual([]);
+    const changed = await dist({ 'index.html': page.replace('a{color:red}', 'x{}'), 'pwa-assets.json': manifest(strict) });
+    expect((await checkCsp(changed, strictConfiguration)).problems).toEqual([expect.stringContaining(`add ${sha256Source('x{}')} to style-src`)]);
   });
 
   it('fails when the service worker would serve documents with another policy', async () => {

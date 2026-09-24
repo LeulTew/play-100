@@ -36,7 +36,8 @@ export async function checkCsp(root: string, configuration: unknown): Promise<{ 
   const documents: CspDocument[] = [];
   for (const name of await htmlDocuments(root)) documents.push({ name, html: await readFile(path.join(root, ...name.split('/')), 'utf8') });
   if (!documents.some(entry => entry.name === 'index.html')) throw new Error(`No index.html in ${root}. Build before checking the CSP.`);
-  const problems = cspProblems(documents, policy);
+  // One build holds one shell variant, so stale style hashes are left to the build, which knows both.
+  const problems = cspProblems(documents, policy, { otherVariantStyles: 'unchecked' });
   const emitted = emittedDocumentPolicy(JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8')));
   if (emitted !== policy) problems.push('pwa-assets.json embeds a different content-security-policy than vercel.json for the documents the service worker serves.');
   const lines = documents.flatMap(entry => inlineBlocks(entry.html).map((block, index) => `${entry.name} inline ${block.kind} #${index}: ${block.bytes} B ${block.source}`));

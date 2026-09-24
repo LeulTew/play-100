@@ -79,8 +79,13 @@ metric-matched fallback faces are usable. Then it sets `data-boot="landing"` and
 the boot script by its exact `sha256` hash. The build fails when that hash does
 not match the stripped boot script, when a hash matches no inline script, when
 a directive mixes `'unsafe-inline'` with a hash or nonce, or when a document has
-an inline event handler. `style-src` is unchanged (`'self' 'unsafe-inline'`); a
-strict `style-src` must add the printed hash of the inline style instead.
+an inline event handler. `style-src` is unchanged (`'self' 'unsafe-inline'`). A
+strict `style-src` (no `'unsafe-inline'`) must list exactly the inline style
+hashes of both shell variants, because one static `vercel.json` serves builds
+with and without Firebase: the build computes the other variant's style too,
+prints it, and fails on a missing or stale style hash or a `style=` attribute.
+`check:csp` sees one variant only, so it checks missing style hashes but leaves
+stale ones to the build.
 After a build, `npm run check:csp` re-checks every document in `dist` against
 `vercel.json` and against the policy `dist/pwa-assets.json` embeds for the
 documents the service worker serves, and prints each inline block with its hash.
