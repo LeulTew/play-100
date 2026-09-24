@@ -24,6 +24,8 @@ import type { OnlineBridge } from './cloud/ui-types';
 import { LibraryModeContext } from './lib/library-mode';
 import { flushPendingEdits } from './hooks/useExitSave';
 import { captureInviteContinuation } from './lib/invite-continuation';
+import { currentSignInPurpose, signInPurposeTicket } from './lib/sign-in-purpose';
+import type { SignInPurposeTicket } from './lib/sign-in-purpose';
 import { CompareDragHandle, CompareTrayProvider, useCompareTray } from './components/compare-tray';
 import { useDiscoveryCatalog } from './hooks/useDiscoveryCatalog';
 import { indexDiscoveryArtwork } from './lib/discovery-catalog-shared';
@@ -139,6 +141,7 @@ export default function App() {
   const accountPanelOpen = useRef(panel === 'account');
   accountPanelOpen.current = panel === 'account';
   const compareSignInOrigin = useRef<{ isCurrent: () => boolean } | null>(null);
+  const [signInTicket, setSignInTicket] = useState<SignInPurposeTicket | null>(null);
   const getSignInReturnFocus = useCallback((authenticated = false) => {
     const origin = compareSignInOrigin.current;
     if (!origin) return null;
@@ -252,7 +255,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const navigate = (next: AppPage, patch: Partial<Filters> = {}) => { compareSignInOrigin.current = null; setPanel(null); goToPage(next, patch); };
+  const navigate = (next: AppPage, patch: Partial<Filters> = {}) => { compareSignInOrigin.current = null; setSignInTicket(null); setPanel(null); goToPage(next, patch); };
+  const closeAccountSheet = () => { setSignInTicket(null); setPanel(null); };
   const accountEntry = async (invocation: 'account' | 'compare' = 'account') => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
     const view = `${window.location.pathname}${window.location.search}`;
@@ -277,6 +281,7 @@ export default function App() {
       setOnlineRequested(true);
       if (currentOnline.current?.identity || page === 'account') navigate('account');
       else {
+        setSignInTicket(signInPurposeTicket(invocation, isCurrent));
         if (invocation === 'compare') notify('Sign in to compare with friends. Device pins stay separate from account pins.');
         setPanel('account');
       }
@@ -423,6 +428,7 @@ export default function App() {
     intent={panelFailure === 'about' ? 'credits' : 'settings'}
     label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'} />;
   const toastRecovery = !panel && !manualLink && !selectedSlug && panelRecovery;
+  const signInPurpose = currentSignInPurpose(signInTicket, panel === 'account');
 
   return (
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
@@ -445,10 +451,10 @@ export default function App() {
         <RouteHost route={page} scope={libraryScope}
           online={ONLINE_AVAILABLE && (onlineRequested || cloudPage) ? {
             onDevice: () => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); },
-            fallback: cloudPage ? { route: page, kind: 'cloud-page' } : panel === 'account' ? { route: page, kind: 'account-sheet', onClose: () => setPanel(null), getReturnFocus: getSignInReturnFocus } : null,
+            fallback: cloudPage ? { route: page, kind: 'cloud-page' } : panel === 'account' ? { route: page, kind: 'account-sheet', onClose: closeAccountSheet, getReturnFocus: getSignInReturnFocus } : null,
             props: {
-              page, publicHandle, invitation, showSheet: panel === 'account', guest: guestLibrary, games: games ?? [], onBridge: setOnline,
-              onCloseSheet: () => setPanel(null), getSignInReturnFocus, onNavigate: navigate, onProfile: openProfile, onOpenRecord: preview,
+              page, publicHandle, invitation, showSheet: panel === 'account', signInPurpose, guest: guestLibrary, games: games ?? [], onBridge: setOnline,
+              onCloseSheet: closeAccountSheet, getSignInReturnFocus, onNavigate: navigate, onProfile: openProfile, onOpenRecord: preview,
               onShare: (title, url) => { void share(title, url, false); }, onPinRecord: pin, artwork,
             },
           } : null}

@@ -27,6 +27,9 @@ test('a real emulator identity transition invalidates the guest Compare focus or
   await choose.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#account-signin-title')).toBeFocused();
+  // The tray invocation carries its Compare purpose into the sheet even though the route is My games.
+  await expect(page.getByRole('dialog', { name: 'Sign in', exact: true }).getByRole('region', { name: "Compare friends' rankings", exact: true }))
+    .toContainText('Sign in to compare rankings shared by your friends. Pins select games for comparison; they do not share your library.');
   await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await page.evaluate(async credentials => {
     const clientPath = '/src/cloud/firebase-client.ts';

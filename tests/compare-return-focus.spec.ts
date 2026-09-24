@@ -7,6 +7,18 @@ const compare = (page: Page) => page.getByRole('button', { name: 'Compare rankin
 const chip = (page: Page) => page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true });
 const signIn = (page: Page) => page.getByRole('dialog', { name: 'Sign in', exact: true });
 const account = (page: Page) => page.locator('.account-nav');
+const comparePurpose = (page: Page) => signIn(page).getByRole('region', { name: "Compare friends' rankings", exact: true });
+
+async function expectComparePurpose(page: Page) {
+  await expect(comparePurpose(page).getByRole('heading', { name: "Compare friends' rankings", exact: true })).toBeVisible();
+  await expect(comparePurpose(page)).toContainText('Sign in to compare rankings shared by your friends. Pins select games for comparison; they do not share your library.');
+}
+
+async function expectOrdinarySignIn(page: Page) {
+  await expect(signIn(page).getByRole('button', { name: 'Continue with Google', exact: true })).toBeVisible();
+  await expect(signIn(page).getByRole('heading', { name: "Compare friends' rankings", exact: true })).toHaveCount(0);
+  await expect(signIn(page).locator('.auth-purpose')).toHaveCount(0);
+}
 
 test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Compare focus fixtures require the owned local app.');
@@ -46,6 +58,7 @@ async function compareFromChip(page: Page) {
 async function readyAccount(page: Page) {
   await account(page).focus();
   await page.keyboard.press('Enter');
+  await expectOrdinarySignIn(page);
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
   await expect(account(page)).toHaveAccessibleName('Account Device only');
   await page.keyboard.press('Escape');
@@ -85,6 +98,7 @@ test('ready Compare keyboard device exit restores the remounted action while its
   const began = Date.now();
   await page.keyboard.press('Enter');
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
+  await expectComparePurpose(page);
   await nativeDeviceExit(page);
   const actual = await returnSnapshot(page);
   await info.attach('compare-keyboard-return', { contentType: 'application/json', body: JSON.stringify({ elapsedMs: Date.now() - began, ...actual }) });
@@ -98,6 +112,7 @@ test('ready Compare keyboard device exit restores the remounted action while its
   await account(page).focus();
   await page.keyboard.press('Enter');
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
+  await expectOrdinarySignIn(page);
   await nativeDeviceExit(page);
   await expect(account(page)).toBeFocused();
   expect(await readLibrary(page)).toEqual(before);
@@ -123,6 +138,7 @@ test('cold loading to ready Sign in keeps the Compare origin until the final nat
     await held.began;
     await expect(page.locator('#loading-account-title')).toBeFocused();
     held.release();
+    await expectComparePurpose(page);
     await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
     await expect(account(page)).toHaveAccessibleName('Account Device only');
     await nativeDeviceExit(page);
@@ -158,8 +174,10 @@ test('native Back invalidates a Compare return ticket even when that action exis
   await expect(page).toHaveURL(url => url.pathname === '/my-games');
   await compareFromChip(page);
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
+  await expectComparePurpose(page);
   await page.goBack();
   await expect(page).toHaveURL(url => url.pathname === '/discover');
+  await expectOrdinarySignIn(page);
   await nativeDeviceExit(page);
   await expect(account(page)).toBeFocused();
   await expect(chip(page)).toBeVisible();

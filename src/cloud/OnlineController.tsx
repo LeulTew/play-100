@@ -18,6 +18,8 @@ import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-libra
 import { createAvatarDescriptor, generateAvatarDataUri } from '../lib/avatar';
 import type { AvatarDescriptor } from '../lib/avatar';
 import { EMULATOR_MODE, rememberOnlineRequest } from '../lib/online-availability';
+import { authPanelPurposes } from '../lib/sign-in-purpose';
+import type { SignInPurpose } from '../lib/sign-in-purpose';
 import { useAccountLibrary } from '../hooks/useAccountLibrary';
 import { flushPendingEdits, hasPendingEdits } from '../hooks/useExitSave';
 import { Avatar } from '../components/avatar/Avatar';
@@ -80,8 +82,9 @@ function download(value: unknown, name: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function OnlineController({ page, publicHandle, invitation, showSheet, guest, games, onBridge, onCloseSheet, getSignInReturnFocus, onNavigate, onProfile, onOpenRecord, onShare, onPinRecord, artwork }: {
+export default function OnlineController({ page, publicHandle, invitation, showSheet, signInPurpose, guest, games, onBridge, onCloseSheet, getSignInReturnFocus, onNavigate, onProfile, onOpenRecord, onShare, onPinRecord, artwork }: {
   page: AppPage; publicHandle: string; invitation: { capability: string | null; error: string }; showSheet: boolean; guest: LibraryController; games: Game[];
+  signInPurpose?: SignInPurpose;
   onBridge: (bridge: OnlineBridge) => void; onCloseSheet: () => void; onNavigate: (page: AppPage) => void;
   getSignInReturnFocus?: (authenticated?: boolean) => HTMLElement | null;
   onProfile: (handle: string) => void; onOpenRecord: (record: LibraryRecord, authority?: PreviewAuthority) => void; onShare: (title: string, url: string) => void;
@@ -733,7 +736,9 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   const currentDeletionApproval = deletionApproval?.uid === identity?.uid &&
     deletionApproval?.sessionEpoch === authSessionEpoch.current && deletionApproval.epoch === currentEpoch.current ? deletionApproval : null;
   const closeSignin = () => { setReturnSheet(false); onCloseSheet(); };
-  const authPanel = <AuthPanel purpose={page === 'compare' ? 'compare' : undefined} busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)) onNavigate('collection'); }} />;
+  const purposes = authPanelPurposes(page, signInPurpose);
+  const renderAuthPanel = (purpose: SignInPurpose | undefined) => <AuthPanel purpose={purpose} busy={busy} error={visibleError} message={visibleMessage} onGoogle={google} onEmail={email} onReset={resetEmail} onDevice={() => { closeSignin(); if (['account', 'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)) onNavigate('collection'); }} />;
+  const authPanel = renderAuthPanel(purposes.page);
   const cloudPage = ['account', 'publish', 'community', 'profile', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
   if (startupError) throw new Error(startupError);
   return (
@@ -794,7 +799,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           sharedGames={automaticSummary}
           friendsSharing={!automatic.controlsAll && <><button className="text-button" onClick={() => onNavigate('friend-sharing')}>Selected ranking: {friends.status}</button><button className="text-button" onClick={() => onNavigate('friend-shelf')}>Selected saved games: {shelf.status}</button>{(friends.error || shelf.error) && <p className="inline-error" role="alert">{friends.error || shelf.error}<button className="text-button" onClick={() => { void run(async () => { await friends.retry(); await shelf.retry(); }); }}>Refresh selected sharing</button></p>}</>}
           onDelete={deleteOnline} onPublish={() => onNavigate('publish')} onCommunity={() => onNavigate('community')} onCreator={() => onNavigate('creator')} />)}
-      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin} getReturnFocus={() => getSignInReturnFocus?.(Boolean(identityRef.current)) ?? null} motion={{ preset: 'dialog', enterMs: 160 }}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{authPanel}</Dialog>}
+      {(showSheet || (returnSheet && !cloudPage)) && !identity && <Dialog open titleId="account-signin-title" className="info-dialog signin-dialog" onClose={closeSignin} getReturnFocus={() => getSignInReturnFocus?.(Boolean(identityRef.current)) ?? null} motion={{ preset: 'dialog', enterMs: 160 }}><h2 id="account-signin-title" data-autofocus tabIndex={-1}>Sign in</h2>{renderAuthPanel(purposes.sheet)}</Dialog>}
       {avatarOpen && identity && <Dialog open titleId="account-avatar-title" className="info-dialog" onClose={() => { if (!busy) setAvatarOpen(false); }}><AvatarPicker value={avatar} identityKey={identityKey} titleId="account-avatar-title" onCancel={() => setAvatarOpen(false)} onSave={async (next) => {
         const uid = identity.uid; const epoch = currentEpoch.current; const sessionEpoch = authSessionEpoch.current;
         const saved = await run(async () => {
