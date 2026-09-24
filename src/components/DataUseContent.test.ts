@@ -14,7 +14,7 @@ describe('data use explanation', () => {
       'Copies with pending local edits, stopped saving, deleted data and conflicts require your choice before replacement.',
       'The online service has usage limits. If a limit is reached, saving may pause; billing is not enabled automatically.',
       'Existing off and selected-only choices stay unchanged; a choice made before All mode existed is never treated as consent to All.',
-      "While All sharing is on, an older version of the app can't save changes online or stop online saving. Refresh the app, or first use friend sharing's Stop in that version.",
+      "While friends can see a finished All-sharing view, an older version of the app can't save changes online or stop online saving. Refresh the app, or first use friend sharing's Stop in that version.",
       "Accounts without active All sharing aren't affected, and pending local edits are never discarded.",
       'Private counters limit new groups, blocks and reports; they are removed when the account is deleted.',
     ]) expect(text).toContain(phrase);
