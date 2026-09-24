@@ -1,3 +1,20 @@
+.add-games-panel { margin-block: 10px 25px; }
+.game-picker { background: #e9edde; border: 1px solid #b8c2a8; border-radius: 4px; margin-top: 14px; padding: 22px; max-width: 840px; }
+.game-picker > label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.game-picker > p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.game-picker > .text-button { margin-top: 9px; }
+.picker-results { list-style: none; padding: 0; margin: 16px 0 0; max-height: 360px; overflow-y: auto; }
+.picker-results > li { display: flex; gap: 20px; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #cbd2bd; }
+.picker-results > li > div { min-width: 0; }
+.picker-results strong { display: block; font-size: 14px; line-height: 1.4; font-weight: 650; }
+.picker-results span { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 3px; }
+.picker-results .icon-button { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .game-picker { padding: 16px; }
+  .game-picker > label { font-size: 13px; }
+  .game-picker .search-field input { font-size: 16px; }
+  .picker-results strong { font-size: 13px; }
+}
 .ranking-sharing { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .ranking-sharing .text-button { font-size: 13px; }
 .ranking-order-info { display: flex; align-items: center; gap: 20px; margin-block: 12px 21px; padding: 16px 18px; background: #e9edde; border-radius: 4px; }

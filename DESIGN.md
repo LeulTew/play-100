@@ -107,9 +107,11 @@ Extracted from `src\styles.css`, `src\components\scene\artifact.css`, the visual
 
 ### CSS ownership and order
 
-`src\styles.css` imports the eager `src\styles\` tokens, base, layout, components and utilities partials in that order. `src\personal.css` follows with the shared personal-layout, personal-components and personal-utilities partials. These are CSS-only source imports, not additional JavaScript entry points. The sections preserve the original contiguous rule order; utilities include the trailing motion, responsive and accessibility overrides. Keep overrides in their existing position rather than regrouping selectors across sections.
+`src\styles.css` imports the eager `src\styles\` tokens, base, layout, components and utilities partials in that order. `src\shared-ui.css` follows with shared-layout, shared-controls and shared-responsive partials for shell/navigation, Collection, cross-route controls and their overrides. These are CSS-only source imports, not additional JavaScript entry points. Keep responsive and accessibility overrides in their existing sequence rather than regrouping selectors across sections.
 
 My games-only rules live in the existing lazy `src\components\personal\my-games.css`; cloud-only catalog form rules live in `src\cloud\cloud-ui.css`. Shared tabs, inputs, card controls, route skeletons and first-paint shell rules remain eager. Before moving another rule, check every consumer and its import path, including constructed class names and the static Collection/DiscoveryCard path.
+
+The ranking picker belongs to my-games.css, catalog facts/links to catalog-detail-motion.css, and Settings/backup layout to settings-controls.css (the existing offline-controls sheet, renamed). Settings typography that ties with generic dialog rules stays eager to preserve the winner even when legacy builds place entry CSS after lazy links. Personal rating styles stay shared because GameDetail is eager. Manual-add styles also stay shared: Discover and My games have no existing common lazy CSS owner, and splitting one out requires a separately budgeted asset decision.
 
 ## Colors
 

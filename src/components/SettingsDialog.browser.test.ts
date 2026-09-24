@@ -35,7 +35,7 @@ import { createRoot } from 'react-dom/client';
 import { SettingsDialog } from '/src/components/SettingsDialog.tsx';
 import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
 import '/src/styles.css';
-import '/src/personal.css';
+import '/src/shared-ui.css';
 let finish, setExternalBusy;
 let saved = 'auto', inFlight = 0, maxInFlight = 0, frameGeneration = 0;
 const calls = [], frames = [];

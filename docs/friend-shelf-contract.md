@@ -230,7 +230,7 @@ and unrelated public previews retain their own authority.
 known dimensions/lazy raster loading. No artwork URL is read from cloud shelf
 metadata. Scoped CSS preserves existing chalk/ink controls and typography.
 The design detector's 14/16/20px flags are incumbent UI values present in
-`friends-ui.css`, `cloud-ui.css` and `personal.css`, not new typography systems;
+`friends-ui.css`, `cloud-ui.css` and `shared-ui.css`, not new typography systems;
 the 28px mobile heading is a local reduced 32px heading, not a global redesign.
 No detector waivers or unrelated design files are changed.
 

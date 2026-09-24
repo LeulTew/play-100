@@ -8,7 +8,7 @@ import DataUsePage from './components/DataUsePage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { startGuestLibraryLoad } from './lib/guest-library-startup';
 import './styles.css';
-import './personal.css';
+import './shared-ui.css';
 import './render-containment.css';
 
 const dataUsePage = /^\/data-use\/?$/.test(location.pathname);

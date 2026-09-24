@@ -1,3 +1,11 @@
+.catalog-facts { margin: 25px 0; }
+.catalog-facts > div { display: grid; grid-template-columns: 90px 1fr; gap: 15px; padding-block: 11px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.catalog-facts dt { color: var(--muted); }
+.catalog-facts dd { margin: 0; }
+.catalog-source-link { text-decoration: underline; text-underline-offset: 4px; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+@media (max-width: 760px) {
+  .catalog-facts > div { grid-template-columns: 75px 1fr; font-size: 13px; }
+}
 .catalog-detail-visual { display: grid; justify-items: center; gap: 8px; margin-block: 20px; }
 .catalog-detail-sleeve { width: 144px; max-width: 100%; aspect-ratio: 4 / 3; }
 .catalog-detail-sleeve .catalog-detail-artwork { display: grid; place-items: center; width: 100%; height: 100%; overflow: hidden; background: #e4e7db; border-radius: 4px; }

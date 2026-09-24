@@ -15,9 +15,7 @@
 .account-nav-copy { display: flex; flex-direction: column; gap: 1px; width: 150px; min-width: 0; }
 .account-nav-copy strong { font-size: 12px; font-weight: 650; line-height: 1.5; overflow-wrap: anywhere; }
 .account-nav-copy small { font-size: 12px; color: var(--muted); max-width: 150px; line-height: 1.5; overflow-wrap: anywhere; }
-.settings-account { padding-block: 16px; border-block: 1px solid var(--line); margin-block: 20px; }
 .settings-account p { font-size: 13px; line-height: 1.5; color: var(--muted); }
-.settings-account strong { color: var(--ink); }
 .desktop-nav a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 7px; }
 .page-loading { padding: 44px var(--gutter); min-height: 360px; max-width: 1600px; margin-inline: auto; }
 .page-loading h2 { font: 700 40px/1.1 var(--display); }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PWA_IOS_INSTRUCTIONS } from '../pwa';
 import type { usePwa } from '../pwa';
-import './pwa-controls.css';
+import './settings-controls.css';
 
 export default function PwaControls({ pwa, open = false, onUpdate }: {
   pwa: ReturnType<typeof usePwa>;

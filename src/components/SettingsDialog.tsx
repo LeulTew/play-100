@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import BackupPanel from './personal/BackupPanel';
 import { useLibraryMode } from '../lib/library-mode';
+import './settings-controls.css';
 
 interface SettingsDialogProps {
   motion: MotionPreference;

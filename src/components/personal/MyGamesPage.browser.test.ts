@@ -20,7 +20,7 @@ import { createRoot } from 'react-dom/client';
 import MyGamesPage from '/src/components/personal/MyGamesPage.tsx';
 import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
 import '/src/styles.css';
-import '/src/personal.css';
+import '/src/shared-ui.css';
 const record = (id, title, collectionRank) => ({ id, source: 'collection', sourceId: id, title, year: 2020, collectionRank, sourceUrl: null, studio: null, genre: null });
 const alpha = record('alpha', 'Alpha game', 1);
 const beta = record('beta', 'Beta game', 2);

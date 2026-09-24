@@ -19,7 +19,7 @@ import { createElement as h } from 'react';
 import { createRoot } from 'react-dom/client';
 import ManualGameForm from '/src/components/personal/ManualGameForm.tsx';
 import '/src/styles.css';
-import '/src/personal.css';
+import '/src/shared-ui.css';
 const added = [], waiting = [];
 window.manualFormFixture = {
   added, pending: () => waiting.length,

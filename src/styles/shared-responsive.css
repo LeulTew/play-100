@@ -65,15 +65,10 @@
   .manual-fields { grid-template-columns: 1fr; gap: 12px; }
   .manual-fields > label:last-child { max-width: 180px; }
   .manual-fields > label:last-child span { display: inline; }
-  .game-picker { padding: 16px; }
-  .game-picker > label { font-size: 13px; }
-  .game-picker .search-field input { font-size: 16px; }
-  .picker-results strong { font-size: 13px; }
   .app-page .empty-state { padding: 32px 17px; }
   .app-page .empty-state h2 { font-size: 32px; }
   .app-page .empty-state .button { font-size: 13px; }
   .mobile-nav > a, .mobile-nav > button { min-width: 48px; flex: 1; font-size: 12px; }
-  .catalog-facts > div { grid-template-columns: 75px 1fr; font-size: 13px; }
   .catalog-results > li { gap: 11px; flex-wrap: wrap; padding-block: 17px; }
   .catalog-record-actions { width: 100%; gap: 9px; }
   .catalog-record-actions .button { flex: 1; }
