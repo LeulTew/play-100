@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -5,7 +6,7 @@ import { discoveryFixture } from '../lib/discovery-test-fixtures';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import { defaultFilters } from '../lib/url';
 import { author } from '../lib/author';
-import { criticColumns } from '../lib/collection';
+import { criticColumns, parseCollection } from '../lib/collection';
 import { emptySources } from '../lib/catalog-search-session';
 import { CatalogSourceStatus } from './catalog/CatalogSourceStatus';
 import { DiscoveryCard } from './catalog/DiscoveryCard';
@@ -14,6 +15,7 @@ import RatingsTable from './RatingsTable';
 import { CompletedToggle } from './CompletedToggle';
 import { PersonalRatingInput } from './personal/PersonalRatingInput';
 import CollectionFilms from './CollectionFilms';
+import ReorderList from './personal/ReorderList';
 import { collectionFilms, filmDuration } from '../lib/films';
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -110,5 +112,29 @@ describe('composite control accessible names', () => {
     expect(html).toContain(`aria-label="${author.shortName}&#x27;s rating / 10 · original"`);
     expect(html).toContain('aria-label="Average / 100"');
     for (const { label, scale } of criticColumns) expect(html).toContain(`aria-label="${label} / ${scale}"`);
+  });
+
+  it('speaks missing table scores through sr-only text instead of a label on a generic span', () => {
+    const [game] = parseCollection(JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8'))).games;
+    const [first] = criticColumns;
+    const html = renderToStaticMarkup(h(RatingsTable, {
+      games: [{ ...game!, authorRating: null, critics: { ...game!.critics, [first!.key]: null } }],
+      filters: defaultFilters, progress: {}, selecting: false,
+      selected: new Set<string>(), busy: false, onSelect: vi.fn(), onOpen: vi.fn(), onToggle: vi.fn(), onSort: vi.fn(),
+    }));
+    expect(html).toContain('<td class="numeric-score table-author-rating"><span aria-hidden="true">—</span><span class="sr-only">Original author rating unavailable</span></td>');
+    expect(html).toContain('<td class="numeric-score"><span aria-hidden="true">—</span><span class="sr-only">Unavailable</span></td>');
+    expect(html).not.toContain('aria-label="Unavailable"');
+    expect(html).not.toContain('aria-label="Original author rating unavailable"');
+  });
+
+  it('keeps the visible position digits and speaks the position through sr-only text', () => {
+    const record = discoveryFixture.record;
+    const html = renderToStaticMarkup(h(ReorderList, {
+      records: [record], kind: 'ranking', canReorder: true, busy: false, animate: false,
+      positionFor: () => 3, onMove: vi.fn(), children: () => 'Row',
+    }));
+    expect(html).toContain('<span class="personal-position"><span aria-hidden="true">03</span><span class="sr-only">Position 3</span></span>');
+    expect(html).not.toContain('aria-label="Position');
   });
 });

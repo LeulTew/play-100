@@ -263,6 +263,9 @@ describe('tray and image rendering contract', () => {
         const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, ...content, dragging } }, h(CompareTray, { onCompare: vi.fn() })));
         expect(html).toContain('data-has-content="true"');
         expect(html).toContain(`data-dragging="${dragging}"`);
+        // An icon-only status mark is a named image, not a label on a generic span.
+        if (content.warning) expect(html).toContain('class="compare-tray-storage-mark" role="img" aria-label="Tray storage needs attention" title="Open the tray to review its storage warning"');
+        else expect(html).not.toContain('compare-tray-storage-mark');
       }
     }
   });

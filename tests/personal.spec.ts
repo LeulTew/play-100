@@ -50,7 +50,12 @@ test('ratings table shows native scales, missing values and reversible column so
   await page.goto('/?view=table');
   await expect(page.getByRole('table')).toBeVisible();
   const row = page.locator(`tr[data-game="${first}"]`);
-  await expect(row.locator('.numeric-score')).toHaveText(['10.0', '97', '93', '10', '9', '—', '95']);
+  // The missing score keeps its visible dash (hidden from AT) and speaks "Unavailable" through sr-only text.
+  await expect(row.locator('.numeric-score')).toHaveText(['10.0', '97', '93', '10', '9', '—Unavailable', '95']);
+  const missing = row.locator('.numeric-score').nth(5);
+  await expect(missing.locator('[aria-hidden="true"]')).toHaveText('—');
+  await expect(missing).toHaveAccessibleName('Unavailable');
+  await expect(missing.locator('[aria-label]')).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: /Leul's rating/ })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: /IGN/ })).toContainText('/ 10');
   await expect(page.getByRole('columnheader', { name: /Metacritic PC/ })).toContainText('/ 100');

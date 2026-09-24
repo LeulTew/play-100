@@ -108,7 +108,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
         <Icon name="up" width="16" height="16" />
       </button>
       <button type="button" className="button button-lime compare-tray-action" aria-label="Compare rankings with friends" disabled={!items.length} onClick={compare}><span>Compare rankings <span className="compare-tray-action-context">with friends</span></span><Icon name="arrow" width="18" height="18" /></button>
-      {warning && <span className="compare-tray-storage-mark" aria-label="Tray storage needs attention" title="Open the tray to review its storage warning"><Icon name="info" width="17" height="17" /></span>}
+      {warning && <span className="compare-tray-storage-mark" role="img" aria-label="Tray storage needs attention" title="Open the tray to review its storage warning"><Icon name="info" width="17" height="17" /></span>}
       {error && <div className="compare-tray-error"><p>{error}</p><button type="button" className="icon-button" aria-label="Dismiss Compare tray message" onClick={() => { dismissError(); expand.current?.focus({ preventScroll: true }); }}><Icon name="close" width="18" height="18" /></button></div>}
     </aside>}
     <Dialog open={open && !hidden} titleId={`${id}-title`} descriptionId={`${id}-description`} onClose={close} className="compare-tray-sheet">

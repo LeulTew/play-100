@@ -71,7 +71,7 @@ function ReorderRow({ id, title, position, disabled, animate, kind, previous, ne
     <li ref={setNodeRef} className={`personal-row ${isDragging ? 'is-dragging' : ''}`} data-record-id={id} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.25 : 1 }}>
       <div className="record-order">
         <button ref={setActivatorNodeRef} className="icon-button drag-handle" {...attributes} {...listeners} aria-label={`Drag ${title} to reorder your ${kind}`} disabled={disabled}><Icon name="grip" width="18" height="18" /></button>
-        {position !== null && <span className="personal-position" aria-label={`Position ${position}`}>{String(position).padStart(2, '0')}</span>}
+        {position !== null && <span className="personal-position"><span aria-hidden="true">{String(position).padStart(2, '0')}</span><span className="sr-only">{`Position ${position}`}</span></span>}
       </div>
       <div className="record-content">{children}</div>
       <div className="move-buttons">
