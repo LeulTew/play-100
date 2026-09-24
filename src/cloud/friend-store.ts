@@ -68,6 +68,15 @@ export class FriendStore {
       return snap.exists() ? parse(snap.data()) : null;
     }, { maxAttempts: 3 });
   }
+  private async readInvite(ref: DocumentReference<DocumentData>): Promise<DocumentSnapshot<DocumentData>> {
+    try { return await getDocFromServer(ref); }
+    catch (cause) {
+      if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+      // A reused listener can deny a current capability that a fresh transaction read authorizes.
+      online();
+      return runTransaction(this.db, tx => tx.get(ref), { maxAttempts: 1 });
+    }
+  }
   private async graphReady(uid: string): Promise<void> {
     online();
     // Transaction RPCs bypass disableNetwork(); a server-only read checks the SDK's stream state before any graph write.
@@ -363,7 +372,7 @@ export class FriendStore {
   async previewInvite(tokenInput: string): Promise<FriendInvitePreview> {
     const token = friendToken(tokenInput);
     try {
-      const snap = await getDocFromServer(doc(this.db, 'friendInvites', token));
+      const snap = await this.readInvite(doc(this.db, 'friendInvites', token));
       if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
       const invite = parseFriendInvite(token, snap.data());
       if (invite.expiresAt <= Date.now()) throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
@@ -413,7 +422,7 @@ export class FriendStore {
     let commitStarted = false;
     let accepted: { ownerUid: string; epoch: number };
     try {
-      const snap = await getDocFromServer(inviteRef);
+      const snap = await this.readInvite(inviteRef);
       if (!snap.exists() || snap.data().state !== 'active') throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
       const invite = parseFriendInvite(token, snap.data()); const ownerUid = invite.ownerUid;
       if (uid === ownerUid) throw new FriendStoreError('invalid', 'You cannot accept your own invitation.');
@@ -437,7 +446,7 @@ export class FriendStore {
       if (!commitStarted || !cause || typeof cause !== 'object' || !('code' in cause) ||
         (cause.code !== 'permission-denied' && cause.code !== 'not-found')) return unavailableInvite(cause);
       let latest: DocumentSnapshot<DocumentData>;
-      try { latest = await getDocFromServer(inviteRef); }
+      try { latest = await this.readInvite(inviteRef); }
       catch (checkError) {
         if (checkError && typeof checkError === 'object' && 'code' in checkError &&
           (checkError.code === 'permission-denied' || checkError.code === 'not-found')) return unavailableInvite(checkError);

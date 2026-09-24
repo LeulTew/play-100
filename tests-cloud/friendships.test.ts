@@ -319,6 +319,44 @@ async function connectAfterRequest(recipient: Client, sender: Client, epoch: num
 }
 
 describe('single-use, fixed-slot invitation capabilities', () => {
+  it('recovers denied invitation stream reads through a single authorized transaction without a new session', async () => {
+    const owner = await client(); const recipient = await client(); const third = await client();
+    await recipient.store.sendRequest(recipient.uid, third.uid);
+    const invite = await owner.store.createInvite(owner.uid);
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const denied = Object.assign(new Error('Reused invitation stream denied the new capability.'), { code: 'permission-denied' });
+    vi.mocked(getDocFromServer).mockImplementation(ref => {
+      if (ref.firestore === recipient.db && ref.path === `friendInvites/${invite.token}`) return Promise.reject(denied);
+      return actual.getDocFromServer(ref);
+    });
+    const before = vi.mocked(runTransaction).mock.calls.length;
+    expect(await recipient.store.previewInvite(invite.token)).toMatchObject({ ownerUid: owner.uid, singleUse: true });
+    expect(vi.mocked(runTransaction).mock.calls.slice(before)).toHaveLength(1);
+    expect(vi.mocked(runTransaction).mock.calls[before]?.[2]).toEqual({ maxAttempts: 1 });
+    expect((await recipient.store.acceptInvite(recipient.uid, invite.token)).state).toBe('accepted');
+    await expect(recipient.store.previewInvite(invite.token)).rejects.toMatchObject({ code: 'invite-unavailable' });
+    expect((await recipient.store.listRelations(recipient.uid, 'accepted')).items).toHaveLength(1);
+  });
+  it.each(['unavailable', 'deadline-exceeded', 'unauthenticated'] as const)('does not retry an invitation %s error through a transaction', async code => {
+    const guest = await client(true);
+    const cause = Object.assign(new Error('Invitation read failed.'), { code });
+    vi.mocked(getDocFromServer).mockRejectedValueOnce(cause);
+    const before = vi.mocked(runTransaction).mock.calls.length;
+    await expect(guest.store.previewInvite('a'.repeat(64))).rejects.toBe(cause);
+    expect(vi.mocked(runTransaction).mock.calls).toHaveLength(before);
+  });
+  it('preserves invitation preview and acceptance network-disable failures without starting a transaction', async () => {
+    const owner = await client(); const recipient = await client();
+    const invite = await owner.store.createInvite(owner.uid);
+    const before = vi.mocked(runTransaction).mock.calls.length;
+    await disableNetwork(recipient.db);
+    try {
+      await expect(recipient.store.previewInvite(invite.token)).rejects.toThrow();
+      await expect(recipient.store.acceptInvite(recipient.uid, invite.token)).rejects.toThrow();
+      expect(vi.mocked(runTransaction).mock.calls).toHaveLength(before);
+    } finally { await enableNetwork(recipient.db); }
+    expect(await recipient.store.pair(recipient.uid, owner.uid)).toBeNull();
+  });
   it('offers minimal anonymous exact-token preview, forbids listing, self-use and standalone consumption', async () => {
     const a = await client(); const b = await client(); const guest = await client(true);
     const invite = await a.store.createInvite(a.uid);

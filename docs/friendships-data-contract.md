@@ -396,6 +396,13 @@ consumed/accepted proofs. A denied commit performs one readback to choose neutra
 unavailable or retry copy, not a loop. Concurrent revoke, consumption and
 replacement must leave neither a partial pair nor a quota increment.
 
+Preview, acceptance pre-read and denial readback first use `getDocFromServer`.
+Only a `permission-denied` from that read triggers one read-only transaction
+(`maxAttempts: 1`, one `tx.get` of the same token). Both reads enforce the rules;
+active/expiry/owner checks and error mapping are unchanged. Other errors,
+including unavailable/offline, do not trigger recovery. This guards against a
+session-specific stream/RPC divergence; it does not retry writes or refresh Auth.
+
 `friendShareHeads/{uid}` has current/previous manifests and monotonic revision.
 `friendShareRegistry/{uid}` bounds generations to three (current, previous, one
 staging/retiring). `friendShares/{uid}/generations/{uuid}` tracks strict incremental
