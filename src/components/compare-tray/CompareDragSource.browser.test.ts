@@ -443,8 +443,9 @@ describe('Compare source browser contract', () => {
       await context.close();
       await openFixture(true, width);
       const pin = page.locator('#source-controls > button[aria-pressed]');
-      await browserExpect(pin).toHaveAccessibleName('Pin Manual fixture title for comparison');
-      await browserExpect(pin).toHaveAttribute('title', 'Pin for comparison');
+      await browserExpect(pin).toHaveAccessibleName('Pin for comparison: Manual fixture title');
+      await browserExpect(pin).toHaveText('Pin for comparison');
+      await browserExpect(pin).not.toHaveAttribute('title');
       expect(await pin.evaluate(node => getComputedStyle(node).touchAction)).toBe('manipulation');
       const box = await pin.boundingBox();
       expect(box?.width).toBeGreaterThanOrEqual(44);
