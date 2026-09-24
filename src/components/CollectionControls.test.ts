@@ -32,6 +32,10 @@ describe('collection result scope and accessible names', () => {
       expect(html).toContain(`aria-label="All games, ${beyond}"`);
       expect(html).toContain('aria-label="Play later, 0"');
       expect(html).toContain('aria-label="Completed, 0"');
+      // Label in Name: visible label and count are separate words that appear inside each name.
+      expect(html).toContain(`>All games <span>${beyond}</span></button>`);
+      expect(html).toContain('>Play later <span>0</span></button>');
+      expect(html).toContain('>Completed <span>0</span></button>');
     },
   );
 

@@ -107,6 +107,8 @@ describe('navigation and dialog hosts', () => {
       pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onQueue: vi.fn(), onMenu: vi.fn(), onAccount: vi.fn(),
     }));
     expect(html).toContain(`aria-label="Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'}"`);
+    // Label in Name: the visible label and count stay separate words contained in the name.
+    expect(html).toContain(`>Play later</span> <span class="saved-count"><span class="sr-only">${savedCount}</span><span aria-hidden="true">${savedCount}</span></span></button>`);
     expect(html).not.toContain('in your queue');
   });
 

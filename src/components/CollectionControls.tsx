@@ -61,9 +61,9 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
       </div>
       <BrowseFilters activeCount={secondaryCount} label="Filters & sort" className="collection-filters">
           <div className="collection-tabs" role="group" aria-label="Your collection views">
-            <button className={filters.list === 'all' ? 'is-active' : ''} aria-label={`All games, ${games.length + addedCount}`} aria-pressed={filters.list === 'all'} onClick={() => onChange({ list: 'all', progress: 'all' })}>All games<span>{games.length + addedCount}</span></button>
-            <button className={filters.list === 'later' ? 'is-active' : ''} aria-label={`Play later, ${savedCount}`} aria-pressed={filters.list === 'later'} onClick={() => onChange({ list: 'later' })}>Play later<span>{savedCount}</span></button>
-            <button className={filters.list === 'completed' ? 'is-active' : ''} aria-label={`Completed, ${completedCount}`} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed', progress: 'all' })}>Completed<span>{completedCount}</span></button>
+            <button className={filters.list === 'all' ? 'is-active' : ''} aria-label={`All games, ${games.length + addedCount}`} aria-pressed={filters.list === 'all'} onClick={() => onChange({ list: 'all', progress: 'all' })}>All games{' '}<span>{games.length + addedCount}</span></button>
+            <button className={filters.list === 'later' ? 'is-active' : ''} aria-label={`Play later, ${savedCount}`} aria-pressed={filters.list === 'later'} onClick={() => onChange({ list: 'later' })}>Play later{' '}<span>{savedCount}</span></button>
+            <button className={filters.list === 'completed' ? 'is-active' : ''} aria-label={`Completed, ${completedCount}`} aria-pressed={filters.list === 'completed'} onClick={() => onChange({ list: 'completed', progress: 'all' })}>Completed{' '}<span>{completedCount}</span></button>
           </div>
           {(filters.list !== 'all' || progress !== 'all') && <div className="list-privacy"><Icon name="bookmark" width="16" height="16" /><p>Your progress, including games you added beyond the 100.</p>{onFullLibrary && <button className="text-button" onClick={onFullLibrary}>Open my full library<Icon name="arrow" width="16" height="16" /></button>}</div>}
         <div className="search-and-filters">

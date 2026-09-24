@@ -13,6 +13,10 @@ import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import RatingsTable from './RatingsTable';
 import { CompletedToggle } from './CompletedToggle';
 import { PersonalRatingInput } from './personal/PersonalRatingInput';
+import CollectionFilms from './CollectionFilms';
+import { collectionFilms, filmDuration } from '../lib/films';
+
+const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 describe('composite control accessible names', () => {
   it('includes the whole visible rating label before the game context', () => {
@@ -86,6 +90,16 @@ describe('composite control accessible names', () => {
     expect(html).toContain(`aria-label="Open saved copy (Wikidata) of ${record.title}"`);
     expect(html).toContain(multiple ? '>Open saved copy (Wikidata)</button>' : '>Open saved copy</button>');
     if (multiple) expect(html).toContain(`aria-label="Open saved copy (Added by you) of ${record.title}"`);
+  });
+
+  it('names each film opener from its visible content so the visible label leads the name', () => {
+    const html = renderToStaticMarkup(h(CollectionFilms));
+    const openers = html.match(/<button class="film-watch"[\s\S]*?<\/button>/g) ?? [];
+    expect(openers).toHaveLength(collectionFilms.length);
+    collectionFilms.forEach((film, index) => {
+      expect(openers[index]).not.toContain('aria-label');
+      expect(openers[index]).toContain(`<span class="film-summary"><strong>${escapeHtml(film.title)}</strong> <span>${escapeHtml(film.description)}</span> <small>${filmDuration(film.durationSeconds)} · Watch film</small></span></button>`);
+    });
   });
 
   it('separates sortable score names from their visible scales without repeating them as descriptions', () => {

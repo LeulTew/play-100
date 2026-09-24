@@ -54,9 +54,9 @@ export default function CollectionFilms() {
   return <section id="collection-films" className="collection-films" aria-labelledby="collection-films-title">
     <div className="films-heading"><h2 id="collection-films-title" tabIndex={-1}>Watch films</h2><p>Short tours. Play only when you choose.</p></div>
     <ul className="films-list">{collectionFilms.map((film) => <li key={film.id}>
-      <button className="film-watch" aria-label={`Watch film: ${film.title}, ${film.durationSeconds} seconds`} aria-haspopup="dialog" onClick={() => { setAttempt(0); setActive(film); }}>
+      <button className="film-watch" aria-haspopup="dialog" onClick={() => { setAttempt(0); setActive(film); }}>
         <FilmPoster film={film} />
-        <span className="film-summary"><strong>{film.title}</strong><span>{film.description}</span><small>{filmDuration(film.durationSeconds)} · Watch film</small></span>
+        <span className="film-summary"><strong>{film.title}</strong>{' '}<span>{film.description}</span>{' '}<small>{filmDuration(film.durationSeconds)} · Watch film</small></span>
       </button>
     </li>)}</ul>
     {active && <Dialog open titleId={titleId} className="film-dialog" onClose={close}>

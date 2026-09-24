@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { collectionFilms } from '../src/lib/films';
+import { collectionFilms, filmDuration } from '../src/lib/films';
 import { openBrowsingFilters } from './browsing-helpers';
 
 declare global { interface Window { previousFilm?: HTMLVideoElement } }
@@ -12,6 +12,13 @@ test.use({ channel: 'chrome' });
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
+
+// Film openers are named by their visible content; narrow layouts hide the description.
+function filmName(title: string, { narrow, posterFailed = false }: { narrow: boolean; posterFailed?: boolean }) {
+  const film = collectionFilms.find(candidate => candidate.title === title);
+  if (!film) throw new Error(`Unknown film ${title}`);
+  return [posterFailed && 'Poster unavailable', film.title, !narrow && film.description, `${filmDuration(film.durationSeconds)} · Watch film`].filter(Boolean).join(' ');
+}
 
 test('the public film fragment lands at the section after delayed collection loading without requesting movies', async ({ page }) => {
   const mediaRequests: string[] = [];
@@ -50,7 +57,7 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
   expect(mediaRequests).toHaveLength(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('#collection-films').screenshot({ path: info.outputPath('films-row.png'), scale: 'css' });
-  const opener = page.getByRole('button', { name: 'Watch film: The 100, 22 seconds', exact: true });
+  const opener = page.getByRole('button', { name: filmName('The 100', { narrow: isMobile }), exact: true });
   await opener.click();
   const dialog = page.getByRole('dialog');
   const video = page.locator('video');
@@ -96,13 +103,13 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
   expect(errors).toEqual([]);
 });
 
-test('poster and media failures keep Watch, retry, text alternatives and downloads usable', async ({ page }) => {
+test('poster and media failures keep Watch, retry, text alternatives and downloads usable', async ({ page, isMobile }) => {
   await page.route('**/videos/*.jpg', route => route.fulfill({ status: 404, body: 'Missing poster fixture' }));
   await page.route('**/videos/*.mp4', route => route.fulfill({ status: 503, body: 'Unavailable media fixture' }));
   await page.goto('/#collection-films');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();
   await expect(page.getByText('Poster unavailable', { exact: true })).toHaveCount(2);
-  await page.getByRole('button', { name: 'Watch film: The 100, 22 seconds', exact: true }).click();
+  await page.getByRole('button', { name: filmName('The 100', { narrow: isMobile, posterFailed: true }), exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('The film could not load');
   await page.getByText('Text alternative & credits', { exact: true }).click();
   await expect(page.getByRole('dialog').locator('dl')).toBeVisible();
@@ -117,12 +124,12 @@ test('poster and media failures keep Watch, retry, text alternatives and downloa
   await expect(page.locator('video')).toHaveCount(0);
 });
 
-test('hidden documents pause without resume and navigation unloads the player', async ({ page }) => {
+test('hidden documents pause without resume and navigation unloads the player', async ({ page, isMobile }) => {
   await page.goto('/?q=Portal');
   await openBrowsingFilters(page);
   await page.getByLabel('Year', { exact: true }).selectOption('2007');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: 'Watch film: Discover & compare, 22 seconds', exact: true }).click();
+  await page.getByRole('button', { name: filmName('Discover & compare', { narrow: isMobile }), exact: true }).click();
   const video = page.locator('video');
   await expect.poll(() => video.evaluate((player: HTMLVideoElement) => player.readyState)).toBeGreaterThanOrEqual(1);
   await video.focus(); await page.keyboard.press('Space');

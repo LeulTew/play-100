@@ -137,7 +137,10 @@ describe('workspace embedding contract', () => {
       expect(html).toContain('>My games</h1>');
       expect(html).toContain('aria-label="My games views"');
       for (const name of ['Library, 2', 'Queue, 2', 'Ranking, 1']) {
+        const [label, count] = name.split(', ');
         expect(html).toContain(`aria-label="${name}"`);
+        // Label in Name: the visible label and count stay word-separated so they read inside the name.
+        expect(html).toContain(`>${label} <span>${count}</span>`);
       }
       expect(html).toContain('class="filter-select progress-filter"');
       expect(html).toContain('Played (not completed)');

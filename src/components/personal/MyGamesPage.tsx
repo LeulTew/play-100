@@ -122,7 +122,7 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
       {props.friendSharing}
       <div className="my-games-navigation">
         <nav className="personal-tabs my-games-motion-tabs" aria-label="My games views">
-          {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-label={`${titles[value]}, ${counts[value]}`} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}<span>{counts[value]}</span><span className="my-games-tab-marker" ref={view === value ? marker : undefined} hidden={view !== value} aria-hidden="true" /></button>)}
+          {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-label={`${titles[value]}, ${counts[value]}`} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}{' '}<span>{counts[value]}</span><span className="my-games-tab-marker" ref={view === value ? marker : undefined} hidden={view !== value} aria-hidden="true" /></button>)}
         </nav>
         <ProgressFilter value={progressView} disabled={switching} onChange={value => onFilters(progressFilterPatch(value, props.filters))} />
       </div>
