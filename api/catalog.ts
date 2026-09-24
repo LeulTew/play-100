@@ -191,15 +191,25 @@ export default async function handler(request: IncomingMessage, response: Server
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9000);
+  // A superseded client search closes its request; stop the upstream work it no longer needs.
+  const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+  request.once('aborted', disconnect);
+  response.once('close', disconnect);
   try {
     const page = await getCatalogPage(source, query, offset, controller.signal);
+    if (response.destroyed) return;
     response.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=600');
     response.writeHead(200).end(JSON.stringify(page));
   } catch (error: unknown) {
+    if (response.destroyed) return;
     const message = controller.signal.aborted ? 'The source took too long to reply. Try again later or add a game manually.' : error instanceof CatalogError ? error.message : 'The public catalog could not be reached. Please try again later.';
     if (error instanceof CatalogError && error.retryAfter) response.setHeader('Retry-After', error.retryAfter);
     response.writeHead(controller.signal.aborted ? 504 : error instanceof CatalogError ? error.status : 503).end(JSON.stringify({
       error: message, code: controller.signal.aborted ? 'timeout' : error instanceof CatalogError ? error.code : 'unavailable',
     }));
-  } finally { clearTimeout(timeout); }
+  } finally {
+    clearTimeout(timeout);
+    request.removeListener('aborted', disconnect);
+    response.removeListener('close', disconnect);
+  }
 }

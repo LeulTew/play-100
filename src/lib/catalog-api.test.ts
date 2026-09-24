@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { ServerResponse, createServer } from 'node:http';
 import type { Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../api/catalog';
@@ -128,6 +128,38 @@ describe('same-origin catalog API boundary', () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ code: 'unavailable' });
     expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+  it('aborts the held upstream search when the client disconnects and writes nothing to the closed response', async () => {
+    let handled: Promise<void> | undefined;
+    const local = createServer((request, response) => { handled = handler(request, response); });
+    await new Promise<void>((resolve) => local.listen(0, '127.0.0.1', resolve));
+    const address = local.address();
+    if (!address || typeof address === 'string') throw new Error('Missing catalog test server address');
+    let upstreamSignal: AbortSignal | undefined;
+    let started: () => void = () => undefined;
+    const start = new Promise<void>((resolve) => { started = resolve; });
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, options: RequestInit) => new Promise((_, reject) => {
+      upstreamSignal = options.signal ?? undefined;
+      options.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
+      started();
+    })));
+    const writeHead = vi.spyOn(ServerResponse.prototype, 'writeHead');
+    try {
+      const client = new AbortController();
+      const pending = nativeFetch(`http://127.0.0.1:${address.port}/api/catalog?q=Superseded`, { signal: client.signal });
+      await start;
+      expect(upstreamSignal?.aborted).toBe(false);
+      const upstreamAborted = new Promise<void>((resolve) => upstreamSignal?.addEventListener('abort', () => resolve(), { once: true }));
+      client.abort();
+      await expect(pending).rejects.toThrow();
+      await upstreamAborted;
+      await handled;
+      expect(upstreamSignal?.aborted).toBe(true);
+      expect(writeHead).not.toHaveBeenCalled();
+    } finally {
+      local.closeAllConnections();
+      await new Promise<void>((resolve, reject) => local.close((error) => error ? reject(error) : resolve()));
+    }
   });
   it('enforces the upstream timeout and returns a distinguishable timeout status', async () => {
     vi.useFakeTimers();
