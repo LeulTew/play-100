@@ -178,20 +178,25 @@ prevent that failure. No popup is required by the new flow, including after a
 slow network start. Browser privacy protections remain enabled.
 
 The deployment implements [Firebase redirect option 3](https://firebase.google.com/docs/auth/web/redirect-best-practices#proxy-requests).
-Seven fixed `/__/auth/` helper paths are transparently reverse-proxied by Vercel
-to the dedicated project's `firebaseapp.com` origin, preserving GET/POST bodies
-and query strings. They are not 302 redirects or an arbitrary-host proxy.
+Five fixed `/__/auth/` helper paths are served from the dedicated project's
+`firebaseapp.com` origin. They are not 302 redirects or an arbitrary-host proxy.
+The three scripts (`handler.js`, `iframe.js`, `experiments.js`) are plain
+Vercel rewrites. The two documents (`handler`, `iframe`) go through
+`api/auth-helper.ts`, which fetches the fixed upstream page and serves it with a
+fresh per-response CSP nonce. It accepts GET/HEAD only, so a `form_post` provider
+needs a reviewed POST path first (docs/security.md, SEC-01).
 The browser `authDomain` is **`play-100-collection.vercel.app`**, so the helper
 iframe and the app use first-party storage on the same origin. The Google OAuth
 client must authorize `https://play-100-collection.vercel.app/__/auth/handler`
 and the `https://play-100-collection.vercel.app` JavaScript origin. Keep the
 previous Firebase callback valid for already-open older clients.
 
-Only the helper routes allow same-origin framing and the upstream helper's
+Only the helper routes allow same-origin framing and the helper's per-response
 initialization-script nonce. The application retains `frame-ancestors 'none'`
 and its existing script policy. Helper responses are private/no-store at both
-browser and CDN layers; never cache OAuth callbacks. Verify real helper GET and
-POST responses, framing, CSP and provider handoff on the built deployment.
+browser and CDN layers; never cache OAuth callbacks. Verify real helper GET
+responses, POST refusal (405), framing, CSP and provider handoff on the built
+deployment.
 
 Firebase owns OAuth state/CSRF verification and credential persistence. The
 app keeps only a bounded, 15-minute, tab-scoped UI intent: action, random request

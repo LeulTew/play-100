@@ -471,18 +471,58 @@ CORP `cross-origin` overrides apply only to `/social-card.png`,
 or API resources. The integrator must verify actual header override behavior,
 scraper image access and redirect sign-in on the intended origin.
 
-The auth proxy's static `firebase-auth-helper` nonce is an **accepted residual
-risk**, not a random per-request nonce. A GET-only hash pin would become stale
-when Google's served template changes, and POST/action behavior can vary its
-inline content; shipping that pin without owning the upstream template can
-break sign-in. No reflected injection point has been established, but the
-same-origin Google template is not an absolute protection boundary.
-The old proxy had seven fixed paths with no-store and no wildcard destinations.
+**SEC-01: fresh per-response nonce on the auth helper documents.** The two HTML
+helpers, `/__/auth/handler` and `/__/auth/iframe`, rewrite to
+`api/auth-helper.ts` with a fixed `page`. The function GETs the fixed upstream
+`https://play100-online-48823b32.firebaseapp.com/__/auth/<page>` with only
+`Accept: text/html`: no client query, Cookie, Authorization or other header is
+forwarded. It then replaces exactly the value in `nonce="firebase-auth-helper"`
+with 16 random bytes (base64), and sends that nonce in its own CSP. All other
+bytes are unchanged. The policy is otherwise the previous helper policy, with
+`frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, private/CDN no-store,
+nosniff, `no-referrer`, HSTS and Permissions-Policy. It fails closed with a
+static no-store 502 and a counts-only log unless all of these hold:
+- the literal count equals the attribute count, and is at least 1;
+- no other `nonce=` attribute exists;
+- the only `{{` is the handler's `{{POST_BODY}}` slot.
+
+Also:
+- upstream non-200, non-HTML, invalid UTF-8 and bodies over 256 KiB return 502;
+- the 5 s upstream timeout returns 504;
+- a client disconnect aborts the upstream fetch;
+- a 3xx passes through only to a same-origin `/__/auth/` path.
+
+Evidence: the parent's read-only capture recorded the handler (462 B) and
+iframe (364 B). Each was byte-identical across query strings, with one nonce
+attribute, one literal and one inline script, no style or `on*` handler, and
+upstream `Cache-Control: max-age=1800` with no CSP or Set-Cookie. Tests use
+synthetic fixtures with the same markers (`src/lib/auth-helper-proxy.test.ts`).
+
+**GET/HEAD only.** Every other method gets 405 with `Allow: GET, HEAD` and is
+never sent upstream. Firebase Hosting substitutes a POST body into the handler's
+nonced `var POST_BODY = '{{POST_BODY}}'` script, and a fresh nonce cannot
+protect an injection inside an already-nonced block. The app enables only
+Google and Email/Password, with redirect flows that return via GET. **Provider
+coupling:** adding a `form_post` provider (Apple, SAML, some OIDC) requires a
+separately reviewed POST path first.
+
+**Header precedence.** Vercel matches a `headers` `source` against each incoming
+pathname (https://vercel.com/docs/project-configuration/vercel-json#headers).
+Its docs do not define which value wins when a config rule and a function set
+the same key. So no config rule matches the two helper documents:
+- the main rule's `/((?!__/auth/).*)` excludes them;
+- the static helper rule is narrowed to `/__/auth/(handler|iframe|experiments)\.js`;
+- the only CSP there is the function's.
+
+`security-headers.test.ts` pins this. The three script paths stay plain fixed
+no-store rewrites; no configuration carries a static nonce any more. A direct
+`/api/auth-helper` request also receives the main rule. Whichever CSP wins there is
+either the fresh-nonce policy or the stricter main policy, which blocks the script.
+
 The application uses password reset/verification, not email-link sign-in:
-`sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent. The unused
-`/__/auth/links` and `/__/auth/links.js` rewrites are removed, leaving five fixed
-handler/iframe/experiment paths. Their no-store headers and separate template
-nonce/CSP remain; removal needs the integrator's auth-flow smoke checks.
+`sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent, and the unused
+`/__/auth/links` paths stay removed. Rollback is Vercel Instant Rollback to the
+previous deployment, which restores the plain rewrites.
 
 Vercel installs with `npm ci`. The GitHub workflows (CI, CodeQL, Dependency
 review, Secret scan) remain in the repository but are disabled by the owner, so
@@ -571,7 +611,7 @@ mixing `unsafe-inline` with a hash/nonce is not an accepted intermediate policy.
 
 | Remaining rollout item | LIVE 270f compatibility / owner |
 | --- | --- |
-| H8 nonce and five helper routes | Static nonce accepted risk; unused email-link paths removed, auth smoke required |
+| H8 nonce and five helper routes | SEC-01 fresh per-response nonce via `api/auth-helper.ts`, GET/HEAD only; production auth smoke required |
 | H9 COOP/CORP and main auth-origin reduction | Redirect-only source compatible; verify final public headers and share-image override |
 | Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
 | H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; parent/I per-IP WAF evidence required |

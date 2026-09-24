@@ -440,6 +440,29 @@ enabled), and that **Application restrictions** are HTTP referrers covering the
 production origin (and any intentionally tested preview origin). Record the
 readback time; do not paste the key into receipts.
 
+### Auth helper fresh-nonce smoke (SEC-01)
+
+Production only, after promotion; preview origins are referrer-blocked.
+
+1. Desktop and a mobile viewport: Google sign-in by redirect, then link Google
+   to an Email/Password account, then reauthenticate. Each must return to the
+   app signed in.
+2. DevTools → Network on `/__/auth/handler` and `/__/auth/iframe`:
+   - status 200;
+   - exactly one `Content-Security-Policy` header, containing
+     `'nonce-<24 base64 chars>'` and `frame-ancestors 'self'`;
+   - a different nonce on each reload;
+   - X-Frame-Options `SAMEORIGIN` and `Cache-Control: private, no-store, max-age=0`.
+
+   The Console must show no CSP violation, and the helper's inline script must
+   run (sign-in completes).
+3. `curl -i -X POST https://play-100-collection.vercel.app/__/auth/handler`
+   returns 405 with `Allow: GET, HEAD`. `curl -I` on both documents returns 200
+   with the headers above.
+4. Any failure, or a Vercel function log `Auth helper upstream refused.` with
+   `reason: drift`: use **Instant Rollback** to the previous deployment (plain
+   rewrites with the static nonce). Then record the logged counts and re-capture
+   the upstream templates read-only before any fix.
 ### Exposure check after redeploy
 
 A fresh production deployment must return 404 for `/.vite/manifest.json`, any

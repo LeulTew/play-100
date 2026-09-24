@@ -5,6 +5,6 @@
     "noUncheckedIndexedAccess": true,
     "types": ["node"]
   },
-  "files": ["api/catalog.ts", "api/catalog-detail.ts"],
+  "files": ["api/catalog.ts", "api/catalog-detail.ts", "api/auth-helper.ts"],
   "references": []
 }

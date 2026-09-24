@@ -57,7 +57,7 @@ describe('finished first-party collection films', () => {
     const deployment = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8')) as { headers: Array<{ source: string; headers: Array<{ key: string; value: string }> }> };
     const root = deployment.headers.find(rule => rule.source === '/((?!__/auth/).*)');
     const videos = deployment.headers.find(rule => rule.source === '/videos/(.*)');
-    const auth = deployment.headers.find(rule => rule.source === '/__/auth/:path*');
+    const auth = deployment.headers.find(rule => rule.source === '/__/auth/(handler|iframe|experiments)\\.js');
     expect(root?.headers.find(header => header.key === 'Content-Security-Policy')?.value).toContain("media-src 'self'");
     expect(videos?.headers.find(header => header.key === 'Cache-Control')?.value).toContain('immutable');
     expect(auth?.headers.find(header => header.key === 'X-Frame-Options')?.value).toBe('SAMEORIGIN');
