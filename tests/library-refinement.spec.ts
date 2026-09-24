@@ -7,9 +7,10 @@ import { catalogRecord, respondWithCatalog } from './catalog-helpers';
 const a = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
 const b = { id: 'mass-effect-2', title: 'Mass Effect 2' };
 
-async function prepareRanking(page: Page, isMobile: boolean) {
+async function prepareRanking(page: Page) {
   await page.goto('/');
-  await page.locator(isMobile ? '.mobile-nav' : '.desktop-nav').getByRole(isMobile ? 'button' : 'link', { name: 'My rankings', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('link', { name: 'Ranking', exact: true }).click();
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
   for (const game of [a, b]) {
     await page.getByRole('button', { name: `Add ${game.title} to ranking`, exact: true }).click();
@@ -32,8 +33,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const field of ['score', 'note'] as const) {
-  test(`browser Back flushes a pending ${field} exactly once without needing its debounce or blur`, async ({ page, isMobile }) => {
-    await prepareRanking(page, isMobile);
+  test(`browser Back flushes a pending ${field} exactly once without needing its debounce or blur`, async ({ page }) => {
+    await prepareRanking(page);
     const before = await readLibrary(page);
     await pauseAutosave(page);
     if (field === 'score') {
@@ -89,11 +90,13 @@ test('Escape from an unranked preview commits a pending rating and metadata with
   await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score).toBe(7.75);
   expect((await readLibrary(page)).records[record.id]).toEqual(record);
   expect((await readLibrary(page)).progress[record.id]).toBeUndefined();
-  await expect(page.locator('[data-unranked-id] .in-library')).toHaveText('In your library');
+  const saved = page.locator('[data-unranked-id]').getByRole('button', { name: `In My games: ${record.title}`, exact: true });
+  await expect(saved).toHaveText('In My games');
+  await expect(saved).toBeDisabled();
 });
 
-test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({ page, isMobile }) => {
-  await prepareRanking(page, isMobile);
+test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({ page }) => {
+  await prepareRanking(page);
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
@@ -113,8 +116,8 @@ test('leaving after a failed autosave does not retry the rejected edit or overwr
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.score).toBe(5);
 });
 
-test('library removal requires confirmation, deletes all selected private state and keeps the public game', async ({ page, isMobile }) => {
-  await prepareRanking(page, isMobile);
+test('library removal requires confirmation, deletes all selected private state and keeps the public game', async ({ page }) => {
+  await prepareRanking(page);
   await page.goto('/my-library');
   await page.getByRole('button', { name: `Play later: ${a.title}`, exact: true }).click();
   await page.getByRole('button', { name: `Completed: ${a.title}`, exact: true }).click();
@@ -144,17 +147,18 @@ test('library removal requires confirmation, deletes all selected private state 
   await expect(page.locator(`[data-game="${a.id}"] .author-rating-card`)).toContainText('10.0');
 });
 
-test('bulk removal handles mixed imported and original games without deleting an unselected game', async ({ page, isMobile }) => {
-  await prepareRanking(page, isMobile);
+test('bulk removal handles mixed imported and original games without deleting an unselected game', async ({ page }) => {
+  await prepareRanking(page);
   await page.goto('/my-library');
   const manualTitle = 'A private game \u2014 \u4e16\u754c \u2014 ' + 'long title '.repeat(10);
-  await page.locator('.manual-add summary').click();
-  await page.getByLabel('Game title', { exact: true }).fill(manualTitle);
+  const editor = page.locator('.my-games-editor:visible');
+  await editor.locator('.manual-add summary').click();
+  await editor.getByLabel('Game title', { exact: true }).fill(manualTitle);
   await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
   await expect.poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === manualTitle.trim())).toBe(true);
   const manual = Object.values((await readLibrary(page)).records).find((record) => record.title === manualTitle.trim());
   if (!manual) throw new Error('The manual fixture did not persist.');
-  await expect(page.locator('.drag-handle, .move-buttons')).toHaveCount(0);
+  await expect(editor.locator('.drag-handle, .move-buttons')).toHaveCount(0);
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
   await page.getByRole('checkbox', { name: `Select ${a.title}`, exact: true }).check();
   await page.getByRole('checkbox', { name: `Select ${manual.title}`, exact: true }).check();
@@ -164,14 +168,14 @@ test('bulk removal handles mixed imported and original games without deleting an
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await dialog.getByRole('button', { name: 'Remove 2 games', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.locator('[data-record-id]')).toHaveCount(1);
+  await expect(editor.locator('[data-record-id]')).toHaveCount(1);
   expect(Object.keys((await readLibrary(page)).records)).toEqual([b.id]);
   await page.reload();
-  await expect(page.locator('[data-record-id]')).toHaveCount(1);
+  await expect(editor.locator('[data-record-id]')).toHaveCount(1);
 });
 
-test('a failed private deletion stays recoverable in its confirmation without removing any state', async ({ page, isMobile }) => {
-  await prepareRanking(page, isMobile);
+test('a failed private deletion stays recoverable in its confirmation without removing any state', async ({ page }) => {
+  await prepareRanking(page);
   await page.goto('/my-library');
   const before = await readLibrary(page);
   await page.evaluate(() => {
@@ -192,11 +196,11 @@ test('a failed private deletion stays recoverable in its confirmation without re
   expect((await readLibrary(page)).records[a.id]).toBeUndefined();
 });
 
-test('private removal updates peer tabs and the refined library and details remain accessible', async ({ page, context, isMobile }, testInfo) => {
-  await prepareRanking(page, isMobile);
+test('private removal updates peer tabs and the refined library and details remain accessible', async ({ page, context }, testInfo) => {
+  await prepareRanking(page);
   const peer = await context.newPage();
   await peer.goto('/my-rankings');
-  await expect(peer.locator('[data-record-id]')).toHaveCount(2);
+  await expect(peer.locator('.my-games-editor:visible [data-record-id]')).toHaveCount(2);
   await page.goto('/my-library');
   await page.getByRole('button', { name: `Remove ${a.title} from my library`, exact: true }).click();
   const confirmation = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
@@ -204,7 +208,7 @@ test('private removal updates peer tabs and the refined library and details rema
   await page.screenshot({ path: testInfo.outputPath('private-removal.png'), fullPage: true });
   await page.getByRole('dialog').getByRole('button', { name: 'Remove 1 game', exact: true }).click();
   await expect(peer.locator(`[data-record-id="${a.id}"]`)).toHaveCount(0);
-  await expect(peer.locator(`[data-record-id="${b.id}"]`)).toHaveCount(1);
+  await expect(peer.locator(`.my-games-editor:visible [data-record-id="${b.id}"]`)).toHaveCount(1);
   for (const width of [320, 800, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
