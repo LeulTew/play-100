@@ -28,10 +28,34 @@ export function selectShellVariant(html: string, variant: ShellVariant): string 
   return selected;
 }
 
+/**
+ * Removes the HTML comments of a markup fragment by scanning it as the HTML tokenizer does: a
+ * comment opened by `<!--` ends at the first `-->` or `--!>`, or at once for `<!-->` and `<!--->`.
+ */
+function withoutComments(markup: string): string {
+  let output = '';
+  let from = 0;
+  for (let start = markup.indexOf('<!--'); start !== -1; start = markup.indexOf('<!--', from)) {
+    output += markup.slice(from, start);
+    const body = start + 4;
+    if (markup.startsWith('>', body)) from = body + 1;
+    else if (markup.startsWith('->', body)) from = body + 2;
+    else {
+      const ends = [markup.indexOf('-->', body), markup.indexOf('--!>', body)].filter(index => index !== -1);
+      if (!ends.length) throw new Error('The first-paint shell has an unterminated comment.');
+      const end = Math.min(...ends);
+      from = end + (markup.startsWith('-->', end) ? 3 : 4);
+    }
+  }
+  output += markup.slice(from);
+  if (output.includes('<!--')) throw new Error('Removing the first-paint shell comments left a comment opening behind.');
+  return output;
+}
+
 /** Removes comments and the indentation between tags inside #root, matching React's markup. */
 export function normalizeShellWhitespace(html: string): string {
   const { start, end } = shellRegion(html);
-  const region = html.slice(start, end).replace(/<!--[\s\S]*?-->/g, '').replace(/>\s*\n\s*</g, '><');
+  const region = withoutComments(html.slice(start, end)).replace(/>\s*\n\s*</g, '><');
   return html.slice(0, start) + region + html.slice(end);
 }
 
@@ -50,9 +74,22 @@ export function removeShell(html: string): string {
   return `${html.slice(0, start)}${ROOT_OPEN}</div>${html.slice(end + STYLESHEET_MARKER.length)}`;
 }
 
+/** The text between tags: each `<` up to the next `>` is markup (the shell has no raw-text elements). */
+function withoutTags(markup: string): string {
+  let text = '';
+  let from = 0;
+  for (let open = markup.indexOf('<'); open !== -1; open = markup.indexOf('<', from)) {
+    const close = markup.indexOf('>', open + 1);
+    if (close === -1) break;
+    text += markup.slice(from, open);
+    from = close + 1;
+  }
+  return text + markup.slice(from);
+}
+
 /** The characters of the shell's text nodes, so font subsets can be chosen for them. */
 export function shellText(markup: string): string {
-  return markup.replace(/<[^>]*>/g, '').replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);|&/g, (entity, body: string | undefined) => {
+  return withoutTags(markup).replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);|&/g, (entity, body: string | undefined) => {
     if (body === undefined) return '&';
     if (body.startsWith('#')) return String.fromCodePoint(body[1] === 'x' || body[1] === 'X' ? Number.parseInt(body.slice(2), 16) : Number.parseInt(body.slice(1), 10));
     const named = NAMED_ENTITIES[body];
