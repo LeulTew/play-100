@@ -121,6 +121,18 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('main tab “AAA Top 50”');
   });
 
+  it('distinguishes optional catalog lookups from licensed detail artwork and source ratings', () => {
+    const html = renderToStaticMarkup(h(AboutDialog, { onClose: vi.fn() }));
+    expect(html).toContain('Discover includes a bundled catalog and optional online metadata lookup');
+    expect(html).toContain('Online catalog search sends your query');
+    expect(html).toContain('It does not send your private library, notes or rankings.');
+    expect(html).toContain('Opening an eligible Discover game can also load separately labelled public ratings and licensed artwork while online lookup is on.');
+    expect(html).toContain('Credits stay attached; entries from The 100 keep their original artwork and scores.');
+    expect(html).toContain('These lookups do not copy descriptions, prices or review text.');
+    expect(html).toContain('unavailable sources show an error rather than an empty success');
+    expect(html).not.toContain('not external cover artwork');
+  });
+
   it('retains source caveats instead of changing facts to improve a transition', () => {
     const game = games.find(item => item.slug === 'hitman-world-of-assassination');
     if (!game) throw new Error('Missing Hitman source-caveat fixture');
