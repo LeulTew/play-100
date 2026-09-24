@@ -207,10 +207,44 @@ test('backup export and validated replacement restore queue and private rankings
   await page.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([first, second, third]);
   expect((await readLibrary(page)).ranking[0]?.id).toBe(first);
+  await expect(page.locator('.backup-panel').getByRole('status')).toHaveText('Your backup was restored and saved on this device.');
   await page.getByLabel('Import personal library backup file').setInputFiles({ name: 'corrupt.json', mimeType: 'application/json', buffer: Buffer.from('{"formatVersion":2,"library":{"bad":true}}') });
   await expect(page.locator('.backup-panel .inline-error')).toContainText('No data was changed');
   expect((await readLibrary(page)).queueOrder).toEqual([first, second, third]);
 });
+
+for (const [outcome, copy] of [
+  ['granted', 'Storage protection was granted.'],
+  ['denied', 'This browser did not grant storage protection. Your library is still saved on this device; keep a downloaded backup.'],
+  ['unsupported', 'This browser does not support requesting storage protection. Keep a downloaded backup.'],
+  ['rejected', 'The browser could not request storage protection. Keep a downloaded backup.'],
+  ['status-error', 'This browser could not check storage protection. Keep a downloaded backup.'],
+] as const) {
+  test(`backup storage protection explains the ${outcome} result without storage jargon`, async ({ page }) => {
+    await page.addInitScript(outcome => {
+      Object.defineProperties(navigator.storage, {
+        persisted: { configurable: true, value: async () => {
+          if (outcome === 'status-error') throw new Error('Synthetic protection status failure.');
+          return false;
+        } },
+        persist: { configurable: true, value: outcome === 'unsupported' ? undefined : async () => {
+          if (outcome === 'rejected') throw new Error('Synthetic protection request failure.');
+          return outcome === 'granted';
+        } },
+      });
+    }, outcome);
+    await page.goto('/?info=settings&catalogs=off');
+    const panel = page.locator('.backup-panel');
+    await expect(panel).toContainText('protection from automatic storage cleanup');
+    await expect(panel).toContainText('Clearing site data can still remove your library.');
+    if (outcome !== 'status-error') await panel.getByRole('button', { name: 'Ask browser to protect saved data', exact: true }).click();
+    await expect(panel.getByRole(outcome === 'rejected' ? 'alert' : 'status')).toHaveText(copy);
+    await expect(panel).not.toContainText('eviction');
+    await expect(panel).not.toContainText('IndexedDB');
+    if (outcome === 'granted') await expect(panel.getByRole('button', { name: 'Ask browser to protect saved data', exact: true })).toHaveCount(0);
+    await expect(panel).toContainText('Clearing site data can still remove your library.');
+  });
+}
 
 test('catalog results are explicitly imported and upstream errors remain recoverable', async ({ page }) => {
   const item = { id: 'wikidata:Q100', title: 'Catalog game for verification', year: 2020, studio: 'A source studio', genre: 'Adventure', source: 'wikidata', sourceId: 'Q100', sourceUrl: 'https://www.wikidata.org/wiki/Q100', collectionRank: null };

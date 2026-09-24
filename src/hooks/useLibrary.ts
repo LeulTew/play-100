@@ -55,16 +55,16 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     }).catch((error: unknown) => {
       if (canceled || sequence !== loadSequence.current || canonicalLoading) return;
       let fallback = current.current.state;
-      let detail = describeError(error);
+      const details = [describeError(error)];
       try {
         const legacy = localStorage.getItem(STORAGE_KEY);
         if (legacy) fallback = migrateLegacyLibrary(legacy, canonicalRecords);
       } catch (legacyError: unknown) {
-        detail += ` ${describeError(legacyError)}`;
+        details.push(describeError(legacyError));
       }
       publish({
         state: fallback, status: 'temporary', error: null,
-        warning: temporaryLibraryWarning(detail),
+        warning: temporaryLibraryWarning(...details),
       });
     }).finally(() => {
       if (startupLoad.current === attempt) startupLoad.current = null;
