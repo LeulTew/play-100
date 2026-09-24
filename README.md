@@ -595,7 +595,7 @@ on the internet.
 
 Saving, marking played/completed, or rating a result imports its metadata and
 requested private state in one IndexedDB transaction. A rating adds it to
-**My rankings** without marking it played, replacing existing notes, or releasing
+**Ranking in My games** without marking it played, replacing existing notes, or releasing
 manual positions. Saved additions stay in the collection and search after a
 reload or browser restart, including when a catalog request fails. The Excel
 downloads always remain the author's unchanged 100-game collection, not a
@@ -619,8 +619,10 @@ The Vite dev/preview middleware uses the same handler as the Vercel function.
   metadata integration: no artwork, descriptions, prices or review scores are
   copied. Its roughly 400-item free-to-play dataset is fetched as a bounded
   snapshot, filtered locally in the proxy and displayed in pages of 20.
-- **Steam:** not enabled. Working keyless Store endpoints are not equivalent to
-  a demonstrated permission to scrape or redistribute them.
+- **Steam catalog search:** not enabled. Working keyless Store endpoints are not
+  equivalent to a demonstrated permission to scrape or redistribute them.
+  Eligible game-detail lookups may show separately labelled user-recommendation
+  totals through an unambiguous public app identifier.
 
 Only source/query/offset are accepted. Upstream hosts are fixed, redirects
 rejected, responses bounded to 4 MiB and requests timed out after nine seconds.

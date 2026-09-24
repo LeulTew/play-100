@@ -196,7 +196,7 @@ export default function App() {
   }, []);
 
   const perform = useCallback(async (action: PersonalAction) => {
-    if (onlineOpening) { notify('Wait for the account scope to finish opening before changing saved data.'); return false; }
+    if (onlineOpening) { notify('Wait for the account library to finish opening before changing saved data.'); return false; }
     const success = await saveAction(action);
     if (success && activeScope.current === libraryScope) notify(`${actionMessage(action)}${storageStatus === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`);
     return success;
