@@ -46,18 +46,16 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   }, [controller, newestId, animate]);
   const hasContent = items.length > 0 || Boolean(warning) || Boolean(error);
   const hasTray = hasContent || dragging;
-  const measuredBefore = useRef(false);
   useLayoutEffect(() => {
     const node = dock.current;
     const header = document.querySelector('.site-header');
     const navigation = document.querySelector('.mobile-nav');
     const toast = document.querySelector('.toast');
     const measure = () => measureTrayMetrics({ style: document.documentElement.style, header, navigation, toast, tray: node && !hidden && hasTray ? node : null });
-    // On mount without a tray, measuring now would force the first layout of the page React has
-    // just inserted inside its commit. The ResizeObserver below reports every element it observes
-    // once laid out, before that frame paints, so the first measurement can wait for it.
-    if (measuredBefore.current || hasTray) measure();
-    measuredBefore.current = true;
+    // Measuring now forces the first layout of the page React has just inserted inside the commit's
+    // own task, which stays short, instead of the frame after it, which also lays out and paints the
+    // rest of the page. The reads come before the writes, so it forces that layout once.
+    measure();
     const focused = document.activeElement;
     if (error && node && focused instanceof HTMLElement && focused.closest('.game-card, .discovery-card, .ratings-table, .personal-records')) {
       const target = focused.getBoundingClientRect();
