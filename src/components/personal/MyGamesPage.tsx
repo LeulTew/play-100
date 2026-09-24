@@ -51,6 +51,9 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
   const completedOnly = progressView === 'completed';
   const lastLibraryView = useRef<'library' | 'queue'>(view === 'queue' ? 'queue' : 'library');
   if (view !== 'ranking') lastLibraryView.current = view;
+  // Ranking mounts every sortable row, so it waits for its first visit and then stays mounted to keep drafts and search.
+  const rankingVisited = useRef(view === 'ranking');
+  if (view === 'ranking') rankingVisited.current = true;
   useEffect(() => {
     mounted.current = true;
     const invalidate = () => {
@@ -136,7 +139,7 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
         <LibraryPage {...props} busy={editorBusy} embedded active={view !== 'ranking'} workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} onDiscover={onDiscover} onBrowse={onBrowse} onPresentationChange={change} />
       </div>
       <div hidden={view !== 'ranking'}>
-        <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onDiscover={onDiscover} onPublish={onPublish} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
+        {rankingVisited.current && <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onDiscover={onDiscover} onPublish={onPublish} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />}
       </div>
       <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view…' : ''}</span>
     </section>

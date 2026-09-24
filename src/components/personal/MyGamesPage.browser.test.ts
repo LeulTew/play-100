@@ -33,7 +33,7 @@ const exits = [], saves = [];
 let accept = false;
 function App() {
   const [state, setState] = useState(initial);
-  const [view, setView] = useState('ranking');
+  const [view, setView] = useState(new URLSearchParams(location.search).get('view') ?? 'ranking');
   return h(MyGamesPage, {
     scope: 'guest', view, onViewChange: setView, state, filters, busy: false, animate: false, persistent: true,
     availableRecords: [alpha, beta], onOpen() {},
@@ -67,7 +67,7 @@ beforeAll(async () => {
       name: 'my-games-guard-fixture',
       configureServer(vite) {
         vite.middlewares.use((request, response, next) => {
-          if (request.url !== '/__my-games-guard') return next();
+          if (request.url?.split('?')[0] !== '/__my-games-guard') return next();
           void vite.transformIndexHtml('/__my-games-guard', fixture).then(html => {
             response.setHeader('Content-Type', 'text/html');
             response.end(html);
@@ -90,7 +90,7 @@ beforeAll(async () => {
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => { await browser?.close(); await server?.close(); }, 60_000);
 
-async function withPage(work: (page: Page) => Promise<void>) {
+async function withPage(work: (page: Page) => Promise<void>, view = 'ranking') {
   if (!browser) throw new Error('My games fixture browser unavailable.');
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
@@ -99,7 +99,7 @@ async function withPage(work: (page: Page) => Promise<void>) {
   await context.route('**/*', route => new URL(route.request().url()).origin === origin
     ? route.continue() : route.abort('blockedbyclient'));
   try {
-    await page.goto(`${origin}/__my-games-guard`);
+    await page.goto(`${origin}/__my-games-guard?view=${view}`);
     await browserExpect(page.getByRole('heading', { name: 'My games', level: 1 })).toBeVisible();
     await work(page);
     expect(errors).toEqual([]);
@@ -169,5 +169,31 @@ describe('My games exit guard', () => {
       });
       expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([JSON.stringify({ id: 'alpha', score: 9 })]);
     });
+  });
+});
+
+describe('My games Ranking pane mounting', () => {
+  it('mounts Ranking on its first visit and keeps it mounted afterwards', async () => {
+    await withPage(async page => {
+      const search = page.getByRole('searchbox', { name: 'Search your ranking' });
+      await browserExpect(page.getByRole('list', { name: 'Your games', exact: true })).toBeVisible();
+      // The unvisited Ranking pane mounts no rows, editors or search.
+      await browserExpect(page.locator('#note-alpha')).toHaveCount(0);
+      await browserExpect(page.locator('#ranking-search')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
+      await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toBeVisible();
+      await browserExpect(page.getByRole('button', { name: 'Ranking, 2', exact: true })).toHaveAttribute('aria-current', 'page');
+      await search.fill('Alpha');
+      await browserExpect(page.locator('.personal-row[data-record-id="beta"]')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Library, 2', exact: true }).click();
+      await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toBeHidden();
+      // Leaving Ranking keeps its subtree, so its search and filtered rows survive the round trip.
+      await browserExpect(page.locator('#ranking-search')).toHaveValue('Alpha');
+      await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
+      await browserExpect(search).toBeVisible();
+      await browserExpect(search).toHaveValue('Alpha');
+      await browserExpect(page.locator('.personal-row[data-record-id="beta"]')).toHaveCount(0);
+      expect(await exits(page)).toEqual([]);
+    }, 'library');
   });
 });

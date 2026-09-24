@@ -133,7 +133,7 @@ describe('workspace embedding contract', () => {
     expect(completed).toContain('Clear search, progress filters and selection to reorder.');
     expect(completed).toContain('disabled=""');
   });
-  it('keeps both editor trees present but hides the inactive one without nested page headings', () => {
+  it('keeps the Library tree present, mounts Ranking only once visited and hides the inactive pane without nested page headings', () => {
     for (const view of ['library', 'queue', 'ranking'] as const) {
       const html = renderToStaticMarkup(h(MyGamesPage, { ...props, scope: 'guest', view, onViewChange: vi.fn() }));
       expect(html.match(/<h1\b/g)).toHaveLength(1);
@@ -147,9 +147,12 @@ describe('workspace embedding contract', () => {
       }
       expect(html).toContain('class="filter-select progress-filter"');
       expect(html).toContain('Played (not completed)');
-      expect(html).toContain('A private note');
+      // Ranking's editors (the private note, its search) mount on the first Ranking visit only.
+      expect(html.includes('A private note')).toBe(view === 'ranking');
+      expect(html.includes('id="ranking-search"')).toBe(view === 'ranking');
       expect(html).toContain('Add a game manually');
       expect(html.match(/<div hidden=""/g)).toHaveLength(1);
+      if (view !== 'ranking') expect(html).toContain('<div hidden=""></div>');
       expect(html).not.toContain('Personal library views');
     }
   });
@@ -160,13 +163,20 @@ describe('workspace embedding contract', () => {
     expect(html).toContain('aria-pressed="false" aria-label="Pin for comparison: Beta game"');
     expect(onAction).not.toHaveBeenCalled();
   });
-  it('mounts one optional drag slot per record beside Pin in both editors, never inside a button', () => {
+  it('mounts one optional drag slot per record beside Pin in each mounted editor, never inside a button', () => {
     const renderDragHandle = vi.fn((record: LibraryRecord) => h('button', { type: 'button', 'data-compare-drag': record.id }, 'Drag to tray'));
     const html = renderToStaticMarkup(h(MyGamesPage, { ...props, scope: 'guest', view: 'queue', onViewChange: vi.fn(), onPin: vi.fn(), renderDragHandle }));
-    expect(html.match(/data-compare-drag="/g)).toHaveLength(3);
-    expect(renderDragHandle.mock.calls.map(([record]) => record.id)).toEqual(['beta', 'alpha', 'alpha']);
+    // An unvisited Ranking pane renders no rows, so the queue view mounts only its own slots.
+    expect(html.match(/data-compare-drag="/g)).toHaveLength(2);
+    expect(renderDragHandle.mock.calls.map(([record]) => record.id)).toEqual(['beta', 'alpha']);
     expect(html).toContain('Drag Beta game to reorder your queue');
-    expect(html).toContain('Drag Alpha game to reorder your ranking');
+    expect(html).not.toContain('reorder your ranking');
+    const ranking = renderToStaticMarkup(h(MyGamesPage, { ...props, scope: 'guest', view: 'ranking', onViewChange: vi.fn(), onPin: vi.fn(), renderDragHandle }));
+    expect(ranking.match(/data-compare-drag="/g)).toHaveLength(3);
+    // Library rows (hidden, in Library order) plus the now-visited Ranking row.
+    expect(renderDragHandle.mock.calls.slice(2).map(([record]) => record.id).sort()).toEqual(['alpha', 'alpha', 'beta']);
+    expect(ranking).toContain('Drag Alpha game to reorder your ranking');
+    expect(ranking).not.toMatch(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
     expect(html).not.toMatch(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
     const legacy = renderToStaticMarkup(h(LibraryPage, props));
     expect(legacy).not.toContain('data-compare-drag');
