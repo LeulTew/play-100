@@ -32,7 +32,6 @@ for (const [source, target] of [
   ['node_modules/@fontsource-variable/hanken-grotesk/LICENSE', 'hanken-grotesk.txt'],
   ['node_modules/react/LICENSE', 'react.txt'],
   ['node_modules/three/LICENSE', 'three.txt'],
-  ['node_modules/motion/LICENSE.md', 'motion.txt'],
   ['node_modules/@dnd-kit/core/LICENSE', 'dnd-kit-core.txt'],
   ['node_modules/@dnd-kit/sortable/LICENSE', 'dnd-kit-sortable.txt'],
   ['node_modules/@dnd-kit/utilities/LICENSE', 'dnd-kit-utilities.txt'],

@@ -12,7 +12,7 @@ library. The full MIT + Commons Clause notice is also served publicly from
 
 | Original | Website derivative | Purpose and changes |
 | --- | --- | --- |
-| `TextAnimations/CountUp/CountUp.tsx` | `src\components\bits\CountUp.tsx` | Springs private-list count changes. Initializes with real content, provides stable screen-reader text and jumps immediately in Lite/reduced/hidden modes. |
+| `TextAnimations/CountUp/CountUp.tsx` | `src\components\bits\CountUp.tsx` | Springs private-list count changes with native frames instead of the upstream's motion/react import (Motion is not a dependency). Initializes with real content, provides stable screen-reader text and jumps immediately in Lite/reduced/hidden modes. |
 | `Animations/Magnet/Magnet.tsx` | `src\components\bits\Magnet.tsx` | Small tactile displacement on one optional game-picking action. Listeners are element-local, offsets bounded, keyboard focus stationary, coarse-pointer/reduced motion disabled. |
 | `Animations/AnimatedContent/AnimatedContent.tsx` | `src\components\bits\AnimatedContent.tsx` | A single clipped print-like workbook entrance. Replaces the GSAP/ScrollTrigger engine with native Web Animations and IntersectionObserver, avoids hidden-by-default content and stops hidden-tab work. |
 

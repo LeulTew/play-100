@@ -29,7 +29,6 @@
     "@fontsource-variable/hanken-grotesk": "^5.2.8",
     "@fontsource/barlow-condensed": "^5.2.8",
     "firebase": "^12.19.0",
-    "motion": "^12.35.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "sharp": "0.35.4",

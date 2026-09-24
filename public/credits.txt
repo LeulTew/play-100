@@ -33,9 +33,6 @@ https://react.dev - /licenses/react.txt
 Three.js - Three.js authors - MIT
 https://threejs.org - /licenses/three.txt
 
-Motion - Framer / Motion contributors - MIT
-https://motion.dev - /licenses/motion.txt
-
 Barlow Condensed - The Barlow Project Authors - SIL Open Font License 1.1
 https://github.com/jpt/barlow - /licenses/barlow-condensed.txt
 

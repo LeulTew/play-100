@@ -706,7 +706,7 @@ StrictMode rehearsals, production payload checks and paired performance evidence
 must be reported separately.
 
 The React Bits-derived queue badge uses a bounded native numeric spring rather
-than loading the Motion scheduler for one number. Its accessible count is exact
+than the Motion scheduler the upstream uses; Motion is not a dependency. Its accessible count is exact
 immediately; initial, disabled and scope-reset values do not count up from zero.
 Visible updates can retarget, while cancellation and unmount leave no idle frame
 loop. Only the badge is scope-keyed, not the page or its editors.
@@ -867,5 +867,5 @@ React Bits sources are pinned to
 CountUp, Magnet and AnimatedContent are actual customized derivatives.
 The application does not sell or redistribute a component library.
 `public\credits.txt` and `public\licenses` provide public notices, including
-React, Three.js, Motion and the SIL-licensed Barlow Condensed / Hanken Grotesk
+React, Three.js and the SIL-licensed Barlow Condensed / Hanken Grotesk
 fonts, which are self-hosted.
