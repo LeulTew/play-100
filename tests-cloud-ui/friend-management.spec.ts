@@ -48,11 +48,11 @@ async function checkManager(page: Page) {
 test('loaded pages survive live changes; directional scans, row recovery, private cohort and Back/reload remain correct', async ({ page, request }, testInfo) => {
   test.setTimeout(150000);
   const f = await prepare(page, request);
-  const failed = page.locator('.friend-list > li').filter({ hasText: `Player ...${f.accepted[1]!.slice(-6)}` });
+  const failed = page.locator('.friend-list > li').filter({ hasText: `Player …${f.accepted[1]!.slice(-6)}` });
   await expect(failed).toContainText('Profile could not be loaded');
   await failed.getByRole('button', { name: 'Retry profile', exact: true }).click();
   await expect(page.locator('.friend-list')).toContainText(f.names[1]!);
-  const missing = page.locator('.friend-list > li').filter({ hasText: `Player ...${f.accepted[2]!.slice(-6)}` });
+  const missing = page.locator('.friend-list > li').filter({ hasText: `Player …${f.accepted[2]!.slice(-6)}` });
   await expect(missing).toContainText('Profile unavailable');
   await writeManagerDocuments(request, { [`friendIdentities/${f.accepted[2]}`]: { format: 1, uid: f.accepted[2], displayName: f.names[2], avatar: f.avatar, revision: 1, updatedAt: new Date() } });
   await missing.getByRole('button', { name: 'Retry profile', exact: true }).click();

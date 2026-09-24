@@ -8,7 +8,7 @@ vi.mock('react', async importOriginal => {
   return { ...react, useState: vi.fn(react.useState) };
 });
 
-afterEach(() => { vi.mocked(useState).mockClear(); });
+afterEach(() => { vi.mocked(useState).mockReset(); });
 
 function render(purpose?: 'compare', busy = false) {
   const props = {

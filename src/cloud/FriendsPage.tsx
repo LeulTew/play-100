@@ -344,7 +344,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
     {relationView && <ul className="friend-list">{rows.map((pair) => {
       const peer = friendPeer(pair, uid); const profile = list.identities[peer];
       const person = profile?.status === 'ready' ? profile.value : null;
-      const name = person?.displayName ?? `Player ...${peer.slice(-6)}`;
+      const name = person?.displayName ?? `Player …${peer.slice(-6)}`;
       return <li key={peer} className="friend-manager-row">
         <div className="friend-row-person">
           {pair.state === 'accepted' && <label className="check-control friend-select"><input type="checkbox" aria-label={`Select ${name} for comparison`} checked={selected.includes(peer)} disabled={busy || !selected.includes(peer) && selected.length >= 5} onChange={(event) => choose(event.target.checked ? [...selected, peer] : selected.filter((value) => value !== peer))} /></label>}
