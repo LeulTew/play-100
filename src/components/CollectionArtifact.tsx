@@ -5,6 +5,7 @@ import { createRetryableModule } from '../lib/retryable-module';
 import './scene/artifact.css';
 
 const sceneModule = createRetryableModule(() => import('./scene/CollectionScene'));
+const REQUESTED_SCENE_IDLE_TIMEOUT_MS = 150;
 
 export interface CollectionArtifactProps {
   quality: 'auto' | 'full' | 'lite';
@@ -47,6 +48,8 @@ export default function CollectionArtifact({
   const [systemReduced, setSystemReduced] = useState(systemReducesMotion);
   const [coarsePointer, setCoarsePointer] = useState(hasCoarsePointer);
   const [requested, setRequested] = useState(false);
+  const requestedRef = useRef(false);
+  const requestSceneRef = useRef<(() => void) | null>(null);
   const [state, setState] = useState<SceneState>({ ready: false, status: 'waiting', reason: null });
   const motionReduced = reducedMotion || systemReduced;
   const motionAllowed = !motionReduced && quality !== 'lite' && (quality === 'full' || !constrained);
@@ -162,11 +165,18 @@ export default function CollectionArtifact({
       }
       if (loading || idleId !== null || timerId !== null) return;
       if (typeof window.requestIdleCallback === 'function') {
-        idleId = window.requestIdleCallback(() => { void loadScene(); });
+        idleId = requestedRef.current
+          ? window.requestIdleCallback(() => { void loadScene(); }, { timeout: REQUESTED_SCENE_IDLE_TIMEOUT_MS })
+          : window.requestIdleCallback(() => { void loadScene(); });
       } else {
-        timerId = window.setTimeout(() => { void loadScene(); }, 1200);
+        timerId = window.setTimeout(() => { void loadScene(); }, requestedRef.current ? REQUESTED_SCENE_IDLE_TIMEOUT_MS : 1200);
       }
     }
+
+    requestSceneRef.current = () => {
+      cancelScheduledLoad();
+      reconcile();
+    };
 
     const checkPosition = () => {
       const rect = stage.getBoundingClientRect();
@@ -190,6 +200,7 @@ export default function CollectionArtifact({
 
     return () => {
       cancelled = true;
+      requestSceneRef.current = null;
       cancelScheduledLoad();
       observer?.disconnect();
       document.removeEventListener('visibilitychange', reconcile);
@@ -239,7 +250,14 @@ export default function CollectionArtifact({
         {canInteract && <button
           type="button"
           className="artifact-control"
-          onClick={() => { setRequested(true); setFanned((value) => !value); }}
+          onClick={() => {
+            if (!requestedRef.current) {
+              requestedRef.current = true;
+              setRequested(true);
+              requestSceneRef.current?.();
+            }
+            setFanned((value) => !value);
+          }}
           aria-label={fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'}
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true" focusable="false">

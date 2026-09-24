@@ -181,6 +181,12 @@ visitor requests the fan interaction; **Full** still starts it automatically.
 The original illustration stays useful before activation. This is a device
 performance policy, not a benchmark-specific or user-agent exception.
 
+Automatic, unrequested scene loading and WebGL construction use separate
+cancelable idle turns without a deadline. An explicit Fan out or Stack up
+request bounds each pending idle turn to 150ms; it does not restart an already
+loaded scene. Visibility, reduced-motion and resource-saving gates still apply.
+The deadline bounds idle scheduling, not network or rendering completion time.
+
 Lite, system reduced motion, resource-saving Auto and a failed WebGL scene show
 the settled illustration without a Fan out control. Eligible touch Auto keeps
 the explicit Fan out action that starts 3D; unavailable rendering never leaves
