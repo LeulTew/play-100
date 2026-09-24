@@ -13,6 +13,7 @@ interface CollectionMotionProbe {
   holdReturn: boolean;
   calls: { duration: number | null; containsEditor: boolean; phase: string | null }[];
   errors: string[];
+  modifiedClick?: { reachedAnchor: boolean; defaultPrevented: boolean; isTrusted: boolean; button: number; ctrlKey: boolean; metaKey: boolean };
 }
 
 declare global {
@@ -172,19 +173,28 @@ for (const view of ['grid', 'list'] as const) {
   });
 }
 
-test('table titles keep native links and use a no-origin detail without moving the form', async ({ page, isMobile, context }) => {
+test('table titles keep native links and use a no-origin detail without moving the form', async ({ page, isMobile }) => {
   await page.goto('/?view=table&q=mass+effect+2&catalogs=off');
   const link = page.locator(`tr[data-game="${second.id}"] .table-game > a`);
   await expect(link).toBeVisible();
-  const href = await link.getAttribute('href');
-  expect(href).toContain(`game=${second.id}`);
+  await expect(link).toHaveAttribute('href', `/?q=mass+effect+2&view=table&catalogs=off&game=${second.id}`);
   if (!isMobile) {
-    const popupPromise = context.waitForEvent('page');
+    const before = page.url();
+    await link.evaluate(anchor => {
+      window.addEventListener('click', event => {
+        window.__collectionMotionProbe.modifiedClick = {
+          reachedAnchor: event.target instanceof Node && anchor.contains(event.target),
+          defaultPrevented: event.defaultPrevented, isTrusted: event.isTrusted,
+          button: event.button, ctrlKey: event.ctrlKey, metaKey: event.metaKey,
+        };
+      }, { once: true });
+    });
     await link.click({ modifiers: ['ControlOrMeta'] });
-    const popup = await popupPromise;
-    await expect(popup).toHaveURL(new RegExp(`game=${second.id}`));
-    expect(new URL(page.url()).searchParams.has('game')).toBe(false);
-    await popup.close();
+    const click = await page.evaluate(() => window.__collectionMotionProbe.modifiedClick);
+    expect(click).toMatchObject({ reachedAnchor: true, defaultPrevented: false, isTrusted: true, button: 0 });
+    expect(click?.ctrlKey || click?.metaKey).toBe(true);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page).toHaveURL(before);
   }
   await link.focus();
   await link.press('Enter');
