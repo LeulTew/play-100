@@ -262,12 +262,18 @@ async function nativeDrop() {
   await page.mouse.up();
 }
 
+async function touchInputFrame() {
+  // A CDP acknowledgement alone does not give the renderer a frame between inputs.
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+}
+
 async function nativeTouchTap(cdp: CDPSession, target: Locator, padding = false) {
   const box = await target.boundingBox();
   if (!box) throw new Error('The native tap target is missing.');
   const point = padding ? { x: box.x + 4, y: box.y + 4 } : { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   expect(await target.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), point)).toBe(true);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+  await touchInputFrame();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
@@ -435,8 +441,10 @@ describe('Compare source browser contract', () => {
     const cdp = await context.newCDPSession(page);
     try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      await touchInputFrame();
       for (let step = 1; step <= 5; step++) {
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: Math.max(8, y - step * 20) }] });
+        await touchInputFrame();
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await browserExpect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
@@ -499,12 +507,17 @@ describe('Compare source browser contract', () => {
       try {
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
         held = true;
-        for (let step = 1; step <= 5; step++) await cdp.send('Input.dispatchTouchEvent', {
-          type: 'touchMove', touchPoints: [{ x: start.x, y: start.y + step * 35 }],
-        });
+        await touchInputFrame();
+        for (let step = 1; step <= 5; step++) {
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove', touchPoints: [{ x: start.x, y: start.y + step * 35 }],
+          });
+          await touchInputFrame();
+        }
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         held = false;
         await browserExpect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+        expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
         await nativeTouchTap(cdp, page.locator('#source-title'));
         await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(1);
         expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
@@ -558,9 +571,11 @@ describe('Compare source browser contract', () => {
     const cdp = await context.newCDPSession(page);
     try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      await touchInputFrame();
       await page.waitForTimeout(310);
       // Cross the UA's touchmove delivery threshold after the hold, not its pre-hold slop.
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 24, y: y + 24 }] });
+      await touchInputFrame();
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveCount(1);
       await browserExpect(page.locator('.compare-drag-ghost')).toHaveText('Pin for comparison');
       const dock = await page.locator('.compare-tray-dock').boundingBox();
@@ -568,6 +583,7 @@ describe('Compare source browser contract', () => {
       const endX = dock.x + dock.width / 2, endY = dock.y + dock.height / 2;
       for (let step = 1; step <= 8; step++) {
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + (endX - x) * step / 8, y: y + (endY - y) * step / 8 }] });
+        await touchInputFrame();
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
@@ -580,6 +596,7 @@ describe('Compare source browser contract', () => {
       const point = { x: fresh.x + fresh.width / 2, y: fresh.y + fresh.height / 2 };
       expect(await page.locator('#source-title').evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), point)).toBe(true);
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+      await touchInputFrame();
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.opens)).toBe(1);
     } finally { await cdp.detach(); }
