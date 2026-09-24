@@ -107,13 +107,18 @@ test('a cold late seed does not clamp a valid last-page URL to the temporary can
   const waiting = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/data/discovery/catalog.v1.json', async route => { await waiting; await route.fulfill({ json: rawSeed }); });
   await page.goto('/discover?offset=840&catalogs=off&include100=on');
-  await expect(page.locator('.discovery-results-heading')).toContainText('Loading more catalog games');
-  await expect(page.getByRole('heading', { name: 'No games on this page', exact: true })).toHaveCount(0);
-  await expect(page).toHaveURL(/offset=840/);
-  release();
+  try {
+    await expect(page.locator('.discovery-results-heading').getByRole('status')).toHaveText('Loading the catalog…');
+    await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByRole('heading', { name: 'No games on this page', exact: true })).toHaveCount(0);
+    await expect(page).toHaveURL(/offset=840/);
+  } finally {
+    release();
+  }
   await expect(pager(page).getByRole('combobox')).toHaveValue('36');
   await expect(cards(page)).toHaveCount(5);
   await expect(page).toHaveURL(/offset=840/);
+  await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'false');
 });
 
 test('provider offsets stay separate from known-local pages and local navigation never requests provider offsets', async ({ page }) => {
