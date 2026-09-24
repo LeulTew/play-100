@@ -500,6 +500,15 @@ authDomain is the application origin. The now-redundant firebaseapp.com origin
 is removed from main connect-src/frame-src; upstream proxy destinations and the
 separate auth-helper policy are not changed by that removal.
 
+Main connect-src also lists `https://apis.google.com` (CSP-GAPI-01), the origin
+script-src already trusts for gapi. Firebase Auth loads `gapi.iframes` from it
+for its hidden auth iframe, and that module's gen204 logger sends a sampled
+(rate 0.001 to 0.01) `fetch(<api.js origin>/js/gen_204?c=50:1, no-cors)`
+whenever gapi's random helper mints an rpctoken for a child iframe. Blocking it
+only drops Google telemetry, but it logs a connect-src violation. The
+auth-helper policy is unchanged: the helper's handler.js and iframe.js bundle
+their own iframes code with no gen204 logger, and the ping only runs where the
+apis.google.com module opens a child iframe, which is the main document.
 CORP `cross-origin` overrides apply only to `/social-card.png`,
 `/social-card.svg`, `/favicon.svg`, `/pwa/icon-192.png`, `/pwa/icon-512.png`,
 `/pwa/icon-maskable-192.png`, `/pwa/icon-maskable-512.png` and
