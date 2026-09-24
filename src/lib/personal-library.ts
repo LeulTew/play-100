@@ -275,7 +275,9 @@ function move<T>(items: T[], id: string, overId: string, getId: (item: T) => str
   items.splice(to, 0, item);
 }
 
-export function applyPersonalAction(state: PersonalLibraryState, action: PersonalAction): PersonalLibraryState {
+// The reducer is the validation boundary for a commit: it parses the stored (or in-memory) state once into a
+// fresh copy it may mutate, so callers pass raw values and must not parse first.
+export function applyPersonalAction(state: unknown, action: PersonalAction): PersonalLibraryState {
   const result = parsePersonalLibrary(state);
   const input = object(action, 'The library action');
   const queued = new Set(result.queueOrder);

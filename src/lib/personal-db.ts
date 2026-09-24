@@ -260,7 +260,7 @@ export async function commitPersonalAction(action: PersonalAction): Promise<Pers
     if (current === undefined) {
       throw namedError('PersonalLibraryStorageError', 'Load your device library before making changes, so previous saved data can be migrated safely.');
     }
-    const updated = applyPersonalAction(parsePersonalLibrary(current), action);
+    const updated = applyPersonalAction(current, action);
     store.put(updated, STATE_KEY);
     return updated;
   });

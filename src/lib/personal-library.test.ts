@@ -440,3 +440,26 @@ describe('legacy migration and portable backups', () => {
     expect(() => parseLibraryBackup({ ...createLibraryBackup(fixture()), ...change })).toThrow();
   });
 });
+describe('single reducer validation boundary', () => {
+  it('parses a raw state exactly once, into a copy, and keeps rejecting invalid raw input', () => {
+    const counted = (value: PersonalLibraryState) => {
+      let reads = 0;
+      const proxy = new Proxy(value, { get(target, key, receiver) { if (key === 'records') reads += 1; return Reflect.get(target, key, receiver); } });
+      return { proxy, reads: () => reads };
+    };
+    const raw = fixture();
+    const baseline = counted(raw);
+    parsePersonalLibrary(baseline.proxy);
+    const reduced = counted(raw);
+    const next = applyPersonalAction(reduced.proxy, { type: 'set-progress', records: [a], key: 'played', value: true });
+    // One parse reads the raw records exactly as often as a standalone parse does.
+    expect(reduced.reads()).toBe(baseline.reads());
+    expect(baseline.reads()).toBeGreaterThan(0);
+    expect(next.progress[a.id]?.played).toBe(true);
+    expect(raw.progress[a.id]?.played).not.toBe(true);
+    expect(next.records).not.toBe(raw.records);
+    let failure: unknown;
+    try { applyPersonalAction({ ...raw, records: 'not a record map' }, { type: 'use-rating-order' }); } catch (cause) { failure = cause; }
+    expect(failure).toMatchObject({ name: 'PersonalLibraryValidationError' });
+  });
+});
