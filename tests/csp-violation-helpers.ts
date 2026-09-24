@@ -11,6 +11,8 @@ export const productionPolicy = mainDocumentPolicy(
 /**
  * The Firebase authDomain the served build was configured with, read from its public config in the
  * built bundle (`dist/assets/*.js`, the directory the local preview serves); null for an offline build.
+ * The minifier may quote the value with `"`, `'` or a template literal's backtick; the same delimiter
+ * must close it.
  */
 export function builtAuthDomain(root = path.join(process.cwd(), 'dist')): string | null {
   const assets = path.join(root, 'assets');
@@ -18,9 +20,9 @@ export function builtAuthDomain(root = path.join(process.cwd(), 'dist')): string
   const found = new Set<string>();
   for (const name of readdirSync(assets).filter((file) => file.endsWith('.js'))) {
     for (const match of readFileSync(path.join(assets, name), 'utf8').matchAll(
-      /["']?VITE_FIREBASE_AUTH_DOMAIN["']?\s*:\s*["']([^"']+)["']/g,
+      /["'`]?VITE_FIREBASE_AUTH_DOMAIN["'`]?\s*:\s*(["'`])([^"'`]+)\1/g,
     ))
-      found.add(match[1]!);
+      found.add(match[2]!);
   }
   if (found.size > 1) throw new Error(`The built bundle names more than one authDomain: ${[...found].join(', ')}`);
   return [...found][0] ?? null;
