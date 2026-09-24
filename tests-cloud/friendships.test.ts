@@ -35,7 +35,7 @@ const apps: FirebaseApp[] = [];
 beforeAll(async () => {
   if (!['127.0.0.1', 'localhost'].includes(firestoreHost ?? '') || !/^(127[.]0[.]0[.]1|localhost):[0-9]+$/.test(authAddress)) throw new Error('Friendship tests require explicitly local emulator endpoints.');
   setLogLevel('silent');
-  environment = await initializeTestEnvironment({ projectId, firestore: { host: firestoreHost, port: Number(firestorePort), rules: readFileSync('firestore.rules', 'utf8') } });
+  environment = await initializeTestEnvironment({ projectId, firestore: { host: firestoreHost, port: Number(firestorePort), rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } });
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');

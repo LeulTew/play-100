@@ -4,7 +4,7 @@ import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 let environment: RulesTestEnvironment;
-beforeAll(async () => { environment = await initializeTestEnvironment({ projectId: 'demo-play100', firestore: { host: '127.0.0.1', port: 8188, rules: readFileSync('firestore.rules', 'utf8') } }); });
+beforeAll(async () => { environment = await initializeTestEnvironment({ projectId: 'demo-play100', firestore: { host: '127.0.0.1', port: 8188, rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } }); });
 beforeEach(async () => { await environment.clearFirestore(); });
 afterAll(async () => { await environment.cleanup(); });
 

@@ -252,7 +252,7 @@ test('the untouched original Excel is also a real exact-byte download', async ({
   expect(downloaded.suggestedFilename()).toBe('AAA_games_u_have_to_play_list_top_100.xlsx');
   const file = await downloaded.path();
   if (!file) throw new Error('Original workbook download missing.');
-  expect((await readFile(file)).equals(await readFile('public\\downloads\\AAA_games_u_have_to_play_list_top_100.xlsx'))).toBe(true);
+  expect((await readFile(file)).equals(await readFile(new URL('../public/downloads/AAA_games_u_have_to_play_list_top_100.xlsx', import.meta.url)))).toBe(true);
 });
 
 test('catalog endpoint rejects writes and arbitrary proxy targets', async ({ request }) => {

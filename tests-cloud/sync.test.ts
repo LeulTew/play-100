@@ -16,7 +16,7 @@ const apps: FirebaseApp[] = [];
 const password = 'Emulator-only-passphrase-4382';
 const game: LibraryRecord = { id: 'wikidata:Q123', source: 'wikidata', sourceId: 'Q123', sourceUrl: 'https://www.wikidata.org/wiki/Q123', title: 'Protocol fixture', year: 2020, studio: null, genre: null, collectionRank: null };
 beforeAll(async () => {
-  environment = await initializeTestEnvironment({ projectId: 'demo-play100', firestore: { host: '127.0.0.1', port: 8188, rules: readFileSync('firestore.rules', 'utf8') } });
+  environment = await initializeTestEnvironment({ projectId: 'demo-play100', firestore: { host: '127.0.0.1', port: 8188, rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } });
 });
 beforeEach(async () => { await environment.clearFirestore(); });
 afterEach(async () => { await Promise.all(apps.splice(0).map((app) => deleteApp(app))); });

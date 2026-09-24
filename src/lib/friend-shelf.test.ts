@@ -16,7 +16,7 @@ import { accountScope } from './cloud-types';
 
 const manual: LibraryRecord = { id: 'manual:example', title: 'Saved, not ranked', year: null, studio: null, genre: null, source: 'manual', sourceId: 'example', sourceUrl: null, collectionRank: null };
 const entry = { id: manual.id, title: manual.title, year: manual.year, source: manual.source, sourceId: manual.sourceId, sourceUrl: manual.sourceUrl };
-const games = parseCollection(JSON.parse(readFileSync('public\\data\\collection.json', 'utf8'))).games;
+const games = parseCollection(JSON.parse(readFileSync(new URL('../../public/data/collection.json', import.meta.url), 'utf8'))).games;
 
 describe('selected saved-library shelf, not a ranking projection', () => {
   it('includes selected unranked manual and catalog additions, never queue/history/score/notes', () => {

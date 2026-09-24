@@ -33,7 +33,7 @@ let environment: RulesTestEnvironment;
 beforeAll(async () => {
   if (!['127.0.0.1', 'localhost'].includes(host ?? '') || !/^(127[.]0[.]0[.]1|localhost):[0-9]+$/.test(authAddress)) throw new Error('All-sharing SDK fixtures require local emulator endpoints.');
   setLogLevel('silent');
-  environment = await initializeTestEnvironment({ projectId, firestore: { host, port: Number(port), rules: readFileSync('firestore.rules', 'utf8') } });
+  environment = await initializeTestEnvironment({ projectId, firestore: { host, port: Number(port), rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } });
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');

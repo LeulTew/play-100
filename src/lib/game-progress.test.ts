@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseCollection, filterGames } from './collection';
 import { filterUnranked } from './extended-search';
@@ -10,7 +9,7 @@ import { defaultFilters, parseUrl, createSearch, createShareUrl } from './url';
 import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch } from './discovery-search';
 import { effectiveProgressFilter, matchesProgress, selectionOperation } from './game-progress';
 
-const games = parseCollection(JSON.parse(readFileSync(join('public', 'data', 'collection.json'), 'utf8'))).games.slice(0, 4);
+const games = parseCollection(JSON.parse(readFileSync(new URL('../../public/data/collection.json', import.meta.url), 'utf8'))).games.slice(0, 4);
 const records = games.map(recordFromGame);
 const values: Array<PersonalProgress | undefined> = [
   undefined,

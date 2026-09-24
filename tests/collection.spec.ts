@@ -313,7 +313,7 @@ test('unknown game links recover; workbook download is the exact enhanced XLSX',
   const file = await download.path();
   expect(file).not.toBeNull();
   if (!file) throw new Error('Workbook download did not produce a file.');
-  expect((await readFile(file)).equals(await readFile('public\\downloads\\Play-100-Collection.xlsx'))).toBe(true);
+  expect((await readFile(file)).equals(await readFile(new URL('../public/downloads/Play-100-Collection.xlsx', import.meta.url)))).toBe(true);
 });
 
 test('browse and game detail meet automated accessibility checks without horizontal overflow', async ({ page }) => {

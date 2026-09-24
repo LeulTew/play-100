@@ -31,7 +31,7 @@ let environment: RulesTestEnvironment;
 beforeAll(async () => {
   if (!['127.0.0.1', 'localhost'].includes(host ?? '') || !/^(127[.]0[.]0[.]1|localhost):[0-9]+$/.test(authAddress)) throw new Error('Shelf SDK tests only run against explicitly local emulators.');
   setLogLevel('silent');
-  environment = await initializeTestEnvironment({ projectId, firestore: { host, port: Number(port), rules: readFileSync('firestore.rules', 'utf8') } });
+  environment = await initializeTestEnvironment({ projectId, firestore: { host, port: Number(port), rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } });
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
@@ -125,7 +125,7 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
   }, 120000);
   it('uses the actual public 100 canonical facts without modifying public/ranking consent', async () => {
     const a = await client();
-    const games = parseCollection(JSON.parse(readFileSync('public\\data\\collection.json', 'utf8'))).games;
+    const games = parseCollection(JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8'))).games;
     await seed('catalog/author', { records: Object.fromEntries(games.map((game) => [game.slug, { title: game.title, year: game.year }])) });
     const entries: FriendShelfEntry[] = games.map((game) => ({ id: game.slug, title: game.title, year: game.year, source: 'collection', sourceId: game.slug, sourceUrl: null }));
     const all = [...entries, ...worstEntries('manual').slice(0, 100)];

@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { collectionFilms, filmDuration } from './films';
 
-const asset = (url: string) => path.join(process.cwd(), 'public', ...url.split('/').filter(Boolean));
+const asset = (url: string) => fileURLToPath(new URL(`../../public${url}`, import.meta.url));
 
 describe('finished first-party collection films', () => {
   it('presents the authored 100 first and keeps both completed films short', () => {
@@ -17,7 +18,7 @@ describe('finished first-party collection films', () => {
     }
   });
   it('retains exact immutable video, poster, caption and credit bytes', async () => {
-    expect(readFileSync('.gitattributes', 'utf8')).toContain('/public/videos/** -text');
+    expect(readFileSync(new URL('../../.gitattributes', import.meta.url), 'utf8')).toContain('/public/videos/** -text');
     for (const film of collectionFilms) {
       for (const url of [film.video.src, film.poster.src, film.captions, film.credits, film.transcriptFile]) {
         expect(url).toMatch(/^\/videos\/[a-f0-9]{64}\.(mp4|jpg|vtt|md|txt)$/);
@@ -34,7 +35,7 @@ describe('finished first-party collection films', () => {
       expect(readFileSync(asset(film.credits), 'utf8')).toMatch(/Kenney|kenney/);
       expect(readFileSync(asset(film.transcriptFile), 'utf8')).toContain('00:00-00:04');
     }
-    for (const file of readdirSync(path.join(process.cwd(), 'public', 'videos'))) expect(file).toMatch(/^[a-f0-9]{64}\.(mp4|jpg|vtt|md|txt)$/);
+    for (const file of readdirSync(new URL('../../public/videos/', import.meta.url))) expect(file).toMatch(/^[a-f0-9]{64}\.(mp4|jpg|vtt|md|txt)$/);
   });
   it('ships fast-start MP4 files with the metadata before the media payload', () => {
     for (const film of collectionFilms) {
@@ -53,7 +54,7 @@ describe('finished first-party collection films', () => {
     }
   });
   it('uses self-hosted media caching without weakening the auth-helper policy', () => {
-    const deployment = JSON.parse(readFileSync('vercel.json', 'utf8')) as { headers: Array<{ source: string; headers: Array<{ key: string; value: string }> }> };
+    const deployment = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8')) as { headers: Array<{ source: string; headers: Array<{ key: string; value: string }> }> };
     const root = deployment.headers.find(rule => rule.source === '/((?!__/auth/).*)');
     const videos = deployment.headers.find(rule => rule.source === '/videos/(.*)');
     const auth = deployment.headers.find(rule => rule.source === '/__/auth/:path*');

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import type { Manifest } from 'vite';
@@ -56,12 +56,12 @@ describe('generated public PWA build closure', () => {
   it('keeps the standalone stylesheet in the core but outside the active app document', async () => {
     const files = pwaCorePaths(manifest());
     expect(files.filter(file => file === '/pwa/fallback.css')).toHaveLength(1);
-    const html = await readFile(path.join(process.cwd(), 'index.html'), 'utf8');
+    const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
     const noscript = /<noscript\b[^>]*>([\s\S]*?)<\/noscript>/i.exec(html)?.[1];
     expect(noscript).toContain('href="/pwa/fallback.css"');
     expect(html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ''))
       .not.toContain('href="/pwa/fallback.css"');
-    const offline = await readFile(path.join(process.cwd(), 'public', 'pwa', 'offline.html'), 'utf8');
+    const offline = await readFile(new URL('../public/pwa/offline.html', import.meta.url), 'utf8');
     expect(offline).toContain('href="/pwa/fallback.css"');
   });
 
@@ -169,7 +169,7 @@ describe('generated public PWA build closure', () => {
   });
 
   it('declares stable root installation identity and distinct any/maskable sizes', async () => {
-    const data = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8'));
+    const data = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
     expect(data).toMatchObject({
       id: '/', scope: '/', start_url: '/', display: 'standalone',
       theme_color: '#f3f3e9', background_color: '#f3f3e9', name: 'Play 100',
@@ -187,7 +187,7 @@ describe('generated public PWA build closure', () => {
   });
 
   it('uses existing in-scope My games tabs and already-precached icons for shortcuts', async () => {
-    const data = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8'));
+    const data = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
     const shortcuts = [
       { name: 'Library', description: 'Open your saved games.', url: '/my-games', tab: 'library' },
       { name: 'Queue', description: 'Choose what to play next.', url: '/my-games?tab=queue', tab: 'queue' },
@@ -210,7 +210,7 @@ describe('generated public PWA build closure', () => {
   });
 
   it('maps every declared maskable icon to dedicated generated artwork in the existing core', async () => {
-    const data = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'manifest.webmanifest'), 'utf8'));
+    const data = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
     const declared = PWA_ICONS.filter(icon => icon.file !== 'apple-touch-icon.png');
     expect(data.icons).toEqual(declared.map(icon => ({
       src: `/pwa/${icon.file}`, sizes: `${icon.size}x${icon.size}`, type: 'image/png',
@@ -222,7 +222,7 @@ describe('generated public PWA build closure', () => {
   });
 
   it('decodes exact icon sizes and keeps the existing ink logo inside the maskable safe circle', async () => {
-    const icons = await renderPwaIcons(process.cwd());
+    const icons = await renderPwaIcons(fileURLToPath(new URL('../', import.meta.url)));
     expect(icons).toHaveLength(PWA_ICONS.length);
     for (const icon of icons) {
       const { data, info } = await sharp(icon.bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
