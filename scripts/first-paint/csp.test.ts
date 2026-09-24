@@ -83,7 +83,25 @@ describe('CSP problems', () => {
     const strict = policy.replace("'unsafe-inline'", sha256Source('a{color:red}'));
     expect(cspProblems([{ name: 'index.html', html: page }], strict)).toEqual([]);
     expect(cspProblems([{ name: 'index.html', html: page.replace('a{color:red}', 'a{color:blue}') }], strict))
-      .toEqual([expect.stringContaining(`add ${sha256Source('a{color:blue}')} to style-src`)]);
+      .toEqual([
+        expect.stringContaining(`add ${sha256Source('a{color:blue}')} to style-src`),
+        expect.stringContaining(`${sha256Source('a{color:red}')}, which matches no inline style`),
+      ]);
+  });
+
+  it('requires exactly the emitted style hashes under strict style-src', () => {
+    const strict = policy.replace("'unsafe-inline'", `${sha256Source('a{color:red}')} ${sha256Source('old{}')}`);
+    expect(cspProblems([{ name: 'index.html', html: page }], strict))
+      .toEqual([`style-src in vercel.json allows ${sha256Source('old{}')}, which matches no inline style in the build (stale hash).`]);
+  });
+
+  it('refuses style attributes only once style-src is strict', () => {
+    const styled = page.replace('<body>', '<body><div style="color:red"></div>');
+    expect(cspProblems([{ name: 'index.html', html: styled }], policy)).toEqual([]);
+    expect(cspProblems([{ name: 'index.html', html: styled }], policy.replace("'unsafe-inline'", sha256Source('a{color:red}'))))
+      .toEqual([expect.stringContaining('inline style attribute')]);
+    const inert = page.replace('<body>', '<body><!-- <p style="x"> --><noscript><p style="x"></p></noscript><p data-style="x"></p>');
+    expect(cspProblems([{ name: 'index.html', html: inert }], policy.replace("'unsafe-inline'", sha256Source('a{color:red}')))).toEqual([]);
   });
 
   it('falls back to default-src and refuses inline event handlers', () => {

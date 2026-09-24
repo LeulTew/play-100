@@ -81,8 +81,9 @@ function withoutBlockContents(html: string): string {
  * Everything in the documents a browser would refuse, or that would silently weaken, under the
  * policy: inline scripts need their exact hash in script-src, and a hash that matches no inline
  * script is stale. Inline styles rely on style-src 'unsafe-inline' until strict style-src lands;
- * after that they need their exact hashes. Mixing 'unsafe-inline' with a hash or nonce is refused
- * because browsers then ignore 'unsafe-inline'. Inline event-handler attributes are never allowed.
+ * after that they need their exact hashes, style attributes are refused, and an unused style hash is
+ * stale too. Mixing 'unsafe-inline' with a hash or nonce is refused because browsers then ignore
+ * 'unsafe-inline'. Inline event-handler attributes are never allowed.
  */
 export function cspProblems(documents: readonly CspDocument[], policy: string): string[] {
   const problems: string[] = [];
@@ -95,23 +96,29 @@ export function cspProblems(documents: readonly CspDocument[], policy: string): 
     }
   }
   const scriptHashes = scriptSources.filter(source => HASH_SOURCE.test(source));
+  const styleHashes = styleSources.filter(source => HASH_SOURCE.test(source));
   const styleInline = styleSources.includes("'unsafe-inline'");
-  const used = new Set<string>();
+  const used = { script: new Set<string>(), style: new Set<string>() };
   for (const entry of documents) {
     for (const [index, block] of inlineBlocks(entry.html).entries()) {
       const label = `${entry.name} inline ${block.kind} #${index} (${block.bytes} B, ${block.source})`;
+      used[block.kind].add(block.source);
       if (block.kind === 'script') {
-        used.add(block.source);
         if (!scriptHashes.includes(block.source)) problems.push(`${label} is not allowed: add ${block.source} to script-src in vercel.json.`);
       } else if (!styleInline && !styleSources.includes(block.source)) {
         problems.push(`${label} is not allowed: add ${block.source} to style-src in vercel.json.`);
       }
     }
-    const handler = /<[a-z][^>]*?\son[a-z]+\s*=/i.exec(withoutBlockContents(entry.html));
+    const markup = withoutBlockContents(entry.html);
+    const handler = /<[a-z][^>]*?\son[a-z]+\s*=/i.exec(markup);
     if (handler) problems.push(`${entry.name} has an inline event-handler attribute, which script-src blocks: ${handler[0].slice(0, 80)}`);
+    const styleAttribute = styleInline ? null : /<[a-z][^>]*?\sstyle\s*=/i.exec(markup);
+    if (styleAttribute) problems.push(`${entry.name} has an inline style attribute, which strict style-src blocks: ${styleAttribute[0].slice(0, 80)}`);
   }
-  for (const hash of scriptHashes) {
-    if (!used.has(hash)) problems.push(`script-src in vercel.json allows ${hash}, which matches no inline script in the build (stale hash).`);
+  for (const [kind, hashes] of [['script', scriptHashes], ['style', styleHashes]] as const) {
+    for (const hash of hashes) {
+      if (!used[kind].has(hash)) problems.push(`${kind}-src in vercel.json allows ${hash}, which matches no inline ${kind} in the build (stale hash).`);
+    }
   }
   return problems;
 }
