@@ -77,7 +77,7 @@ test('invalid native number input never clears a previously saved personal score
   await score.press('ControlOrMeta+A');
   await score.press('e');
   await score.press('Tab');
-  await expect(page.locator('.ranking-row-content .inline-error')).toContainText('valid');
+  await expect(page.locator('.ranking-row-content .inline-error')).toHaveText('Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.');
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === id)?.score).toBe(7);
 });
 
