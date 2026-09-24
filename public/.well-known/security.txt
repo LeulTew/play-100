@@ -1,0 +1,5 @@
+Contact: https://github.com/LeulTew/play-100/security/advisories/new
+Expires: 2027-09-01T00:00:00.000Z
+Policy: https://github.com/LeulTew/play-100/blob/main/SECURITY.md
+Canonical: https://play-100-collection.vercel.app/.well-known/security.txt
+Preferred-Languages: en
