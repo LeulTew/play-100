@@ -56,6 +56,16 @@ async function hold(page: Page, matches: (url: URL) => boolean): Promise<() => v
   return () => open();
 }
 
+/** Serves the document with the production main-document policy. */
+async function serveWithPolicy(page: Page): Promise<void> {
+  await page.route(url => url.pathname === '/', async route => {
+    if (route.request().resourceType() !== 'document') return route.fallback();
+    const response = await route.fetch();
+    const headers = Object.fromEntries(Object.entries(response.headers()).filter(([name]) => !['content-encoding', 'content-length'].includes(name)));
+    await route.fulfill({ response, headers: { ...headers, 'content-security-policy': policy } });
+  });
+}
+
 const frames = (page: Page) => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 const capture = (page: Page, selectors: readonly string[]) => page.evaluate(list => window.p100Capture(list), selectors);
 
@@ -115,16 +125,13 @@ for (const scenario of SCENARIOS) {
         else localStorage.setItem(key, hint);
       } catch { /* Documents without storage (about:blank) never show the shell. */ }
     }, { key: motionHintKey('guest'), hint: scenario.hint, saveData: Boolean(scenario.saveData) });
-    await page.route(url => url.pathname === '/', async route => {
-      if (route.request().resourceType() !== 'document') return route.fallback();
-      const response = await route.fetch();
-      const headers = Object.fromEntries(Object.entries(response.headers()).filter(([name]) => !['content-encoding', 'content-length'].includes(name)));
-      await route.fulfill({ response, headers: { ...headers, 'content-security-policy': policy } });
-    });
+    await serveWithPolicy(page);
     const built = await (await page.request.get('/')).text();
-    const entryScript = /<script type="module" crossorigin src="(\/assets\/[^"]+\.js)"/.exec(built)?.[1];
-    const entryStylesheet = /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)"/.exec(built)?.[1];
-    if (!entryScript || !entryStylesheet) throw new Error('Build the app before this check: index.html has no entry script and stylesheet.');
+    // The build moves the startup tags into an inert template, which the boot script inserts after the shell's first contentful paint.
+    const deferred = /<template id="p100-deferred">([\s\S]*?)<\/template>/.exec(built)?.[1] ?? '';
+    const entryScript = /<script type="module" crossorigin src="(\/assets\/[^"]+\.js)"/.exec(deferred)?.[1];
+    const entryStylesheet = /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)"/.exec(deferred)?.[1];
+    if (!entryScript || !entryStylesheet) throw new Error('Build the app before this check: index.html has no startup template with an entry script and stylesheet.');
     const releaseScript = await hold(page, url => url.pathname === entryScript);
     const releaseStylesheet = await hold(page, url => url.pathname === entryStylesheet);
     const releaseFonts = await hold(page, url => url.pathname.endsWith('.woff2'));
@@ -161,6 +168,14 @@ for (const scenario of SCENARIOS) {
       const commit = await page.evaluate(() => window.p100Commit ?? []);
       expect(differences(shell, commit, 0.5), 'React\'s first commit renders exactly what the shell painted').toEqual([]);
 
+      const requests = await page.evaluate(paths => {
+        const paint = performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? Number.NaN;
+        const started = performance.getEntriesByType('resource').filter(entry => paths.includes(new URL(entry.name).pathname)).map(entry => entry.startTime);
+        return { paint, count: started.length, first: Math.min(...started) };
+      }, [entryScript, entryStylesheet]);
+      expect(requests.count, 'the entry and its stylesheet were requested').toBeGreaterThanOrEqual(2);
+      expect(requests.first, 'nothing the app needs is requested before the shell\'s first contentful paint').toBeGreaterThanOrEqual(requests.paint);
+
       if (scenario.fontSwap) {
         await page.waitForFunction(() => document.documentElement.dataset.motion !== undefined);
         await frames(page);
@@ -187,6 +202,34 @@ for (const scenario of SCENARIOS) {
     } finally {
       for (const release of [releaseScript, releaseStylesheet, releaseFonts, releaseCollection]) release();
     }
+    expect(errors).toEqual([]);
+  });
+}
+
+// The boot script starts the app, so a policy that blocked it would leave the page without React.
+for (const path of ['/', '/?catalogs=off']) {
+  test(`the app starts and responds under the production CSP: ${path}`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await emptyCatalogs(page);
+    await page.addInitScript(() => {
+      window.p100CspViolations = [];
+      document.addEventListener('securitypolicyviolation', event => { window.p100CspViolations.push(`${event.effectiveDirective} ${event.blockedURI}`); });
+    });
+    await serveWithPolicy(page);
+    await page.goto(path);
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    // The template's tags were inserted once, the module entry after the stylesheet it waits for.
+    await expect(page.locator('head > script[type="module"][src]')).toHaveCount(1);
+    expect(await page.evaluate(() => {
+      const entry = document.querySelector('head > script[type="module"][src]');
+      const sheet = document.querySelector('head > link[rel="stylesheet"]');
+      return Boolean(entry && sheet && sheet.compareDocumentPosition(entry) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
+    await page.getByRole('searchbox').fill('mass EFFECT 2');
+    await expect(page.locator('.game-card')).toHaveCount(1);
+    await expect(page.locator('.game-card h3')).toHaveText('Mass Effect 2');
+    expect(await page.evaluate(() => window.p100CspViolations)).toEqual([]);
     expect(errors).toEqual([]);
   });
 }

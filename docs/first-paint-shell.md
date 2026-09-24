@@ -9,6 +9,11 @@ paint and the hydrated page never differ. The page below the loading collection
 (films, workbook, footer) is React-only; the shell's `main` keeps the page as tall
 as the viewport so no scrollbar appears at the handoff.
 
+The boot script also starts the app. When it shows the shell, the app requests
+nothing before the shell's first contentful paint, so the shell paints as soon as
+the document arrives, in browsers and in Lighthouse's simulated load alike.
+Everywhere else the app starts at once.
+
 ## Build pipeline
 
 [`scripts/first-paint/plugin.ts`](../scripts/first-paint/plugin.ts) is a Vite
@@ -19,19 +24,26 @@ tags and before the PWA `writeBundle` records `index.html`:
    `<!--shell:offline-->` blocks mirror `src/lib/online-availability.ts`: online
    tools configured (or the cloud-test emulators) render the online header,
    otherwise the offline one. When the first commit would show the online
-   configuration banner (cloud-test only), the build ships no shell.
-2. It moves the entry stylesheet `<link>` from `<head>` to right after `#root`.
-   A body stylesheet does not block painting the content before it, but it is a
-   script-blocking style sheet, so the deferred module entry (React) still runs
-   only after the complete stylesheet applied.
-3. It inlines one `<style>` and one classic `<script>` before the first head
-   script, after `<meta charset>` and the other metadata.
+   configuration banner (cloud-test only), the build ships no shell and leaves
+   Vite's tags where Vite put them.
+2. It moves every startup tag out of `<head>` into
+   `<template id="p100-deferred">`: Vite's module entry, its modulepreloads and
+   the entry stylesheet, and the Barlow Condensed 800 and `collection.json`
+   preloads of the public-metadata plugin. Template content is inert, so none of
+   them starts a request (Chromium's preload scanner skips it too). The tags are
+   read with an HTML tokenizer, and anything the boot script could not recreate
+   exactly fails the build: another head script, a startup link with a second
+   `rel`, a `media` query or a URL outside the site.
+3. It inlines one `<style>`, that template and one classic `<script>` at the end
+   of `<head>`, after `<meta charset>` and the other metadata.
 4. It fails the build unless `<meta charset>` is serialized completely within the
    document's first 1024 bytes, which is all the HTML encoding prescan reads; the
-   build log names its byte offset. This is why the design comment in `index.html`
-   sits after the charset declaration: head-prepended tags already come before it.
+   build log names its byte offset and counts the deferred tags. This is why the
+   design comment in `index.html` sits after the charset declaration:
+   head-prepended tags already come before it.
 
-The development server always serves an empty `#root` (no shell, no boot script).
+The development server always serves an empty `#root` (no shell, no boot script)
+with Vite's tags in place.
 
 ### The inline style
 
@@ -71,6 +83,25 @@ pointer), and measures three off-screen probes to confirm that the
 metric-matched fallback faces are usable. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.
 
+Then it starts the app by inserting the template's tags into `<head>`, once:
+the module entry as a `modulepreload`, the other modulepreloads, the entry
+stylesheet (after the inline style, so it wins cascade ties, and before any lazy
+chunk stylesheet Vite appends later) and the preloads. It adds the module entry
+itself only after every stylesheet has loaded or failed and, like the
+parser-inserted module it replaces, once the document is parsed, so React never
+commits before the complete stylesheet applies or before `#root` exists.
+
+When it shows the shell, it waits for the `first-contentful-paint` entry, which
+Chromium reports once the shell's frame is presented; a second after the document
+is parsed, a timer starts the app if that entry never came. It starts at once
+when it keeps the shell hidden, when the document is hidden or prerendering
+(neither paints yet), and when anything fails while it arranges to wait.
+Starting at once in `<head>` inserts the stylesheet before `<body>` exists, which
+Chromium still treats as render-blocking; either way React commits only after
+the stylesheet has loaded.
+On `/` the `load` event may fire before the app starts; nothing depends on it
+(idle prefetching checks `document.readyState` first).
+
 ## Content Security Policy
 
 `vercel.json` is the only policy source. Its main-document `script-src` allows
@@ -88,7 +119,10 @@ After a build, `npm run check:csp` re-checks every document in `dist` against
 `vercel.json` and against the policy `dist/pwa-assets.json` embeds for the
 documents the service worker serves, and prints each inline block with its hash.
 Changing `boot.js` therefore means updating the hash in `vercel.json`; the build
-error names the source to add.
+error names the source to add. Because the boot script starts the app, a policy
+that blocked it would leave every route without React: the build hash sync,
+`check:csp` and the browser spec, which loads `/` and `/?catalogs=off` under the
+production policy and uses the page, guard against that.
 
 ## Keeping the shell exact
 
@@ -114,13 +148,15 @@ error names the source to add.
 built preview in a real browser under the production CSP, for the build's header
 variant, on desktop and mobile. It holds the entry stylesheet, the module entry
 and the web fonts to compare the shell under inline CSS only, the shell under the
-full stylesheet and React's first commit, and it checks that the web fonts swap
-in without layout shift. It needs the local fonts the probes measure (Windows or
-macOS Impact/Arial, or Liberation Sans/Arimo on Linux).
+full stylesheet and React's first commit, checks that the app's first requests
+start after the shell's first contentful paint, and checks that the web fonts
+swap in without layout shift. It needs the local fonts the probes measure
+(Windows or macOS Impact/Arial, or Liberation Sans/Arimo on Linux).
 
 ## Budgets
 
 The shell adds no file: no CSS asset, no script asset and no PWA core entry.
-App CSS and the eager JS+CSS gate are unchanged. `index.html` grows by the shell
-markup and the inline blocks; that is reported in the HTML totals and counts
-toward the PWA core bytes.
+App CSS and the eager JS+CSS gate are unchanged: the budget check reads the
+template's tags like any other, so they still count as eager. `index.html` grows
+by the shell markup and the inline blocks; that is reported in the HTML totals
+and counts toward the PWA core bytes.

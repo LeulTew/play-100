@@ -10,7 +10,8 @@ the online controller lazily. [DialogHost](../src/components/app/DialogHost.tsx)
 renders the selected detail or utility dialog without owning its saved data.
 Before the first commit, a built `index.html` may show the static
 [first-paint shell](first-paint-shell.md) of the landing page in `#root`;
-`createRoot()` replaces it, and no app code reads it.
+`createRoot()` replaces it, and no app code reads it. The shell's inline boot
+script loads the app entry, after the shell's first paint on the landing page.
 
 ## Sources of truth
 

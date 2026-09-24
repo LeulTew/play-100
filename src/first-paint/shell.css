@@ -7,11 +7,12 @@
  *
  * Metric-matched fallback faces
  * -----------------------------
- * The inline style declares no web font: until the full stylesheet brings the Barlow Condensed
- * and Hanken Grotesk faces, the shell paints only with these faces. They scale widely installed
- * local fonts so that swapping to the web fonts never changes a line break, and the boot script
- * shows the shell only after it has measured them (see the .p100-probe rules). The build fails
- * if the shell renders a character outside their ranges.
+ * The inline style declares no web font, and the boot script inserts the full stylesheet, which
+ * brings the Barlow Condensed and Hanken Grotesk faces, only after the shell's first contentful
+ * paint: the shell first paints with these faces alone. They scale widely installed local fonts so
+ * that swapping to the web fonts never changes a line break, and the boot script shows the shell
+ * only after it has measured them (see the .p100-probe rules). The build fails if the shell renders
+ * a character outside their ranges.
  *
  * Derivation (one-off, outside the repository): advance widths plus GPOS kerning were read
  * from the real font files (@fontsource/barlow-condensed latin 700/800 woff2,
@@ -34,8 +35,8 @@
  * 1920 found no break that differs, and no horizontal header movement of 3px or more; the
  * browser check in tests/first-paint-shell.spec.ts measures the shipped strings.
  *
- * The 800 display faces are 1.5% wider than Barlow Condensed 800 on purpose: when the shell's h1
- * paints in them, React's h1, painted in Barlow Condensed or in the same fallback, never paints
+ * The 800 display faces are 1.5% wider than Barlow Condensed 800 on purpose: the shell's h1 first
+ * paints in them, so React's h1, painted in Barlow Condensed or in the same fallback, never paints
  * larger and cannot become a later LCP candidate.
  * Impact is preferred (Windows, macOS); Arial Bold metric clones cover Linux and ChromeOS.
  * No font-display: local() faces load synchronously on desktop engines, and where they do not

@@ -7,10 +7,11 @@ import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
 import {
   assertCharsetDeclaration, assertFallbackCoverage, assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss,
-  firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, stripBootScript,
+  DEFERRED_TEMPLATE_ID, firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, startupTags, stripBootScript,
 } from './plugin.ts';
-import { sha256Source } from './csp.ts';
+import { cspProblems, sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
+import { eagerHtmlFiles } from '../check-budgets.ts';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const read = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -31,15 +32,26 @@ const FONT_FACES = [
 const VITE_HEAD_TAGS = '\n    <meta name="author" content="Leul Tewodros Agonafer">' +
   '\n    <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
   '\n    <link rel="preload" href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous">\n';
+// Vite's own tags, which it injects before </head>: the module entry, its modulepreloads and the entry stylesheet.
+const VITE_ENTRY_TAGS = '    <script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>\n' +
+  '    <link rel="modulepreload" crossorigin href="/assets/vendor-CCCCCCCC.js">\n' +
+  '    <link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">\n';
 
-/** index.html as Vite's build hands it to post hooks: prepended tags, entry script and stylesheet in <head>. */
+/** index.html as Vite's build hands it to post hooks: prepended tags, entry script, modulepreload and stylesheet in <head>. */
 function builtIndexHtml(): string {
   const built = indexHtml.replace('  <head>', `  <head>${VITE_HEAD_TAGS}`).replace('    <script type="module" src="/src/main.tsx"></script>\n', '')
-    .replace('  </head>', '    <script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>\n    <link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">\n  </head>');
+    .replace('  </head>', `${VITE_ENTRY_TAGS}  </head>`);
   expect(built).not.toContain('/src/main.tsx');
   expect(built).toContain('/assets/index-BBBBBBBB.css');
   return built;
 }
+
+/** The startup tags in the order the boot script inserts them, as the template holds them. */
+const TEMPLATE_CONTENT = '<script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>' +
+  '<link rel="modulepreload" crossorigin href="/assets/vendor-CCCCCCCC.js">' +
+  '<link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">' +
+  '<link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
+  '<link rel="preload" href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous">';
 
 describe('first-paint boot script', () => {
   it('drops comments and indentation but keeps every statement', () => {
@@ -54,10 +66,12 @@ describe('first-paint boot script', () => {
 
   it('ships src/first-paint/boot.js as a small comment-free classic script', () => {
     const script = stripBootScript(bootJs);
-    expect(script.startsWith('(function () {\ntry {\n')).toBe(true);
+    expect(script.startsWith('(function () {\nvar accept = function () {\n')).toBe(true);
     expect(script.endsWith('\n})();')).toBe(true);
     expect(script).not.toMatch(/^\s*\/\/|\/\*/m);
     expect(script).toContain("root.setAttribute('data-boot', 'landing');");
+    // The loader reads the template the build writes.
+    expect(script).toContain(`document.getElementById('${DEFERRED_TEMPLATE_ID}')`);
     expect(/^[\x20-\x7e\n]*$/.test(script)).toBe(true);
     expect(() => assertInlineSafe('script', script)).not.toThrow();
   });
@@ -207,6 +221,45 @@ describe('first-paint shell stylesheet', () => {
   });
 });
 
+describe('first-paint startup tags', () => {
+  it('reads every startup tag in <head>, in document order, with an HTML tokenizer', () => {
+    const html = builtIndexHtml();
+    const tags = startupTags(html);
+    expect(tags.map(tag => [tag.kind, tag.url])).toEqual([
+      ['preload', '/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2'],
+      ['preload', '/data/collection.json'],
+      ['entry', '/assets/index-AAAAAAAA.js'],
+      ['modulepreload', '/assets/vendor-CCCCCCCC.js'],
+      ['stylesheet', '/assets/index-BBBBBBBB.css'],
+    ]);
+    for (const tag of tags) expect(html.slice(tag.start, tag.end)).toBe(tag.source);
+    expect(tags[2]?.source).toBe('<script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>');
+  });
+
+  it('ignores comments, raw text, noscript content, other links and <body>', () => {
+    expect(startupTags('<head><!-- <script src="/a.js"></script><link rel="stylesheet" href="/assets/a.css"> --><title><link rel="preload" href="/x"></title>' +
+      '<noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript><link rel="icon" href="/favicon.svg"><link rel="canonical" href="https://play.example/">' +
+      '<link rel="manifest" href="/manifest.webmanifest"></head><body><link rel="stylesheet" href="/pwa/fallback.css"><script src="/b.js"></script></body>')).toEqual([]);
+    expect(() => startupTags('<html><body></body></html>')).toThrow('no </head>');
+  });
+
+  it.each([
+    ['<script src="/assets/a.js"></script>', 'Unexpected <head> script'],
+    ['<script>window.a = 1;</script>', 'Unexpected <head> script'],
+    ['<script type="module" src="/assets/a.js">import "/assets/b.js";</script>', 'Unexpected <head> script'],
+    ['<script type="module" async src="/assets/a.js"></script>', 'Unexpected <head> script'],
+    ['<link rel="stylesheet" href="/assets/a.css" media="print">', 'Unexpected <head> startup link'],
+    ['<link rel="Stylesheet" href="/assets/a.css">', 'Unexpected <head> startup link'],
+    ['<link rel="preload stylesheet" href="/assets/a.css">', 'Unexpected <head> startup link'],
+    ['<link rel="stylesheet" href="https://cdn.example/a.css">', 'Unexpected <head> startup tag'],
+    ['<link rel="modulepreload" href="/vendor.js">', 'Unexpected <head> startup tag'],
+    ['<link rel="preload" href="//cdn.example/font.woff2" as="font">', 'Unexpected <head> startup tag'],
+    ['<link rel="preload" as="fetch">', 'Unexpected <head> startup tag'],
+  ])('refuses a startup tag the boot script could not recreate exactly: %s', (tag, message) => {
+    expect(() => startupTags(`<head>${tag}</head>`)).toThrow(message);
+  });
+});
+
 describe('first-paint index.html', () => {
   it.each(['offline', 'online'] as const)('inlines the %s shell, its style and its boot script', async variant => {
     const appCss = `${FONT_FACES}:root{--ink:#20231e}.site-header{display:flex}.game-card{color:blue}`;
@@ -218,11 +271,21 @@ describe('first-paint index.html', () => {
       },
     });
     const head = result.html.slice(0, result.html.indexOf('</head>'));
-    expect(head).not.toContain('rel="stylesheet"');
+    const template = `<template id="${DEFERRED_TEMPLATE_ID}">${TEMPLATE_CONTENT}</template>`;
+    // Every startup tag moved into the inert template, in the order the boot script inserts them.
+    expect(head).toContain(template);
+    expect(head.match(/<template\b/g)).toHaveLength(1);
+    expect(result.startup.map(tag => tag.source).join('')).toBe(TEMPLATE_CONTENT);
+    expect(head.replace(template, '')).not.toMatch(/rel="(?:stylesheet|modulepreload|preload)"|<script type="module"/);
     expect(head.match(/<style>/g)).toHaveLength(1);
-    expect(head.indexOf('<style>')).toBeLessThan(head.indexOf(`<script>${result.script}</script>`));
-    expect(head.indexOf(`<script>${result.script}</script>`)).toBeLessThan(head.indexOf('<script type="module"'));
     expect(head.indexOf('<meta charset="UTF-8" />')).toBeLessThan(head.indexOf('<style>'));
+    expect(head.indexOf('<style>')).toBeLessThan(head.indexOf(template));
+    expect(head.endsWith(`${template}\n  <script>${result.script}</script>\n  `)).toBe(true);
+    // The head-prepended preloads left, so the charset declaration moved up; the budget gate still counts the template's tags as eager.
+    expect(assertCharsetDeclaration(result.html)).toBe(105);
+    expect(eagerHtmlFiles(result.html)).toEqual(['assets/index-AAAAAAAA.js', 'assets/index-BBBBBBBB.css', 'assets/vendor-CCCCCCCC.js']);
+    expect(eagerHtmlFiles(result.html)).toEqual(eagerHtmlFiles(builtIndexHtml()));
+    expect(cspProblems([{ name: 'index.html', html: result.html }], `default-src 'self'; script-src 'self' ${sha256Source(result.script)}; style-src 'self' 'unsafe-inline'`)).toEqual([]);
     expect(result.script).toBe(stripBootScript(bootJs));
     // No web font face reaches the inline style; the only faces are shell.css's local fallbacks.
     expect(result.style.slice(0, -minifyShellCss(shellCss).length)).not.toContain('@font-face');
@@ -231,10 +294,18 @@ describe('first-paint index.html', () => {
     expect(result.style).toContain('.site-header{display:flex}');
     expect(result.style).not.toContain('.game-card');
     expect(result.style.endsWith(minifyShellCss(shellCss))).toBe(true);
-    expect(result.html).toContain(`${shellMarkup(indexHtml, variant)}<link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">\n    <noscript>`);
+    expect(result.html).toContain(`${shellMarkup(indexHtml, variant)}\n    <noscript>`);
     expect(result.html).not.toMatch(/<!--\/?shell:|<!--p100:/);
     expect(result.html.includes('site-header-online')).toBe(variant === 'online');
     expect(result.html.includes('href="/my-games?tab=ranking"')).toBe(variant === 'offline');
+  });
+
+  it('needs exactly one module entry and an entry stylesheet', async () => {
+    const input = { variant: 'offline' as const, shellCss, bootScript: bootJs, readStylesheet: () => ':root{--ink:#20231e}' };
+    await expect(inlineFirstPaintShell({ ...input, html: builtIndexHtml().replace(/ {4}<link rel="stylesheet"[^\n]*\n/, '') })).rejects.toThrow('not 1 and 0.');
+    await expect(inlineFirstPaintShell({
+      ...input, html: builtIndexHtml().replace('  </head>', '    <script type="module" crossorigin src="/assets/other-DDDDDDDD.js"></script>\n  </head>'),
+    })).rejects.toThrow('not 2 and 1.');
   });
 
   it('serves an empty #root in development and in builds without a shell', async () => {
@@ -258,7 +329,7 @@ describe('first-paint index.html', () => {
     const html = await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
     expect(typeof html === 'string' && html.includes(`<script>${stripBootScript(bootJs)}</script>`)).toBe(true);
     expect(logged).toHaveLength(1);
-    expect(logged[0]).toMatch(/^first-paint shell: offline header; <meta charset> at byte 359; inline style \d+ B 'sha256-[\w+/=]+'; inline script \d+ B 'sha256-[\w+/=]+'$/);
+    expect(logged[0]).toMatch(/^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \d+ B 'sha256-[\w+/=]+'; inline script \d+ B 'sha256-[\w+/=]+'$/);
   });
 
   it('under a strict style-src requires exactly the inline styles of both shell variants', async () => {

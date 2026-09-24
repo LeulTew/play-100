@@ -4,6 +4,7 @@
  */
 
 export const SHELL_CLASS = 'first-paint-shell';
+/** Ends the shell markup in index.html; builds drop it (its name dates from when the entry stylesheet moved there). */
 export const STYLESHEET_MARKER = '<!--p100:stylesheets-->';
 export type ShellVariant = 'online' | 'offline';
 
