@@ -169,6 +169,33 @@ describe('offline built-output budgets', () => {
     `)).toEqual(['assets/main.js', 'assets/shared.js', 'assets/style.css']);
   });
 
+  it('tokenizes documents instead of pattern-matching them (comments, raw text, noscript, quoting, case)', () => {
+    const entry = '<script type="module" src="/assets/main.js"></script>';
+    expect(eagerHtmlFiles(`${entry}
+      <!-- <script type="module" src="/assets/commented.js"></script> <link rel="stylesheet" href="/assets/commented.css"> -->
+      <!--> <link rel="stylesheet" href="/assets/after-abrupt-comment.css">
+      <script>const s = '<link rel="stylesheet" href="/assets/in-script.css">'</script\t\n bar><link rel="modulepreload" href="/assets/after-odd-end-tag.js">
+      <style>a::after{content:'<link rel="stylesheet" href="/assets/in-style.css">'}</style>
+      <noscript><link rel="stylesheet" href="/assets/in-noscript.css"><script type="module" src="/assets/in-noscript.js"></script></noscript>
+      <link rel=stylesheet href=/assets/unquoted.css>
+      <link rel='stylesheet' href="/assets/mixed-quotes.css" data-x='a"b'>
+      <LINK REL="MODULEPRELOAD" HREF="/assets/upper.js">
+      <link rel="stylesheet" href="/assets/first.css" href="/assets/duplicate.css">
+      <title><link rel="stylesheet" href="/assets/in-title.css"></title>
+    `)).toEqual([
+      'assets/after-abrupt-comment.css', 'assets/after-odd-end-tag.js', 'assets/first.css', 'assets/main.js',
+      'assets/mixed-quotes.css', 'assets/unquoted.css', 'assets/upper.js',
+    ]);
+  });
+
+  it('reads only active inline styles, whatever the comment or end-tag spelling', async () => {
+    const css = '.critical{display:block}';
+    const markup = `<!-- <style>.commented{}</style> --><STYLE media="all">${css}</style\n><noscript><style>.fallback{}</style></noscript>` +
+      '<script>document.write("<style>.in-script{}</style>")</script>';
+    const measured = await measureBuild(await fixture(markup));
+    expect(measured.inlineCss.map(asset => asset.rawBytes)).toEqual([Buffer.byteLength(css)]);
+  });
+
   it('refuses missing entries and nonlocal assets rather than omitting their cost', () => {
     expect(() => eagerHtmlFiles('<script>inlineOnly()</script>')).toThrow(/no external module/);
     expect(() => eagerHtmlFiles('<script type="module" src="https://cdn.test/app.js"></script>')).toThrow(/nonlocal/);

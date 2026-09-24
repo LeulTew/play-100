@@ -2,6 +2,7 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { Parser } from 'htmlparser2';
 import { assertPublicBuildOutput, assertPublicPrecachePaths, readBuildManifest } from './build-metadata';
 export { assertDeferredBundleModules } from './eager-module-guard';
 
@@ -63,31 +64,45 @@ function localFile(value: string): string {
   return file;
 }
 
-function activeHtml(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/(<script\b[^>]*>)[\s\S]*?<\/script\s*>/gi, '$1</script>')
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript\s*>/gi, '');
-}
+interface DocumentTag { name: 'script' | 'link'; attributes: Map<string, string>; inNoscript: boolean }
+interface DocumentScan { tags: DocumentTag[]; styles: { css: string; inNoscript: boolean }[] }
 
-function documentTags(html: string) {
-  const markup = html.replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/(<script\b[^>]*>)[\s\S]*?<\/script\s*>/gi, '$1</script>')
-    .replace(/(<style\b[^>]*>)[\s\S]*?<\/style\s*>/gi, '$1</style>');
-  const tags: { name: string; attributes: Map<string, string> }[] = [];
-  for (const tag of markup.matchAll(/<(script|link)\b([^>]*?)>/gi)) {
-    const attributes = new Map<string, string>();
-    for (const attribute of (tag[2] ?? '').matchAll(/([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
-      attributes.set(attribute[1]!.toLowerCase(), attribute[2] ?? attribute[3] ?? attribute[4] ?? '');
-    }
-    tags.push({ name: tag[1]!.toLowerCase(), attributes });
-  }
-  return tags;
+/**
+ * Tokenizes a built document the way an HTML parser does: comments are skipped, <script> and
+ * <style> contents are raw text, and tag and attribute names are case-insensitive. Each <script>,
+ * <link> and <style> records whether it sits inside <noscript>, which is inactive with scripting on.
+ */
+export function scanDocument(html: string): DocumentScan {
+  const scan: DocumentScan = { tags: [], styles: [] };
+  let noscript = 0;
+  let style: string | null = null;
+  const parser = new Parser({
+    onopentag(name, attributes) {
+      if (name === 'noscript') noscript += 1;
+      else if (name === 'style') style = '';
+      else if (name === 'script' || name === 'link') {
+        scan.tags.push({ name, attributes: new Map(Object.entries(attributes)), inNoscript: noscript > 0 });
+      }
+    },
+    ontext(text) {
+      if (style !== null) style += text;
+    },
+    onclosetag(name) {
+      if (name === 'noscript') noscript = Math.max(0, noscript - 1);
+      else if (name === 'style' && style !== null) {
+        scan.styles.push({ css: style, inNoscript: noscript > 0 });
+        style = null;
+      }
+    },
+  });
+  parser.end(html);
+  return scan;
 }
 
 export function eagerHtmlFiles(html: string): string[] {
   const files = new Set<string>();
   let modules = 0;
-  for (const { name, attributes } of documentTags(activeHtml(html))) {
+  for (const { name, attributes } of scanDocument(html).tags.filter(tag => !tag.inNoscript)) {
     const rel = attributes.get('rel')?.toLowerCase().split(/\s+/) ?? [];
     if (name === 'script' && attributes.get('type')?.toLowerCase() === 'module' && attributes.has('src')) {
       modules += 1;
@@ -146,9 +161,9 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     const source = await readFile(path.join(root, ...document.split('/')), 'utf8');
     documents.push({ file: document, rawBytes: Buffer.byteLength(source),
       gzipBytes: gzipSync(source, { level: 9 }).byteLength });
-    const active = activeHtml(source);
+    const scan = scanDocument(source);
     if (document !== 'pwa/offline.html') {
-      for (const { name, attributes } of documentTags(document === 'index.html' ? active : source)) {
+      for (const { name, attributes } of scan.tags.filter(tag => document !== 'index.html' || !tag.inNoscript)) {
         const rel = attributes.get('rel')?.toLowerCase().split(/\s+/) ?? [];
         if (name !== 'link' || !attributes.has('href') ||
           !rel.some(value => ['stylesheet', 'preload', 'prefetch'].includes(value))) continue;
@@ -156,8 +171,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
           throw new Error(`Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`);
         }
       }
-      for (const [index, match] of Array.from(active.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)).entries()) {
-        const css = match[1]!;
+      for (const [index, { css }] of scan.styles.filter(entry => !entry.inNoscript).entries()) {
         rejectStandaloneImports(css, document);
         inlineCss.push({ file: `${document}#inline-${index}.css`, rawBytes: Buffer.byteLength(css),
           gzipBytes: gzipSync(css, { level: 9 }).byteLength });
