@@ -217,7 +217,7 @@ describe('Fetch-safe test ports', () => {
     server.listen.mockRejectedValue(startup);
     server.close.mockRejectedValue(cleanup);
     await expect(createFetchSafeViteServer(async () => server)).rejects.toMatchObject({
-      message: 'Test server startup and cleanup both failed.', errors: [startup, cleanup],
+      message: 'Test server startup and cleanup both failed.', errors: [startup, cleanup], cause: cleanup,
     });
   });
 

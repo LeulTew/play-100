@@ -68,7 +68,7 @@ function closeHttp(server: HttpListener): Promise<void> {
 async function closeAfterFailure(close: () => Promise<void>, cause: unknown): Promise<never> {
   try { await close(); }
   catch (cleanupError) {
-    throw new AggregateError([cause, cleanupError], 'Test server startup and cleanup both failed.');
+    throw new AggregateError([cause, cleanupError], 'Test server startup and cleanup both failed.', { cause: cleanupError });
   }
   throw cause;
 }
