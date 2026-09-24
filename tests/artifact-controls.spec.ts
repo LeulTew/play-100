@@ -37,9 +37,12 @@ test('Auto offers a real on-demand fan on touch and a working loaded fan on desk
     await expect(artifact.locator('canvas')).toHaveCount(0);
     await expect(artifact).toContainText('tap Fan out to start 3D');
   } else {
+    // Idle-scheduled scene startup uses the test budget, not a 10s performance threshold.
+    await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
     await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   }
   await fan.click();
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   await expect(artifact).toHaveAttribute('data-fanned', 'true');
   await page.getByRole('button', { name: 'Stack up the collection sleeves', exact: true }).click();
