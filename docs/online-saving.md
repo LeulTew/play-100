@@ -309,16 +309,19 @@ npm run test:cloud
 ```
 
 `test:cloud` starts actual Auth/Firestore emulators for `demo-play100` on
-localhost-only ports. A supported Java runtime is required. For browser cloud
-tests, build with `VITE_USE_FIREBASE_EMULATORS=true` and `--mode cloud-test`,
-start those emulators and the preview on 4187, then run:
+localhost-only ports. A supported Java runtime is required. Browser cloud tests
+import source modules at runtime, so serve the app with the Vite development
+server in `--mode cloud-test` with `VITE_USE_FIREBASE_EMULATORS=true` on
+127.0.0.1:4187 (a preview build cannot serve those modules), start those
+emulators, then run:
 
 ```powershell
-node scripts\seed-cloud-emulators.mjs
 npx playwright test --config playwright.cloud.config.ts
 ```
 
-The seed script targets only the literal localhost demo endpoints; it never
+Its global setup first runs `scripts/seed-cloud-emulators.mjs`, which writes the
+trusted `catalog/author` titles that rules require for collection entries. The
+seed script targets only the literal localhost demo endpoints; it never
 creates production users or public sample content. Emulator tests are not proof
 of a user's real Google credentials, MFA or email delivery. Production checks
 must separately verify provider configuration, narrow CSP, rules, current

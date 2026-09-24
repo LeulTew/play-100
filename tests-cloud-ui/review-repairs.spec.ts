@@ -129,6 +129,9 @@ test('the creator can inspect and hide a reported public profile even without a 
   expect(removed.ok()).toBe(true);
   const moderator = await browser.newContext({ baseURL: 'http://127.0.0.1:4187', viewport, isMobile, hasTouch: isMobile, reducedMotion: 'reduce' });
   const ownerConfig = 'http://127.0.0.1:8188/v1/projects/demo-play100/databases/(default)/documents/_owner/config';
+  const owner = { Authorization: 'Bearer owner' };
+  const originalOwner = await request.get(ownerConfig, { headers: owner });
+  const originalFields = originalOwner.ok() ? ((await originalOwner.json()) as { fields?: Record<string, unknown> }).fields ?? {} : null;
   try {
     const admin = await moderator.newPage();
     await createAccount(admin, creatorEmail); await verifyEmail(admin, request, creatorEmail);
@@ -156,8 +159,9 @@ test('the creator can inspect and hide a reported public profile even without a 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'This ranking is not available.', exact: true })).toBeVisible();
   } finally {
-    const creatorUid = await uidFor(request, 'creator@play100.test');
-    await request.patch(ownerConfig, { headers: { Authorization: 'Bearer owner' }, data: { fields: { uid: { stringValue: creatorUid }, email: { stringValue: 'creator@play100.test' } } } });
+    // Restore the seeded owner document exactly; no creator@play100.test identity exists to look up.
+    if (originalFields) await request.patch(ownerConfig, { headers: owner, data: { fields: originalFields } });
+    else await request.delete(ownerConfig, { headers: owner });
     await moderator.close();
   }
 });
