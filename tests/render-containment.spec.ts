@@ -100,7 +100,8 @@ test('offscreen content remains findable, focusable and printable without contai
   }, title)).toBe(true);
   await page.evaluate(() => document.getElementById('collection-films')?.scrollIntoView({ behavior: 'instant' }));
   await expect(page.getByRole('heading', { name: 'Watch films', exact: true })).toBeInViewport();
-  await page.getByRole('button', { name: /^Watch .* seconds$/ }).first().click();
+  // Film openers are named by their visible content: title, description (wide layouts), then "m:ss · Watch film".
+  await page.getByRole('button', { name: /^\S.* \d+:[0-5]\d · Watch film$/ }).first().click();
   const film = page.locator('.film-dialog');
   await expect(film).toBeVisible();
   expect(await film.evaluate(node => getComputedStyle(node.closest('.collection-films')!).contentVisibility)).toBe('visible');
