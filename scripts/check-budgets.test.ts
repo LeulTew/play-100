@@ -2,8 +2,9 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { afterEach, describe, expect, it } from 'vitest';
-import { budgetRows, eagerHtmlFiles, measureBuild, parseBudgetLimits } from './check-budgets';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { budgetRows, eagerHtmlFiles, measureBuild, parseBudgetArguments, parseBudgetLimits, reportBudgets } from './check-budgets';
+import type { BuildMeasurement } from './check-budgets';
 import { buildManifestPath } from './build-metadata';
 
 const folders: string[] = [];
@@ -48,6 +49,8 @@ async function fixture(inline = '') {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true, maxRetries: 5 });
 });
 
@@ -60,6 +63,84 @@ describe('offline built-output budgets', () => {
     await expect(measureBuild(directory)).rejects.toThrow('Build metadata must not be deployed');
     await rm(file, { recursive: true });
     await expect(measureBuild(directory)).resolves.toBeDefined();
+  });
+
+  describe('artifacted budget results', () => {
+    function measurement(): BuildMeasurement {
+      const eager = [
+        { file: 'assets/main.css', rawBytes: 20, gzipBytes: 10 },
+        { file: 'assets/main.js', rawBytes: 80, gzipBytes: 40 },
+      ];
+      const largestLazy = { file: 'assets/lazy.js', rawBytes: 100, gzipBytes: 50 };
+      return {
+        values: {
+          eagerCombinedGzipBytes: 50, cssRawBytes: 40, cssGzipBytes: 20, standaloneCssRawBytes: 10, standaloneCssGzipBytes: 8,
+          pwaCoreBytes: 33168, pwaCoreFiles: 6, largestLazyRawBytes: 100, largestLazyGzipBytes: 50,
+        },
+        eager, eagerJsGzipBytes: 40, eagerCssGzipBytes: 10,
+        css: [eager[0]!, { file: 'assets/lazy.css', rawBytes: 20, gzipBytes: 10 }],
+        standaloneCss: [{ file: 'pwa/fallback.css', rawBytes: 10, gzipBytes: 8 }],
+        inlineCss: [{ file: 'index.html#inline-0.css', rawBytes: 5, gzipBytes: 25 }],
+        html: [{ file: 'index.html', rawBytes: 300, gzipBytes: 100 }, { file: 'pwa/offline.html', rawBytes: 100, gzipBytes: 60 }],
+        combinedCssRawBytes: 50, combinedCssGzipBytes: 28, largestLazy, largestLazyRaw: largestLazy,
+        pwa: { assetFiles: 4, assetBytes: 400, metadataBytes: 32768, metadataFiles: 2 },
+      };
+    }
+    async function reportPath() {
+      const folder = await mkdtemp(path.join(tmpdir(), 'play100-budget-report-'));
+      folders.push(folder);
+      vi.spyOn(console, 'table').mockImplementation(() => {});
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      return path.join(folder, 'budget-report.json');
+    }
+
+    it('writes deterministic passing JSON with every gate, reported-only total and eager file', async () => {
+      const file = await reportPath();
+      const measured = measurement();
+      const commit = 'a'.repeat(40);
+      vi.stubEnv('GITHUB_SHA', commit);
+      expect(await reportBudgets(measured, measured.values, file)).toBe(0);
+      const first = await readFile(file, 'utf8');
+      const report = JSON.parse(first);
+      expect(report).toEqual({
+        schemaVersion: 1, sourceCommit: commit, pass: true,
+        budgets: Object.entries(measured.values).map(([metric, value]) => ({
+          metric, measured: value, cap: value, headroom: 0, pass: true,
+        })),
+        reportedOnly: {
+          eagerJsGzipBytes: 40, eagerCssGzipBytes: 10, combinedCssRawBytes: 50, combinedCssGzipBytes: 28,
+          html: measured.html, activeInlineCssRawBytes: 5, pwa: measured.pwa,
+          largestLazyRaw: measured.largestLazyRaw, largestLazyGzip: measured.largestLazy,
+        },
+        eagerFiles: measured.eager,
+      });
+      expect(report.budgets).toHaveLength(9);
+      expect(first.endsWith('\n')).toBe(true);
+      expect(await reportBudgets(measured, measured.values, file)).toBe(0);
+      expect(await readFile(file, 'utf8')).toBe(first);
+    });
+
+    it('writes over-cap JSON before returning failure, with a null commit outside CI', async () => {
+      const file = await reportPath();
+      const measured = measurement();
+      vi.stubEnv('GITHUB_SHA', undefined);
+      expect(await reportBudgets(measured, { ...measured.values, cssGzipBytes: 19 }, file)).toBe(1);
+      const report = JSON.parse(await readFile(file, 'utf8'));
+      expect(report).toMatchObject({ schemaVersion: 1, sourceCommit: null, pass: false });
+      expect(report.budgets.filter((row: { pass: boolean }) => !row.pass)).toEqual([
+        { metric: 'cssGzipBytes', measured: 20, cap: 19, headroom: -1, pass: false },
+      ]);
+      expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(8);
+    });
+
+    it('accepts only an optional --json path and rejects missing, unknown or extra arguments', () => {
+      expect(parseBudgetArguments([])).toEqual({});
+      expect(parseBudgetArguments(['--json', 'budget-report.json'])).toEqual({ jsonPath: 'budget-report.json' });
+      for (const args of [
+        ['--json'], ['--json', ''], ['--json', ' '], ['--json', '--other'], ['--other', 'report.json'],
+        ['report.json'], ['--json=report.json'], ['--json', 'report.json', 'extra'], ['--json', 'one.json', '--json', 'two.json'],
+      ]) expect(() => parseBudgetArguments(args)).toThrow('Usage: check-budgets [--json <path>].');
+    });
   });
 
   it('rejects a generated precache metadata entry before trusting asset sizes', async () => {

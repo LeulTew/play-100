@@ -36,7 +36,15 @@ jobs:
         run: npx --no-install playwright install --with-deps chromium chrome
       - run: npm test -- --maxWorkers=1
       - run: npm run build
-      - run: npm run check:budgets
+      - run: npm run check:budgets -- --json budget-report.json
+      - name: Upload budget report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: budget-report
+          path: budget-report.json
+          retention-days: 30
+          if-no-files-found: warn
       - run: npm run validate:data
       - run: npm run validate:discovery
 

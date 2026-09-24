@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -257,9 +257,17 @@ export function budgetRows(measured: BuildMeasurement, limits: BudgetLimits) {
   }));
 }
 
-async function main() {
-  const limits = parseBudgetLimits(JSON.parse(await readFile('budgets.json', 'utf8')));
-  const measured = await measureBuild(path.resolve('dist'));
+export function parseBudgetArguments(args: readonly string[]): { jsonPath?: string } {
+  if (args.length === 0) return {};
+  if (args.length !== 2 || args[0] !== '--json' || !args[1]?.trim() || args[1].startsWith('-')) {
+    throw new Error('Usage: check-budgets [--json <path>].');
+  }
+  return { jsonPath: args[1] };
+}
+
+export async function reportBudgets(
+  measured: BuildMeasurement, limits: BudgetLimits, jsonPath?: string, sourceCommit: string | null = process.env.GITHUB_SHA || null,
+): Promise<0 | 1> {
   const rows = budgetRows(measured, limits);
   console.table(rows);
   console.log(`Eager JS gzip9: ${measured.eagerJsGzipBytes}; eager CSS gzip9: ${measured.eagerCssGzipBytes}. The enforced eager cap covers both.`);
@@ -272,7 +280,38 @@ async function main() {
   console.log(`PWA: ${measured.pwa.assetFiles} public files / ${measured.pwa.assetBytes} bytes, plus ${measured.pwa.metadataFiles} metadata entries / ${measured.pwa.metadataBytes} reserved bytes.`);
   if (measured.largestLazy) console.log(`Largest lazy gzip chunk: ${measured.largestLazy.file}`);
   if (measured.largestLazyRaw) console.log(`Largest lazy raw chunk: ${measured.largestLazyRaw.file}`);
-  if (rows.some(row => row.result === 'FAIL')) process.exitCode = 1;
+  const pass = rows.every(row => row.result === 'PASS');
+  if (jsonPath !== undefined) {
+    const report = {
+      schemaVersion: 1,
+      sourceCommit,
+      pass,
+      budgets: rows.map(row => ({
+        metric: row.metric, measured: row.actual, cap: row.limit, headroom: row.limit - row.actual, pass: row.result === 'PASS',
+      })),
+      reportedOnly: {
+        eagerJsGzipBytes: measured.eagerJsGzipBytes,
+        eagerCssGzipBytes: measured.eagerCssGzipBytes,
+        combinedCssRawBytes: measured.combinedCssRawBytes,
+        combinedCssGzipBytes: measured.combinedCssGzipBytes,
+        html: measured.html,
+        activeInlineCssRawBytes: measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0),
+        pwa: measured.pwa,
+        largestLazyRaw: measured.largestLazyRaw,
+        largestLazyGzip: measured.largestLazy,
+      },
+      eagerFiles: measured.eager,
+    };
+    await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  }
+  return pass ? 0 : 1;
+}
+
+async function main() {
+  const { jsonPath } = parseBudgetArguments(process.argv.slice(2));
+  const limits = parseBudgetLimits(JSON.parse(await readFile('budgets.json', 'utf8')));
+  const measured = await measureBuild(path.resolve('dist'));
+  if (await reportBudgets(measured, limits, jsonPath) === 1) process.exitCode = 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
