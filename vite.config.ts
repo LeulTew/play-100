@@ -8,6 +8,8 @@ import { play100Pwa } from './scripts/pwa-build.ts';
 import { publicMetadataHtml } from './scripts/public-metadata.ts';
 import { firstPaintShell, firstPaintVariant } from './scripts/first-paint/plugin.ts';
 import author from './author.json' with { type: 'json' };
+import deployment from './vercel.json' with { type: 'json' };
+import { appCheckCspProblems, readAppCheckConfiguration } from './src/lib/app-check-config.ts';
 import { readFirebaseConfiguration } from './src/lib/online-config.ts';
 
 const publicUrl = process.env.VITE_SITE_URL ||
@@ -23,7 +25,18 @@ export default defineConfig(({ mode }) => {
   if (mode !== 'cloud-test' && (online.error || (environment.VITE_FIREBASE_REQUIRED === 'true' && !online.config))) {
     throw new Error(online.error ?? 'This release requires a complete public Firebase configuration. Build stopped before publication.');
   }
+  const appCheck = readAppCheckConfiguration(environment);
+  if (appCheck.error) throw new Error(appCheck.error);
+  if (appCheck.config) {
+    const policy = deployment.headers.find(rule => rule.source === '/((?!__/auth/).*)')?.headers
+      .find(header => header.key === 'Content-Security-Policy')?.value ?? '';
+    const problems = appCheckCspProblems(policy);
+    if (problems.length) throw new Error(`App Check is enabled but vercel.json CSP is not ready: ${problems.join(' ')}`);
+  }
   return {
+  define: {
+    'import.meta.env.VITE_APP_CHECK_ENABLED': JSON.stringify(appCheck.config ? 'true' : 'false'),
+  },
   plugins: [
     react(),
     play100Pwa(),

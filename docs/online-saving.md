@@ -336,3 +336,11 @@ Production releases set `VITE_FIREBASE_REQUIRED=true`, so a missing or malformed
 configuration fails the build before publication. The runtime also preserves
 guest browsing with an explicit warning if optional online config is invalid.
 No administrative credential is needed in Vercel.
+
+App Check is off by default. `VITE_APP_CHECK_ENABLED=true` plus a public
+reCAPTCHA v3 `VITE_APP_CHECK_SITE_KEY` loads `firebase/app-check` in a separate
+chunk and sends tokens; Firebase only rejects requests after enforcement is
+turned on in the console. The build refuses the flag with an invalid key, or
+while the main `vercel.json` CSP lacks the reCAPTCHA and App Check sources
+listed in `src/lib/app-check-config.ts`. See the security release runbook for
+the monitor-first rollout.
