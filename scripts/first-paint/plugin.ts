@@ -23,8 +23,9 @@ import type { ShellVariant } from './shell-html.ts';
  *    declares;
  *  - fails the build unless vercel.json allows the inline script by its exact hash (and, under a
  *    strict style-src, exactly the inline styles of both variants), unless the <meta charset>
- *    declaration fits within the document's first 1024 bytes, and unless each emitted entry
- *    stylesheet is free of @import and leaves the root font stacks to shell.css.
+ *    declaration fits within the document's first 1024 bytes, unless each emitted entry
+ *    stylesheet is free of @import and leaves the root font stacks to shell.css, and unless each
+ *    font preload makes exactly the request an @font-face of the entry stylesheet makes.
  *
  * The boot script inserts the startup tags after the shell's first contentful paint when it shows
  * the shell, and at once otherwise. It runs the module entry only after the entry stylesheet has
@@ -224,7 +225,7 @@ export function beastiesOptions(logger: BeastiesLogger): BeastiesOptions {
   return {
     // The entry stylesheet arrives as an inline <style> of a throwaway document, so beasties never
     // touches a real <link> (no preload, onload handler or loader script for the CSP to allow),
-    // and web fonts are neither preloaded nor inlined: they load with the full stylesheet.
+    // and it neither preloads nor inlines web fonts: their faces load with the full stylesheet.
     external: false,
     fonts: false,
     mergeStylesheets: true,
@@ -342,6 +343,7 @@ export interface StartupTag {
   readonly url: string;
   readonly start: number;
   readonly end: number;
+  readonly attributes: Readonly<Record<string, string>>;
 }
 
 const STARTUP_URLS: Readonly<Record<StartupKind, RegExp>> = {
@@ -391,7 +393,7 @@ export function startupTags(html: string): StartupTag[] {
         url = attributes.href;
       }
       if (!tag.startsWith('<') || !tag.endsWith('>') || url === undefined || !STARTUP_URLS[kind].test(url)) throw new Error(`Unexpected <head> startup tag ${tag}.`);
-      tags.push({ kind, source: head.slice(start, end), url, start, end });
+      tags.push({ kind, source: head.slice(start, end), url, start, end, attributes });
     },
     onclosetag(name) {
       if (name === 'noscript') noscript = Math.max(0, noscript - 1);
@@ -399,6 +401,37 @@ export function startupTags(html: string): StartupTag[] {
   });
   parser.end(head);
   return tags;
+}
+
+/** Every URL the @font-face rules of a stylesheet request, exactly as written. */
+function fontFaceUrls(css: string): Set<string> {
+  const urls = new Set<string>();
+  for (const face of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)) {
+    for (const url of (face[1] ?? '').matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^'"()\s]*))\s*\)/gi)) urls.add(url[1] ?? url[2] ?? url[3] ?? '');
+  }
+  return urls;
+}
+
+/**
+ * The browser reuses a font preload only for the request the @font-face makes: the same URL, as a
+ * font, in CORS mode without credentials. Anything else downloads the font a second time while the
+ * preload took bandwidth from the rest of the startup requests. So each font preload must carry
+ * as="font", type="font/woff2" and crossorigin (anonymous), and name a URL that an @font-face of the
+ * entry stylesheet requests, byte for byte.
+ */
+export function assertFontPreloads(preloads: readonly StartupTag[], css: string): void {
+  const urls = fontFaceUrls(css);
+  for (const tag of preloads) {
+    const { as: destination, type, crossorigin } = tag.attributes;
+    if (destination !== 'font' && !/\.(?:woff2?|ttf|otf)$/i.test(tag.url)) continue;
+    const problems = [
+      ...(destination === 'font' ? [] : ['as="font"']),
+      ...(type === 'font/woff2' ? [] : ['type="font/woff2"']),
+      ...((crossorigin === '' || crossorigin === 'anonymous') ? [] : ['crossorigin (anonymous), as @font-face requests use CORS']),
+      ...(urls.has(tag.url) ? [] : ['a URL an @font-face of the entry stylesheet requests']),
+    ];
+    if (problems.length) throw new Error(`The font preload ${tag.source} needs ${problems.join(', ')}; otherwise the font downloads twice.`);
+  }
 }
 
 /** Removes a tag, and its line when the tag stands alone on it. */
@@ -444,6 +477,7 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
     assertRootFontStacks(tag.url, css);
     return css;
   }).join('\n');
+  assertFontPreloads(tags.filter(tag => tag.kind === 'preload'), appCss);
   for (const tag of [...tags].reverse()) html = removeTag(html, tag);
   const startup = STARTUP_KINDS.flatMap(kind => tags.filter(tag => tag.kind === kind));
 

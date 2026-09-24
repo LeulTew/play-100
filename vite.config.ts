@@ -6,6 +6,7 @@ import catalogHandler from './api/catalog.ts';
 import catalogDetailHandler from './api/catalog-detail.ts';
 import { play100Pwa } from './scripts/pwa-build.ts';
 import { publicMetadataHtml } from './scripts/public-metadata.ts';
+import { landingFontFiles } from './scripts/landing-fonts.ts';
 import { firstPaintShell, firstPaintVariant } from './scripts/first-paint/plugin.ts';
 import author from './author.json' with { type: 'json' };
 import deployment from './vercel.json' with { type: 'json' };
@@ -54,13 +55,12 @@ export default defineConfig(({ mode }) => {
     {
       name: 'play100-public-metadata',
       transformIndexHtml(html, context) {
-        const fonts = Object.values(context.bundle ?? {}).filter((asset) =>
-          asset.type === 'asset' && /barlow-condensed-latin-800-normal.*\.woff2$/.test(asset.fileName),
-        );
+        // The first-paint template starts these with the other startup requests (scripts/landing-fonts.ts).
+        const fonts = context.bundle ? landingFontFiles(Object.values(context.bundle).filter(asset => asset.type === 'asset').map(asset => asset.fileName)) : [];
         const tags: HtmlTagDescriptor[] = [
           { tag: 'meta', attrs: { name: 'author', content: author.fullName } },
-          ...fonts.map((asset) => ({
-            tag: 'link', attrs: { rel: 'preload', href: `/${asset.fileName}`, as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
+          ...fonts.map((fileName) => ({
+            tag: 'link', attrs: { rel: 'preload', href: `/${fileName}`, as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
           })),
           { tag: 'link', attrs: { rel: 'preload', href: '/data/collection.json', as: 'fetch', type: 'application/json', crossorigin: 'anonymous' } },
         ];

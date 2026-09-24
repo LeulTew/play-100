@@ -28,8 +28,9 @@ tags and before the PWA `writeBundle` records `index.html`:
    Vite's tags where Vite put them.
 2. It moves every startup tag out of `<head>` into
    `<template id="p100-deferred">`: Vite's module entry, its modulepreloads and
-   the entry stylesheet, and the Barlow Condensed 800 and `collection.json`
-   preloads of the public-metadata plugin. Template content is inert, so none of
+   the entry stylesheet, and the preloads of the public-metadata plugin: the
+   landing font files (Barlow Condensed 800 and 700, Hanken Grotesk latin) and
+   `collection.json`. Template content is inert, so none of
    them starts a request (Chromium's preload scanner skips it too). The tags are
    read with an HTML tokenizer, and anything the boot script could not recreate
    exactly fails the build: another head script, a startup link with a second
@@ -66,8 +67,12 @@ In this order:
   that shows the shell, the artifact-caption state rules and the font probes. The
   app never imports this file. The inline style declares no web font: the shell
   paints only in these fallback faces, and Barlow Condensed and Hanken Grotesk
-  arrive with the full stylesheet and swap in without moving a line. The build
-  fails if the shell renders a character outside the faces' `unicode-range`.
+  arrive with the full stylesheet and swap in without moving a line. Their files
+  are preloaded with the other startup requests at the shell's first contentful
+  paint ([`scripts/landing-fonts.ts`](../scripts/landing-fonts.ts)), so they
+  normally land before React's first commit. Without that, React lays its new text
+  out in the fallbacks, at about twice the cost, and again as each font arrives.
+  The build fails if the shell renders a character outside the faces' `unicode-range`.
   `P100 DF Impact`, `P100 DF Arial` and
   `P100 Sans Fallback` are metric-adjusted aliases of widely installed local fonts
   (Impact, Arial and their Liberation or Arimo clones), not new typefaces; the
@@ -151,6 +156,10 @@ production policy and uses the page, guard against that.
   partials of the source CSS manifests; one it leaves in place would load outside the first-paint
   template, and before the first paint if it reached the inline style. The build refuses it and
   names the file.
+- A font preload must carry `as="font"`, `type="font/woff2"` and `crossorigin` (anonymous), and
+  name, byte for byte, a URL an `@font-face` of the entry stylesheet requests. Otherwise the browser
+  downloads the font a second time for the face. The build refuses one that does not, and
+  `scripts/landing-fonts.ts` fails it when a landing font file is missing or ambiguous.
 - The root `font-family` and `--display` stay on `:root` (or bare `html`), without `!important`.
   `shell.css` adds the metric-matched fallbacks to those stacks with `html[data-boot=landing]`
   (specificity 0,1,1), and the entry stylesheet loads after it. In the entry stylesheet the build

@@ -6,8 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
 import {
-  assertCharsetDeclaration, assertFallbackCoverage, assertInlineSafe, assertNoCssImports, assertRootFontStacks, assertRootRelativeUrls, assertShellNeutralCss,
-  beastiesOptions, criticalAppCss, DEFERRED_TEMPLATE_ID, firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, startupTags, stripBootScript,
+  assertCharsetDeclaration, assertFallbackCoverage, assertFontPreloads, assertInlineSafe, assertNoCssImports, assertRootFontStacks, assertRootRelativeUrls,
+  assertShellNeutralCss, beastiesOptions, criticalAppCss, DEFERRED_TEMPLATE_ID, firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, startupTags,
+  stripBootScript,
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
@@ -317,6 +318,41 @@ describe('first-paint startup tags', () => {
     ['<link rel="preload" as="fetch">', 'Unexpected <head> startup tag'],
   ])('refuses a startup tag the boot script could not recreate exactly: %s', (tag, message) => {
     expect(() => startupTags(`<head>${tag}</head>`)).toThrow(message);
+  });
+});
+
+describe('first-paint font preloads', () => {
+  const preload = (attributes: string) => startupTags(`<head><link rel="preload" ${attributes}></head>`);
+  const font = (file: string, crossorigin = ' crossorigin="anonymous"') => `href="/assets/${file}.woff2" as="font" type="font/woff2"${crossorigin}`;
+  // The landing fonts as vite.config.ts preloads them (scripts/landing-fonts.ts).
+  const LANDING = ['barlow-condensed-latin-800-normal-BKzMuPgK', 'hanken-grotesk-latin-wght-normal-CaVRRdDk', 'barlow-condensed-latin-700-normal-v1xN8_Wq'];
+
+  it('accept font preloads that make exactly the request an @font-face of the entry stylesheet makes', () => {
+    const tags = [...LANDING.flatMap(file => preload(font(file))), ...preload(font(LANDING[0] ?? '', ' crossorigin')),
+      ...preload('href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous"')];
+    expect(tags.map(tag => tag.attributes.as)).toEqual(['font', 'font', 'font', 'font', 'fetch']);
+    expect(() => assertFontPreloads(tags, FONT_FACES)).not.toThrow();
+    expect(() => assertFontPreloads(preload(font('hanken-grotesk-latin-wght-normal-CaVRRdDk')), '@font-face{src:url("/assets/hanken-grotesk-latin-wght-normal-CaVRRdDk.woff2")}')).not.toThrow();
+  });
+
+  it.each([
+    ['a font no face requests', font('barlow-condensed-latin-900-normal-AAAAAAAA'), FONT_FACES, 'a URL an @font-face of the entry stylesheet requests'],
+    ['a URL that differs from the face\'s', font('Barlow-condensed-latin-800-normal-BKzMuPgK'), FONT_FACES, 'a URL an @font-face of the entry stylesheet requests'],
+    ['a URL only a comment or another rule names', font('commented-AAAAAAAA'),
+      `${FONT_FACES}/*@font-face{src:url(/assets/commented-AAAAAAAA.woff2)}*/.a{background:url(/assets/commented-AAAAAAAA.woff2)}`, 'a URL an @font-face of the entry stylesheet requests'],
+    ['no crossorigin', font(LANDING[1] ?? '', ''), FONT_FACES, 'crossorigin (anonymous)'],
+    ['a credentialed request', font(LANDING[1] ?? '', ' crossorigin="use-credentials"'), FONT_FACES, 'crossorigin (anonymous)'],
+    ['no type', `href="/assets/${LANDING[2] ?? ''}.woff2" as="font" crossorigin="anonymous"`, FONT_FACES, 'type="font/woff2"'],
+    ['another type', `href="/assets/${LANDING[2] ?? ''}.woff2" as="font" type="font/woff" crossorigin="anonymous"`, FONT_FACES, 'type="font/woff2"'],
+    ['a font file preloaded as something else', `href="/assets/${LANDING[0] ?? ''}.woff2" as="fetch" type="font/woff2" crossorigin="anonymous"`, FONT_FACES, 'as="font"'],
+  ])('refuse %s, which would download the font twice', (_, attributes, css, problem) => {
+    expect(() => assertFontPreloads(preload(attributes), css)).toThrow(`The font preload <link rel="preload" ${attributes}> needs ${problem}`);
+  });
+
+  it('are checked against the entry stylesheet before the shell\'s rules are selected', async () => {
+    const input = { html: builtIndexHtml(), variant: 'offline' as const, shellCss, bootScript: bootJs };
+    await expect(inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}' }))
+      .rejects.toThrow('The font preload <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2"');
   });
 });
 
