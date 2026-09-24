@@ -13,7 +13,7 @@ import type { ProgressFilter } from '../../lib/game-progress';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { RemoveRankingDialog } from './RemoveRankingDialog';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
-import { useExitSave } from '../../hooks/useExitSave';
+import { flushPendingEdits, hasPendingEdits, useExitSave, usePendingEdits } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
 import './my-games.css';
 import './ranking-safety.css';
@@ -35,7 +35,29 @@ export interface RankingsPageProps {
 
 export default function RankingsPage({ state, availableRecords, busy, persistent, animate, onAction, onOpen, onDiscover, onPublish, embedded = false, active = true, completedOnly = false, progressFilter, onClearProgress, onPin, onUnpin, pinnedIds, renderDragHandle }: RankingsPageProps) {
   const mode = useLibraryMode();
+  const [searchInput, setSearchInput] = useState('');
   const [query, setQuery] = useState('');
+  const [searchHeld, setSearchHeld] = useState(false);
+  const searchRequest = useRef(0);
+  const pendingEdits = usePendingEdits();
+  // A narrower search can unmount a row whose rating or note has not saved, so it waits for that save.
+  const search = (value: string) => {
+    const request = ++searchRequest.current;
+    setSearchInput(value);
+    if (!hasPendingEdits()) { setQuery(value); setSearchHeld(false); return; }
+    flushPendingEdits().then((saved) => {
+      if (request !== searchRequest.current) return;
+      if (saved) setQuery(value);
+      setSearchHeld(!saved);
+    }, (cause: unknown) => {
+      console.error('Ranking search could not save a pending edit.', cause instanceof Error ? cause.message : 'Unknown editor failure.');
+      if (request === searchRequest.current) setSearchHeld(true);
+    });
+  };
+  const showFullRanking = () => { searchRequest.current += 1; setSearchInput(''); setQuery(''); setSearchHeld(false); };
+  useEffect(() => {
+    if (searchHeld && !pendingEdits) { setSearchHeld(false); setQuery(searchInput); }
+  }, [searchHeld, pendingEdits, searchInput]);
   const [removal, setRemoval] = useState<{ record: LibraryRecord; scope: string } | null>(null);
   const progressView = progressFilter ?? (completedOnly ? 'completed' : 'all');
   const rankingById = useMemo(() => new Map(state.ranking.map((entry, index) => [entry.id, { entry, position: index + 1 }])), [state.ranking]);
@@ -48,7 +70,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
       return [record];
     });
   }, [state, query, progressView]);
-  const canReorder = !query && progressView === 'all';
+  const canReorder = !query && !searchInput && progressView === 'all';
   const manualCount = state.ranking.filter((entry) => entry.manualPosition !== null).length;
   const removalCurrent = removal !== null && active && removal.scope === mode.scope &&
     state.records[removal.record.id]?.title === removal.record.title && rankedIds.has(removal.record.id);
@@ -68,7 +90,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
           </div>
           {manualCount > 0 && <button className="button button-outline" disabled={busy} onClick={() => { void onAction({ type: 'use-rating-order' }); }}>Use rating order for all</button>}
         </div>
-        <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a game in your ranking…" /></div><span className="section-help" role="status">        {records.length} ranked {records.length === 1 ? 'game' : 'games'} in this view</span></div>
+        <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={searchInput} onChange={(event) => search(event.target.value)} placeholder="Find a game in your ranking…" /></div><span className="section-help" role="status">        {searchHeld ? 'Search waits for your unsaved edit. Fix the highlighted field or retry.' : <>{records.length} ranked {records.length === 1 ? 'game' : 'games'} in this view</>}</span></div>
       </>}
       {records.length ? <ReorderList records={records} kind="ranking" canReorder={canReorder} busy={busy} animate={animate} positionFor={(id) => rankingById.get(id)?.position ?? null} onMove={(id, overId) => { void onAction({ type: 'move-item', list: 'ranking', id, overId }); }}>
         {(record) => {
@@ -76,7 +98,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
           if (!entry) return null;
           return <RankingRow key={record.id} record={record} entry={entry} played={Boolean(state.progress[record.id]?.played)} completed={Boolean(state.progress[record.id]?.completed)} busy={busy} active={active} onOpen={onOpen} onAction={onAction} onRemove={() => setRemoval({ record, scope: mode.scope })} onPin={onPin} onUnpin={onUnpin} pinned={pinnedIds?.has(record.id)} renderDragHandle={renderDragHandle} />;
         }}
-      </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or change the progress filter.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { setQuery(''); onClearProgress?.(); }}>Show my full ranking</button>}</div>}
+      </ReorderList> : <div className="empty-state"><Icon name="rank" width="43" height="43" /><h2>{state.ranking.length ? 'No matches' : 'No ranked games yet'}</h2><p>{state.ranking.length ? 'Clear search or change the progress filter.' : 'Open Add games to start. You can rank games you have not played.'}</p>{state.ranking.length > 0 && <button className="button button-dark" onClick={() => { showFullRanking(); onClearProgress?.(); }}>Show my full ranking</button>}</div>}
       {!persistent && <p className="personal-storage-footnote" role="alert"><strong>Device storage is unavailable.</strong> Export these temporary changes from Settings before closing this tab.</p>}
       {removal && removalCurrent && <RemoveRankingDialog key={`${removal.scope}:${removal.record.id}`} record={removal.record} state={state} busy={busy} onAction={onAction} onClose={() => setRemoval(null)} />}
     </section>

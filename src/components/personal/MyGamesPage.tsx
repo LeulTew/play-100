@@ -113,11 +113,16 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
   const titles: Record<MyGamesView, string> = { library: 'Library', queue: 'Queue', ranking: 'Ranking' };
   const editorBusy = props.busy || switching;
   const onFilters = (patch: Partial<Filters>, method?: 'push' | 'replace') => { void change(() => props.onFilters(patch, method)); };
+  // Leaving My games unmounts both editors, so it passes the same save guard as a view change.
+  const guarded = (leave: () => void) => () => { void change(leave); };
+  const onDiscover = guarded(props.onDiscover);
+  const onBrowse = guarded(props.onBrowse);
+  const onPublish = props.onPublish && guarded(props.onPublish);
   return (
     <section className="app-page my-games-workspace" aria-labelledby="my-games-title">
       <div className="page-heading">
         <h1 id="my-games-title" tabIndex={-1} data-page-heading>My games</h1>
-        <button className="button button-dark" onClick={props.onDiscover}><Icon name="plus" width="18" height="18" />Find games</button>
+        <button className="button button-dark" onClick={onDiscover}><Icon name="plus" width="18" height="18" />Find games</button>
       </div>
       {props.friendSharing}
       <div className="my-games-navigation">
@@ -128,10 +133,10 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
       </div>
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div hidden={view === 'ranking'}>
-        <LibraryPage {...props} busy={editorBusy} embedded active={view !== 'ranking'} workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} onPresentationChange={change} />
+        <LibraryPage {...props} busy={editorBusy} embedded active={view !== 'ranking'} workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} onDiscover={onDiscover} onBrowse={onBrowse} onPresentationChange={change} />
       </div>
       <div hidden={view !== 'ranking'}>
-        <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
+        <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onDiscover={onDiscover} onPublish={onPublish} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
       </div>
       <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view…' : ''}</span>
     </section>
