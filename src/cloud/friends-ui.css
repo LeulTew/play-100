@@ -1,4 +1,4 @@
-.friends-page h1, .friend-detail-page h1, .friends-sharing-page h1, .friend-compare-page h1, .invitation-page h1 { font: 700 48px/1.1 var(--display); margin-block: 0 24px; }
+.friends-page .page-heading h1, .friend-detail-page h1, .friends-sharing-page .page-heading h1, .friend-compare-page .page-heading h1, .invitation-page h1 { font: 700 48px/1.1 var(--display); margin-block: 0 24px; }
 .friend-list, .friend-groups, .friend-ranking-list, .compare-freshness { list-style: none; padding: 0; margin-block: 20px; }
 .friend-list > li { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 20px; border-bottom: 1px solid var(--line); }
 .friend-list > li > div:first-child { min-width: 0; }
@@ -11,7 +11,7 @@
 .friend-ranking-list > li { display: grid; grid-template-columns: 28px minmax(0, 1fr) 72px; gap: 16px; align-items: center; padding-block: 10px; border-bottom: 1px solid var(--line); }
 .friend-ranking-list > li > button { text-align: left; justify-content: flex-start; }
 .friend-ranking-list strong { text-align: right; font-variant-numeric: tabular-nums; }
-.invitation-page { max-width: 760px; }
+.app-page.invitation-page { max-width: 760px; }
 .invite-acceptance { margin-block: 24px; padding-block: 20px; border-top: 1px solid var(--line); }
 .compare-people { display: flex; flex-wrap: wrap; gap: 12px 24px; border: 0; margin: 20px 0; padding: 0; }
 .compare-people legend { font-weight: 600; margin-bottom: 16px; }
@@ -54,7 +54,7 @@
 .friend-matrix td > span { font-size: 13px; color: var(--muted); }
 .friend-compare-page .account-section form { max-width: 640px; }
 .friend-compare-page .account-section label { display: block; margin-block: 16px 12px; }
-.shared-games-page h1 { font: 700 48px/1.1 var(--display); margin: 0; }
+.shared-games-page .page-heading h1 { font: 700 48px/1.1 var(--display); margin: 0; }
 .shared-games-page .page-heading { flex-wrap: wrap; }
 .friend-shelf-art .game-artwork { width: 100%; height: 100%; aspect-ratio: auto; background: var(--paper); }
 .friend-shelf-art .game-artwork img { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -88,12 +88,12 @@
 .friend-invite-status { font-size: 18px; }
 .friend-invite-dates { color: var(--muted); font-size: 14px; line-height: 1.6; margin-block: 8px 0; }
 @media (max-width: 760px) {
-  .friends-page h1, .friend-detail-page h1, .friends-sharing-page h1, .friend-compare-page h1, .invitation-page h1 { font-size: 38px; }
+  .friends-page .page-heading h1, .friend-detail-page h1, .friends-sharing-page .page-heading h1, .friend-compare-page .page-heading h1, .invitation-page h1 { font-size: 38px; }
   .friend-list > li { align-items: flex-start; flex-direction: column; gap: 4px; }
   .friend-list .button-row { flex-wrap: wrap; }
   .friend-matrix th, .friend-matrix td { padding: 12px; min-width: 120px; }
   .friend-matrix th:first-child { min-width: 156px; max-width: 190px; }
-  .friend-compare-page { padding-top: 6px; }
+  .app-page.friend-compare-page { padding-top: 6px; }
   .friend-compare-page .page-heading { flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
   .friend-compare-page .page-heading > .text-button { gap: 6px; }
   .friend-compare-page .compare-toolbar label:first-child { flex: 1; }

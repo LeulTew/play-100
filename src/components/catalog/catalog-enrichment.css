@@ -9,7 +9,7 @@
 .catalog-review-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .catalog-review-heading h4 { font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
 .catalog-review-heading > strong { font-size: 20px; max-width: 45%; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.catalog-review-list p { font-size: 13px; line-height: 1.6; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+.catalog-enrichment .catalog-review-list p { font-size: 13px; line-height: 1.6; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
 .catalog-review-links { display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .catalog-review-links a { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .catalog-enrichment-sources > summary { min-height: 44px; align-content: center; width: fit-content; cursor: pointer; font-size: 13px; }

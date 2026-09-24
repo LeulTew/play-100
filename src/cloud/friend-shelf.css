@@ -1,6 +1,6 @@
 .friend-shelf-editor, .friend-shelf-cards { margin-block: 32px; border-top: 1px solid var(--ink); padding-top: 24px; }
 .friend-shelf-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
-.friend-shelf-heading h2, .friend-shelf-preview h2 { font: 700 32px/1.1 var(--display); margin: 0; }
+.friend-shelf-heading h2, .dialog.friend-shelf-preview h2 { font: 700 32px/1.1 var(--display); margin: 0; }
 .friend-shelf-heading > span, .friend-shelf-metadata, .friend-shelf-selection small { color: var(--muted); font-size: 14px; }
 .friend-shelf-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 16px 24px; margin-block: 24px 12px; }
 .friend-shelf-controls > label { display: grid; gap: 8px; flex: 1 1 220px; max-width: 440px; }
@@ -12,8 +12,8 @@
 .friend-shelf-selection label > span { min-width: 0; overflow-wrap: anywhere; }
 .friend-shelf-selection small, .friend-shelf-metadata { display: block; margin-top: 4px; }
 .friend-shelf-editor .button-row, .friend-shelf-cards .button-row, .friend-shelf-preview .button-row { flex-wrap: wrap; gap: 8px 16px; }
-.friend-shelf-preview { width: min(720px, calc(100vw - 24px)); }
-.friend-shelf-preview p { max-width: 65ch; line-height: 1.5; }
+.dialog.friend-shelf-preview { width: min(720px, calc(100vw - 24px)); }
+.dialog.friend-shelf-preview p { max-width: 65ch; line-height: 1.5; }
 .friend-shelf-person { display: flex; align-items: center; gap: 12px; margin-block: 24px 16px; overflow-wrap: anywhere; }
 .friend-shelf-preview-list { max-height: 45vh; overflow: auto; overscroll-behavior: contain; }
 .friend-shelf-preview-list > li { display: flex; align-items: center; gap: 16px; padding-block: 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
@@ -32,7 +32,7 @@
 .friend-shelf-editor :focus-visible, .friend-shelf-cards :focus-visible, .friend-shelf-preview :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 @media (max-width: 760px) {
   .friend-shelf-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .friend-shelf-heading h2, .friend-shelf-preview h2 { font-size: 28px; }
+  .friend-shelf-heading h2, .dialog.friend-shelf-preview h2 { font-size: 28px; }
   .friend-shelf-controls { align-items: center; gap: 12px; }
   .friend-shelf-controls > label { max-width: none; flex-basis: 100%; }
 }

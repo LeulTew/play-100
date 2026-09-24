@@ -113,6 +113,8 @@ My games-only rules live in the existing lazy `src\components\personal\my-games.
 
 The ranking picker belongs to my-games.css, catalog facts/links to catalog-detail-motion.css, and Settings/backup layout to settings-controls.css (the existing offline-controls sheet, renamed). Settings typography that ties with generic dialog rules stays eager to preserve the winner even when legacy builds place entry CSS after lazy links. Personal rating styles stay shared because GameDetail is eager. Manual-add styles also stay shared: Discover and My games have no existing common lazy CSS owner, and splitting one out requires a separately budgeted asset decision.
 
+Feature overrides must beat shared defaults by specificity, not by stylesheet arrival order. Use existing co-occurring classes or a feature ancestor (for example, `.app-page.auth-page` and `.personal-tabs.my-games-motion-tabs`) and keep responsive/forced-colors variants at the same specificity. Check generic dialog and page-heading rules before moving or adding a feature override.
+
 ## Colors
 
 ### Primary

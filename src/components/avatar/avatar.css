@@ -33,14 +33,14 @@
   margin: 20px 0 8px;
 }
 
-.avatar-picker h3 {
+section.avatar-picker h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 650;
   line-height: 1.4;
 }
 
-.avatar-picker__shuffle {
+.button.avatar-picker__shuffle {
   flex-shrink: 0;
   gap: 8px;
   font-size: 14px;

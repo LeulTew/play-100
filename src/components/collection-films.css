@@ -13,9 +13,9 @@
 .film-summary > span { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .film-summary small { font-size: 13px; }
 .film-watch:hover .film-summary strong { text-decoration: underline; text-underline-offset: 4px; }
-.film-dialog { width: min(100% - 32px, 1000px); }
+.dialog.film-dialog { width: min(100% - 32px, 1000px); }
 .film-dialog .dialog-inner { padding: 30px; }
-.film-dialog h2 { padding-inline-end: 44px; font-size: 36px; margin-bottom: 10px; }
+.dialog.film-dialog h2 { padding-inline-end: 44px; font-size: 36px; margin-bottom: 10px; }
 .film-intro { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
 .film-media video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 62dvh; background: var(--ink); }
 .film-media > p, .film-error { padding-block: 12px; font-size: 14px; }
@@ -24,7 +24,7 @@
 .film-player-actions .text-button { min-width: 44px; font-size: 14px; }
 .film-details { border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .film-details summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 14px; }
-.film-details p, .film-details dl { max-width: 68ch; font-size: 14px; line-height: 1.55; }
+.film-dialog .film-details p, .film-details dl { max-width: 68ch; font-size: 14px; line-height: 1.55; }
 .film-details dl { display: grid; gap: 16px; margin-block: 20px; }
 .film-details dt { font-weight: 650; margin-bottom: 4px; }
 .film-details dd { margin: 0; }
@@ -33,8 +33,8 @@
   .film-poster { flex-basis: 40%; }
   .film-summary > span { display: none; }
   .film-summary strong { font-size: 16px; }
-  .film-dialog { width: calc(100% - 16px); max-height: calc(100dvh - 24px); }
+  .dialog.film-dialog { width: calc(100% - 16px); max-height: calc(100dvh - 24px); }
   .film-dialog .dialog-inner { padding: max(24px, env(safe-area-inset-top, 0px)) 16px max(20px, env(safe-area-inset-bottom, 0px)); }
-  .film-dialog h2 { font-size: 30px; }
+  .dialog.film-dialog h2 { font-size: 30px; }
   .film-player-actions { align-items: flex-start; flex-direction: column; }
 }
