@@ -8,7 +8,7 @@ import { installGuestLibrary, libraryFixture, libraryGeometry, loadedExitSaveMod
 const libraryRows = (page: Page) => page.locator('ul.personal-records > .personal-row-static');
 const pager = (page: Page) => page.getByRole('navigation', { name: 'Library pages', exact: true });
 const results = (page: Page) => page.getByRole('heading', { name: 'Your library results', exact: true });
-const tab = (page: Page, name: string) => page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', { name: new RegExp(`^${name} \\d+$`) });
+const tab = (page: Page, name: string) => page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', { name: new RegExp(`^${name}, \\d+$`) });
 const query = (page: Page) => page.getByRole('searchbox', { name: 'Search your library', exact: true });
 
 async function selectPage(page: Page, value: number) {
