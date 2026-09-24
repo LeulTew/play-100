@@ -337,6 +337,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   });
   await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
   const empty = await measure();
+  await expect(page.locator('#collection-title')).toBeFocused();
   expect(empty.coarse).toBe(true); expect(empty.touch).toBeGreaterThan(0);
   expect(empty.dock).toBeNull();
   expect(empty.title.top).toBeGreaterThanOrEqual(empty.header.bottom);
@@ -371,6 +372,12 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   expect(pinned.targets).toEqual(targetsBefore);
   expect(pinned.targets.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
   expect(pinned.focus.visibleHeight).toBeGreaterThan(0);
+  const firstGame = page.locator('.game-card').first();
+  await expect(firstGame.locator('.game-link')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(firstGame.getByRole('checkbox', { name: 'Played: Red Dead Redemption 2', exact: true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(firstGame.locator('.game-link')).toBeFocused();
   expect(await readLibrary(page)).toEqual(before);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map((record: { id: string }) => record.id))).toEqual([pinnedGame.id]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

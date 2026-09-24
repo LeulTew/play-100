@@ -320,7 +320,6 @@ export default function App() {
     if (page !== 'collection') navigate('collection');
     else {
       scrollCollectionIntoView(capabilities.animate ? 'smooth' : 'instant');
-      document.getElementById('collection-title')?.focus({ preventScroll: true });
     }
   };
   const shareView = (slug: string | null = null) => {

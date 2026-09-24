@@ -7,6 +7,8 @@ export function scrollCollectionIntoView(behavior: ScrollBehavior): void {
     - (Number.parseFloat(rootStyle.scrollPaddingTop) || 0)
     - (Number.parseFloat(sectionStyle.scrollMarginTop) || 0);
   const identity = collection.querySelector<HTMLElement>('.game-card h3, tbody .table-game, .discovery-card h3');
+  const heading = document.getElementById('collection-title');
+  let focusTarget = heading;
   let top = preferredTop;
   if (identity) {
     const bounds = identity.getBoundingClientRect();
@@ -18,6 +20,13 @@ export function scrollCollectionIntoView(behavior: ScrollBehavior): void {
     const clearBottom = window.scrollY + bounds.bottom - bottom;
     const clearTop = window.scrollY + bounds.top - headerBottom - 12;
     top = Math.max(preferredTop, Math.min(clearBottom, clearTop));
+    const headingBounds = heading?.getBoundingClientRect();
+    const scrollDelta = Math.max(0, top) - window.scrollY;
+    if (!headingBounds || headingBounds.top - scrollDelta < headerBottom || headingBounds.bottom - scrollDelta > bottom) {
+      focusTarget = identity.closest<HTMLAnchorElement>('a[href]') ?? identity.querySelector<HTMLElement>('a[href], button') ?? heading;
+    }
   }
   window.scrollTo({ top: Math.max(0, top), behavior });
+  if (focusTarget === heading && heading && !heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+  focusTarget?.focus({ preventScroll: true });
 }
