@@ -8,6 +8,7 @@ import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
 import type { GameArtworkProps } from '../games/GameArtwork';
 import { useCompareTray } from './compare-tray-context';
 import { CompareDragSourceContext } from './compare-drag-source-context';
+import { measureTrayMetrics, TRAY_METRIC_PROPERTIES } from './tray-metrics';
 import './compare-tray.css';
 
 export interface CompareTrayProps {
@@ -48,20 +49,10 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   const measuredBefore = useRef(false);
   useLayoutEffect(() => {
     const node = dock.current;
-    const root = document.documentElement;
     const header = document.querySelector('.site-header');
     const navigation = document.querySelector('.mobile-nav');
     const toast = document.querySelector('.toast');
-    const measure = () => {
-      for (const [element, property] of [[header, '--site-header-height'], [navigation, '--mobile-nav-height'], [toast, '--toast-height']] as const) {
-        if (element) root.style.setProperty(property, `${Math.ceil(element.getBoundingClientRect().height)}px`);
-      }
-      if (node && !hidden && hasTray) {
-        const bounds = node.getBoundingClientRect();
-        const top = Math.min(bounds.top, ...Array.from(node.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark'), element => element.getBoundingClientRect().top));
-        root.style.setProperty('--compare-tray-height', `${Math.ceil(bounds.bottom - top)}px`);
-      }
-    };
+    const measure = () => measureTrayMetrics({ style: document.documentElement.style, header, navigation, toast, tray: node && !hidden && hasTray ? node : null });
     // On mount without a tray, measuring now would force the first layout of the page React has
     // just inserted inside its commit. The ResizeObserver below reports every element it observes
     // once laid out, before that frame paints, so the first measurement can wait for it.
@@ -78,11 +69,12 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
     const observer = new ResizeObserver(measure);
     [header, navigation, toast, node].forEach(element => { if (element) observer.observe(element); });
     node?.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark').forEach(element => observer.observe(element));
-    return () => {
-      observer.disconnect();
-      for (const property of ['--compare-tray-height', '--site-header-height', '--mobile-nav-height', '--toast-height']) root.style.removeProperty(property);
-    };
+    // The heights stay set while the effect re-runs, so the next measurement writes only what moved.
+    return () => observer.disconnect();
   }, [hasTray, hidden, compact, error, warning]);
+  useLayoutEffect(() => () => {
+    for (const property of TRAY_METRIC_PROPERTIES) document.documentElement.style.removeProperty(property);
+  }, []);
   useEffect(() => {
     const onVisibility = () => setDocumentVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
