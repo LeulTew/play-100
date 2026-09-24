@@ -67,7 +67,7 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
       lifetime.detach();
       setStatus(!navigator.onLine ? 'offline' : lifetime.block === 'transient' ? 'retrying' : lifetime.block === 'quota' ? 'quota' : 'error');
     }
-    setError(`${onlineError(cause)}${lifetime.block === 'transient' ? ' Retrying automatically while this page is visible and connected.' : lifetime.block === 'quota' ? ' Automatic recovery uses a longer cooldown to protect the free quota.' : ''}`);
+    setError(`${onlineError(cause)}${lifetime.block === 'transient' ? ' Retrying automatically while this page is visible and connected.' : lifetime.block === 'quota' ? ' Retrying automatically at longer intervals while this page is visible and connected.' : ''}`);
   }, [owns, lifetime, scope, epoch, enabled, initialProbe, setRemote]);
   const succeeded = useCallback((next: SyncStatus) => {
     if (!owns() || hardBlocked(lifetime.block)) return;
