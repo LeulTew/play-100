@@ -56,7 +56,7 @@
 .connect-choices strong { display: block; font-size: 14px; line-height: 1.5; }
 .connect-choices small { display: block; font-size: 13px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
 .check-control.sync-consent { align-items: flex-start; padding-block: 8px; line-height: 1.6; margin-block: 16px 8px; }
-.sync-consent input { margin-top: 4px; }
+.check-control.sync-consent input { margin-top: 4px; }
 .sync-panel .account-smallprint, .account-smallprint { font-size: 12px; line-height: 1.65; color: var(--muted); margin-block: 12px 20px; max-width: 76ch; }
 .account-counts { font-variant-numeric: tabular-nums; color: var(--ink); }
 .account-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
