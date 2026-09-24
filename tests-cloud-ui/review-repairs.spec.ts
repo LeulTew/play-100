@@ -76,14 +76,26 @@ test('a guest inline rating keeps its original save target while another tab res
   await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeVisible();
   const peer = await context.newPage();
   try {
-    await page.clock.install({ time: new Date('2026-09-14T12:00:00Z') });
-    await page.clock.pauseAt(new Date('2026-09-14T12:00:10Z'));
+    // Playwright's clock is context-wide, so pausing it also froze the peer tab's sign-in. Hold only this tab's
+    // 650 ms rating debounce instead: the edit stays pending until the account restore makes its field exit and save.
+    await page.evaluate(() => {
+      const schedule = window.setTimeout.bind(window);
+      const held = { count: 0 };
+      Object.assign(window, { heldRatingSaves: held });
+      window.setTimeout = ((handler: TimerHandler, timeout?: number, ...rest: unknown[]) => {
+        if (timeout !== 650) return schedule(handler, timeout, ...rest);
+        held.count += 1;
+        return 0;
+      }) as typeof window.setTimeout;
+    });
     await page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('7.2');
+    await expect.poll(() => page.evaluate(() => (window as unknown as { heldRatingSaves: { count: number } }).heldRatingSaves.count)).toBeGreaterThan(0);
+    expect((await readLibrary(page)).ranking).toEqual([]);
     await signIn(peer, email);
     await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(7.2);
     expect((await readAccount(peer, uid)).state.records).toEqual({});
     await expect(page.locator('#collection')).not.toContainText(title);
-  } finally { await page.clock.resume(); await peer.close(); }
+  } finally { await peer.close(); }
 });
 
 test('an interrupted upload recovers automatically after reconnect without a manual sync click', async ({ page, context, request }) => {
