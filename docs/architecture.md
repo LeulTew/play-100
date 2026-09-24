@@ -25,7 +25,8 @@ closing it should use native Back or replace a directly entered detail URL.
 
 [useLibrary](../src/hooks/useLibrary.ts) owns the guest library snapshot and
 serializes writes through the device database. Storage failure is explicit:
-temporary edits stay in the tab rather than claiming a durable save.
+temporary edits stay in the tab rather than claiming a durable save. The opened
+library is published as a transition.
 [useAccountLibrary](../src/hooks/useAccountLibrary.ts) reads and writes a separate
 account scope through [scoped-library](../src/lib/scoped-library.ts).
 App keeps the guest hook mounted and selects the account controller when present;

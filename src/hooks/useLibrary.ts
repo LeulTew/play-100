@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import {
   commitPersonalAction, loadPersonalLibrary, resetPersonalLibrary,
   restorePersonalLibrary, subscribePersonalLibrary,
@@ -48,7 +48,9 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
       throw error;
     }).then((result) => {
       if (canceled || sequence !== loadSequence.current) return;
-      publish({ state: result.state, status: 'ready', warning: result.notice, error: null });
+      // Opening the library re-renders the whole app; as a transition React renders it in slices.
+      // current.current is still updated at once, so writes queued meanwhile see the ready state.
+      startTransition(() => publish({ state: result.state, status: 'ready', warning: result.notice, error: null }));
     }).catch((error: unknown) => {
       if (canceled || sequence !== loadSequence.current || canonicalLoading) return;
       let fallback = current.current.state;
