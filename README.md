@@ -229,6 +229,9 @@ replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
 ## Quality checks
 
+`npm run format:check` becomes part of lint after the mechanical formatting
+commit; until then it is a separate, opt-in check.
+
 The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in
 `.github/workflows` but are **disabled by the owner**; nothing runs on pull
 requests or pushes. Release gating is the local suites below plus review:
