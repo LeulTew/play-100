@@ -28,11 +28,19 @@ export function useCapabilities(preference: MotionPreference) {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const pointer = window.matchMedia('(pointer: coarse)');
     const connection = (navigator as HintedNavigator).connection;
-    const update = () => setCapabilities(readCapabilities());
+    const update = () => setCapabilities(previous => {
+      const next = readCapabilities();
+      return previous.reducedMotion === next.reducedMotion &&
+        previous.coarsePointer === next.coarsePointer &&
+        previous.hidden === next.hidden &&
+        previous.constrained === next.constrained ? previous : next;
+    });
     reduced.addEventListener('change', update);
     pointer.addEventListener('change', update);
     document.addEventListener('visibilitychange', update);
     connection?.addEventListener('change', update);
+    // Reconcile changes between the render-time snapshot and subscription.
+    update();
     return () => {
       reduced.removeEventListener('change', update);
       pointer.removeEventListener('change', update);

@@ -107,6 +107,36 @@ test('resource-saving Auto has no fan promise; explicit Full remains a real over
   await expect(artifact.locator('.artifact-control')).toBeVisible();
 });
 
+test('Auto reconciles a Save-Data change before capability subscription', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, listener, options) {
+      const connection = (navigator as Navigator & {
+        connection?: EventTarget & { saveData?: boolean };
+      }).connection;
+      if (connection && this === connection && type === 'change') {
+        EventTarget.prototype.addEventListener = original;
+        document.documentElement.dataset.saveDataBeforeSubscription = String(connection.saveData);
+        connection.saveData = true;
+        connection.dispatchEvent(new Event('change'));
+      }
+      original.call(this, type, listener, options);
+    };
+  });
+  await page.goto('/?catalogs=off');
+  await expect(page.locator('html')).toHaveAttribute('data-save-data-before-subscription', 'false');
+  await expect(page.locator('.save-game').first()).toBeEnabled();
+  const artifact = page.locator('.collection-artifact');
+  await expect(artifact).toContainText('Illustrated view · saving resources');
+  await expect(artifact).toHaveAttribute('data-activation', 'static');
+  await expect(artifact).toHaveAttribute('data-render-mode', 'static');
+  await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
+  await selectQuality(page, 'Full');
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
+  await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
+  await expect(artifact.locator('.artifact-control')).toBeVisible();
+});
+
 test('WebGL failure leaves readable static art rather than a no-op Fan out button', async ({ page }) => {
   await page.addInitScript(`
     const original = HTMLCanvasElement.prototype.getContext;
