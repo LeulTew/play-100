@@ -72,7 +72,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         </div>
         <p className="device-note">{mode.scope === 'guest' ? 'Guest progress stays on this device.' : 'Account progress. See Account for sync status.'}</p>
         {onRank && <div className="personal-detail-actions">{onPlayed && <PlayedToggle id={game.slug} title={game.title} played={Boolean(played)} completed={state?.completed} busy={busy} onChange={onPlayed} />}<button className="text-button" disabled={busy} onClick={onRank}><Icon name="rank" width="18" height="18" />{rankingPosition ? `Your rank: #${rankingPosition}` : 'Add to my ranking'}</button></div>}
-        <div className="catalog-detail-rating"><PersonalRatingInput key={game.slug} title={game.title} value={personalRating} busy={Boolean(busy)} onCommit={onRate} /><p>Rating adds to My rankings without marking played or moving a fixed position.</p></div>
+        <div className="catalog-detail-rating"><PersonalRatingInput key={game.slug} title={game.title} value={personalRating} busy={Boolean(busy)} onCommit={onRate} /><p>Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.</p></div>
         {shareFeedback && <p className="detail-share-notice" role="status">{shareFeedback}</p>}
       </div>
       <section className="detail-section critic-section">

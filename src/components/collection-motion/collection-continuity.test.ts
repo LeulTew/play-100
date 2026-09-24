@@ -101,6 +101,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('Original workbook score, based on the game&#x27;s rank.');
     expect(html).not.toContain('Workbook rank-based rating.');
     expect(html).toContain('Workbook snapshot. Not live or independently verified.');
+    expect(html).toContain('Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.');
     expect(html).toContain(`aria-label="Your rating / 10 for ${game.title}"`);
     expect(html).toContain('value="4.25"');
     expect(html.match(/<input\b/g)).toHaveLength(1);

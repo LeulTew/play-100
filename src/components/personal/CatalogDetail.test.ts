@@ -75,6 +75,7 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('Play later');
     expect(html).toContain('Completed');
     expect(html).toContain(`Your rating / 10 for ${discoveryFixture.record.title}`);
+    expect(html).toContain('Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.');
     expect(html).toContain('Preview only.');
     expect(html).toContain('Add to My games from Discover');
     expect(html).toContain('The 100 stays unchanged.');

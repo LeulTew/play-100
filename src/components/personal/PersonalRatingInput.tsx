@@ -26,7 +26,7 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
   const save = useCallback((): Promise<boolean> => {
     if (saving.current) return saving.current;
     if (!edited || committedEdit.current === edits.current) return Promise.resolve(true);
-    if (badInput.current) { setError('Enter a valid rating from 0 to 10, or deliberately clear the field. Your saved rating is unchanged.'); return Promise.resolve(false); }
+    if (badInput.current) { setError('Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.'); return Promise.resolve(false); }
     const next = draft.trim() === '' ? null : Number(draft);
     if (next !== null && (!Number.isFinite(next) || next < 0 || next > 10)) { setError('Use a rating from 0 to 10, or leave it blank.'); return Promise.resolve(false); }
     setError('');
@@ -37,7 +37,7 @@ export function PersonalRatingInput({ title, value, busy, onCommit }: {
         if (version === edits.current) { committedEdit.current = version; setEdited(false); }
         return version === edits.current;
       }
-      setError('The rating could not be saved. Your previous rating is unchanged.');
+      setError('The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.');
       return false;
     })();
     saving.current = task;

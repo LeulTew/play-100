@@ -166,11 +166,41 @@ describe('My games exit guard', () => {
       await rating.press('Tab');
       const failure = page.getByRole('alert').filter({ hasText: 'The rating could not be saved.' });
       await browserExpect(failure).toBeVisible();
+      await browserExpect(failure).toHaveText('The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.');
       await expectGuardedExits(page, async () => {
         await browserExpect(rating).toHaveValue('9');
         await browserExpect(failure).toBeVisible();
       });
       expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([JSON.stringify({ id: 'alpha', score: 9 })]);
+
+      await page.evaluate(() => window.myGamesFixture.accept(true));
+      await rating.press('Enter');
+      await browserExpect(failure).toHaveCount(0);
+      await browserExpect(rankingStatus(page)).toHaveText('1 ranked game in this view');
+      await browserExpect(rankedRow(page, 'alpha')).toHaveCount(0);
+      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
+        JSON.stringify({ id: 'alpha', score: 9 }), JSON.stringify({ id: 'alpha', score: 9 }),
+      ]);
+    });
+  });
+
+  it('explains invalid number input without clearing or saving the previous rating', async () => {
+    await withPage(async page => {
+      const rating = rankedRow(page, 'alpha').getByRole('spinbutton', { name: 'Your rating / 10 for Alpha game' });
+      await rating.focus();
+      await rating.press('ControlOrMeta+A');
+      await rating.press('e');
+      expect(await rating.evaluate(element => element instanceof HTMLInputElement && element.validity.badInput)).toBe(true);
+      await rating.press('Tab');
+      const failure = page.getByRole('alert').filter({ hasText: 'Enter a rating from 0 to 10' });
+      await browserExpect(failure).toHaveText('Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.');
+      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([]);
+
+      await rating.fill('7');
+      await rating.press('Enter');
+      await browserExpect(failure).toHaveCount(0);
+      await browserExpect(rating).toHaveValue('7');
+      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([]);
     });
   });
 });
