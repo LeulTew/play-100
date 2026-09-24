@@ -140,7 +140,7 @@ test('Auto defers touch-screen WebGL until requested while Full remains automati
   } else {
     await expect(scene).toHaveAttribute('data-render-mode', 'webgl');
   }
-  await page.locator('.footer-bottom').getByRole('button', { name: /Experience:/ }).click();
+  await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
   await page.getByRole('radio', { name: /Full/ }).click();
   await expect(page.getByRole('radio', { name: /Full/ })).toBeChecked();
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
