@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { installGuestLibrary, libraryFixture } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 const compare = (page: Page) => page.getByRole('button', { name: 'Compare rankings with friends', exact: true });
+const chip = (page: Page) => page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true });
 const signIn = (page: Page) => page.getByRole('dialog', { name: 'Sign in', exact: true });
 const account = (page: Page) => page.locator('.account-nav');
 
@@ -18,11 +19,29 @@ test.beforeEach(async ({ page, baseURL }) => {
   await installGuestLibrary(page, libraryFixture(3));
   test.skip(await account(page).count() === 0,
     'Requires the centrally configured online build; remote account requests remain blocked.');
-  const pin = page.locator('.personal-row-static').first().getByRole('button', { name: /^Pin for comparison: / }).and(page.locator('button[aria-pressed]'));
+  const pin = page.locator(`.personal-row-static[data-record-id="${libraryRecords[0].id}"]`)
+    .getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true })
+    .and(page.locator('button[aria-pressed]'));
   await pin.focus();
   await page.keyboard.press('Space');
-  await expect(compare(page)).toBeVisible();
+  await expect(chip(page)).toBeVisible();
 });
+
+async function fullDock(page: Page) {
+  await page.goto('/?catalogs=off');
+  await expect(compare(page)).toBeVisible();
+}
+
+async function compareFromChip(page: Page) {
+  await expect(compare(page)).toHaveCount(0);
+  await chip(page).focus();
+  await page.keyboard.press('Enter');
+  const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
+  await expect(tray.getByRole('heading', { name: 'Compare tray', exact: true })).toBeFocused();
+  await tray.getByRole('button', { name: 'Choose friends', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(tray).not.toBeVisible();
+}
 
 async function readyAccount(page: Page) {
   await account(page).focus();
@@ -59,6 +78,7 @@ async function returnSnapshot(page: Page) {
 }
 
 test('ready Compare keyboard device exit restores the remounted action while its toast is active, then ordinary Account returns normally', async ({ page }, info) => {
+  await fullDock(page);
   await readyAccount(page);
   const before = await readLibrary(page);
   await compare(page).focus();
@@ -95,6 +115,7 @@ async function holdAccountModule(page: Page) {
 }
 
 test('cold loading to ready Sign in keeps the Compare origin until the final native close', async ({ page }) => {
+  await fullDock(page);
   const held = await holdAccountModule(page);
   try {
     await compare(page).focus();
@@ -111,6 +132,7 @@ test('cold loading to ready Sign in keeps the Compare origin until the final nat
 });
 
 test('cold cancellation uses the current Account fallback without stealing focus when the module later arrives', async ({ page }) => {
+  await fullDock(page);
   const held = await holdAccountModule(page);
   try {
     await compare(page).focus();
@@ -134,14 +156,14 @@ test('native Back invalidates a Compare return ticket even when that action exis
   await expect(page).toHaveURL(url => url.pathname === '/discover');
   await navigation.getByRole('link', { name: 'My games', exact: true }).click();
   await expect(page).toHaveURL(url => url.pathname === '/my-games');
-  await compare(page).focus();
-  await page.keyboard.press('Enter');
+  await compareFromChip(page);
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
   await page.goBack();
   await expect(page).toHaveURL(url => url.pathname === '/discover');
   await nativeDeviceExit(page);
   await expect(account(page)).toBeFocused();
-  await expect(compare(page)).not.toBeFocused();
+  await expect(chip(page)).toBeVisible();
+  await expect(chip(page)).not.toBeFocused();
 });
 
 test('a failed rating edit keeps its exact field and never captures or opens a Compare sign-in origin', async ({ page }) => {
@@ -150,8 +172,7 @@ test('a failed rating edit keeps its exact field and never captures or opens a C
   const rating = page.locator('.my-games-editor:visible').getByRole('spinbutton').first();
   await rating.fill('11');
   const before = await readLibrary(page);
-  await compare(page).focus();
-  await page.keyboard.press('Enter');
+  await compareFromChip(page);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(rating).toBeFocused();
   await expect(rating).toHaveValue('11');
