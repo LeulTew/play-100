@@ -17,12 +17,12 @@ import { ChunkRecovery } from './components/ChunkRecovery';
 import { isModuleLoadFailure } from './lib/chunk-recovery';
 import { visibleMenuTrigger } from './lib/dialog-focus';
 import { usePwa } from './pwa/usePwa';
-import { hasUnsubmittedPwaForm } from './lib/pwa-update-guard';
+import { createPwaUpdateGuard, useInputGeneration } from './pwa/update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
 import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR, onlineWasRequested, rememberOnlineRequest, resolveOnlineRequest } from './lib/online-availability';
 import type { OnlineBridge } from './cloud/ui-types';
 import { LibraryModeContext } from './lib/library-mode';
-import { flushPendingEdits, hasPendingEdits } from './hooks/useExitSave';
+import { flushPendingEdits } from './hooks/useExitSave';
 import { captureInviteContinuation } from './lib/invite-continuation';
 import { CompareDragHandle, CompareTrayProvider, useCompareTray } from './components/compare-tray';
 import { useDiscoveryCatalog } from './hooks/useDiscoveryCatalog';
@@ -135,16 +135,7 @@ export default function App() {
   const pwa = usePwa({ enabled: pwaEnabled, wantControls: panel === 'menu' || panel === 'settings' });
   const updateState = useRef({ busy: libraryBusy, panel });
   updateState.current = { busy: libraryBusy, panel };
-  const inputGeneration = useRef(0);
-  useEffect(() => {
-    const edited = () => { inputGeneration.current += 1; };
-    document.addEventListener('input', edited, true);
-    document.addEventListener('change', edited, true);
-    return () => {
-      document.removeEventListener('input', edited, true);
-      document.removeEventListener('change', edited, true);
-    };
-  }, []);
+  const inputGeneration = useInputGeneration();
   const accountPanelOpen = useRef(panel === 'account');
   accountPanelOpen.current = panel === 'account';
   const compareSignInOrigin = useRef<{ isCurrent: () => boolean } | null>(null);
@@ -384,19 +375,9 @@ export default function App() {
   const applyPwaUpdate = () => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
     const view = `${window.location.pathname}${window.location.search}`;
-    const edits = inputGeneration.current;
     const isCurrent = () => currentScopeAndNavigation() && updateState.current.panel === 'settings' &&
       view === `${window.location.pathname}${window.location.search}`;
-    return pwa.applyUpdate({
-      isCurrent,
-      prepare: async () => {
-        if (!await flushPendingEdits()) return false;
-        if (hasUnsubmittedPwaForm()) throw new Error('Finish or clear unsubmitted forms, or return to The 100 before updating. Nothing was reloaded.');
-        return isCurrent();
-      },
-      canReload: () => isCurrent() && !updateState.current.busy && inputGeneration.current === edits &&
-        !hasPendingEdits() && !hasUnsubmittedPwaForm(),
-    });
+    return pwa.applyUpdate(createPwaUpdateGuard({ isCurrent, busy: () => updateState.current.busy, inputGeneration }));
   };
   const publicLookup = page === 'discover' && selectedRecord && !selectedGame && !transientPreview?.authority &&
     !onlineOpening && enrichmentIdentity(selectedRecord.id) ? {

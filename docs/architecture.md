@@ -99,9 +99,12 @@ guard also checks the current Settings panel, busy state and new input events.
 | Sign-in handoff preserves current focus and does not steal it after navigation. | [Compare return focus](../tests/compare-return-focus.spec.ts) |
 | Native dialog input and close remain independent of motion completion. | [Dialog lifecycle](../src/motion/Dialog.browser.test.ts) |
 | PWA connection and update work respect cleanup and currentness guards. | [Deferred controller](../src/pwa/deferred-controller.test.ts), [client lifecycle](../src/pwa/client.test.ts) |
+| Typing during an update defers its reload; a later request reloads. | [Update input guard](../src/pwa/update-guard.browser.test.ts) |
 
-The controller tests exercise supplied update guards; there is no mounted root
-test yet for the full input-event-to-reload guard. See the
+The controller tests exercise supplied update guards. The mounted guard test runs
+the App's input-generation hook and `createPwaUpdateGuard` through the real
+`executePwaUpdate` reload path against a scripted controller; it does not mount
+the App root or a real service worker. See the
 [implementation map](../README.md#implementation-map) for the wider source layout.
 
 ## Changing these boundaries
