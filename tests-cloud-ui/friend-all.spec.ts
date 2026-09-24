@@ -342,8 +342,10 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Synthetic resumable All cleanup interruption');
   await expect(page.getByRole('status').filter({ hasText: 'Your online copy was deleted. The copy on this device is still here.' })).toHaveCount(0);
   expect((await readAccount(page, uid)).state.records['manual:cleanup']).toBeTruthy();
-  await page.locator('.account-danger > summary').click();
-  await page.getByRole('button', { name: 'Delete online copy', exact: true }).click();
+  // 27f8a7e replaces the danger zone with the deletion notice once the online copy is marked deleted.
+  await expect(page.locator('.account-danger')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: "Deletion isn't finished", exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Finish deleting', exact: true }).click();
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

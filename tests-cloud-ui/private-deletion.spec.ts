@@ -57,7 +57,8 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
     headers: { Authorization: 'Bearer owner' }, data: { localId: [uid] },
   });
   expect((await (await lookup()).json()).users).toHaveLength(1);
-  await page.getByRole('dialog').getByRole('button', { name: 'Keep my data', exact: true }).click();
+  // Pausing online saving remounts the keyed Account page, which already closed the confirmation.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await signIn(page, email);

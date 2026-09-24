@@ -62,16 +62,17 @@ test('a guest inline rating keeps its original save target while another tab res
   await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await expect(page).toHaveURL(/\/$/);
   await page.locator('.account-nav').click();
   await page.getByRole('button', { name: 'Keep using this device', exact: true }).click();
-  const nav = page.locator('.desktop-nav:visible, .mobile-nav:visible');
-  const libraryLink = nav.getByRole('link', { name: 'My library', exact: true });
-  if (await libraryLink.count()) await libraryLink.click();
-  else await nav.getByRole('button', { name: /Play later/ }).click();
+  // 98e77e5 merged My library into My games; both navigations link to it, and only the visible editor is active.
+  await page.locator('.desktop-nav:visible, .mobile-nav:visible').getByRole('link', { name: 'My games', exact: true }).click();
   const title = `Guest draft ${crypto.randomUUID().slice(0, 8)}`;
-  await page.locator('.manual-add summary').click();
-  await page.getByLabel('Game title', { exact: true }).fill(title);
-  await page.locator('.manual-add form').getByRole('button').click();
+  const editor = page.locator('.my-games-editor:visible');
+  await editor.locator('.manual-add summary').click();
+  await editor.getByLabel('Game title', { exact: true }).fill(title);
+  await editor.locator('.manual-add form').getByRole('button').click();
   await expect.poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === title)).toBe(true);
   await page.locator('.wordmark').first().click();
+  // 819618a shows saved additions beyond The 100 as catalog cards whose rating sits under Actions & source.
+  await page.getByLabel(`Actions & source for ${title}`, { exact: true }).click();
   await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeVisible();
   const peer = await context.newPage();
   try {
@@ -81,7 +82,7 @@ test('a guest inline rating keeps its original save target while another tab res
     await signIn(peer, email);
     await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(7.2);
     expect((await readAccount(peer, uid)).state.records).toEqual({});
-    await expect(page.locator('.games, .unranked-list')).not.toContainText(title);
+    await expect(page.locator('#collection')).not.toContainText(title);
   } finally { await page.clock.resume(); await peer.close(); }
 });
 
@@ -187,7 +188,9 @@ test('a clean failed online check stays paused after a fresh unchanged head and 
     expect(restored.ok()).toBe(true);
     needsRestore = false;
     await expect(page.locator('.sync-state')).toHaveText('Online saving paused');
-    await page.locator(isMobile ? '.mobile-nav' : '.desktop-nav').getByRole(isMobile ? 'button' : 'link', { name: 'My rankings', exact: true }).click();
+    // 98e77e5 moved rankings into the My games Ranking view; navigate in-app to keep the paused session.
+    await page.locator(isMobile ? '.mobile-nav' : '.desktop-nav').getByRole('link', { name: 'My games', exact: true }).click();
+    await page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', { name: /^Ranking\b/ }).click();
     await page.getByRole('spinbutton').fill('7.4'); await page.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score).toBe(7.4);
     await expect(page.locator('.account-nav')).toHaveAccessibleName(/Online saving paused/);
