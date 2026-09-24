@@ -228,8 +228,8 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
     dispatchEvent(new PopStateEvent('popstate'));
   });
   const pending = page.getByRole('region', { name: 'Deletion was requested', exact: true });
-  await expect(pending.getByRole('status')).toHaveText("Checking what's still stored online...");
-  await expect(pending).not.toContainText("We couldn't confirm everything was removed");
+  await expect(pending.getByRole('status')).toHaveText("Checking what's still stored online…");
+  await expect(pending).not.toContainText("Removal of all online data could not be confirmed.");
   await expect(pending.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
   await page.evaluate(() => {
     const release: unknown = Reflect.get(window, 'releaseDeletionProbe');

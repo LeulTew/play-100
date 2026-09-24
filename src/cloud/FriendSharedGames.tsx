@@ -59,7 +59,7 @@ export function FriendSharedGames({ uid, peer, authGeneration, verified, store, 
       renderArtwork={(entry) => <GameArtwork record={recordFromFriendShelf(entry, games)} artwork={artwork?.get(entry.id)} />} />
     {view.status === 'unavailable' && <button className="text-button" onClick={view.retry}>Refresh shared games</button>}
     {view.status === 'ready' && <ShelfArtworkCredits records={view.entries} artwork={artwork} />}
-    {view.status === 'ready' && <p className="section-help">{view.entries.length} loaded / {view.total} shared games{view.complete ? '' : ' - more available'}</p>}
-    {view.status === 'ready' && !view.complete && <button className="text-button" disabled={view.loadingMore} onClick={() => { void view.loadMore(); }}>{view.loadingMore ? 'Loading games...' : 'Load next 25 shared games'}</button>}
+    {view.status === 'ready' && <p className="section-help">{view.entries.length} loaded / {view.total} shared games{view.complete ? '' : ' · more available'}</p>}
+    {view.status === 'ready' && !view.complete && <button className="text-button" disabled={view.loadingMore} onClick={() => { void view.loadMore(); }}>{view.loadingMore ? 'Loading games…' : 'Load next 25 shared games'}</button>}
   </>;
 }

@@ -378,7 +378,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     loading: restoring, identity: identity ?? null,
     controller: protectedController, scope: (active || cacheUnavailable) && scope ? scope : 'guest',
     enabled: active && Boolean(account.snapshot?.sync.enabled && identity?.verified),
-    status: cacheUnavailable ? 'error' : active ? sync.status : 'device', label: cacheUnavailable ? 'Account cache unavailable' : active ? (sync.pendingEdits ? 'Finishing local edits...' : SYNC_LABELS[sync.status]) : 'Device only',
+    status: cacheUnavailable ? 'error' : active ? sync.status : 'device', label: cacheUnavailable ? 'Account cache unavailable' : active ? (sync.pendingEdits ? 'Finishing local edits…' : SYNC_LABELS[sync.status]) : 'Device only',
     creator: isCreator,
     headerIdentity,
     friendSharing: automaticSummary,
@@ -654,15 +654,15 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       setHeadSnapshot({ uid: user.uid, value: deleting });
       const ownsDeletion = () => cloudAuth.currentUser?.uid === user.uid &&
         identityRef.current?.uid === user.uid && authSessionEpoch.current === session;
-      setMessage('Deleting your online library...');
+      setMessage('Deleting your online library…');
       await store.cleanup(true, {
         expectedDeletionEpoch: deleting.epoch, isCurrent: ownsDeletion,
         onProgress: ({ kind }) => {
           if (!ownsDeletion()) throw new Error('The signed-in account changed. Return to the same account before continuing.');
-          setMessage(kind === 'private' ? 'Deleting your online library...' : 'Deleting your ranking summary...');
+          setMessage(kind === 'private' ? 'Deleting your online library…' : 'Deleting your ranking summary…');
         },
       });
-      setMessage('Deleting shared and public copies...');
+      setMessage('Deleting shared and public copies…');
       if (!removeAccount) {
         await friends.store.cleanupSharing(user.uid);
         await shelf.store.cleanupSharing(user.uid);
@@ -673,7 +673,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Return to the same account before continuing.');
           const result = await automatic.store.cleanupPage(user.uid, kind);
           if (result.done) break;
-          setMessage('Deleting shared and public copies...');
+          setMessage('Deleting shared and public copies…');
           if (index === 249) throw new Error('Some shared copies are still stored. Choose Finish deleting to continue.');
         }
       }
@@ -737,7 +737,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       {page === 'invite' && invitation.error && <p className="inline-error" role="alert">{invitation.error}</p>}
       {cloudPage && EMULATOR_MODE && <p className="emulator-note emulator-page-note">Local emulator preview — no production account or cloud data connection.</p>}
       {cloudPage && identity && sessionUnconfirmed && <p className="account-notice" role="status">Signed in. Persistence across refresh has not yet been confirmed.</p>}
-      {cloudPage && (restoring ? <div className="page-loading" role="status"><h1>Restoring account...</h1></div> :
+      {cloudPage && (restoring ? <div className="page-loading" role="status"><h1>Restoring account…</h1></div> :
         page === 'community' ? <CommunityPage social={social} onOpen={onProfile} onPublish={() => onNavigate('publish')} /> :
         page === 'profile' ? <PublicProfilePage social={social} handle={publicHandle} games={games} library={activeController} identity={identity} onOpenRecord={onOpenRecord} onShare={onShare} onAccount={() => onNavigate('account')} onFriend={navigateFriend} /> :
         page === 'invite' ? <InvitationPage store={friends.store} invitation={invitation} identity={friendIdentity} authPanel={authPanel} onAccount={() => onNavigate('account')} onFriends={() => onNavigate('friends')} onSettings={friends.acceptSettings} /> :
@@ -745,7 +745,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         page === 'friends' && friendIdentity ? <FriendsPage key={uid} store={friends.store} identity={friendIdentity} onSettings={friends.acceptSettings} onCommunity={() => onNavigate('community')} onCompare={openComparison} onSharedGames={() => onNavigate('friend-shelf')} sharingSummary={automaticSummary} /> :
         page === 'friend' && friendIdentity ? <FriendDetailPage key={`${uid}:${location.pathname}`} store={friends.store} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} identity={friendIdentity} onSettings={friends.acceptSettings} onFriends={() => onNavigate('friends')} onCompare={openComparison} games={games} onOpen={onOpenRecord}
           sharedGames={<FriendSharedGames key={`${uid}:${location.pathname}:${authSessionEpoch.current}`} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} authGeneration={authSessionEpoch.current} verified={identity.verified} store={shelf.store} friends={friends.store} games={games} library={activeController} onOpen={onOpenRecord} onPin={onPinRecord} artwork={artwork} />} /> :
-        (page === 'compare' || page === 'friend-sharing' || page === 'friend-shelf') && !games.length ? <div className="page-loading" role="status"><h1>Loading games...</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
+        (page === 'compare' || page === 'friend-sharing' || page === 'friend-shelf') && !games.length ? <div className="page-loading" role="status"><h1>Loading games…</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
         page === 'compare' && friendIdentity ? <FriendComparisonPage key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`} store={friends.store} uid={identity.uid} identity={friendIdentity} ownState={activeController.state} games={games} onOpen={onOpenRecord} onFriends={() => onNavigate('friends')} /> :
         (page === 'friend-sharing' || page === 'friend-shelf') && automatic.controlsAll ? <section className="app-page"><h1 data-page-heading tabIndex={-1}>Shared with friends</h1>{automaticSummary}<button className="text-button" onClick={() => onNavigate('friends')}>Friends</button></section> :
         page === 'friend-sharing' && friendIdentity ? <FriendSharingPage key={uid} store={friends.store} identity={friendIdentity} settings={friends.settings} ownState={account.snapshot?.state ?? emptyPersonalLibrary()} connected={Boolean(account.snapshot?.sync.enabled)} games={games} onSettings={friends.acceptSettings} onAccount={() => onNavigate('account')} status={friends.status} error={friends.error} /> :

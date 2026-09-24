@@ -323,7 +323,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
   const selectionReady = selected.every((peer) => selectionChecks[peer]?.status === 'ready');
   const selectionError = Object.values(selectionChecks).find((check) => check.status === 'error');
   return <section className="app-page friends-page">
-    <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Friends</h1><button className="button button-dark" disabled={busy || !identity.verified} onClick={() => { void createInvitation(); }}>{creatingInvite ? 'Creating invite...' : 'Invite someone'}<Icon name="share" /></button></div>
+    <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Friends</h1><button className="button button-dark" disabled={busy || !identity.verified} onClick={() => { void createInvitation(); }}>{creatingInvite ? 'Creating invite…' : 'Invite someone'}<Icon name="share" /></button></div>
     {sharingSummary}
     <nav className="personal-tabs friend-view-tabs" aria-label="Friends view">{(Object.keys(viewLabels) as FriendsView[]).map((value) =>
       <button key={value} disabled={working} aria-current={view.view === value ? 'page' : undefined} aria-pressed={view.view === value} onClick={() => updateView({ view: value })}>{viewLabels[value]}</button>)}</nav>
@@ -331,14 +331,14 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       <label>Filter loaded {view.view === 'friends' ? 'friends' : 'requests'}<input type="search" maxLength={60} value={view.name} onChange={(event) => updateView({ name: event.target.value }, true)} /></label>
       <label>Order<select aria-label="Order" value={view.order} onChange={(event) => updateView({ order: event.target.value === 'name' ? 'name' : 'recent' })}><option value="recent">Recent first</option><option value="name">Name A-Z</option></select></label>
     </div>}
-    <div className="friend-list-summary"><p role="status">{loading ? ready ? 'Updating loaded entries...' : 'Loading...' : ready ? `${relationView ? `${rows.length} shown / ` : ''}${loaded} loaded${cursor ? ' · more available' : ''}` : 'List unavailable'}</p>
+    <div className="friend-list-summary"><p role="status">{loading ? ready ? 'Updating loaded entries…' : 'Loading…' : ready ? `${relationView ? `${rows.length} shown / ` : ''}${loaded} loaded${cursor ? ' · more available' : ''}` : 'List unavailable'}</p>
       <button className="text-button" disabled={working || loading || relationView && !list.active} onClick={() => { void refresh(); }}>Refresh loaded</button></div>
     {relationView && list.changed && <p className="friend-update-notice" role="status">The list changed. Refresh loaded entries before loading more.</p>}
     {relationView && !list.active && <p role="status">Reconnect or return to this tab to manage friends.</p>}
     {problem && <p className="inline-error" role="alert">{problem}</p>}{message && <p role="status">{message}</p>}
     {selected.length > 0 && <div className="friend-selection-bar"><span>{selected.length} / 5 friends selected</span><div className="button-row">
       <button className="button button-dark" disabled={busy || !selectionReady} onClick={() => { void compare(selected); }}>Compare selected</button><button className="text-button" disabled={working} onClick={() => choose([])}>Clear</button>
-    </div>{!selectionReady && <p className="section-help" role="status">{selectionError?.status === 'error' ? `A selected connection could not be confirmed. ${onlineError(selectionError.cause)}` : 'Checking selected connections...'}{selectionError && <button className="text-button" disabled={working} onClick={() => setSelectionRetry((value) => value + 1)}>Retry selected connections</button>}</p>}</div>}
+    </div>{!selectionReady && <p className="section-help" role="status">{selectionError?.status === 'error' ? `A selected connection could not be confirmed. ${onlineError(selectionError.cause)}` : 'Checking selected connections…'}{selectionError && <button className="text-button" disabled={working} onClick={() => setSelectionRetry((value) => value + 1)}>Retry selected connections</button>}</p>}</div>}
     {view.view === 'friends' && !selected.length && <p className="section-help">Choose up to five friends to compare with you. <button className="text-button" onClick={() => onCompare()}>Open comparisons & groups</button></p>}
     {view.view === 'friends' && onSharedGames && <button className="text-button" onClick={onSharedGames}>Sharing details</button>}
     {relationView && <ul className="friend-list">{rows.map((pair) => {
@@ -351,7 +351,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
           <div className="friend-identity">{person ? <Avatar descriptor={person.avatar} size={48} /> : <span className="friend-avatar-placeholder" aria-hidden="true"><Icon name="user" /></span>}<div>
             <strong>{name}</strong>
             {pair.state === 'pending' && pair.from === uid && person && <small>Published profile</small>}
-            {(!profile || profile.status === 'loading') && <small role="status">Loading profile...</small>}
+            {(!profile || profile.status === 'loading') && <small role="status">Loading profile…</small>}
             {profile?.status === 'unavailable' && <small>Profile unavailable</small>}
             {profile?.status === 'error' && <small>Profile could not be loaded. {onlineError(profile.cause)}</small>}
             {(profile?.status === 'error' || profile?.status === 'unavailable') && <button className="text-button" disabled={busy} onClick={() => { void feed.retryProfile(peer); }}>Retry profile</button>}
@@ -373,7 +373,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       </li>;
     })}</ul>}
     {copyState && !link && <p role="status">{copyState}</p>}
-    {view.view === 'blocked' && <ul className="friend-list">{aux.blocks.map((block) => <li key={block.uid}><div><strong>Blocked account ...{block.uid.slice(-6)}</strong><p className="section-help">Unblocking will not restore friendship.</p></div><button className="text-button" disabled={busy} onClick={() => { void run(() => store.unblock(uid, block.uid), 'Unblocked. Friendship was not restored.'); }}>Unblock</button></li>)}</ul>}
+    {view.view === 'blocked' && <ul className="friend-list">{aux.blocks.map((block) => <li key={block.uid}><div><strong>Blocked account …{block.uid.slice(-6)}</strong><p className="section-help">Unblocking will not restore friendship.</p></div><button className="text-button" disabled={busy} onClick={() => { void run(() => store.unblock(uid, block.uid), 'Unblocked. Friendship was not restored.'); }}>Unblock</button></li>)}</ul>}
     {ready && !loading && !problem && empty && <div className="empty-state">
       <h2>{view.name && relationView ? 'No loaded names match' : view.view === 'friends' ? 'No friends loaded' : view.view === 'incoming' ? 'No incoming requests loaded' : view.view === 'sent' ? 'No sent requests loaded' : view.view === 'invites' ? 'No invite links' : 'No blocked accounts'}</h2>
       {cursor ? <p>{view.view === 'incoming' || view.view === 'sent' ? 'Incoming and sent requests share these pages. Load more to check further.' : 'More entries are available below.'}</p> : view.view === 'friends' && !view.name && !list.changed ? <button className="text-button" onClick={onCommunity}>Find players in Community</button> : null}
@@ -396,7 +396,7 @@ export function FriendsPage({ store, identity, onSettings, onCommunity, onCompar
       }, confirmation.action === 'revoke' ? 'Invitation revoked.' : confirmation.action === 'block' ? 'Player blocked.' : 'Friend removed.'); }}>{confirmation.action === 'revoke' ? 'Revoke invitation' : confirmation.action === 'block' ? 'Block player' : 'Remove friend'}</button></div>
       {error && <p className="inline-error" role="alert">{error}</p>}
     </Dialog>}
-    {inviteOpen && <Dialog open titleId="invite-link-title" className="info-dialog" onClose={closeInvite}><h2 id="invite-link-title" data-autofocus tabIndex={-1}>{creatingInvite ? 'Creating invite...' : link ? invitationStatus(link, now) === 'Active' ? 'Invite link' : 'Invitation expired' : 'Check invite links'}</h2>
+    {inviteOpen && <Dialog open titleId="invite-link-title" className="info-dialog" onClose={closeInvite}><h2 id="invite-link-title" data-autofocus tabIndex={-1}>{creatingInvite ? 'Creating invite…' : link ? invitationStatus(link, now) === 'Active' ? 'Invite link' : 'Invitation expired' : 'Check invite links'}</h2>
       {creatingInvite ? <p role="status">Making your one-use link. It appears after the server confirms it.</p> : link ?
         invitationStatus(link, now) === 'Active' ? <><p>One use. Expires {dateFormat.format(link.expiresAt)}. Share only with the person you want to invite.</p><label htmlFor="friend-invite-link">Invitation link</label><input id="friend-invite-link" value={createInviteUrl(link.token)} readOnly onFocus={(event) => event.target.select()} /><div className="button-row"><button className="button button-dark" onClick={() => { void shareLink(link, false); }}>Copy link</button><button className="text-button" onClick={() => { void shareLink(link, true); }}>Share</button></div>{copyState && <p role="status">{copyState}</p>}</> : <p>This link is no longer active. Create a new invitation when you need one.</p> :
         <><p className="inline-error" role="alert">{error || 'The result could not be confirmed. Refresh your links before trying again.'}</p><button className="button button-outline" onClick={() => { closeInvite(); if (view.view === 'invites') void refresh(); else updateView({ view: 'invites' }); }}>Open invite links</button></>}

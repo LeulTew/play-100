@@ -115,6 +115,9 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('original workbook scores, based on each game&#x27;s rank');
     expect(html).toContain('including rounded or text-based results, rather than recalculating them');
     expect(html).toContain('never prefilled');
+    expect(html).toContain('headed “my rating(based on rank)”.');
+    expect(html).toContain('“Hitman: World of Assassination” title');
+    expect(html).toContain('main tab “AAA Top 50”');
   });
 
   it('retains source caveats instead of changing facts to improve a transition', () => {
@@ -127,6 +130,8 @@ describe('collection continuity preserves the public presentation', () => {
     }));
     expect(html).toContain('HITMAN III-branded artwork');
     expect(html).toContain('lists 2016');
+    expect(html).toContain('the workbook calls this “Hitman: World of Assassination”,');
+    expect(html).toContain('The source column was headed “my rating(based on rank)”;');
     expect(html).toContain('We preserve all three rather than infer a release or edition.');
   });
 

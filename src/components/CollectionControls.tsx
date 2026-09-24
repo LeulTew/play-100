@@ -48,7 +48,7 @@ export function CollectionControls({ games, filters, count, addedCount, unranked
           <Icon name="search" />
           <input
             id="game-search" type="search" autoComplete="off" spellCheck={false}
-            placeholder="Game, studio or genre"
+            placeholder="Game, studio or genre…"
             maxLength={160} value={filters.q}
             onChange={(event) => {
               onChange({ q: event.target.value }, searchSession.current ? 'replace' : 'push');

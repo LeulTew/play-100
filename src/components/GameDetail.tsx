@@ -53,7 +53,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         <div className="author-rating-detail"><div><strong>{author.shortName}'s original rating</strong><p>Original workbook score, based on the game's rank.</p></div><span title={game.authorRating?.rawValue}>{authorRatingText(game.authorRating)}{game.authorRating && <small> / 10</small>}</span></div>
         <div className="detail-cover" ref={artworkRef}><GameCover key={game.slug} game={game} large eager /></div>
         <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
-        {game.slug === 'hitman-world-of-assassination' && <p className="source-note">Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.</p>}
+        {game.slug === 'hitman-world-of-assassination' && <p className="source-note">Source caveat: the workbook calls this “Hitman: World of Assassination”, lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.</p>}
         <p className="detail-genre">{game.genre}</p>
         <section className="detail-section">
           <h3>Why it made the list</h3>
@@ -86,7 +86,7 @@ export function GameDetail({ game, state, previous, next, onClose, onOpen, onTog
         <details className="methodology-details">
           <summary>Score sources &amp; method<Icon name="down" width="18" height="18" /></summary>
           <p>The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications.</p>
-          <p>{author.shortName}'s original rating is preserved separately from those critics. The source column was headed "my rating(based on rank)"; its actual cached number is used, including any rounded text result, not a reconstructed curve. {game.authorRating && <>Original cached value: <strong>{game.authorRating.rawValue}</strong>.</>}</p>
+          <p>{author.shortName}'s original rating is preserved separately from those critics. The source column was headed “my rating(based on rank)”; its actual cached number is used, including any rounded text result, not a reconstructed curve. {game.authorRating && <>Original cached value: <strong>{game.authorRating.rawValue}</strong>.</>}</p>
           <p>Your rating belongs to the active library, never prefilled from {author.shortName}'s. Public sharing requires a separate preview and publish action.</p>
         </details>
       </section>

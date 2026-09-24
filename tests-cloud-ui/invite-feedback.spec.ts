@@ -37,7 +37,7 @@ test('first friend identity waits for delayed lifecycle and settings initializat
   });
   await page.getByRole('button', { name: 'Invite someone', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.inviteGate?.committed)).toBe(true);
-  await expect(page.getByRole('heading', { name: 'Creating invite...', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Creating invite…', exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.inviteGate?.identityWrites)).toBe(0);
   await expect(page.getByLabel('Invitation link', { exact: true })).toHaveCount(0);
   await page.evaluate(() => window.inviteGate?.release());
@@ -63,14 +63,14 @@ test('creation feedback is immediate, duplicate clicks create once, and closing 
     };
   });
   await page.getByRole('button', { name: 'Invite someone', exact: true }).evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
-  await expect(page.getByRole('heading', { name: 'Creating invite...', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Creating invite...', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Creating invite…', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Creating invite…', exact: true })).toBeFocused();
   await expect(page.getByLabel('Invitation link', { exact: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.inviteGate?.committed)).toBe(true);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Friends', exact: true })).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Creating invite...', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Creating invite…', exact: true })).toBeDisabled();
   await page.evaluate(() => window.inviteGate?.release());
   await expect(page.getByRole('button', { name: 'Invite someone', exact: true })).toBeEnabled();
   await expect(page.getByRole('dialog')).toHaveCount(0);

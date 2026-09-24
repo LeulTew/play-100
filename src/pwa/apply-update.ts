@@ -49,7 +49,7 @@ export async function executePwaUpdate(
       location.reload();
       return true;
     }
-    access.publish({ updateState: 'applying', error: '', message: 'Applying the requested update...' });
+    access.publish({ updateState: 'applying', error: '', message: 'Applying the requested update…' });
     const changed = new Promise<boolean>(resolve => {
       const done = (value: boolean) => { clearTimeout(timeout); navigator.serviceWorker.removeEventListener('controllerchange', change); resolve(value); };
       const change = () => done(true);

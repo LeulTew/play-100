@@ -29,9 +29,9 @@ for (const view of ['grid', 'list']) {
       await expect(page.getByRole('searchbox', { name: 'Find a game', exact: true })).toBeVisible();
       const status = page.locator('.discovery-results-heading [role="status"]');
       const results = page.getByRole('region', { name: 'Catalog games', exact: true });
-      await expect(status).toHaveText('Loading the catalog');
+      await expect(status).toHaveText('Loading the catalog…');
       await expect(status).toHaveAttribute('aria-live', 'polite');
-      await expect(page.getByRole('status').filter({ hasText: /^Loading the catalog$/ })).toHaveCount(1);
+      await expect(page.getByRole('status').filter({ hasText: /^Loading the catalog…$/ })).toHaveCount(1);
       await expect(results).toHaveAttribute('aria-busy', 'true');
       await expect(page.locator('.discovery-card')).toHaveCount(0);
       await expect(page.locator('.discovery-skeleton')).toHaveAttribute('aria-hidden', 'true');
@@ -82,7 +82,7 @@ test('known original entries stay usable without claiming a complete catalog cou
   try {
     await page.goto('/discover?catalogs=off&include100=on');
     await expect(page.locator('.discovery-card')).toHaveCount(24);
-    await expect(page.locator('.discovery-results-heading [role="status"]')).toHaveText('Loading the catalog');
+    await expect(page.locator('.discovery-results-heading [role="status"]')).toHaveText('Loading the catalog…');
     await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'true');
     await expect(page.locator('.discovery-skeleton')).toHaveCount(0);
     await page.locator('.discovery-card h3 button').first().click();

@@ -76,11 +76,11 @@ export function InvitationPage({ store, invitation, identity, authPanel, onAccou
   };
   return <section className="app-page invitation-page">
     <h1 data-page-heading tabIndex={-1}>Invitation</h1>
-    {busy ? <p role="status">Opening invitation...</p> : done ? <><h2>You're connected</h2><button className="button button-dark" onClick={onFriends}>Open Friends</button></> : preview ? <>
+    {busy ? <p role="status">Opening invitation…</p> : done ? <><h2>You're connected</h2><button className="button button-dark" onClick={onFriends}>Open Friends</button></> : preview ? <>
       <div className="friend-identity"><Avatar descriptor={preview.avatar} size={80} /><div><h2>{preview.displayName}</h2><p>Invites you to connect.</p></div></div>
       <p className="section-help">One use. Expires {new Date(preview.expiresAt).toLocaleString()}. Accepted friends see games and rankings allowed by your sharing mode; notes and play history stay private.</p>
       {identity ? <div className="invite-acceptance"><div className="friend-identity"><Avatar descriptor={identity.avatar} size={48} /><span>Accept as {identity.displayName}</span></div>
-        {identity.uid === preview.ownerUid ? <p>This is your own invitation.</p> : identity.verified ? <button className="button button-dark" disabled={accepting} onClick={() => { void accept(); }}>{accepting ? 'Accepting...' : 'Accept invitation'}</button> : <button className="button button-dark" onClick={onAccount}>Verify your account</button>}
+        {identity.uid === preview.ownerUid ? <p>This is your own invitation.</p> : identity.verified ? <button className="button button-dark" disabled={accepting} onClick={() => { void accept(); }}>{accepting ? 'Accepting…' : 'Accept invitation'}</button> : <button className="button button-dark" onClick={onAccount}>Verify your account</button>}
       </div> : <><p>Sign in, then choose whether to accept.</p>{invitation.capability && invitation.error && <button className="text-button" onClick={() => { try { saveInviteContinuation(invitation.capability!); setError(''); } catch (cause) { setError(onlineError(cause)); } }}>Retry invitation storage</button>}{authPanel}</>}
     </> : <><h2>Invitation unavailable</h2><p>It may have expired, been used or been revoked. Ask for a new link.</p><button className="text-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></>}
     {error && <p className="inline-error" role="alert">{error}</p>}<DataUseLink />
@@ -154,14 +154,14 @@ export function FriendDetailPage({ uid, peer, store, identity, onSettings, onFri
   };
   return <section className="app-page friend-detail-page"><button className="text-button" onClick={onFriends}><Icon name="back" />Friends</button>
     <h1 data-page-heading tabIndex={-1}>{person?.displayName ?? 'Player'}</h1>{person && <Avatar descriptor={person.avatar} size={80} />}
-    {busy && <p role="status">Loading...</p>}{error && <p className="inline-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
+    {busy && <p role="status">Loading…</p>}{error && <p className="inline-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     {pair?.state === 'accepted' ? <button className="button button-outline" onClick={() => onCompare([peer])}>Compare rankings</button> : pair?.state === 'pending' ? <p>{pair.from === uid ? 'Your request is pending.' : 'An incoming request is waiting in Friends.'}</p> : person && uid !== peer && <button className="button button-dark" disabled={busy || !identity.verified || requestNeedsRefresh} onClick={() => setConfirmRequest(true)}>Send friend request</button>}
     {requestNeedsRefresh && <button className="text-button" disabled={busy} onClick={() => {
       setBusy(true); void store.pair(uid, peer).then((value) => { setPair(value); setRequestNeedsRefresh(false); }).catch((cause) => setError(onlineError(cause))).finally(() => setBusy(false));
     }}>Refresh connection</button>}
     {sharedGames}
     {pair?.state === 'accepted' && <h2>Shared ranking</h2>}
-    {pair?.state === 'accepted' && <p className="section-help" role="status">{rankingView.status === 'ready' ? `${entries.length} loaded / ${rankingView.total} shared rankings` : rankingView.status === 'loading' ? 'Loading shared rankings...' : 'Shared ranking unavailable.'}</p>}
+    {pair?.state === 'accepted' && <p className="section-help" role="status">{rankingView.status === 'ready' ? `${entries.length} loaded / ${rankingView.total} shared rankings` : rankingView.status === 'loading' ? 'Loading shared rankings…' : 'Shared ranking unavailable.'}</p>}
     {rankingView.error && <p className="inline-error" role="alert">{rankingView.error}<button className="text-button" onClick={rankingView.retry}>Refresh ranking</button></p>}
     <ol className="friend-ranking-list">{entries.slice(0, limit).map((entry) => <li key={entry.id}><span>{entry.position}</span><button className="text-button" onClick={() => { try { onOpen(recordFromFriendAll(entry, games)); } catch (cause) { setError(onlineError(cause)); } }}>{entry.title}</button><strong>{entry.score === null ? 'Unrated' : entry.score}</strong></li>)}</ol>
     {limit < entries.length && <button className="text-button" onClick={() => setLimit((value) => value + 25)}>Next 25 games</button>}

@@ -67,7 +67,7 @@ test('measures first and warm invitation feedback and confirmed links with a 300
     });
     measuring = true; started = Date.now();
     await page.getByRole('button', { name: 'Invite someone', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Creating invite...', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Creating invite…', exact: true })).toBeVisible();
     await expect(page.getByLabel('Invitation link', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Invitation link', { exact: true })).toBeVisible({ timeout: 60000 });
     const link = await page.getByLabel('Invitation link', { exact: true }).inputValue();

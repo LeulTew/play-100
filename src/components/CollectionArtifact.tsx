@@ -214,7 +214,7 @@ export default function CollectionArtifact({
           ?? (state.ready
             ? 'A small, interactive collection study.'
             : state.status === 'loading'
-              ? 'Illustrated view · 3D is loading'
+              ? 'Illustrated view · 3D is loading…'
               : 'Illustrated view · ready to explore');
 
   return (

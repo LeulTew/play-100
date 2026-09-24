@@ -89,7 +89,7 @@ export function FriendShelfEditor({ state, games, config, identity, connected, s
         <button className="button button-dark" disabled={busy || state.revision !== preview.revision} onClick={() => { void run(async () => {
           await onSave(preview.entries.map((entry) => entry.id), preview.config, preview.revision);
           setPreview(null); setEdited(false); setNotice('Selection saved. Shared games update after your private save.');
-        }); }}>{busy ? 'Saving selection...' : config?.enabled ? 'Update shared games' : 'Share these games'}</button></div>
+        }); }}>{busy ? 'Saving selection…' : config?.enabled ? 'Update shared games' : 'Share these games'}</button></div>
     </Dialog>}
   </section>;
 }
@@ -113,14 +113,14 @@ export function FriendShelfCards({ entries, status, error: operationError, onSav
   };
   return <section className="friend-shelf-cards" aria-labelledby={`${id}-title`}>
     <div className="friend-shelf-heading"><h2 id={`${id}-title`}>Shared games</h2>{status === 'ready' && <span>{entries.length}{paged ? ` / ${total ?? '?'} loaded` : ' games'}</span>}</div>
-    {status === 'loading' ? <p role="status">Loading shared games...</p> : status === 'unavailable' ? <p>Shared games are unavailable.</p> : !entries.length ? <p>No games are shared in this view.</p> : <>
+    {status === 'loading' ? <p role="status">Loading shared games…</p> : status === 'unavailable' ? <p>Shared games are unavailable.</p> : !entries.length ? <p>No games are shared in this view.</p> : <>
       <ul className="friend-shelf-grid">{entries.slice(0, paged ? entries.length : count).map((entry) => <li key={entry.id}>
         {renderArtwork && <div className="friend-shelf-art">{renderArtwork(entry)}</div>}
         <div className="friend-shelf-game"><h3>{onOpen ? <button className="text-button" onClick={() => {
           try { onOpen(entry); } catch (cause) { setError(shelfError(cause)); }
         }}>{entry.title}</button> : entry.title}</h3><ShelfMetadata entry={entry} />
           {entry.sourceUrl && <a className="friend-shelf-source" href={entry.sourceUrl} target="_blank" rel="noreferrer">View source</a>}
-          <div className="button-row"><button className="button button-outline" disabled={Boolean(saving) || savedIds?.has(entry.id)} onClick={() => { void save(entry); }}>{savedIds?.has(entry.id) ? 'Saved' : saving === entry.id ? 'Saving...' : 'Save'}</button>
+          <div className="button-row"><button className="button button-outline" disabled={Boolean(saving) || savedIds?.has(entry.id)} onClick={() => { void save(entry); }}>{savedIds?.has(entry.id) ? 'Saved' : saving === entry.id ? 'Saving…' : 'Save'}</button>
             <button className="text-button" aria-label={`Pin ${entry.title}`} onClick={() => { try { onPin(entry); setNotice({ entries, text: `${entry.title} pinned.` }); } catch (cause) { setError(shelfError(cause)); } }}>Pin</button></div>
         </div>
       </li>)}</ul>

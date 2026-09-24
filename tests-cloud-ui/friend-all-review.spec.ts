@@ -87,7 +87,7 @@ test.beforeEach(async ({ page, request }) => {
 test('failed initial All controls remain unknown and recover to the actual enabled policy', async ({ page }) => {
   await mount(page, { failRead: true });
   const surface = page.locator('#all-review-harness');
-  await expect(surface).toContainText('Checking friend sharing...');
+  await expect(surface).toContainText('Checking friend sharing…');
   await page.evaluate(() => window.allReview.rejectReads());
   await expect(surface).toContainText('Synthetic initial controls read failed');
   await expect(surface).not.toContainText('sharing is off');

@@ -29,7 +29,7 @@ test('a signed-in Settings reload remains open after provisional auth resolves',
     await page.goto('/?info=settings&catalogs=off');
     await expect.poll(() => requested).toBe(true);
     await expect(page.locator('#settings-title')).toBeFocused();
-    await expect(page.locator('.settings-account')).toContainText('Opening account...');
+    await expect(page.locator('.settings-account')).toContainText('Opening account…');
     release();
     await expect(page.locator('.settings-account')).toContainText('separate account library');
     await expect(page.locator('#settings-title')).toBeFocused();

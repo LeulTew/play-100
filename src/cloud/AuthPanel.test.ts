@@ -1,11 +1,18 @@
-import { createElement } from 'react';
+import { createElement, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthPanel } from './AuthPanel';
 
-function render(purpose?: 'compare') {
+vi.mock('react', async importOriginal => {
+  const react = await importOriginal<typeof import('react')>();
+  return { ...react, useState: vi.fn(react.useState) };
+});
+
+afterEach(() => { vi.mocked(useState).mockClear(); });
+
+function render(purpose?: 'compare', busy = false) {
   const props = {
-    busy: false, error: '', message: '', purpose,
+    busy, error: '', message: '', purpose,
     onGoogle: vi.fn(async () => true), onEmail: vi.fn(async () => true),
     onReset: vi.fn(async () => true), onDevice: vi.fn(),
   };
@@ -13,6 +20,18 @@ function render(purpose?: 'compare') {
 }
 
 describe('AuthPanel purpose', () => {
+  it.each([false, true])('uses exact progress copy with email mode %s', emailMode => {
+    // Select the email-mode state for this static render without changing the component API.
+    vi.mocked(useState).mockReturnValueOnce([emailMode, vi.fn()]);
+    const { html } = render(undefined, true);
+    expect(html).toContain('<p class="google-continuation" role="status">Connecting…</p>');
+    if (emailMode) {
+      expect(html).toContain('class="button button-dark auth-submit" disabled="" type="submit">Please wait…<svg');
+    } else {
+      expect(html).not.toContain('auth-submit');
+    }
+  });
+
   it('explains friends rankings before provider choices without initiating authentication', () => {
     const { html, props } = render('compare');
     expect(html).toContain('Compare friends&#x27; rankings');

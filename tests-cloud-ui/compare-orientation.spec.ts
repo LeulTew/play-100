@@ -272,7 +272,7 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
   const twoId = new URL(fixture().routes.compareTwo, origin).searchParams.get('group')!;
   await page.evaluate(id => window.compareOrientationProbe.blockGroup(id), sixId);
   await navigate(page, fixture().routes.compareSix);
-  await expect(page.getByText('Opening comparison group...', { exact: true })).toBeVisible();
+  await expect(page.getByText('Opening comparison group…', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Group name', { exact: true })).toBeDisabled();
   await expect(page.locator('.compare-people')).toHaveCount(0);
   await expect(page.getByText('Choose at least two people.', { exact: true })).toHaveCount(0);
@@ -282,7 +282,7 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
   await expect(people(page)).toHaveAttribute('open', '');
   await page.evaluate(id => window.compareOrientationProbe.blockGroup(id), twoId);
   await navigate(page, fixture().routes.compareTwo);
-  await expect(page.getByText('Opening comparison group...', { exact: true })).toBeVisible();
+  await expect(page.getByText('Opening comparison group…', { exact: true })).toBeVisible();
   const name = await page.evaluate(id => window.compareOrientationProbe.groups.find(group => group.id === id)?.name, sixId);
   if (!name) throw new Error('The existing six-person group must be available.');
   await page.locator('.friend-groups').getByRole('button', { name, exact: true }).click();

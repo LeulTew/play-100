@@ -54,7 +54,7 @@ for (const policy of ['live-270f', 'candidate'] as const) test.describe(`profile
     await page.reload();
     await expect(page.locator('.account-heading')).toContainText(email);
     await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Deletion was requested', exact: true })).toContainText("We couldn't confirm everything was removed");
+    await expect(page.getByRole('region', { name: 'Deletion was requested', exact: true })).toContainText("Removal of all online data could not be confirmed.");
   });
 
   test('sent rows show the published source or an unavailable profile without substituting private identity', async ({ page, context, request, baseURL }) => {

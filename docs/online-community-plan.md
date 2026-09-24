@@ -268,8 +268,8 @@ silently recreate the old state.
 
 ### Status vocabulary
 
-`Device only` / `Saving online...` / `Saved online` /
-`Offline - saved here` / `Needs a choice` / `Online saving paused`.
+`Device only` / `Saving online…` / `Saved online` /
+`Offline · saved here` / `Needs a choice` / `Online saving paused`.
 
 A compact, keyboard-accessible status control opens useful detail. Routine
 status changes do not spam toasts or steal focus. Errors state what is safe,

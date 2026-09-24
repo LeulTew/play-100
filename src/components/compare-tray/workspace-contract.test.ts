@@ -122,7 +122,7 @@ describe('workspace embedding contract', () => {
     expect(queue.indexOf('Beta game')).toBeLessThan(queue.indexOf('Alpha game'));
     expect(queue).toContain('Drag Beta game to reorder your queue');
     expect(queue).toContain('Search your queue');
-    expect(queue).toContain('placeholder="Find a game in your queue"');
+    expect(queue).toContain('placeholder="Find a game in your queue…"');
     expect(queue).not.toContain('Search your library');
     const completed = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue', completedOnly: true }));
     expect(completed).not.toContain('Beta game');

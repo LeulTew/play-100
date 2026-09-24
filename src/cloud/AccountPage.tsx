@@ -79,7 +79,7 @@ export function AccountPage(props: AccountPageProps) {
   return <section className="app-page account-page" aria-labelledby="account-title">
     <div className="account-heading">
       <div className="account-avatar"><button className="account-icon-change" aria-label="Change icon" disabled={busy || !identity.verified} onClick={onAvatar}>{avatar}<span>Change icon</span></button></div>
-      <div><h1 id="account-title" data-page-heading tabIndex={-1}>Account</h1><p>{identity.email}<span>Signed in{identity.verificationPending ? ' - checking access' : identity.verified ? '' : ' - verify your email'}</span></p></div>
+      <div><h1 id="account-title" data-page-heading tabIndex={-1}>Account</h1><p>{identity.email}<span>Signed in{identity.verificationPending ? ' · checking access' : identity.verified ? '' : ' · verify your email'}</span></p></div>
       <button className="text-button" disabled={busy} onClick={() => { void onSignOut(); }}>Sign out<Icon name="arrow" width="17" height="17" /></button>
     </div>
     {onSignOutAndRemove && <div className="account-section">
@@ -92,7 +92,7 @@ export function AccountPage(props: AccountPageProps) {
     </section>}
     {head?.deleted && <section className="account-notice" aria-labelledby="deletion-notice-title">
       <h2 id="deletion-notice-title">{deletionState === 'complete' ? 'Online copy deleted' : deletionState === 'incomplete' ? "Deletion isn't finished" : 'Deletion was requested'}</h2>
-      <p role="status">{deletionState === 'complete' ? 'Online saving and sharing are off. The copy on this device is still here.' : deletionState === 'incomplete' ? 'Some online data is still stored.' : deletionState === 'checking' ? "Checking what's still stored online..." : "We couldn't confirm everything was removed."}</p>
+      <p role="status">{deletionState === 'complete' ? 'Online saving and sharing are off. The copy on this device is still here.' : deletionState === 'incomplete' ? 'Some online data is still stored.' : deletionState === 'checking' ? "Checking what's still stored online…" : "Removal of all online data could not be confirmed."}</p>
       <div className="button-row">
         {deletionState !== 'complete' && <button className="button button-dark" disabled={busy} onClick={() => setConfirmation('delete-copy')}>Finish deleting</button>}
         {(deletionState === 'complete' || deletionState === 'incomplete') && <button className="text-button" disabled={busy} onClick={() => setConfirmation('delete-account')}>Delete account</button>}
@@ -109,7 +109,7 @@ export function AccountPage(props: AccountPageProps) {
           {head && (!head.enabled || head.deleted) && <p className="account-notice">{head.deleted
             ? <>Online saving is off because you deleted your online copy. Turning it on starts a new online copy.{deletionState !== 'complete' && " It doesn't finish the earlier deletion."}</>
             : 'Online saving is stopped. Turn it on below when you want to save online again.'}</p>}
-          {!remoteReady ? <p role="status">Checking saved copies...</p> : choices.length === 1 ? <p className="connection-source"><strong>{choices[0]?.label}</strong><span>{choices[0]?.detail}</span></p> :
+          {!remoteReady ? <p role="status">Checking saved copies…</p> : choices.length === 1 ? <p className="connection-source"><strong>{choices[0]?.label}</strong><span>{choices[0]?.detail}</span></p> :
             <fieldset className="connect-choices" disabled={busy}><legend>Start with</legend>{choices.map((item) => <label key={item.value}>
               <input type="radio" name="connection-copy" value={item.value} checked={selected === item.value} onChange={() => setChoice(item.value)} />
               <span><strong>{item.label}</strong><small>{item.detail}</small></span>
@@ -118,7 +118,7 @@ export function AccountPage(props: AccountPageProps) {
           {replacing && <p className="section-help">This replaces your online library. The device original stays here.</p>}
           <p className="consent-summary">The creator can see your profile and ranking summary. <DataUseLink /></p>
           <p className="section-help">New setups share saved games and rankings with accepted friends. Existing sharing choices stay unchanged; notes, queue and history stay private.</p>
-          <button className="button button-dark" disabled={busy || cancelledRegistration || !cache || !remoteReady || !validChoice} type="submit">{busy ? 'Connecting...' : replacing ? 'Agree & replace online' : 'Agree & enable'}<Icon name="arrow" width="18" height="18" /></button>
+          <button className="button button-dark" disabled={busy || cancelledRegistration || !cache || !remoteReady || !validChoice} type="submit">{busy ? 'Connecting…' : replacing ? 'Agree & replace online' : 'Agree & enable'}<Icon name="arrow" width="18" height="18" /></button>
         </form> : <>
           <p className="account-counts">{localGames} {localGames === 1 ? 'game' : 'games'} · {cache?.state.queueOrder.length ?? 0} queued · {cache?.state.ranking.length ?? 0} ranked</p>
           {cache?.sync.lastSyncedAt && <p className="account-smallprint">Last saved: {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(cache.sync.lastSyncedAt)}</p>}
@@ -163,11 +163,11 @@ export function AccountPage(props: AccountPageProps) {
       <h2 id="account-confirm-title">{confirmation === 'signout-device' ? "Remove this device's account copy?" : confirmation === 'pause' ? 'Stop online saving?' : confirmation === 'remote' ? 'Use the online copy?' : confirmation === 'local' ? 'Replace the online copy?' : confirmation === 'delete-copy' ? 'Delete your online copy?' : cancelledRegistration ? 'Remove cancelled sign-in?' : identity.verified ? 'Delete your account?' : 'Cancel this registration?'}</h2>
       {cancelledRegistration && confirmation === 'delete-account' && <p>This removes the cancelled sign-in and its account copy on this device. You can then register again with the same email. Your guest library stays here.</p>}
       {identity.verified && !cancelledRegistration && confirmation.startsWith('delete') && <p>If deletion is interrupted, your account stays and you can finish from this page later.</p>}
-      <p>{confirmation === 'signout-device' ? 'Sign out and remove only this account copy, its recovery data and sharing caches from this device. Your guest library and online copy are not deleted. Unsynced or newly changed data prevents removal.' : confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? 'Replace this account’s device library with the online copy. A recovery copy stays here.' : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish its ranking and stop older sessions from restoring it. Export a backup first. Your guest library stays here.'}</p>
+      <p>{confirmation === 'signout-device' ? 'Sign out and remove only this account copy, its recovery data and sharing caches from this device. Your guest library and online copy are not deleted. Unsynced or newly changed data prevents removal.' : confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? "Replace this account's device library with the online copy. A recovery copy stays here." : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish its ranking and stop older sessions from restoring it. Export a backup first. Your guest library stays here.'}</p>
       {(confirmation === 'delete-copy' || confirmation === 'delete-account') && identity.providers.includes('password') && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
       {googleConfirmation && <p className="section-help">{googleConfirmed ? 'Google confirmed this account. Confirm below to delete.' : 'Confirm with Google in this tab, then return here. Returning does not delete anything.'}</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
-      <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={closeConfirmation}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') || confirmation === 'signout-device' ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working...' : confirmation === 'signout-device' ? 'Sign out and remove copy' : googleConfirmation && !googleConfirmed ? 'Continue in this tab' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>
+      <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={closeConfirmation}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') || confirmation === 'signout-device' ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working…' : confirmation === 'signout-device' ? 'Sign out and remove copy' : googleConfirmation && !googleConfirmed ? 'Continue in this tab' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>
     </Dialog>}
   </section>;
 }

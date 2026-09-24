@@ -104,7 +104,7 @@ describe('truthful installation and page startup', () => {
       await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
       const prepared = current.controller.prepareOffline();
       expect(current.controller.getSnapshot()).toMatchObject({
-        offlineState: 'preparing', message: 'Preparing offline app files...', error: '',
+        offlineState: 'preparing', message: 'Preparing offline app files…', error: '',
       });
       expect(await prepared).toBe(true);
     } finally { current.stop(); }

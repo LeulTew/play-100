@@ -258,7 +258,7 @@ export function createPwaController(): PwaController {
       const task = (async () => {
         try {
           ensureAvailable();
-          publish({ offlineState: 'preparing', message: 'Preparing offline app files...', error: '' });
+          publish({ offlineState: 'preparing', message: 'Preparing offline app files…', error: '' });
           const existing = await navigator.serviceWorker.getRegistration('/');
           if (existing) checkRegistration(existing);
           if (!current(start)) return false;

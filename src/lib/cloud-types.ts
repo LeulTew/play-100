@@ -75,10 +75,10 @@ export interface ScopedLibrary {
 
 export type SyncStatus = 'device' | 'loading' | 'pending' | 'retrying' | 'quota' | 'saving' | 'saved' | 'offline' | 'conflict' | 'paused' | 'error';
 export const SYNC_LABELS: Record<SyncStatus, string> = {
-  device: 'Device only', loading: 'Opening online library...', saving: 'Saving online...',
-  saved: 'Saved online', offline: 'Offline - saved here', conflict: 'Needs a choice',
+  device: 'Device only', loading: 'Opening online library…', saving: 'Saving online…',
+  saved: 'Saved online', offline: 'Offline · saved here', conflict: 'Needs a choice',
   paused: 'Online saving paused', error: 'Online saving paused',
-  pending: 'Saved here - online pending', retrying: 'Retrying automatically...', quota: 'Waiting for free quota',
+  pending: 'Saved here · online pending', retrying: 'Retrying automatically…', quota: 'Waiting for free quota…',
 };
 
 export interface CreatorRank {

@@ -49,9 +49,9 @@ export function CommunityPage({ social, onOpen, onPublish }: { social: SocialSto
         const url = new URL(location.href); if (trimmed) url.searchParams.set('q', trimmed); else url.searchParams.delete('q');
         history.replaceState(history.state, '', url);
         void load(trimmed);
-      }}><label htmlFor="community-handle">Handle prefix</label><div className="catalog-query"><div className="search-field"><Icon name="search" /><input id="community-handle" name="handle-prefix" type="search" autoComplete="off" spellCheck={false} value={query} maxLength={24} onChange={(event) => setQuery(event.target.value)} placeholder="Start of a handle..." /></div><button className="button button-dark" disabled={busy}>Find handles</button></div><p className="section-help">Search listed handles.</p></form>
+      }}><label htmlFor="community-handle">Handle prefix</label><div className="catalog-query"><div className="search-field"><Icon name="search" /><input id="community-handle" name="handle-prefix" type="search" autoComplete="off" spellCheck={false} value={query} maxLength={24} onChange={(event) => setQuery(event.target.value)} placeholder="Start of a handle…" /></div><button className="button button-dark" disabled={busy}>Find handles</button></div><p className="section-help">Search listed handles.</p></form>
       {error && <div className="catalog-error" role="alert"><p>{error}</p><button className="text-button" disabled={busy} onClick={() => { void load(term); }}>Try again</button></div>}
-      {busy && <p className="catalog-loading" role="status">Opening shared rankings...</p>}
+      {busy && <p className="catalog-loading" role="status">Opening shared rankings…</p>}
       {results.length > 0 && <ul className="community-profiles">{results.map((profile) => <li key={profile.uid}>
         <Avatar descriptor={profile.avatar} size={64} />
         <div className="community-profile-copy"><a href={`/u/${profile.handle}`} onClick={(event) => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onOpen(profile.handle); } }}><h2>{profile.displayName}</h2><span>@{profile.handle}{profile.creator ? ' · Collection creator' : ''}</span></a><h3>{profile.title}</h3><p>{profile.preview.join(' · ')}</p></div>
@@ -97,7 +97,7 @@ export function PublicProfilePage({ social, handle, games, library, identity, on
       } else setError('These games could not be saved. Your previous library is unchanged; check the storage warning.');
     } catch (cause) { setError(onlineError(cause)); }
   };
-  if (busy && !profile) return <section className="app-page page-loading" role="status"><h1>Opening this ranking...</h1><p>Only explicitly published content is requested.</p></section>;
+  if (busy && !profile) return <section className="app-page page-loading" role="status"><h1>Opening this ranking…</h1><p>Only explicitly published content is requested.</p></section>;
   if (!profile) return <section className="app-page empty-state"><h1 data-page-heading tabIndex={-1}>{error ? "This ranking couldn't load." : 'This ranking is not available.'}</h1><p>{error || 'The link may be wrong, unpublished or hidden. Private libraries are never substituted for a missing public ranking.'}</p>{error && <button className="button button-dark" onClick={() => setRetry((value) => value + 1)}>Try again</button>}<a className="text-button" href="/community">Back to Community<Icon name="back" width="17" height="17" /></a></section>;
   return (
     <section className="app-page public-profile-page" aria-labelledby="public-ranking-title">

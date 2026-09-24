@@ -120,7 +120,7 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
   }, [uid]);
   const datasets = useMemo<ComparisonParticipant[]>(() => selected.map((id) => id === uid
     ? { id: uid, displayName: identity.displayName, kind: 'self', availability: 'ready', freshness: 'fresh', updatedAt: null, entries: ownEntries }
-    : participants[id] ?? { id, displayName: identities[id]?.displayName ?? 'Loading player', kind: 'friend', availability: 'loading', freshness: 'unknown' }), [selected, uid, identity.displayName, ownEntries, participants, identities]);
+    : participants[id] ?? { id, displayName: identities[id]?.displayName ?? 'Loading player…', kind: 'friend', availability: 'loading', freshness: 'unknown' }), [selected, uid, identity.displayName, ownEntries, participants, identities]);
   const comparison = useMemo(() => datasets.length >= 2 ? compareFriendRankings(datasets) : null, [datasets]);
   const result = useMemo(() => comparison ? getComparisonPage(comparison, { mode, query, page, pageSize: 25, sort: { by: 'title' },
     ...(filteredGames.value ? { games: filteredGames.value.records } : {}) }) : null, [comparison, mode, query, page, filteredGames.value]);
@@ -153,7 +153,7 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
     <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Compare rankings</h1><button className="text-button" onClick={onFriends}>Friends<Icon name="back" width="17" height="17" /></button></div>
     {filteredGames.warning && <p role="status">{filteredGames.warning}</p>}
     {viewReady ? <section className="compare-chosen-people" aria-label="Chosen people"><p><strong>{selected.length} {selected.length === 1 ? 'person' : 'people'}:</strong>{' '}{datasets.map((person, index) => <span key={person.id}>{index > 0 && ', '}{person.id === uid ? `You (${identity.displayName})` : person.displayName}</span>)}</p></section>
-      : <p className="compare-opening" role="status">Opening comparison group...</p>}
+      : <p className="compare-opening" role="status">Opening comparison group…</p>}
     <details className="compare-people-disclosure" open={peopleDisclosure.open} onToggle={event => {
       const open = event.currentTarget.open;
       setPeopleDisclosure(current => current.open === open ? current : { ...current, open, touched: true });
@@ -177,7 +177,7 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
     <details ref={coverageDisclosure} className="compare-coverage-disclosure" open={coverageOpen} onToggle={event => setCoverageOpen(event.currentTarget.open)}>
       <summary>Coverage &amp; loading{comparison && <span className="compare-coverage-summary" role="status">{filteredGames.value
         ? 'Only the chosen games are checked. Overall totals are unknown.'
-        : comparison.cohort.incomplete ? datasets.some(person => person.availability === 'loading') ? 'Loading chosen rankings. Overall totals are unknown.' : 'Loaded games only. Overall totals are unknown.'
+        : comparison.cohort.incomplete ? datasets.some(person => person.availability === 'loading') ? 'Loading chosen rankings… Overall totals are unknown.' : 'Loaded games only. Overall totals are unknown.'
           : `${comparison.summary.sharedGameCount ?? 'Unknown'} games in common.`}</span>}</summary>
     <ul className="compare-freshness">{selected.filter(value => value !== uid).map(peer => <FriendComparisonLoader key={`${uid}:${peer}`} store={store} uid={uid} peer={peer} exactIds={exactIds} onData={acceptParticipant} onRemove={removeParticipant} />)}</ul>
     {comparison && !filteredGames.value && <p className="section-help">{comparison.summary.sharedGameCount ?? 'Unknown'} games in common.{comparison.summary.pairs.length === 1 && comparison.summary.pairs[0]?.meanAbsoluteScoreGap != null ? ` Mean score gap ${comparison.summary.pairs[0].meanAbsoluteScoreGap.toFixed(2)} across ${comparison.summary.pairs[0].jointlyRatedCount} jointly rated games.` : ''}</p>}

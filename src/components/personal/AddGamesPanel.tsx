@@ -22,7 +22,7 @@ export default function AddGamesPanel({ records, ownedRecords, existingIds, onAd
       <button className="button button-outline" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}><Icon name={expanded ? 'close' : 'plus'} width="18" height="18" />{expanded ? 'Close game picker' : 'Add games'}</button>
       {expanded && <div className="game-picker">
         <label htmlFor={`add-${kind}-search`}>Find a game from the 100 or your library</label>
-        <div className="search-field"><Icon name="search" width="18" height="18" /><input id={`add-${kind}-search`} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your available games" maxLength={160} /></div>
+        <div className="search-field"><Icon name="search" width="18" height="18" /><input id={`add-${kind}-search`} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your available games…" maxLength={160} /></div>
         <ul className="picker-results">
           {choices.map(({ record }) => {
             const existing = existingIds.has(record.id);

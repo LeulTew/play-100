@@ -50,7 +50,7 @@ import { TrayHost } from './components/app/TrayHost';
 import { RouteHost } from './components/app/RouteHost';
 import { DialogHost } from './components/app/DialogHost';
 
-const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game', games: 'My games', library: 'My games - Library', rankings: 'My games - Ranking', discover: 'Discover more games', account: 'Account', community: 'Community', publish: 'Publish ranking', profile: 'A shared ranking', creator: 'Creator desk', friends: 'Friends', friend: 'Friend', invite: 'Invitation', compare: 'Compare rankings', 'friend-sharing': 'Friends sharing', 'friend-shelf': 'Shared games' };
+const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game', games: 'My games', library: 'My games · Library', rankings: 'My games · Ranking', discover: 'Discover more games', account: 'Account', community: 'Community', publish: 'Publish ranking', profile: 'A shared ranking', creator: 'Creator desk', friends: 'Friends', friend: 'Friend', invite: 'Invitation', compare: 'Compare rankings', 'friend-sharing': 'Friends sharing', 'friend-shelf': 'Shared games' };
 const noPreviewSubscription = () => () => {};
 interface PreviewedRecord { record: LibraryRecord; authority?: PreviewAuthority }
 
@@ -121,7 +121,7 @@ export default function App() {
   const libraryScope = online?.scope ?? 'guest';
   const headerIdentity = online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
   const { activeScope, scopeGeneration, navigationGeneration, captureFocusGuard: captureMenuFocusGuard } = useNavigationScope(libraryScope);
-  const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account...' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
+  const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account…' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
   const motionHint = useMemo(() => readMotionHint(libraryScope), [libraryScope]);
   const effectiveMotion = effectiveMotionPreference(library.status, library.state.motion, motionHint);
   const capabilities = useCapabilities(effectiveMotion);
@@ -248,7 +248,7 @@ export default function App() {
   useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
   useEffect(() => { setNotice(''); }, [libraryScope]);
   useEffect(() => {
-    document.title = selectedGame ? `${selectedGame.title} - #${selectedGame.rank} | Play 100` : selectedRecord ? `${selectedRecord.title} | Play 100` : `Play 100 - ${PAGE_TITLES[page]}`;
+    document.title = selectedGame ? `${selectedGame.title} · #${selectedGame.rank} | Play 100` : selectedRecord ? `${selectedRecord.title} | Play 100` : `${PAGE_TITLES[page]} | Play 100`;
   }, [selectedGame, selectedRecord, page]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -324,7 +324,7 @@ export default function App() {
     }
   };
   const shareView = (slug: string | null = null) => {
-    const title = slug && selectedGame ? `${selectedGame.title} | Play 100` : 'Play 100 - a collection worth playing';
+    const title = slug && selectedGame ? `${selectedGame.title} | Play 100` : 'Play 100 — a collection worth playing';
     void share(title, createShareUrl(window.location.origin, filters, slug), filters.list !== 'all');
   };
   const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
@@ -539,7 +539,7 @@ export default function App() {
         } : null}
         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
       <div className={`toast ${visibleNotice || toastRecovery ? 'toast-visible' : ''}`} role={toastRecovery ? undefined : 'status'} aria-live={toastRecovery ? undefined : 'polite'} aria-atomic="true">{toastRecovery ? <>{toastRecovery}<button className="icon-button" aria-label="Dismiss loading error" onClick={() => { dismissPanelMessage(); visibleMenuTrigger()?.focus({ preventScroll: true }); }}><Icon name="close" width="17" height="17" /></button></> : visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); if (!panelRecovery) dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
-      {sharing && <span className="sr-only" role="status">Opening sharing options...</span>}
+      {sharing && <span className="sr-only" role="status">Opening sharing options…</span>}
     </LibraryModeContext.Provider>
       );
     }}</CompareTrayBindings></CompareTrayProvider>

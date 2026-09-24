@@ -117,10 +117,12 @@ test('sorting changes display order, never collection ranks; list view roundtrip
 
 test('game detail deep links, native scores, source notes and keyboard focus work', async ({ page }) => {
   await page.goto('/');
+  await expect(page).toHaveTitle('Find your next game | Play 100');
   const link = page.locator(`${firstCard} .game-link`);
   await link.click();
   await expect(page).toHaveURL(new RegExp(`game=${firstSlug}`));
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page).toHaveTitle('Red Dead Redemption 2 · #1 | Play 100');
   await expect(page.getByRole('dialog').getByRole('heading', { name: firstTitle, exact: true })).toBeFocused();
   await expect(page.locator('.average')).toContainText('95');
   await expect(page.locator('.critic-scores')).toContainText('Unavailable');
@@ -128,12 +130,24 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
   expect(await page.evaluate(() => Boolean(document.querySelector('dialog[open]')?.contains(document.activeElement)))).toBe(true);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).toHaveTitle('Find your next game | Play 100');
   await expect(link).toBeFocused();
   await page.goto('/?game=the-witcher-3-wild-hunt');
   await expect(page.locator('.source-note')).toContainText('(AI – not played)');
   await expect(page.getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
+});
+
+test('Library and Ranking routes use specific document titles through history', async ({ page }) => {
+  await page.goto('/my-library');
+  await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('My games · Library | Play 100');
+  await page.goto('/my-rankings');
+  await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('My games · Ranking | Play 100');
+  await page.goBack();
+  await expect(page).toHaveTitle('My games · Library | Play 100');
 });
 
 test('play-later and completion are independent and persist on this device', async ({ page }) => {

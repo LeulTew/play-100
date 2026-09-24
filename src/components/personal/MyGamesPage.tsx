@@ -133,7 +133,7 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
       <div hidden={view !== 'ranking'}>
         <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />
       </div>
-      <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view.' : ''}</span>
+      <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view…' : ''}</span>
     </section>
   );
 }

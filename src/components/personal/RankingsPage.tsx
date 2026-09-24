@@ -68,7 +68,7 @@ export default function RankingsPage({ state, availableRecords, busy, persistent
           </div>
           {manualCount > 0 && <button className="button button-outline" disabled={busy} onClick={() => { void onAction({ type: 'use-rating-order' }); }}>Use rating order for all</button>}
         </div>
-        <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a game in your ranking" /></div><span className="section-help" role="status">        {records.length} ranked {records.length === 1 ? 'game' : 'games'} in this view</span></div>
+        <div className="personal-tools"><div className="search-field"><Icon name="search" /><label className="sr-only" htmlFor="ranking-search">Search your ranking</label><input id="ranking-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a game in your ranking…" /></div><span className="section-help" role="status">        {records.length} ranked {records.length === 1 ? 'game' : 'games'} in this view</span></div>
       </>}
       {records.length ? <ReorderList records={records} kind="ranking" canReorder={canReorder} busy={busy} animate={animate} positionFor={(id) => rankingById.get(id)?.position ?? null} onMove={(id, overId) => { void onAction({ type: 'move-item', list: 'ranking', id, overId }); }}>
         {(record) => {

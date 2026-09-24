@@ -10,9 +10,9 @@ export default function DataUseContent() {
       <p>Firebase manages Google or email/password sign-in. Google requests basic identity, email and profile access, not your contacts or files. Sign-in identifies an account, not a verified person. Play 100 does not implement its own password store.</p>
       <p>Supported browsers retain sign-in until you sign out or the session is revoked. Private browsing, blocked storage, cleared site data or provider restrictions can require another sign-in. A deployment does not intentionally clear your account or library.</p>
       <h2>Online saving</h2>
-      <p>When you agree to online saving, the creator can view your chosen account profile and ranking summary. Private library data is stored under your verified account. Notes, queue and play history are excluded from the creator’s ranking view, but the project operator can technically access data in the database.</p>
+      <p>When you agree to online saving, the creator can view your chosen account profile and ranking summary. Private library data is stored under your verified account. Notes, queue and play history are excluded from the creator's ranking view, but the project operator can technically access data in the database.</p>
       <p>Existing active account copies can restore into an empty, unchanged account cache after sign-in. Guest data is not merged or uploaded automatically. Dirty copies, stopped saving, deleted data and conflicts require a safe choice.</p>
-      <p>Edits save on the device before uploading. A visible, connected browser retries temporary failures; closed browsers cannot run those updates. Firebase’s free quotas are finite. Quota exhaustion can delay saving without enabling billing.</p>
+      <p>Edits save on the device before uploading. A visible, connected browser retries temporary failures; closed browsers cannot run those updates. Firebase's free quotas are finite. Quota exhaustion can delay saving without enabling billing.</p>
       <h2>Profiles and icons</h2>
       <p>A saved name and chosen creature are account profile data. Creature images are generated locally. No uploaded image or Google profile photo is used. Saving an icon does not update an existing public snapshot.</p>
       <h2>Friends and comparisons</h2>

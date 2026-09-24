@@ -74,14 +74,14 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
   const localRange = localReady && filters.online === 'auto' && local.length > DISCOVERY_PAGE_SIZE
     ? `${localPage.start}–${localPage.end} of ${local.length} catalog games`
     : filters.q.trim() ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}` : `${local.length} games · Illustrated first`;
-  const catalogStatus = catalogLoading ? 'Loading the catalog' : collection.status === 'error' ? 'Catalog unavailable'
+  const catalogStatus = catalogLoading ? 'Loading the catalog…' : collection.status === 'error' ? 'Catalog unavailable'
     : seed.error && filters.source !== 'collection' ? 'Catalog incomplete' : localRange;
   return (
     <section className="app-page discovery-page" aria-labelledby="discover-title">
       <header className="discovery-heading"><h1 id="discover-title" tabIndex={-1} data-page-heading>Discover</h1><button className="text-button" onClick={onLibrary}>My games<Icon name="arrow" width="17" height="17" /></button></header>
       <form className="discovery-search" onSubmit={(event) => { event.preventDefault(); editing.current = false; }}>
         <label htmlFor="catalog-search">Find a game</label>
-        <div className="search-field"><Icon name="search" /><input id="catalog-search" type="search" value={filters.q} maxLength={80} placeholder="Search games, studios or aliases" onFocus={() => { editing.current = false; }} onBlur={() => { editing.current = false; }} onChange={(event) => {
+        <div className="search-field"><Icon name="search" /><input id="catalog-search" type="search" value={filters.q} maxLength={80} placeholder="Search games, studios or aliases…" onFocus={() => { editing.current = false; }} onBlur={() => { editing.current = false; }} onChange={(event) => {
           change({ q: event.target.value, offset: 0, online: 'auto' }, editing.current ? 'replace' : 'push');
           editing.current = true;
         }} />{filters.q && <button className="icon-button" type="button" aria-label="Clear search" onClick={() => change({ q: '', offset: 0, online: 'auto' })}><Icon name="close" /></button>}</div>
