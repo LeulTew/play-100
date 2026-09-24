@@ -16,6 +16,19 @@ async function selectPage(page: Page, value: number) {
   await expect(pager(page).getByRole('combobox')).toHaveValue(String(value));
 }
 
+const rankingEditors = (page: Page) => page.locator('.ranking-row-content');
+
+// Ranking mounts on its first visit and is then retained for the workspace, so visit it once before relying on its editors.
+async function retainRanking(page: Page, count = 3) {
+  await expect(rankingEditors(page)).toHaveCount(0);
+  await tab(page, 'Ranking').click();
+  await expect(tab(page, 'Ranking')).toHaveAttribute('aria-current', 'page');
+  await expect(rankingEditors(page)).toHaveCount(count);
+  await tab(page, 'Library').click();
+  await expect(tab(page, 'Library')).toHaveAttribute('aria-current', 'page');
+  await expect(rankingEditors(page)).toHaveCount(count);
+}
+
 async function heldEditor(page: Page) {
   await page.evaluate(async path => {
     const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(path);
@@ -69,6 +82,8 @@ test('all 20 pages keep 25 Library rows and 3 retained Ranking editors without w
   const fixture = libraryFixture();
   await installGuestLibrary(page, fixture);
   await expect(libraryRows(page)).toHaveCount(25);
+  await retainRanking(page);
+  await expect(libraryRows(page)).toHaveCount(25);
   const before = await readLibrary(page);
   const sorted = Object.values(before.records).sort((a, b) => a.title.localeCompare(b.title));
   const privateRequests: string[] = [];
@@ -92,7 +107,7 @@ test('all 20 pages keep 25 Library rows and 3 retained Ranking editors without w
     await expect(libraryRows(page)).toHaveCount(25);
     expect(await libraryRows(page).evaluateAll(rows => rows.map(row => row.getAttribute('data-record-id'))))
       .toEqual(sorted.slice((value - 1) * 25, value * 25).map(record => record.id));
-    await expect(page.locator('.ranking-row-content')).toHaveCount(3);
+    await expect(rankingEditors(page)).toHaveCount(3);
   }
   await expect(pager(page)).toContainText('476–500 of 500 matching games');
   await expect(pager(page).getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
@@ -259,6 +274,7 @@ test('selection survives pages and the explicit all-matching action covers all 5
 test('manual form and hidden Ranking nodes survive paging and tabs; detail Back preserves page, reload resets it', async ({ page }) => {
   await installGuestLibrary(page);
   const before = await readLibrary(page);
+  await retainRanking(page);
   const library = page.locator('.my-games-editor').filter({ has: page.locator('#library-search') });
   await library.locator('.manual-add > summary').click();
   const title = library.getByLabel('Game title', { exact: true });
@@ -460,6 +476,7 @@ test('Queue remains an unpaged full list beyond 25 and retains existing arrow or
   let fixture = libraryFixture(26);
   fixture = applyPersonalAction(fixture, { type: 'set-progress', records: Object.values(fixture.records), key: 'later', value: true });
   await installGuestLibrary(page, fixture);
+  await retainRanking(page);
   await selectPage(page, 2);
   await tab(page, 'Queue').click();
   const queue = page.getByRole('list', { name: 'Your play order', exact: true });
@@ -471,7 +488,7 @@ test('Queue remains an unpaged full list beyond 25 and retains existing arrow or
   await tab(page, 'Library').click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await expect(libraryRows(page)).toHaveCount(25);
-  await expect(page.locator('.ranking-row-content')).toHaveCount(3);
+  await expect(rankingEditors(page)).toHaveCount(3);
 });
 
 test('320px Library pager and results are keyboard reachable, 44px, contained and accessible', async ({ page }, info) => {
