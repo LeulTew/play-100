@@ -364,7 +364,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     expect(pair.format).toBe(policy === 'candidate' ? 2 : 1);
     if (pair.format === 2) expect(pair.creatorUid).toBe(a.uid);
     pair = await b.friends.respond(b.uid, a.uid, 'accept', pair.epoch);
-    pair = await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
+    await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
     pair = await b.friends.sendRequest(b.uid, a.uid);
     pair = await b.friends.respond(b.uid, a.uid, 'cancel', pair.epoch);
     expect(pair.state).toBe('cancelled');
@@ -490,13 +490,13 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       forbiddenConversion.set(bQuota, { count: 0, revision: 1, lastPair: id });
       await assertFails(forbiddenConversion.commit());
       let pair = await b.friends.respond(b.uid, a.uid, 'accept', 1);
-      pair = await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
+      await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
       pair = await a.friends.sendRequest(a.uid, b.uid);
-      pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
+      await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
       await expect(a.friends.sendRequest(a.uid, b.uid)).rejects.toThrow("You can't send this person a request right now.");
       await assertFails(a.friends.releasePair(a.uid, b.uid));
       pair = await b.friends.sendRequest(b.uid, a.uid);
-      pair = await b.friends.respond(b.uid, a.uid, 'cancel', pair.epoch);
+      await b.friends.respond(b.uid, a.uid, 'cancel', pair.epoch);
       pair = await a.friends.sendRequest(a.uid, b.uid);
       pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
       expect(pair.format).toBe(1);
@@ -539,7 +539,7 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
       let pair = await a.friends.sendRequest(a.uid, b.uid);
       pair = await b.friends.respond(b.uid, a.uid, 'accept', pair.epoch);
       expect((await b.friends.ranking(a.uid)).entries).toEqual([entry]);
-      pair = await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
+      await a.friends.respond(a.uid, b.uid, 'remove', pair.epoch);
       pair = await a.friends.sendRequest(a.uid, b.uid);
       pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
       const id = friendPairId(a.uid, b.uid);
@@ -609,8 +609,8 @@ for (const policy of ['live-270f', 'candidate'] as const) describe(`real-client 
     it.each([1, 2] as const)('accepts a mutually intended invite over a declined format%s pair without re-attributing or increasing its count', async format => {
       const a = await peer(`mutual_invite_a${format}`); const b = await peer(`mutual_invite_b${format}`); const c = await peer(`mutual_invite_c${format}`);
       await b.friends.sendRequest(b.uid, c.uid);
-      let pair = await a.friends.sendRequest(a.uid, b.uid);
-      pair = await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
+      const pair = await a.friends.sendRequest(a.uid, b.uid);
+      await b.friends.respond(b.uid, a.uid, 'decline', pair.epoch);
       const id = friendPairId(a.uid, b.uid);
       if (format === 1) {
         const value = (await getDocFromServer(doc(a.db, 'friendPairs', id))).data()!;
