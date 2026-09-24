@@ -107,6 +107,9 @@ describe('workspace embedding contract', () => {
     expect(library).toContain('role="group" aria-label="Personal library views"');
     for (const name of ['Play later, 2', 'Completed, 1', 'All my games, 2']) {
       expect(library).toContain(`aria-label="${name}"`);
+      // Label in Name: the visible label and count are separate words inside the name.
+      const [label, count] = name.split(', ');
+      expect(library).toContain(`>${label} <span>${count}</span></button>`);
     }
     expect(library).toContain('aria-label="Remove Alpha game from my library"');
     expect(library).not.toContain('title="Remove from my library"');
