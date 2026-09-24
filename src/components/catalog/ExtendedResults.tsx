@@ -26,7 +26,7 @@ export default function ExtendedResults({ records, online, state, queryKey, busy
       </ul>}
       {records.length > limit && <button className="text-button" onClick={() => setLocalLimit((count) => count + 24)}>Show {Math.min(24, records.length - limit)} more games</button>}
       {online.eligible && <div className="discovery-online">
-        {online.seedError && <div className="discovery-notice" role="alert"><p>Local catalog unavailable. {online.seedError} Saved games remain available.</p><button className="text-button" onClick={online.seedRetry}>Reload local catalog</button></div>}
+        {online.seedError && <div className="discovery-notice" role="alert"><p>{online.seedError} Saved games remain available.</p><button className="text-button" onClick={online.seedRetry}>Reload local catalog</button></div>}
         {!online.remoteEnabled && <button className="text-button" onClick={online.searchOnline}>Search online</button>}
         <CatalogSourceStatus sources={online.sources} onRetry={online.retry} onMore={(source) => online.more(source)} />
       </div>}

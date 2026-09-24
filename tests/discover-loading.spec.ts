@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
+import { parseDiscoveryCatalogJson } from '../src/lib/discovery-catalog';
 
 const catalogFile = fileURLToPath(new URL('../public/data/discovery/catalog.v1.json', import.meta.url));
 
@@ -112,3 +114,37 @@ test('a failed seed reports incomplete coverage while retaining known original g
   await page.locator('.discovery-card h3 button').first().click();
   await expect(page.locator('.game-dialog[open]')).toBeVisible();
 });
+
+for (const destination of ['/discover?q=Kingdomcome&catalogs=off', '/?q=Kingdomcome']) {
+  for (const diagnostic of ['expected an ISO UTC timestamp.', 'artwork must use its content-addressed local WebP path.']) {
+    test(`catalog validation on ${destination} keeps ${diagnostic} in diagnostics, not visible copy`, async ({ page }) => {
+      const broken = parseDiscoveryCatalogJson(await readFile(catalogFile, 'utf8'));
+      if (diagnostic === 'expected an ISO UTC timestamp.') broken.generatedAt = 'not-a-timestamp';
+      else {
+        const item = broken.items.find(item => item.artwork !== null);
+        if (!item?.artwork) throw new Error('The catalog fixture needs artwork to exercise its path validator.');
+        item.artwork.src = '/images/discovery/not-content-addressed.webp';
+      }
+      const diagnostics: Promise<string[]>[] = [];
+      page.on('console', message => {
+        if (message.type() === 'error') diagnostics.push(Promise.all(message.args().map(argument =>
+          argument.evaluate((value: unknown) => value instanceof Error ? value.message : String(value)))));
+      });
+      let fail = true;
+      await page.route('**/data/discovery/catalog.v1.json', route => fail
+        ? route.fulfill({ json: broken })
+        : route.fulfill({ path: catalogFile, contentType: 'application/json' }));
+      await page.goto(destination);
+      const notice = page.getByRole('alert').filter({ hasText: 'The local catalog could not be loaded.' });
+      await expect(notice).toHaveCount(1);
+      await expect(notice).toContainText('Choose Reload local catalog to try again.');
+      await expect(notice).toContainText(destination.startsWith('/discover') ? 'The 100 remains searchable.' : 'Saved games remain available.');
+      await expect(page.locator('body')).not.toContainText(diagnostic);
+      await expect.poll(async () => (await Promise.all(diagnostics)).flat().join('\n')).toContain(diagnostic);
+      fail = false;
+      await notice.getByRole('button', { name: 'Reload local catalog', exact: true }).click();
+      await expect(notice).toHaveCount(0);
+      await expect(page.locator('[data-catalog-id="wikidata:Q15408545"]')).toBeVisible();
+    });
+  }
+}

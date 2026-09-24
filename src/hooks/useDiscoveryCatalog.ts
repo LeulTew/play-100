@@ -15,7 +15,10 @@ export function useDiscoveryCatalog(enabled: boolean) {
     void loadDiscoveryCatalog(controller.signal).then((catalog) => {
       if (!controller.signal.aborted) setState({ status: 'ready', catalog, error: null });
     }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setState({ status: 'error', catalog: null, error: error instanceof Error ? error.message : 'The local catalog could not be loaded.', moduleError: isModuleLoadFailure(error) });
+      if (!controller.signal.aborted) {
+        console.error('The local catalog could not be loaded.', error);
+        setState({ status: 'error', catalog: null, error: 'The local catalog could not be loaded. Choose Reload local catalog to try again.', moduleError: isModuleLoadFailure(error) });
+      }
     });
     return () => controller.abort();
   }, [enabled, attempt]);

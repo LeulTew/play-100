@@ -32,6 +32,13 @@ function fixture(): DiscoveryCatalog {
 }
 
 describe('discovery catalog boundary', () => {
+  it('retains precise diagnostics for timestamp and artwork validation', () => {
+    const catalog = fixture();
+    catalog.generatedAt = 'not-a-timestamp';
+    expect(() => parseDiscoveryCatalog(catalog)).toThrow('expected an ISO UTC timestamp.');
+    expect(() => parseCatalogArtwork({ ...artwork, src: '/images/discovery/not-content-addressed.webp' })).toThrow('artwork must use its content-addressed local WebP path.');
+  });
+
   it('rejects exactly ASCII controls in catalog text without trimming them away', () => {
     for (const code of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
       const catalog = fixture();
