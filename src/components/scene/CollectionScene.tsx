@@ -7,6 +7,7 @@ import {
   type MarkPoint,
 } from './artifactDesign';
 import { FrameBudget, MIN_SCENE_DPR } from './frameBudget';
+import { SCENE_DISPLAY, sceneFont, sceneFontSet, sceneFontsReady, whenSceneFontsReady } from './sceneFonts';
 
 export interface CollectionSceneOptions {
   quality: 'auto' | 'full';
@@ -50,6 +51,15 @@ function canvasPolygon(context: CanvasRenderingContext2D, points: readonly MarkP
   context.closePath();
 }
 
+/** Copies a fresh drawing into the canvas a texture already wraps, then re-uploads it. */
+function redrawTexture(texture: THREE.Texture, target: HTMLCanvasElement, fresh: HTMLCanvasElement) {
+  const context = target.getContext('2d');
+  if (!context) return;
+  context.clearRect(0, 0, target.width, target.height);
+  context.drawImage(fresh, 0, 0);
+  texture.needsUpdate = true;
+}
+
 function makeCover(design: FolioDesign) {
   const { canvas, context } = canvasSurface(COVER_WIDTH, COVER_HEIGHT);
   context.fillStyle = design.paper;
@@ -68,10 +78,10 @@ function makeCover(design: FolioDesign) {
   context.stroke();
   context.globalAlpha = 1;
   context.fillStyle = design.ink;
-  context.font = '700 13px "Hanken Grotesk", sans-serif';
+  context.font = sceneFont(700, 13);
   context.fillText('PLAY 100 / COLLECTION', 49, 45);
   context.textAlign = 'right';
-  context.font = '800 43px "Barlow Condensed", sans-serif';
+  context.font = sceneFont(800, 43, SCENE_DISPLAY);
   context.fillText(design.number, 469, 57);
   context.textAlign = 'left';
 
@@ -90,7 +100,7 @@ function makeCover(design: FolioDesign) {
     context.fillStyle = design.accent;
     context.fillRect(48, 282, 422, 31);
     context.fillStyle = design.ink;
-    context.font = '800 14px "Hanken Grotesk", sans-serif';
+    context.font = sceneFont(800, 14);
     context.fillText('R O O M  F O R  P L A Y .', 64, 303);
   } else if (design.motif === 'stripes') {
     context.fillStyle = design.accent;
@@ -132,7 +142,7 @@ function makeCover(design: FolioDesign) {
   }
 
   context.fillStyle = design.ink;
-  context.font = '600 12px "Hanken Grotesk", sans-serif';
+  context.font = sceneFont(600, 12);
   context.fillText(`VOL. ${design.number} / OPEN & EXPLORE`, 49, 337);
   context.strokeStyle = design.ink;
   context.lineWidth = 2;
@@ -174,10 +184,10 @@ function makeRegistrationPlate() {
     context.stroke();
   });
   context.globalAlpha = 0.66;
-  context.font = '600 18px "Hanken Grotesk", sans-serif';
+  context.font = sceneFont(600, 18);
   context.fillText('P100 / ARCHIVE', 154, 857);
   context.fillText('01—06', 759, 201);
-  context.font = '600 15px "Hanken Grotesk", sans-serif';
+  context.font = sceneFont(600, 15);
   context.fillText('M A D E  T O  O P E N', 589, 894);
   return canvas;
 }
@@ -313,6 +323,10 @@ export function createCollectionScene(
     const collection = new THREE.Group();
     collection.rotation.y = -0.18;
     scene.add(collection);
+    // Textures drawn before the web fonts load use the fallback; redraw them once, when they do.
+    const textureRedraws: (() => void)[] = [];
+    const fonts = sceneFontSet();
+    const fontsWereReady = sceneFontsReady(fonts);
     const bodyGeometry = keep(new THREE.BoxGeometry(WIDTH, THICKNESS, DEPTH));
     const coverGeometry = keep(new THREE.PlaneGeometry(WIDTH, DEPTH));
     const foldGeometry = keep(makeFold());
@@ -336,8 +350,10 @@ export function createCollectionScene(
 
     const folios = FOLIO_DESIGNS.map((design, index) => {
       const folio = new THREE.Group();
-      const texture = keep(new THREE.CanvasTexture(makeCover(design)));
+      const coverCanvas = makeCover(design);
+      const texture = keep(new THREE.CanvasTexture(coverCanvas));
       texture.colorSpace = THREE.SRGBColorSpace;
+      textureRedraws.push(() => redrawTexture(texture, coverCanvas, makeCover(design)));
       const coverMaterial = keep(new THREE.MeshStandardMaterial({
         map: texture,
         roughness: 0.92,
@@ -374,8 +390,10 @@ export function createCollectionScene(
       return { folio, index };
     });
 
-    const plateTexture = keep(new THREE.CanvasTexture(makeRegistrationPlate()));
+    const plateCanvas = makeRegistrationPlate();
+    const plateTexture = keep(new THREE.CanvasTexture(plateCanvas));
     plateTexture.colorSpace = THREE.SRGBColorSpace;
+    textureRedraws.push(() => redrawTexture(plateTexture, plateCanvas, makeRegistrationPlate()));
     const plateMaterial = keep(new THREE.MeshBasicMaterial({
       map: plateTexture,
       transparent: true,
@@ -505,6 +523,17 @@ export function createCollectionScene(
       resizeObserver.observe(host);
     }
     resize();
+    if (!fontsWereReady) {
+      void whenSceneFontsReady(fonts).then((ready) => {
+        if (!ready || disposed || failed) return;
+        try {
+          textureRedraws.forEach((redraw) => redraw());
+        } catch {
+          return;
+        }
+        requestFrame();
+      });
+    }
 
     return {
       setActive(nextActive) {
