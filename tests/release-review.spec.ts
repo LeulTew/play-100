@@ -96,7 +96,7 @@ test('temporary user edits survive a later successful author-data retry', async 
   await page.getByText('Add a game manually', { exact: true }).click();
   await page.getByLabel('Game title', { exact: true }).fill('Temporary game to retain');
   await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
-  await page.getByRole('button', { name: 'Open my library', exact: true }).click();
+  await page.locator('.discovery-heading').getByRole('button', { name: 'My games', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Temporary game to retain', exact: true })).toBeVisible();
   await page.locator('.wordmark').first().click();
   await page.evaluate(() => { document.documentElement.dataset.reviewStorageAllowed = 'yes'; });
@@ -104,7 +104,7 @@ test('temporary user edits survive a later successful author-data retry', async 
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.locator('.game-card')).toHaveCount(24);
   await page.locator('.saved-nav').click();
-  await page.getByRole('button', { name: /All my games/ }).click();
+  await page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', { name: /^Library, \d+$/ }).click();
   await expect(page.getByRole('button', { name: 'Temporary game to retain', exact: true })).toBeVisible();
   await expect(page.locator('.storage-banner')).toContainText('this tab only');
 });

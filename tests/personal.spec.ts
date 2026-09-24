@@ -206,19 +206,27 @@ test('backup export and validated replacement restore queue and private rankings
 
 test('catalog results are explicitly imported and upstream errors remain recoverable', async ({ page }) => {
   const item = { id: 'wikidata:Q100', title: 'Catalog game for verification', year: 2020, studio: 'A source studio', genre: 'Adventure', source: 'wikidata', sourceId: 'Q100', sourceUrl: 'https://www.wikidata.org/wiki/Q100', collectionRank: null };
-  await page.route('**/api/catalog?**', (route) => route.fulfill({
-    contentType: 'application/json',
-    body: JSON.stringify({ source: 'wikidata', query: 'Catalog', items: [item], total: 1, offset: 0, nextOffset: null, notices: ['Data from Wikidata, CC0.'] }),
-  }));
+  await page.route('**/api/catalog?**', (route) => {
+    const url = new URL(route.request().url());
+    const source = url.searchParams.get('source');
+    const found = source === 'wikidata' ? [item] : [];
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ source, query: url.searchParams.get('q') ?? '', items: found, total: found.length, offset: 0, nextOffset: null, notices: source === 'wikidata' ? ['Data from Wikidata, CC0.'] : [] }),
+    });
+  });
   await page.goto('/discover');
-  await page.getByRole('searchbox').fill('Catalog');
-  await page.getByRole('button', { name: 'Search catalog', exact: true }).click();
-  await expect(page.locator('.catalog-results > li')).toHaveCount(1);
+  await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill('Catalog');
+  const results = page.getByRole('list', { name: 'Discovered games', exact: true });
+  await expect(results.locator(':scope > li')).toHaveCount(1);
   expect(Object.keys((await readLibrary(page)).records)).toHaveLength(0);
-  await page.locator('.catalog-record-actions').getByRole('button', { name: `Play later: ${item.title}`, exact: true }).click();
+  const card = results.locator(`[data-unranked-id="${item.id}"]`);
+  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByRole('button', { name: `Play later: ${item.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([item.id]);
-  await page.getByRole('button', { name: 'Add Catalog game for verification to my ranking', exact: true }).click();
+  await card.getByRole('button', { name: 'Add to ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);
+  await expect(card.getByRole('button', { name: 'In your ranking', exact: true })).toBeDisabled();
   await page.goto('/my-library?list=later');
   await expect(page.getByRole('button', { name: item.title, exact: true })).toBeVisible();
   await page.reload();
@@ -226,11 +234,13 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await page.goto('/discover');
   await page.unroute('**/api/catalog?**');
   await page.route('**/api/catalog?**', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }) }));
-  await page.getByRole('button', { name: 'Browse catalog', exact: true }).click();
-  await expect(page.locator('.catalog-error')).toContainText('The catalog is busy');
+  await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill('Catalog outage');
+  const errors = page.getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert');
+  await expect(errors).toHaveCount(2);
+  for (const error of await errors.all()) await expect(error).toContainText('The catalog is busy');
+  await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
   await expect(page.getByText('Add a game manually', { exact: true })).toBeVisible();
 });
-
 test('IndexedDB denial is explicit and never claims a durable save', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'indexedDB', { configurable: true, get: () => { throw new DOMException('IndexedDB denied', 'SecurityError'); } });
