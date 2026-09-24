@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { PersonalLibraryState, LibraryRecord } from '../lib/personal-types';
-import { compareFriendRankings, getComparisonPage } from '../lib/friend-comparison';
+import { compareFriendRankings, getComparisonPage, unrankedCellLabel } from '../lib/friend-comparison';
 import type { ComparisonParticipant, ComparisonMode } from '../lib/friend-comparison';
 import { projectOwnRanking, recordFromPublic } from '../lib/community';
 import type { FriendGroup, FriendIdentity, FriendPair, FriendCursor } from '../lib/friend-types';
@@ -187,7 +187,7 @@ export function FriendComparisonPage({ store, uid, identity, ownState, games, on
       return <th scope="col" key={person.id}><span className="compare-participant-heading">{person.id === uid ? <Avatar descriptor={identity.avatar} size={32} /> : profile && person.availability === 'ready' ? <Avatar descriptor={profile.avatar} size={32} /> : null}<span>{person.displayName}</span></span></th>;
     })}<th scope="col">Mean · spread</th></tr></thead><tbody>
       {result.rows.map((row) => <tr key={row.key}><th scope="row"><button className="text-button" onClick={() => { try { onOpen(recordFromPublic({ ...row.game, score: null, position: 1 }, games)); } catch (cause) { setError(onlineError(cause)); } }}>{row.game.title}</button><small>{row.game.source} · {row.game.year ?? 'Year unknown'}</small></th>
-        {row.cells.map((cell) => <td key={cell.participantId}>{cell.status === 'ranked' ? <><strong>{cell.score === null ? 'Unrated' : cell.score.toFixed(1)}</strong><small>Rank {cell.position}</small></> : <span>{cell.status === 'absent' ? 'Not in shared list' : cell.status === 'unfetched' ? 'Not loaded yet' : cell.status}</span>}</td>)}
+        {row.cells.map((cell) => <td key={cell.participantId}>{cell.status === 'ranked' ? <><strong>{cell.score === null ? 'Unrated' : cell.score.toFixed(1)}</strong><small>Rank {cell.position}</small></> : <span>{unrankedCellLabel(cell.status)}</span>}</td>)}
         <td>{row.cells.some(cell => cell.status === 'unfetched') ? 'Incomplete' : row.meanScore === null ? 'Unrated' : row.meanScore.toFixed(2)}<small>{row.raterCount} {row.raterCount === 1 ? 'rater' : 'raters'} · {row.scoreSpread === null ? 'No spread' : row.scoreSpread.toFixed(2)}{row.scoreDifference === null ? '' : ` · difference ${row.scoreDifference.toFixed(2)}`}</small></td>
       </tr>)}
     </tbody></table></div>{!result.rows.length && <p>{filteredGames.value ? 'No chosen games match the available rankings and filters. Unshared rankings cannot contribute scores.' : 'No matching games in this view.'}</p>}<div className="button-row"><button className="text-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>{result.totalRows ? result.page : 0} / {result.pageCount}</span><button className="text-button" disabled={page >= result.pageCount} onClick={() => setPage((value) => value + 1)}>Next 25</button></div></> : viewReady && <p>Choose at least two people.</p>}

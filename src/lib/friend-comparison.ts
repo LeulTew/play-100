@@ -55,6 +55,18 @@ export type ComparisonCell =
     readonly score: null;
   };
 
+/** Visible text for a cell without a ranked entry; the status codes themselves stay as they are. */
+export function unrankedCellLabel(status: Exclude<ComparisonCell['status'], 'ranked'>): string {
+  switch (status) {
+    case 'absent': return 'Not in shared list';
+    case 'unfetched': return 'Not loaded yet';
+    case 'loading': return 'Loading…';
+    case 'unshared': return 'Not shared';
+    case 'unavailable': return 'Unavailable';
+    case 'error': return 'Could not load';
+  }
+}
+
 export interface ComparisonRow {
   readonly key: string;
   /** Metadata from the first participant in cohort order who supplied this identity. */

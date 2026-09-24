@@ -43,7 +43,10 @@ export function FriendSharedGames({ uid, peer, authGeneration, verified, store, 
   const currentRecord = (id: string) => {
     const entry = latest.current.entries.find((entry) => entry.id === id);
     if (!live.current || cloudAuth.currentUser?.uid !== uid || latest.current.status !== 'ready' || !entry) {
-      throw new Error('This shared game is no longer available. Refresh the shelf.');
+      // Name the refresh action only while it is shown (an unavailable shelf); otherwise the list already updates itself.
+      throw new Error(latest.current.status === 'unavailable'
+        ? 'This shared game is no longer available. Choose Refresh shared games.'
+        : 'This shared game is no longer available.');
     }
     return recordFromFriendShelf(entry, games);
   };
