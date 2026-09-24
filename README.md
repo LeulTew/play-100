@@ -238,6 +238,22 @@ grouping minor/patch updates with at most five open version-update PRs per ecosy
 | Browser (development) | Source-module fixtures on a Vite server at port 4187, desktop and mobile |
 | Auth and Firestore | Java 21, the lockfile-pinned Firebase CLI, and credential-free `demo-play100` emulator tests |
 | CodeQL | JavaScript/TypeScript analysis without running an application build |
+| Dependency review (pull requests) | Moderate-or-higher advisories in runtime, development and unknown dependency scopes; no PR comments |
+| Secret scan | Full checked-out Git history with redacted Gitleaks 8.30.1 findings; release checksums and the binary are SHA-256 verified before extraction |
+
+The Quality job retains `budget-report.json` as the `budget-report` artifact for
+30 days, including budget-limit failures. Its deterministic schema records the
+workflow's `GITHUB_SHA` as `sourceCommit`, each enforced measurement/cap/headroom
+and pass result, reported-only totals and the eager file list. Local reports use
+`null` when `GITHUB_SHA` is absent; a PR merge SHA is not automatically the later
+deployed main SHA. Failures before measurements complete may leave no report,
+which the artifact step warns about rather than presenting as a budget pass.
+
+Dependency review is PR-only; the secret scan also runs on pushes to `main`.
+The scanner uses the pinned release binary directly, not a third-party action.
+Any history finding must be reviewed before landing; confirmed false positives
+use narrowly scoped fingerprints, not disabled detection rules. For private
+vulnerability reports and advisory triage, see [SECURITY.md](SECURITY.md).
 
 Local equivalents (choose the relevant checks for a change):
 
@@ -249,7 +265,7 @@ npx --no-install tsc -b
 npm run typecheck:functions
 npm test -- --maxWorkers=1
 npm run build
-npm run check:budgets
+npm run check:budgets -- --json budget-report.json
 npm run validate:data
 npm run validate:discovery
 npm run test:e2e
@@ -751,6 +767,13 @@ exact new deployment before promotion while Deployment Protection stays on;
 automated checks use the project's existing automation bypass. Never disable
 protection or rotate or print its secret. Check response headers and CSP,
 served entry/worker/manifest sizes against the budgets, and the key journeys.
+
+Retain these additional release receipts:
+
+- [ ] CI is green for the exact `sourceCommit` being promoted.
+- [ ] Record the `budget-report` artifact and confirm its `sourceCommit` matches.
+- [ ] Record the new deployment ID/URL together with its verified `sourceCommit`
+  metadata.
 
 Before promotion, record the deployment the production alias currently points
 to as the rollback target. Replace both placeholders below with the verified
