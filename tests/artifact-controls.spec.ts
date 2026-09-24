@@ -54,6 +54,7 @@ test('Full is automatic and its Fan out control changes the active scene', async
   await selectQuality(page, 'Full');
   const artifact = page.locator('.collection-artifact');
   await expect(artifact).toHaveAttribute('data-activation', 'automatic');
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   await page.getByRole('button', { name: 'Fan out the collection sleeves', exact: true }).click();
   await expect(artifact).toHaveAttribute('data-fanned', 'true');
@@ -85,6 +86,7 @@ test('system reduction removes the control even in Full and restores it only whe
   await expect(artifact).toContainText('Illustrated view · reduced motion');
   await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   await expect(artifact.locator('.artifact-control')).toBeVisible();
 });
@@ -100,6 +102,7 @@ test('resource-saving Auto has no fan promise; explicit Full remains a real over
   await expect(artifact).toHaveAttribute('data-activation', 'static');
   await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
   await selectQuality(page, 'Full');
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   await expect(artifact.locator('.artifact-control')).toBeVisible();
 });
@@ -115,7 +118,7 @@ test('WebGL failure leaves readable static art rather than a no-op Fan out butto
   await page.goto('/?catalogs=off');
   await selectQuality(page, 'Full');
   const artifact = page.locator('.collection-artifact');
-  await expect(artifact).toHaveAttribute('data-scene-status', 'fallback');
+  await expect(artifact).toHaveAttribute('data-scene-status', 'fallback', { timeout: 0 });
   await expect(artifact).toContainText('3D is unavailable here. The illustrated view is ready.');
   await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
   await expect(artifact.locator('.artifact-still')).toBeVisible();

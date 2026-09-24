@@ -217,9 +217,11 @@ test('Auto defers touch-screen WebGL until requested while Full remains automati
     await expect(scene).toHaveAttribute('data-render-mode', 'static');
     expect(sceneRequests).toEqual([]);
     await page.getByRole('button', { name: 'Fan out the collection sleeves', exact: true }).click();
+    await expect(scene).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
     await expect(scene).toHaveAttribute('data-render-mode', 'webgl');
     await expect(scene).toHaveAttribute('data-fanned', 'true');
   } else {
+    await expect(scene).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
     await expect(scene).toHaveAttribute('data-render-mode', 'webgl');
   }
   await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
@@ -228,6 +230,7 @@ test('Auto defers touch-screen WebGL until requested while Full remains automati
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.locator('.wordmark').first().click();
   await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(scene).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(scene).toHaveAttribute('data-render-mode', 'webgl');
   await expect(scene).toHaveAttribute('data-activation', 'automatic');
 });

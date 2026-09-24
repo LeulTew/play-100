@@ -68,6 +68,7 @@ test('3D module loading and visible WebGL construction use separate cancelable i
   });
   await expect.poll(() => page.evaluate(() => window.pendingArtifactIdle())).toBeGreaterThanOrEqual(1);
   await page.evaluate(() => window.flushArtifactIdle());
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact.locator('canvas')).toHaveCount(1);
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   await page.emulateMedia({ reducedMotion: 'reduce' });
