@@ -97,6 +97,9 @@ for (const scenario of SCENARIOS) {
   test(`first paint equals React's first commit: ${scenario.name}`, async ({ page, isMobile }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
+    if (!isMobile && (scenario.hint === null || scenario.name === 'saved Full')) {
+      await page.setViewportSize({ width: 1350, height: 940 });
+    }
     await emptyCatalogs(page);
     await page.emulateMedia({ reducedMotion: scenario.reducedMotion ? 'reduce' : 'no-preference' });
     await page.addInitScript(({ key, hint, saveData }) => {
@@ -147,6 +150,9 @@ for (const scenario of SCENARIOS) {
       await frames(page);
       const critical = await capture(page, SHARED);
       expect(critical.length).toBeGreaterThan(20);
+      const initialFooter = critical.find(box => box.key === '.artifact-footer #0');
+      if (!initialFooter) throw new Error('The shell must render its artifact footer.');
+      expect(initialFooter.height, 'every art state reserves the 44px control plus 7px footer padding').toBeGreaterThanOrEqual(51);
 
       releaseStylesheet();
       await page.waitForFunction(href => Array.from(document.styleSheets).some(sheet => sheet.href !== null && new URL(sheet.href).pathname === href), entryStylesheet);
@@ -175,6 +181,19 @@ for (const scenario of SCENARIOS) {
       }, [entryScript, entryStylesheet]);
       expect(requests.count, 'the entry and its stylesheet were requested').toBeGreaterThanOrEqual(2);
       expect(requests.first, 'nothing the app needs is requested before the shell\'s first contentful paint').toBeGreaterThanOrEqual(requests.paint);
+
+      if (!isMobile && (scenario.hint === null || scenario.name === 'saved Full')) {
+        if (scenario.hint === null) {
+          expect(critical.some(box => box.key === '.artifact-control #0'), 'the initial Lite shell has no fan control').toBe(false);
+        }
+        releaseFonts();
+        await page.evaluate(() => document.fonts.ready.then(() => undefined));
+        await expect(page.locator('.collection-artifact')).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
+        await expect(page.locator('.artifact-control')).toBeVisible();
+        await frames(page);
+        expect(await page.locator('.artifact-footer').evaluate(node => node.getBoundingClientRect().height),
+          'automatic scene startup and its fan control do not grow the initial footer').toBe(initialFooter.height);
+      }
 
       if (scenario.fontSwap) {
         await page.waitForFunction(() => document.documentElement.dataset.motion !== undefined);

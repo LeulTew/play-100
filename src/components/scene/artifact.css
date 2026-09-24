@@ -57,6 +57,7 @@
 .artifact-footer {
   display: flex;
   flex-wrap: wrap;
+  min-height: 51px;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
