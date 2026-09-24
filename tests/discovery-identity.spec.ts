@@ -279,12 +279,16 @@ test('late canonical data gates duplicate actions, error is recoverable, and all
   let seedLoaded = false;
   page.on('response', response => { if (response.url().includes('/data/discovery/catalog.v1.json')) seedLoaded = true; });
   await page.route('**/data/collection.json', async route => { await waiting; await route.fulfill({ json: collection }); });
-  await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
-  await expect.poll(() => seedLoaded).toBe(true);
-  await expect(page.getByText('Loading The 100…', { exact: true })).toBeVisible();
-  await expect(page.locator('[data-catalog-id]')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: `Add to My games: ${rdr.title}`, exact: true })).toHaveCount(0);
-  release(); await expect(cardFor(page)).toBeVisible();
+  try {
+    await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
+    await expect.poll(() => seedLoaded).toBe(true);
+    await expect(page.locator('.discovery-results-heading').getByRole('status')).toHaveText('Loading the catalog…');
+    await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator('[data-catalog-id]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: `Add to My games: ${rdr.title}`, exact: true })).toHaveCount(0);
+  } finally { release(); }
+  await expect(cardFor(page)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'false');
   await page.unroute('**/data/collection.json');
   await page.route('**/data/collection.json', route => route.fulfill({ status: 503, body: 'Synthetic unavailable original collection' }));
   await page.reload(); await expect(page.getByRole('button', { name: 'Reload The 100', exact: true })).toBeVisible();
