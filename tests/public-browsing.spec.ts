@@ -240,10 +240,13 @@ test('short targets and horizontal table scrolling retain a compact visible orig
 test('the tray preserves complete art provenance behind a labelled disclosure and names friends rankings', async ({ page }) => {
   expect(credited?.artwork).toBeTruthy();
   await page.addInitScript(record => localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items: [record] })), credited.record);
-  await page.goto('/discover?catalogs=off');
+  await page.goto('/?catalogs=off');
   await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toBeVisible();
   await expect(page.locator('.compare-tray-action-context')).toBeVisible();
   await expect(page.locator('.compare-tray-action')).toHaveText('Compare rankings with friends');
+  await page.goto('/discover?catalogs=off');
+  await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'true');
+  await expect(page.locator('.compare-tray-action')).toBeHidden();
   await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expect(dialog).toContainText('Choose friends to compare their rankings of these games.');
@@ -319,13 +322,19 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   const card = page.locator(`[data-catalog-id="${pinnedGame.id}"]`);
   await expect(card).toBeVisible();
   await card.getByRole('button', { name: `Pin for comparison: ${pinnedGame.title}`, exact: true }).click();
+  await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'true');
+  await expect(page.locator('.compare-tray-action')).toBeHidden();
+  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).click();
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'false');
+  await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
   const targetsBefore = await page.locator('.compare-tray-dock button').evaluateAll(buttons => buttons.map(button => ({
     label: button.getAttribute('aria-label') ?? button.textContent,
     width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height,
   })));
-  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click();
-  await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).click();
   await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
   const pinned = await measure();
   await writeFile(info.outputPath('pinned-explore-geometry.json'), JSON.stringify({ empty, pinned, targetsBefore, pinnedGame: pinnedGame.id }, null, 2));
