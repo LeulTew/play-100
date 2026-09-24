@@ -28,8 +28,9 @@ async function openNote(page: Page) {
   return row.getByRole('textbox', { name: `Your note for ${first.title}`, exact: true });
 }
 
-// Hold only delivery of the real transaction's completion to the app. The
-// native write still commits; the app's save promise remains pending.
+// Replace the already-registered completion receiver, not a later target listener:
+// IndexedDB target dispatch can call oncomplete before a capturing listener.
+// The native write still commits; only the app's completion promise is held.
 async function holdNextSave(page: Page) {
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
@@ -42,16 +43,16 @@ async function holdNextSave(page: Page) {
         if (root.dataset.rootSavePhase === 'armed') {
           root.dataset.rootSavePhase = 'waiting';
           const transaction = this.transaction;
-          transaction.addEventListener('complete', event => {
-            const complete = transaction.oncomplete;
-            if (!complete) throw new Error('The held write has no completion receiver.');
-            event.stopImmediatePropagation();
+          const complete = transaction.oncomplete;
+          if (!complete) throw new Error('The held write has no completion receiver.');
+          transaction.oncomplete = event => {
             root.dataset.rootSavePhase = 'held';
             window.addEventListener('root-navigation:release-save', () => {
               root.dataset.rootSavePhase = 'released';
+              transaction.oncomplete = complete;
               complete.call(transaction, event);
             }, { once: true });
-          }, { capture: true, once: true });
+          };
         }
       }
       return put.apply(this, args);
@@ -119,6 +120,48 @@ test.afterEach(async ({ page }) => {
     if (document.documentElement.dataset.rootSavePhase === 'held') window.dispatchEvent(new Event('root-navigation:release-save'));
     window.dispatchEvent(new Event('root-navigation:restore-put'));
   });
+});
+
+test('the save hold delays an already-registered completion receiver until one explicit release', async ({ page }) => {
+  await prepareRanking(page);
+  const before = await readLibrary(page);
+  await holdNextSave(page);
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const root = document.documentElement;
+    root.dataset.rootProbeCompletions = '0';
+    const request = indexedDB.open('play100-personal');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction('library', 'readwrite');
+      // Match personal-db: register completion before get.onsuccess calls put.
+      transaction.oncomplete = function (event) {
+        root.dataset.rootProbeCompletions = String(Number(root.dataset.rootProbeCompletions) + 1);
+        root.dataset.rootProbeReceiver = this === transaction && event.target === transaction && event.type === 'complete'
+          ? 'original' : 'unexpected';
+        database.close();
+      };
+      transaction.onabort = () => { database.close(); reject(transaction.error); };
+      const store = transaction.objectStore('library');
+      const read = store.get('state');
+      read.onerror = () => reject(read.error);
+      read.onsuccess = () => {
+        const write = store.put(read.result, 'state');
+        write.onerror = () => reject(write.error);
+        write.onsuccess = () => resolve();
+      };
+    };
+  }));
+  await held(page);
+  await expect(page.locator('html')).toHaveAttribute('data-root-probe-completions', '0');
+  await expect(page.locator('html')).toHaveAttribute('data-root-save-writes', '1');
+  expect(await readLibrary(page)).toEqual(before);
+  await releaseSave(page);
+  await expect(page.locator('html')).toHaveAttribute('data-root-probe-completions', '1');
+  await expect(page.locator('html')).toHaveAttribute('data-root-probe-receiver', 'original');
+  await page.evaluate(() => window.dispatchEvent(new Event('root-navigation:release-save')));
+  await expect(page.locator('html')).toHaveAttribute('data-root-probe-completions', '1');
+  expect(await readLibrary(page)).toEqual(before);
 });
 
 test('primary links keep an invalid rating and wait for one real note save before leaving', async ({ page, isMobile }) => {
@@ -209,6 +252,8 @@ for (const roundtrip of [false, true]) {
     await note.fill('Persist once, but do not resurrect the old route intent.');
     await primary(page, isMobile).getByRole('link', { name: 'Discover', exact: true }).click();
     await held(page);
+    await expect(page).toHaveURL(original);
+    await expect(note).toBeDisabled();
     await page.goBack();
     await expect(tabs.getByRole('button', { name: /^Library, / })).toHaveAttribute('aria-current', 'page');
     if (roundtrip) {
@@ -353,6 +398,9 @@ for (const roundtrip of [false, true]) {
     await dialog.getByRole('spinbutton').fill('7.5');
     await dialog.getByRole('button', { name: 'Enable online details', exact: true }).click();
     await held(page);
+    await expect(page).toHaveURL(original);
+    await expect(dialog.getByRole('spinbutton')).toBeDisabled();
+    expect(requests).toEqual([]);
     await page.goBack();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     if (roundtrip) {
