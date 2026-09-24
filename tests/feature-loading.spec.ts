@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { emptyPersonalLibrary } from '../src/lib/personal-library';
 import { readLibrary } from './library-helpers';
 
 test.beforeEach(async ({ page, baseURL }) => {
@@ -55,6 +56,7 @@ test('a failed cold detail module surfaces recovery without deleting saved devic
   let requests = 0;
   await page.route(/\/assets\/CatalogDetail-[^/]+\.js(?:\?|$)/, route => ++requests === 1 ? route.abort('failed') : route.continue());
   await page.goto('/discover?q=Kingdomcome&catalogs=off');
+  await expect.poll(() => readLibrary(page)).toEqual(emptyPersonalLibrary());
   const before = await readLibrary(page);
   const opener = page.locator('[data-catalog-id="wikidata:Q15408545"]').getByRole('button', { name: 'Kingdom Come: Deliverance', exact: true });
   await opener.click();
