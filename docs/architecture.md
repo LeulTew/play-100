@@ -31,7 +31,8 @@ account scope through [scoped-library](../src/lib/scoped-library.ts).
 App keeps the guest hook mounted and selects the account controller when present;
 it does not copy one library into the other when switching the active view.
 
-Public collection metadata comes from [useCollection](../src/hooks/useCollection.ts).
+Public collection metadata comes from [useCollection](../src/hooks/useCollection.ts),
+which renders the ready collection as a transition.
 Unsaved previews are bounded, scope-qualified metadata in App, not library imports.
 [PreviewAuthority](../src/lib/preview-authority.ts) supplies a revocable subscription
 for shared previews; it does not persist records.

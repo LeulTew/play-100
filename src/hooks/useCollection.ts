@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import { parseCollection } from '../lib/collection';
 import type { CollectionData } from '../lib/types';
 
@@ -21,7 +21,10 @@ export function useCollection() {
         return response.json() as Promise<unknown>;
       })
       .then((value) => {
-        setResult({ status: 'ready', data: parseCollection(value), error: null });
+        const data = parseCollection(value);
+        // The ready collection re-renders the controls and the first cards; as a transition React
+        // renders it in slices.
+        startTransition(() => setResult({ status: 'ready', data, error: null }));
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted && !timedOut) return;
