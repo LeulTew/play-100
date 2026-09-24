@@ -16,6 +16,8 @@ test.beforeEach(async ({ page, baseURL }) => {
     return route.continue();
   });
   await installGuestLibrary(page, libraryFixture(3));
+  test.skip(await account(page).count() === 0,
+    'Requires the centrally configured online build; remote account requests remain blocked.');
   const pin = page.locator('.personal-row-static').first().getByRole('button', { name: /^Pin for comparison: / }).and(page.locator('button[aria-pressed]'));
   await pin.focus();
   await page.keyboard.press('Space');
