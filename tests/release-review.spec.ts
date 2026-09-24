@@ -154,6 +154,11 @@ test('every primary surface keeps visible labels inside accessible names', async
   await page.goto('/?view=list&catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
   await expectLabelInName(page, 'collection list');
+  await page.goto('/?view=table&catalogs=off');
+  await expect(page.locator('.ratings-table tbody tr')).toHaveCount(24);
+  // At least one critic column has no score, so the unavailable-score markup is part of the scan.
+  await expect(page.locator('.ratings-table td.numeric-score .sr-only').first()).toHaveText(/unavailable/i);
+  await expectLabelInName(page, 'collection table');
 
   await page.goto('/discover?catalogs=off');
   await expect(page.locator('.discovery-card').first()).toBeVisible();
