@@ -35,7 +35,7 @@ function transactionDouble(data: firestore.DocumentData | null) {
   const update = vi.fn<firestore.Transaction['update']>();
   const remove = vi.fn<firestore.Transaction['delete']>();
   // Only the public transaction methods are needed by these callbacks.
-  const tx = { get, set, update, delete: remove } as firestore.Transaction;
+  const tx = { get, set, update, delete: remove } as unknown as firestore.Transaction;
   return { tx, get, set, update, remove };
 }
 
