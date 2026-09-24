@@ -355,6 +355,66 @@ maximum legitimate/adversarial use. App Check/reCAPTCHA adoption remains a user
 decision and follow-up, with the separate CSP/Data Use work described in
 `security.md`; it is not silently enabled here.
 
+## Parent-only platform controls (SEC-HARDEN-01)
+
+These are console/platform steps; no lane or integrator session applies them.
+
+### Vercel WAF rate limit for `/api/*`
+
+In-function limits are per instance (`api/catalog-detail.ts`: 30/min and 4
+concurrent) and cannot stop distributed abuse. Hobby allows one rate-limit
+rule per project; add exactly this one under Firewall → Configure → New rule:
+
+| Field | Value |
+| --- | --- |
+| Name | `api-per-ip` |
+| If | Request Path **starts with** `/api/` AND Method **equals** `GET` |
+| Then | Rate Limit, fixed window **60 s**, **60 requests**, key **IP** |
+| Action | **Log** for 7 days, then **Too Many Requests (429)** |
+
+The app's own lookups stay far below this (debounced search, one detail call
+per opened game), and successful responses are CDN-cached (`s-maxage=300`/
+`900`), so repeats mostly never reach the function. Before switching to 429,
+read the rule's Log hits: legitimate users should not appear. Non-GET requests
+already get 405 from the functions. Record the rule ID and switch time.
+
+### App Check, monitor first
+
+Spark-compatible with the reCAPTCHA v3 provider (no Firebase billing).
+
+1. reCAPTCHA admin console: create a **v3** key for
+   `play-100-collection.vercel.app` (and the preview host if tested there).
+2. Firebase console → App Check → Apps → web app → register reCAPTCHA v3 with
+   the secret key. Do **not** enforce any product.
+3. Update the Data Use page/privacy copy to disclose reCAPTCHA, then add to the
+   main `vercel.json` CSP: script-src `https://www.google.com/recaptcha/
+   https://www.gstatic.com/recaptcha/`; frame-src `https://www.google.com/recaptcha/
+   https://recaptcha.google.com/recaptcha/`; connect-src
+   `https://content-firebaseappcheck.googleapis.com`. The build refuses the flag
+   until these are present.
+4. Set Vercel Production `VITE_APP_CHECK_ENABLED=true` and
+   `VITE_APP_CHECK_SITE_KEY=<site key>`, redeploy, and watch App Check metrics
+   for Firestore and Authentication for at least 7 days.
+5. Enforcement is a separate owner/parent decision once verified traffic is
+   near 100%. Old cached clients without tokens will be rejected after it.
+
+### Firebase browser-key readback
+
+Google Cloud console → APIs & Services → Credentials → the browser key used by
+`VITE_FIREBASE_API_KEY`. Record that **API restrictions** list exactly Identity
+Toolkit, Token Service and Cloud Firestore (plus Firebase App Check once
+enabled), and that **Application restrictions** are HTTP referrers covering the
+production origin (and any intentionally tested preview origin). Record the
+readback time; do not paste the key into receipts.
+
+### Exposure check after redeploy
+
+A fresh production deployment must return 404 for `/.vite/manifest.json`, any
+`/assets/*.map`, `/package.json`, `/vercel.json`, `/firebase.json`,
+`/firestore.rules` and `/.git/HEAD`, and 200 `text/plain` for
+`/.well-known/security.txt`. Renew that file's `Expires` before it lapses; its
+unit test fails once it has.
+
 ## Receipt and mismatch discipline
 
 Record source/client SHA, exact read-back rules SHA, indexes/READY evidence,
