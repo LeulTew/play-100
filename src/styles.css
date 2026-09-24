@@ -210,10 +210,6 @@ svg { flex-shrink: 0; }
 .sheet-lines { height: 40px; margin-top: 4px; background: repeating-linear-gradient(transparent 0 12px, var(--line) 12px 13px); }
 .sheet-footer { display: block; margin-top: 14px; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
 .site-footer { padding: 47px var(--gutter) 24px; }
-.footer-main { display: flex; align-items: center; gap: 25px; padding-bottom: 28px; }
-.footer-main > p { color: var(--muted); font-size: 14px; }
-.footer-main > .text-button { margin-left: auto; }
-.footer-wordmark { font-size: 38px; }
 .footer-bottom { border-top: 1px solid var(--line); padding-top: 14px; display: flex; gap: 15px; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
 .footer-bottom > div { display: flex; gap: 25px; align-items: center; }
 .footer-bottom button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; background: transparent; font-size: 12px; text-transform: none; }
@@ -469,9 +465,6 @@ html[data-motion="off"] :where(button, a, .game-cover img, .game-copy h3 > svg, 
   .workbook-copy .button { font-size: 13px; padding-inline: 17px; width: 100%; justify-content: space-between; gap: 8px; }
   .download-note { font-size: 12px; line-height: 1.5; max-width: 32ch; }
   .site-footer { padding-block: 31px 24px; }
-  .footer-main { flex-wrap: wrap; gap: 0 18px; padding-bottom: 16px; }
-  .footer-main > p { font-size: 13px; }
-  .footer-main > .text-button { width: 100%; justify-content: flex-start; font-size: 13px; margin-top: 12px; }
   .footer-bottom { flex-direction: column; gap: 10px; font-size: 12px; }
   .footer-bottom > div { flex-direction: row; flex-wrap: wrap; gap: 0 22px; }
   .footer-bottom button { font-size: 12px; }

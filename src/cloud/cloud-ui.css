@@ -4,7 +4,6 @@
 .auth-page > h1 { margin-bottom: 24px; }
 .emulator-note { font-size: 12px; line-height: 1.6; color: #744719; background: #f5ead5; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; }
 .emulator-page-note { max-width: 1300px; margin: 18px var(--gutter) 0; }
-.account-intro { color: var(--muted); line-height: 1.6; font-size: 16px; margin-bottom: 24px; max-width: 65ch; }
 .google-signin { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; width: 100%; border: 1px solid #747775; border-radius: 4px; background: #fff; color: #1f1f1f; font-family: Arial, sans-serif; font-size: 15px; font-weight: 600; }
 .google-signin:hover { background: #f5f5f5; border-color: #20231e; }
 .google-signin img { flex-shrink: 0; }
@@ -138,7 +137,6 @@
   .account-columns { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .account-heading { gap: 12px; flex-wrap: wrap; padding-bottom: 20px; margin-bottom: 24px; }
   .account-heading > .text-button { margin-left: auto; }
-  .account-avatar .play100-avatar { width: 64px; height: 64px; }
   .account-heading p { font-size: 14px; }
   .account-heading p > span { font-size: 12px; }
   .account-secondary .account-section:first-child { border-top: 1px solid var(--line); padding-top: 24px; }
