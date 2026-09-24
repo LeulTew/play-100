@@ -106,7 +106,7 @@ for (const width of [320, 393]) {
       await page.locator('.account-nav').click();
       const signIn = page.getByRole('dialog', { name: 'Sign in', exact: true });
       await expect(signIn.locator('#account-signin-title')).toBeFocused();
-      await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
+      await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
       await signIn.getByRole('button', { name: 'Close dialog', exact: true }).click();
       await expect(signIn).toHaveCount(0);
       await chip.focus();

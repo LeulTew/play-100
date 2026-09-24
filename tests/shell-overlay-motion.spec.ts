@@ -266,7 +266,7 @@ test('closing the static cold Account placeholder prevents late module readiness
   }
   const response = await loaded;
   await page.evaluate(async url => { await import(url); }, response.url());
-  await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
+  await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await expect(page.locator('.signin-dialog')).toHaveCount(0);
   expect(await entries(page, 'account-signin-title')).toEqual([]);
   await page.locator('.account-nav').click();
@@ -281,7 +281,7 @@ test('the warm local sign-in sheet uses 160ms and removes typed credentials imme
   await expect(sheet.locator('.emulator-note')).toContainText('synthetic accounts only');
   await expect(sheet.locator('#account-signin-title')).toBeFocused();
   expect(await sheet.evaluate(element => element.matches(':modal'))).toBe(true);
-  await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
+  await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
   await expectNoActiveEntry(page, 'account-signin-title');

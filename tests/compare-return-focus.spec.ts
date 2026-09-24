@@ -47,7 +47,7 @@ async function readyAccount(page: Page) {
   await account(page).focus();
   await page.keyboard.press('Enter');
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
-  await expect(account(page)).toHaveAttribute('title', 'Device only');
+  await expect(account(page)).toHaveAccessibleName('Account Device only');
   await page.keyboard.press('Escape');
   await expect(signIn(page)).toHaveCount(0);
   await expect(account(page)).toBeFocused();
@@ -124,7 +124,7 @@ test('cold loading to ready Sign in keeps the Compare origin until the final nat
     await expect(page.locator('#loading-account-title')).toBeFocused();
     held.release();
     await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
-    await expect(account(page)).toHaveAttribute('title', 'Device only');
+    await expect(account(page)).toHaveAccessibleName('Account Device only');
     await nativeDeviceExit(page);
     await expect(compare(page)).toBeFocused();
     expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
@@ -143,7 +143,7 @@ test('cold cancellation uses the current Account fallback without stealing focus
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(account(page)).toBeFocused();
     held.release();
-    await expect(account(page)).toHaveAttribute('title', 'Device only');
+    await expect(account(page)).toHaveAccessibleName('Account Device only');
     await expect(compare(page)).toBeVisible();
     await expect(account(page)).toBeFocused();
   } finally { held.release(); }

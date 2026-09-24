@@ -123,7 +123,7 @@ for (const mode of modes) {
         await account.tap();
         const ready = page.getByRole('dialog', { name: 'Sign in', exact: true });
         await expect(ready.locator('#account-signin-title')).toBeFocused();
-        await expect(account).toHaveAttribute('title', 'Device only');
+        await expect(account).toHaveAccessibleName('Account Device only');
         await ready.getByRole('button', { name: 'Close dialog', exact: true }).tap();
         await expect(ready).toHaveCount(0);
       }
