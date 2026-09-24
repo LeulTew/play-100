@@ -484,10 +484,14 @@ The application uses password reset/verification, not email-link sign-in:
 handler/iframe/experiment paths. Their no-store headers and separate template
 nonce/CSP remain; removal needs the integrator's auth-flow smoke checks.
 
-Vercel installs with `npm ci`; each CI dependency install is followed by
-`npm audit signatures`. Registry availability/signature failures remain real
-failures for review, not reasons to bypass integrity. This does not replace
-Dependabot, CodeQL or runtime testing.
+Vercel installs with `npm ci`. The GitHub workflows (CI, CodeQL, Dependency
+review, Secret scan) remain in the repository but are disabled by the owner, so
+`npm audit` and `npm audit signatures` run locally after each install as part of
+the release gate (local suites plus review; README "Quality checks"), and the
+maintainer's full-history Gitleaks scan remains a pre-merge step.
+Registry availability/signature failures remain real failures for review, not
+reasons to bypass integrity. This does not replace Dependabot, code scanning or
+runtime testing.
 
 Two dev-only advisories in the Firebase emulator tree are closed with scoped
 root `overrides` in `package.json`, mirroring the ones firebase-tools declares
@@ -571,5 +575,5 @@ mixing `unsafe-inline` with a hash/nonce is not an accepted intermediate policy.
 | H9 COOP/CORP and main auth-origin reduction | Redirect-only source compatible; verify final public headers and share-image override |
 | Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
 | H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; parent/I per-IP WAF evidence required |
-| H12 npm ci/signatures | Build/CI only; no runtime account change |
+| H12 npm ci/signatures | Local install/build gate only; no runtime account change |
 | H14 controls | Parent's dated black-box evidence above; App Check/reCAPTCHA accepted risks, not enforced. Authenticated console still required for UID setup and rules publication. |

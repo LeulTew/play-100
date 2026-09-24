@@ -12,6 +12,13 @@ that ignores composite indexes is not that proof.
 
 ## Promotion order
 
+The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in the
+repository but are disabled by the owner; no hosted check gates a release. The
+gate is the local suites plus review (README "Quality checks"): unit/browser,
+cloud emulator, e2e production and development, cloud-UI, `tsc`, lint, build,
+`check:csp`, `check:budgets`, and `npm audit` / `npm audit signatures` at install.
+The parent's Gitleaks full-history scan remains a pre-merge step.
+
 1. Preserve the published rules bytes/full SHA, deployment ID, current client
    release and index readback. Add the verified owner UID to `_owner/config.uid`
    before publishing UID-based creator rules; retain the old email field during
@@ -78,7 +85,7 @@ keeps `generations.createdAt ASC`. No rules, grants, caps or schemas change.
    focused suites. The audit covers every current query constructor, the pinned
    270f source modules and the formal operator inventory below. It checks aliases,
    conditional fields, query-array builders, ASC/DESC/CONTAINS, map descendants,
-   and unsupported indirection. CI needs no private path or historical Git fetch.
+   and unsupported indirection. It needs no private path or historical Git fetch.
    Scope: `src/`, `api/`, `scripts/` excluding tests, declarations and the audit
    pair; Admin chains, `runQuery`/`structuredQuery` bodies and REST `orderBy` fail
    closed until a reviewed extractor exists, while emulator-only test REST reads

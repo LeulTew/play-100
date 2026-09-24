@@ -209,7 +209,7 @@ editorial illustrations, not recordings of real accounts. See the
 
 ## Run locally
 
-Use Node.js 24 LTS, the major pinned in `package.json` `engines` and used by Vercel and CI.
+Use Node.js 24 LTS, the major pinned in `package.json` `engines` and used by Vercel.
 
 ```powershell
 npm ci
@@ -228,12 +228,24 @@ replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
 ## Quality checks
 
-Pull requests and pushes to `main` run SHA-pinned GitHub Actions with read-only
-repository access and no deployment credentials. CodeQL alone can upload code
-scanning results; it also runs weekly. Dependabot checks npm and actions weekly,
-grouping minor/patch updates with at most five open version-update PRs per ecosystem.
+The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in
+`.github/workflows` but are **disabled by the owner**; nothing runs on pull
+requests or pushes. Release gating is the local suites below plus review:
 
-| CI job | Checks |
+- unit/browser gate (`npm test`), the cloud emulator suite (`npm run test:cloud`),
+  e2e production and development (`npm run test:e2e`) and the cloud-UI suite
+  (`tests-cloud-ui`, `playwright.cloud.config.ts`);
+- `tsc -b`, `npm run lint`, `npm run build`, `npm run check:csp` and
+  `npm run check:budgets`;
+- `npm audit` and `npm audit signatures`, run locally after each install.
+
+A full-history Gitleaks scan by the maintainer remains a pre-merge step.
+Dependabot's version-update configuration (`.github/dependabot.yml`) is unchanged.
+
+The disabled jobs, for reference if they are re-enabled: SHA-pinned GitHub
+Actions with read-only repository access and no deployment credentials.
+
+| Disabled CI job | Checks |
 | --- | --- |
 | Quality | ESLint, project and Functions types, unit/mounted tests, production build, `check:budgets`, offline data validators |
 | Browser (production) | Built preview on port 4187, desktop and mobile, including the real-worker `pwa-offline.spec.ts` |
@@ -243,24 +255,21 @@ grouping minor/patch updates with at most five open version-update PRs per ecosy
 | Dependency review (pull requests) | Moderate-or-higher advisories in runtime, development and unknown dependency scopes; no PR comments |
 | Secret scan | Full checked-out Git history with redacted Gitleaks 8.30.1 findings; the pinned release checksum file and archive are SHA-256 verified before the binary is extracted |
 
-The Quality job retains `budget-report.json` as the `budget-report` artifact for
-30 days, including budget-limit failures. Its deterministic schema records the
-workflow's `GITHUB_SHA` as `sourceCommit`, each enforced measurement/cap/headroom
-and pass result, reported-only totals and the eager file list. Local reports use
-`null` when `GITHUB_SHA` is absent; a PR merge SHA is not automatically the later
-deployed main SHA. Failures before measurements complete may leave no report,
-which the artifact step warns about rather than presenting as a budget pass.
+`budget-report.json` has a deterministic schema: `sourceCommit` (from
+`GITHUB_SHA`, so `null` in local runs), each enforced measurement/cap/headroom
+and pass result, reported-only totals and the eager file list. Failures before
+measurements complete may leave no report, which is not a budget pass.
 
-Dependency review is PR-only; the secret scan also runs on pushes to `main`.
-The scanner uses the pinned release binary directly, not a third-party action.
-Any history finding must be reviewed before landing; confirmed false positives
-use narrowly scoped fingerprints, not disabled detection rules. For private
-vulnerability reports and advisory triage, see [SECURITY.md](SECURITY.md).
+Any Gitleaks history finding must be reviewed before landing; confirmed false
+positives use narrowly scoped fingerprints, not disabled detection rules. For
+private vulnerability reports and advisory triage, see [SECURITY.md](SECURITY.md).
 
-Local equivalents (choose the relevant checks for a change):
+Local gate commands (choose the relevant checks for a change):
 
 ```powershell
 npm ci
+npm audit
+npm audit signatures
 npx playwright install --with-deps chromium
 npm run lint
 npx --no-install tsc -b
@@ -278,20 +287,19 @@ Remove-Item Env:PLAY100_TEST_BUILD
 npm run test:cloud
 ```
 
-CI also installs Chrome for the explicitly Chrome-based mounted, native-zoom and
-H.264 film tests; local runs need an existing Chrome installation or
+The explicitly Chrome-based mounted, native-zoom and H.264 film tests need an
+existing Chrome installation or
 `npx playwright install chrome` (which installs at the platform's default location).
 `test:cloud` needs Java 21 and uses the existing `firebase-tools` lockfile pin
 (currently 15.30.1), not a global CLI or production project. Both data validators
-read checked-in files only; CI never runs the online catalog collector.
+read checked-in files only; no gate runs the online catalog collector.
 
 The two browser partitions are disjoint; fixtures importing live `/src` modules
 run in development rather than being skipped or changing their assertions.
-Failure reports, screenshots and retained traces are uploaded for seven days.
 Existing actor-gated Menu/account and sign-in-sheet UI cases still need dedicated
-local emulator setup; CI does not create those actors or enable production
+local emulator setup; the suites do not create those actors or enable production
 accounts. The headed native-hidden-window case remains opt-in and is not a
-headless CI proof. Profile-specific desktop/mobile skips retain their intent.
+headless proof. Profile-specific desktop/mobile skips retain their intent.
 `check:budgets` reads the existing `dist` without rebuilding or network access;
 `budgets.json` records the enforced eager JS+CSS/PWA caps and provisional
 270f app-CSS/lazy limits. App CSS is the Vite output under `assets`; standalone
@@ -781,8 +789,9 @@ served entry/worker/manifest sizes against the budgets, and the key journeys.
 
 Retain these additional release receipts:
 
-- [ ] CI is green for the exact `sourceCommit` being promoted.
-- [ ] Record the `budget-report` artifact and confirm its `sourceCommit` matches.
+- [ ] The local gate (see Quality checks) passed and was reviewed for the exact
+  `sourceCommit` being promoted, and the Gitleaks full-history scan is clean.
+- [ ] Record the local `budget-report.json` from that commit's build.
 - [ ] Record the new deployment ID/URL together with its verified `sourceCommit`
   metadata.
 
@@ -818,9 +827,9 @@ Open Graph image/URL and canonical metadata. `VITE_SITE_URL` is an optional
 explicit HTTPS origin override. Local preview does not guess a public origin.
 The shared social card describes the collection, not private visitor progress.
 
-This remote-build, verify and promote path is separate from the quality CI above.
+This remote-build, verify and promote path is separate from the quality checks above.
 The source is now published on the public `LeulTew/play-100` repository. Its
-initial `main` publication is not a PR merge. CI does not deploy, and no automatic
+initial `main` publication is not a PR merge. No workflow deploys, and no automatic
 Vercel Git-build integration is installed; use the explicit remote-build path.
 
 ## Credits and design
