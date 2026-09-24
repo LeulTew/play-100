@@ -104,7 +104,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
       {dragging && <span className="compare-tray-drop-label"><Icon name="plus" width="20" height="20" />Drop to pin for comparison</span>}
       <button ref={expand} type="button" className="compare-tray-expand" aria-label={`Open ${persistent ? 'Compare tray' : 'Temporary tray'}, ${items.length} ${items.length === 1 ? 'game' : 'games'}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <span className="compare-tray-stack" aria-hidden="true">{items.slice(-3).map((record) => <span className="compare-tray-jacket" key={record.id}><span className="compare-tray-jacket-arrival" ref={record.id === newestId ? arrivalRef : undefined}><GameArtwork record={record} artwork={resolveArtwork?.(record)} /></span></span>)}</span>
-        <span><strong>{items.length} {items.length === 1 ? 'game' : 'games'}</strong><span>{persistent ? 'Compare tray' : 'Temporary tray'}</span></span>
+        <span><span>{persistent ? 'Compare tray' : 'Temporary tray'}</span>{' '}<strong>{items.length} {items.length === 1 ? 'game' : 'games'}</strong></span>
         <Icon name="up" width="16" height="16" />
       </button>
       <button type="button" className="button button-lime compare-tray-action" aria-label="Compare rankings with friends" disabled={!items.length} onClick={compare}><span>Compare rankings <span className="compare-tray-action-context">with friends</span></span><Icon name="arrow" width="18" height="18" /></button>

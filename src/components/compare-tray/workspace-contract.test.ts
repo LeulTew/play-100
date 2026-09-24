@@ -250,6 +250,8 @@ describe('tray and image rendering contract', () => {
   it.each([true, false])('includes the visible tray label in the opener name (persistent=%s)', persistent => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, persistent } }, h(CompareTray, { onCompare: vi.fn() })));
     expect(html).toContain(`aria-label="Open ${persistent ? 'Compare tray' : 'Temporary tray'}, 1 game"`);
+    // Label in Name (WCAG 2.5.3): visible label, a real space, then the count, in the same order as the name.
+    expect(html).toContain(`<span><span>${persistent ? 'Compare tray' : 'Temporary tray'}</span> <strong>1 game</strong></span>`);
   });
   it('retains the compact collection state for real pins and storage messages while dragging', () => {
     for (const content of [
