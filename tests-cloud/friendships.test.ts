@@ -818,9 +818,9 @@ describe('private groups, export and resumable account deletion', () => {
     const a = await client(); const b = await client(); await connect(a, b); await share(a);
     await a.store.saveGroup(a.uid, { name: 'Private saved group', participantUids: [a.uid, b.uid] }, 0);
     const invite = await a.store.createInvite(a.uid); const oldSettings = await settings(a);
-    const exported = await a.store.exportPage(a.uid);
-    expect(Object.keys(exported).sort()).toEqual(['blocks', 'format', 'groups', 'identity', 'relations', 'settings']);
-    expect(exported.groups.items).toHaveLength(1);
+    const exported = await a.store.exportAll(a.uid, () => true);
+    expect(Object.keys(exported).sort()).toEqual(['blocks', 'groups', 'identity', 'relations', 'settings']);
+    expect(exported.groups).toHaveLength(1);
     await a.store.revokeForDeletion(a.uid);
     await assertFails(b.store.ranking(a.uid));
     await expect(a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, oldSettings)).rejects.toMatchObject({ code: 'deleted' });

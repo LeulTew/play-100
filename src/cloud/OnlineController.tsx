@@ -60,7 +60,6 @@ import { useFriendShelf } from './useFriendShelf';
 import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
 import { recordFromFriendShelf } from '../lib/friend-shelf-types';
 import { GameArtwork } from '../components/games/GameArtwork';
-import type { FriendCursor } from '../lib/friend-types';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import { signOutTransition } from './sign-out-transition';
 import './cloud-ui.css';
@@ -541,22 +540,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     }
     const publicCopy = await social.ownProfile(identity.uid);
     const entries = publicCopy ? await social.entries(publicCopy) : [];
-    const relationships: unknown[] = []; const groups: unknown[] = []; const blocks: unknown[] = [];
-    let cursors: { relations?: FriendCursor; groups?: FriendCursor; blocks?: FriendCursor } | undefined;
-    let ownSocial: Awaited<ReturnType<typeof friends.store.exportPage>> | null = null;
-    const done = { relations: false, groups: false, blocks: false };
-    for (let index = 0; index < 100; index += 1) {
-      const data = await friends.store.exportPage(identity.uid, cursors);
-      if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
-      ownSocial = data;
-      if (!done.relations) relationships.push(...data.relations.items);
-      if (!done.groups) groups.push(...data.groups.items);
-      if (!done.blocks) blocks.push(...data.blocks.items);
-      done.relations ||= !data.relations.cursor; done.groups ||= !data.groups.cursor; done.blocks ||= !data.blocks.cursor;
-      if (done.relations && done.groups && done.blocks) break;
-      if (index === 99) throw new Error('This account export is too large to download at once. Save a library backup in Settings before deleting anything.');
-      cursors = { relations: data.relations.cursor, groups: data.groups.cursor, blocks: data.blocks.cursor };
-    }
+    const ownSocial = await friends.store.exportAll(identity.uid, () => cloudAuth.currentUser?.uid === identity.uid);
     const sharedGames = await shelf.store.exportOwn(identity.uid);
     const automaticSharing = await automatic.store.exportOwn(identity.uid);
     if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
@@ -564,7 +548,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       deviceLibrary: local ? createLibraryBackup(local.state) : null, deviceCacheError: cacheError,
       onlineLibrary: remoteLibrary ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }) : null,
       recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries,
-      friends: { identity: ownSocial?.identity, settings: ownSocial?.settings, relationships, groups, blocks, sharedGames, automaticSharing } }, 'Play-100-account-export.json');
+      friends: { identity: ownSocial.identity, settings: ownSocial.settings, relationships: ownSocial.relations, groups: ownSocial.groups, blocks: ownSocial.blocks, sharedGames, automaticSharing } }, 'Play-100-account-export.json');
     if (cacheError) setMessage('Online account data was exported. The unreadable device cache is explicitly marked unavailable in the export; it was not replaced or deleted.');
   });
   const deleteOnline = (removeAccount: boolean, password: string) => {

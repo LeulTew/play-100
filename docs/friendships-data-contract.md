@@ -86,7 +86,7 @@ watchSettings(uid: string, next: (value: FriendSettings | null) => void, error: 
 watchPair(uid: string, otherUid: string, next: (value: FriendPair | null) => void, error: (cause: Error) => void): () => void
 watchShareHead(uid: string, next: (value: FriendShareHead | null) => void, error: (cause: Error) => void): () => void
 watchRelations(uid: string, state: FriendPairState, next: (page: FriendPage<FriendPair>) => void, error: (cause: Error) => void): () => void
-exportPage(uid: string, cursors?: { relations?: FriendCursor; groups?: FriendCursor; blocks?: FriendCursor }): Promise<FriendExportPage>
+exportAll(uid: string, isCurrent: () => boolean): Promise<FriendExport> // identity and settings once; each collection paged only to its own end, at most 100 pages
 revokeForDeletion(uid: string): Promise<void>
 cleanupSharing(uid: string): Promise<number>
 pruneSharing(uid: string): Promise<number>

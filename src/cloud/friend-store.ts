@@ -12,7 +12,7 @@ import {
   parseFriendSlot, parseFriendSource, retainsFriendGeneration, validateFriendEntries,
 } from '../lib/friend-types';
 import type {
-  FriendBlock, FriendCleanupResult, FriendCursor, FriendExportPage, FriendGroup, FriendIdentity, FriendInvitation,
+  FriendBlock, FriendCleanupResult, FriendCursor, FriendExport, FriendGroup, FriendIdentity, FriendInvitation,
   FriendInvitePreview, FriendMutationReceipt, FriendPage, FriendPair, FriendPairState, FriendRanking, FriendSettings, FriendShareHead, FriendSourceRevision,
 } from '../lib/friend-types';
 import { ensureAccountActivity } from './account-lifecycle';
@@ -51,6 +51,20 @@ function unavailableInvite(cause: unknown): never {
 async function contentDigest(entries: PublicEntry[]): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify(entries));
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+const EXPORT_PAGE_LIMIT = 100;
+// Pages one collection only until its own last page; a failed sibling stream stops further reads.
+async function exportPages<T>(read: (cursor?: FriendCursor) => Promise<FriendPage<T>>, isCurrent: () => boolean, stopped: () => boolean): Promise<T[]> {
+  const items: T[] = [];
+  let cursor: FriendCursor | undefined;
+  for (let index = 0; index < EXPORT_PAGE_LIMIT; index += 1) {
+    const next = await read(cursor);
+    if (!isCurrent()) throw new Error('The account changed before export completed.');
+    items.push(...next.items);
+    if (!next.cursor || stopped()) return items;
+    cursor = next.cursor;
+  }
+  throw new Error('This account export is too large to download at once. Save a library backup in Settings before deleting anything.');
 }
 
 export class FriendStore {
@@ -587,9 +601,18 @@ export class FriendStore {
       if (slots) releaseQuotaSlot(tx, quota, slots, id);
     });
   }
-  async exportPage(uid: string, cursors: { relations?: FriendCursor; groups?: FriendCursor; blocks?: FriendCursor } = {}): Promise<FriendExportPage> {
-    const [identity, settings, relations, groups, blocks] = await Promise.all([this.identity(uid), this.settings(uid), this.listRelations(uid, undefined, cursors.relations), this.listGroups(uid, cursors.groups), this.listBlocks(uid, cursors.blocks)]);
-    return { format: 1, identity, settings, relations, groups, blocks };
+  /** Reads identity and settings once, then pages each collection only until its own last page. */
+  async exportAll(uid: string, isCurrent: () => boolean): Promise<FriendExport> {
+    let failed = false;
+    const settle = <T>(work: Promise<T>) => work.catch((cause: unknown) => { failed = true; throw cause; });
+    const stopped = () => failed;
+    const [identity, settings, relations, groups, blocks] = await Promise.all([
+      settle(this.identity(uid)), settle(this.settings(uid)),
+      settle(exportPages((cursor) => this.listRelations(uid, undefined, cursor), isCurrent, stopped)),
+      settle(exportPages((cursor) => this.listGroups(uid, cursor), isCurrent, stopped)),
+      settle(exportPages((cursor) => this.listBlocks(uid, cursor), isCurrent, stopped)),
+    ]);
+    return { identity, settings, relations, groups, blocks };
   }
   async revokeForDeletion(uid: string): Promise<void> {
     friendUid(uid); online();

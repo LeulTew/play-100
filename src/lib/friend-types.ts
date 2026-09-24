@@ -62,9 +62,9 @@ export interface FriendInvitePreview {
 export interface FriendInvitation extends FriendInvitePreview {
   token: string; slot: number; state: 'active' | 'consumed' | 'revoked';
 }
-export interface FriendExportPage {
-  format: 1; identity: FriendIdentity | null; settings: FriendSettings | null;
-  relations: FriendPage<FriendPair>; groups: FriendPage<FriendGroup>; blocks: FriendPage<FriendBlock>;
+export interface FriendExport {
+  identity: FriendIdentity | null; settings: FriendSettings | null;
+  relations: FriendPair[]; groups: FriendGroup[]; blocks: FriendBlock[];
 }
 export interface FriendCleanupResult { deleted: number; done: boolean; message?: string }
 export interface FriendGeneration {
