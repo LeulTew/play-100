@@ -35,9 +35,13 @@ describe('collection result scope and accessible names', () => {
     },
   );
 
-  it.each(['Filters', 'Filters & sort'])('keeps %s and its active count separate in the accessible name', label => {
+  it.each([
+    ['Filters', 'Filters'],
+    ['Filters & sort', 'Filters &amp; sort'],
+    ['Filters & sort & search', 'Filters &amp; sort &amp; search'],
+  ])('keeps %s and its active count separate in the accessible name', (label, escapedLabel) => {
     const html = renderToStaticMarkup(createElement(BrowseFilters, { label, activeCount: 0, children: 'Controls' }));
-    expect(html).toContain(`aria-label="${label.replace('&', '&amp;')}"`);
+    expect(html).toContain(`aria-label="${escapedLabel}"`);
     const descriptionId = html.match(/aria-describedby="([^"]+)"/)?.[1];
     expect(descriptionId).toBeDefined();
     expect(html).toContain(`<span id="${descriptionId}">None active</span>`);
