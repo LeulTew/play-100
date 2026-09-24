@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
 import {
-  assertCharsetDeclaration, assertFallbackCoverage, assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss,
-  DEFERRED_TEMPLATE_ID, firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, startupTags, stripBootScript,
+  assertCharsetDeclaration, assertFallbackCoverage, assertInlineSafe, assertNoCssImports, assertRootFontStacks, assertRootRelativeUrls, assertShellNeutralCss,
+  beastiesOptions, criticalAppCss, DEFERRED_TEMPLATE_ID, firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, startupTags, stripBootScript,
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
@@ -218,6 +218,66 @@ describe('first-paint shell stylesheet', () => {
     expect(shell).toContain("--display: 'Barlow Condensed','P100 DF Impact','P100 DF Arial',Impact,'Arial Narrow',sans-serif");
     expect(shell.match(/unicode-range: U\+20-7E,U\+B7,U\+2026\}/g)).toHaveLength(9);
     expect(() => assertInlineSafe('style', shell)).not.toThrow();
+  });
+});
+
+describe('emitted entry stylesheets', () => {
+  it('accept compiled CSS without @import, whatever strings, comments and other at-rules contain', () => {
+    const css = `@charset "UTF-8";${FONT_FACES}@media (min-width:761px){.hero{display:grid}}@supports (display:grid){.a{color:red}}` +
+      '.b::before{content:"@import url(/x.css)"}.c::after{content:\'@import\'}/* @import "y.css"; */@importance{}';
+    expect(() => assertNoCssImports('/assets/index-A.css', css)).not.toThrow();
+  });
+
+  it.each([
+    '@import "./styles/tokens.css";.a{color:red}',
+    '@import url(/assets/partial-B.css) screen;',
+    '.a{color:red}@IMPORT url("https://fonts.example/css");',
+    '@\\69mport "x.css";',
+  ])('refuse an @import left in an emitted stylesheet, naming the file: %s', css => {
+    expect(() => assertNoCssImports('/assets/index-A.css', css)).toThrow('The emitted stylesheet /assets/index-A.css contains an @import');
+  });
+
+  it('accept root font stacks the shell\'s fallbacks outrank, and font rules of their own elsewhere', () => {
+    const css = ':root{font-family:Hanken Grotesk Variable,Segoe UI,sans-serif;color:#20231e;--display:Barlow Condensed,Impact,Arial Narrow,sans-serif}' +
+      `${FONT_FACES}@media (max-width:760px){:root{--display:Impact}}html{font-family:Arial}:root{font-family:inherit}` +
+      '.hero-copy h1{font-family:var(--display)}.sheet-head{font:800 28px/1 var(--display)}button,input,select,textarea{font:inherit}' +
+      '.google-signin{font-family:Arial,sans-serif}body{font:inherit}#root{font-family:unset!important}*{font-family:inherit}' +
+      '.a::before{content:"--display:Impact;font-family:x"}@supports (font-family:x){.b{color:red}}@font-palette-values --p{font-family:Barlow Condensed}' +
+      '.c{--Display:Impact;font-size:12px;font-weight:700}:is(h1,h2){font-family:Arial}:where(.game-card) button{font-family:Arial}' +
+      '.discovery-cards-list :is(.discovery-card,.discovery-card-skeleton){font:650 19px/1.25 Hanken Grotesk Variable,sans-serif}' +
+      'div.card{font-family:Arial}#other{font-family:Arial}*.x{font-family:Arial}:where(body){font:inherit}*|html{font-family:Arial}svg|text{font-family:Arial}';
+    expect(() => assertRootFontStacks('/assets/index-A.css', css)).not.toThrow();
+  });
+
+  it.each([
+    ['body{font-family:Hanken Grotesk Variable,sans-serif}', 'font-family', 'body'],
+    ['html body{font:16px Arial}', 'font', 'html body'],
+    ['@media print{#root{font-family:serif}}', 'font-family', '#root'],
+    ['*{font-family:system-ui}', 'font-family', '*'],
+    ['html[lang]{font-family:Arial}', 'font-family', 'html[lang]'],
+    [':root:not(.lite){--display:Impact}', '--display', ':root:not(.lite)'],
+    ['.hero{--display:Impact}', '--display', '.hero'],
+    ['.a{color:red}:root{--display:Impact !important}', '--display', ':root'],
+    ['h1,html.dark{font-family:inherit}', 'font-family', 'html.dark'],
+    [':where(body){font-family:Hanken Grotesk Variable,sans-serif}', 'font-family', ':where(body)'],
+    [':is(html,#root){font-family:Arial}', 'font-family', ':is(html,#root)'],
+    ['div{font-family:Arial}', 'font-family', 'div'],
+    [':not(.lite){font-family:Arial}', 'font-family', ':not(.lite)'],
+    [':has(.hero){font-family:Arial}', 'font-family', ':has(.hero)'],
+    ['[lang]{font:12px serif}', 'font', '[lang]'],
+    ['*|body{font-family:Arial}', 'font-family', '*|body'],
+    ['*|html[lang]{font-family:Arial}', 'font-family', '*|html[lang]'],
+    [':is(*|html,h1){font-family:Arial}', 'font-family', ':is(*|html,h1)'],
+  ])('refuse %s, which would outrank or bypass the shell\'s fallback stacks', (css, property, selector) => {
+    expect(() => assertRootFontStacks('/assets/index-A.css', css)).toThrow(`The entry stylesheet /assets/index-A.css sets ${property} on "${selector}"`);
+  });
+
+  it('are checked one by one before the shell\'s rules are selected', async () => {
+    const input = { html: builtIndexHtml(), variant: 'offline' as const, shellCss, bootScript: bootJs };
+    await expect(inlineFirstPaintShell({ ...input, readStylesheet: () => '@import "./styles/tokens.css";.site-header{display:flex}' }))
+      .rejects.toThrow('The emitted stylesheet /assets/index-BBBBBBBB.css contains an @import');
+    await expect(inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}body{font-family:Arial}' }))
+      .rejects.toThrow('The entry stylesheet /assets/index-BBBBBBBB.css sets font-family on "body"');
   });
 });
 

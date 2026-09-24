@@ -140,6 +140,25 @@ production policy and uses the page, guard against that.
 - Rules that reach shell elements only through an ancestor outside the shell
   (`#root`, `body` or `html` with more than a bare type selector) are not kept.
 - Inlined CSS must use root-relative, `data:`, `https:` or fragment URLs.
+- The emitted entry stylesheet must contain no `@import`. Vite inlines the relative `@import`
+  partials of the source CSS manifests; one it leaves in place would load outside the first-paint
+  template, and before the first paint if it reached the inline style. The build refuses it and
+  names the file.
+- The root `font-family` and `--display` stay on `:root` (or bare `html`), without `!important`.
+  `shell.css` adds the metric-matched fallbacks to those stacks with `html[data-boot=landing]`
+  (specificity 0,1,1), and the entry stylesheet loads after it. In the entry stylesheet the build
+  refuses:
+  - `--display` on any other selector;
+  - `font` or `font-family` on the root element with more specificity (`html[lang]`,
+    `:root:not(…)`);
+  - `font` or `font-family` on an element that may be `html`, `body` or `#root`, unless it is
+    `inherit` or `unset`.
+
+  Each selector is judged by its subject compound, the element it styles. A subject counts as
+  another element only if it has a type other than `html`, `body` or `div`, a class, an id other
+  than `#root`, or an `:is()`/`:where()` whose every alternative does. So `:where(body)`,
+  `:not(…)`, `:has(…)`, attribute-only selectors, `div` and `*` may only use `inherit` or `unset`.
+  A namespace prefix is ignored, so `*|body` counts as `body`.
 - Visible shell text follows the house marks (`…`, `·`, `—`). The fallback faces
   must cover every character the shell renders; the build refuses one they do not
   (`—` is outside their ranges today, so adding it means extending them).

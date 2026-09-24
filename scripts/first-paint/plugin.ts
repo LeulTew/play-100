@@ -22,8 +22,9 @@ import type { ShellVariant } from './shell-html.ts';
  *    and src/first-paint/shell.css, whose metric-matched local faces are the only fonts it
  *    declares;
  *  - fails the build unless vercel.json allows the inline script by its exact hash (and, under a
- *    strict style-src, exactly the inline styles of both variants), and unless the <meta charset>
- *    declaration fits within the document's first 1024 bytes.
+ *    strict style-src, exactly the inline styles of both variants), unless the <meta charset>
+ *    declaration fits within the document's first 1024 bytes, and unless each emitted entry
+ *    stylesheet is free of @import and leaves the root font stacks to shell.css.
  *
  * The boot script inserts the startup tags after the shell's first contentful paint when it shows
  * the shell, and at once otherwise. It runs the module entry only after the entry stylesheet has
@@ -82,6 +83,135 @@ export function assertRootRelativeUrls(css: string): void {
   for (const match of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]*))\s*\)/gi)) {
     const url = match[1] ?? match[2] ?? match[3] ?? '';
     if (!/^(?:\/(?!\/)|https:|data:|#)/i.test(url)) throw new Error(`The inline first-paint CSS references "${url}", which would resolve against index.html instead of its stylesheet.`);
+  }
+}
+
+/** CSS with its comments blanked and every string emptied, so only tokens outside strings remain. */
+function cssOutsideStrings(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\[\s\S])*"|'(?:[^'\\\n]|\\[\s\S])*'/g, match => match.startsWith('/*') ? ' ' : '""');
+}
+
+/**
+ * Vite inlines the relative @import partials of the source CSS manifests, so an @import left in an
+ * emitted stylesheet loads from outside the build: it bypasses the first-paint template, and a copy
+ * in the inline style would request it before the first paint. At-keywords are compared as CSS
+ * reads them: escapes resolved, ASCII case ignored.
+ */
+export function assertNoCssImports(file: string, css: string): void {
+  for (const match of cssOutsideStrings(css).matchAll(/@((?:[\w\u0080-\uffff-]|\\[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|\\[^\r\n\f0-9a-fA-F])+)/g)) {
+    const name = (match[1] ?? '').replace(/\\([0-9a-fA-F]{1,6})(?:\r\n|[ \t\r\n\f])?|\\(.)/gs, (_, hex: string | undefined, char: string | undefined) => {
+      if (hex === undefined) return char ?? '';
+      const code = Number.parseInt(hex, 16);
+      return code < 0x80 ? String.fromCharCode(code) : '\uFFFD';
+    });
+    if (name.toLowerCase() === 'import') {
+      throw new Error(`The emitted stylesheet ${file} contains an @import, which would load outside the first-paint template (and before the first paint if it reached the inline style). Vite inlines only relative imports of source CSS: import that CSS through one, or from a module (docs/first-paint-shell.md).`);
+    }
+  }
+}
+
+const ROOT_SUBJECT = /^(?::root|html)(?![\w-])/i;
+const BODY_OR_ROOT_DIV = /^(?:body|#root)(?![\w-])/i;
+const MATCHES_ALTERNATIVES = /^(?:is|where|matches|-webkit-any|-moz-any)$/i;
+const INHERITS = /^(?:inherit|unset)(?:\s*!\s*important)?$/i;
+
+/** The subject compound of a selector: the element its declarations apply to. */
+function subjectCompound(selector: string): string {
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < selector.length; index += 1) {
+    const char = selector[index];
+    if (char === '(' || char === '[') depth += 1;
+    else if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (char === '>' || char === '+' || char === '~' || /\s/.test(char))) start = index + 1;
+  }
+  return selector.slice(start);
+}
+
+function closingParenthesis(text: string, open: number): number {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+/** A compound selector without its namespace prefix: svg|a, *|body and |html become a, body and html. */
+function withoutNamespace(compound: string): string {
+  return compound.replace(/^(?:[\w-]+|\*)?\|/, '');
+}
+
+/**
+ * Whether a compound selector matches only elements other than html, body and the #root div: it
+ * has another type, a class or another id (the shell's html, body and #root carry none), or an
+ * :is() or :where() whose every alternative does. :not(), :has(), attributes and * never qualify.
+ */
+function qualified(selector: string): boolean {
+  const compound = withoutNamespace(selector);
+  if (ROOT_SUBJECT.test(compound) || BODY_OR_ROOT_DIV.test(compound)) return false;
+  const type = /^[a-z][\w-]*/i.exec(compound)?.[0];
+  if (type !== undefined && !/^(?:html|body|div)$/i.test(type)) return true;
+  for (let index = 0; index < compound.length; index += 1) {
+    const char = compound[index];
+    if (char === '.' || (char === '#' && !BODY_OR_ROOT_DIV.test(compound.slice(index)))) return true;
+    if (char === '[') {
+      const end = compound.indexOf(']', index);
+      if (end === -1) return false;
+      index = end;
+    } else if (char === ':') {
+      const pseudo = /^::?([\w-]+)(\()?/.exec(compound.slice(index));
+      if (!pseudo) return false;
+      if (pseudo[2] === undefined) {
+        index += pseudo[0].length - 1;
+        continue;
+      }
+      const open = index + pseudo[0].length - 1;
+      const close = closingParenthesis(compound, open);
+      if (close === -1) return false;
+      if (MATCHES_ALTERNATIVES.test(pseudo[1] ?? '') && splitTopLevel(compound.slice(open + 1, close)).every(alternative => qualified(subjectCompound(alternative)))) return true;
+      index = close;
+    }
+  }
+  return false;
+}
+
+function keepsShellFontStacks(property: string, subject: string, value: string): boolean {
+  const compound = withoutNamespace(subject);
+  if (/^(?::root|html)$/i.test(compound)) return !/!\s*important$/i.test(value);
+  if (property === '--display' || ROOT_SUBJECT.test(compound)) return false;
+  return qualified(compound) || INHERITS.test(value);
+}
+
+/**
+ * src/first-paint/shell.css adds the metric-matched fallbacks to the app's font stacks with
+ * html[data-boot=landing] (0,1,1), and the entry stylesheet loads after it. So the entry stylesheet
+ * may set the root font-family and --display only on :root (0,1,0) or bare html, without
+ * !important. It must not declare --display anywhere else, where it would shadow the shell's value,
+ * and a font or font-family on an element that may be html, body or #root (see qualified()) must be
+ * inherit or unset. Each selector is judged by its subject compound, the element it styles.
+ */
+export function assertRootFontStacks(file: string, css: string): void {
+  const code = cssOutsideStrings(css);
+  for (const match of code.matchAll(/(?:^|[{;])\s*(font-family|font|--display)\s*:([^;{}]*)/gi)) {
+    const name = match[1] ?? '';
+    // Custom property names are case-sensitive: --Display is another property.
+    const property = name.startsWith('--') ? name : name.toLowerCase();
+    if (property !== 'font' && property !== 'font-family' && property !== '--display') continue;
+    const open = code.lastIndexOf('{', match.index);
+    if (open === -1) continue;
+    const prelude = code.slice(Math.max(code.lastIndexOf('}', open), code.lastIndexOf('{', open - 1), code.lastIndexOf(';', open)) + 1, open).trim();
+    // At-rule blocks such as @font-face declare font properties of their own.
+    if (prelude.startsWith('@')) continue;
+    const value = (match[2] ?? '').trim();
+    for (const selector of splitTopLevel(prelude)) {
+      if (!keepsShellFontStacks(property, subjectCompound(selector), value)) {
+        throw new Error(`The entry stylesheet ${file} sets ${property} on "${selector}", where it would outrank or bypass the metric-matched fallbacks src/first-paint/shell.css adds to the root font stacks: keep font-family and --display on :root, without !important (docs/first-paint-shell.md).`);
+      }
+    }
   }
 }
 
@@ -308,7 +438,12 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
   if (count('entry') !== 1 || !count('stylesheet')) {
     throw new Error(`The build must inject one module entry and an entry stylesheet into <head>, not ${count('entry')} and ${count('stylesheet')}.`);
   }
-  const appCss = tags.filter(tag => tag.kind === 'stylesheet').map(tag => input.readStylesheet(tag.url)).join('\n');
+  const appCss = tags.filter(tag => tag.kind === 'stylesheet').map(tag => {
+    const css = input.readStylesheet(tag.url);
+    assertNoCssImports(tag.url, css);
+    assertRootFontStacks(tag.url, css);
+    return css;
+  }).join('\n');
   for (const tag of [...tags].reverse()) html = removeTag(html, tag);
   const startup = STARTUP_KINDS.flatMap(kind => tags.filter(tag => tag.kind === kind));
 
