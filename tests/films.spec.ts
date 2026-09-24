@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { collectionFilms } from '../src/lib/films';
+import { openBrowsingFilters } from './browsing-helpers';
 
 declare global { interface Window { previousFilm?: HTMLVideoElement } }
 
@@ -118,6 +119,7 @@ test('poster and media failures keep Watch, retry, text alternatives and downloa
 
 test('hidden documents pause without resume and navigation unloads the player', async ({ page }) => {
   await page.goto('/?q=Portal');
+  await openBrowsingFilters(page);
   await page.getByLabel('Year', { exact: true }).selectOption('2007');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();
   await page.getByRole('button', { name: 'Watch film: Discover & compare, 22 seconds', exact: true }).click();

@@ -162,6 +162,7 @@ test('play-later and completion are independent and persist on this device', asy
   await expect(page.getByRole('button', { name: 'Play later', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await openBrowsingFilters(page);
   await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
   await expect(page.locator('.game-card')).toHaveCount(1);
   await expect(page.locator('.list-privacy')).toContainText('including games you added beyond the 100');
@@ -172,6 +173,7 @@ test('play-later and completion are independent and persist on this device', asy
   await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'false');
   await page.reload();
   await expect(page.locator('.game-card')).toHaveCount(1);
+  await openBrowsingFilters(page);
   await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
   await expect(page.getByRole('heading', { name: 'Your next great game goes here.' })).toBeVisible();
 });
