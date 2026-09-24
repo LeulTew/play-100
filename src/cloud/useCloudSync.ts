@@ -15,10 +15,10 @@ interface LifetimeIdentity {
 interface Lifetime {
   identity: LifetimeIdentity;
   active: boolean; block: Block; queue: SyncWorkQueue | null;
-  detach: () => void; restart: () => void; watchAlive: boolean; initialChecked: boolean;
+  detach: () => void; restart: () => void; resume: () => void; watchAlive: boolean; initialChecked: boolean;
 }
 function createSyncLifetime(identity: LifetimeIdentity): Lifetime {
-  return { identity, active: false, block: null, queue: null, detach: () => {}, restart: () => {}, watchAlive: false, initialChecked: false };
+  return { identity, active: false, block: null, queue: null, detach: () => {}, restart: () => {}, resume: () => {}, watchAlive: false, initialChecked: false };
 }
 const hardBlocked = (block: Block) => block === 'terminal' || block === 'conflict' || block === 'revoked';
 
@@ -196,6 +196,7 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
     lifetime.detach = detach;
     lifetime.restart = () => observe(true);
     const wake = () => observe();
+    lifetime.resume = wake;
     observe();
     window.addEventListener('online', wake); window.addEventListener('offline', wake);
     window.addEventListener('focus', wake); window.addEventListener('pageshow', wake);
@@ -237,7 +238,18 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
     return lifetime.queue?.retry() ?? Promise.resolve();
   };
   // A requested stop is not yet an authoritative revocation. Manual retry rechecks the server before resuming.
-  const suspend = () => { lifetime.block = 'terminal'; lifetime.queue?.failed('blocked'); lifetime.detach(); setStatus('paused'); };
+  const suspend = () => {
+    const suspended = lifetime; const prior = { block: lifetime.block, status };
+    const release = lifetime.queue?.pause();
+    lifetime.block = 'terminal'; lifetime.detach(); setStatus('paused');
+    // Restores this lifetime only while it is still owned and blocked by this suspension, never after a revocation or conflict.
+    return () => {
+      if (!suspended.active || suspended.block !== 'terminal' || !owns()) return;
+      suspended.block = prior.block; release?.();
+      setStatus((value) => value === 'paused' ? prior.status : value);
+      suspended.resume();
+    };
+  };
   const visibleStatus: SyncStatus = !verified && scope ? 'paused'
     : lifetime.block === 'conflict' ? 'conflict'
       : lifetime.block === 'revoked' ? 'paused'

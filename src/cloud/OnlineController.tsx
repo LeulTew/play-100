@@ -62,6 +62,7 @@ import { recordFromFriendShelf } from '../lib/friend-shelf-types';
 import { GameArtwork } from '../components/games/GameArtwork';
 import type { FriendCursor } from '../lib/friend-types';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
+import { signOutTransition } from './sign-out-transition';
 import './cloud-ui.css';
 import './friends-ui.css';
 
@@ -489,19 +490,13 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     const target = scope;
     const session = authSessionEpoch.current;
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before signing out.');
-    if (!user || !target || cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) {
-      throw new Error('The signed-in account changed. Review Account before signing out.');
-    }
-    sync.suspend();
-    friends.stop();
-    shelf.stop();
-    automatic.suspend();
-    await account.waitForWrites();
-    const local = removeDeviceCopy ? await loadScopedLibrary(target) : null;
-    if (local?.sync.dirty) throw new Error('This device has unsynced changes. Save or export them before removing its copy. Ordinary Sign out keeps them.');
-    if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session) throw new Error('The signed-in account changed. Nothing was removed.');
-    await signOut(cloudAuth);
-    if (local) await deleteScopedLibrary(target, local.state.revision);
+    const current = () => Boolean(user && cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
+    if (!user || !target || !current()) throw new Error('The signed-in account changed. Review Account before signing out.');
+    await signOutTransition(removeDeviceCopy, {
+      current, waitForWrites: account.waitForWrites, readDeviceCopy: () => loadScopedLibrary(target),
+      suspend: () => [sync.suspend(), friends.stop(), shelf.stop(), automatic.suspend()],
+      signOut: () => signOut(cloudAuth), removeDeviceCopy: (revision) => deleteScopedLibrary(target, revision),
+    });
     await rememberOnlineRequest(false); setIdentity(null); onCloseSheet(); onNavigate('collection');
   }, true);
   const openComparison = (peers?: string[]) => {

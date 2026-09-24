@@ -419,8 +419,11 @@ fixtures seed the UID and test same-email/different-UID denial.
 
 Ordinary Sign out retains the scoped local cache. The separate confirmed
 **Sign out and remove this device's copy** action blocks dirty changes and checks
-the exact revision again inside the deletion transaction. A concurrent write
-leaves the copy intact even after Auth sign-out. Other accounts and guest data
+the exact revision again inside the deletion transaction. A dirty or unreadable
+copy is refused before automatic sync and sharing are suspended; a refusal after
+the final write drain restores the same still-signed-in sync and sharing
+lifetimes, and never resumes them after an identity change or server revocation.
+A concurrent write leaves the copy intact even after Auth sign-out. Other accounts and guest data
 are untouched. Integration must preserve the newer P5 post-commit motion-hint
 removal inside `deleteScopedLibrary`; this change adds a guard, not a namespace.
 The password entry accepts up to Firebase's 4096-character policy maximum.

@@ -159,7 +159,16 @@ export function useFriendShelf(uid: string | undefined, scope: LibraryScope | nu
   useEffect(() => {
     if (config?.enabled && snapshot?.sync.enabled && !snapshot.sync.dirty && !pendingEdits) queue.current?.request(1200, true);
   }, [config?.revision, config?.enabled, snapshot?.sync.enabled, snapshot?.sync.dirty, snapshot?.sync.dataRevision, snapshot?.state.revision, pendingEdits]);
-  const stop = () => { generation.cancel(); mutations.cancel(); mutationActive.current = null; queue.current?.dispose(); queue.current = null; setStatus('paused'); };
+  const stop = () => {
+    const ticket = generation.next(); const restart = Boolean(queue.current); const prior = status;
+    mutations.cancel(); mutationActive.current = null; queue.current?.dispose(); queue.current = null; setStatus('paused');
+    // Restarts this owner's shelf only if nothing newer replaced the stop and the same account is still current.
+    return () => {
+      if (!generation.current(ticket) || !owns()) return;
+      setStatus((value) => value === 'paused' ? prior : value);
+      if (restart) setReload((value) => value + 1);
+    };
+  };
   const saveSelection = async (ids: string[], expected: FriendShelfConfig, reviewedStateRevision: number) => {
     if (!owns() || !uid || !scope || recovery.current?.key === key || hasPendingEdits()) throw new Error('Refresh shared games before saving this selection.');
     const local = await loadScopedLibrary(scope);

@@ -21,6 +21,7 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
   const key = `${scope}:${uid}:${authGeneration}`;
   const [state, setState] = useState<{ key: string; confirmed: boolean; controls: FriendAllControls; eligibility: FriendAllEligibility; status: FriendAllStatus; error: string; games: FriendAllHead | null; ranking: FriendAllHead | null } | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
+  const [resumed, setResumed] = useState(0);
   const [progressState, setProgress] = useState<{ key: string; games: FriendAllProgress | null; ranking: FriendAllProgress | null } | null>(null);
   const current = useRef({ uid, scope, snapshot, verified, games, key });
   current.current = { uid, scope, snapshot, verified, games, key };
@@ -144,7 +145,7 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
     const wake = () => { work.setAvailable(valid() && !document.hidden && navigator.onLine !== false); work.wake(); };
     wake(); window.addEventListener('online', wake); window.addEventListener('offline', wake); document.addEventListener('visibilitychange', wake);
     return () => { alive = false; work.dispose(); if (queue.current === work) queue.current = null; window.removeEventListener('online', wake); window.removeEventListener('offline', wake); document.removeEventListener('visibilitychange', wake); };
-  }, [uid, scope, policy, choiceKind, key, owns, store, accept, eligibility, retryVersion]);
+  }, [uid, scope, policy, choiceKind, key, owns, store, accept, eligibility, retryVersion, resumed]);
   useEffect(() => {
     if (choiceKind === 'all' && collectionReady && snapshot?.sync.enabled && !snapshot.sync.dirty && !pending) {
       queue.current?.setAvailable(owns() && !document.hidden && navigator.onLine !== false);
@@ -161,7 +162,12 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
     });
     return () => { alive = false; };
   }, [uid, policy, choiceKind, key, store, owns]);
-  const suspend = useCallback(() => { generation.current += 1; queue.current?.dispose(); queue.current = null; }, []);
+  const suspend = useCallback(() => {
+    const lease = ++generation.current; const restart = Boolean(queue.current);
+    queue.current?.dispose(); queue.current = null;
+    // Restarts this owner's publication queue only if no newer lease or owner replaced the suspension.
+    return () => { if (restart && generation.current === lease && owns()) setResumed(value => value + 1); };
+  }, [owns]);
   const change = useCallback(async (enabled: boolean) => {
     if (!uid || !owns() || changing.current) throw new Error('Wait for the current account before changing sharing.');
     changing.current = true; suspend();

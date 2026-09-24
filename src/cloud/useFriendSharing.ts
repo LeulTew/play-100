@@ -182,6 +182,15 @@ export function useFriendSharing(uid: string | undefined, scope: LibraryScope | 
   return { store, settings, ready, status: visibleStatus, error: failure && failure.uid === uid ? failure.message : '',
     acceptSettings: (next: FriendSettings | null, explicitThroughRevision?: number) => { if (uid) acceptSettings(next, uid, explicitThroughRevision); },
     retry: () => { if (!queue.current) setReload((count) => count + 1); return queue.current?.retry() ?? Promise.resolve(); },
-    stop: () => { cancellationGeneration.cancel(); queue.current?.dispose(); queue.current = null; setStatus('paused'); },
+    stop: () => {
+      const ticket = cancellationGeneration.next(); const restart = Boolean(queue.current); const owner = uid; const prior = status;
+      queue.current?.dispose(); queue.current = null; setStatus('paused');
+      // Restarts this owner's sharing only if nothing newer replaced the stop and the same auth session is current.
+      return () => {
+        if (!owner || !cancellationGeneration.current(ticket) || current.current.uid !== owner || cloudAuth.currentUser?.uid !== owner || current.current.authGeneration !== authGeneration) return;
+        setStatus((value) => value === 'paused' ? prior : value);
+        if (restart) setReload((count) => count + 1);
+      };
+    },
   };
 }

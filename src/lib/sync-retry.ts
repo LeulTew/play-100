@@ -25,6 +25,7 @@ export class SyncWorkQueue {
   private failures = 0;
   private retryAt = 0;
   private waiters: Array<() => void> = [];
+  private hold: symbol | null = null;
   constructor(private readonly work: () => Promise<void>, private readonly onError: (cause: unknown) => void) {}
 
   get busy(): boolean { return this.running; }
@@ -39,6 +40,7 @@ export class SyncWorkQueue {
   }
   failed(kind: SyncFailure): void {
     if (this.disposed) return;
+    this.hold = null;
     this.failures = this.failure === kind ? this.failures + 1 : 1;
     this.failure = kind;
     this.clearTimer();
@@ -49,8 +51,23 @@ export class SyncWorkQueue {
     this.arm();
   }
   succeeded(cancelQueued = false): void {
+    this.hold = null;
     this.failure = null; this.failures = 0; this.retryAt = 0;
     if (cancelQueued) { this.due = null; this.clearTimer(); }
+  }
+  /** Blocks work like a blocked failure. Release restores the prior failure, count, cooldown and due time unless a newer outcome replaced the hold. */
+  pause(): () => void {
+    const prior = { failure: this.failure, failures: this.failures, retryAt: this.retryAt, due: this.due };
+    this.failed('blocked');
+    const hold = Symbol('paused');
+    this.hold = hold;
+    return () => {
+      if (this.disposed || this.hold !== hold) return;
+      this.hold = null;
+      this.failure = prior.failure; this.failures = prior.failures; this.retryAt = prior.retryAt;
+      this.due = prior.failure === 'blocked' || prior.due === null ? null : Math.max(Date.now(), prior.due);
+      this.arm();
+    };
   }
   setAvailable(available: boolean): void {
     this.available = available;
