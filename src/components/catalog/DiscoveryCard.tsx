@@ -79,7 +79,7 @@ export function DiscoveryCard({ record, game, actionRecord = record, ownedCopies
           <button className={`button ${saved ? 'button-outline' : 'button-dark'}`} disabled={busy || saved} aria-label={`${saved ? 'In My games' : 'Add to My games'}: ${record.title}`} onClick={() => { void onAction({ type: 'add-records', records: [actionRecord] }); }}>
             <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />{saved ? 'In My games' : 'Add to My games'}
           </button>
-          {onPin && <button className="button button-outline" aria-label={`${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}`} disabled={pinned} onClick={() => onPin(actionRecord)}><Icon name="stack" width="16" height="16" fill={pinned ? 'currentColor' : 'none'} />{pinned ? 'Pinned' : 'Pin'}</button>}
+          {onPin && <button className="button button-outline" aria-label={`${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}`} aria-disabled={pinned || undefined} onClick={() => { if (!pinned) onPin(actionRecord); }}><Icon name="stack" width="16" height="16" fill={pinned ? 'currentColor' : 'none'} />{pinned ? 'Pinned' : 'Pin'}</button>}
           {renderDragHandle?.(actionRecord)}
         </div>
         {game && <SavedCatalogCopies canonicalId={record.id} copies={ownedCopies} onOpen={onPreview ? copy => onPreview(copy) : undefined} />}

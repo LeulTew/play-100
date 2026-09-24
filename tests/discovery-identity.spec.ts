@@ -45,6 +45,35 @@ async function rate(scope: Page | Locator, value: string) {
   await input.fill(value); await input.press('Enter');
 }
 
+for (const surface of ['Discover', 'Collection'] as const) {
+  test(`${surface} add-only Pin keeps keyboard focus and ignores a second Enter`, async ({ page }) => {
+    await page.goto(surface === 'Discover' ? '/discover?q=RDR2&catalogs=off&include100=on' : '/?q=RDR2&catalogs=off');
+    const card = surface === 'Discover' ? cardFor(page) : page.locator(`[data-game="${rdr.slug}"]`);
+    const pin = card.locator(surface === 'Discover' ? '.discovery-card-primary > button[aria-label]' : '.card-compare-actions > button[aria-label]').last();
+    await expect(pin).toHaveAccessibleName(`Pin for comparison: ${rdr.title}`);
+    await expect(pin).toBeEnabled();
+    await pin.focus();
+    const original = await pin.elementHandle();
+    if (!original) throw new Error('The Pin control is not mounted.');
+    await page.keyboard.press('Enter');
+    await expect(pin).toBeFocused();
+    expect(await original.evaluate(node => node.isConnected && node === document.activeElement)).toBe(true);
+    await expect(pin).toHaveAccessibleName(`Pinned for comparison: ${rdr.title}`);
+    await expect(pin).toHaveAttribute('aria-disabled', 'true');
+    await expect(pin).not.toHaveAttribute('disabled');
+    await expect(pin).not.toHaveAttribute('aria-pressed');
+    const tray = page.locator('.compare-tray-expand');
+    await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
+    await page.keyboard.press('Enter');
+    await expect(pin).toBeFocused();
+    await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
+    await page.keyboard.press('Tab');
+    const next = surface === 'Discover' ? card.locator('summary') : card.getByRole('button', { name: `Play later: ${rdr.title}`, exact: true });
+    await expect(next).toBeFocused();
+    await original.dispose();
+  });
+}
+
 test('fresh Discover canonical facts, all personal actions, details and main aliases share one original ID', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');

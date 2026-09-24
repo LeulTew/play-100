@@ -29,7 +29,10 @@ describe('compact catalog card markup', () => {
     expect(html).toContain('Artwork unavailable');
     expect(html).not.toContain('<img');
     expect(html).toContain('aria-label="Pin for comparison: Kingdom Come: Deliverance"');
-    expect(html).not.toMatch(/disabled=""[^>]*aria-label="Pin/);
+    const pin = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(button => button.includes('aria-label="Pin for comparison: Kingdom Come: Deliverance"'));
+    expect(pin).toBeDefined();
+    expect(pin).not.toContain('disabled=""');
+    expect(pin).not.toContain('aria-disabled="true"');
   });
   it('does not copy source HTML credit into markup', () => {
     const html = renderToStaticMarkup(createElement(DiscoveryCard, { record: discoveryFixture.record, artwork: { ...artworkFixture, credit: '<script>unsafe</script>' }, state: emptyPersonalLibrary(), busy: false, onAction: vi.fn(), eager: true }));

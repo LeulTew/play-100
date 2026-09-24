@@ -208,5 +208,5 @@ html[data-motion="off"] :where(button, a, .game-cover img, .game-copy h3 > svg, 
   .collection-dot { border: 2px solid CanvasText; }
   .card-selected .game-link, .discovery-card.is-selected { outline: 3px solid Highlight; }
   .game-card svg, .discovery-card svg, .mobile-nav svg, .compare-tray-dock svg { color: currentColor; }
-  button:disabled { color: GrayText; opacity: 1; }
+  button:disabled, :where(.game-card, .discovery-card) button[aria-disabled="true"] { color: GrayText; opacity: 1; }
 }

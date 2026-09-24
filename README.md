@@ -149,8 +149,10 @@ recovery](docs/pwa.md).
 The **Compare tray** holds up to six game references, separately per guest or
 account scope. Use native Pin, the fine-mouse handle, or a supported
 card-artwork/title drag. Broad-surface touch dragging uses a deliberate hold followed by movement; ordinary
-scrolling, text selection and nested controls keep their own behavior. Pin and
-keyboard activation never require dragging, including in Lite or reduced motion.
+scrolling, text selection and nested controls keep their own behavior. Keyboard
+and screen-reader users use the adjacent Pin control, not the pointer-only compact
+grip, including in Lite or reduced motion. Add-only card Pins stay focused and
+in the tab order after pinning; repeat activation does not add another item.
 Pins do not change private library state or permissions.
 The visible action says **Compare rankings with friends**. Its signed-out
 destination explains that purpose before provider choices and retains the
@@ -657,10 +659,12 @@ when the condition clears. Native opening, closing, focus and saves never wait
 for an animation. Drag-to-Compare remains separate from private Queue/Ranking
 reordering, and an empty drop target does not reflow the collection controls.
 
-The 44px Compare handle is a native **Pin** button for touch and pen; it does
-not start a held drag or explicit pointer capture. Fine-mouse handle dragging
-remains available, alongside ordinary clicks and keyboard activation. Coarse
-layouts show a Pin icon and label, and allow native panning from the button.
+The 44px **Pin** control supports native touch, pen and keyboard activation; it
+does not start a held drag or explicit pointer capture. The adjacent compact
+grip is pointer-only, titled **Drag to tray**, and hidden on coarse pointers.
+Fine-mouse grip dragging and ordinary clicks remain available without adding
+a duplicate keyboard or screen-reader control. Coarse layouts show the Pin
+control and allow native panning from the button.
 Card/title touch-hold dragging is a separate interaction, not enabled by the
 handle. This is an intentional capability fallback after a retained
 post-touch-grip click failure, not a claim to have diagnosed or fixed its
