@@ -13,7 +13,9 @@ const attributePolicy = "style-src-attr 'none'";
 
 async function record(page: Page, baseURL: string | undefined) {
   await recordStyleElements(page);
-  return recordViolations(page, attributePolicy, new URL(baseURL ?? '/').origin);
+  // Continue, not fulfil, the documents: a fulfilled document fails Chrome's Local Network Access check
+  // for the emulator's loopback auth iframe.
+  return recordViolations(page, attributePolicy, new URL(baseURL ?? '/').origin, { network: 'continue' });
 }
 
 test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });

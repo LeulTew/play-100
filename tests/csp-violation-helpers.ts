@@ -30,12 +30,38 @@ export async function recordStyleElements(page: Page): Promise<void> {
 }
 
 /**
+ * Replaces the CSP of `origin`'s documents with `policy` while they stay real network responses:
+ * Chromium's Fetch domain pauses each document response and continues it with the edited headers,
+ * instead of Playwright fulfilling it. A fulfilled document loses its network identity, so Chrome's
+ * Local Network Access checks then block its loopback subresources (the Auth emulator's iframe).
+ * Other origins' documents, such as the emulator's own sign-in page, are not paused.
+ */
+async function replaceDocumentPolicy(page: Page, policy: string, origin: string): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  cdp.on('Fetch.requestPaused', event => {
+    const own = event.resourceType === 'Document' && new URL(event.request.url).origin === origin
+      && event.responseStatusCode !== undefined && !event.responseErrorReason;
+    const headers = (event.responseHeaders ?? []).filter(header => header.name.toLowerCase() !== 'content-security-policy');
+    void (own
+      ? cdp.send('Fetch.continueResponse', {
+        requestId: event.requestId, responseCode: event.responseStatusCode,
+        responseHeaders: [...headers, { name: 'Content-Security-Policy', value: policy }],
+      })
+      : cdp.send('Fetch.continueRequest', { requestId: event.requestId })
+    ).catch(() => undefined);
+  });
+  await cdp.send('Fetch.enable', { patterns: [{ urlPattern: `${origin}/*`, resourceType: 'Document', requestStage: 'Response' }] });
+}
+
+/**
  * Serves every same-origin document with `policy` (the local preview sends no CSP; pass null against a
  * deployment, which sends its real headers) and records each securitypolicyviolation from before any
  * page script runs. Reports persist in sessionStorage, so documents left by navigation or an auth
- * redirect still count; console CSP reports are collected too.
+ * redirect still count; console CSP reports are collected too. `network: 'continue'` edits the real
+ * document responses over CDP rather than fulfilling them; use it wherever the page loads loopback
+ * cross-origin resources (the emulator suites).
  */
-export async function recordViolations(page: Page, policy: string | null, origin: string): Promise<{ read: () => Promise<string[]> }> {
+export async function recordViolations(page: Page, policy: string | null, origin: string, { network = 'fulfill' }: { network?: 'fulfill' | 'continue' } = {}): Promise<{ read: () => Promise<string[]> }> {
   const reports: string[] = [];
   page.on('console', message => {
     if (/Content Security Policy|violates the following/i.test(message.text())) reports.push(message.text().slice(0, 300));
@@ -50,7 +76,8 @@ export async function recordViolations(page: Page, policy: string | null, origin
       }
     });
   }, storageKey);
-  if (policy !== null) {
+  if (policy !== null && network === 'continue') await replaceDocumentPolicy(page, policy, origin);
+  else if (policy !== null) {
     await page.route(url => url.origin === origin, async route => {
       if (route.request().resourceType() !== 'document') return route.fallback();
       const response = await route.fetch();
