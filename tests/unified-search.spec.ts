@@ -107,6 +107,12 @@ test('bulk actions span original and external search matches and private filters
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await row(page, a).getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true }).click();
+  // Unmarking a completed game asks first, since it also clears Completed (621bcef); nothing changes until confirmed.
+  const confirmation = page.getByRole('dialog', { name: `Mark ${a.title} not played?`, exact: true });
+  await expect(confirmation).toContainText('This also clears Completed.');
+  expect((await readLibrary(page)).progress[a.id]).toEqual({ played: true, completed: true, later: true });
+  await confirmation.getByRole('button', { name: 'Mark not played', exact: true }).click();
+  await expect(confirmation).toHaveCount(0);
   await expect.poll(async () => (await readLibrary(page)).progress[a.id]?.played).toBe(false);
   await expect(row(page, a)).toHaveCount(0);
   expect((await readLibrary(page)).progress[a.id]).toEqual({ played: false, completed: false, later: true });
