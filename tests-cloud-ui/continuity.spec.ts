@@ -46,7 +46,7 @@ test('stopped cloud copies are not enabled by sign-in and the explicit consent a
   try {
     const peer = await second.newPage();
     await signIn(peer, email);
-    await expect(peer.locator('.sync-panel')).toContainText('Online saving was stopped');
+    await expect(peer.locator('.sync-panel')).toContainText('Online saving is stopped. Turn it on below when you want to save online again.');
     await expect(peer.locator('input[autocomplete="nickname"]')).toHaveCount(1);
     await expect(peer.getByRole('button', { name: 'Agree & enable', exact: true })).toBeEnabled();
     const uid = await uidFor(request, email);

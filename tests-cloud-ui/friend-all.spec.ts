@@ -53,7 +53,8 @@ test('fresh mounted account defaults All without a sharing click or guest adopti
   expect(controls).toMatchObject({ policy: { enabled: true, origin: 'default' }, ranking: { enabled: true, selectedIds: [] }, shelf: { enabled: true, selectedIds: [] } });
   await page.goto('/discover?q=Kingdomcome&catalogs=off');
   const card = page.locator('[data-catalog-id="wikidata:Q15408545"]');
-  await card.getByRole('button', { name: 'Save Kingdom Come: Deliverance', exact: true }).click();
+  await card.getByRole('button', { name: 'Add to My games: Kingdom Come: Deliverance', exact: true }).click();
+  await expect(card.getByRole('button', { name: 'In My games: Kingdom Come: Deliverance', exact: true })).toBeDisabled();
   await page.goto('/my-games');
   await expect(page.locator('.friend-sharing-summary')).toContainText('Up to date', { timeout: 30000 });
   expect(await sdk(page, 'heads')).toMatchObject({ games: { status: 'ready', count: 1 }, ranking: { status: 'ready', count: 0 } });

@@ -22,8 +22,8 @@ test.beforeEach(async ({ page }) => {
 async function saveCatalogGame(page: Page) {
   await page.goto('/discover?q=Kingdomcome&catalogs=off');
   await expect(card(page).getByRole('button', { name: title, exact: true })).toBeVisible();
-  await card(page).getByRole('button', { name: `Save ${title}`, exact: true }).click();
-  await expect(card(page).getByRole('button', { name: `Saved ${title}`, exact: true })).toBeDisabled();
+  await card(page).getByRole('button', { name: `Add to My games: ${title}`, exact: true }).click();
+  await expect(card(page).getByRole('button', { name: `In My games: ${title}`, exact: true })).toBeDisabled();
 }
 async function account(page: Page, request: APIRequestContext, prefix: string, name: string, choice: 'guest' | 'empty' = 'empty') {
   const email = emailFor(prefix);
@@ -72,7 +72,8 @@ test('the real cold catalog is image-led, finds compact aliases without provider
   await page.route('**/api/catalog?**', route => route.fulfill({ status: 503, json: { error: 'Synthetic provider outage.' }, headers: { 'Cache-Control': 'no-store' } }));
   await page.goto('/discover?catalogs=off');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(24);
-  await expect(page.locator('.discovery-results-heading')).toContainText('810 games');
+  // 810 snapshot records; the 65 that resolve to The 100 open their original entries only with Include The 100.
+  await expect(page.locator('.discovery-results-heading')).toContainText('1–24 of 745 catalog games');
   await expect(page.locator('.discovery-card-art img')).toHaveCount(24);
   await expect.poll(() => page.locator('.discovery-card-art img').first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   expect(new Set(images).size).toBeLessThanOrEqual(24);
@@ -128,9 +129,9 @@ test('restricted storage and a failed online fallback never hide valid seeded ma
   await page.goto('/discover?q=Kingdomcome');
   await expect(card(page)).toBeVisible();
   await expect(page.locator('.discovery-source-error').first()).toBeVisible();
-  await expect(card(page).getByRole('button', { name: `Save ${title}`, exact: true })).toBeEnabled();
-  await card(page).getByRole('button', { name: `Save ${title}`, exact: true }).click();
-  await expect(card(page).getByRole('button', { name: `Saved ${title}`, exact: true })).toBeDisabled();
+  await expect(card(page).getByRole('button', { name: `Add to My games: ${title}`, exact: true })).toBeEnabled();
+  await card(page).getByRole('button', { name: `Add to My games: ${title}`, exact: true }).click();
+  await expect(card(page).getByRole('button', { name: `In My games: ${title}`, exact: true })).toBeDisabled();
   expect((await readLibrary(page)).records[kcd]?.title).toBe(title);
   await page.reload(); await expect(card(page)).toBeVisible();
 });
@@ -204,12 +205,13 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await row(page).getByRole('button', { name: `Play later: ${title}`, exact: true }).click();
   await row(page).getByRole('button', { name: `Completed: ${title}`, exact: true }).click();
   await tab(page, 'Queue').click();
-  await page.getByLabel('Completed only', { exact: true }).check();
+  const progress = page.getByRole('combobox', { name: 'Progress', exact: true });
+  await progress.selectOption('completed');
   await expect(tab(page, 'Queue')).toHaveAttribute('aria-current', 'page');
   await expect(row(page)).toBeVisible();
-  expect(new URL(page.url()).searchParams.get('tab')).toBe('queue');
-  expect(new URL(page.url()).searchParams.get('list')).toBe('completed');
-  await page.getByLabel('Completed only', { exact: true }).uncheck();
+  await expect(page).toHaveURL(/[?&]tab=queue(?:&|$)/);
+  await expect(page).toHaveURL(/[?&]progress=completed(?:&|$)/);
+  await progress.selectOption('all');
   await page.goto('/discover?q=Kingdomcome&catalogs=off');
   await card(page).locator('summary').click();
   await card(page).getByRole('button', { name: 'Add to ranking', exact: true }).click();
