@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { Parser } from 'htmlparser2';
 
 /**
  * Content-Security-Policy checks for inline blocks in built documents (docs/first-paint-shell.md,
@@ -24,21 +25,41 @@ export function sha256Source(content: string): string {
   return `'sha256-${createHash('sha256').update(content, 'utf8').digest('base64')}'`;
 }
 
-/** Markup a browser with scripting enabled acts on: no comments, no noscript content. */
-function activeMarkup(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '').replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript\s*>/gi, '');
+/**
+ * What a browser with scripting enabled acts on, read with an HTML tokenizer: comments are skipped,
+ * <script> and <style> contents are raw text up to their real end tag, and <noscript> content is
+ * inactive. Returns every inline <script> (without src) and <style> body in document order and the
+ * attributes of every active element.
+ */
+function activeDocument(html: string) {
+  const blocks: { kind: 'script' | 'style'; content: string }[] = [];
+  const attributes: { tag: string; name: string; value: string }[] = [];
+  let noscript = 0;
+  let open: { kind: 'script' | 'style'; content: string; inline: boolean } | null = null;
+  new Parser({
+    onopentag(name, attribs) {
+      if (name === 'noscript') noscript += 1;
+      if (noscript) return;
+      for (const [key, value] of Object.entries(attribs)) attributes.push({ tag: name, name: key, value });
+      if (name === 'script' || name === 'style') open = { kind: name, content: '', inline: name === 'style' || !Object.hasOwn(attribs, 'src') };
+    },
+    ontext(text) {
+      if (open) open.content += text;
+    },
+    onclosetag(name) {
+      if (name === 'noscript') noscript = Math.max(0, noscript - 1);
+      else if (open && name === open.kind) {
+        if (open.inline) blocks.push({ kind: open.kind, content: open.content });
+        open = null;
+      }
+    },
+  }).end(html);
+  return { blocks, attributes };
 }
 
 /** Every inline <script> (without src) and <style> element, in document order. */
 export function inlineBlocks(html: string): InlineBlock[] {
-  const blocks: InlineBlock[] = [];
-  for (const match of activeMarkup(html).matchAll(/<(script|style)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi)) {
-    const kind = (match[1] ?? '').toLowerCase() === 'script' ? 'script' : 'style';
-    const content = match[3] ?? '';
-    if (kind === 'script' && /\ssrc\s*=/i.test(match[2] ?? '')) continue;
-    blocks.push({ kind, bytes: Buffer.byteLength(content, 'utf8'), source: sha256Source(content) });
-  }
-  return blocks;
+  return activeDocument(html).blocks.map(({ kind, content }) => ({ kind, bytes: Buffer.byteLength(content, 'utf8'), source: sha256Source(content) }));
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -73,8 +94,8 @@ export function directiveSources(policy: string, name: string): string[] | null 
 const HASH_SOURCE = /^'sha(?:256|384|512)-/i;
 const HASH_OR_NONCE = /^'(?:sha(?:256|384|512)-|nonce-)/i;
 
-function withoutBlockContents(html: string): string {
-  return activeMarkup(html).replace(/(<(script|style)\b[^>]*>)[\s\S]*?<\/\2\s*>/gi, '$1');
+function describeAttribute({ tag, name, value }: { tag: string; name: string; value: string }): string {
+  return `<${tag} ${name}="${value}"`.slice(0, 80);
 }
 
 /**
@@ -113,7 +134,9 @@ export function cspProblems(documents: readonly CspDocument[], policy: string, o
   const styleInline = styleSources.includes("'unsafe-inline'");
   const used = { script: new Set<string>(), style: new Set<string>() };
   for (const entry of documents) {
-    for (const [index, block] of inlineBlocks(entry.html).entries()) {
+    const active = activeDocument(entry.html);
+    for (const [index, { kind, content }] of active.blocks.entries()) {
+      const block = { kind, bytes: Buffer.byteLength(content, 'utf8'), source: sha256Source(content) };
       const label = `${entry.name} inline ${block.kind} #${index} (${block.bytes} B, ${block.source})`;
       used[block.kind].add(block.source);
       if (block.kind === 'script') {
@@ -122,11 +145,10 @@ export function cspProblems(documents: readonly CspDocument[], policy: string, o
         problems.push(`${label} is not allowed: add ${block.source} to style-src in vercel.json.`);
       }
     }
-    const markup = withoutBlockContents(entry.html);
-    const handler = /<[a-z][^>]*?\son[a-z]+\s*=/i.exec(markup);
-    if (handler) problems.push(`${entry.name} has an inline event-handler attribute, which script-src blocks: ${handler[0].slice(0, 80)}`);
-    const styleAttribute = styleInline ? null : /<[a-z][^>]*?\sstyle\s*=/i.exec(markup);
-    if (styleAttribute) problems.push(`${entry.name} has an inline style attribute, which strict style-src blocks: ${styleAttribute[0].slice(0, 80)}`);
+    const handler = active.attributes.find(attribute => /^on[a-z]/.test(attribute.name));
+    if (handler) problems.push(`${entry.name} has an inline event-handler attribute, which script-src blocks: ${describeAttribute(handler)}`);
+    const styleAttribute = styleInline ? undefined : active.attributes.find(attribute => attribute.name === 'style');
+    if (styleAttribute) problems.push(`${entry.name} has an inline style attribute, which strict style-src blocks: ${describeAttribute(styleAttribute)}`);
   }
   const otherStyles = options.otherVariantStyles ?? [];
   if (otherStyles === 'unchecked') used.style = new Set(styleHashes);

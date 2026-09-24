@@ -32,6 +32,31 @@ describe('inline blocks', () => {
       { kind: 'script', bytes: 4, source: sha256Source('go()') },
     ]);
   });
+
+  it('reads blocks with an HTML tokenizer: odd end tags, comment endings, raw text, quoting and case', () => {
+    const html = '<script>a()</script\t\n bar><!-- x --!><script>afterBang()</script> -->' +
+      '<style>p::before{content:"</script><!--"}</STYLE ><script SRC=/x.js>ignored()</script>' +
+      "<script type='module' src='/m.js'></script><noscript><script>n()</script></noscript><!-->" + '<script>after()</script>';
+    expect(inlineBlocks(html).map(block => [block.kind, block.source])).toEqual([
+      ['script', sha256Source('a()')],
+      ['script', sha256Source('afterBang()')],
+      ['style', sha256Source('p::before{content:"</script><!--"}')],
+      ['script', sha256Source('after()')],
+    ]);
+  });
+
+  it('checks attributes as parsed, not text that looks like them', () => {
+    const strict = policy.replace("'unsafe-inline'", sha256Source('a{color:red}'));
+    const withBody = (body: string) => [{ name: 'index.html', html: page.replace('<body>', `<body>${body}`) }];
+    expect(cspProblems(withBody('<p title="x onclick=go() style=color:red">t</p><script>/* <b onclick="x"> */</script>'), strict))
+      .toEqual([expect.stringContaining(`add ${sha256Source('/* <b onclick="x"> */')} to script-src`)]);
+    expect(cspProblems(withBody("<IMG SRC=/a.png OnError='go()'>"), policy)).toEqual([
+      'index.html has an inline event-handler attribute, which script-src blocks: <img onerror="go()"',
+    ]);
+    expect(cspProblems(withBody('<DIV STYLE=color:red></DIV>'), strict)).toEqual([
+      'index.html has an inline style attribute, which strict style-src blocks: <div style="color:red"',
+    ]);
+  });
 });
 
 describe('main-document policy', () => {
