@@ -40,7 +40,8 @@ Firebase and Vercel consoles; each names its readback.
    field `uid` set to the verified owner UID from Authentication > Users; keep the
    old `email` field during compatibility. Readback: reopen the document and
    confirm both fields. Never infer an owner UID from an email match. This must
-   precede UID-based creator rules (step 6).
+   precede UID-based creator rules (step 6). If the UID is missing, the rules
+   withhold creator powers until it is added; ordinary publishing is unaffected.
 2. Run the integrator's exact candidate types, lint, units, full demo rules,
    migration and UI suites. Keep failures, selector-filtered runs and source-only
    tests distinct. Record synthetic serializer size outputs; do not call them

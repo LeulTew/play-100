@@ -444,7 +444,9 @@ owner's claim to repair a malformed profile.
 
 Creator authorization uses `_owner/config.uid`, not mutable/recycled email.
 This protected document remains unreadable/unwritable by clients. Emulator
-fixtures seed the UID and test same-email/different-UID denial.
+fixtures seed the UID and test same-email/different-UID denial. A missing owner
+document or `uid` fails closed for creator powers only: ordinary publishing keeps
+working, and the rules suite covers both states.
 
 Ordinary Sign out retains the scoped local cache. The separate confirmed
 **Sign out and remove this device's copy** action blocks dirty changes and checks

@@ -232,7 +232,8 @@ revision fields or a forged author-rank field.
 The protected `_owner/config` document is provisioned administratively with the
 verified project owner's Firebase `uid`, not the email address. Set this field
 before publishing UID-based rules, retaining the old email field until the
-previous rules are retired. It is never readable or writable by app
+previous rules are retired. Without the field, rules withhold creator powers but
+still allow ordinary publishing. It is never readable or writable by app
 clients. Creator authority is evaluated by Security Rules, not a client flag or
 the first signup. The creator UI reads a separately projected ranking summary
 without private notes or queues. A project database operator can technically
@@ -329,8 +330,8 @@ in `cloud-test` mode with emulators enabled, and refuses to run otherwise. It th
 runs `scripts/seed-cloud-emulators.mjs`, which writes the
 trusted `catalog/author` titles that rules require for collection entries, and a
 non-creator `_owner/config`. Rules pin creator authority to its `uid`, so the seed
-sets a placeholder UID that no emulator account can have; without that field
-every publication is denied. The
+sets a placeholder UID that no emulator account can have, like a provisioned
+production document. The
 seed script targets only the literal localhost demo endpoints; it never
 creates production users or public sample content. Emulator tests are not proof
 of a user's real Google credentials, MFA or email delivery. Production checks

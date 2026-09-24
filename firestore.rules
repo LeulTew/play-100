@@ -10,7 +10,9 @@ service cloud.firestore {
       return own(uid) && get(/databases/$(database)/documents/accountLifecycle/$(uid)).data.state == 'active';
     }
     function creator() {
-      return verified() && request.auth.uid == get(/databases/$(database)/documents/_owner/config).data.uid;
+      // A missing owner document or uid only withholds creator powers; it must never turn ordinary publishing into an evaluation error.
+      return verified() && exists(/databases/$(database)/documents/_owner/config)
+        && request.auth.uid == get(/databases/$(database)/documents/_owner/config).data.get('uid', '');
     }
     function head(uid) { return get(/databases/$(database)/documents/syncHeads/$(uid)).data; }
     function retained(uid, generation) {

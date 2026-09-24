@@ -211,6 +211,32 @@ describe('consented public snapshots, handle claims and moderation', () => {
     expect(await reporter.social.profile('reported_list')).toBeNull();
   });
 
+  it.each(['has no uid', 'is missing'] as const)('keeps ordinary publishing and withholds creator powers while the owner config %s, then restores them with its uid', async state => {
+    const owner = await client(); const moderator = await client(); const guest = await client(true);
+    await environment.withSecurityRulesDisabled(async (context) => {
+      const ref = context.firestore().doc('_owner/config');
+      // Even the owner's own email grants nothing: creator authority is the provisioned uid alone.
+      if (state === 'is missing') await ref.delete(); else await ref.set({ email: moderator.email });
+    });
+    expect(await owner.social.publish(owner.uid, publication('ordinary_list', true), control)).toMatchObject({ creator: false, published: true });
+    expect(await guest.social.profile('ordinary_list')).toMatchObject({ uid: owner.uid, creator: false });
+    await assertFails(getDocFromServer(doc(moderator.db, 'ownerAccess', 'status')));
+    await assertFails(moderator.social.members());
+    await assertFails(moderator.social.reports());
+    await assertFails(moderator.social.moderate(owner.uid, true));
+    await assertFails(owner.social.publish(owner.uid, { ...publication('ordinary_list', true), creator: true }, await owner.social.control(owner.uid)));
+    expect(await guest.social.profile('ordinary_list')).toMatchObject({ uid: owner.uid, creator: false, hidden: false });
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
+    });
+    await assertSucceeds(getDocFromServer(doc(moderator.db, 'ownerAccess', 'status')));
+    await assertSucceeds(moderator.social.members());
+    expect(await owner.social.publish(owner.uid, publication('ordinary_list', true), await owner.social.control(owner.uid))).toMatchObject({ creator: false, published: true });
+    await assertFails(owner.social.publish(owner.uid, { ...publication('ordinary_list', true), creator: true }, await owner.social.control(owner.uid)));
+    await moderator.social.moderate(owner.uid, true);
+    expect(await guest.social.profile('ordinary_list')).toBeNull();
+  }, 60000);
+
   it('preserves untouched server fields during avatar-only and name-only updates', async () => {
     const owner = await client();
     await owner.social.saveMember(owner.uid, 'My chosen nickname', avatar);
