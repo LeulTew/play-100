@@ -489,6 +489,13 @@ Vercel installs with `npm ci`; each CI dependency install is followed by
 failures for review, not reasons to bypass integrity. This does not replace
 Dependabot, CodeQL or runtime testing.
 
+Both the main rule and the auth-helper rule send
+`Strict-Transport-Security: max-age=63072000; includeSubDomains` explicitly, so
+HSTS does not depend on a platform default. `preload` is deliberately omitted:
+`vercel.app` is already a preloaded public suffix, and preload submission only
+makes sense for an owned apex domain. HSTS is not copied into the worker's
+`documentPolicy`, because browsers ignore HSTS from service-worker responses.
+
 ### CSP style candidate: separate acceptance gate
 
 Static source inspection found an inline noscript style in index.html and an

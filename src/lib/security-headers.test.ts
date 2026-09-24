@@ -14,6 +14,17 @@ describe('S3 header and supply-chain boundaries', () => {
     expect(headers['Content-Security-Policy']).toContain("frame-src 'self' https://accounts.google.com");
     expect(configuration.installCommand).toBe('npm ci');
   });
+  it('pins two-year HSTS on the app and auth helper without claiming preload for a shared suffix', () => {
+    const hsts = 'max-age=63072000; includeSubDomains';
+    const helper = configuration.headers.find(rule => rule.source === '/__/auth/:path*')!;
+    for (const rule of [main, helper]) {
+      expect(rule.headers.filter(header => header.key.toLowerCase() === 'strict-transport-security'))
+        .toEqual([{ key: 'Strict-Transport-Security', value: hsts }]);
+    }
+    expect(headers['X-Content-Type-Options']).toBe('nosniff');
+    expect(headers['X-Frame-Options']).toBe('DENY');
+    expect(headers['Content-Security-Policy']).toContain("frame-ancestors 'none'");
+  });
   it('keeps exact public share images and launcher icons readable cross-origin', () => {
     for (const source of [
       '/social-card.png', '/social-card.svg', '/favicon.svg',
