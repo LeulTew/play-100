@@ -10,7 +10,10 @@ const b = { id: 'mass-effect-2', title: 'Mass Effect 2' };
 async function prepareRanking(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('link', { name: 'Ranking', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Menu', exact: true })
+    .getByRole('link', { name: 'Ranking', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
   for (const game of [a, b]) {
     await page.getByRole('button', { name: `Add ${game.title} to ranking`, exact: true }).click();
@@ -33,7 +36,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const field of ['score', 'note'] as const) {
-  test(`browser Back flushes a pending ${field} exactly once without needing its debounce or blur`, async ({ page }) => {
+  test(`browser Back flushes a pending ${field} exactly once without needing its debounce or blur`, async ({
+    page,
+  }) => {
     await prepareRanking(page);
     const before = await readLibrary(page);
     await pauseAutosave(page);
@@ -41,11 +46,14 @@ for (const field of ['score', 'note'] as const) {
       await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9.25');
     } else {
       await page.locator(`[data-record-id="${a.id}"] .ranking-note summary`).click();
-      await page.getByRole('textbox', { name: `Your note for ${a.title}`, exact: true }).fill('A pending note, saved when I go Back.');
+      await page
+        .getByRole('textbox', { name: `Your note for ${a.title}`, exact: true })
+        .fill('A pending note, saved when I go Back.');
     }
     await page.goBack();
     await expect(page).toHaveURL(/\/$/);
-    await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.[field])
+    await expect
+      .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.[field])
       .toBe(field === 'score' ? 9.25 : 'A pending note, saved when I go Back.');
     expect((await readLibrary(page)).revision).toBe(before.revision + 1);
     await page.clock.runFor(1500);
@@ -53,7 +61,9 @@ for (const field of ['score', 'note'] as const) {
   });
 }
 
-test('original-game details accept a separate personal rating and bind pending edits to the correct next game', async ({ page }) => {
+test('original-game details accept a separate personal rating and bind pending edits to the correct next game', async ({
+  page,
+}) => {
   await page.goto(`/?game=${b.id}`);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${b.title}`, exact: true }).fill('4');
@@ -78,30 +88,43 @@ test('original-game details accept a separate personal rating and bind pending e
   expect(state.records[b.id]?.collectionRank).toBe(2);
 });
 
-test('Escape from an unranked preview commits a pending rating and metadata without marking it played', async ({ page }) => {
+test('Escape from an unranked preview commits a pending rating and metadata without marking it played', async ({
+  page,
+}) => {
   const record = catalogRecord('wikidata', 'Q990020', 'Exit draft example');
-  await page.route('**/api/catalog?**', (route) => respondWithCatalog(route, route.request().url().includes('source=wikidata') ? [record] : []));
+  await page.route('**/api/catalog?**', (route) =>
+    respondWithCatalog(route, route.request().url().includes('source=wikidata') ? [record] : []),
+  );
   await page.goto('/?q=exit&view=table');
   await page.locator('[data-unranked-id]').getByRole('button', { name: record.title, exact: true }).click();
   await pauseAutosave(page);
   await page.getByRole('dialog').getByRole('spinbutton').fill('7.75');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score).toBe(7.75);
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score)
+    .toBe(7.75);
   expect((await readLibrary(page)).records[record.id]).toEqual(record);
   expect((await readLibrary(page)).progress[record.id]).toBeUndefined();
-  const saved = page.locator('[data-unranked-id]').getByRole('button', { name: `In My games: ${record.title}`, exact: true });
+  const saved = page
+    .locator('[data-unranked-id]')
+    .getByRole('button', { name: `In My games: ${record.title}`, exact: true });
   await expect(saved).toHaveText('In My games');
   await expect(saved).toBeDisabled();
 });
 
-test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({ page }) => {
+test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({
+  page,
+}) => {
   await prepareRanking(page);
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
-      document.documentElement.dataset.exitWriteAttempts = String(Number(document.documentElement.dataset.exitWriteAttempts ?? 0) + 1);
-      if (document.documentElement.dataset.rejectExitSave === 'yes') throw new DOMException('Storage full', 'QuotaExceededError');
+      document.documentElement.dataset.exitWriteAttempts = String(
+        Number(document.documentElement.dataset.exitWriteAttempts ?? 0) + 1,
+      );
+      if (document.documentElement.dataset.rejectExitSave === 'yes')
+        throw new DOMException('Storage full', 'QuotaExceededError');
       return put.apply(this, args);
     };
     document.documentElement.dataset.rejectExitSave = 'yes';
@@ -116,7 +139,9 @@ test('leaving after a failed autosave does not retry the rejected edit or overwr
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.score).toBe(5);
 });
 
-test('library removal requires confirmation, deletes all selected private state and keeps the public game', async ({ page }) => {
+test('library removal requires confirmation, deletes all selected private state and keeps the public game', async ({
+  page,
+}) => {
   await prepareRanking(page);
   await page.goto('/my-library');
   await page.getByRole('button', { name: `Play later: ${a.title}`, exact: true }).click();
@@ -155,7 +180,11 @@ test('bulk removal handles mixed imported and original games without deleting an
   await editor.locator('.manual-add summary').click();
   await editor.getByLabel('Game title', { exact: true }).fill(manualTitle);
   await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
-  await expect.poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === manualTitle.trim())).toBe(true);
+  await expect
+    .poll(async () =>
+      Object.values((await readLibrary(page)).records).some((record) => record.title === manualTitle.trim()),
+    )
+    .toBe(true);
   const manual = Object.values((await readLibrary(page)).records).find((record) => record.title === manualTitle.trim());
   if (!manual) throw new Error('The manual fixture did not persist.');
   await expect(editor.locator('.drag-handle, .move-buttons')).toHaveCount(0);
@@ -165,7 +194,9 @@ test('bulk removal handles mixed imported and original games without deleting an
   await page.getByRole('button', { name: 'Remove from my library', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.locator('.removal-games li')).toHaveCount(2);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
+    true,
+  );
   await dialog.getByRole('button', { name: 'Remove 2 games', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(editor.locator('[data-record-id]')).toHaveCount(1);
@@ -181,7 +212,8 @@ test('a failed private deletion stays recoverable in its confirmation without re
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
-      if (document.documentElement.dataset.rejectRemoval === 'yes') throw new DOMException('Storage unavailable', 'QuotaExceededError');
+      if (document.documentElement.dataset.rejectRemoval === 'yes')
+        throw new DOMException('Storage unavailable', 'QuotaExceededError');
       return put.apply(this, args);
     };
     document.documentElement.dataset.rejectRemoval = 'yes';
@@ -190,13 +222,18 @@ test('a failed private deletion stays recoverable in its confirmation without re
   await page.getByRole('dialog').getByRole('button', { name: 'Remove 1 game', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Nothing was removed');
   expect(await readLibrary(page)).toEqual(before);
-  await page.evaluate(() => { document.documentElement.dataset.rejectRemoval = 'no'; });
+  await page.evaluate(() => {
+    document.documentElement.dataset.rejectRemoval = 'no';
+  });
   await page.getByRole('dialog').getByRole('button', { name: 'Remove 1 game', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect((await readLibrary(page)).records[a.id]).toBeUndefined();
 });
 
-test('private removal updates peer tabs and the refined library and details remain accessible', async ({ page, context }, testInfo) => {
+test('private removal updates peer tabs and the refined library and details remain accessible', async ({
+  page,
+  context,
+}, testInfo) => {
   await prepareRanking(page);
   const peer = await context.newPage();
   await peer.goto('/my-rankings');
@@ -211,7 +248,9 @@ test('private removal updates peer tabs and the refined library and details rema
   await expect(peer.locator(`.my-games-editor:visible [data-record-id="${b.id}"]`)).toHaveCount(1);
   for (const width of [320, 800, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    ).toBe(true);
   }
   const library = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(library.violations).toEqual([]);

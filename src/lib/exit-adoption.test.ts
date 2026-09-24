@@ -8,7 +8,10 @@ import { closePersonalLibrary } from './personal-db';
 import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
-afterEach(() => { closePersonalLibrary(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  closePersonalLibrary();
+  vi.unstubAllGlobals();
+});
 describe('optional failed-editor focus metadata', () => {
   it('reports only the blocking editor and preserves the boolean save contract', async () => {
     let pending = true;
@@ -21,7 +24,10 @@ describe('optional failed-editor focus metadata', () => {
       expect(target).toHaveBeenCalledTimes(1);
       expect(hasPendingEdits()).toBe(true);
       expect(await flushPendingEdits()).toBe(false);
-    } finally { pending = false; await release(); }
+    } finally {
+      pending = false;
+      await release();
+    }
     expect(await flushPendingEdits(blocked)).toBe(true);
     expect(blocked).toHaveBeenCalledTimes(1);
   });
@@ -29,11 +35,20 @@ describe('optional failed-editor focus metadata', () => {
     let pending = true;
     const cause = new Error('Synthetic blocked editor');
     const blocked = vi.fn();
-    const release = registerPendingEditor({ pending: () => pending, flush: async () => { throw cause; }, focusTarget: () => null });
+    const release = registerPendingEditor({
+      pending: () => pending,
+      flush: async () => {
+        throw cause;
+      },
+      focusTarget: () => null,
+    });
     try {
       await expect(flushPendingEdits(blocked)).rejects.toBe(cause);
       expect(blocked).toHaveBeenCalledExactlyOnceWith(null);
-    } finally { pending = false; await release(); }
+    } finally {
+      pending = false;
+      await release();
+    }
   });
 });
 describe('closing editor protection during a queued remote adoption', () => {
@@ -41,13 +56,38 @@ describe('closing editor protection during a queued remote adoption', () => {
     vi.stubGlobal('indexedDB', new IDBFactory());
     vi.stubGlobal('window', undefined);
     const scope = accountScope('exit-race');
-    const head: SyncHead = { format: 1, epoch: 1, revision: 1, enabled: true, deleted: false, current: null, previous: null, updatedAt: 1 };
+    const head: SyncHead = {
+      format: 1,
+      epoch: 1,
+      revision: 1,
+      enabled: true,
+      deleted: false,
+      current: null,
+      previous: null,
+      updatedAt: 1,
+    };
     const initial = await loadScopedLibrary(scope);
-    await connectScopedLibrary(scope, emptyPersonalLibrary(), head, 'Exit test', false, { localRevision: initial.state.revision, epoch: 0, enabled: false });
-    const record: LibraryRecord = { id: 'example', title: 'Example', source: 'collection', sourceId: 'example', collectionRank: 1, sourceUrl: null, year: 2020, studio: null, genre: null };
+    await connectScopedLibrary(scope, emptyPersonalLibrary(), head, 'Exit test', false, {
+      localRevision: initial.state.revision,
+      epoch: 0,
+      enabled: false,
+    });
+    const record: LibraryRecord = {
+      id: 'example',
+      title: 'Example',
+      source: 'collection',
+      sourceId: 'example',
+      collectionRank: 1,
+      sourceUrl: null,
+      year: 2020,
+      studio: null,
+      genre: null,
+    };
     const before = await commitScopedAction(scope, { type: 'rate-game', record, score: 5 });
     let completeWrite: (() => void) | undefined;
-    const writing = new Promise<void>((resolve) => { completeWrite = resolve; });
+    const writing = new Promise<void>((resolve) => {
+      completeWrite = resolve;
+    });
     const release = registerPendingEditor({
       pending: () => true,
       flush: async () => {
@@ -58,7 +98,16 @@ describe('closing editor protection during a queued remote adoption', () => {
     });
     const exiting = release();
     expect(hasPendingEdits()).toBe(true);
-    await expect(adoptScopedRemote(scope, emptyPersonalLibrary(), { ...head, revision: 2 }, before.state.revision, true, () => !hasPendingEdits())).rejects.toThrow(/changed/);
+    await expect(
+      adoptScopedRemote(
+        scope,
+        emptyPersonalLibrary(),
+        { ...head, revision: 2 },
+        before.state.revision,
+        true,
+        () => !hasPendingEdits(),
+      ),
+    ).rejects.toThrow(/changed/);
     expect((await loadScopedLibrary(scope)).state.ranking[0]?.score).toBe(5);
     completeWrite?.();
     expect(await exiting).toBe(true);

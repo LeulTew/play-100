@@ -9,29 +9,37 @@ let server: ViteDevServer | undefined;
 let browser: Browser | undefined;
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    mode: 'cloud-test',
-    cacheDir: 'node_modules/.vite-online-config-tests',
-    server: { host: '127.0.0.1', port: 0 },
-    plugins: [{
-      name: 'online-config-fixture-watch',
-      config(config) {
-        // Vite's config merge skips null overrides; mutate watch directly.
-        config.server = { ...config.server, watch: null };
-      },
-    }],
-    define: {
-      'import.meta.env.VITE_USE_FIREBASE_EMULATORS': JSON.stringify('false'),
-      'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify('invalid-config-fixture'),
-    },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        mode: 'cloud-test',
+        cacheDir: 'node_modules/.vite-online-config-tests',
+        server: { host: '127.0.0.1', port: 0 },
+        plugins: [
+          {
+            name: 'online-config-fixture-watch',
+            config(config) {
+              // Vite's config merge skips null overrides; mutate watch directly.
+              config.server = { ...config.server, watch: null };
+            },
+          },
+        ],
+        define: {
+          'import.meta.env.VITE_USE_FIREBASE_EMULATORS': JSON.stringify('false'),
+          'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify('invalid-config-fixture'),
+        },
+      }),
+    )
+  ).server;
   browser = await chromium.launch({ headless: true });
 }, 60_000);
 
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
+  const failures = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason);
   if (failures.length) throw new AggregateError(failures, 'Online-config fixture teardown failed.');
 }, 60_000);
 
@@ -54,5 +62,7 @@ it('keeps actual guest browsing and saving usable with invalid optional online c
     await page.waitForFunction(() => document.querySelector('.save-game')?.getAttribute('aria-pressed') === 'true');
     expect(await page.locator('.author-footer').isVisible()).toBe(true);
     expect(errors).toEqual([]);
-  } finally { await page?.close(); }
+  } finally {
+    await page?.close();
+  }
 }, 60000);

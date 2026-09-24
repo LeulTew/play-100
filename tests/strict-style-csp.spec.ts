@@ -10,17 +10,36 @@ test.use({ serviceWorkers: 'block' });
 
 const deployed = Boolean(process.env.PLAY100_BASE_URL);
 const routes = [
-  '/', '/?catalogs=off', '/discover?catalogs=off', '/my-games', '/my-games?tab=queue', '/my-games?tab=ranking',
-  '/my-library', '/my-rankings', '/compare', '/friends', '/friends/sharing', '/community', '/publish', '/invite',
-  '/u/player_one', '/account', '/creator', '/data-use',
+  '/',
+  '/?catalogs=off',
+  '/discover?catalogs=off',
+  '/my-games',
+  '/my-games?tab=queue',
+  '/my-games?tab=ranking',
+  '/my-library',
+  '/my-rankings',
+  '/compare',
+  '/friends',
+  '/friends/sharing',
+  '/community',
+  '/publish',
+  '/invite',
+  '/u/player_one',
+  '/account',
+  '/creator',
+  '/data-use',
 ];
 
 test('every main route renders under the production CSP without a violation', async ({ page, baseURL }) => {
   test.setTimeout(120000);
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   await emptyCatalogs(page);
-  const violations = await recordViolations(page, deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin), new URL(baseURL ?? '/').origin);
+  const violations = await recordViolations(
+    page,
+    deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin),
+    new URL(baseURL ?? '/').origin,
+  );
   for (const route of routes) {
     await page.goto(route);
     await expect(page.locator('#root > .site-header')).toBeVisible();
@@ -28,7 +47,9 @@ test('every main route renders under the production CSP without a violation', as
     await expect(page.locator('.route-fallback')).toHaveCount(0);
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     await page.mouse.wheel(0, 4000);
-    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
   }
   expect(await violations.read()).toEqual([]);
   expect(errors).toEqual([]);
@@ -45,20 +66,28 @@ async function selectQuality(page: Page, name: 'Auto' | 'Full' | 'Lite') {
   await page.locator('.collection-artifact').scrollIntoViewIfNeeded();
 }
 
-test('landing dialogs, detail and the collection scene run under the production CSP without a violation', async ({ page, baseURL }) => {
+test('landing dialogs, detail and the collection scene run under the production CSP without a violation', async ({
+  page,
+  baseURL,
+}) => {
   test.setTimeout(120000);
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   await emptyCatalogs(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
     Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
     Object.defineProperty(navigator, 'connection', {
-      configurable: true, value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
+      configurable: true,
+      value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
     });
   });
-  const violations = await recordViolations(page, deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin), new URL(baseURL ?? '/').origin);
+  const violations = await recordViolations(
+    page,
+    deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin),
+    new URL(baseURL ?? '/').origin,
+  );
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   // Full starts WebGL on every device (Auto defers it on touch), so the scene's construction and controls run here.
@@ -69,7 +98,9 @@ test('landing dialogs, detail and the collection scene run under the production 
   await page.getByRole('button', { name: 'Fan out the collection sleeves', exact: true }).click();
   await expect(artifact).toHaveAttribute('data-fanned', 'true');
   await page.locator('[data-game="red-dead-redemption-2"] .game-link').click();
-  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Red Dead Redemption 2', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('dialog').getByRole('heading', { name: 'Red Dead Redemption 2', exact: true }),
+  ).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: 'List view', exact: true }).click();
@@ -87,19 +118,43 @@ test('landing dialogs, detail and the collection scene run under the production 
  * no other box depends on them.
  */
 const layout = async (page: Page) => {
-  await page.evaluate(() => Promise.all(Array.from(document.images).filter(image => image.loading !== 'lazy')
-    .map(image => image.decode().catch(() => undefined))));
-  return page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('body *'))
-    .filter(element => element.getClientRects().length > 0)
-    .map(element => {
-      const box = element.getBoundingClientRect();
-      const style = getComputedStyle(element);
-      const properties = ['display', 'position', 'color', 'background-color', 'background-image', 'font-family', 'font-size',
-        'font-weight', 'line-height', 'opacity', 'transform', 'visibility', 'border-top-width', 'box-shadow', 'z-index'];
-      const geometry = element instanceof HTMLImageElement && element.loading === 'lazy' ? 'lazy image'
-        : [box.x, box.y + scrollY, box.width, box.height].map(value => value.toFixed(1)).join(',');
-      return `${element.tagName}.${element.className} ${geometry} ${properties.map(name => style.getPropertyValue(name)).join('|')}`;
-    }));
+  await page.evaluate(() =>
+    Promise.all(
+      Array.from(document.images)
+        .filter((image) => image.loading !== 'lazy')
+        .map((image) => image.decode().catch(() => undefined)),
+    ),
+  );
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .filter((element) => element.getClientRects().length > 0)
+      .map((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const properties = [
+          'display',
+          'position',
+          'color',
+          'background-color',
+          'background-image',
+          'font-family',
+          'font-size',
+          'font-weight',
+          'line-height',
+          'opacity',
+          'transform',
+          'visibility',
+          'border-top-width',
+          'box-shadow',
+          'z-index',
+        ];
+        const geometry =
+          element instanceof HTMLImageElement && element.loading === 'lazy'
+            ? 'lazy image'
+            : [box.x, box.y + scrollY, box.width, box.height].map((value) => value.toFixed(1)).join(',');
+        return `${element.tagName}.${element.className} ${geometry} ${properties.map((name) => style.getPropertyValue(name)).join('|')}`;
+      }),
+  );
 };
 
 test('main routes lay out identically under the legacy and strict style-src', async ({ context, baseURL }, info) => {
@@ -119,9 +174,20 @@ test('main routes lay out identically under the legacy and strict style-src', as
   const legacy = await open(legacyPolicy);
   const strict = await open(strictPolicy);
   try {
-    for (const route of ['/', '/discover?catalogs=off', '/my-games?tab=ranking', '/compare', '/account', '/data-use', '/?game=red-dead-redemption-2']) {
+    for (const route of [
+      '/',
+      '/discover?catalogs=off',
+      '/my-games?tab=ranking',
+      '/compare',
+      '/account',
+      '/data-use',
+      '/?game=red-dead-redemption-2',
+    ]) {
       const snapshots: string[][] = [];
-      for (const [name, { page }] of [['legacy', legacy], ['strict', strict]] as const) {
+      for (const [name, { page }] of [
+        ['legacy', legacy],
+        ['strict', strict],
+      ] as const) {
         await page.goto(route);
         await expect(page.locator('#root > .site-header')).toBeVisible();
         await expect(page.locator('.first-paint-shell')).toHaveCount(0);
@@ -133,12 +199,25 @@ test('main routes lay out identically under the legacy and strict style-src', as
         // capture waits for the route's loaded content and for every loading placeholder to go.
         if (route.startsWith('/discover')) {
           await expect(page.locator('.discovery-cards > li').first()).toBeVisible();
-          await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'false');
+          await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute(
+            'aria-busy',
+            'false',
+          );
         }
-        if (route === '/account') await expect(page.locator('.auth-page, .account-heading, .empty-state').first()).toBeVisible();
-        await expect(page.locator('[aria-busy="true"], .page-loading, .collection-loading, .route-fallback, [class*="skeleton"]')).toHaveCount(0);
-        await page.evaluate(() => document.fonts.ready.then(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
-        await page.screenshot({ path: info.outputPath(`${name}${route.replace(/[^a-z0-9]+/gi, '-')}.png`), animations: 'disabled' });
+        if (route === '/account')
+          await expect(page.locator('.auth-page, .account-heading, .empty-state').first()).toBeVisible();
+        await expect(
+          page.locator('[aria-busy="true"], .page-loading, .collection-loading, .route-fallback, [class*="skeleton"]'),
+        ).toHaveCount(0);
+        await page.evaluate(() =>
+          document.fonts.ready.then(
+            () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+          ),
+        );
+        await page.screenshot({
+          path: info.outputPath(`${name}${route.replace(/[^a-z0-9]+/gi, '-')}.png`),
+          animations: 'disabled',
+        });
         snapshots.push(await layout(page));
       }
       expect(snapshots[1], `${route} under the strict style-src`).toEqual(snapshots[0]);

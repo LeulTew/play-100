@@ -20,13 +20,16 @@ declare global {
   }
 }
 
-const collection = parseCollection(JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8')));
-const firstGame = collection.games.find(game => game.rank === 1);
+const collection = parseCollection(
+  JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8')),
+);
+const firstGame = collection.games.find((game) => game.rank === 1);
 if (!firstGame) throw new Error('The shell fixture requires the first original game.');
 const first = recordFromGame(firstGame);
 const menu = (page: Page) => page.getByRole('dialog', { name: 'Menu', exact: true });
 const menuTrigger = (page: Page) => page.getByRole('button', { name: 'Menu', exact: true });
-const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
+const rating = (page: Page) =>
+  page.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
 const errors = new WeakMap<Page, string[]>();
 
 async function seedGuest(page: Page, motion: MotionPreference = 'full') {
@@ -34,18 +37,28 @@ async function seedGuest(page: Page, motion: MotionPreference = 'full') {
   state = applyPersonalAction(state, { type: 'edit-ranking', id: first.id, score: 5 });
   state = applyPersonalAction(state, { type: 'set-motion', motion });
   await page.goto('/favicon.svg');
-  await page.evaluate(({ name, version, store, key, state }) => new Promise<void>((resolve, reject) => {
-    const open = indexedDB.open(name, version);
-    open.onupgradeneeded = () => open.result.createObjectStore(store);
-    open.onerror = () => reject(open.error);
-    open.onsuccess = () => {
-      const db = open.result;
-      const transaction = db.transaction(store, 'readwrite');
-      transaction.objectStore(store).put(state, key);
-      transaction.oncomplete = () => { db.close(); resolve(); };
-      transaction.onabort = () => { db.close(); reject(transaction.error); };
-    };
-  }), { name: DB_NAME, version: DB_VERSION, store: STORE_NAME, key: STATE_KEY, state });
+  await page.evaluate(
+    ({ name, version, store, key, state }) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open(name, version);
+        open.onupgradeneeded = () => open.result.createObjectStore(store);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const transaction = db.transaction(store, 'readwrite');
+          transaction.objectStore(store).put(state, key);
+          transaction.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          transaction.onabort = () => {
+            db.close();
+            reject(transaction.error);
+          };
+        };
+      }),
+    { name: DB_NAME, version: DB_VERSION, store: STORE_NAME, key: STATE_KEY, state },
+  );
 }
 
 async function openWorkspace(page: Page) {
@@ -54,38 +67,53 @@ async function openWorkspace(page: Page) {
 }
 
 async function entries(page: Page, titleId: string) {
-  return page.evaluate(id => window.play100ShellMotion.calls.filter(call => call.titleId === id).map(call => ({
-    duration: call.duration,
-    active: call.animation.playState !== 'idle' && call.animation.playState !== 'finished',
-  })), titleId);
+  return page.evaluate(
+    (id) =>
+      window.play100ShellMotion.calls
+        .filter((call) => call.titleId === id)
+        .map((call) => ({
+          duration: call.duration,
+          active: call.animation.playState !== 'idle' && call.animation.playState !== 'finished',
+        })),
+    titleId,
+  );
 }
 
 async function expectEntry(page: Page, titleId: string, duration: 160 | 180) {
   await expect.poll(async () => (await entries(page, titleId)).length).toBeGreaterThan(0);
-  expect((await entries(page, titleId)).every(call => call.duration === duration)).toBe(true);
+  expect((await entries(page, titleId)).every((call) => call.duration === duration)).toBe(true);
   const dialog = page.locator(`dialog[aria-labelledby="${titleId}"]`);
   await expect(dialog.locator('[data-autofocus]')).toBeFocused();
-  expect(await dialog.evaluate(element => element.matches(':modal'))).toBe(true);
-  expect(await dialog.evaluate(element => element.getAnimations({ subtree: true })
-    .filter(animation => animation instanceof CSSAnimation && animation.animationName === 'dialog-reveal').length)).toBe(0);
+  expect(await dialog.evaluate((element) => element.matches(':modal'))).toBe(true);
+  expect(
+    await dialog.evaluate(
+      (element) =>
+        element
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation instanceof CSSAnimation && animation.animationName === 'dialog-reveal')
+          .length,
+    ),
+  ).toBe(0);
 }
 
 async function expectNoActiveEntry(page: Page, titleId: string) {
-  await expect.poll(async () => (await entries(page, titleId)).filter(call => call.active).length).toBe(0);
+  await expect.poll(async () => (await entries(page, titleId)).filter((call) => call.active).length).toBe(0);
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
   const origin = new URL(baseURL!);
   expect(['127.0.0.1', 'localhost']).toContain(origin.hostname);
-  await context.route('**/*', route => {
+  await context.route('**/*', (route) => {
     const url = new URL(route.request().url());
-    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || ![origin.port, '9199', '8188'].includes(url.port)) return route.abort('blockedbyclient');
-    if (url.pathname === '/api/catalog') return route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } });
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || ![origin.port, '9199', '8188'].includes(url.port))
+      return route.abort('blockedbyclient');
+    if (url.pathname === '/api/catalog')
+      return route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } });
     return route.continue();
   });
   const pageErrors: string[] = [];
   errors.set(page, pageErrors);
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript(() => {
     window.play100ShellMotion = { hold: true, calls: [] };
@@ -113,7 +141,9 @@ test.afterEach(async ({ page }) => {
   errors.delete(page);
 });
 
-test('Menu is usable during its 180ms entry and rapid Escape/reopen leaves no lock or delayed navigation', async ({ page }) => {
+test('Menu is usable during its 180ms entry and rapid Escape/reopen leaves no lock or delayed navigation', async ({
+  page,
+}) => {
   await openWorkspace(page);
   const before = await readLibrary(page);
   const overflow = await page.evaluate(() => document.body.style.overflow);
@@ -179,7 +209,9 @@ test('Return to edit restores the exact failed field while the Menu entry is sti
   await expect(page).toHaveURL(/\/my-games\?tab=ranking&catalogs=off$/);
 });
 
-test('choosing Lite cancels the actual Settings entry and the next Menu creates no optional animation', async ({ page }) => {
+test('choosing Lite cancels the actual Settings entry and the next Menu creates no optional animation', async ({
+  page,
+}) => {
   await openWorkspace(page);
   await menuTrigger(page).click();
   await menu(page).getByRole('button', { name: 'Settings & backups', exact: true }).click();
@@ -234,30 +266,37 @@ for (const mode of ['lite', 'reduced-motion', 'auto-constrained'] as const) {
     await menuTrigger(page).click();
     await expect(menu(page).locator('#menu-title')).toBeFocused();
     expect(await entries(page, 'menu-title')).toEqual([]);
-    expect(await menu(page).evaluate(element => element.matches(':modal'))).toBe(true);
+    expect(await menu(page).evaluate((element) => element.matches(':modal'))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(menuTrigger(page)).toBeFocused();
   });
 }
 
-test('closing the static cold Account placeholder prevents late module readiness from reopening it', async ({ page }) => {
-  test.skip(process.env.PLAY100_SHELL_EMULATOR !== 'true', 'Requires an explicitly assigned emulator-bound local server.');
+test('closing the static cold Account placeholder prevents late module readiness from reopening it', async ({
+  page,
+}) => {
+  test.skip(
+    process.env.PLAY100_SHELL_EMULATOR !== 'true',
+    'Requires an explicitly assigned emulator-bound local server.',
+  );
   const modulePath = /\/(?:src\/cloud\/OnlineController\.tsx|assets\/OnlineController-[^/]+\.js)(?:\?.*)?$/;
   let release = () => {};
-  const held = new Promise<void>(resolve => { release = resolve; });
-  await page.route(modulePath, async route => {
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(modulePath, async (route) => {
     await held;
     await route.continue();
   });
   await openWorkspace(page);
-  const loaded = page.waitForResponse(response => modulePath.test(response.url()));
+  const loaded = page.waitForResponse((response) => modulePath.test(response.url()));
   try {
     await page.locator('.account-nav').click();
     const placeholder = page.locator('dialog[aria-labelledby="loading-account-title"]');
     await expect(placeholder).toBeVisible();
     await expect(placeholder.locator('[data-autofocus]')).toBeFocused();
     expect(await entries(page, 'loading-account-title')).toEqual([]);
-    expect(await placeholder.evaluate(element => element.getAnimations({ subtree: true }).length)).toBe(0);
+    expect(await placeholder.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
     await page.keyboard.press('Escape');
     await expect(placeholder).toHaveCount(0);
     await expect(page.locator('.account-nav')).toBeFocused();
@@ -265,7 +304,9 @@ test('closing the static cold Account placeholder prevents late module readiness
     release();
   }
   const response = await loaded;
-  await page.evaluate(async url => { await import(url); }, response.url());
+  await page.evaluate(async (url) => {
+    await import(url);
+  }, response.url());
   await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await expect(page.locator('.signin-dialog')).toHaveCount(0);
   expect(await entries(page, 'account-signin-title')).toEqual([]);
@@ -274,13 +315,16 @@ test('closing the static cold Account placeholder prevents late module readiness
 });
 
 test('the warm local sign-in sheet uses 160ms and removes typed credentials immediately on close', async ({ page }) => {
-  test.skip(process.env.PLAY100_SHELL_EMULATOR !== 'true', 'Requires an explicitly assigned emulator-bound local server; no sign-in or account mutation is performed.');
+  test.skip(
+    process.env.PLAY100_SHELL_EMULATOR !== 'true',
+    'Requires an explicitly assigned emulator-bound local server; no sign-in or account mutation is performed.',
+  );
   await openWorkspace(page);
   await page.locator('.account-nav').click();
   const sheet = page.locator('.signin-dialog');
   await expect(sheet.locator('.emulator-note')).toContainText('synthetic accounts only');
   await expect(sheet.locator('#account-signin-title')).toBeFocused();
-  expect(await sheet.evaluate(element => element.matches(':modal'))).toBe(true);
+  expect(await sheet.evaluate((element) => element.matches(':modal'))).toBe(true);
   await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);

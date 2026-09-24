@@ -19,7 +19,13 @@ import { visibleMenuTrigger } from './lib/dialog-focus';
 import { usePwa } from './pwa/usePwa';
 import { createPwaUpdateGuard, useInputGeneration } from './pwa/update-guard';
 import { scrollCollectionIntoView } from './components/collection-landing';
-import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR, onlineWasRequested, rememberOnlineRequest, resolveOnlineRequest } from './lib/online-availability';
+import {
+  ONLINE_AVAILABLE,
+  ONLINE_CONFIG_ERROR,
+  onlineWasRequested,
+  rememberOnlineRequest,
+  resolveOnlineRequest,
+} from './lib/online-availability';
 import type { OnlineBridge } from './cloud/ui-types';
 import { LibraryModeContext } from './lib/library-mode';
 import { flushPendingEdits } from './hooks/useExitSave';
@@ -34,7 +40,14 @@ import { EMPTY_DISCOVERY_ARTWORK, hasKnownDiscoveryArtwork } from './lib/discove
 import { enrichmentIdentity } from './lib/catalog-enrichment-identity';
 import { patchDiscoverySearch } from './lib/discovery-search';
 import type { PreviewAuthority } from './lib/preview-authority';
-import { canonicalCatalogId, catalogActionRecord, catalogOwnership, catalogPinnedIds, collectionGameForId, resolveCatalogRecord } from './lib/catalog-identity';
+import {
+  canonicalCatalogId,
+  catalogActionRecord,
+  catalogOwnership,
+  catalogPinnedIds,
+  collectionGameForId,
+  resolveCatalogRecord,
+} from './lib/catalog-identity';
 import { SavedCatalogCopies } from './components/catalog/SavedCatalogCopies';
 import { AppMotionBindings } from './AppMotionBindings';
 import type { PreparedPreview } from './AppMotionBindings';
@@ -52,48 +65,113 @@ import { TrayHost } from './components/app/TrayHost';
 import { RouteHost } from './components/app/RouteHost';
 import { DialogHost } from './components/app/DialogHost';
 
-const PAGE_TITLES: Record<AppPage, string> = { collection: 'Find your next game', games: 'My games', library: 'My games · Library', rankings: 'My games · Ranking', discover: 'Discover more games', account: 'Account', community: 'Community', publish: 'Publish ranking', profile: 'A shared ranking', creator: 'Creator desk', friends: 'Friends', friend: 'Friend', invite: 'Invitation', compare: 'Compare rankings', 'friend-sharing': 'Friends sharing', 'friend-shelf': 'Shared games' };
+const PAGE_TITLES: Record<AppPage, string> = {
+  collection: 'Find your next game',
+  games: 'My games',
+  library: 'My games · Library',
+  rankings: 'My games · Ranking',
+  discover: 'Discover more games',
+  account: 'Account',
+  community: 'Community',
+  publish: 'Publish ranking',
+  profile: 'A shared ranking',
+  creator: 'Creator desk',
+  friends: 'Friends',
+  friend: 'Friend',
+  invite: 'Invitation',
+  compare: 'Compare rankings',
+  'friend-sharing': 'Friends sharing',
+  'friend-shelf': 'Shared games',
+};
 const noPreviewSubscription = () => () => {};
-interface PreviewedRecord { record: LibraryRecord; authority?: PreviewAuthority }
-
-function usableReturnFocusTarget(target: HTMLElement | null): target is HTMLElement {
-  return Boolean(target?.isConnected && !target.matches(':disabled') && !target.closest('[hidden], [inert], dialog:not([open])') &&
-    target.getClientRects().length > 0 && getComputedStyle(target).visibility === 'visible');
+interface PreviewedRecord {
+  record: LibraryRecord;
+  authority?: PreviewAuthority;
 }
 
-function CompareTrayBindings({ needsArtwork, previewId, resolvedRecordId, onResolvePreview, children }: {
+function usableReturnFocusTarget(target: HTMLElement | null): target is HTMLElement {
+  return Boolean(
+    target?.isConnected &&
+    !target.matches(':disabled') &&
+    !target.closest('[hidden], [inert], dialog:not([open])') &&
+    target.getClientRects().length > 0 &&
+    getComputedStyle(target).visibility === 'visible',
+  );
+}
+
+function CompareTrayBindings({
+  needsArtwork,
+  previewId,
+  resolvedRecordId,
+  onResolvePreview,
+  children,
+}: {
   needsArtwork: boolean;
   resolvedRecordId: string | null;
-  previewId: string | null; onResolvePreview: (record: LibraryRecord) => void;
-  children: (tray: ReturnType<typeof useCompareTray>, artwork: ReadonlyMap<string, CatalogArtwork>, previewLoading: boolean, previewModuleError: boolean) => ReactNode;
+  previewId: string | null;
+  onResolvePreview: (record: LibraryRecord) => void;
+  children: (
+    tray: ReturnType<typeof useCompareTray>,
+    artwork: ReadonlyMap<string, CatalogArtwork>,
+    previewLoading: boolean,
+    previewModuleError: boolean,
+  ) => ReactNode;
 }) {
   const tray = useCompareTray();
   const publicPreview = Boolean(previewId && /^(wikidata:Q[1-9]\d*|freetogame:[1-9]\d*)$/.test(previewId));
   const trayRecord = tray.items.find((item) => item.id === previewId);
   const knownRecordId = resolvedRecordId ?? trayRecord?.id;
-  const catalog = useDiscoveryCatalog(needsArtwork || publicPreview && !knownRecordId ||
-    Boolean(knownRecordId && hasKnownDiscoveryArtwork(knownRecordId)) || tray.items.some(record => hasKnownDiscoveryArtwork(record.id)));
-  const artwork = useMemo(() => catalog.catalog ? indexDiscoveryArtwork(catalog.catalog) : EMPTY_DISCOVERY_ARTWORK, [catalog.catalog]);
+  const catalog = useDiscoveryCatalog(
+    needsArtwork ||
+      (publicPreview && !knownRecordId) ||
+      Boolean(knownRecordId && hasKnownDiscoveryArtwork(knownRecordId)) ||
+      tray.items.some((record) => hasKnownDiscoveryArtwork(record.id)),
+  );
+  const artwork = useMemo(
+    () => (catalog.catalog ? indexDiscoveryArtwork(catalog.catalog) : EMPTY_DISCOVERY_ARTWORK),
+    [catalog.catalog],
+  );
   // Resolved identity controls loading, never replacement preview metadata.
-  const record = resolvedRecordId ? undefined : trayRecord ?? catalog.catalog?.items.find((item) => item.record.id === previewId)?.record;
-  useEffect(() => { if (record) onResolvePreview(record); }, [record, onResolvePreview]);
-  return children(tray, artwork, publicPreview && !knownRecordId && !record && (catalog.status === 'idle' || catalog.status === 'loading'),
-    Boolean(publicPreview && !knownRecordId && !record && catalog.moduleError));
+  const record = resolvedRecordId
+    ? undefined
+    : (trayRecord ?? catalog.catalog?.items.find((item) => item.record.id === previewId)?.record);
+  useEffect(() => {
+    if (record) onResolvePreview(record);
+  }, [record, onResolvePreview]);
+  return children(
+    tray,
+    artwork,
+    publicPreview && !knownRecordId && !record && (catalog.status === 'idle' || catalog.status === 'loading'),
+    Boolean(publicPreview && !knownRecordId && !record && catalog.moduleError),
+  );
 }
 
 function actionMessage(action: PersonalAction): string {
   switch (action.type) {
-    case 'add-records': return `${action.records.length} ${action.records.length === 1 ? 'game' : 'games'} added to your library.`;
-    case 'remove-records': return 'Selected games removed from your private library. The original 100 is unchanged.';
-    case 'add-ranking': return 'Your ranking has been updated. Games are not automatically marked played.';
-    case 'remove-ranking': return 'Removed from your personal ranking.';
-    case 'move-item': return `Your ${action.list === 'queue' ? 'play order' : 'ranking order'} is saved.`;
-    case 'edit-ranking': return 'Your opinion is saved.';
-    case 'rate-game': return 'Your rating is saved. This game is in your private library.';
-    case 'use-rating-order': return action.id ? 'This game now follows rating order.' : 'Automatic rating order restored. Manual positions have been cleared.';
-    case 'set-motion': return 'Visual preference saved.';
-    case 'set-progress': return `${action.records.length} ${action.records.length === 1 ? 'game' : 'games'} updated in your ${action.key === 'later' ? 'play queue' : 'play history'}.`;
-    default: return 'Your library is updated.';
+    case 'add-records':
+      return `${action.records.length} ${action.records.length === 1 ? 'game' : 'games'} added to your library.`;
+    case 'remove-records':
+      return 'Selected games removed from your private library. The original 100 is unchanged.';
+    case 'add-ranking':
+      return 'Your ranking has been updated. Games are not automatically marked played.';
+    case 'remove-ranking':
+      return 'Removed from your personal ranking.';
+    case 'move-item':
+      return `Your ${action.list === 'queue' ? 'play order' : 'ranking order'} is saved.`;
+    case 'edit-ranking':
+      return 'Your opinion is saved.';
+    case 'rate-game':
+      return 'Your rating is saved. This game is in your private library.';
+    case 'use-rating-order':
+      return action.id
+        ? 'This game now follows rating order.'
+        : 'Automatic rating order restored. Manual positions have been cleared.';
+    case 'set-motion':
+      return 'Visual preference saved.';
+    case 'set-progress':
+      return `${action.records.length} ${action.records.length === 1 ? 'game' : 'games'} updated in your ${action.key === 'later' ? 'play queue' : 'play history'}.`;
+    default:
+      return 'Your library is updated.';
   }
 }
 
@@ -103,27 +181,71 @@ export default function App() {
     const update = () => {
       if (location.pathname === '/invite') setInvitation(captureInviteContinuation());
     };
-    window.addEventListener('hashchange', update); window.addEventListener('popstate', update);
-    return () => { window.removeEventListener('hashchange', update); window.removeEventListener('popstate', update); };
+    window.addEventListener('hashchange', update);
+    window.addEventListener('popstate', update);
+    return () => {
+      window.removeEventListener('hashchange', update);
+      window.removeEventListener('popstate', update);
+    };
   }, []);
   const collection = useCollection();
   const canonicalRecords = useMemo(() => collection.data?.games.map(recordFromGame) ?? [], [collection.data]);
   const guestLibrary = useLibrary(canonicalRecords, collection.status === 'loading');
-  const { page, filters, game: selectedSlug, gamesView, changeGamesView, publicHandle, updateFilters, openGame, closeGame, goToPage, openProfile } = useUrlState();
-  const personalPage = page === 'games' ? gamesView === 'ranking' ? 'rankings' : 'library' : page;
-  const cloudPage = ['account', 'publish', 'community', 'profile', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page);
+  const {
+    page,
+    filters,
+    game: selectedSlug,
+    gamesView,
+    changeGamesView,
+    publicHandle,
+    updateFilters,
+    openGame,
+    closeGame,
+    goToPage,
+    openProfile,
+  } = useUrlState();
+  const personalPage = page === 'games' ? (gamesView === 'ranking' ? 'rankings' : 'library') : page;
+  const cloudPage = [
+    'account',
+    'publish',
+    'community',
+    'profile',
+    'creator',
+    'friends',
+    'friend',
+    'invite',
+    'compare',
+    'friend-sharing',
+    'friend-shelf',
+  ].includes(page);
   const [onlineRequested, setOnlineRequested] = useState(onlineWasRequested);
   const [hintChecking, setHintChecking] = useState(ONLINE_AVAILABLE && !onlineRequested);
   const [hintError, setHintError] = useState('');
   const [online, setOnline] = useState<OnlineBridge | null>(null);
-  const currentOnline = useRef(online); currentOnline.current = online;
-  const onlineOpening = ONLINE_AVAILABLE && (hintChecking || Boolean(hintError) || (onlineRequested && online === null) || Boolean(online?.loading));
+  const currentOnline = useRef(online);
+  currentOnline.current = online;
+  const onlineOpening =
+    ONLINE_AVAILABLE &&
+    (hintChecking || Boolean(hintError) || (onlineRequested && online === null) || Boolean(online?.loading));
   const library = online?.controller ?? guestLibrary;
   const libraryBusy = library.busy || library.status === 'loading' || onlineOpening;
   const libraryScope = online?.scope ?? 'guest';
-  const headerIdentity = online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
-  const { activeScope, scopeGeneration, navigationGeneration, captureFocusGuard: captureMenuFocusGuard } = useNavigationScope(libraryScope);
-  const libraryMode = useMemo(() => ({ scope: libraryScope, onlineEnabled: online?.enabled ?? false, label: onlineOpening ? 'Opening account…' : online?.label ?? 'Device only' }), [libraryScope, onlineOpening, online?.enabled, online?.label]);
+  const headerIdentity =
+    online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
+  const {
+    activeScope,
+    scopeGeneration,
+    navigationGeneration,
+    captureFocusGuard: captureMenuFocusGuard,
+  } = useNavigationScope(libraryScope);
+  const libraryMode = useMemo(
+    () => ({
+      scope: libraryScope,
+      onlineEnabled: online?.enabled ?? false,
+      label: onlineOpening ? 'Opening account…' : (online?.label ?? 'Device only'),
+    }),
+    [libraryScope, onlineOpening, online?.enabled, online?.label],
+  );
   const motionHint = useMemo(() => readMotionHint(libraryScope), [libraryScope]);
   const effectiveMotion = effectiveMotionPreference(library.status, library.state.motion, motionHint);
   const capabilities = useCapabilities(effectiveMotion);
@@ -131,7 +253,8 @@ export default function App() {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
-  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage, panelFromMenu } = useAppPanel(libraryScope, onlineOpening);
+  const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage, panelFromMenu } =
+    useAppPanel(libraryScope, onlineOpening);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled, wantControls: panel === 'menu' || panel === 'settings' });
@@ -149,14 +272,23 @@ export default function App() {
     // A loading sheet can unmount while the same sign-in invocation is still open.
     if (current && accountPanelOpen.current) return null;
     compareSignInOrigin.current = null;
-    const action = current ? ['.compare-tray-action', '.compare-tray-expand']
-      .map(selector => document.querySelector<HTMLElement>(selector)).find(usableReturnFocusTarget) : null;
+    const action = current
+      ? ['.compare-tray-action', '.compare-tray-expand']
+          .map((selector) => document.querySelector<HTMLElement>(selector))
+          .find(usableReturnFocusTarget)
+      : null;
     if (action) return action;
-    return [...document.querySelectorAll<HTMLElement>('.account-nav, [data-page-heading], #collection-title')]
-      .find(usableReturnFocusTarget) ?? null;
+    return (
+      [...document.querySelectorAll<HTMLElement>('.account-nav, [data-page-heading], #collection-title')].find(
+        usableReturnFocusTarget,
+      ) ?? null
+    );
   }, []);
   const closePanel = useCallback(() => setPanel(null), [setPanel]);
-  const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({ scope: 'guest', records: new Map() });
+  const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({
+    scope: 'guest',
+    records: new Map(),
+  });
   const [notice, setNotice] = useState('');
   const [toolFailure, setToolFailure] = useState<{ scope: string; page: AppPage } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -167,87 +299,174 @@ export default function App() {
   }, []);
   const { share, manualLink, closeManualLink, sharing } = useShare(notify);
   const games = collection.data?.games;
-  const allRecords = useMemo(() => new Map([...Object.values(library.state.records), ...canonicalRecords].map((record) => [record.id, record])), [library.state.records, canonicalRecords]);
+  const allRecords = useMemo(
+    () => new Map([...Object.values(library.state.records), ...canonicalRecords].map((record) => [record.id, record])),
+    [library.state.records, canonicalRecords],
+  );
   const ownership = useMemo(() => catalogOwnership(library.state.records), [library.state.records]);
-  const transientPreview = selectedSlug && previewedRecords.scope === libraryScope ? previewedRecords.records.get(selectedSlug) : undefined;
-  const publicCatalogAlias = Boolean(selectedSlug && ['collection', 'discover'].includes(page) && !library.state.records[selectedSlug] && !transientPreview?.authority);
-  const selectedGame = games?.find((game) => game.slug === selectedSlug) ??
+  const transientPreview =
+    selectedSlug && previewedRecords.scope === libraryScope ? previewedRecords.records.get(selectedSlug) : undefined;
+  const publicCatalogAlias = Boolean(
+    selectedSlug &&
+    ['collection', 'discover'].includes(page) &&
+    !library.state.records[selectedSlug] &&
+    !transientPreview?.authority,
+  );
+  const selectedGame =
+    games?.find((game) => game.slug === selectedSlug) ??
     (selectedSlug && publicCatalogAlias ? collectionGameForId(games ?? [], selectedSlug) : undefined);
-  const previewPermitted = useSyncExternalStore(transientPreview?.authority?.subscribe ?? noPreviewSubscription,
-    () => !transientPreview?.authority || transientPreview.authority.scope === libraryScope && transientPreview.authority.permits(transientPreview.record.id),
-    () => false);
-  const awaitingCanonicalPreview = Boolean(publicCatalogAlias && selectedSlug && canonicalCatalogId(selectedSlug) !== selectedSlug && collection.status !== 'ready');
-  const selectedRecord = selectedGame ? recordFromGame(selectedGame) : !awaitingCanonicalPreview && selectedSlug ? allRecords.get(selectedSlug) ?? (previewPermitted ? transientPreview?.record : undefined) : undefined;
-  const selectedPersonalRecord = selectedGame && selectedRecord ? catalogActionRecord(selectedRecord, ownership) : selectedRecord;
+  const previewPermitted = useSyncExternalStore(
+    transientPreview?.authority?.subscribe ?? noPreviewSubscription,
+    () =>
+      !transientPreview?.authority ||
+      (transientPreview.authority.scope === libraryScope &&
+        transientPreview.authority.permits(transientPreview.record.id)),
+    () => false,
+  );
+  const awaitingCanonicalPreview = Boolean(
+    publicCatalogAlias &&
+    selectedSlug &&
+    canonicalCatalogId(selectedSlug) !== selectedSlug &&
+    collection.status !== 'ready',
+  );
+  const selectedRecord = selectedGame
+    ? recordFromGame(selectedGame)
+    : !awaitingCanonicalPreview && selectedSlug
+      ? (allRecords.get(selectedSlug) ?? (previewPermitted ? transientPreview?.record : undefined))
+      : undefined;
+  const selectedPersonalRecord =
+    selectedGame && selectedRecord ? catalogActionRecord(selectedRecord, ownership) : selectedRecord;
   const savedCount = library.state.queueOrder.length;
   const completedCount = Object.values(library.state.progress).filter((value) => value.completed).length;
-  const rankingPosition = selectedPersonalRecord ? library.state.ranking.findIndex((entry) => entry.id === selectedPersonalRecord.id) + 1 : 0;
+  const rankingPosition = selectedPersonalRecord
+    ? library.state.ranking.findIndex((entry) => entry.id === selectedPersonalRecord.id) + 1
+    : 0;
   const saveAction = library.perform;
   const storageStatus = library.status;
   useEffect(() => {
     if (!ONLINE_AVAILABLE) return;
     let alive = true;
-    void resolveOnlineRequest().then((requested) => {
-      if (alive && requested) setOnlineRequested(true);
-    }).catch((cause) => {
-      if (alive) setHintError(cause instanceof Error ? cause.message : 'The remembered account could not be checked.');
-    }).finally(() => { if (alive) setHintChecking(false); });
-    return () => { alive = false; };
+    void resolveOnlineRequest()
+      .then((requested) => {
+        if (alive && requested) setOnlineRequested(true);
+      })
+      .catch((cause) => {
+        if (alive)
+          setHintError(cause instanceof Error ? cause.message : 'The remembered account could not be checked.');
+      })
+      .finally(() => {
+        if (alive) setHintChecking(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const perform = useCallback(async (action: PersonalAction) => {
-    if (onlineOpening) { notify('Wait for the account library to finish opening before changing saved data.'); return false; }
-    const success = await saveAction(action);
-    if (success && activeScope.current === libraryScope) notify(`${actionMessage(action)}${storageStatus === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`);
-    return success;
-  }, [saveAction, storageStatus, notify, libraryScope, onlineOpening, activeScope]);
-  const rememberPreview = useCallback((record: LibraryRecord, authority?: PreviewAuthority) => {
-    setPreviewedRecords((previous) => {
-      const known = previous.records.get(record.id);
-      if (previous.scope === libraryScope && known?.record === record && known.authority === authority) return previous;
-      const next = new Map([...(previous.scope === libraryScope ? previous.records : new Map()), [record.id, { record, authority }]]);
-      if (next.size > 64) {
-        const oldest = next.keys().next().value;
-        if (oldest !== undefined) next.delete(oldest);
+  const perform = useCallback(
+    async (action: PersonalAction) => {
+      if (onlineOpening) {
+        notify('Wait for the account library to finish opening before changing saved data.');
+        return false;
       }
-      return { scope: libraryScope, records: next };
-    });
-  }, [libraryScope]);
-  const preparePreview = useCallback((record: LibraryRecord, authority?: PreviewAuthority): PreparedPreview | null => {
-    if (authority && (authority.scope !== libraryScope || !authority.permits(record.id))) { notify('This shared game is no longer available.'); return null; }
-    const resolved = !authority && !library.state.records[record.id] ? resolveCatalogRecord(record, games ?? []) : record;
-    rememberPreview(resolved, authority);
-    const publicAlias = !authority && !library.state.records[resolved.id] && ['collection', 'discover'].includes(page);
-    const displayed = games?.find(game => game.slug === resolved.id) ??
-      (publicAlias ? collectionGameForId(games ?? [], resolved.id) : undefined);
-    return { requestedDetailKey: resolved.id, displayedDetailKey: displayed?.slug ?? resolved.id };
-  }, [rememberPreview, libraryScope, notify, games, library.state.records, page]);
+      const success = await saveAction(action);
+      if (success && activeScope.current === libraryScope)
+        notify(
+          `${actionMessage(action)}${storageStatus === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`,
+        );
+      return success;
+    },
+    [saveAction, storageStatus, notify, libraryScope, onlineOpening, activeScope],
+  );
+  const rememberPreview = useCallback(
+    (record: LibraryRecord, authority?: PreviewAuthority) => {
+      setPreviewedRecords((previous) => {
+        const known = previous.records.get(record.id);
+        if (previous.scope === libraryScope && known?.record === record && known.authority === authority)
+          return previous;
+        const next = new Map([
+          ...(previous.scope === libraryScope ? previous.records : new Map()),
+          [record.id, { record, authority }],
+        ]);
+        if (next.size > 64) {
+          const oldest = next.keys().next().value;
+          if (oldest !== undefined) next.delete(oldest);
+        }
+        return { scope: libraryScope, records: next };
+      });
+    },
+    [libraryScope],
+  );
+  const preparePreview = useCallback(
+    (record: LibraryRecord, authority?: PreviewAuthority): PreparedPreview | null => {
+      if (authority && (authority.scope !== libraryScope || !authority.permits(record.id))) {
+        notify('This shared game is no longer available.');
+        return null;
+      }
+      const resolved =
+        !authority && !library.state.records[record.id] ? resolveCatalogRecord(record, games ?? []) : record;
+      rememberPreview(resolved, authority);
+      const publicAlias =
+        !authority && !library.state.records[resolved.id] && ['collection', 'discover'].includes(page);
+      const displayed =
+        games?.find((game) => game.slug === resolved.id) ??
+        (publicAlias ? collectionGameForId(games ?? [], resolved.id) : undefined);
+      return { requestedDetailKey: resolved.id, displayedDetailKey: displayed?.slug ?? resolved.id };
+    },
+    [rememberPreview, libraryScope, notify, games, library.state.records, page],
+  );
   useEffect(() => {
     if (!transientPreview?.authority || previewPermitted) return;
     setPreviewedRecords((previous) => {
       if (previous.records.get(transientPreview.record.id) !== transientPreview) return previous;
-      const next = new Map(previous.records); next.delete(transientPreview.record.id);
+      const next = new Map(previous.records);
+      next.delete(transientPreview.record.id);
       return { ...previous, records: next };
     });
-    if (!allRecords.has(transientPreview.record.id)) { closeGame(); notify('This shared game is no longer available.'); }
-  }, [transientPreview, previewPermitted, allRecords, closeGame, notify]);
-  const performDetailAction = useCallback((action: PersonalAction) => {
-    if (transientPreview?.authority && !allRecords.has(transientPreview.record.id) && !transientPreview.authority.permits(transientPreview.record.id)) {
-      notify('The shared game is no longer available. No library change was saved.');
-      return Promise.resolve(false);
+    if (!allRecords.has(transientPreview.record.id)) {
+      closeGame();
+      notify('This shared game is no longer available.');
     }
-    return perform(action);
-  }, [transientPreview, allRecords, perform, notify]);
+  }, [transientPreview, previewPermitted, allRecords, closeGame, notify]);
+  const performDetailAction = useCallback(
+    (action: PersonalAction) => {
+      if (
+        transientPreview?.authority &&
+        !allRecords.has(transientPreview.record.id) &&
+        !transientPreview.authority.permits(transientPreview.record.id)
+      ) {
+        notify('The shared game is no longer available. No library change was saved.');
+        return Promise.resolve(false);
+      }
+      return perform(action);
+    },
+    [transientPreview, allRecords, perform, notify],
+  );
 
-  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
-  useEffect(() => { setNotice(''); }, [libraryScope]);
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
   useEffect(() => {
-    document.title = selectedGame ? `${selectedGame.title} · #${selectedGame.rank} | Play 100` : selectedRecord ? `${selectedRecord.title} | Play 100` : `${PAGE_TITLES[page]} | Play 100`;
+    setNotice('');
+  }, [libraryScope]);
+  useEffect(() => {
+    document.title = selectedGame
+      ? `${selectedGame.title} · #${selectedGame.rank} | Play 100`
+      : selectedRecord
+        ? `${selectedRecord.title} | Play 100`
+        : `${PAGE_TITLES[page]} | Play 100`;
   }, [selectedGame, selectedRecord, page]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]')) return;
-      if (event.target instanceof HTMLElement && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return;
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]'))
+        return;
+      if (
+        event.target instanceof HTMLElement &&
+        (event.target.matches('input, textarea, select') || event.target.isContentEditable)
+      )
+        return;
       event.preventDefault();
       document.querySelector<HTMLElement>('#game-search, #library-search, #ranking-search, #catalog-search')?.focus();
     };
@@ -255,12 +474,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const navigate = (next: AppPage, patch: Partial<Filters> = {}) => { compareSignInOrigin.current = null; setSignInTicket(null); setPanel(null); goToPage(next, patch); };
-  const closeAccountSheet = () => { setSignInTicket(null); setPanel(null); };
+  const navigate = (next: AppPage, patch: Partial<Filters> = {}) => {
+    compareSignInOrigin.current = null;
+    setSignInTicket(null);
+    setPanel(null);
+    goToPage(next, patch);
+  };
+  const closeAccountSheet = () => {
+    setSignInTicket(null);
+    setPanel(null);
+  };
   const accountEntry = async (invocation: 'account' | 'compare' = 'account') => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
     const view = `${window.location.pathname}${window.location.search}`;
-    const isCurrent = () => currentScopeAndNavigation() && view === `${window.location.pathname}${window.location.search}`;
+    const isCurrent = () =>
+      currentScopeAndNavigation() && view === `${window.location.pathname}${window.location.search}`;
     const blocked: { target: HTMLElement | null } = { target: null };
     const returnToEdit = () => {
       if (usableReturnFocusTarget(blocked.target)) {
@@ -269,7 +497,9 @@ export default function App() {
       }
     };
     try {
-      const saved = await flushPendingEdits(target => { blocked.target = target; });
+      const saved = await flushPendingEdits((target) => {
+        blocked.target = target;
+      });
       if (!isCurrent()) return;
       if (!saved) {
         notify('Finish or correct the open rating or note before changing accounts.');
@@ -282,11 +512,15 @@ export default function App() {
       if (currentOnline.current?.identity || page === 'account') navigate('account');
       else {
         setSignInTicket(signInPurposeTicket(invocation, isCurrent));
-        if (invocation === 'compare') notify('Sign in to compare with friends. Device pins stay separate from account pins.');
+        if (invocation === 'compare')
+          notify('Sign in to compare with friends. Device pins stay separate from account pins.');
         setPanel('account');
       }
     } catch (cause) {
-      console.error('Account could not save pending edits.', cause instanceof Error ? cause.message : 'Unknown editor failure.');
+      console.error(
+        'Account could not save pending edits.',
+        cause instanceof Error ? cause.message : 'Unknown editor failure.',
+      );
       if (isCurrent()) {
         notify('Your edit could not be saved. Keep this page open and retry.');
         returnToEdit();
@@ -297,7 +531,12 @@ export default function App() {
     const destination = pageDestination(next, filters, patch);
     return `${destination.path}${destination.search}`;
   };
-  const navigateLink = async (event: MouseEvent<HTMLAnchorElement>, next: AppPage, patch: Partial<Filters> = {}, commit = () => navigate(next, patch)) => {
+  const navigateLink = async (
+    event: MouseEvent<HTMLAnchorElement>,
+    next: AppPage,
+    patch: Partial<Filters> = {},
+    commit = () => navigate(next, patch),
+  ) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
     const startedScope = scopeGeneration.current;
@@ -309,7 +548,8 @@ export default function App() {
       else notify('Finish or correct the open rating or note before leaving this page.');
     } catch (cause) {
       console.error('Navigation could not save pending edits.', cause);
-      if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation) notify('Your edit could not be saved. Keep this page open and retry.');
+      if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation)
+        notify('Your edit could not be saved. Keep this page open and retry.');
     }
   };
   const browse = () => {
@@ -325,7 +565,12 @@ export default function App() {
   const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
     const target = allRecords.get(id);
     const record = target && catalogActionRecord(target, ownership);
-    if (record) void perform(value === undefined ? { type: 'toggle-progress', record, key } : { type: 'set-progress', records: [record], key, value });
+    if (record)
+      void perform(
+        value === undefined
+          ? { type: 'toggle-progress', record, key }
+          : { type: 'set-progress', records: [record], key, value },
+      );
   };
   const rankSelected = () => {
     if (!selectedPersonalRecord) return;
@@ -335,20 +580,43 @@ export default function App() {
   const compareGames = async (records: LibraryRecord[]) => {
     const startedScope = scopeGeneration.current;
     const startedNavigation = navigationGeneration.current;
-    if (onlineOpening) { notify('Wait for your account to finish opening before comparing.'); return; }
+    if (onlineOpening) {
+      notify('Wait for your account to finish opening before comparing.');
+      return;
+    }
     if (!online?.identity || libraryScope === 'guest') {
       await accountEntry('compare');
       return;
     }
-    if (!online.identity.verified) { notify('Verify your account before comparing with friends.'); navigate('account'); return; }
+    if (!online.identity.verified) {
+      notify('Verify your account before comparing with friends.');
+      navigate('account');
+      return;
+    }
     try {
-      const [{ createComparisonGameFilter, rememberComparisonGameFilter }, { comparisonScope, initialComparison, readComparisonView, rememberComparisonView }] = await loadComparisonTools();
-      if (scopeGeneration.current !== startedScope || navigationGeneration.current !== startedNavigation ||
-        currentOnline.current?.identity?.uid !== online.identity.uid || !currentOnline.current.identity.verified) return;
+      const [
+        { createComparisonGameFilter, rememberComparisonGameFilter },
+        { comparisonScope, initialComparison, readComparisonView, rememberComparisonView },
+      ] = await loadComparisonTools();
+      if (
+        scopeGeneration.current !== startedScope ||
+        navigationGeneration.current !== startedNavigation ||
+        currentOnline.current?.identity?.uid !== online.identity.uid ||
+        !currentOnline.current.identity.verified
+      )
+        return;
       const filter = createComparisonGameFilter(libraryScope, records);
-      if (!await flushPendingEdits()) { notify('Correct the open edit before starting a comparison.'); return; }
-      if (scopeGeneration.current !== startedScope || navigationGeneration.current !== startedNavigation ||
-        currentOnline.current?.identity?.uid !== online.identity.uid || !currentOnline.current.identity.verified) return;
+      if (!(await flushPendingEdits())) {
+        notify('Correct the open edit before starting a comparison.');
+        return;
+      }
+      if (
+        scopeGeneration.current !== startedScope ||
+        navigationGeneration.current !== startedNavigation ||
+        currentOnline.current?.identity?.uid !== online.identity.uid ||
+        !currentOnline.current.identity.verified
+      )
+        return;
       const project = libraryScope.split(':')[1] ?? '';
       const scope = comparisonScope(project, online.identity.uid);
       const prior = readComparisonView(scope) ?? initialComparison(scope, online.identity.uid);
@@ -360,42 +628,68 @@ export default function App() {
       if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation) {
         if (isModuleLoadFailure(cause)) setToolFailure({ scope: libraryScope, page });
         else notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.');
-      } else console.warn('A comparison operation failed after its page or account changed. No stale navigation was applied.');
+      } else
+        console.warn(
+          'A comparison operation failed after its page or account changed. No stale navigation was applied.',
+        );
     }
   };
   const enablePublicDetails = async () => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
     const view = `${window.location.pathname}${window.location.search}`;
     try {
-      if (!await flushPendingEdits()) { notify('Correct the open edit before changing online lookup.'); return; }
+      if (!(await flushPendingEdits())) {
+        notify('Correct the open edit before changing online lookup.');
+        return;
+      }
       if (!currentScopeAndNavigation() || view !== `${window.location.pathname}${window.location.search}`) return;
       const search = patchDiscoverySearch(window.location.search, { catalogs: 'on' });
       window.history.replaceState(window.history.state, '', `${window.location.pathname}${search}`);
       window.dispatchEvent(new Event('play100:navigate'));
     } catch (cause) {
-      console.error('Online details could not save the pending edit.', cause instanceof Error ? cause.message : 'Unknown editor failure.');
+      console.error(
+        'Online details could not save the pending edit.',
+        cause instanceof Error ? cause.message : 'Unknown editor failure.',
+      );
       if (currentScopeAndNavigation()) notify('Your edit could not be saved. Keep this game open and retry.');
     }
   };
   const applyPwaUpdate = () => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
     const view = `${window.location.pathname}${window.location.search}`;
-    const isCurrent = () => currentScopeAndNavigation() && updateState.current.panel === 'settings' &&
+    const isCurrent = () =>
+      currentScopeAndNavigation() &&
+      updateState.current.panel === 'settings' &&
       view === `${window.location.pathname}${window.location.search}`;
     return pwa.applyUpdate(createPwaUpdateGuard({ isCurrent, busy: () => updateState.current.busy, inputGeneration }));
   };
-  const publicLookup = page === 'discover' && selectedRecord && !selectedGame && !transientPreview?.authority &&
-    !onlineOpening && enrichmentIdentity(selectedRecord.id) ? {
-      online: filters.catalogs === 'on',
-      scopeKey: `${libraryScope}:${scopeGeneration.current}:${navigationGeneration.current}`,
-      onEnableOnline: () => { void enablePublicDetails(); },
-    } : undefined;
+  const publicLookup =
+    page === 'discover' &&
+    selectedRecord &&
+    !selectedGame &&
+    !transientPreview?.authority &&
+    !onlineOpening &&
+    enrichmentIdentity(selectedRecord.id)
+      ? {
+          online: filters.catalogs === 'on',
+          scopeKey: `${libraryScope}:${scopeGeneration.current}:${navigationGeneration.current}`,
+          onEnableOnline: () => {
+            void enablePublicDetails();
+          },
+        }
+      : undefined;
   const warning = library.error ?? library.warning;
-  const privateLoading = ['games', 'library', 'rankings'].includes(page) && (library.status === 'loading' || onlineOpening);
+  const privateLoading =
+    ['games', 'library', 'rankings'].includes(page) && (library.status === 'loading' || onlineOpening);
   const mainRef = useRef<HTMLElement>(null);
   const boundaryStamp = [
-    libraryScope, online?.identity?.uid ?? null, online?.identity?.verified ?? false,
-    online?.enabled ?? false, onlineOpening, library.status, Boolean(online?.controller),
+    libraryScope,
+    online?.identity?.uid ?? null,
+    online?.identity?.verified ?? false,
+    online?.enabled ?? false,
+    onlineOpening,
+    library.status,
+    Boolean(online?.controller),
   ] as const;
   const motionEpoch = useRef({ value: boundaryStamp, generation: 0 });
   if (boundaryStamp.some((value, index) => value !== motionEpoch.current.value[index])) {
@@ -424,112 +718,472 @@ export default function App() {
   };
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
   const visibleNotice = (!panel && !manualLink && !selectedSlug ? panelMessage : '') || notice;
-  const panelRecovery = panelFailure && <ChunkRecovery key={panelFailure} message={panelFailure === 'about' ? "Credits didn't load." : "Settings didn't load."}
-    intent={panelFailure === 'about' ? 'credits' : 'settings'}
-    label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'} />;
+  const panelRecovery = panelFailure && (
+    <ChunkRecovery
+      key={panelFailure}
+      message={panelFailure === 'about' ? "Credits didn't load." : "Settings didn't load."}
+      intent={panelFailure === 'about' ? 'credits' : 'settings'}
+      label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'}
+    />
+  );
   const toastRecovery = !panel && !manualLink && !selectedSlug && panelRecovery;
   const signInPurpose = currentSignInPurpose(signInTicket, panel === 'account');
 
   return (
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
-    <AppMotionBindings mainRef={mainRef} page={page} boundary={motionBoundary} motionLocation={motionLocation} navigation={navigationGeneration} blocked={motionBlocked} onOpen={openGame} preparePreview={preparePreview}>
-    {({ openCollection, preview, previewFromDiscover, origin, interaction }) => (
-    <CompareTrayProvider scope={libraryScope} interaction={interaction}><CompareTrayBindings needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)} previewId={transientPreview?.authority ? null : selectedSlug} resolvedRecordId={selectedRecord?.id ?? null} onResolvePreview={rememberPreview}>{(tray, artwork, previewLoading, previewModuleError) => {
-      const pinnedIds = catalogPinnedIds(tray.items);
-      const pin = (record: LibraryRecord) => {
-        if (onlineOpening || activeScope.current !== libraryScope) { notify('Wait for the correct account before pinning a game.'); return false; }
-        return tray.pin(record);
-      };
-      const dragHandle = (record: LibraryRecord) => !onlineOpening && <CompareDragHandle record={record} compact />;
-      return (
-    <LibraryModeContext.Provider value={libraryMode}>
-      <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>Skip to {page === 'collection' ? 'the collection' : 'page content'}</a>
-      <AppHeader page={page} onlineAvailable={ONLINE_AVAILABLE} libraryScope={libraryScope} libraryLabel={libraryMode.label} syncStatus={online?.status ?? 'device'} headerIdentity={headerIdentity} savedCount={savedCount} animate={capabilities.animate} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onQueue={() => navigate('library', { list: 'later' })} onMenu={() => setPanel('menu')} onAccount={() => { void accountEntry(); }} onIntent={prefetchAppTools} />
-      <GlobalBanners warning={warning} onlineConfigError={ONLINE_CONFIG_ERROR} offline={pwaEnabled && !pwa.online} offlineReady={pwa.offlineState === 'ready'} hintError={hintError} onSettings={() => setPanel('settings')} onAccount={() => { void accountEntry(); }} onDeviceOnly={() => { setHintError(''); void rememberOnlineRequest(false); }} />
-      <main id="page-main" ref={mainRef}>
-        {toolFailure?.scope === libraryScope && toolFailure.page === page && <ChunkRecovery message="The comparison tools didn't load." />}
-        <RouteHost route={page} scope={libraryScope}
-          online={ONLINE_AVAILABLE && (onlineRequested || cloudPage) ? {
-            onDevice: () => { void rememberOnlineRequest(false); setOnlineRequested(false); setOnline(null); navigate('collection'); },
-            fallback: cloudPage ? { route: page, kind: 'cloud-page' } : panel === 'account' ? { route: page, kind: 'account-sheet', onClose: closeAccountSheet, getReturnFocus: getSignInReturnFocus } : null,
-            props: {
-              page, publicHandle, invitation, showSheet: panel === 'account', signInPurpose, guest: guestLibrary, games: games ?? [], onBridge: setOnline,
-              onCloseSheet: closeAccountSheet, getSignInReturnFocus, onNavigate: navigate, onProfile: openProfile, onOpenRecord: preview,
-              onShare: (title, url) => { void share(title, url, false); }, onPinRecord: pin, artwork,
-            },
-          } : null}
-          content={cloudPage ? !ONLINE_AVAILABLE ? { kind: 'unconfigured' } : null : privateLoading ? { kind: 'private-library' } :
-            personalPage === 'library' || personalPage === 'rankings' ? { kind: 'personal', props: {
-              friendSharing: libraryScope !== 'guest' ? online?.friendSharing : undefined, scope: libraryScope, view: gamesView,
-              onViewChange: changeGamesView, state: library.state, filters, busy: libraryBusy, animate: capabilities.animate,
-              onFilters: updateFilters, onAction: perform, onOpen: openGame, onDiscover: () => navigate('discover'),
-              onBrowse: () => navigate('collection'), availableRecords: [...allRecords.values()], persistent: library.status === 'ready',
-              onPublish: ONLINE_AVAILABLE ? () => navigate('publish') : undefined, onPin: pin, onUnpin: tray.unpin, pinnedIds, renderDragHandle: dragHandle,
-            } } : page === 'discover' ? { kind: 'discover', props: {
-              collection, state: library.state, busy: libraryBusy, onAction: perform, onLibrary: () => navigate('games'),
-              onCommunity: ONLINE_AVAILABLE ? () => navigate('community') : undefined, onPreview: previewFromDiscover, onPin: pin, pinnedIds, renderDragHandle: dragHandle,
-            } } : { kind: 'collection', props: {
-              collection, state: library.state, filters, busy: libraryBusy, motion: effectiveMotion, animate: capabilities.animate,
-              reducedMotion: capabilities.reducedMotion, coarsePointer: capabilities.coarsePointer, constrained: capabilities.constrained,
-              onFilters: updateFilters, onAction: perform, onOpen: openCollection, onPreview: previewFromDiscover, onShare: () => shareView(),
-              onFullLibrary: () => navigate('library', { list: filters.list === 'later' || filters.list === 'completed' ? filters.list : 'all' }),
-              notify, onPin: pin, pinnedIds, renderDragHandle: dragHandle,
-            } }} />
-      </main>
-      <SiteFooter onAbout={() => setPanel('about')} onEffects={() => setPanel('settings')} effects={library.state.motion} />
-      <MobileNav page={page} personalPage={personalPage} gamesView={gamesView} onlineAvailable={ONLINE_AVAILABLE} menuOpen={panel === 'menu'} pageHref={pageHref} onNavigateLink={(event, next) => { void navigateLink(event, next); }} onBrowseLink={event => { void navigateLink(event, 'collection', {}, browse); }} onMenu={() => setPanel('menu')} onIntent={prefetchAppTools} />
-      <TrayHost page={page} tray={{ onCompare: records => { void compareGames(records); }, onPreview: preview, resolveArtwork: record => artwork.get(record.id), animate: capabilities.animate, hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink) }} />
-      <DialogHost page={page}
-        game={selectedGame && selectedPersonalRecord && !onlineOpening ? { key: `${libraryScope}:${selectedPersonalRecord.id}`, props: {
-          game: selectedGame, motionOrigin: origin, state: library.state.progress[selectedPersonalRecord.id],
-          previous: games?.[selectedGame.rank - 2], next: games?.[selectedGame.rank], onClose: closeGame, onOpen: openGame, onToggle: toggle,
-          onShare: () => shareView(selectedGame.slug), shareFeedback: notice || library.error || '', busy: libraryBusy,
-          played: library.state.progress[selectedPersonalRecord.id]?.played, onPlayed: value => toggle(selectedGame.slug, 'played', value),
-          rankingPosition: rankingPosition || null, onRank: rankSelected,
-          personalRating: library.state.ranking.find(entry => entry.id === selectedPersonalRecord.id)?.score ?? null,
-          onRate: score => perform({ type: 'rate-game', record: selectedPersonalRecord, score }),
-          savedCopies: <SavedCatalogCopies canonicalId={selectedGame.slug} copies={ownership.get(selectedGame.slug)} onOpen={record => openGame(record.id)} />,
-        } } : null}
-        catalog={!selectedGame && selectedRecord && !onlineOpening ? { key: `${libraryScope}:${selectedRecord.id}`, props: {
-          record: selectedRecord, artwork: artwork.get(selectedRecord.id), motionOrigin: origin, publicLookup,
-          saved: Boolean(library.state.records[selectedRecord.id]), progress: library.state.progress[selectedRecord.id],
-          rankingPosition: rankingPosition || null, rating: library.state.ranking.find(entry => entry.id === selectedRecord.id)?.score ?? null,
-          busy: libraryBusy, onClose: closeGame, onAction: performDetailAction, onRankings: () => navigate('rankings'),
-        } } : null}
-        loadingGame={Boolean(selectedSlug && (previewLoading || awaitingCanonicalPreview && collection.status === 'loading') && !selectedRecord && !onlineOpening)}
-        canonicalError={awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening ? { message: collection.error, retry: collection.retry } : null}
-        metadataFailure={previewModuleError}
-        missingGame={Boolean(selectedSlug && !awaitingCanonicalPreview && !previewLoading && !previewModuleError && collection.status !== 'loading' && library.status !== 'loading' && !onlineOpening && !selectedRecord)}
-        onCloseGame={closeGame}
-        menu={panel === 'menu' ? { key: libraryScope, props: {
-          page, gamesView, filters, onlineAvailable: ONLINE_AVAILABLE, creator: Boolean(!onlineOpening && online?.identity?.verified && online.creator),
-          onNavigate: navigate, onSettings: () => { setOfflineSettings(false); setPanel('settings'); },
-          onOffline: pwaEnabled ? () => { setOfflineSettings(true); setPanel('settings'); } : undefined,
-          onAbout: () => setPanel('about'), onClose: closePanel, captureFocusGuard: captureMenuFocusGuard,
-          status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
-        } } : null}
-        about={panel === 'about' ? { onClose: () => setPanel(null), getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined } : null}
-        settings={panel === 'settings' ? { key: libraryScope, props: {
-          motion: library.state.motion, reducedMotion: capabilities.reducedMotion, constrained: capabilities.constrained,
-          saved: savedCount, completed: completedCount, warning, onMotion: motion => perform({ type: 'set-motion', motion }),
-          onReset: library.reset, onRestore: library.restore, state: library.state, persistent: library.status === 'ready', busy: libraryBusy,
-          onAbout: () => setPanel('about'), onAccount: ONLINE_AVAILABLE ? () => { void accountEntry(); } : undefined,
-          onClose: () => setPanel(null),
-          status: panelMessage, statusError: panelMessageError, recovery: panelRecovery,
-          getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined,
-        } } : null}
-        offlineSettings={pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined}
-        panelNotice={!panel && !manualLink && selectedSlug && (panelMessage || panelRecovery) ? {
-          title: panelFailure ? 'Dialog unavailable' : panelMessage,
-          content: panelRecovery || <p role="status">{panelMessage}</p>, onClose: closePanel,
-        } : null}
-        manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null} />
-      <div className={`toast ${visibleNotice || toastRecovery ? 'toast-visible' : ''}`} role={toastRecovery ? undefined : 'status'} aria-live={toastRecovery ? undefined : 'polite'} aria-atomic="true">{toastRecovery ? <>{toastRecovery}<button className="icon-button" aria-label="Dismiss loading error" onClick={() => { dismissPanelMessage(); visibleMenuTrigger()?.focus({ preventScroll: true }); }}><Icon name="close" width="17" height="17" /></button></> : visibleNotice && <><Icon name="info" width="19" height="19" /><span>{visibleNotice}</span><button className="icon-button" aria-label="Dismiss notification" onClick={() => { setNotice(''); if (!panelRecovery) dismissPanelMessage(); }}><Icon name="close" width="17" height="17" /></button></>}</div>
-      {sharing && <span className="sr-only" role="status">Opening sharing options…</span>}
-    </LibraryModeContext.Provider>
-      );
-    }}</CompareTrayBindings></CompareTrayProvider>
-    )}</AppMotionBindings>
+      <AppMotionBindings
+        mainRef={mainRef}
+        page={page}
+        boundary={motionBoundary}
+        motionLocation={motionLocation}
+        navigation={navigationGeneration}
+        blocked={motionBlocked}
+        onOpen={openGame}
+        preparePreview={preparePreview}
+      >
+        {({ openCollection, preview, previewFromDiscover, origin, interaction }) => (
+          <CompareTrayProvider scope={libraryScope} interaction={interaction}>
+            <CompareTrayBindings
+              needsArtwork={['friend', 'friend-shelf', 'compare'].includes(page)}
+              previewId={transientPreview?.authority ? null : selectedSlug}
+              resolvedRecordId={selectedRecord?.id ?? null}
+              onResolvePreview={rememberPreview}
+            >
+              {(tray, artwork, previewLoading, previewModuleError) => {
+                const pinnedIds = catalogPinnedIds(tray.items);
+                const pin = (record: LibraryRecord) => {
+                  if (onlineOpening || activeScope.current !== libraryScope) {
+                    notify('Wait for the correct account before pinning a game.');
+                    return false;
+                  }
+                  return tray.pin(record);
+                };
+                const dragHandle = (record: LibraryRecord) =>
+                  !onlineOpening && <CompareDragHandle record={record} compact />;
+                return (
+                  <LibraryModeContext.Provider value={libraryMode}>
+                    <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>
+                      Skip to {page === 'collection' ? 'the collection' : 'page content'}
+                    </a>
+                    <AppHeader
+                      page={page}
+                      onlineAvailable={ONLINE_AVAILABLE}
+                      libraryScope={libraryScope}
+                      libraryLabel={libraryMode.label}
+                      syncStatus={online?.status ?? 'device'}
+                      headerIdentity={headerIdentity}
+                      savedCount={savedCount}
+                      animate={capabilities.animate}
+                      menuOpen={panel === 'menu'}
+                      pageHref={pageHref}
+                      onNavigateLink={(event, next) => {
+                        void navigateLink(event, next);
+                      }}
+                      onQueue={() => navigate('library', { list: 'later' })}
+                      onMenu={() => setPanel('menu')}
+                      onAccount={() => {
+                        void accountEntry();
+                      }}
+                      onIntent={prefetchAppTools}
+                    />
+                    <GlobalBanners
+                      warning={warning}
+                      onlineConfigError={ONLINE_CONFIG_ERROR}
+                      offline={pwaEnabled && !pwa.online}
+                      offlineReady={pwa.offlineState === 'ready'}
+                      hintError={hintError}
+                      onSettings={() => setPanel('settings')}
+                      onAccount={() => {
+                        void accountEntry();
+                      }}
+                      onDeviceOnly={() => {
+                        setHintError('');
+                        void rememberOnlineRequest(false);
+                      }}
+                    />
+                    <main id="page-main" ref={mainRef}>
+                      {toolFailure?.scope === libraryScope && toolFailure.page === page && (
+                        <ChunkRecovery message="The comparison tools didn't load." />
+                      )}
+                      <RouteHost
+                        route={page}
+                        scope={libraryScope}
+                        online={
+                          ONLINE_AVAILABLE && (onlineRequested || cloudPage)
+                            ? {
+                                onDevice: () => {
+                                  void rememberOnlineRequest(false);
+                                  setOnlineRequested(false);
+                                  setOnline(null);
+                                  navigate('collection');
+                                },
+                                fallback: cloudPage
+                                  ? { route: page, kind: 'cloud-page' }
+                                  : panel === 'account'
+                                    ? {
+                                        route: page,
+                                        kind: 'account-sheet',
+                                        onClose: closeAccountSheet,
+                                        getReturnFocus: getSignInReturnFocus,
+                                      }
+                                    : null,
+                                props: {
+                                  page,
+                                  publicHandle,
+                                  invitation,
+                                  showSheet: panel === 'account',
+                                  signInPurpose,
+                                  guest: guestLibrary,
+                                  games: games ?? [],
+                                  onBridge: setOnline,
+                                  onCloseSheet: closeAccountSheet,
+                                  getSignInReturnFocus,
+                                  onNavigate: navigate,
+                                  onProfile: openProfile,
+                                  onOpenRecord: preview,
+                                  onShare: (title, url) => {
+                                    void share(title, url, false);
+                                  },
+                                  onPinRecord: pin,
+                                  artwork,
+                                },
+                              }
+                            : null
+                        }
+                        content={
+                          cloudPage
+                            ? !ONLINE_AVAILABLE
+                              ? { kind: 'unconfigured' }
+                              : null
+                            : privateLoading
+                              ? { kind: 'private-library' }
+                              : personalPage === 'library' || personalPage === 'rankings'
+                                ? {
+                                    kind: 'personal',
+                                    props: {
+                                      friendSharing: libraryScope !== 'guest' ? online?.friendSharing : undefined,
+                                      scope: libraryScope,
+                                      view: gamesView,
+                                      onViewChange: changeGamesView,
+                                      state: library.state,
+                                      filters,
+                                      busy: libraryBusy,
+                                      animate: capabilities.animate,
+                                      onFilters: updateFilters,
+                                      onAction: perform,
+                                      onOpen: openGame,
+                                      onDiscover: () => navigate('discover'),
+                                      onBrowse: () => navigate('collection'),
+                                      availableRecords: [...allRecords.values()],
+                                      persistent: library.status === 'ready',
+                                      onPublish: ONLINE_AVAILABLE ? () => navigate('publish') : undefined,
+                                      onPin: pin,
+                                      onUnpin: tray.unpin,
+                                      pinnedIds,
+                                      renderDragHandle: dragHandle,
+                                    },
+                                  }
+                                : page === 'discover'
+                                  ? {
+                                      kind: 'discover',
+                                      props: {
+                                        collection,
+                                        state: library.state,
+                                        busy: libraryBusy,
+                                        onAction: perform,
+                                        onLibrary: () => navigate('games'),
+                                        onCommunity: ONLINE_AVAILABLE ? () => navigate('community') : undefined,
+                                        onPreview: previewFromDiscover,
+                                        onPin: pin,
+                                        pinnedIds,
+                                        renderDragHandle: dragHandle,
+                                      },
+                                    }
+                                  : {
+                                      kind: 'collection',
+                                      props: {
+                                        collection,
+                                        state: library.state,
+                                        filters,
+                                        busy: libraryBusy,
+                                        motion: effectiveMotion,
+                                        animate: capabilities.animate,
+                                        reducedMotion: capabilities.reducedMotion,
+                                        coarsePointer: capabilities.coarsePointer,
+                                        constrained: capabilities.constrained,
+                                        onFilters: updateFilters,
+                                        onAction: perform,
+                                        onOpen: openCollection,
+                                        onPreview: previewFromDiscover,
+                                        onShare: () => shareView(),
+                                        onFullLibrary: () =>
+                                          navigate('library', {
+                                            list:
+                                              filters.list === 'later' || filters.list === 'completed'
+                                                ? filters.list
+                                                : 'all',
+                                          }),
+                                        notify,
+                                        onPin: pin,
+                                        pinnedIds,
+                                        renderDragHandle: dragHandle,
+                                      },
+                                    }
+                        }
+                      />
+                    </main>
+                    <SiteFooter
+                      onAbout={() => setPanel('about')}
+                      onEffects={() => setPanel('settings')}
+                      effects={library.state.motion}
+                    />
+                    <MobileNav
+                      page={page}
+                      personalPage={personalPage}
+                      gamesView={gamesView}
+                      onlineAvailable={ONLINE_AVAILABLE}
+                      menuOpen={panel === 'menu'}
+                      pageHref={pageHref}
+                      onNavigateLink={(event, next) => {
+                        void navigateLink(event, next);
+                      }}
+                      onBrowseLink={(event) => {
+                        void navigateLink(event, 'collection', {}, browse);
+                      }}
+                      onMenu={() => setPanel('menu')}
+                      onIntent={prefetchAppTools}
+                    />
+                    <TrayHost
+                      page={page}
+                      tray={{
+                        onCompare: (records) => {
+                          void compareGames(records);
+                        },
+                        onPreview: preview,
+                        resolveArtwork: (record) => artwork.get(record.id),
+                        animate: capabilities.animate,
+                        hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink),
+                      }}
+                    />
+                    <DialogHost
+                      page={page}
+                      game={
+                        selectedGame && selectedPersonalRecord && !onlineOpening
+                          ? {
+                              key: `${libraryScope}:${selectedPersonalRecord.id}`,
+                              props: {
+                                game: selectedGame,
+                                motionOrigin: origin,
+                                state: library.state.progress[selectedPersonalRecord.id],
+                                previous: games?.[selectedGame.rank - 2],
+                                next: games?.[selectedGame.rank],
+                                onClose: closeGame,
+                                onOpen: openGame,
+                                onToggle: toggle,
+                                onShare: () => shareView(selectedGame.slug),
+                                shareFeedback: notice || library.error || '',
+                                busy: libraryBusy,
+                                played: library.state.progress[selectedPersonalRecord.id]?.played,
+                                onPlayed: (value) => toggle(selectedGame.slug, 'played', value),
+                                rankingPosition: rankingPosition || null,
+                                onRank: rankSelected,
+                                personalRating:
+                                  library.state.ranking.find((entry) => entry.id === selectedPersonalRecord.id)
+                                    ?.score ?? null,
+                                onRate: (score) =>
+                                  perform({ type: 'rate-game', record: selectedPersonalRecord, score }),
+                                savedCopies: (
+                                  <SavedCatalogCopies
+                                    canonicalId={selectedGame.slug}
+                                    copies={ownership.get(selectedGame.slug)}
+                                    onOpen={(record) => openGame(record.id)}
+                                  />
+                                ),
+                              },
+                            }
+                          : null
+                      }
+                      catalog={
+                        !selectedGame && selectedRecord && !onlineOpening
+                          ? {
+                              key: `${libraryScope}:${selectedRecord.id}`,
+                              props: {
+                                record: selectedRecord,
+                                artwork: artwork.get(selectedRecord.id),
+                                motionOrigin: origin,
+                                publicLookup,
+                                saved: Boolean(library.state.records[selectedRecord.id]),
+                                progress: library.state.progress[selectedRecord.id],
+                                rankingPosition: rankingPosition || null,
+                                rating:
+                                  library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null,
+                                busy: libraryBusy,
+                                onClose: closeGame,
+                                onAction: performDetailAction,
+                                onRankings: () => navigate('rankings'),
+                              },
+                            }
+                          : null
+                      }
+                      loadingGame={Boolean(
+                        selectedSlug &&
+                        (previewLoading || (awaitingCanonicalPreview && collection.status === 'loading')) &&
+                        !selectedRecord &&
+                        !onlineOpening,
+                      )}
+                      canonicalError={
+                        awaitingCanonicalPreview && collection.status === 'error' && !onlineOpening
+                          ? { message: collection.error, retry: collection.retry }
+                          : null
+                      }
+                      metadataFailure={previewModuleError}
+                      missingGame={Boolean(
+                        selectedSlug &&
+                        !awaitingCanonicalPreview &&
+                        !previewLoading &&
+                        !previewModuleError &&
+                        collection.status !== 'loading' &&
+                        library.status !== 'loading' &&
+                        !onlineOpening &&
+                        !selectedRecord,
+                      )}
+                      onCloseGame={closeGame}
+                      menu={
+                        panel === 'menu'
+                          ? {
+                              key: libraryScope,
+                              props: {
+                                page,
+                                gamesView,
+                                filters,
+                                onlineAvailable: ONLINE_AVAILABLE,
+                                creator: Boolean(!onlineOpening && online?.identity?.verified && online.creator),
+                                onNavigate: navigate,
+                                onSettings: () => {
+                                  setOfflineSettings(false);
+                                  setPanel('settings');
+                                },
+                                onOffline: pwaEnabled
+                                  ? () => {
+                                      setOfflineSettings(true);
+                                      setPanel('settings');
+                                    }
+                                  : undefined,
+                                onAbout: () => setPanel('about'),
+                                onClose: closePanel,
+                                captureFocusGuard: captureMenuFocusGuard,
+                                status: panelMessage,
+                                statusError: panelMessageError,
+                                recovery: panelRecovery,
+                              },
+                            }
+                          : null
+                      }
+                      about={
+                        panel === 'about'
+                          ? {
+                              onClose: () => setPanel(null),
+                              getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined,
+                            }
+                          : null
+                      }
+                      settings={
+                        panel === 'settings'
+                          ? {
+                              key: libraryScope,
+                              props: {
+                                motion: library.state.motion,
+                                reducedMotion: capabilities.reducedMotion,
+                                constrained: capabilities.constrained,
+                                saved: savedCount,
+                                completed: completedCount,
+                                warning,
+                                onMotion: (motion) => perform({ type: 'set-motion', motion }),
+                                onReset: library.reset,
+                                onRestore: library.restore,
+                                state: library.state,
+                                persistent: library.status === 'ready',
+                                busy: libraryBusy,
+                                onAbout: () => setPanel('about'),
+                                onAccount: ONLINE_AVAILABLE
+                                  ? () => {
+                                      void accountEntry();
+                                    }
+                                  : undefined,
+                                onClose: () => setPanel(null),
+                                status: panelMessage,
+                                statusError: panelMessageError,
+                                recovery: panelRecovery,
+                                getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined,
+                              },
+                            }
+                          : null
+                      }
+                      offlineSettings={
+                        pwaEnabled ? { pwa, open: offlineSettings, onUpdate: applyPwaUpdate } : undefined
+                      }
+                      panelNotice={
+                        !panel && !manualLink && selectedSlug && (panelMessage || panelRecovery)
+                          ? {
+                              title: panelFailure ? 'Dialog unavailable' : panelMessage,
+                              content: panelRecovery || <p role="status">{panelMessage}</p>,
+                              onClose: closePanel,
+                            }
+                          : null
+                      }
+                      manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null}
+                    />
+                    <div
+                      className={`toast ${visibleNotice || toastRecovery ? 'toast-visible' : ''}`}
+                      role={toastRecovery ? undefined : 'status'}
+                      aria-live={toastRecovery ? undefined : 'polite'}
+                      aria-atomic="true"
+                    >
+                      {toastRecovery ? (
+                        <>
+                          {toastRecovery}
+                          <button
+                            className="icon-button"
+                            aria-label="Dismiss loading error"
+                            onClick={() => {
+                              dismissPanelMessage();
+                              visibleMenuTrigger()?.focus({ preventScroll: true });
+                            }}
+                          >
+                            <Icon name="close" width="17" height="17" />
+                          </button>
+                        </>
+                      ) : (
+                        visibleNotice && (
+                          <>
+                            <Icon name="info" width="19" height="19" />
+                            <span>{visibleNotice}</span>
+                            <button
+                              className="icon-button"
+                              aria-label="Dismiss notification"
+                              onClick={() => {
+                                setNotice('');
+                                if (!panelRecovery) dismissPanelMessage();
+                              }}
+                            >
+                              <Icon name="close" width="17" height="17" />
+                            </button>
+                          </>
+                        )
+                      )}
+                    </div>
+                    {sharing && (
+                      <span className="sr-only" role="status">
+                        Opening sharing options…
+                      </span>
+                    )}
+                  </LibraryModeContext.Provider>
+                );
+              }}
+            </CompareTrayBindings>
+          </CompareTrayProvider>
+        )}
+      </AppMotionBindings>
     </MotionProvider>
   );
 }

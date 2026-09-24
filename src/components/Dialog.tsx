@@ -7,8 +7,11 @@ import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
 import { showLockedDialog } from './dialog-lifecycle';
 
 function runDialogMotion(work: () => void) {
-  try { work(); }
-  catch { console.error('Dialog motion failed. Native dialog behavior remains available.'); }
+  try {
+    work();
+  } catch {
+    console.error('Dialog motion failed. Native dialog behavior remains available.');
+  }
 }
 
 interface DialogProps {
@@ -22,7 +25,16 @@ interface DialogProps {
   motion?: false | DialogMotionOptions;
 }
 
-export function Dialog({ open, titleId, descriptionId, onClose, children, className = '', getReturnFocus, motion }: DialogProps) {
+export function Dialog({
+  open,
+  titleId,
+  descriptionId,
+  onClose,
+  children,
+  className = '',
+  getReturnFocus,
+  motion,
+}: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -35,9 +47,13 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
   returnFocus.current = getReturnFocus;
   useLayoutEffect(() => {
     const current = visual;
-    return () => { runDialogMotion(() => current.current?.prepareClose()); };
+    return () => {
+      runDialogMotion(() => current.current?.prepareClose());
+    };
   }, [open]);
-  useLayoutEffect(() => { if (motionDisabled) runDialogMotion(() => visual.current?.cancel()); }, [motionDisabled]);
+  useLayoutEffect(() => {
+    if (motionDisabled) runDialogMotion(() => visual.current?.cancel());
+  }, [motionDisabled]);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
@@ -45,7 +61,8 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
     const focusTarget = dialog.querySelector<HTMLElement>('[data-autofocus]');
     const unlock = showLockedDialog(dialog, focusTarget);
     runDialogMotion(() => {
-      if (inner.current) visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
+      if (inner.current)
+        visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
     });
     return () => {
       const ending = visual.current;
@@ -54,10 +71,15 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
         Boolean(target && !dialog.contains(target) && visibleFocusTarget(target));
       const preferred = returnFocus.current?.() ?? null;
       const reveal = canReturnTo(preferred);
-      const target = reveal ? preferred
-        : previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus) ? previousFocus
-        : [...document.querySelectorAll<HTMLElement>('[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]')].find(canReturnTo) ??
-          visibleMenuTrigger();
+      const target = reveal
+        ? preferred
+        : previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus)
+          ? previousFocus
+          : ([
+              ...document.querySelectorAll<HTMLElement>(
+                '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
+              ),
+            ].find(canReturnTo) ?? visibleMenuTrigger());
       dialog.close();
       unlock();
       if (reveal) target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
@@ -73,11 +95,19 @@ export function Dialog({ open, titleId, descriptionId, onClose, children, classN
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       data-motion-owned={motion !== undefined ? 'true' : undefined}
-      onCancel={(event) => { event.preventDefault(); event.stopPropagation(); onClose(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onCancel={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <div className="dialog-inner" ref={inner}>
-        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog"><Icon name="close" /></button>
+        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
+          <Icon name="close" />
+        </button>
         {children}
       </div>
       {motion && <div ref={slot} className="dialog-motion-slot" data-motion-host="dialog" aria-hidden="true" inert />}

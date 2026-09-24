@@ -11,8 +11,11 @@ function field(value) {
 }
 async function write(path, data) {
   const response = await fetch(`${origin}/v1/projects/${project}/databases/(default)/documents/${path}`, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
-    body: JSON.stringify({ fields: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, field(value)])) }),
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+    body: JSON.stringify({
+      fields: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, field(value)])),
+    }),
   });
   if (!response.ok) throw new Error(`Isolated emulator fixture setup failed: HTTP ${response.status}.`);
 }
@@ -21,5 +24,9 @@ const collection = JSON.parse(await readFile(new URL('../public/data/collection.
 // mirrors the provisioned production document and keeps each fixture a non-creator.
 await write('_owner/config', { uid: 'demo-play100-no-creator', email: 'creator@play100.test' });
 await write('ownerAccess/status', { enabled: true });
-await write('catalog/author', { records: Object.fromEntries(collection.games.map((game) => [game.slug, { title: game.title, year: game.year }])) });
-console.log('Seeded only demo-play100 emulator authorization and trusted canonical metadata. No users or public profiles were created.');
+await write('catalog/author', {
+  records: Object.fromEntries(collection.games.map((game) => [game.slug, { title: game.title, year: game.year }])),
+});
+console.log(
+  'Seeded only demo-play100 emulator authorization and trusted canonical metadata. No users or public profiles were created.',
+);

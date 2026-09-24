@@ -2,7 +2,11 @@ import { EventEmitter } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  FETCH_BAD_PORTS, FETCH_SAFE_PORT_ATTEMPTS, createFetchSafeViteServer, isFetchBadPort, listenOnFetchSafePort,
+  FETCH_BAD_PORTS,
+  FETCH_SAFE_PORT_ATTEMPTS,
+  createFetchSafeViteServer,
+  isFetchBadPort,
+  listenOnFetchSafePort,
 } from './test-server-ports';
 
 function address(port: number): AddressInfo {
@@ -31,7 +35,9 @@ class FakeHttpServer extends EventEmitter {
     return this;
   }
 
-  address() { return this.bound; }
+  address() {
+    return this.bound;
+  }
 
   close(callback: (error?: Error) => void) {
     this.events.push('close');
@@ -49,25 +55,29 @@ class FakeHttpServer extends EventEmitter {
 function fakeVite(port: number, events: string[]) {
   return {
     httpServer: { address: () => address(port) },
-    listen: vi.fn(async () => { events.push(`listen:${port}`); }),
-    close: vi.fn(async () => { events.push(`close:${port}`); }),
+    listen: vi.fn(async () => {
+      events.push(`listen:${port}`);
+    }),
+    close: vi.fn(async () => {
+      events.push(`close:${port}`);
+    }),
   };
 }
 
 describe('Fetch-safe test ports', () => {
   it('copies the exact Fetch-spec bad-port table with no duplicates', () => {
     const expected = [
-      0, 1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95,
-      101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135, 137, 139, 143, 161, 179,
-      389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532, 540, 548, 554, 556, 563, 587, 601,
-      636, 989, 990, 993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000,
-      6566, 6665, 6666, 6667, 6668, 6669, 6679, 6697, 10080,
+      0, 1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109,
+      110, 111, 113, 115, 117, 119, 123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531,
+      532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060,
+      5061, 6000, 6566, 6665, 6666, 6667, 6668, 6669, 6679, 6697, 10080,
     ];
     expect(FETCH_BAD_PORTS).toEqual(expected);
     expect(new Set(FETCH_BAD_PORTS).size).toBe(expected.length);
     expect(Object.isFrozen(FETCH_BAD_PORTS)).toBe(true);
     for (let port = 0; port <= 65535; port += 1) {
-      if (isFetchBadPort(port) !== expected.includes(port)) throw new Error(`Incorrect classification for port ${port}`);
+      if (isFetchBadPort(port) !== expected.includes(port))
+        throw new Error(`Incorrect classification for port ${port}`);
     }
   });
 
@@ -106,10 +116,12 @@ describe('Fetch-safe test ports', () => {
   it('bounds bad HTTP assignments and closes the final rejected listener', async () => {
     const server = new FakeHttpServer();
     server.nextPorts = [];
-    await expect(listenOnFetchSafePort(server)).rejects.toThrow(`after ${FETCH_SAFE_PORT_ATTEMPTS} HTTP listen attempts`);
+    await expect(listenOnFetchSafePort(server)).rejects.toThrow(
+      `after ${FETCH_SAFE_PORT_ATTEMPTS} HTTP listen attempts`,
+    );
     expect(FETCH_SAFE_PORT_ATTEMPTS).toBe(10);
     expect(server.listens).toBe(10);
-    expect(server.events.filter(event => event === 'closed')).toHaveLength(10);
+    expect(server.events.filter((event) => event === 'closed')).toHaveLength(10);
     expect(server.bound).toBeNull();
   });
 
@@ -125,7 +137,9 @@ describe('Fetch-safe test ports', () => {
   it('propagates synchronous HTTP listen failures and removes its error handler', async () => {
     const server = new FakeHttpServer();
     const error = new Error('Synthetic synchronous bind failure');
-    vi.spyOn(server, 'listen').mockImplementation(() => { throw error; });
+    vi.spyOn(server, 'listen').mockImplementation(() => {
+      throw error;
+    });
     await expect(listenOnFetchSafePort(server)).rejects.toBe(error);
     expect(server.listenerCount('error')).toBe(0);
     expect(server.listenerCount('listening')).toBe(0);
@@ -162,15 +176,28 @@ describe('Fetch-safe test ports', () => {
     const bad = fakeVite(6000, events);
     const good = fakeVite(12000, events);
     let release!: () => void;
-    const closed = new Promise<void>(resolve => { release = resolve; });
+    const closed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     let closing!: () => void;
-    const closeStarted = new Promise<void>(resolve => { closing = resolve; });
+    const closeStarted = new Promise<void>((resolve) => {
+      closing = resolve;
+    });
     bad.close.mockImplementation(async () => {
-      events.push('closing'); closing(); await closed; events.push('closed');
+      events.push('closing');
+      closing();
+      await closed;
+      events.push('closed');
     });
-    const create = vi.fn(async () => { events.push('create'); return good; }).mockImplementationOnce(async () => {
-      events.push('create'); return bad;
-    });
+    const create = vi
+      .fn(async () => {
+        events.push('create');
+        return good;
+      })
+      .mockImplementationOnce(async () => {
+        events.push('create');
+        return bad;
+      });
     const pending = createFetchSafeViteServer(create);
     await closeStarted;
     expect(events).toEqual(['create', 'listen:6000', 'closing']);
@@ -217,13 +244,17 @@ describe('Fetch-safe test ports', () => {
     server.listen.mockRejectedValue(startup);
     server.close.mockRejectedValue(cleanup);
     await expect(createFetchSafeViteServer(async () => server)).rejects.toMatchObject({
-      message: 'Test server startup and cleanup both failed.', errors: [startup, cleanup], cause: cleanup,
+      message: 'Test server startup and cleanup both failed.',
+      errors: [startup, cleanup],
+      cause: cleanup,
     });
   });
 
   it('propagates Vite factory failures without retrying them', async () => {
     const error = new Error('Synthetic factory failure');
-    const create = vi.fn(async () => { throw error; });
+    const create = vi.fn(async () => {
+      throw error;
+    });
     await expect(createFetchSafeViteServer(create)).rejects.toBe(error);
     expect(create).toHaveBeenCalledOnce();
   });

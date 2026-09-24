@@ -12,8 +12,10 @@ declare global {
 }
 
 const roots = [
-  'src/lib/discovery-catalog.ts', 'src/lib/google-intent.ts',
-  'src/lib/comparison-game-filter.ts', 'src/lib/friend-comparison-intent.ts',
+  'src/lib/discovery-catalog.ts',
+  'src/lib/google-intent.ts',
+  'src/lib/comparison-game-filter.ts',
+  'src/lib/friend-comparison-intent.ts',
 ];
 
 for (const policy of [
@@ -21,41 +23,53 @@ for (const policy of [
   { name: 'Save-Data', saveData: true, effectiveType: '4g', allowed: false },
   { name: '2G', saveData: false, effectiveType: '2g', allowed: false },
 ]) {
-  test(`noncritical tools stay out of initial requests and warm only when allowed: ${policy.name}`, async ({ page, isMobile }) => {
+  test(`noncritical tools stay out of initial requests and warm only when allowed: ${policy.name}`, async ({
+    page,
+    isMobile,
+  }) => {
     const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
-    const files = roots.map(root => {
+    const files = roots.map((root) => {
       const entry = manifest[root];
       if (!entry) throw new Error(`Missing separately emitted tool: ${root}`);
       return `/${entry.file}`;
     });
     const requested = new Set<string>();
     const catalogRequests: string[] = [];
-    page.on('request', request => {
+    page.on('request', (request) => {
       const url = new URL(request.url());
       if (files.includes(url.pathname)) requested.add(url.pathname);
       if (/\/(?:api\/catalog|data\/discovery\/catalog)/.test(url.pathname)) catalogRequests.push(url.pathname);
     });
     await emptyCatalogs(page);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.addInitScript(({ hintKey, policy }) => {
-      localStorage.setItem('play100.library.v1', JSON.stringify({ version: 1, motion: 'full', progress: {} }));
-      localStorage.setItem(hintKey, 'full');
-      Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
-      Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
-      Object.defineProperty(navigator, 'connection', {
-        configurable: true, value: Object.assign(new EventTarget(), { saveData: policy.saveData, effectiveType: policy.effectiveType }),
-      });
-      const pending = new Map<number, IdleRequestCallback>();
-      let id = 0;
-      window.requestIdleCallback = callback => { pending.set(++id, callback); return id; };
-      window.cancelIdleCallback = key => { pending.delete(key); };
-      window.pendingAppToolIdle = () => pending.size;
-      window.flushAppToolIdle = () => {
-        const callbacks = [...pending.values()];
-        pending.clear();
-        for (const callback of callbacks) callback({ didTimeout: false, timeRemaining: () => 50 });
-      };
-    }, { hintKey: motionHintKey('guest'), policy });
+    await page.addInitScript(
+      ({ hintKey, policy }) => {
+        localStorage.setItem('play100.library.v1', JSON.stringify({ version: 1, motion: 'full', progress: {} }));
+        localStorage.setItem(hintKey, 'full');
+        Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
+        Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
+        Object.defineProperty(navigator, 'connection', {
+          configurable: true,
+          value: Object.assign(new EventTarget(), { saveData: policy.saveData, effectiveType: policy.effectiveType }),
+        });
+        const pending = new Map<number, IdleRequestCallback>();
+        let id = 0;
+        window.requestIdleCallback = (callback) => {
+          pending.set(++id, callback);
+          return id;
+        };
+        window.cancelIdleCallback = (key) => {
+          pending.delete(key);
+        };
+        window.pendingAppToolIdle = () => pending.size;
+        window.flushAppToolIdle = () => {
+          const callbacks = [...pending.values()];
+          pending.clear();
+          for (const callback of callbacks) callback({ didTimeout: false, timeRemaining: () => 50 });
+        };
+      },
+      { hintKey: motionHintKey('guest'), policy },
+    );
     await page.goto('/?catalogs=off');
     await expect(page.locator('.game-card')).toHaveCount(24);
     await expect(page.locator('.game-card .save-game').first()).toBeEnabled();

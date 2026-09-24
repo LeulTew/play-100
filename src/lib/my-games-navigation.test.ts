@@ -15,9 +15,17 @@ describe('My games route compatibility', () => {
     expect(myGamesTab('/my-games', '?tab=unknown')).toBe('library');
   });
   it('keeps workspace tabs distinct from list/grid/table filters', () => {
-    const search = myGamesSearch({ ...defaultFilters, view: 'table', q: 'Crusader & kings', list: 'completed', catalogs: 'off' }, 'ranking');
+    const search = myGamesSearch(
+      { ...defaultFilters, view: 'table', q: 'Crusader & kings', list: 'completed', catalogs: 'off' },
+      'ranking',
+    );
     expect(myGamesTab('/my-games', search)).toBe('ranking');
-    expect(parseUrl(search).filters).toMatchObject({ view: 'table', list: 'completed', q: 'Crusader & kings', catalogs: 'off' });
+    expect(parseUrl(search).filters).toMatchObject({
+      view: 'table',
+      list: 'completed',
+      q: 'Crusader & kings',
+      catalogs: 'off',
+    });
     expect(myGamesSearch(defaultFilters, 'library')).toBe('');
     expect(myGamesSearch({ ...defaultFilters, list: 'later' }, 'queue')).toBe('?tab=queue');
     const completedQueue = myGamesSearch({ ...defaultFilters, list: 'completed' }, 'queue');
@@ -25,7 +33,12 @@ describe('My games route compatibility', () => {
     expect(parseUrl(completedQueue).filters.list).toBe('completed');
   });
   it('opening or replacing a game preserves each surface query and closing restores it', () => {
-    for (const search of ['?tab=queue&q=RPG&view=list', '?tab=ranking&catalogs=off', '?q=Kingdomcome&source=wikidata', '?group=12345678-abcd-abcd-abcd-123456789abc']) {
+    for (const search of [
+      '?tab=queue&q=RPG&view=list',
+      '?tab=ranking&catalogs=off',
+      '?q=Kingdomcome&source=wikidata',
+      '?group=12345678-abcd-abcd-abcd-123456789abc',
+    ]) {
       const opened = gameDetailSearch(search, 'wikidata:Q123');
       expect(new URLSearchParams(opened).get('game')).toBe('wikidata:Q123');
       expect(gameDetailSearch(opened, null)).toBe(search);
@@ -33,7 +46,9 @@ describe('My games route compatibility', () => {
     }
   });
   it('retains a valid My games Google return tab without forwarding private or unknown parameters', () => {
-    expect(googleReturnPath('/my-games?tab=queue&catalogs=off&participants=private-peer&token=secret')).toBe('/my-games?catalogs=off&tab=queue');
+    expect(googleReturnPath('/my-games?tab=queue&catalogs=off&participants=private-peer&token=secret')).toBe(
+      '/my-games?catalogs=off&tab=queue',
+    );
     expect(googleReturnPath('/my-games?tab=ranking')).toBe('/my-games?tab=ranking');
     expect(googleReturnPath('/my-games?tab=bad')).toBe('/my-games');
   });

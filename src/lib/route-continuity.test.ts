@@ -21,7 +21,9 @@ describe('committed route arrival classification', () => {
 
   it('starts only when a ready route family actually changes in the same scope', () => {
     expect(isRouteArrival(initial, { ...initial, family: 'discover', navigationEpoch: 2 })).toBe(true);
-    expect(isRouteArrival({ ...initial, blocked: true }, { ...initial, family: 'discover', navigationEpoch: 2 })).toBe(true);
+    expect(isRouteArrival({ ...initial, blocked: true }, { ...initial, family: 'discover', navigationEpoch: 2 })).toBe(
+      true,
+    );
     expect(isRouteArrival(initial, { ...initial, family: 'discover', navigationEpoch: 2, scopeEpoch: 1 })).toBe(false);
   });
 
@@ -46,13 +48,16 @@ describe('bounded transform-only arrival recipes', () => {
     ['tab', true, 100, 'translateX(2px)'],
     ['library-page', false, 120, 'translateX(4px)'],
     ['library-page', true, 100, 'translateX(2px)'],
-  ] as const)('%s at coarse=%s uses the locked duration and bounded displacement', (kind, coarse, duration, transform) => {
-    const recipe = arrivalMotion(kind, coarse);
-    expect(recipe.timing).toEqual({ duration, easing: 'cubic-bezier(.16,1,.3,1)' });
-    expect(recipe.frames[0]).toEqual({ transform });
-    expect(recipe.frames[1]).toEqual({ transform: kind === 'route' ? 'translateY(0px)' : 'translateX(0px)' });
-    expect(recipe.frames.every(frame => Object.keys(frame).every(key => key === 'transform'))).toBe(true);
-  });
+  ] as const)(
+    '%s at coarse=%s uses the locked duration and bounded displacement',
+    (kind, coarse, duration, transform) => {
+      const recipe = arrivalMotion(kind, coarse);
+      expect(recipe.timing).toEqual({ duration, easing: 'cubic-bezier(.16,1,.3,1)' });
+      expect(recipe.frames[0]).toEqual({ transform });
+      expect(recipe.frames[1]).toEqual({ transform: kind === 'route' ? 'translateY(0px)' : 'translateX(0px)' });
+      expect(recipe.frames.every((frame) => Object.keys(frame).every((key) => key === 'transform'))).toBe(true);
+    },
+  );
 
   it('reverses a local cue without interpolating numbers or moving list rows', () => {
     expect(arrivalMotion('tab', false, -1).frames[0]).toEqual({ transform: 'translateX(-4px)' });
@@ -63,14 +68,23 @@ describe('bounded transform-only arrival recipes', () => {
 describe('owned animation lifecycle', () => {
   it('releases a static fallback without awaiting an animation', () => {
     const session: MotionSession = {
-      signal: new AbortController().signal, isCurrent: () => true,
-      animate: vi.fn(() => null), addCleanup: vi.fn(), finish: vi.fn(), cancel: vi.fn(),
+      signal: new AbortController().signal,
+      isCurrent: () => true,
+      animate: vi.fn(() => null),
+      addCleanup: vi.fn(),
+      finish: vi.fn(),
+      cancel: vi.fn(),
     };
     const target = {} as HTMLElement;
     playArrival(session, target, arrivalMotion('route', false));
-    expect(session.animate).toHaveBeenCalledWith(target, [{ transform: 'translateY(4px)' }, { transform: 'translateY(0px)' }], {
-      duration: 160, easing: 'cubic-bezier(.16,1,.3,1)',
-    });
+    expect(session.animate).toHaveBeenCalledWith(
+      target,
+      [{ transform: 'translateY(4px)' }, { transform: 'translateY(0px)' }],
+      {
+        duration: 160,
+        easing: 'cubic-bezier(.16,1,.3,1)',
+      },
+    );
     expect(session.finish).toHaveBeenCalledOnce();
   });
 
@@ -78,9 +92,14 @@ describe('owned animation lifecycle', () => {
     const animation = new EventTarget();
     const disposers: Array<() => void> = [];
     const session: MotionSession = {
-      signal: new AbortController().signal, isCurrent: () => true,
-      animate: () => animation as Animation, addCleanup: dispose => { disposers.push(dispose); },
-      finish: vi.fn(), cancel: vi.fn(),
+      signal: new AbortController().signal,
+      isCurrent: () => true,
+      animate: () => animation as Animation,
+      addCleanup: (dispose) => {
+        disposers.push(dispose);
+      },
+      finish: vi.fn(),
+      cancel: vi.fn(),
     };
     playArrival(session, {} as HTMLElement, arrivalMotion('tab', true));
     expect(session.finish).not.toHaveBeenCalled();

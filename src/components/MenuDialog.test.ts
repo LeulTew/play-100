@@ -6,11 +6,26 @@ import { defaultFilters } from '../lib/url';
 import type { AppPage } from '../lib/types';
 import type { MyGamesTab } from '../lib/my-games-navigation';
 
-function render(onlineAvailable: boolean, creator: boolean, page: AppPage = 'collection', gamesView: MyGamesTab = 'library') {
-  return renderToStaticMarkup(createElement(MenuDialog, {
-    page, gamesView, filters: defaultFilters, onlineAvailable, creator,
-    onNavigate: vi.fn(), onSettings: vi.fn(), onAbout: vi.fn(), onClose: vi.fn(), captureFocusGuard: () => () => true,
-  }));
+function render(
+  onlineAvailable: boolean,
+  creator: boolean,
+  page: AppPage = 'collection',
+  gamesView: MyGamesTab = 'library',
+) {
+  return renderToStaticMarkup(
+    createElement(MenuDialog, {
+      page,
+      gamesView,
+      filters: defaultFilters,
+      onlineAvailable,
+      creator,
+      onNavigate: vi.fn(),
+      onSettings: vi.fn(),
+      onAbout: vi.fn(),
+      onClose: vi.fn(),
+      captureFocusGuard: () => () => true,
+    }),
+  );
 }
 
 describe('Menu visibility and location contract', () => {
@@ -35,9 +50,17 @@ describe('Menu visibility and location contract', () => {
     const html = render(true, false);
     expect(html).toContain('Online sharing</h3>');
     expect(html).toContain('An account is needed to share or compare with friends.');
-    const paths = ['/friends', '/compare', '/community', '/publish', '/friends/sharing', '/friends/sharing/games', '/account'];
-    const positions = paths.map(path => html.indexOf(`href="${path}"`));
-    expect(positions.every(position => position >= 0)).toBe(true);
+    const paths = [
+      '/friends',
+      '/compare',
+      '/community',
+      '/publish',
+      '/friends/sharing',
+      '/friends/sharing/games',
+      '/account',
+    ];
+    const positions = paths.map((path) => html.indexOf(`href="${path}"`));
+    expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     expect(render(false, false)).not.toContain('Online sharing');
   });

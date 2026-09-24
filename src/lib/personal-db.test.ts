@@ -1,8 +1,17 @@
 import { IDBFactory, IDBDatabase as FakeDatabase, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  closePersonalLibrary, commitPersonalAction, DB_NAME, DB_VERSION, loadPersonalLibrary,
-  readOnlineLoadHint, resetPersonalLibrary, restorePersonalLibrary, STATE_KEY, STORE_NAME, subscribePersonalLibrary,
+  closePersonalLibrary,
+  commitPersonalAction,
+  DB_NAME,
+  DB_VERSION,
+  loadPersonalLibrary,
+  readOnlineLoadHint,
+  resetPersonalLibrary,
+  restorePersonalLibrary,
+  STATE_KEY,
+  STORE_NAME,
+  subscribePersonalLibrary,
 } from './personal-db';
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from './personal-types';
@@ -11,16 +20,29 @@ import { motionHintKey } from './motion-hint';
 import { STORAGE_DENIED_MESSAGE } from './storage-notices';
 
 const a: LibraryRecord = {
-  id: 'game-a', title: 'Game A', year: 2007, studio: null, genre: null,
-  source: 'collection', sourceId: 'game-a', sourceUrl: null, collectionRank: 9,
+  id: 'game-a',
+  title: 'Game A',
+  year: 2007,
+  studio: null,
+  genre: null,
+  source: 'collection',
+  sourceId: 'game-a',
+  sourceUrl: null,
+  collectionRank: 9,
 };
 const b: LibraryRecord = { ...a, id: 'game-b', title: 'Game B', sourceId: 'game-b', collectionRank: 2 };
 const c: LibraryRecord = {
-  ...a, id: 'steam:620', title: 'Portal 2', source: 'steam', sourceId: '620', collectionRank: null,
+  ...a,
+  id: 'steam:620',
+  title: 'Portal 2',
+  source: 'steam',
+  sourceId: '620',
+  collectionRank: null,
 };
 const canonical = [a, b];
 const legacy = JSON.stringify({
-  version: 1, motion: 'lite',
+  version: 1,
+  motion: 'lite',
   progress: { [a.id]: { later: true, completed: true }, [b.id]: { later: true, completed: false } },
 });
 let storage: Storage;
@@ -29,11 +51,19 @@ const additionalClients: Array<{ closePersonalLibrary: () => void }> = [];
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
   return {
-    get length() { return values.size; },
+    get length() {
+      return values.size;
+    },
     getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => { values.set(key, value); },
-    removeItem: (key) => { values.delete(key); },
-    clear: () => { values.clear(); },
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
+    removeItem: (key) => {
+      values.delete(key);
+    },
+    clear: () => {
+      values.clear();
+    },
     key: (index) => Array.from(values.keys())[index] ?? null,
   };
 }
@@ -56,9 +86,17 @@ async function stored(write?: { value: unknown }): Promise<unknown> {
     const store = tx.objectStore(STORE_NAME);
     const request = write ? store.put(write.value, STATE_KEY) : store.get(STATE_KEY);
     let value: unknown;
-    request.onsuccess = () => { value = request.result; };
-    tx.oncomplete = () => { connection.close(); resolve(value); };
-    tx.onabort = () => { connection.close(); reject(tx.error); };
+    request.onsuccess = () => {
+      value = request.result;
+    };
+    tx.oncomplete = () => {
+      connection.close();
+      resolve(value);
+    };
+    tx.onabort = () => {
+      connection.close();
+      reject(tx.error);
+    };
   });
 }
 
@@ -102,7 +140,9 @@ describe('atomic catalog ratings', () => {
     const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
     });
-    await expect(commitPersonalAction({ type: 'rate-game', record: c, score: 8 })).rejects.toMatchObject({ name: 'PersonalLibraryQuotaError' });
+    await expect(commitPersonalAction({ type: 'rate-game', record: c, score: 8 })).rejects.toMatchObject({
+      name: 'PersonalLibraryQuotaError',
+    });
     put.mockRestore();
     expect(await stored()).toEqual(before);
   });
@@ -143,7 +183,9 @@ describe('atomic private library removal', () => {
     const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
       throw new DOMException('Storage unavailable', 'QuotaExceededError');
     });
-    await expect(commitPersonalAction({ type: 'remove-records', ids: [a.id, c.id] })).rejects.toMatchObject({ name: 'PersonalLibraryQuotaError' });
+    await expect(commitPersonalAction({ type: 'remove-records', ids: [a.id, c.id] })).rejects.toMatchObject({
+      name: 'PersonalLibraryQuotaError',
+    });
     put.mockRestore();
     expect(await stored()).toEqual(before);
   });
@@ -172,10 +214,22 @@ describe('IndexedDB initialization and migration', () => {
     dense.motion = 'lite';
     for (let index = 0; index < 500; index += 1) {
       const id = `manual:dense-${index}`;
-      dense.records[id] = { ...c, id, source: 'manual', sourceId: `dense-${index}`, title: `Game ${index}`, sourceUrl: null };
+      dense.records[id] = {
+        ...c,
+        id,
+        source: 'manual',
+        sourceId: `dense-${index}`,
+        title: `Game ${index}`,
+        sourceUrl: null,
+      };
       dense.progress[id] = { later: index < 3, completed: index % 3 === 0, played: index % 3 === 0 };
       if (index < 3) dense.queueOrder.unshift(id);
-      dense.ranking.push({ id, score: index % 11, note: `Private opinion ${index}`, manualPosition: index === 0 ? 1 : null });
+      dense.ranking.push({
+        id,
+        score: index % 11,
+        note: `Private opinion ${index}`,
+        manualPosition: index === 0 ? 1 : null,
+      });
     }
     const expected = parsePersonalLibrary(dense);
     await stored({ value: dense });
@@ -184,10 +238,12 @@ describe('IndexedDB initialization and migration', () => {
     const put = vi.spyOn(FakeObjectStore.prototype, 'put');
     const loaded = await loadPersonalLibrary([]);
     expect(loaded).toEqual({ state: expected, notice: null, migrated: false });
-    expect(tx.mock.calls.map(call => call[1])).toEqual(['readonly']);
-    expect(get.mock.calls.map(call => call[0])).toEqual([STATE_KEY]);
+    expect(tx.mock.calls.map((call) => call[1])).toEqual(['readonly']);
+    expect(get.mock.calls.map((call) => call[0])).toEqual([STATE_KEY]);
     expect(put).not.toHaveBeenCalled();
-    tx.mockRestore(); get.mockRestore(); put.mockRestore();
+    tx.mockRestore();
+    get.mockRestore();
+    put.mockRestore();
     expect(await stored()).toEqual(dense);
     const firstRecord = loaded.state.records['manual:dense-0'];
     if (!firstRecord) throw new Error('The dense fixture must retain its first record.');
@@ -202,7 +258,7 @@ describe('IndexedDB initialization and migration', () => {
     const [first, second] = await Promise.all([loadPersonalLibrary(canonical), peer.loadPersonalLibrary(canonical)]);
     expect(first.state).toEqual(second.state);
     expect(first.state.queueOrder).toEqual([b.id, a.id]);
-    expect(put.mock.calls.filter(call => call[1] === STATE_KEY)).toHaveLength(1);
+    expect(put.mock.calls.filter((call) => call[1] === STATE_KEY)).toHaveLength(1);
     expect(await stored()).toEqual(first.state);
     expect(storage.getItem(STORAGE_KEY)).toBeNull();
   });
@@ -210,24 +266,34 @@ describe('IndexedDB initialization and migration', () => {
   it('upgrades a version-one database with version-two rankings without guessing prior drag intent', async () => {
     const connection = await openForTest(1);
     const old = {
-      version: 2, revision: 8, records: { [a.id]: a, [b.id]: b },
+      version: 2,
+      revision: 8,
+      records: { [a.id]: a, [b.id]: b },
       progress: { [a.id]: { later: true, completed: false, played: true } },
-      queueOrder: [a.id], ranking: [
+      queueOrder: [a.id],
+      ranking: [
         { id: a.id, score: 1, note: 'Keep first' },
         { id: b.id, score: 9, note: '' },
-      ], motion: 'lite',
+      ],
+      motion: 'lite',
     };
     await new Promise<void>((resolve, reject) => {
       const tx = connection.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).put(old, STATE_KEY);
-      tx.oncomplete = () => { connection.close(); resolve(); };
+      tx.oncomplete = () => {
+        connection.close();
+        resolve();
+      };
       tx.onabort = () => reject(tx.error);
     });
     const loaded = await loadPersonalLibrary(canonical);
     expect(loaded.migrated).toBe(true);
     expect(loaded.state.version).toBe(3);
     expect(loaded.state.revision).toBe(9);
-    expect(loaded.state.ranking.map((entry) => [entry.id, entry.manualPosition])).toEqual([[a.id, 1], [b.id, 2]]);
+    expect(loaded.state.ranking.map((entry) => [entry.id, entry.manualPosition])).toEqual([
+      [a.id, 1],
+      [b.id, 2],
+    ]);
     expect(loaded.state.progress[a.id]?.played).toBe(true);
     expect(await stored()).toEqual(loaded.state);
     closePersonalLibrary();
@@ -238,8 +304,11 @@ describe('IndexedDB initialization and migration', () => {
 
   it('retains the complete old snapshot when a ranking-version migration cannot commit', async () => {
     const old = {
-      ...emptyPersonalLibrary(), version: 2, revision: 5,
-      records: { [a.id]: a }, ranking: [{ id: a.id, score: 7, note: 'Retain me' }],
+      ...emptyPersonalLibrary(),
+      version: 2,
+      revision: 5,
+      records: { [a.id]: a },
+      ranking: [{ id: a.id, score: 7, note: 'Retain me' }],
     };
     await stored({ value: old });
     const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
@@ -278,9 +347,14 @@ describe('IndexedDB initialization and migration', () => {
     expect((await loadPersonalLibrary(canonical)).migrated).toBe(false);
   });
 
-  it.each(['not json', JSON.stringify({
-    version: 1, motion: 'auto', progress: { unknown: { later: true, completed: false } },
-  })])('preserves unreadable legacy data and never writes a partial migration', async (raw) => {
+  it.each([
+    'not json',
+    JSON.stringify({
+      version: 1,
+      motion: 'auto',
+      progress: { unknown: { later: true, completed: false } },
+    }),
+  ])('preserves unreadable legacy data and never writes a partial migration', async (raw) => {
     storage.setItem(STORAGE_KEY, raw);
     await expect(loadPersonalLibrary(canonical)).rejects.toMatchObject({ name: 'PersonalLibraryMigrationError' });
     expect(storage.getItem(STORAGE_KEY)).toBe(raw);
@@ -300,7 +374,8 @@ describe('IndexedDB initialization and migration', () => {
       throw new DOMException('Denied', 'SecurityError');
     });
     await expect(loadPersonalLibrary(canonical)).rejects.toMatchObject({
-      name: 'PersonalLibraryMigrationError', message: expect.stringContaining('could not be accessed'),
+      name: 'PersonalLibraryMigrationError',
+      message: expect.stringContaining('could not be accessed'),
     });
     expect(await stored()).toBeUndefined();
     get.mockRestore();
@@ -312,7 +387,7 @@ describe('IndexedDB initialization and migration', () => {
     storage.setItem(STORAGE_KEY, 'not json');
     const originalGet = storage.getItem;
     const hintKey = motionHintKey('guest');
-    const get = vi.spyOn(storage, 'getItem').mockImplementation(key => {
+    const get = vi.spyOn(storage, 'getItem').mockImplementation((key) => {
       if (key !== hintKey) throw new Error('Must not read unrelated storage');
       return originalGet(key);
     });
@@ -323,7 +398,9 @@ describe('IndexedDB initialization and migration', () => {
 
   it('keeps a visible warning and valid DB if legacy cleanup fails', async () => {
     storage.setItem(STORAGE_KEY, legacy);
-    vi.spyOn(storage, 'removeItem').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError'); });
+    vi.spyOn(storage, 'removeItem').mockImplementation(() => {
+      throw new DOMException('Denied', 'SecurityError');
+    });
     const result = await loadPersonalLibrary(canonical);
     expect(result.notice).toMatch(/could not be removed/);
     expect(result.migrated).toBe(true);
@@ -351,7 +428,9 @@ describe('IndexedDB initialization and migration', () => {
     storage.setItem(STORAGE_KEY, legacy);
     const originalPut = FakeObjectStore.prototype.put;
     const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (
-      this: IDBObjectStore, value: unknown, key?: IDBValidKey,
+      this: IDBObjectStore,
+      value: unknown,
+      key?: IDBValidKey,
     ) {
       const request = originalPut.call(this, value, key);
       this.transaction.abort();
@@ -376,7 +455,9 @@ describe('IndexedDB initialization and migration', () => {
 describe('transactional actions and replacements', () => {
   it('refuses to commit before initialization can safely consider legacy data', async () => {
     storage.setItem(STORAGE_KEY, legacy);
-    await expect(commitPersonalAction({ type: 'add-ranking', records: [c] })).rejects.toThrow(/Load your device library/);
+    await expect(commitPersonalAction({ type: 'add-ranking', records: [c] })).rejects.toThrow(
+      /Load your device library/,
+    );
     expect(await stored()).toBeUndefined();
     expect(storage.getItem(STORAGE_KEY)).toBe(legacy);
   });
@@ -386,12 +467,18 @@ describe('transactional actions and replacements', () => {
     const originalPut = FakeObjectStore.prototype.put;
     let completed = false;
     vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (
-      this: IDBObjectStore, value: unknown, key?: IDBValidKey,
+      this: IDBObjectStore,
+      value: unknown,
+      key?: IDBValidKey,
     ) {
-      this.transaction.addEventListener('complete', () => { completed = true; });
+      this.transaction.addEventListener('complete', () => {
+        completed = true;
+      });
       return originalPut.call(this, value, key);
     });
-    const listener = vi.fn(() => { expect(completed).toBe(true); });
+    const listener = vi.fn(() => {
+      expect(completed).toBe(true);
+    });
     const unsubscribe = subscribePersonalLibrary(listener);
     const state = await commitPersonalAction({ type: 'set-progress', records: [a, b], key: 'completed', value: true });
     expect(completed).toBe(true);
@@ -407,12 +494,20 @@ describe('transactional actions and replacements', () => {
     await loadPersonalLibrary(canonical);
     const other = await secondClient();
     const records = Array.from({ length: 8 }, (_, index): LibraryRecord => ({
-      ...c, id: `steam:${index + 1}`, sourceId: String(index + 1),
+      ...c,
+      id: `steam:${index + 1}`,
+      sourceId: String(index + 1),
     }));
-    const saved = await Promise.all(records.map((record, index) =>
-      (index % 2 ? other.commitPersonalAction : commitPersonalAction)({
-        type: 'set-progress', records: [record], key: 'later', value: true,
-      })));
+    const saved = await Promise.all(
+      records.map((record, index) =>
+        (index % 2 ? other.commitPersonalAction : commitPersonalAction)({
+          type: 'set-progress',
+          records: [record],
+          key: 'later',
+          value: true,
+        }),
+      ),
+    );
     const state = parsePersonalLibrary(await stored());
     expect(state.revision).toBe(8);
     expect(state.queueOrder).toHaveLength(8);
@@ -420,20 +515,27 @@ describe('transactional actions and replacements', () => {
     expect(new Set(saved.map((state) => state.revision)).size).toBe(8);
   });
 
-  it.each(['queue', 'ranking'] as const)('preserves another tab append when applying a stale %s drag intent', async (list) => {
-    await loadPersonalLibrary(canonical);
-    await commitPersonalAction(list === 'queue'
-      ? { type: 'set-progress', records: [a, b], key: 'later', value: true }
-      : { type: 'add-ranking', records: [a, b] });
-    const action: PersonalAction = { type: 'move-item', list, id: a.id, overId: b.id };
-    const other = await secondClient();
-    await other.commitPersonalAction(list === 'queue'
-      ? { type: 'set-progress', records: [c], key: 'later', value: true }
-      : { type: 'add-ranking', records: [c] });
-    const state = await commitPersonalAction(action);
-    expect(list === 'queue' ? state.queueOrder : state.ranking.map((item) => item.id)).toEqual([b.id, a.id, c.id]);
-    expect(state.revision).toBe(3);
-  });
+  it.each(['queue', 'ranking'] as const)(
+    'preserves another tab append when applying a stale %s drag intent',
+    async (list) => {
+      await loadPersonalLibrary(canonical);
+      await commitPersonalAction(
+        list === 'queue'
+          ? { type: 'set-progress', records: [a, b], key: 'later', value: true }
+          : { type: 'add-ranking', records: [a, b] },
+      );
+      const action: PersonalAction = { type: 'move-item', list, id: a.id, overId: b.id };
+      const other = await secondClient();
+      await other.commitPersonalAction(
+        list === 'queue'
+          ? { type: 'set-progress', records: [c], key: 'later', value: true }
+          : { type: 'add-ranking', records: [c] },
+      );
+      const state = await commitPersonalAction(action);
+      expect(list === 'queue' ? state.queueOrder : state.ranking.map((item) => item.id)).toEqual([b.id, a.id, c.id]);
+      expect(state.revision).toBe(3);
+    },
+  );
 
   it('aborts an invalid action without saving or publishing', async () => {
     const before = (await loadPersonalLibrary(canonical)).state;
@@ -450,13 +552,17 @@ describe('transactional actions and replacements', () => {
     subscribePersonalLibrary(listener);
     const originalPut = FakeObjectStore.prototype.put;
     const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (
-      this: IDBObjectStore, value: unknown, key?: IDBValidKey,
+      this: IDBObjectStore,
+      value: unknown,
+      key?: IDBValidKey,
     ) {
       const request = originalPut.call(this, value, key);
       this.transaction.abort();
       return request;
     });
-    await expect(commitPersonalAction({ type: 'add-ranking', records: [c] })).rejects.toThrow(/No pending changes were saved/);
+    await expect(commitPersonalAction({ type: 'add-ranking', records: [c] })).rejects.toThrow(
+      /No pending changes were saved/,
+    );
     put.mockRestore();
     expect(await stored()).toEqual(before);
     expect(listener).not.toHaveBeenCalled();
@@ -468,7 +574,8 @@ describe('transactional actions and replacements', () => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
     });
     await expect(commitPersonalAction({ type: 'add-ranking', records: [c] })).rejects.toMatchObject({
-      name: 'PersonalLibraryQuotaError', message: expect.stringContaining('Device storage is full'),
+      name: 'PersonalLibraryQuotaError',
+      message: expect.stringContaining('Device storage is full'),
     });
     put.mockRestore();
     expect(await stored()).toEqual(before);
@@ -478,11 +585,17 @@ describe('transactional actions and replacements', () => {
     await loadPersonalLibrary(canonical);
     const before = await commitPersonalAction({ type: 'add-ranking', records: [a] });
     const put = vi.spyOn(FakeObjectStore.prototype, 'put');
-    const invalid: PersonalLibraryState = { ...before, ranking: [{ id: 'missing', score: null, note: '', manualPosition: null }] };
+    const invalid: PersonalLibraryState = {
+      ...before,
+      ranking: [{ id: 'missing', score: null, note: '', manualPosition: null }],
+    };
     await expect(restorePersonalLibrary(invalid)).rejects.toThrow(/missing game/);
     expect(put).not.toHaveBeenCalled();
     expect(await stored()).toEqual(before);
-    const backup = { ...applyPersonalAction(emptyPersonalLibrary(), { type: 'add-ranking', records: [c] }), revision: 100 };
+    const backup = {
+      ...applyPersonalAction(emptyPersonalLibrary(), { type: 'add-ranking', records: [c] }),
+      revision: 100,
+    };
     const restored = await restorePersonalLibrary(backup);
     expect(restored.ranking.map((item) => item.id)).toEqual([c.id]);
     expect(restored.revision).toBe(2);
@@ -495,7 +608,9 @@ describe('transactional actions and replacements', () => {
     const before = await commitPersonalAction({ type: 'add-ranking', records: [a] });
     const originalPut = FakeObjectStore.prototype.put;
     const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(function (
-      this: IDBObjectStore, value: unknown, key?: IDBValidKey,
+      this: IDBObjectStore,
+      value: unknown,
+      key?: IDBValidKey,
     ) {
       const request = originalPut.call(this, value, key);
       this.transaction.abort();
@@ -532,7 +647,9 @@ describe('transactional actions and replacements', () => {
     await loadPersonalLibrary(canonical);
     await commitPersonalAction({ type: 'add-ranking', records: [c] });
     storage.setItem(STORAGE_KEY, legacy);
-    vi.spyOn(storage, 'removeItem').mockImplementation(() => { throw new Error('Denied'); });
+    vi.spyOn(storage, 'removeItem').mockImplementation(() => {
+      throw new Error('Denied');
+    });
     const result = await resetPersonalLibrary();
     expect(result.state.records).toEqual({});
     expect(result.state.revision).toBe(2);
@@ -555,18 +672,24 @@ describe('transactional actions and replacements', () => {
 });
 
 describe('connection lifecycle and local notifications', () => {
-  it.each(['SecurityError', 'NotAllowedError'])('reports the same %s denial for library and account hints without clearing legacy data', async name => {
-    storage.setItem(STORAGE_KEY, legacy);
-    const cause = new DOMException('Denied', name);
-    vi.spyOn(indexedDB, 'open').mockImplementation(() => { throw cause; });
-    const results = await Promise.allSettled([loadPersonalLibrary(canonical), readOnlineLoadHint('demo-play100')]);
-    for (const result of results) {
-      expect(result).toMatchObject({
-        status: 'rejected', reason: { name: 'PersonalLibraryStorageError', message: STORAGE_DENIED_MESSAGE, cause },
+  it.each(['SecurityError', 'NotAllowedError'])(
+    'reports the same %s denial for library and account hints without clearing legacy data',
+    async (name) => {
+      storage.setItem(STORAGE_KEY, legacy);
+      const cause = new DOMException('Denied', name);
+      vi.spyOn(indexedDB, 'open').mockImplementation(() => {
+        throw cause;
       });
-    }
-    expect(storage.getItem(STORAGE_KEY)).toBe(legacy);
-  });
+      const results = await Promise.allSettled([loadPersonalLibrary(canonical), readOnlineLoadHint('demo-play100')]);
+      for (const result of results) {
+        expect(result).toMatchObject({
+          status: 'rejected',
+          reason: { name: 'PersonalLibraryStorageError', message: STORAGE_DENIED_MESSAGE, cause },
+        });
+      }
+      expect(storage.getItem(STORAGE_KEY)).toBe(legacy);
+    },
+  );
 
   it('reports unavailable IndexedDB rather than silently falling back to memory', async () => {
     vi.stubGlobal('indexedDB', undefined);
@@ -583,7 +706,9 @@ describe('connection lifecycle and local notifications', () => {
   it('bounds a blocked open to five seconds instead of hanging indefinitely', async () => {
     const blocker = await openForTest();
     const deletion = indexedDB.deleteDatabase(DB_NAME);
-    await new Promise<void>((resolve) => { deletion.onblocked = () => resolve(); });
+    await new Promise<void>((resolve) => {
+      deletion.onblocked = () => resolve();
+    });
     try {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       const pending = loadPersonalLibrary(canonical);
@@ -606,7 +731,9 @@ describe('connection lifecycle and local notifications', () => {
     const constructor = vi.fn();
     vi.stubGlobal('BroadcastChannel', constructor);
     await loadPersonalLibrary(canonical);
-    subscribePersonalLibrary(() => { throw new Error('Subscriber failure'); });
+    subscribePersonalLibrary(() => {
+      throw new Error('Subscriber failure');
+    });
     const state = await commitPersonalAction({ type: 'set-motion', motion: 'lite' });
     expect(state.motion).toBe('lite');
     expect(constructor).not.toHaveBeenCalled();
@@ -619,7 +746,12 @@ describe('connection lifecycle and local notifications', () => {
       postMessage: (value: unknown) => void;
       close: () => void;
     } = { onmessage: null, postMessage: vi.fn(), close: vi.fn() };
-    vi.stubGlobal('BroadcastChannel', vi.fn(function () { return channel; }));
+    vi.stubGlobal(
+      'BroadcastChannel',
+      vi.fn(function () {
+        return channel;
+      }),
+    );
     await loadPersonalLibrary(canonical);
     const listener = vi.fn();
     subscribePersonalLibrary(listener);

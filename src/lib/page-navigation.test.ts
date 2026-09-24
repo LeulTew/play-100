@@ -23,14 +23,21 @@ describe('shared page destinations for navigation and real Menu hrefs', () => {
   });
 
   it('keeps the public catalog opt-out without carrying private filters or game context', () => {
-    const { filters } = parseUrl('?catalogs=off&list=completed&progress=played&q=private&game=mass-effect-2&participants=peer&token=capability');
+    const { filters } = parseUrl(
+      '?catalogs=off&list=completed&progress=played&q=private&game=mass-effect-2&participants=peer&token=capability',
+    );
     expect(pageDestination('discover', filters)).toEqual({ path: '/discover', search: '?catalogs=off' });
     expect(pageDestination('rankings', filters)).toEqual({ path: '/my-games', search: '?catalogs=off&tab=ranking' });
-    expect(pageDestination('games', filters, { list: 'later' })).toEqual({ path: '/my-games', search: '?catalogs=off&tab=queue' });
+    expect(pageDestination('games', filters, { list: 'later' })).toEqual({
+      path: '/my-games',
+      search: '?catalogs=off&tab=queue',
+    });
   });
 
   it('retains explicit legacy progress patches used by existing callers', () => {
-    expect(pageDestination('library', defaultFilters, { list: 'completed' }))
-      .toEqual({ path: '/my-games', search: '?list=completed' });
+    expect(pageDestination('library', defaultFilters, { list: 'completed' })).toEqual({
+      path: '/my-games',
+      search: '?list=completed',
+    });
   });
 });

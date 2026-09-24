@@ -28,13 +28,16 @@ export function useCapabilities(preference: MotionPreference) {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const pointer = window.matchMedia('(pointer: coarse)');
     const connection = (navigator as HintedNavigator).connection;
-    const update = () => setCapabilities(previous => {
-      const next = readCapabilities();
-      return previous.reducedMotion === next.reducedMotion &&
-        previous.coarsePointer === next.coarsePointer &&
-        previous.hidden === next.hidden &&
-        previous.constrained === next.constrained ? previous : next;
-    });
+    const update = () =>
+      setCapabilities((previous) => {
+        const next = readCapabilities();
+        return previous.reducedMotion === next.reducedMotion &&
+          previous.coarsePointer === next.coarsePointer &&
+          previous.hidden === next.hidden &&
+          previous.constrained === next.constrained
+          ? previous
+          : next;
+      });
     reduced.addEventListener('change', update);
     pointer.addEventListener('change', update);
     document.addEventListener('visibilitychange', update);
@@ -48,7 +51,10 @@ export function useCapabilities(preference: MotionPreference) {
       connection?.removeEventListener('change', update);
     };
   }, []);
-  const animate = !capabilities.reducedMotion && !capabilities.hidden && preference !== 'lite' &&
+  const animate =
+    !capabilities.reducedMotion &&
+    !capabilities.hidden &&
+    preference !== 'lite' &&
     (preference === 'full' || !capabilities.constrained);
   useEffect(() => {
     document.documentElement.dataset.motion = animate ? 'on' : 'off';

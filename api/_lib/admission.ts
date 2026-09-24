@@ -19,7 +19,10 @@ export function createAdmission(limits: AdmissionLimits, now: () => number = () 
     acquire() {
       const time = now();
       // A clock that moved backwards also starts a new window instead of refusing until it catches up.
-      if (time - windowStart >= limits.windowMs || time < windowStart) { windowStart = time; admitted = 0; }
+      if (time - windowStart >= limits.windowMs || time < windowStart) {
+        windowStart = time;
+        admitted = 0;
+      }
       if (active >= limits.maxActive || admitted >= limits.maxPerWindow) return null;
       admitted += 1;
       active += 1;

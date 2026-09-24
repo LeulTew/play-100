@@ -27,21 +27,28 @@ test.beforeEach(async ({ page, baseURL }) => {
   });
 });
 
-test('landing does not request the disclosure body; direct data-use keeps its shell and focus while it loads', async ({ page }) => {
+test('landing does not request the disclosure body; direct data-use keeps its shell and focus while it loads', async ({
+  page,
+}) => {
   const modules: string[] = [];
   const dataRequests: string[] = [];
-  page.on('request', request => {
+  page.on('request', (request) => {
     if (bodyModule.test(request.url())) modules.push(request.url());
   });
   await page.goto('/?catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
-  await page.evaluate(() => new Promise<void>(resolve => requestIdleCallback(() => resolve())));
+  await page.evaluate(() => new Promise<void>((resolve) => requestIdleCallback(() => resolve())));
   expect(modules).toEqual([]);
 
   let release = () => {};
-  const gate = new Promise<void>(resolve => { release = resolve; });
-  await page.route(bodyModule, async route => { await gate; await route.continue(); });
-  page.on('request', request => {
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(bodyModule, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  page.on('request', (request) => {
     if (/\/(?:api\/|data\/)|googleapis\.com|firebaseio\.com/.test(request.url())) dataRequests.push(request.url());
   });
   try {
@@ -49,7 +56,9 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
     await expect(page).toHaveTitle('Data use | Play 100');
     await expect(page.getByRole('heading', { name: 'Data use', exact: true })).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('Loading data-use details…');
-    await expect(page.getByText('Device storage, account saving and public sharing are separate choices.', { exact: false })).toBeVisible();
+    await expect(
+      page.getByText('Device storage, account saving and public sharing are separate choices.', { exact: false }),
+    ).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Skip to data use', exact: true })).toBeFocused();
     const home = page.locator('.wordmark');
@@ -57,7 +66,7 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => {
       window.dataUseLayoutShift = 0;
-      window.dataUseShiftObserver = new PerformanceObserver(list => {
+      window.dataUseShiftObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if ('value' in entry && typeof entry.value === 'number') window.dataUseLayoutShift += entry.value;
         }
@@ -71,28 +80,40 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
     await expect(page.getByRole('status')).toHaveCount(0);
     await expect(home).toBeFocused();
     expect(await heading.boundingBox()).toEqual(before);
-    const shift = await page.evaluate(() => new Promise<number>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => {
-      window.dataUseShiftObserver.disconnect();
-      resolve(window.dataUseLayoutShift);
-    }))));
+    const shift = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              window.dataUseShiftObserver.disconnect();
+              resolve(window.dataUseLayoutShift);
+            }),
+          ),
+        ),
+    );
     expect(shift).toBe(0);
     await expect(page.getByRole('heading', { name: 'Services and essential storage', exact: true })).toBeAttached();
     expect(modules).toHaveLength(1);
     const publicCollectionPreload = new URL('/data/collection.json', page.url()).href;
-    expect(dataRequests.filter(url => url !== publicCollectionPreload)).toEqual([]);
+    expect(dataRequests.filter((url) => url !== publicCollectionPreload)).toEqual([]);
     expect(dataRequests.length).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
-    expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0);
-  } finally { release(); }
+    expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then((items) => items.length))).toBe(0);
+  } finally {
+    release();
+  }
 });
 
-test('failed disclosure code keeps its public shell and restores all details only after explicit reload', async ({ page }) => {
+test('failed disclosure code keeps its public shell and restores all details only after explicit reload', async ({
+  page,
+}) => {
   let modules = 0;
   const dataRequests: string[] = [];
-  page.on('request', request => {
-    if (/\/(?:api\/|data\/)|googleapis\.com|firebaseio\.com|\/sw\.js/.test(request.url())) dataRequests.push(request.url());
+  page.on('request', (request) => {
+    if (/\/(?:api\/|data\/)|googleapis\.com|firebaseio\.com|\/sw\.js/.test(request.url()))
+      dataRequests.push(request.url());
   });
-  await page.route(bodyModule, route => ++modules === 1 ? route.abort('failed') : route.continue());
+  await page.route(bodyModule, (route) => (++modules === 1 ? route.abort('failed') : route.continue()));
   await page.goto('/data-use');
   await expect(page.locator('.site-header')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Data use', exact: true })).toBeVisible();
@@ -100,29 +121,36 @@ test('failed disclosure code keeps its public shell and restores all details onl
   await expect(page.locator('.app-error')).toHaveCount(0);
   await expect(page.locator('#data-use h2')).toHaveCount(0);
   expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
-  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0);
+  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then((items) => items.length))).toBe(0);
   expect(modules).toBe(1);
-  await page.route('**/*', route => route.request().method() === 'HEAD'
-    ? route.fulfill({ status: 200 }) : route.fallback());
+  await page.route('**/*', (route) =>
+    route.request().method() === 'HEAD' ? route.fulfill({ status: 200 }) : route.fallback(),
+  );
   await Promise.all([
-    page.waitForEvent('framenavigated', frame => frame === page.mainFrame()),
+    page.waitForEvent('framenavigated', (frame) => frame === page.mainFrame()),
     page.getByRole('button', { name: 'Reload this page', exact: true }).click(),
   ]);
   await expect(page.locator('#data-use h2')).toHaveCount(9);
   await expect(page.locator('.site-header')).toBeVisible();
   expect(modules).toBe(2);
   expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
-  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0);
+  expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then((items) => items.length))).toBe(0);
   const publicCollectionPreload = new URL('/data/collection.json', page.url()).href;
-  expect(dataRequests.filter(url => url !== publicCollectionPreload)).toEqual([]);
+  expect(dataRequests.filter((url) => url !== publicCollectionPreload)).toEqual([]);
   expect(dataRequests.length).toBeLessThanOrEqual(2);
 });
 
-test('explicit offline preparation retains the unvisited disclosure body in the public core', async ({ page, context }) => {
+test('explicit offline preparation retains the unvisited disclosure body in the public core', async ({
+  page,
+  context,
+}) => {
   test.setTimeout(90000);
   await page.goto('/?catalogs=off');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('button', { name: 'Install & offline access', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Menu', exact: true })
+    .getByRole('button', { name: 'Install & offline access', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Enable offline access', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Offline files ready', exact: true })).toBeVisible({ timeout: 60000 });
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
@@ -144,5 +172,7 @@ test('explicit offline preparation retains the unvisited disclosure body in the 
     expect(cached).toHaveLength(1);
     expect(cached[0]).toContain('Device-only libraries');
     expect(cached[0]).toContain('Services and essential storage');
-  } finally { await context.setOffline(false); }
+  } finally {
+    await context.setOffline(false);
+  }
 });

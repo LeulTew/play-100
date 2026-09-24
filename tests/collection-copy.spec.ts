@@ -4,19 +4,25 @@ import { installGuestLibrary, libraryFixture } from './library-pagination-helper
 import { readLibrary } from './library-helpers';
 
 const additions: LibraryRecord[] = Array.from({ length: 4 }, (_, index) => ({
-  id: `manual:copy-${index}`, source: 'manual', sourceId: `copy-${index}`,
+  id: `manual:copy-${index}`,
+  source: 'manual',
+  sourceId: `copy-${index}`,
   title: `Red Dead Redemption 2 custom entry ${index + 1}`,
-  year: null, studio: null, genre: null, collectionRank: null, sourceUrl: null,
+  year: null,
+  studio: null,
+  genre: null,
+  collectionRank: null,
+  sourceUrl: null,
 }));
 
 for (const width of [320, 393, 768, 1440]) {
   test(`collection scope, native filter names and list semantics at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.route('**/api/catalog?**', route => route.abort('blockedbyclient'));
+    await page.route('**/api/catalog?**', (route) => route.abort('blockedbyclient'));
     await installGuestLibrary(page, {
       ...libraryFixture(0),
-      records: Object.fromEntries(additions.map(record => [record.id, record])),
+      records: Object.fromEntries(additions.map((record) => [record.id, record])),
     });
     const before = await readLibrary(page);
     for (const view of ['grid', 'list', 'table']) {

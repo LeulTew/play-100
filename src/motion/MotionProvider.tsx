@@ -7,16 +7,25 @@ export function MotionProvider({ policy, boundary, location, children }: MotionP
   const snapshot = useRef<MotionSnapshot>({ policy, boundary, location });
   snapshot.current = { policy, boundary, location };
   const host = useRef<HTMLDivElement>(null);
-  const [controller] = useState(() => createMotionRuntime(() => snapshot.current, () => host.current));
+  const [controller] = useState(() =>
+    createMotionRuntime(
+      () => snapshot.current,
+      () => host.current,
+    ),
+  );
   useLayoutEffect(() => {
     controller.mount();
     return () => controller.dispose();
   }, [controller]);
-  useLayoutEffect(() => { controller.update(); });
-  return <MotionControllerContext.Provider value={controller}>
-    <MotionPolicyContext.Provider value={policy}>
-      {children}
-      <div ref={host} className="motion-return-host" data-motion-host="root" aria-hidden="true" inert />
-    </MotionPolicyContext.Provider>
-  </MotionControllerContext.Provider>;
+  useLayoutEffect(() => {
+    controller.update();
+  });
+  return (
+    <MotionControllerContext.Provider value={controller}>
+      <MotionPolicyContext.Provider value={policy}>
+        {children}
+        <div ref={host} className="motion-return-host" data-motion-host="root" aria-hidden="true" inert />
+      </MotionPolicyContext.Provider>
+    </MotionControllerContext.Provider>
+  );
 }

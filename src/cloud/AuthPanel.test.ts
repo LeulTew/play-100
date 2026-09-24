@@ -3,24 +3,31 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthPanel } from './AuthPanel';
 
-vi.mock('react', async importOriginal => {
+vi.mock('react', async (importOriginal) => {
   const react = await importOriginal<typeof import('react')>();
   return { ...react, useState: vi.fn(react.useState) };
 });
 
-afterEach(() => { vi.mocked(useState).mockReset(); });
+afterEach(() => {
+  vi.mocked(useState).mockReset();
+});
 
 function render(purpose?: 'compare', busy = false) {
   const props = {
-    busy, error: '', message: '', purpose,
-    onGoogle: vi.fn(async () => true), onEmail: vi.fn(async () => true),
-    onReset: vi.fn(async () => true), onDevice: vi.fn(),
+    busy,
+    error: '',
+    message: '',
+    purpose,
+    onGoogle: vi.fn(async () => true),
+    onEmail: vi.fn(async () => true),
+    onReset: vi.fn(async () => true),
+    onDevice: vi.fn(),
   };
   return { html: renderToStaticMarkup(createElement(AuthPanel, props)), props };
 }
 
 describe('AuthPanel purpose', () => {
-  it.each([false, true])('uses exact progress copy with email mode %s', emailMode => {
+  it.each([false, true])('uses exact progress copy with email mode %s', (emailMode) => {
     // Select the email-mode state for this static render without changing the component API.
     vi.mocked(useState).mockReturnValueOnce([emailMode, vi.fn()]);
     const { html } = render(undefined, true);

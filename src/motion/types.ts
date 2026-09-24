@@ -3,8 +3,17 @@ import type { useCapabilities } from '../hooks/useCapabilities';
 
 export type MotionPolicy = Readonly<ReturnType<typeof useCapabilities>>;
 export type MotionCancelReason =
-  | 'scope' | 'authority' | 'navigation' | 'hidden' | 'policy'
-  | 'resize' | 'scroll' | 'modal' | 'drag' | 'superseded' | 'unmount';
+  | 'scope'
+  | 'authority'
+  | 'navigation'
+  | 'hidden'
+  | 'policy'
+  | 'resize'
+  | 'scroll'
+  | 'modal'
+  | 'drag'
+  | 'superseded'
+  | 'unmount';
 
 export interface MotionGuard {
   isCurrent(): boolean;

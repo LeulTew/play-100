@@ -1,4 +1,9 @@
-import { applyPersonalAction, emptyPersonalLibrary, migrateLegacyLibrary, parsePersonalLibrary } from './personal-library';
+import {
+  applyPersonalAction,
+  emptyPersonalLibrary,
+  migrateLegacyLibrary,
+  parsePersonalLibrary,
+} from './personal-library';
 import type { LibraryRecord, PersonalAction, PersonalLibraryLoad, PersonalLibraryState } from './personal-types';
 import { STORAGE_KEY } from './storage';
 import { rememberMotionHint } from './motion-hint';
@@ -29,15 +34,27 @@ function storageError(cause: unknown): Error {
   if (cause instanceof Error && cause.name.startsWith('PersonalLibrary')) return cause;
   const name = cause instanceof Error ? cause.name : '';
   if (name === 'QuotaExceededError') {
-    return namedError('PersonalLibraryQuotaError', 'Device storage is full. Your changes were not saved. Free some space and try again.', cause);
+    return namedError(
+      'PersonalLibraryQuotaError',
+      'Device storage is full. Your changes were not saved. Free some space and try again.',
+      cause,
+    );
   }
   if (name === 'SecurityError' || name === 'NotAllowedError') {
     return namedError('PersonalLibraryStorageError', STORAGE_DENIED_MESSAGE, cause);
   }
   if (name === 'VersionError') {
-    return namedError('PersonalLibraryVersionError', 'A newer version of Play 100 is using this device library. Reload your Play 100 tabs before trying again. Your data has not been overwritten.', cause);
+    return namedError(
+      'PersonalLibraryVersionError',
+      'A newer version of Play 100 is using this device library. Reload your Play 100 tabs before trying again. Your data has not been overwritten.',
+      cause,
+    );
   }
-  return namedError('PersonalLibraryStorageError', 'Your device library could not be opened or saved. No pending changes were saved. Check storage permissions and retry.', cause);
+  return namedError(
+    'PersonalLibraryStorageError',
+    'Your device library could not be opened or saved. No pending changes were saved. Check storage permissions and retry.',
+    cause,
+  );
 }
 
 function notifyListeners(scope?: string): void {
@@ -92,14 +109,23 @@ function openDatabase(): Promise<IDBDatabase> {
       clearTimeout(timer);
       reject(error);
     };
-    cancelOpening = () => fail(namedError('PersonalLibraryStorageError', 'The device library connection was closed. Retry to reconnect.'));
+    cancelOpening = () =>
+      fail(namedError('PersonalLibraryStorageError', 'The device library connection was closed. Retry to reconnect.'));
     const timer = setTimeout(() => {
-      fail(namedError('PersonalLibraryBlockedError', 'The device library is blocked or is not responding. Close other Play 100 tabs, then retry. Your saved data has not been overwritten.'));
+      fail(
+        namedError(
+          'PersonalLibraryBlockedError',
+          'The device library is blocked or is not responding. Close other Play 100 tabs, then retry. Your saved data has not been overwritten.',
+        ),
+      );
     }, 5_000);
     let request: IDBOpenDBRequest;
     try {
       if (typeof indexedDB === 'undefined') {
-        throw namedError('PersonalLibraryStorageError', 'IndexedDB is unavailable. This browser cannot durably save your library. Enable device storage or use a supported browser.');
+        throw namedError(
+          'PersonalLibraryStorageError',
+          'IndexedDB is unavailable. This browser cannot durably save your library. Enable device storage or use a supported browser.',
+        );
       }
       request = indexedDB.open(DB_NAME, DB_VERSION);
     } catch (cause) {
@@ -151,7 +177,11 @@ function openDatabase(): Promise<IDBDatabase> {
   return pending;
 }
 
-async function transaction<T>(work: (current: unknown, store: IDBObjectStore) => T, key = STATE_KEY, mode: IDBTransactionMode = 'readwrite'): Promise<T> {
+async function transaction<T>(
+  work: (current: unknown, store: IDBObjectStore) => T,
+  key = STATE_KEY,
+  mode: IDBTransactionMode = 'readwrite',
+): Promise<T> {
   const connection = await openDatabase();
   return new Promise<T>((resolve, reject) => {
     let tx: IDBTransaction;
@@ -179,7 +209,9 @@ async function transaction<T>(work: (current: unknown, store: IDBObjectStore) =>
     try {
       const store = tx.objectStore(STORE_NAME);
       const request = store.get(key);
-      request.onerror = () => { failure = request.error; };
+      request.onerror = () => {
+        failure = request.error;
+      };
       request.onsuccess = () => {
         try {
           const current: unknown = request.result;
@@ -219,10 +251,18 @@ function removeLegacy(expectedRaw?: string): string | null {
 }
 
 export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Promise<PersonalLibraryLoad> {
-  const existing = await transaction((current) => {
-    if (current === undefined || typeof current === 'object' && current !== null && 'version' in current && current.version === 2) return null;
-    return parsePersonalLibrary(current);
-  }, STATE_KEY, 'readonly');
+  const existing = await transaction(
+    (current) => {
+      if (
+        current === undefined ||
+        (typeof current === 'object' && current !== null && 'version' in current && current.version === 2)
+      )
+        return null;
+      return parsePersonalLibrary(current);
+    },
+    STATE_KEY,
+    'readonly',
+  );
   if (existing) {
     rememberMotionHint('guest', existing.motion);
     return { state: existing, notice: legacyNotice, migrated: false };
@@ -259,7 +299,10 @@ export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Pr
 export async function commitPersonalAction(action: PersonalAction): Promise<PersonalLibraryState> {
   const state = await transaction((current, store) => {
     if (current === undefined) {
-      throw namedError('PersonalLibraryStorageError', 'Load your device library before making changes, so previous saved data can be migrated safely.');
+      throw namedError(
+        'PersonalLibraryStorageError',
+        'Load your device library before making changes, so previous saved data can be migrated safely.',
+      );
     }
     const updated = applyPersonalAction(current, action);
     store.put(updated, STATE_KEY);
@@ -272,9 +315,14 @@ export async function commitPersonalAction(action: PersonalAction): Promise<Pers
 
 function replacementRevision(current: unknown): number {
   if (
-    typeof current === 'object' && current !== null && Object.hasOwn(current, 'revision') &&
-    'revision' in current && typeof current.revision === 'number' &&
-    Number.isSafeInteger(current.revision) && current.revision >= 0 && current.revision < Number.MAX_SAFE_INTEGER
+    typeof current === 'object' &&
+    current !== null &&
+    Object.hasOwn(current, 'revision') &&
+    'revision' in current &&
+    typeof current.revision === 'number' &&
+    Number.isSafeInteger(current.revision) &&
+    current.revision >= 0 &&
+    current.revision < Number.MAX_SAFE_INTEGER
   ) {
     return current.revision + 1;
   }
@@ -310,37 +358,59 @@ export function subscribePersonalLibrary(listener: () => void, scope = 'guest'):
   const entry = { scope, listener };
   listeners.add(entry);
   getChannel();
-  return () => { listeners.delete(entry); };
+  return () => {
+    listeners.delete(entry);
+  };
 }
 
-export function accountStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
+export function accountStorageTransaction<T>(
+  scope: string,
+  work: (current: unknown, store: IDBObjectStore) => T,
+): Promise<T> {
   if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) {
-    return Promise.reject(namedError('PersonalLibraryValidationError', 'The requested account storage scope is invalid.'));
+    return Promise.reject(
+      namedError('PersonalLibraryValidationError', 'The requested account storage scope is invalid.'),
+    );
   }
   return transaction(work, scope);
 }
 
-export function friendSelectionStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
-  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) return Promise.reject(namedError('PersonalLibraryValidationError', 'The friends selection scope is invalid.'));
+export function friendSelectionStorageTransaction<T>(
+  scope: string,
+  work: (current: unknown, store: IDBObjectStore) => T,
+): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope))
+    return Promise.reject(namedError('PersonalLibraryValidationError', 'The friends selection scope is invalid.'));
   return transaction(work, `friends-selection:v1:${scope}`);
 }
 
-export function friendShelfSelectionStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
-  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) return Promise.reject(namedError('PersonalLibraryValidationError', 'The shared games selection scope is invalid.'));
+export function friendShelfSelectionStorageTransaction<T>(
+  scope: string,
+  work: (current: unknown, store: IDBObjectStore) => T,
+): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope))
+    return Promise.reject(namedError('PersonalLibraryValidationError', 'The shared games selection scope is invalid.'));
   return transaction(work, `friends-shelf-selection:v1:${scope}`);
 }
 
-export function friendAllWorkStorageTransaction<T>(scope: string, work: (current: unknown, store: IDBObjectStore) => T): Promise<T> {
-  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) return Promise.reject(namedError('PersonalLibraryValidationError', 'The automatic sharing scope is invalid.'));
+export function friendAllWorkStorageTransaction<T>(
+  scope: string,
+  work: (current: unknown, store: IDBObjectStore) => T,
+): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope))
+    return Promise.reject(namedError('PersonalLibraryValidationError', 'The automatic sharing scope is invalid.'));
   return transaction(work, `friends-all-work:v2:${scope}`);
 }
 
 export function saveOnlineLoadHint(requested: boolean): Promise<void> {
-  return transaction((_, store) => { store.put({ version: 1, requested }, ONLINE_HINT_KEY); }, ONLINE_HINT_KEY);
+  return transaction((_, store) => {
+    store.put({ version: 1, requested }, ONLINE_HINT_KEY);
+  }, ONLINE_HINT_KEY);
 }
 
 export async function readOnlineLoadHint(project: string): Promise<boolean> {
-  if (!/^(play100-online-48823b32|demo-play100)$/.test(project)) throw namedError('PersonalLibraryValidationError', 'Unknown online account project.');
+  if (!/^(play100-online-48823b32|demo-play100)$/.test(project))
+    throw namedError('PersonalLibraryValidationError', 'Unknown online account project.');
   const connection = await openDatabase();
   return new Promise<boolean>((resolve, reject) => {
     const tx = connection.transaction(STORE_NAME, 'readonly');
@@ -355,16 +425,32 @@ export async function readOnlineLoadHint(project: string): Promise<boolean> {
       if (value === undefined) {
         // Legacy releases had no marker. Only inspect our own account keys, never Firebase's private database.
         const keys = store.getAllKeys();
-        keys.onsuccess = () => { result = keys.result.some((key) => typeof key === 'string' && key.startsWith(`account:${project}:`)); };
-        keys.onerror = () => { failure = keys.error; };
-      } else if (value && typeof value === 'object' && 'version' in value && value.version === 1 && 'requested' in value && typeof value.requested === 'boolean') {
+        keys.onsuccess = () => {
+          result = keys.result.some((key) => typeof key === 'string' && key.startsWith(`account:${project}:`));
+        };
+        keys.onerror = () => {
+          failure = keys.error;
+        };
+      } else if (
+        value &&
+        typeof value === 'object' &&
+        'version' in value &&
+        value.version === 1 &&
+        'requested' in value &&
+        typeof value.requested === 'boolean'
+      ) {
         result = value.requested;
       } else {
-        failure = namedError('PersonalLibraryValidationError', 'The remembered account marker is unreadable. Open Account to recover it.');
+        failure = namedError(
+          'PersonalLibraryValidationError',
+          'The remembered account marker is unreadable. Open Account to recover it.',
+        );
         tx.abort();
       }
     };
-    hint.onerror = () => { failure = hint.error; };
+    hint.onerror = () => {
+      failure = hint.error;
+    };
   });
 }
 

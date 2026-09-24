@@ -5,12 +5,15 @@ import { SocialStore } from './social-store';
 import { parseHandle, normalizeHandle } from '../lib/community';
 
 const read = vi.hoisted(() => vi.fn());
-vi.mock('firebase/firestore', async original => ({
-  ...await original<typeof import('firebase/firestore')>(), getDocFromServer: read,
+vi.mock('firebase/firestore', async (original) => ({
+  ...(await original<typeof import('firebase/firestore')>()),
+  getDocFromServer: read,
 }));
 const app = initializeApp({ projectId: 'demo-play100' }, 'public-profile-read-unit');
 const social = new SocialStore(getFirestore(app));
-beforeEach(() => { read.mockReset(); });
+beforeEach(() => {
+  read.mockReset();
+});
 afterAll(() => deleteApp(app));
 
 describe('public profile existence privacy', () => {
@@ -23,7 +26,8 @@ describe('public profile existence privacy', () => {
   it('maps denied handle and resolved-profile reads identically to missing profiles', async () => {
     read.mockRejectedValueOnce({ code: 'permission-denied' });
     expect(await social.profile('public_games')).toBeNull();
-    read.mockResolvedValueOnce({ exists: () => true, data: () => ({ uid: 'another' }) })
+    read
+      .mockResolvedValueOnce({ exists: () => true, data: () => ({ uid: 'another' }) })
       .mockRejectedValueOnce({ code: 'permission-denied' });
     expect(await social.profile('public_games')).toBeNull();
     read.mockResolvedValueOnce({ exists: () => false });

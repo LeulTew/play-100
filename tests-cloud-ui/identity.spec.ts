@@ -2,13 +2,21 @@ import { expect, test } from '@playwright/test';
 import { createAccount, emailFor, enableSync, readAccount, signIn, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
-test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+});
 
-test('a cross-tab identity change flushes the old account draft without exposing it to the next account', async ({ page, context, request }) => {
+test('a cross-tab identity change flushes the old account draft without exposing it to the next account', async ({
+  page,
+  context,
+  request,
+}) => {
   const firstEmail = emailFor('scope-a');
   const nextEmail = emailFor('scope-b');
   const title = `Private A ${crypto.randomUUID().slice(0, 8)}`;
-  await createAccount(page, firstEmail); await verifyEmail(page, request, firstEmail); await enableSync(page, 'empty');
+  await createAccount(page, firstEmail);
+  await verifyEmail(page, request, firstEmail);
+  await enableSync(page, 'empty');
   const firstUid = await uidFor(request, firstEmail);
   await page.goto('/my-library');
   await page.locator('.manual-add summary').click();
@@ -32,7 +40,9 @@ test('a cross-tab identity change flushes the old account draft without exposing
     await expect(page.locator('body')).not.toContainText(title);
     expect((await readLibrary(page)).records).toEqual({});
     await page.clock.resume();
-    await createAccount(peer, nextEmail); await verifyEmail(peer, request, nextEmail); await enableSync(peer, 'empty');
+    await createAccount(peer, nextEmail);
+    await verifyEmail(peer, request, nextEmail);
+    await enableSync(peer, 'empty');
     const nextUid = await uidFor(request, nextEmail);
     expect((await readAccount(peer, nextUid)).state.records).toEqual({});
     await expect(peer.locator('body')).not.toContainText(title);
@@ -40,13 +50,22 @@ test('a cross-tab identity change flushes the old account draft without exposing
     await expect(peer).toHaveURL(/\/$/);
     await signIn(peer, firstEmail);
     await peer.goto('/my-rankings');
-    await expect(peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toHaveValue('8.3');
+    await expect(peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toHaveValue(
+      '8.3',
+    );
     expect((await readAccount(peer, nextUid)).state.records).toEqual({});
-  } finally { await peer.close(); }
+  } finally {
+    await peer.close();
+  }
 });
 
-test('Google stays in the same tab even if windows are blocked, and browser Back cancels without changing the guest', async ({ page, context }) => {
-  await page.addInitScript(() => { window.open = () => null; });
+test('Google stays in the same tab even if windows are blocked, and browser Back cancels without changing the guest', async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    window.open = () => null;
+  });
   await page.goto('/account');
   await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
   await page.waitForURL(/127\.0\.0\.1:9199/, { timeout: 20000 });

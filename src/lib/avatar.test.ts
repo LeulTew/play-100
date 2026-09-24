@@ -4,8 +4,14 @@ import { Avatar as DiceBearAvatar } from '@dicebear/core';
 import definition from '@dicebear/styles/critters.json' with { type: 'json' };
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  AVATAR_PALETTES, createAvatarCandidates, createAvatarDescriptor, generateAvatarDataUri,
-  generateAvatarSvg, isAvatarDescriptor, isAvatarPalette, parseAvatarDescriptor,
+  AVATAR_PALETTES,
+  createAvatarCandidates,
+  createAvatarDescriptor,
+  generateAvatarDataUri,
+  generateAvatarSvg,
+  isAvatarDescriptor,
+  isAvatarPalette,
+  parseAvatarDescriptor,
 } from './avatar';
 import type { AvatarDescriptor, AvatarPalette } from './avatar';
 
@@ -14,7 +20,10 @@ const palettes: AvatarPalette[] = ['lime', 'moss', 'clay', 'sky', 'lilac'];
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 const withoutIds = (svg: string) => svg.replace(/-[0-9a-f]{8}(?=["')])/g, '');
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('avatar descriptor boundary', () => {
   it('accepts each supported palette, copies metadata and round-trips JSON', () => {
@@ -29,21 +38,45 @@ describe('avatar descriptor boundary', () => {
   });
 
   it.each([
-    null, undefined, true, 1, [], original.seed, JSON.stringify(original),
-    {}, { ...original, version: 0 }, { ...original, version: 2 }, { ...original, version: '1' },
-    { ...original, seed: null }, { ...original, seed: 123 }, { ...original, seed: '' },
-    { ...original, seed: 'a'.repeat(31) }, { ...original, seed: 'a'.repeat(33) },
-    { ...original, seed: 'A'.repeat(32) }, { ...original, seed: 'g'.repeat(32) },
-    { ...original, seed: `${'a'.repeat(32)}\n` }, { ...original, seed: `${'a'.repeat(32)}\r\n` },
-    { ...original, seed: `${'a'.repeat(31)} ` }, { ...original, seed: '0'.repeat(100_000) },
-    { ...original, seed: '０'.repeat(32) }, { ...original, seed: '<script>alert(1)</script>' },
-    { ...original, palette: 'Lime' }, { ...original, palette: 'transparent' },
-    { ...original, palette: ['lime'] }, { ...original, palette: '__proto__' },
-    { ...original, palette: null }, { ...original, palette: 0 },
-    { ...original, options: {} }, { ...original, svg: '<svg/>' }, { ...original, url: 'https://example.test/avatar' },
-    { ...original, extra: undefined }, { ...original, [Symbol('extra')]: true },
-    Object.assign([], original), { seed: original.seed, palette: 'lime' },
-    { version: 1, palette: 'lime' }, { version: 1, seed: original.seed },
+    null,
+    undefined,
+    true,
+    1,
+    [],
+    original.seed,
+    JSON.stringify(original),
+    {},
+    { ...original, version: 0 },
+    { ...original, version: 2 },
+    { ...original, version: '1' },
+    { ...original, seed: null },
+    { ...original, seed: 123 },
+    { ...original, seed: '' },
+    { ...original, seed: 'a'.repeat(31) },
+    { ...original, seed: 'a'.repeat(33) },
+    { ...original, seed: 'A'.repeat(32) },
+    { ...original, seed: 'g'.repeat(32) },
+    { ...original, seed: `${'a'.repeat(32)}\n` },
+    { ...original, seed: `${'a'.repeat(32)}\r\n` },
+    { ...original, seed: `${'a'.repeat(31)} ` },
+    { ...original, seed: '0'.repeat(100_000) },
+    { ...original, seed: '０'.repeat(32) },
+    { ...original, seed: '<script>alert(1)</script>' },
+    { ...original, palette: 'Lime' },
+    { ...original, palette: 'transparent' },
+    { ...original, palette: ['lime'] },
+    { ...original, palette: '__proto__' },
+    { ...original, palette: null },
+    { ...original, palette: 0 },
+    { ...original, options: {} },
+    { ...original, svg: '<svg/>' },
+    { ...original, url: 'https://example.test/avatar' },
+    { ...original, extra: undefined },
+    { ...original, [Symbol('extra')]: true },
+    Object.assign([], original),
+    { seed: original.seed, palette: 'lime' },
+    { version: 1, palette: 'lime' },
+    { version: 1, seed: original.seed },
   ])('rejects malformed or expanded metadata %# without replacement', (value) => {
     expect(isAvatarDescriptor(value)).toBe(false);
     expect(() => parseAvatarDescriptor(value)).toThrow(TypeError);
@@ -69,12 +102,18 @@ describe('private random seeds', () => {
       array.set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 254, 255]);
       return array;
     });
-    expect(createAvatarDescriptor('clay')).toEqual({ version: 1, seed: '000102030405060708090a0b0c0dfeff', palette: 'clay' });
+    expect(createAvatarDescriptor('clay')).toEqual({
+      version: 1,
+      seed: '000102030405060708090a0b0c0dfeff',
+      palette: 'clay',
+    });
     expect(random).toHaveBeenCalledTimes(1);
   });
 
   it('creates valid 128-bit seeds without Math.random or identity input', () => {
-    vi.spyOn(Math, 'random').mockImplementation(() => { throw new Error('Insecure random source'); });
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      throw new Error('Insecure random source');
+    });
     const values = Array.from({ length: 256 }, () => createAvatarDescriptor());
     expect(values.every(isAvatarDescriptor)).toBe(true);
     expect(new Set(values.map((value) => value.seed)).size).toBe(values.length);
@@ -94,13 +133,21 @@ describe('frozen local Critters recipe', () => {
     const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
     expect(manifest.dependencies['@dicebear/core']).toBe('10.7.0');
     expect(manifest.dependencies['@dicebear/styles']).toBe('10.6.0');
-    const raw = readFileSync(new URL('../../node_modules/@dicebear/styles/dist/critters.min.json', import.meta.url), 'utf8');
+    const raw = readFileSync(
+      new URL('../../node_modules/@dicebear/styles/dist/critters.min.json', import.meta.url),
+      'utf8',
+    );
     expect(Buffer.byteLength(raw)).toBe(53_270);
     expect(sha256(raw)).toBe('df67e34f221589c4949d989996008158d6cdfdcd4149ff92297c51077ca59e9e');
     expect(definition.$schema).toContain('@dicebear/schema@1.4.0');
-    expect(JSON.parse(readFileSync(new URL('../../third-party/dicebear/critters-meta.json', import.meta.url), 'utf8'))).toEqual(definition.meta);
-    expect(readFileSync(new URL('../../third-party/dicebear/core-LICENSE.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n').trim())
-      .toBe(readFileSync(new URL('../../node_modules/@dicebear/core/LICENSE', import.meta.url), 'utf8').trim());
+    expect(
+      JSON.parse(readFileSync(new URL('../../third-party/dicebear/critters-meta.json', import.meta.url), 'utf8')),
+    ).toEqual(definition.meta);
+    expect(
+      readFileSync(new URL('../../third-party/dicebear/core-LICENSE.txt', import.meta.url), 'utf8')
+        .replace(/\r\n/g, '\n')
+        .trim(),
+    ).toBe(readFileSync(new URL('../../node_modules/@dicebear/core/LICENSE', import.meta.url), 'utf8').trim());
   });
 
   it.each([
@@ -173,13 +220,20 @@ describe('frozen local Critters recipe', () => {
       if (!palette) throw new Error('Missing test palette');
       const svg = generateAvatarSvg({ version: 1, seed: i.toString(16).padStart(32, '0'), palette });
       expect(svg).toMatch(/^<svg .*viewBox="0 0 100 100"/);
-      expect(svg).not.toMatch(/<(?:script|foreignObject|animate\w*|set|image|iframe|audio|video|style|linearGradient|radialGradient)\b/i);
+      expect(svg).not.toMatch(
+        /<(?:script|foreignObject|animate\w*|set|image|iframe|audio|video|style|linearGradient|radialGradient)\b/i,
+      );
       expect(svg).not.toMatch(/\son\w+=|javascript:|(?:xlink:)?href="(?!#)|url\((?!#)/i);
       const ids = Array.from(svg.matchAll(/\bid="([^"]+)"/g), (match) => match[1]);
       expect(ids.length).toBeGreaterThan(4);
       expect(new Set(ids).size).toBe(ids.length);
       for (const reference of svg.matchAll(/(?:href="#|url\(#)([^")]+)/g)) expect(ids).toContain(reference[1]);
-      for (const [component, variants] of [['body', bodies], ['top', tops], ['eyes', eyes], ['mouth', mouths]] as const) {
+      for (const [component, variants] of [
+        ['body', bodies],
+        ['top', tops],
+        ['eyes', eyes],
+        ['mouth', mouths],
+      ] as const) {
         const variant = svg.match(new RegExp(`id="${component}-([a-zA-Z]+)-`))?.[1];
         expect(variant).toBeDefined();
         if (variant) variants.add(variant);
@@ -223,7 +277,9 @@ describe('bounded chooser candidates', () => {
       array.fill(0);
       return array;
     });
-    expect(() => createAvatarCandidates({ ...original, seed: '0'.repeat(32) })).toThrow('Could not create six different avatar choices');
+    expect(() => createAvatarCandidates({ ...original, seed: '0'.repeat(32) })).toThrow(
+      'Could not create six different avatar choices',
+    );
     expect(random).toHaveBeenCalledTimes(60);
   });
 });

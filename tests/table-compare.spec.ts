@@ -10,18 +10,25 @@ test('table rows expose the same bounded metadata-only comparison path', async (
   await expect(page.locator('.table-progress button[aria-label^="Pin "]')).toHaveCount(24);
   const before = await readLibrary(page);
   for (const record of libraryRecords.slice(0, 7)) {
-    const pin = page.locator('.ratings-table').getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true });
+    const pin = page
+      .locator('.ratings-table')
+      .getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true });
     await pin.click();
   }
   await expect(page.locator('.compare-tray-dock')).toContainText('6 games');
   await expect(page.locator('.compare-tray-dock .compare-tray-error')).toContainText('six games');
-  const remove = page.locator('.ratings-table').getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true });
+  const remove = page
+    .locator('.ratings-table')
+    .getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true });
   await expect(remove).toHaveAttribute('aria-pressed', 'true');
   await remove.focus();
   await remove.press('Enter');
   await expect(page.locator('.compare-tray-error')).toHaveCount(0);
   await expect(page.locator('.compare-tray-dock')).toContainText('5 games');
-  await page.locator('.ratings-table').getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true }).click();
+  await page
+    .locator('.ratings-table')
+    .getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true })
+    .click();
   await expect(page.locator('.compare-tray-dock')).toContainText('6 games');
   expect(await readLibrary(page)).toEqual(before);
 });

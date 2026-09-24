@@ -8,8 +8,13 @@ const documentState = { hidden: false, readyState: 'complete' };
 let reducedMotion = false;
 let events: EventTarget;
 let idle: (() => void) | undefined;
-const requestIdle = vi.fn((callback: () => void) => { idle = callback; return 1; });
-const cancelIdle = vi.fn(() => { idle = undefined; });
+const requestIdle = vi.fn((callback: () => void) => {
+  idle = callback;
+  return 1;
+});
+const cancelIdle = vi.fn(() => {
+  idle = undefined;
+});
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -21,14 +26,21 @@ beforeEach(() => {
   vi.stubGlobal('navigator', hints);
   vi.stubGlobal('document', documentState);
   vi.stubGlobal('window', {
-    requestIdleCallback: requestIdle, cancelIdleCallback: cancelIdle,
+    requestIdleCallback: requestIdle,
+    cancelIdleCallback: cancelIdle,
     matchMedia: () => ({ matches: reducedMotion }),
-    setTimeout, clearTimeout,
+    setTimeout,
+    clearTimeout,
     addEventListener: events.addEventListener.bind(events),
     removeEventListener: events.removeEventListener.bind(events),
   });
 });
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('background-only module prefetch', () => {
   it.each([
@@ -36,11 +48,11 @@ describe('background-only module prefetch', () => {
     { connection: { saveData: false, effectiveType: '3g' } },
     { deviceMemory: 8, hardwareConcurrency: 3 },
     { hardwareConcurrency: 0 },
-  ])('preserves unconstrained and unavailable-hint boundaries %j', capable => {
+  ])('preserves unconstrained and unavailable-hint boundaries %j', (capable) => {
     expect(isConstrainedDevice(capable)).toBe(false);
   });
 
-  it.each(['hidden', 'reduced motion'])('does not schedule while initially %s', policy => {
+  it.each(['hidden', 'reduced motion'])('does not schedule while initially %s', (policy) => {
     documentState.hidden = policy === 'hidden';
     reducedMotion = policy === 'reduced motion';
     const load = vi.fn().mockResolvedValue({});
@@ -56,7 +68,7 @@ describe('background-only module prefetch', () => {
     { connection: { effectiveType: 'slow-2g' } },
     { deviceMemory: 4 },
     { hardwareConcurrency: 2 },
-  ])('does not schedule or load for constrained hints %j', constrained => {
+  ])('does not schedule or load for constrained hints %j', (constrained) => {
     Object.assign(hints, constrained);
     const load = vi.fn().mockResolvedValue({});
     const cancel = scheduleIdlePrefetch(load);
@@ -114,7 +126,10 @@ describe('background-only module prefetch', () => {
   it('warms Menu intent only after a paint and idle, even on low-memory/2g devices, but never Save-Data', () => {
     let frame: FrameRequestCallback | undefined;
     Object.assign(window, {
-      requestAnimationFrame: vi.fn((callback: FrameRequestCallback) => { frame = callback; return 1; }),
+      requestAnimationFrame: vi.fn((callback: FrameRequestCallback) => {
+        frame = callback;
+        return 1;
+      }),
       cancelAnimationFrame: vi.fn(),
     });
     hints.deviceMemory = 2;

@@ -8,7 +8,11 @@ import react from '@vitejs/plugin-react';
 import { writeFile } from 'node:fs/promises';
 import type { MotionPreference } from '../../lib/types';
 
-interface CounterControls { to: number; preference: MotionPreference; scope: string }
+interface CounterControls {
+  to: number;
+  preference: MotionPreference;
+  scope: string;
+}
 interface CounterFixture {
   set(patch: Partial<CounterControls>): void;
   destroy(): void;
@@ -16,7 +20,11 @@ interface CounterFixture {
   frames(count: number): Promise<void>;
   stats(): { pending: number; requested: number; canceled: number };
 }
-declare global { interface Window { counterFixture: CounterFixture } }
+declare global {
+  interface Window {
+    counterFixture: CounterFixture;
+  }
+}
 
 const fixture = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg">
 <style>.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}</style></head><body><div id="root"></div>
@@ -63,35 +71,64 @@ let context: BrowserContext;
 let page: Page;
 let origin: string;
 let errors: string[];
-let receipt: { origin: string; runnerPid: number; chromePid: number | undefined; browserVersion: string; headless: boolean; startedAt: string; closedAt: string | null } | undefined;
+let receipt:
+  | {
+      origin: string;
+      runnerPid: number;
+      chromePid: number | undefined;
+      browserVersion: string;
+      headless: boolean;
+      startedAt: string;
+      closedAt: string | null;
+    }
+  | undefined;
 const receiptPath = process.env.PLAY100_COUNTER_FIXTURE_RECEIPT;
 const headed = process.env.PLAY100_COUNTER_HEADED === 'true';
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-countup-tests',
-    logLevel: 'error', appType: 'custom', optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
-    plugins: [react(), {
-      name: 'native-countup-fixture',
-      configureServer(vite) {
-        vite.middlewares.use((request, response, next) => {
-          if (request.url?.split('?')[0] !== '/__countup-test') return next();
-          void vite.transformIndexHtml('/__countup-test', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }, next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 4204, strictPort: true, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-countup-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+        plugins: [
+          react(),
+          {
+            name: 'native-countup-fixture',
+            configureServer(vite) {
+              vite.middlewares.use((request, response, next) => {
+                if (request.url?.split('?')[0] !== '/__countup-test') return next();
+                void vite.transformIndexHtml('/__countup-test', fixture).then((html) => {
+                  response.setHeader('Content-Type', 'text/html');
+                  response.end(html);
+                }, next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 4204, strictPort: true, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-countup-tests$/);
   expect(server.config.server.watch).toBeNull();
   origin = 'http://127.0.0.1:4204';
   browserServer = await chromium.launchServer({ channel: 'chrome', headless: !headed });
   browser = await chromium.connect(browserServer.wsEndpoint());
-  receipt = { origin, runnerPid: process.pid, chromePid: browserServer.process().pid, browserVersion: browser.version(), headless: !headed, startedAt: new Date().toISOString(), closedAt: null };
+  receipt = {
+    origin,
+    runnerPid: process.pid,
+    chromePid: browserServer.process().pid,
+    browserVersion: browser.version(),
+    headless: !headed,
+    startedAt: new Date().toISOString(),
+    closedAt: null,
+  };
   console.info(`Native counter fixture: ${origin}; runner ${receipt.runnerPid}; Chrome ${receipt.chromePid}`);
   if (receiptPath) await writeFile(receiptPath, JSON.stringify(receipt, null, 2));
 }, 30_000);
@@ -101,17 +138,22 @@ afterAll(async () => {
   await browser?.close();
   await browserServer?.close();
   await server?.close();
-  if (receiptPath && receipt) await writeFile(receiptPath, JSON.stringify({ ...receipt, closedAt: new Date().toISOString() }, null, 2));
+  if (receiptPath && receipt)
+    await writeFile(receiptPath, JSON.stringify({ ...receipt, closedAt: new Date().toISOString() }, null, 2));
 }, 60_000);
 
 beforeEach(async () => {
   if (!browser) throw new Error('No owned counter browser.');
   context = await browser.newContext({ reducedMotion: 'no-preference' });
-  await context.route('**/*', route => route.request().url().startsWith(`${origin}/`) ? route.continue() : route.abort('blockedbyclient'));
+  await context.route('**/*', (route) =>
+    route.request().url().startsWith(`${origin}/`) ? route.continue() : route.abort('blockedbyclient'),
+  );
   page = await context.newPage();
   errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
   await page.goto(`${origin}/__countup-test`);
   await browserExpect(page.locator('.saved-count [aria-hidden="true"]')).toHaveText('42');
 });
@@ -124,7 +166,7 @@ afterEach(async () => {
 const stats = () => page.evaluate(() => window.counterFixture.stats());
 const visual = () => page.locator('.saved-count [aria-hidden="true"]');
 const accessible = () => page.locator('.saved-count .sr-only');
-const patch = (value: Partial<CounterControls>) => page.evaluate(value => window.counterFixture.set(value), value);
+const patch = (value: Partial<CounterControls>) => page.evaluate((value) => window.counterFixture.set(value), value);
 
 describe('native CountUp lifetime', () => {
   it('starts exact, unchanged renders stay idle, and the accessible count is always current', async () => {
@@ -183,7 +225,9 @@ describe('native CountUp lifetime', () => {
   it('a scope key snaps to its own initial count without remounting a sibling editor', async () => {
     const field = page.getByRole('textbox', { name: 'Retained field', exact: true });
     await field.fill('Keep this exact field');
-    await field.evaluate(element => { element.dataset.sameField = 'yes'; });
+    await field.evaluate((element) => {
+      element.dataset.sameField = 'yes';
+    });
     await patch({ to: 10000 });
     await browserExpect.poll(async () => (await stats()).pending).toBe(1);
     await patch({ scope: 'account:synthetic:new', to: 3 });
@@ -207,27 +251,30 @@ describe('native CountUp lifetime', () => {
     expect(await stats()).toEqual(stopped);
   });
 
-  it.skipIf(!headed)('a native hidden window snaps and releases its frame without replay (owned headed Chrome)', async () => {
-    const cdp = await context.newCDPSession(page);
-    const { windowId } = await cdp.send('Browser.getWindowForTarget');
-    try {
-      // Playwright forces focus by default; native visibility needs that override disabled.
-      await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
-      await patch({ to: 10000 });
-      await browserExpect.poll(async () => (await stats()).pending).toBe(1);
-      await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'minimized' } });
-      await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe('hidden');
-      await browserExpect(visual()).toHaveText('10000');
-      await browserExpect.poll(async () => (await stats()).pending).toBe(0);
-      const stopped = await stats();
-      await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
-      await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
-      await page.evaluate(() => window.counterFixture.frames(3));
-      expect(await stats()).toEqual(stopped);
-    } finally {
-      await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
-      await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
-      await cdp.detach();
-    }
-  });
+  it.skipIf(!headed)(
+    'a native hidden window snaps and releases its frame without replay (owned headed Chrome)',
+    async () => {
+      const cdp = await context.newCDPSession(page);
+      const { windowId } = await cdp.send('Browser.getWindowForTarget');
+      try {
+        // Playwright forces focus by default; native visibility needs that override disabled.
+        await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: false });
+        await patch({ to: 10000 });
+        await browserExpect.poll(async () => (await stats()).pending).toBe(1);
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'minimized' } });
+        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe('hidden');
+        await browserExpect(visual()).toHaveText('10000');
+        await browserExpect.poll(async () => (await stats()).pending).toBe(0);
+        const stopped = await stats();
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
+        await page.evaluate(() => window.counterFixture.frames(3));
+        expect(await stats()).toEqual(stopped);
+      } finally {
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+        await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+        await cdp.detach();
+      }
+    },
+  );
 });

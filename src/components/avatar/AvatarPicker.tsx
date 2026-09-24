@@ -1,6 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import {
-  AVATAR_PALETTES, createAvatarCandidates, createAvatarDescriptor, isAvatarPalette, parseAvatarDescriptor,
+  AVATAR_PALETTES,
+  createAvatarCandidates,
+  createAvatarDescriptor,
+  isAvatarPalette,
+  parseAvatarDescriptor,
 } from '../../lib/avatar';
 import type { AvatarDescriptor, AvatarPalette } from '../../lib/avatar';
 import { Icon } from '../Icon';
@@ -46,7 +50,9 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
 
   useEffect(() => {
     active.current = true;
-    return () => { active.current = false; };
+    return () => {
+      active.current = false;
+    };
   }, []);
 
   function edit(next: Draft) {
@@ -70,7 +76,9 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
       const selected = createAvatarDescriptor(draft.selected.palette);
       edit({ selected, candidates: createAvatarCandidates(selected) });
     } catch (error) {
-      setGenerationError(`Could not shuffle avatars. ${error instanceof Error ? error.message : 'Try again.'} Your choice is unchanged.`);
+      setGenerationError(
+        `Could not shuffle avatars. ${error instanceof Error ? error.message : 'Try again.'} Your choice is unchanged.`,
+      );
     }
   }
 
@@ -84,7 +92,9 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
       if (active.current) setStatus('saved');
     } catch (error) {
       if (active.current) {
-        setError(`Could not save avatar. ${error instanceof Error ? `${error.message} ` : ''}Your choice is still here. Try saving again.`);
+        setError(
+          `Could not save avatar. ${error instanceof Error ? `${error.message} ` : ''}Your choice is still here. Try saving again.`,
+        );
         setStatus('editing');
       }
     } finally {
@@ -94,12 +104,20 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
 
   return (
     <section className="avatar-picker" aria-labelledby={titleId ?? `${id}-title`} aria-busy={pending}>
-      <h2 className="avatar-picker__title" id={titleId ?? `${id}-title`}>Pick your avatar.</h2>
+      <h2 className="avatar-picker__title" id={titleId ?? `${id}-title`}>
+        Pick your avatar.
+      </h2>
       <p className="avatar-picker__intro">Choose a face and a color. Nothing changes until you save.</p>
       <div className="avatar-picker__choice-heading">
         <h3 id={`${id}-faces`}>Choose a face</h3>
-        <button type="button" className="button button-quiet avatar-picker__shuffle" disabled={pending} onClick={shuffle}>
-          <Icon name="shuffle" width="18" height="18" />Shuffle
+        <button
+          type="button"
+          className="button button-quiet avatar-picker__shuffle"
+          disabled={pending}
+          onClick={shuffle}
+        >
+          <Icon name="shuffle" width="18" height="18" />
+          Shuffle
         </button>
       </div>
       <div className="avatar-picker__grid" role="radiogroup" aria-labelledby={`${id}-faces`}>
@@ -108,19 +126,26 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
           return (
             <label className={`avatar-picker__candidate ${selected ? 'is-selected' : ''}`} key={candidate.seed}>
               <input
-                type="radio" name={`${id}-face`} value={candidate.seed} checked={selected}
-                aria-label={`Avatar option ${index + 1}`} disabled={pending}
+                type="radio"
+                name={`${id}-face`}
+                value={candidate.seed}
+                checked={selected}
+                aria-label={`Avatar option ${index + 1}`}
+                disabled={pending}
                 onChange={() => edit({ ...draft, selected: candidate })}
               />
               <Avatar descriptor={candidate} size={96} className="avatar-picker__preview" />
               <span className="avatar-picker__choice-label" aria-hidden="true">
-                {selected && <Icon name="check" width="14" height="14" />}{selected ? 'Selected' : `Option ${index + 1}`}
+                {selected && <Icon name="check" width="14" height="14" />}
+                {selected ? 'Selected' : `Option ${index + 1}`}
               </span>
             </label>
           );
         })}
       </div>
-      <h3 className="avatar-picker__color-heading" id={`${id}-colors`}>Color</h3>
+      <h3 className="avatar-picker__color-heading" id={`${id}-colors`}>
+        Color
+      </h3>
       <div className="avatar-picker__palettes" role="radiogroup" aria-labelledby={`${id}-colors`}>
         {Object.entries(AVATAR_PALETTES).map(([palette, colors]) => {
           if (!isAvatarPalette(palette)) throw new Error('Unsupported avatar palette in the picker.');
@@ -128,8 +153,13 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
           return (
             <label className={`avatar-picker__palette ${selected ? 'is-selected' : ''}`} key={palette}>
               <input
-                type="radio" name={`${id}-palette`} value={palette} checked={selected}
-                aria-label={colors.label} disabled={pending} onChange={() => changePalette(palette)}
+                type="radio"
+                name={`${id}-palette`}
+                value={palette}
+                checked={selected}
+                aria-label={colors.label}
+                disabled={pending}
+                onChange={() => changePalette(palette)}
               />
               <span className="avatar-picker__swatch" style={{ backgroundColor: `#${colors.body}` }} aria-hidden="true">
                 {selected && <Icon name="check" width="13" height="13" />}
@@ -139,11 +169,26 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
           );
         })}
       </div>
-      {(error || generationError) && <p className="avatar-picker__error" role="alert">{error || generationError}</p>}
-      <p className="avatar-picker__status" role="status">{pending ? 'Saving your avatar…' : status === 'saved' ? 'Avatar saved.' : ''}</p>
+      {(error || generationError) && (
+        <p className="avatar-picker__error" role="alert">
+          {error || generationError}
+        </p>
+      )}
+      <p className="avatar-picker__status" role="status">
+        {pending ? 'Saving your avatar…' : status === 'saved' ? 'Avatar saved.' : ''}
+      </p>
       <div className="avatar-picker__actions">
-        <button type="button" className="button button-outline" disabled={pending} onClick={onCancel}>Cancel</button>
-        <button type="button" className="button button-dark" disabled={pending || status === 'saved'} onClick={() => { void save(); }}>
+        <button type="button" className="button button-outline" disabled={pending} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="button button-dark"
+          disabled={pending || status === 'saved'}
+          onClick={() => {
+            void save();
+          }}
+        >
           {pending ? 'Saving…' : 'Save avatar'}
         </button>
       </div>

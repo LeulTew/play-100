@@ -90,7 +90,7 @@ export function recordFromGame(game: Game): LibraryRecord {
 }
 
 export const SOURCE_LABELS: Record<GameSource, string> = {
-  collection: 'Author\'s 100',
+  collection: "Author's 100",
   steam: 'Steam',
   wikidata: 'Wikidata',
   freetogame: 'FreeToGame',

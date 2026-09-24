@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { guardedReload, isModuleLoadFailure, ModuleLoadFailure } from './chunk-recovery';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 
 function fixture(online = true) {
   const replace = vi.fn();
@@ -24,15 +28,17 @@ describe('explicit module recovery', () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
   });
-  it.each(['settings', 'credits'] as const)('restores %s only after a successful network HEAD', async intent => {
+  it.each(['settings', 'credits'] as const)('restores %s only after a successful network HEAD', async (intent) => {
     const { replace, fetch } = fixture();
     expect(await guardedReload({ intent })).toBe('navigating');
     expect(fetch).toHaveBeenCalledWith('/', {
-      method: 'HEAD', cache: 'no-store', signal: expect.any(AbortSignal),
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: expect.any(AbortSignal),
     });
     expect(replace).toHaveBeenCalledWith(`https://play.test/games?game=one&catalogs=off&info=${intent}#details`);
   });
-  it.each(['network', 'status'] as const)('keeps the current app on %s failure', async kind => {
+  it.each(['network', 'status'] as const)('keeps the current app on %s failure', async (kind) => {
     const { replace, fetch } = fixture();
     if (kind === 'network') fetch.mockRejectedValueOnce(new Error('offline'));
     else fetch.mockResolvedValueOnce({ ok: false });
@@ -48,9 +54,12 @@ describe('explicit module recovery', () => {
     const { replace, fetch } = fixture();
     const abort = new AbortController();
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(abort.signal);
-    fetch.mockImplementationOnce(() => new Promise((_resolve, reject) => {
-      abort.signal.addEventListener('abort', () => reject(abort.signal.reason), { once: true });
-    }));
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          abort.signal.addEventListener('abort', () => reject(abort.signal.reason), { once: true });
+        }),
+    );
     const recovery = guardedReload();
     abort.abort(new DOMException('Timed out', 'TimeoutError'));
     expect(await recovery).toBe('offline');
@@ -87,10 +96,13 @@ describe('explicit module recovery', () => {
     vi.useFakeTimers();
     vi.stubGlobal('AbortSignal', {});
     const { fetch, replace } = fixture();
-    fetch.mockImplementationOnce(() => new Promise((_resolve, reject) => {
-      const options = vi.mocked(globalThis.fetch).mock.calls[0]?.[1];
-      options?.signal?.addEventListener('abort', () => reject(new Error('Aborted')), { once: true });
-    }));
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          const options = vi.mocked(globalThis.fetch).mock.calls[0]?.[1];
+          options?.signal?.addEventListener('abort', () => reject(new Error('Aborted')), { once: true });
+        }),
+    );
     const result = guardedReload();
     await vi.advanceTimersByTimeAsync(5000);
     expect(await result).toBe('offline');

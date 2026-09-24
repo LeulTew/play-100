@@ -8,27 +8,35 @@ import type { CatalogDetailProps } from './CatalogDetail';
 
 function renderDetail(overrides: Partial<CatalogDetailProps> = {}) {
   const props: CatalogDetailProps = {
-    record: discoveryFixture.record, saved: false, progress: undefined,
-    rankingPosition: null, rating: null, busy: false,
-    onClose: vi.fn(), onAction: vi.fn().mockResolvedValue(true), onRankings: vi.fn(),
+    record: discoveryFixture.record,
+    saved: false,
+    progress: undefined,
+    rankingPosition: null,
+    rating: null,
+    busy: false,
+    onClose: vi.fn(),
+    onAction: vi.fn().mockResolvedValue(true),
+    onRankings: vi.fn(),
     ...overrides,
   };
   return { html: renderToStaticMarkup(createElement(CatalogDetail, props)), props };
 }
 
 describe('catalog detail artwork continuity surface', () => {
-  it.each([false, true])('keeps the detail queue name stable with pressed=%s', selected => {
+  it.each([false, true])('keeps the detail queue name stable with pressed=%s', (selected) => {
     const { html } = renderDetail({ progress: { later: selected, completed: selected, played: selected } });
     const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
-    const button = buttons.find(value => value.endsWith('</svg>Play later</button>'));
+    const button = buttons.find((value) => value.endsWith('</svg>Play later</button>'));
     expect(button).toContain(`aria-pressed="${selected}"`);
     expect(button).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
     expect(html).not.toContain('Saved for later');
   });
 
-  it.each([false, true])('keeps the detail completion name stable with a non-color cue for pressed=%s', completed => {
+  it.each([false, true])('keeps the detail completion name stable with a non-color cue for pressed=%s', (completed) => {
     const { html } = renderDetail({ progress: { later: false, completed, played: completed } });
-    const button = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find(value => value.endsWith('</svg>Completed</button>'));
+    const button = html
+      .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
+      ?.find((value) => value.endsWith('</svg>Completed</button>'));
     expect(button).toContain(`aria-pressed="${completed}"`);
     expect(button).toContain(`<path d="${completed ? 'm5 12 4 4L19 6' : 'M12 4v16M4 12h16'}">`);
     expect(button).toContain(`class="button ${completed ? 'button-lime' : 'button-outline'}"`);
@@ -75,7 +83,9 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('Play later');
     expect(html).toContain('Completed');
     expect(html).toContain(`Your rating / 10 for ${discoveryFixture.record.title}`);
-    expect(html).toContain('Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.');
+    expect(html).toContain(
+      'Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.',
+    );
     expect(html).toContain('Preview only.');
     expect(html).toContain('Add to My games from Discover');
     expect(html).toContain('The 100 stays unchanged.');
@@ -83,8 +93,11 @@ describe('catalog detail artwork continuity surface', () => {
 
   it('does not infer artwork or replace an independent manual opinion from a matching title', () => {
     const record: LibraryRecord = {
-      ...discoveryFixture.record, id: 'manual:separate-copy', source: 'manual',
-      sourceId: 'separate-copy', sourceUrl: null,
+      ...discoveryFixture.record,
+      id: 'manual:separate-copy',
+      source: 'manual',
+      sourceId: 'separate-copy',
+      sourceUrl: null,
     };
     const original = { ...record };
     const { html, props } = renderDetail({ record, saved: true, rating: 3.2, rankingPosition: 2 });
@@ -101,8 +114,12 @@ describe('catalog detail artwork continuity surface', () => {
 
   it('does not turn a still-loading collection record into an enlarged workbook thumbnail', () => {
     const record: LibraryRecord = {
-      ...discoveryFixture.record, id: 'red-dead-redemption-2', source: 'collection',
-      sourceId: 'red-dead-redemption-2', sourceUrl: null, collectionRank: 1,
+      ...discoveryFixture.record,
+      id: 'red-dead-redemption-2',
+      source: 'collection',
+      sourceId: 'red-dead-redemption-2',
+      sourceUrl: null,
+      collectionRank: 1,
     };
     const { html } = renderDetail({ record });
     expect(html).not.toContain('<img');
@@ -113,8 +130,10 @@ describe('catalog detail artwork continuity surface', () => {
   it('retains the shared artwork safety and escaped-credit behavior in this consumer', () => {
     const { html } = renderDetail({
       artwork: {
-        ...artworkFixture, src: 'https://example.com/unlicensed-cover.webp',
-        credit: '<script>not markup</script>', sourceUrl: 'javascript:alert(1)',
+        ...artworkFixture,
+        src: 'https://example.com/unlicensed-cover.webp',
+        credit: '<script>not markup</script>',
+        sourceUrl: 'javascript:alert(1)',
         licenseUrl: 'http://example.com/license',
       },
     });

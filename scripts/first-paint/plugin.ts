@@ -5,7 +5,16 @@ import type { Logger as BeastiesLogger, Options as BeastiesOptions } from 'beast
 import { Parser } from 'htmlparser2';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { allowsInlineStyles, cspProblems, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
-import { ROOT_OPEN, SHELL_OPEN, STYLESHEET_MARKER, normalizeShellWhitespace, removeShell, selectShellVariant, shellRegion, shellText } from './shell-html.ts';
+import {
+  ROOT_OPEN,
+  SHELL_OPEN,
+  STYLESHEET_MARKER,
+  normalizeShellWhitespace,
+  removeShell,
+  selectShellVariant,
+  shellRegion,
+  shellText,
+} from './shell-html.ts';
 import type { ShellVariant } from './shell-html.ts';
 
 /**
@@ -37,7 +46,8 @@ import type { ShellVariant } from './shell-html.ts';
 export const DEFERRED_TEMPLATE_ID = 'p100-deferred';
 
 /** Attributes and classes that differ between the static shell and React's first commit. */
-const SHELL_DIVERGENT_SELECTOR = /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot)\b|\.first-paint-shell\b/i;
+const SHELL_DIVERGENT_SELECTOR =
+  /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot)\b|\.first-paint-shell\b/i;
 const CHARSET_DECLARATION = '<meta charset="UTF-8" />';
 
 /**
@@ -49,12 +59,19 @@ export function assertCharsetDeclaration(html: string): number {
   const offset = index === -1 ? -1 : Buffer.byteLength(html.slice(0, index), 'utf8');
   if (offset === -1) throw new Error('index.html has no <meta charset> declaration.');
   const limit = 1024 - CHARSET_DECLARATION.length;
-  if (offset >= limit) throw new Error(`index.html declares <meta charset> at byte ${offset}; it must start before byte ${limit} to fit within the first 1024 bytes.`);
+  if (offset >= limit)
+    throw new Error(
+      `index.html declares <meta charset> at byte ${offset}; it must start before byte ${limit} to fit within the first 1024 bytes.`,
+    );
   return offset;
 }
 
 /** Same inputs as src/lib/online-availability.ts: EMULATOR_MODE, ONLINE_CONFIG_ERROR and ONLINE_AVAILABLE. */
-export function firstPaintVariant(mode: string, emulators: string | undefined, online: { readonly config: unknown; readonly error: string | null }): ShellVariant | null {
+export function firstPaintVariant(
+  mode: string,
+  emulators: string | undefined,
+  online: { readonly config: unknown; readonly error: string | null },
+): ShellVariant | null {
   if (mode === 'cloud-test' && emulators === 'true') return 'online';
   if (online.error) return null;
   return online.config ? 'online' : 'offline';
@@ -62,34 +79,48 @@ export function firstPaintVariant(mode: string, emulators: string | undefined, o
 
 /** Drops comments and indentation from src/first-paint/boot.js; the result is what the CSP hash covers. */
 export function stripBootScript(source: string): string {
-  const script = source.replace(/\r\n?/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '')
-    .split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('//')).join('\n');
+  const script = source
+    .replace(/\r\n?/g, '\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('//'))
+    .join('\n');
   // Throws on a syntax error, for example a "/*" in a string that the comment removal cut short.
   new Function(script);
   return script;
 }
 
 export function assertInlineSafe(kind: 'style' | 'script', content: string): void {
-  if (new RegExp(`</${kind}|<!--`, 'i').test(content)) throw new Error(`The inline first-paint ${kind} contains markup that would end the element early.`);
+  if (new RegExp(`</${kind}|<!--`, 'i').test(content))
+    throw new Error(`The inline first-paint ${kind} contains markup that would end the element early.`);
 }
 
 /** The entry stylesheet must not style what the shell and React's first commit render differently. */
 export function assertShellNeutralCss(css: string): void {
   const match = SHELL_DIVERGENT_SELECTOR.exec(css);
-  if (match) throw new Error(`The entry stylesheet targets "${match[0]}", which differs between the first-paint shell and React's first commit (docs/first-paint-shell.md).`);
+  if (match)
+    throw new Error(
+      `The entry stylesheet targets "${match[0]}", which differs between the first-paint shell and React's first commit (docs/first-paint-shell.md).`,
+    );
 }
 
 /** Inlined into index.html, a relative url() would resolve against the document instead of /assets/. */
 export function assertRootRelativeUrls(css: string): void {
   for (const match of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]*))\s*\)/gi)) {
     const url = match[1] ?? match[2] ?? match[3] ?? '';
-    if (!/^(?:\/(?!\/)|https:|data:|#)/i.test(url)) throw new Error(`The inline first-paint CSS references "${url}", which would resolve against index.html instead of its stylesheet.`);
+    if (!/^(?:\/(?!\/)|https:|data:|#)/i.test(url))
+      throw new Error(
+        `The inline first-paint CSS references "${url}", which would resolve against index.html instead of its stylesheet.`,
+      );
   }
 }
 
 /** CSS with its comments blanked and every string emptied, so only tokens outside strings remain. */
 function cssOutsideStrings(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\[\s\S])*"|'(?:[^'\\\n]|\\[\s\S])*'/g, match => match.startsWith('/*') ? ' ' : '""');
+  return css.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\[\s\S])*"|'(?:[^'\\\n]|\\[\s\S])*'/g, (match) =>
+    match.startsWith('/*') ? ' ' : '""',
+  );
 }
 
 /**
@@ -99,14 +130,21 @@ function cssOutsideStrings(css: string): string {
  * reads them: escapes resolved, ASCII case ignored.
  */
 export function assertNoCssImports(file: string, css: string): void {
-  for (const match of cssOutsideStrings(css).matchAll(/@((?:[\w\u0080-\uffff-]|\\[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|\\[^\r\n\f0-9a-fA-F])+)/g)) {
-    const name = (match[1] ?? '').replace(/\\([0-9a-fA-F]{1,6})(?:\r\n|[ \t\r\n\f])?|\\(.)/gs, (_, hex: string | undefined, char: string | undefined) => {
-      if (hex === undefined) return char ?? '';
-      const code = Number.parseInt(hex, 16);
-      return code < 0x80 ? String.fromCharCode(code) : '\uFFFD';
-    });
+  for (const match of cssOutsideStrings(css).matchAll(
+    /@((?:[\w\u0080-\uffff-]|\\[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|\\[^\r\n\f0-9a-fA-F])+)/g,
+  )) {
+    const name = (match[1] ?? '').replace(
+      /\\([0-9a-fA-F]{1,6})(?:\r\n|[ \t\r\n\f])?|\\(.)/gs,
+      (_, hex: string | undefined, char: string | undefined) => {
+        if (hex === undefined) return char ?? '';
+        const code = Number.parseInt(hex, 16);
+        return code < 0x80 ? String.fromCharCode(code) : '\uFFFD';
+      },
+    );
     if (name.toLowerCase() === 'import') {
-      throw new Error(`The emitted stylesheet ${file} contains an @import, which would load outside the first-paint template (and before the first paint if it reached the inline style). Vite inlines only relative imports of source CSS: import that CSS through one, or from a module (docs/first-paint-shell.md).`);
+      throw new Error(
+        `The emitted stylesheet ${file} contains an @import, which would load outside the first-paint template (and before the first paint if it reached the inline style). Vite inlines only relative imports of source CSS: import that CSS through one, or from a module (docs/first-paint-shell.md).`,
+      );
     }
   }
 }
@@ -173,7 +211,11 @@ function qualified(selector: string): boolean {
       const open = index + pseudo[0].length - 1;
       const close = closingParenthesis(compound, open);
       if (close === -1) return false;
-      if (MATCHES_ALTERNATIVES.test(pseudo[1] ?? '') && splitTopLevel(compound.slice(open + 1, close)).every(alternative => qualified(subjectCompound(alternative)))) return true;
+      if (
+        MATCHES_ALTERNATIVES.test(pseudo[1] ?? '') &&
+        splitTopLevel(compound.slice(open + 1, close)).every((alternative) => qualified(subjectCompound(alternative)))
+      )
+        return true;
       index = close;
     }
   }
@@ -204,13 +246,20 @@ export function assertRootFontStacks(file: string, css: string): void {
     if (property !== 'font' && property !== 'font-family' && property !== '--display') continue;
     const open = code.lastIndexOf('{', match.index);
     if (open === -1) continue;
-    const prelude = code.slice(Math.max(code.lastIndexOf('}', open), code.lastIndexOf('{', open - 1), code.lastIndexOf(';', open)) + 1, open).trim();
+    const prelude = code
+      .slice(
+        Math.max(code.lastIndexOf('}', open), code.lastIndexOf('{', open - 1), code.lastIndexOf(';', open)) + 1,
+        open,
+      )
+      .trim();
     // At-rule blocks such as @font-face declare font properties of their own.
     if (prelude.startsWith('@')) continue;
     const value = (match[2] ?? '').trim();
     for (const selector of splitTopLevel(prelude)) {
       if (!keepsShellFontStacks(property, subjectCompound(selector), value)) {
-        throw new Error(`The entry stylesheet ${file} sets ${property} on "${selector}", where it would outrank or bypass the metric-matched fallbacks src/first-paint/shell.css adds to the root font stacks: keep font-family and --display on :root, without !important (docs/first-paint-shell.md).`);
+        throw new Error(
+          `The entry stylesheet ${file} sets ${property} on "${selector}", where it would outrank or bypass the metric-matched fallbacks src/first-paint/shell.css adds to the root font stacks: keep font-family and --display on :root, without !important (docs/first-paint-shell.md).`,
+        );
       }
     }
   }
@@ -218,7 +267,12 @@ export function assertRootFontStacks(file: string, css: string): void {
 
 /** Removes comments and optional whitespace from src/first-paint/shell.css, whose strings contain none of {};, */
 export function minifyShellCss(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').replace(/\s*([{};,])\s*/g, '$1').replace(/;\}/g, '}').trim();
+  return css
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([{};,])\s*/g, '$1')
+    .replace(/;\}/g, '}')
+    .trim();
 }
 
 export function beastiesOptions(logger: BeastiesLogger): BeastiesOptions {
@@ -245,37 +299,52 @@ export function beastiesOptions(logger: BeastiesLogger): BeastiesOptions {
 /** The entry-stylesheet rules that can apply inside the shell, as selected by beasties. */
 export async function criticalAppCss(appCss: string, root: string): Promise<string> {
   assertInlineSafe('style', appCss);
-  if (!root.startsWith(ROOT_OPEN + SHELL_OPEN)) throw new Error(`The shell markup must start with ${ROOT_OPEN}${SHELL_OPEN}.`);
+  if (!root.startsWith(ROOT_OPEN + SHELL_OPEN))
+    throw new Error(`The shell markup must start with ${ROOT_OPEN}${SHELL_OPEN}.`);
   // Matching stays inside the shell: after pseudo-classes are stripped, selectors such as
   // html:has(.toast-visible) would otherwise match the throwaway document itself. Bare html, body
   // and :root rules are always kept.
   const container = `${ROOT_OPEN}${SHELL_OPEN.replace(/>$/, ' data-beasties-container>')}${root.slice(ROOT_OPEN.length + SHELL_OPEN.length)}`;
   const problems: string[] = [];
   const logger: BeastiesLogger = {
-    warn: message => { problems.push(message); },
-    error: message => { problems.push(message); },
+    warn: (message) => {
+      problems.push(message);
+    },
+    error: (message) => {
+      problems.push(message);
+    },
     // A rule beasties cannot evaluate is left out, so the shell would miss it.
-    debug: message => { if (message.startsWith('Cannot statically evaluate selector')) problems.push(message); },
+    debug: (message) => {
+      if (message.startsWith('Cannot statically evaluate selector')) problems.push(message);
+    },
   };
   const output = await new Beasties(beastiesOptions(logger)).process(
     `<!doctype html><html lang="en" data-boot="landing" data-boot-art="ready"><head><style>${appCss}</style></head><body>${container}</body></html>`,
   );
   if (problems.length) throw new Error(`beasties could not select the first-paint CSS:\n${problems.join('\n')}`);
-  const styles = [...output.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(match => match[1] ?? '');
+  const styles = [...output.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((match) => match[1] ?? '');
   const style = styles[0];
-  if (styles.length !== 1 || style === undefined || !style.trim()) throw new Error(`beasties returned ${styles.length} style elements instead of one with the shell's rules.`);
+  if (styles.length !== 1 || style === undefined || !style.trim())
+    throw new Error(`beasties returned ${styles.length} style elements instead of one with the shell's rules.`);
   return style;
 }
 
-interface Declaration { readonly name: string; readonly value: string }
+interface Declaration {
+  readonly name: string;
+  readonly value: string;
+}
 
 function declarations(body: string): Declaration[] {
-  return body.split(';').map(part => part.trim()).filter(Boolean).map(part => {
-    const colon = part.indexOf(':');
-    const name = part.slice(0, Math.max(colon, 0)).trim().toLowerCase();
-    if (colon < 1 || !/^[a-z-]+$/.test(name)) throw new Error(`Unexpected @font-face declaration "${part}".`);
-    return { name, value: part.slice(colon + 1).trim() };
-  });
+  return body
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const colon = part.indexOf(':');
+      const name = part.slice(0, Math.max(colon, 0)).trim().toLowerCase();
+      if (colon < 1 || !/^[a-z-]+$/.test(name)) throw new Error(`Unexpected @font-face declaration "${part}".`);
+      return { name, value: part.slice(colon + 1).trim() };
+    });
 }
 
 function splitTopLevel(value: string): string[] {
@@ -297,15 +366,20 @@ function splitTopLevel(value: string): string[] {
     }
   }
   parts.push(value.slice(start));
-  return parts.map(part => part.trim());
+  return parts.map((part) => part.trim());
 }
 
 function unicodeRanges(value: string): Array<readonly [number, number]> {
-  return splitTopLevel(value).map(part => {
+  return splitTopLevel(value).map((part) => {
     const match = /^U\+([0-9A-F]{1,6}|[0-9A-F]{0,5}\?{1,6})(?:-([0-9A-F]{1,6}))?$/i.exec(part);
     const first = match?.[1];
-    if (!match || !first || (first.includes('?') && (match[2] !== undefined || first.length > 6))) throw new Error(`Unsupported unicode-range "${value}".`);
-    if (first.includes('?')) return [Number.parseInt(first.replaceAll('?', '0'), 16), Number.parseInt(first.replaceAll('?', 'F'), 16)] as const;
+    if (!match || !first || (first.includes('?') && (match[2] !== undefined || first.length > 6)))
+      throw new Error(`Unsupported unicode-range "${value}".`);
+    if (first.includes('?'))
+      return [
+        Number.parseInt(first.replaceAll('?', '0'), 16),
+        Number.parseInt(first.replaceAll('?', 'F'), 16),
+      ] as const;
     return [Number.parseInt(first, 16), Number.parseInt(match[2] ?? first, 16)] as const;
   });
 }
@@ -317,24 +391,28 @@ function unicodeRanges(value: string): Array<readonly [number, number]> {
  * reflow when the web fonts swap in.
  */
 export function assertFallbackCoverage(shellCss: string, text: string): void {
-  const codepoints = [...new Set(Array.from(text, char => char.codePointAt(0) ?? 0))].filter(code => code >= 0x20);
-  const faces = [...shellCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)].map(match => declarations(match[1] ?? ''));
+  const codepoints = [...new Set(Array.from(text, (char) => char.codePointAt(0) ?? 0))].filter((code) => code >= 0x20);
+  const faces = [...shellCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)].map((match) =>
+    declarations(match[1] ?? ''),
+  );
   if (!faces.length) throw new Error('src/first-paint/shell.css declares no fallback faces for the first-paint shell.');
   for (const list of faces) {
-    const family = list.find(declaration => declaration.name === 'font-family')?.value ?? '(unnamed)';
-    const range = list.find(declaration => declaration.name === 'unicode-range')?.value;
+    const family = list.find((declaration) => declaration.name === 'font-family')?.value ?? '(unnamed)';
+    const range = list.find((declaration) => declaration.name === 'unicode-range')?.value;
     if (range === undefined) continue;
     const ranges = unicodeRanges(range);
-    const missing = codepoints.find(code => !ranges.some(([from, to]) => code >= from && code <= to));
+    const missing = codepoints.find((code) => !ranges.some(([from, to]) => code >= from && code <= to));
     if (missing !== undefined) {
-      throw new Error(`The first-paint shell renders "${String.fromCodePoint(missing)}" (U+${missing.toString(16).toUpperCase().padStart(4, '0')}), which the fallback face ${family} (unicode-range ${range}) does not cover; extend it in src/first-paint/shell.css.`);
+      throw new Error(
+        `The first-paint shell renders "${String.fromCodePoint(missing)}" (U+${missing.toString(16).toUpperCase().padStart(4, '0')}), which the fallback face ${family} (unicode-range ${range}) does not cover; extend it in src/first-paint/shell.css.`,
+      );
     }
   }
 }
 
 /** The order in which the boot script inserts the startup tags: the entry first, as a modulepreload. */
 export const STARTUP_KINDS = ['entry', 'modulepreload', 'stylesheet', 'preload'] as const;
-export type StartupKind = typeof STARTUP_KINDS[number];
+export type StartupKind = (typeof STARTUP_KINDS)[number];
 
 export interface StartupTag {
   readonly kind: StartupKind;
@@ -376,8 +454,14 @@ export function startupTags(html: string): StartupTag[] {
       let url: string | undefined;
       if (name === 'script') {
         const names = Object.keys(attributes).sort().join(' ');
-        if (attributes.type?.toLowerCase() !== 'module' || !['crossorigin src type', 'src type'].includes(names) || !head.startsWith('</script>', end)) {
-          throw new Error(`Unexpected <head> script ${tag}: only the empty module entry may come before the first-paint boot script.`);
+        if (
+          attributes.type?.toLowerCase() !== 'module' ||
+          !['crossorigin src type', 'src type'].includes(names) ||
+          !head.startsWith('</script>', end)
+        ) {
+          throw new Error(
+            `Unexpected <head> script ${tag}: only the empty module entry may come before the first-paint boot script.`,
+          );
         }
         end += '</script>'.length;
         kind = 'entry';
@@ -385,14 +469,19 @@ export function startupTags(html: string): StartupTag[] {
       } else {
         // The boot script compares rel exactly, so a startup link must carry exactly one lowercase rel.
         const rel = attributes.rel ?? '';
-        if (!rel.split(/\s+/).some(token => ['stylesheet', 'modulepreload', 'preload'].includes(token.toLowerCase()))) return;
-        if ((rel !== 'stylesheet' && rel !== 'modulepreload' && rel !== 'preload') || Object.hasOwn(attributes, 'media')) {
+        if (!rel.split(/\s+/).some((token) => ['stylesheet', 'modulepreload', 'preload'].includes(token.toLowerCase())))
+          return;
+        if (
+          (rel !== 'stylesheet' && rel !== 'modulepreload' && rel !== 'preload') ||
+          Object.hasOwn(attributes, 'media')
+        ) {
           throw new Error(`Unexpected <head> startup link ${tag}.`);
         }
         kind = rel;
         url = attributes.href;
       }
-      if (!tag.startsWith('<') || !tag.endsWith('>') || url === undefined || !STARTUP_URLS[kind].test(url)) throw new Error(`Unexpected <head> startup tag ${tag}.`);
+      if (!tag.startsWith('<') || !tag.endsWith('>') || url === undefined || !STARTUP_URLS[kind].test(url))
+        throw new Error(`Unexpected <head> startup tag ${tag}.`);
       tags.push({ kind, source: head.slice(start, end), url, start, end, attributes });
     },
     onclosetag(name) {
@@ -407,7 +496,8 @@ export function startupTags(html: string): StartupTag[] {
 function fontFaceUrls(css: string): Set<string> {
   const urls = new Set<string>();
   for (const face of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)) {
-    for (const url of (face[1] ?? '').matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^'"()\s]*))\s*\)/gi)) urls.add(url[1] ?? url[2] ?? url[3] ?? '');
+    for (const url of (face[1] ?? '').matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^'"()\s]*))\s*\)/gi))
+      urls.add(url[1] ?? url[2] ?? url[3] ?? '');
   }
   return urls;
 }
@@ -427,10 +517,15 @@ export function assertFontPreloads(preloads: readonly StartupTag[], css: string)
     const problems = [
       ...(destination === 'font' ? [] : ['as="font"']),
       ...(type === 'font/woff2' ? [] : ['type="font/woff2"']),
-      ...((crossorigin === '' || crossorigin === 'anonymous') ? [] : ['crossorigin (anonymous), as @font-face requests use CORS']),
+      ...(crossorigin === '' || crossorigin === 'anonymous'
+        ? []
+        : ['crossorigin (anonymous), as @font-face requests use CORS']),
       ...(urls.has(tag.url) ? [] : ['a URL an @font-face of the entry stylesheet requests']),
     ];
-    if (problems.length) throw new Error(`The font preload ${tag.source} needs ${problems.join(', ')}; otherwise the font downloads twice.`);
+    if (problems.length)
+      throw new Error(
+        `The font preload ${tag.source} needs ${problems.join(', ')}; otherwise the font downloads twice.`,
+      );
   }
 }
 
@@ -467,23 +562,31 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
   // The marker only delimits the shell markup.
   html = html.slice(0, region.end) + html.slice(region.end + STYLESHEET_MARKER.length);
   const tags = startupTags(html);
-  const count = (kind: StartupKind) => tags.filter(tag => tag.kind === kind).length;
+  const count = (kind: StartupKind) => tags.filter((tag) => tag.kind === kind).length;
   if (count('entry') !== 1 || !count('stylesheet')) {
-    throw new Error(`The build must inject one module entry and an entry stylesheet into <head>, not ${count('entry')} and ${count('stylesheet')}.`);
+    throw new Error(
+      `The build must inject one module entry and an entry stylesheet into <head>, not ${count('entry')} and ${count('stylesheet')}.`,
+    );
   }
-  const appCss = tags.filter(tag => tag.kind === 'stylesheet').map(tag => {
-    const css = input.readStylesheet(tag.url);
-    assertNoCssImports(tag.url, css);
-    assertRootFontStacks(tag.url, css);
-    return css;
-  }).join('\n');
-  assertFontPreloads(tags.filter(tag => tag.kind === 'preload'), appCss);
+  const appCss = tags
+    .filter((tag) => tag.kind === 'stylesheet')
+    .map((tag) => {
+      const css = input.readStylesheet(tag.url);
+      assertNoCssImports(tag.url, css);
+      assertRootFontStacks(tag.url, css);
+      return css;
+    })
+    .join('\n');
+  assertFontPreloads(
+    tags.filter((tag) => tag.kind === 'preload'),
+    appCss,
+  );
   for (const tag of [...tags].reverse()) html = removeTag(html, tag);
-  const startup = STARTUP_KINDS.flatMap(kind => tags.filter(tag => tag.kind === kind));
+  const startup = STARTUP_KINDS.flatMap((kind) => tags.filter((tag) => tag.kind === kind));
 
   assertShellNeutralCss(appCss);
   assertFallbackCoverage(input.shellCss, shellText(root));
-  const style = await criticalAppCss(appCss, root) + minifyShellCss(input.shellCss);
+  const style = (await criticalAppCss(appCss, root)) + minifyShellCss(input.shellCss);
   assertRootRelativeUrls(style);
   const script = stripBootScript(input.bootScript);
   assertInlineSafe('style', style);
@@ -492,7 +595,7 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
   const insertAt = html.indexOf('</head>');
   const lineStart = html.lastIndexOf('\n', insertAt) + 1;
   const indent = /^\s*$/.test(html.slice(lineStart, insertAt)) ? html.slice(lineStart, insertAt) : '';
-  const template = `<template id="${DEFERRED_TEMPLATE_ID}">${startup.map(tag => tag.source).join('')}</template>`;
+  const template = `<template id="${DEFERRED_TEMPLATE_ID}">${startup.map((tag) => tag.source).join('')}</template>`;
   html = `${html.slice(0, insertAt)}<style>${style}</style>\n${indent}${template}\n${indent}<script>${script}</script>\n${indent}${html.slice(insertAt)}`;
   return { html, style, script, startup };
 }
@@ -543,13 +646,22 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
         // A strict style-src must list the other variant's inline style too (vercel.json serves both
         // kinds of build), and nothing else.
         const other = variant === 'online' ? 'offline' : 'online';
-        const otherVariantStyles = allowsInlineStyles(policy) ? [] : [sha256Source((await inlineFirstPaintShell({ ...input, variant: other })).style)];
+        const otherVariantStyles = allowsInlineStyles(policy)
+          ? []
+          : [sha256Source((await inlineFirstPaintShell({ ...input, variant: other })).style)];
         const problems = cspProblems([{ name: 'index.html', html: result.html }], policy, { otherVariantStyles });
-        if (problems.length) throw new Error(`The first-paint shell does not match vercel.json:\n${problems.join('\n')}`);
-        const blocks = inlineBlocks(result.html).map(block => `inline ${block.kind} ${block.bytes} B ${block.source}`);
-        const others = otherVariantStyles.map(hash => `; ${other} variant inline style ${hash}`).join('');
-        const deferred = STARTUP_KINDS.map(kind => `${result.startup.filter(tag => tag.kind === kind).length} ${kind}`).join(', ');
-        logger?.info(`first-paint shell: ${variant} header; <meta charset> at byte ${charset}; deferred ${deferred}; ${blocks.join('; ')}${others}`);
+        if (problems.length)
+          throw new Error(`The first-paint shell does not match vercel.json:\n${problems.join('\n')}`);
+        const blocks = inlineBlocks(result.html).map(
+          (block) => `inline ${block.kind} ${block.bytes} B ${block.source}`,
+        );
+        const others = otherVariantStyles.map((hash) => `; ${other} variant inline style ${hash}`).join('');
+        const deferred = STARTUP_KINDS.map(
+          (kind) => `${result.startup.filter((tag) => tag.kind === kind).length} ${kind}`,
+        ).join(', ');
+        logger?.info(
+          `first-paint shell: ${variant} header; <meta charset> at byte ${charset}; deferred ${deferred}; ${blocks.join('; ')}${others}`,
+        );
         return result.html;
       },
     },

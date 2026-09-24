@@ -6,10 +6,13 @@ import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
 import type { DiscoveryItem } from '../src/lib/discovery-catalog';
 import { readLibrary } from './library-helpers';
 
-const catalog = parseDiscoveryCatalog(JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')));
-const illustrated = catalog.items.find(item => item.artwork && canonicalCatalogId(item.record.id) === item.record.id);
-const withoutArt = catalog.items.find(item => !item.artwork && canonicalCatalogId(item.record.id) === item.record.id);
-if (!illustrated?.artwork || !withoutArt) throw new Error('Discover continuity requires existing illustrated and unillustrated noncanonical fixtures.');
+const catalog = parseDiscoveryCatalog(
+  JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')),
+);
+const illustrated = catalog.items.find((item) => item.artwork && canonicalCatalogId(item.record.id) === item.record.id);
+const withoutArt = catalog.items.find((item) => !item.artwork && canonicalCatalogId(item.record.id) === item.record.id);
+if (!illustrated?.artwork || !withoutArt)
+  throw new Error('Discover continuity requires existing illustrated and unillustrated noncanonical fixtures.');
 const illustratedItem = illustrated;
 const artwork = illustrated.artwork;
 const withoutArtItem = withoutArt;
@@ -32,7 +35,9 @@ declare global {
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/api/catalog?**', route => route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } }));
+  await page.route('**/api/catalog?**', (route) =>
+    route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } }),
+  );
 });
 
 function catalogUrl(item: DiscoveryItem) {
@@ -42,7 +47,14 @@ function catalogUrl(item: DiscoveryItem) {
 
 async function recordContinuity(page: Page) {
   await page.evaluate(() => {
-    const receipt: ContinuityReceipt = { sourceReads: 0, targetReads: 0, nativeOpens: 0, nativeCloses: 0, animatedControlAncestor: false, animationDurations: [] };
+    const receipt: ContinuityReceipt = {
+      sourceReads: 0,
+      targetReads: 0,
+      nativeOpens: 0,
+      nativeCloses: 0,
+      animatedControlAncestor: false,
+      animationDurations: [],
+    };
     window.discoverContinuityReceipt = receipt;
     const showModal = HTMLDialogElement.prototype.showModal;
     HTMLDialogElement.prototype.showModal = function () {
@@ -90,7 +102,7 @@ async function openCatalogDetail(page: Page, item: DiscoveryItem, beforeOpen?: (
 
 test('catalog detail reuses exact licensed artwork, complete credits and native return focus', async ({ page }) => {
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   const { card, dialog, opener, before } = await openCatalogDetail(page, illustratedItem);
   await expect(dialog).toHaveClass(/catalog-detail-dialog/);
   await expect(dialog).not.toHaveClass(/game-dialog/);
@@ -100,11 +112,18 @@ test('catalog detail reuses exact licensed artwork, complete credits and native 
   await expect(image).toHaveAttribute('width', String(artwork.width));
   await expect(image).toHaveAttribute('height', String(artwork.height));
   await expect(dialog.getByRole('heading', { name: illustratedItem.record.title, exact: true })).toBeFocused();
-  await expect.poll(() => image.evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
-  const dimensions = await image.evaluate(node => {
+  await expect
+    .poll(() => image.evaluate((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0))
+    .toBe(true);
+  const dimensions = await image.evaluate((node) => {
     if (!(node instanceof HTMLImageElement)) throw new Error('Expected catalog artwork.');
     const rect = node.getBoundingClientRect();
-    return { width: rect.width, height: rect.height, naturalWidth: node.naturalWidth, naturalHeight: node.naturalHeight };
+    return {
+      width: rect.width,
+      height: rect.height,
+      naturalWidth: node.naturalWidth,
+      naturalHeight: node.naturalHeight,
+    };
   });
   expect(dimensions.width).toBeLessThanOrEqual(dimensions.naturalWidth);
   expect(dimensions.height).toBeLessThanOrEqual(dimensions.naturalHeight);
@@ -113,7 +132,10 @@ test('catalog detail reuses exact licensed artwork, complete credits and native 
   await credits.getByText('Artwork credits', { exact: true }).click();
   await expect(credits).toContainText(artwork.credit);
   await expect(credits.getByRole('link').first()).toHaveAttribute('href', artwork.sourceUrl);
-  await expect(credits.getByRole('link', { name: artwork.license, exact: true })).toHaveAttribute('href', artwork.licenseUrl);
+  await expect(credits.getByRole('link', { name: artwork.license, exact: true })).toHaveAttribute(
+    'href',
+    artwork.licenseUrl,
+  );
   await expect(credits.getByRole('link').first()).toHaveAttribute('target', '_blank');
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dialog).toHaveCount(0);
@@ -135,7 +157,7 @@ test('catalog detail keeps a bounded readable artwork frame and credits at 320px
   await summary.click();
   await expect(dialog.locator('.game-artwork-credit')).toContainText(artwork.credit);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+  expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
@@ -146,14 +168,16 @@ test('missing art preserves the public metadata, working controls and honest fal
   await expect(dialog.getByText('Artwork unavailable', { exact: true })).toBeVisible();
   await expect(dialog.locator('.game-artwork-disclosure')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
-  await expect(dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${withoutArtItem.record.title}`, exact: true })).toBeEnabled();
+  await expect(
+    dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${withoutArtItem.record.title}`, exact: true }),
+  ).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();
 });
 
 test('failed existing artwork uses the shared fallback without losing credits or dialog controls', async ({ page }) => {
-  await page.route(`**${artwork.src}`, route => route.abort());
+  await page.route(`**${artwork.src}`, (route) => route.abort());
   const { dialog, opener } = await openCatalogDetail(page, illustratedItem);
   await expect(dialog.locator('.game-artwork-fallback')).toBeVisible();
   await expect(dialog.locator('.catalog-detail-sleeve img')).toHaveCount(0);
@@ -176,23 +200,35 @@ test('reduced motion skips endpoint measurement and optional animation setup', a
   expect(await page.evaluate(() => window.discoverContinuityReceipt)).toMatchObject(noMotion);
 });
 
-test('motion-enabled pointer and keyboard previews retain immediate native close and rapid reopen', async ({ page, isMobile }) => {
+test('motion-enabled pointer and keyboard previews retain immediate native close and rapid reopen', async ({
+  page,
+  isMobile,
+}) => {
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(catalogUrl(illustratedItem));
   const card = page.locator(`[data-catalog-id="${illustratedItem.record.id}"]`);
   const opener = card.getByRole('button', { name: illustratedItem.record.title, exact: true });
   await expect(opener).toBeVisible();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('button', { name: 'Settings & backups', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Menu', exact: true })
+    .getByRole('button', { name: 'Settings & backups', exact: true })
+    .click();
   const full = page.getByRole('radio', { name: /Full/ });
   await full.click();
   await expect(full).toBeChecked();
   await expect.poll(async () => (await readLibrary(page)).motion).toBe('full');
   await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
-  await expect.poll(() => card.locator('.discovery-card-art > img').evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
+  await expect
+    .poll(() =>
+      card
+        .locator('.discovery-card-art > img')
+        .evaluate((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0),
+    )
+    .toBe(true);
   await recordContinuity(page);
 
   const dialog = page.getByRole('dialog', { name: illustratedItem.record.title, exact: true });
@@ -201,7 +237,9 @@ test('motion-enabled pointer and keyboard previews retain immediate native close
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading', { name: illustratedItem.record.title, exact: true })).toBeFocused();
   await expect(dialog.getByRole('spinbutton')).toBeEnabled();
-  await expect.poll(() => page.evaluate(() => window.discoverContinuityReceipt?.animationDurations.length ?? 0)).toBeGreaterThan(0);
+  await expect
+    .poll(() => page.evaluate(() => window.discoverContinuityReceipt?.animationDurations.length ?? 0))
+    .toBeGreaterThan(0);
   const opening = await page.evaluate(() => window.discoverContinuityReceipt);
   const expectedOpens = developmentBuild ? 2 : 1;
   expect(opening?.sourceReads).toBe(1);

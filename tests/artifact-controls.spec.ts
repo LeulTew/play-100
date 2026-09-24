@@ -21,7 +21,8 @@ test.beforeEach(async ({ page }) => {
     Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
     Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
     Object.defineProperty(navigator, 'connection', {
-      configurable: true, value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
+      configurable: true,
+      value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
     });
   });
 });
@@ -32,7 +33,9 @@ test('Auto offers a real on-demand fan on touch and a working loaded fan on desk
   const artifact = page.locator('.collection-artifact');
   const fan = page.getByRole('button', { name: 'Fan out the collection sleeves', exact: true });
   if (isMobile) {
-    expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0)).toBe(true);
+    expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0)).toBe(
+      true,
+    );
     await expect(artifact).toHaveAttribute('data-activation', 'on-demand');
     await expect(artifact.locator('canvas')).toHaveCount(0);
     await expect(artifact).toContainText('tap Fan out to start 3D');
@@ -77,7 +80,9 @@ test('Lite removes fan controls and retains the settled illustration and browsin
   await expect(page.locator('.game-dialog[open]')).toBeVisible();
 });
 
-test('system reduction removes the control even in Full and restores it only when motion is allowed', async ({ page }) => {
+test('system reduction removes the control even in Full and restores it only when motion is allowed', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?catalogs=off');
   await selectQuality(page, 'Full');
@@ -111,9 +116,11 @@ test('Auto reconciles a Save-Data change before capability subscription', async 
   await page.addInitScript(() => {
     const original = EventTarget.prototype.addEventListener;
     EventTarget.prototype.addEventListener = function (type, listener, options) {
-      const connection = (navigator as Navigator & {
-        connection?: EventTarget & { saveData?: boolean };
-      }).connection;
+      const connection = (
+        navigator as Navigator & {
+          connection?: EventTarget & { saveData?: boolean };
+        }
+      ).connection;
       if (connection && this === connection && type === 'change') {
         EventTarget.prototype.addEventListener = original;
         document.documentElement.dataset.saveDataBeforeSubscription = String(connection.saveData);
@@ -164,7 +171,10 @@ test('scaled decorative sleeves contain no DOM microtext or contrast incompletes
     await expect(page.locator('.artifact-still')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.locator('.artifact-still text')).toHaveCount(0);
     await expectReadableSurface(page, `Static illustration at ${width}px`);
-    const contrast = await new AxeBuilder({ page }).include('.collection-artifact').withRules(['color-contrast']).analyze();
+    const contrast = await new AxeBuilder({ page })
+      .include('.collection-artifact')
+      .withRules(['color-contrast'])
+      .analyze();
     expect(contrast.violations).toEqual([]);
     expect(contrast.incomplete).toEqual([]);
   }

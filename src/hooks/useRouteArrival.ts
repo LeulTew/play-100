@@ -19,12 +19,20 @@ export function useRouteArrival(main: RefObject<HTMLElement | null>, state: Read
     if (!animate || !isRouteArrival(prior, next)) return;
     const session = runtime.startMotionSession({
       channel: 'route',
-      guard: { isCurrent: () => !current.current.blocked && current.current.family === family &&
-        current.current.scopeEpoch === scopeEpoch && current.current.navigationEpoch === navigationEpoch },
+      guard: {
+        isCurrent: () =>
+          !current.current.blocked &&
+          current.current.family === family &&
+          current.current.scopeEpoch === scopeEpoch &&
+          current.current.navigationEpoch === navigationEpoch,
+      },
     });
     if (!session) return;
     const heading = [...(main.current?.querySelectorAll('[data-page-heading], h1') ?? [])].find(visibleMotionTarget);
-    if (!heading) { session.finish(); return; }
+    if (!heading) {
+      session.finish();
+      return;
+    }
     playArrival(session, heading, arrivalMotion('route', coarsePointer));
     return () => session.cancel();
   }, [main, runtime, family, scopeEpoch, navigationEpoch, blocked, animate, coarsePointer]);

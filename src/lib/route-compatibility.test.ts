@@ -20,7 +20,10 @@ describe('preserved entry points during the My games navigation merge', () => {
   it('keeps old queue and ranking details usable without rewriting their stored models', () => {
     const queue = new URL('https://play100.test/my-library?list=later&game=wikidata%3AQ123&catalogs=off');
     expect(pageFromPath(queue.pathname)).toBe('library');
-    expect(parseUrl(queue.search)).toMatchObject({ filters: { list: 'later', catalogs: 'off' }, game: 'wikidata:Q123' });
+    expect(parseUrl(queue.search)).toMatchObject({
+      filters: { list: 'later', catalogs: 'off' },
+      game: 'wikidata:Q123',
+    });
     const ranking = new URL('https://play100.test/my-rankings?game=red-dead-redemption-2');
     expect(pageFromPath(ranking.pathname)).toBe('rankings');
     expect(parseUrl(ranking.search).game).toBe('red-dead-redemption-2');
@@ -32,7 +35,9 @@ describe('preserved entry points during the My games navigation merge', () => {
     expect(pageFromPath('/')).toBe('collection');
   });
   it('public collection links contain neither private library scope nor people/group intent', () => {
-    const source = parseUrl('?q=Mass&list=later&catalogs=off&group=private-group&participants=friend-1&token=private-capability&scope=account');
+    const source = parseUrl(
+      '?q=Mass&list=later&catalogs=off&group=private-group&participants=friend-1&token=private-capability&scope=account',
+    );
     const url = new URL(createShareUrl('https://play100.test', source.filters, 'mass-effect-2'));
     expect([...url.searchParams.keys()].sort()).toEqual(['catalogs', 'game', 'q']);
     expect(url.searchParams.get('catalogs')).toBe('off');

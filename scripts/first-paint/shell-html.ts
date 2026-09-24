@@ -17,14 +17,16 @@ export function shellRegion(html: string): { start: number; end: number } {
   const start = html.indexOf(ROOT_OPEN);
   const end = html.indexOf(STYLESHEET_MARKER);
   if (start === -1 || end === -1 || end < start || html.indexOf(STYLESHEET_MARKER, end + 1) !== -1) {
-    throw new Error(`index.html must contain ${ROOT_OPEN}, the first-paint shell and exactly one ${STYLESHEET_MARKER} after it.`);
+    throw new Error(
+      `index.html must contain ${ROOT_OPEN}, the first-paint shell and exactly one ${STYLESHEET_MARKER} after it.`,
+    );
   }
   return { start, end };
 }
 
 /** Keeps the markup of one header variant and drops the variant markers. */
 export function selectShellVariant(html: string, variant: ShellVariant): string {
-  const selected = html.replace(VARIANT_BLOCK, (_, name: string, content: string) => name === variant ? content : '');
+  const selected = html.replace(VARIANT_BLOCK, (_, name: string, content: string) => (name === variant ? content : ''));
   if (/<!--\/?shell:/.test(selected)) throw new Error('index.html has an unbalanced first-paint shell variant marker.');
   return selected;
 }
@@ -42,14 +44,15 @@ function withoutComments(markup: string): string {
     if (markup.startsWith('>', body)) from = body + 1;
     else if (markup.startsWith('->', body)) from = body + 2;
     else {
-      const ends = [markup.indexOf('-->', body), markup.indexOf('--!>', body)].filter(index => index !== -1);
+      const ends = [markup.indexOf('-->', body), markup.indexOf('--!>', body)].filter((index) => index !== -1);
       if (!ends.length) throw new Error('The first-paint shell has an unterminated comment.');
       const end = Math.min(...ends);
       from = end + (markup.startsWith('-->', end) ? 3 : 4);
     }
   }
   output += markup.slice(from);
-  if (output.includes('<!--')) throw new Error('Removing the first-paint shell comments left a comment opening behind.');
+  if (output.includes('<!--'))
+    throw new Error('Removing the first-paint shell comments left a comment opening behind.');
   return output;
 }
 
@@ -92,7 +95,10 @@ function withoutTags(markup: string): string {
 export function shellText(markup: string): string {
   return withoutTags(markup).replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);|&/g, (entity, body: string | undefined) => {
     if (body === undefined) return '&';
-    if (body.startsWith('#')) return String.fromCodePoint(body[1] === 'x' || body[1] === 'X' ? Number.parseInt(body.slice(2), 16) : Number.parseInt(body.slice(1), 10));
+    if (body.startsWith('#'))
+      return String.fromCodePoint(
+        body[1] === 'x' || body[1] === 'X' ? Number.parseInt(body.slice(2), 16) : Number.parseInt(body.slice(1), 10),
+      );
     const named = NAMED_ENTITIES[body];
     if (named === undefined) throw new Error(`The first-paint shell text contains an unsupported entity "${entity}".`);
     return named;

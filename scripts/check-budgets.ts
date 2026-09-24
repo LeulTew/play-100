@@ -7,13 +7,23 @@ import { assertPublicBuildOutput, assertPublicPrecachePaths, readBuildManifest }
 export { assertDeferredBundleModules } from './eager-module-guard';
 
 const metrics = [
-  'eagerCombinedGzipBytes', 'cssRawBytes', 'cssGzipBytes',
-  'standaloneCssRawBytes', 'standaloneCssGzipBytes',
-  'pwaCoreBytes', 'pwaCoreFiles', 'largestLazyRawBytes', 'largestLazyGzipBytes',
+  'eagerCombinedGzipBytes',
+  'cssRawBytes',
+  'cssGzipBytes',
+  'standaloneCssRawBytes',
+  'standaloneCssGzipBytes',
+  'pwaCoreBytes',
+  'pwaCoreFiles',
+  'largestLazyRawBytes',
+  'largestLazyGzipBytes',
 ] as const;
-type Metric = typeof metrics[number];
+type Metric = (typeof metrics)[number];
 export type BudgetLimits = Record<Metric, number>;
-interface AssetSize { file: string; rawBytes: number; gzipBytes: number }
+interface AssetSize {
+  file: string;
+  rawBytes: number;
+  gzipBytes: number;
+}
 export interface BuildMeasurement {
   values: BudgetLimits;
   eager: AssetSize[];
@@ -39,14 +49,19 @@ export function parseBudgetLimits(input: unknown): BudgetLimits {
   const values = input.limits;
   const read = (key: Metric) => {
     const value = values[key];
-    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) throw new Error(`Invalid budget: ${key}.`);
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)
+      throw new Error(`Invalid budget: ${key}.`);
     return value;
   };
   return {
-    eagerCombinedGzipBytes: read('eagerCombinedGzipBytes'), cssRawBytes: read('cssRawBytes'),
-    cssGzipBytes: read('cssGzipBytes'), standaloneCssRawBytes: read('standaloneCssRawBytes'),
-    standaloneCssGzipBytes: read('standaloneCssGzipBytes'), pwaCoreBytes: read('pwaCoreBytes'),
-    pwaCoreFiles: read('pwaCoreFiles'), largestLazyRawBytes: read('largestLazyRawBytes'),
+    eagerCombinedGzipBytes: read('eagerCombinedGzipBytes'),
+    cssRawBytes: read('cssRawBytes'),
+    cssGzipBytes: read('cssGzipBytes'),
+    standaloneCssRawBytes: read('standaloneCssRawBytes'),
+    standaloneCssGzipBytes: read('standaloneCssGzipBytes'),
+    pwaCoreBytes: read('pwaCoreBytes'),
+    pwaCoreFiles: read('pwaCoreFiles'),
+    largestLazyRawBytes: read('largestLazyRawBytes'),
     largestLazyGzipBytes: read('largestLazyGzipBytes'),
   };
 }
@@ -57,15 +72,26 @@ function localFile(value: string): string {
     throw new Error(`Cannot measure a nonlocal build asset: ${value}`);
   }
   const file = decodeURIComponent(url.pathname).slice(1);
-  if (!file || file.includes('\\') || file.includes('\0') ||
-    file.split('/').some(part => !part || part === '.' || part === '..')) {
+  if (
+    !file ||
+    file.includes('\\') ||
+    file.includes('\0') ||
+    file.split('/').some((part) => !part || part === '.' || part === '..')
+  ) {
     throw new Error(`Invalid build asset path: ${value}`);
   }
   return file;
 }
 
-interface DocumentTag { name: 'script' | 'link'; attributes: Map<string, string>; inNoscript: boolean }
-interface DocumentScan { tags: DocumentTag[]; styles: { css: string; inNoscript: boolean }[] }
+interface DocumentTag {
+  name: 'script' | 'link';
+  attributes: Map<string, string>;
+  inNoscript: boolean;
+}
+interface DocumentScan {
+  tags: DocumentTag[];
+  styles: { css: string; inNoscript: boolean }[];
+}
 
 /**
  * Tokenizes a built document the way an HTML parser does: comments are skipped, <script> and
@@ -102,13 +128,16 @@ export function scanDocument(html: string): DocumentScan {
 export function eagerHtmlFiles(html: string): string[] {
   const files = new Set<string>();
   let modules = 0;
-  for (const { name, attributes } of scanDocument(html).tags.filter(tag => !tag.inNoscript)) {
+  for (const { name, attributes } of scanDocument(html).tags.filter((tag) => !tag.inNoscript)) {
     const rel = attributes.get('rel')?.toLowerCase().split(/\s+/) ?? [];
     if (name === 'script' && attributes.get('type')?.toLowerCase() === 'module' && attributes.has('src')) {
       modules += 1;
       files.add(localFile(attributes.get('src')!));
-    } else if (name === 'link' && attributes.has('href') &&
-      (rel.includes('modulepreload') || rel.includes('stylesheet'))) {
+    } else if (
+      name === 'link' &&
+      attributes.has('href') &&
+      (rel.includes('modulepreload') || rel.includes('stylesheet'))
+    ) {
       files.add(localFile(attributes.get('href')!));
     }
   }
@@ -134,7 +163,7 @@ async function buildFiles(root: string, relative = ''): Promise<string[]> {
   for (const entry of await readdir(path.join(root, relative), { withFileTypes: true })) {
     const name = relative ? `${relative}/${entry.name}` : entry.name;
     if (entry.isSymbolicLink()) throw new Error(`Build assets must not be symbolic links: ${name}`);
-    if (entry.isDirectory()) files.push(...await buildFiles(root, name));
+    if (entry.isDirectory()) files.push(...(await buildFiles(root, name)));
     else if (entry.isFile()) files.push(name);
   }
   return files.sort();
@@ -157,24 +186,34 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   const eagerFiles = new Set(eagerHtmlFiles(html));
   const inlineCss: AssetSize[] = [];
   const documents: AssetSize[] = [];
-  for (const document of [...files].filter(file => file.endsWith('.html'))) {
+  for (const document of [...files].filter((file) => file.endsWith('.html'))) {
     const source = await readFile(path.join(root, ...document.split('/')), 'utf8');
-    documents.push({ file: document, rawBytes: Buffer.byteLength(source),
-      gzipBytes: gzipSync(source, { level: 9 }).byteLength });
+    documents.push({
+      file: document,
+      rawBytes: Buffer.byteLength(source),
+      gzipBytes: gzipSync(source, { level: 9 }).byteLength,
+    });
     const scan = scanDocument(source);
     if (document !== 'pwa/offline.html') {
-      for (const { name, attributes } of scan.tags.filter(tag => document !== 'index.html' || !tag.inNoscript)) {
+      for (const { name, attributes } of scan.tags.filter((tag) => document !== 'index.html' || !tag.inNoscript)) {
         const rel = attributes.get('rel')?.toLowerCase().split(/\s+/) ?? [];
-        if (name !== 'link' || !attributes.has('href') ||
-          !rel.some(value => ['stylesheet', 'preload', 'prefetch'].includes(value))) continue;
+        if (
+          name !== 'link' ||
+          !attributes.has('href') ||
+          !rel.some((value) => ['stylesheet', 'preload', 'prefetch'].includes(value))
+        )
+          continue;
         if (standalone(localFile(attributes.get('href')!))) {
           throw new Error(`Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`);
         }
       }
-      for (const [index, { css }] of scan.styles.filter(entry => !entry.inNoscript).entries()) {
+      for (const [index, { css }] of scan.styles.filter((entry) => !entry.inNoscript).entries()) {
         rejectStandaloneImports(css, document);
-        inlineCss.push({ file: `${document}#inline-${index}.css`, rawBytes: Buffer.byteLength(css),
-          gzipBytes: gzipSync(css, { level: 9 }).byteLength });
+        inlineCss.push({
+          file: `${document}#inline-${index}.css`,
+          rawBytes: Buffer.byteLength(css),
+          gzipBytes: gzipSync(css, { level: 9 }).byteLength,
+        });
       }
     }
   }
@@ -182,8 +221,9 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   if (!object(manifest)) throw new Error('Invalid Vite build manifest.');
   for (const [key, chunk] of Object.entries(manifest)) {
     if (!object(chunk) || chunk.css === undefined) continue;
-    if (!Array.isArray(chunk.css) || chunk.css.some(value => typeof value !== 'string')) throw new Error(`Invalid Vite css: ${key}`);
-    if (chunk.css.some(value => standalone(localFile(`/${value}`)))) {
+    if (!Array.isArray(chunk.css) || chunk.css.some((value) => typeof value !== 'string'))
+      throw new Error(`Invalid Vite css: ${key}`);
+    if (chunk.css.some((value) => standalone(localFile(`/${value}`)))) {
       throw new Error(`Standalone stylesheet referenced by Vite app chunk: ${key}`);
     }
   }
@@ -196,7 +236,8 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     eagerFiles.add(localFile(`/${chunk.file}`));
     for (const field of ['imports', 'css'] as const) {
       const values = chunk[field] ?? [];
-      if (!Array.isArray(values) || values.some(value => typeof value !== 'string')) throw new Error(`Invalid Vite ${field}: ${key}`);
+      if (!Array.isArray(values) || values.some((value) => typeof value !== 'string'))
+        throw new Error(`Invalid Vite ${field}: ${key}`);
       for (const value of values) {
         if (field === 'imports') visit(value);
         else eagerFiles.add(localFile(`/${value}`));
@@ -206,16 +247,20 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   for (const [key, chunk] of Object.entries(manifest)) {
     if (object(chunk) && typeof chunk.file === 'string' && eagerFiles.has(localFile(`/${chunk.file}`))) visit(key);
   }
-  if ([...eagerFiles].some(standalone)) throw new Error('Standalone CSS cannot enter the JavaScript-enabled eager graph.');
+  if ([...eagerFiles].some(standalone))
+    throw new Error('Standalone CSS cannot enter the JavaScript-enabled eager graph.');
   const eager = await Promise.all([...eagerFiles].sort().map(size));
-  const allCss = [...files].filter(file => file.endsWith('.css'));
-  if (allCss.some(file => !file.startsWith('assets/') && !standalone(file))) {
+  const allCss = [...files].filter((file) => file.endsWith('.css'));
+  if (allCss.some((file) => !file.startsWith('assets/') && !standalone(file))) {
     throw new Error('A stylesheet is outside the declared app/standalone CSS scopes.');
   }
-  const css = await Promise.all(allCss.filter(file => file.startsWith('assets/')).map(size));
+  const css = await Promise.all(allCss.filter((file) => file.startsWith('assets/')).map(size));
   const standaloneCss = await Promise.all(allCss.filter(standalone).map(size));
-  for (const asset of css) rejectStandaloneImports(await readFile(path.join(root, ...asset.file.split('/')), 'utf8'), asset.file);
-  const lazy = await Promise.all([...files].filter(file => file.startsWith('assets/') && file.endsWith('.js') && !eagerFiles.has(file)).map(size));
+  for (const asset of css)
+    rejectStandaloneImports(await readFile(path.join(root, ...asset.file.split('/')), 'utf8'), asset.file);
+  const lazy = await Promise.all(
+    [...files].filter((file) => file.startsWith('assets/') && file.endsWith('.js') && !eagerFiles.has(file)).map(size),
+  );
   lazy.sort((a, b) => b.gzipBytes - a.gzipBytes || a.file.localeCompare(b.file));
   const largestLazyRaw = [...lazy].sort((a, b) => b.rawBytes - a.rawBytes || a.file.localeCompare(b.file))[0] ?? null;
   const pwa: unknown = JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8'));
@@ -226,7 +271,8 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   const coreFiles = new Set<string>();
   let coreBytes = 0;
   for (const asset of pwa.core) {
-    if (!object(asset) || typeof asset.url !== 'string' || typeof asset.bytes !== 'number') throw new Error('Invalid PWA core asset.');
+    if (!object(asset) || typeof asset.url !== 'string' || typeof asset.bytes !== 'number')
+      throw new Error('Invalid PWA core asset.');
     assertPublicPrecachePaths([asset.url]);
     const file = localFile(asset.url);
     if (coreFiles.has(file)) throw new Error(`Duplicate PWA core asset: ${file}`);
@@ -235,8 +281,9 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     if (actual.rawBytes !== asset.bytes) throw new Error(`PWA core byte declaration differs from disk: ${file}`);
     coreBytes += actual.rawBytes;
   }
-  if (!coreFiles.size || pwa.coreBytes !== coreBytes) throw new Error('PWA core byte total is missing or inconsistent.');
-  if (standaloneCss.some(asset => !coreFiles.has(asset.file))) {
+  if (!coreFiles.size || pwa.coreBytes !== coreBytes)
+    throw new Error('PWA core byte total is missing or inconsistent.');
+  if (standaloneCss.some((asset) => !coreFiles.has(asset.file))) {
     throw new Error('Standalone CSS must also be included in the bounded PWA core.');
   }
   // Format 1 reserves the ready marker and page-version map in addition to public files.
@@ -254,19 +301,29 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
       largestLazyGzipBytes: lazy[0]?.gzipBytes ?? 0,
     },
     eager,
-    eagerJsGzipBytes: eager.filter(asset => asset.file.endsWith('.js')).reduce((sum, asset) => sum + asset.gzipBytes, 0),
-    eagerCssGzipBytes: eager.filter(asset => asset.file.endsWith('.css')).reduce((sum, asset) => sum + asset.gzipBytes, 0),
-    css, standaloneCss, inlineCss, html: documents,
+    eagerJsGzipBytes: eager
+      .filter((asset) => asset.file.endsWith('.js'))
+      .reduce((sum, asset) => sum + asset.gzipBytes, 0),
+    eagerCssGzipBytes: eager
+      .filter((asset) => asset.file.endsWith('.css'))
+      .reduce((sum, asset) => sum + asset.gzipBytes, 0),
+    css,
+    standaloneCss,
+    inlineCss,
+    html: documents,
     combinedCssRawBytes: [...css, ...standaloneCss].reduce((sum, asset) => sum + asset.rawBytes, 0),
     combinedCssGzipBytes: [...css, ...standaloneCss].reduce((sum, asset) => sum + asset.gzipBytes, 0),
-    largestLazy: lazy[0] ?? null, largestLazyRaw,
+    largestLazy: lazy[0] ?? null,
+    largestLazyRaw,
     pwa: { assetFiles: coreFiles.size, assetBytes: coreBytes, metadataBytes: pwa.budget.metadataBytes, metadataFiles },
   };
 }
 
 export function budgetRows(measured: BuildMeasurement, limits: BudgetLimits) {
-  return metrics.map(metric => ({
-    metric, actual: measured.values[metric], limit: limits[metric],
+  return metrics.map((metric) => ({
+    metric,
+    actual: measured.values[metric],
+    limit: limits[metric],
     result: measured.values[metric] <= limits[metric] ? 'PASS' : 'FAIL',
   }));
 }
@@ -280,28 +337,49 @@ export function parseBudgetArguments(args: readonly string[]): { jsonPath?: stri
 }
 
 export async function reportBudgets(
-  measured: BuildMeasurement, limits: BudgetLimits, jsonPath?: string, sourceCommit: string | null = process.env.GITHUB_SHA || null,
+  measured: BuildMeasurement,
+  limits: BudgetLimits,
+  jsonPath?: string,
+  sourceCommit: string | null = process.env.GITHUB_SHA || null,
 ): Promise<0 | 1> {
   const rows = budgetRows(measured, limits);
   console.table(rows);
-  console.log(`Eager JS gzip9: ${measured.eagerJsGzipBytes}; eager CSS gzip9: ${measured.eagerCssGzipBytes}. The enforced eager cap covers both.`);
+  console.log(
+    `Eager JS gzip9: ${measured.eagerJsGzipBytes}; eager CSS gzip9: ${measured.eagerCssGzipBytes}. The enforced eager cap covers both.`,
+  );
   console.log(`App CSS (Vite assets): ${measured.values.cssRawBytes} raw / ${measured.values.cssGzipBytes} gzip9.`);
-  console.log(`Standalone-document CSS: ${measured.values.standaloneCssRawBytes} raw / ${measured.values.standaloneCssGzipBytes} gzip9; also counted in PWA core.`);
-  console.log(`Combined CSS, reported without a combined gate: ${measured.combinedCssRawBytes} raw / ${measured.combinedCssGzipBytes} gzip9.`);
-  console.log(`HTML (including inline styles): ${measured.html.map(asset => `${asset.file}: ${asset.rawBytes} raw / ${asset.gzipBytes} gzip9`).join('; ')}`);
-  console.log(`Active inline CSS: ${measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0)} raw bytes, already included in the HTML totals; fragment gzip values are not added to transfer totals.`);
-  console.log(`Eager JS/CSS (deduplicated, gzip level 9 per file): ${measured.eager.map(asset => asset.file).join(', ')}`);
-  console.log(`PWA: ${measured.pwa.assetFiles} public files / ${measured.pwa.assetBytes} bytes, plus ${measured.pwa.metadataFiles} metadata entries / ${measured.pwa.metadataBytes} reserved bytes.`);
+  console.log(
+    `Standalone-document CSS: ${measured.values.standaloneCssRawBytes} raw / ${measured.values.standaloneCssGzipBytes} gzip9; also counted in PWA core.`,
+  );
+  console.log(
+    `Combined CSS, reported without a combined gate: ${measured.combinedCssRawBytes} raw / ${measured.combinedCssGzipBytes} gzip9.`,
+  );
+  console.log(
+    `HTML (including inline styles): ${measured.html.map((asset) => `${asset.file}: ${asset.rawBytes} raw / ${asset.gzipBytes} gzip9`).join('; ')}`,
+  );
+  console.log(
+    `Active inline CSS: ${measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0)} raw bytes, already included in the HTML totals; fragment gzip values are not added to transfer totals.`,
+  );
+  console.log(
+    `Eager JS/CSS (deduplicated, gzip level 9 per file): ${measured.eager.map((asset) => asset.file).join(', ')}`,
+  );
+  console.log(
+    `PWA: ${measured.pwa.assetFiles} public files / ${measured.pwa.assetBytes} bytes, plus ${measured.pwa.metadataFiles} metadata entries / ${measured.pwa.metadataBytes} reserved bytes.`,
+  );
   if (measured.largestLazy) console.log(`Largest lazy gzip chunk: ${measured.largestLazy.file}`);
   if (measured.largestLazyRaw) console.log(`Largest lazy raw chunk: ${measured.largestLazyRaw.file}`);
-  const pass = rows.every(row => row.result === 'PASS');
+  const pass = rows.every((row) => row.result === 'PASS');
   if (jsonPath !== undefined) {
     const report = {
       schemaVersion: 1,
       sourceCommit,
       pass,
-      budgets: rows.map(row => ({
-        metric: row.metric, measured: row.actual, cap: row.limit, headroom: row.limit - row.actual, pass: row.result === 'PASS',
+      budgets: rows.map((row) => ({
+        metric: row.metric,
+        measured: row.actual,
+        cap: row.limit,
+        headroom: row.limit - row.actual,
+        pass: row.result === 'PASS',
       })),
       reportedOnly: {
         eagerJsGzipBytes: measured.eagerJsGzipBytes,
@@ -325,7 +403,7 @@ async function main() {
   const { jsonPath } = parseBudgetArguments(process.argv.slice(2));
   const limits = parseBudgetLimits(JSON.parse(await readFile('budgets.json', 'utf8')));
   const measured = await measureBuild(path.resolve('dist'));
-  if (await reportBudgets(measured, limits, jsonPath) === 1) process.exitCode = 1;
+  if ((await reportBudgets(measured, limits, jsonPath)) === 1) process.exitCode = 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

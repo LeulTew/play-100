@@ -12,6 +12,8 @@ describe('password policy error disclosure', () => {
 
   it('keeps existing sign-in and weak-password guidance separate from the new-password policy', () => {
     expect(onlineError({ code: 'auth/weak-password' })).toBe('Choose a longer password or passphrase.');
-    expect(onlineError({ code: 'auth/invalid-credential' })).toBe('The sign-in details were not accepted. Check them or reset your password.');
+    expect(onlineError({ code: 'auth/invalid-credential' })).toBe(
+      'The sign-in details were not accepted. Check them or reset your password.',
+    );
   });
 });

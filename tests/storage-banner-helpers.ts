@@ -7,7 +7,7 @@ export async function expectStorageDenial(page: Page) {
   await expect(banner).toHaveAttribute('role', 'alert');
   await expect(banner).toContainText('Changes now work in this tab only; download a backup before closing it');
   await expect(banner.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
-  const configured = await page.getByRole('link', { name: /^Account/ }).count() > 0;
+  const configured = (await page.getByRole('link', { name: /^Account/ }).count()) > 0;
   if (configured) {
     await expect(banner.getByRole('button', { name: 'Open Account', exact: true })).toBeVisible();
     await expect(banner.getByRole('button', { name: 'Use this device only', exact: true })).toBeVisible();
@@ -24,6 +24,6 @@ export async function expectStorageDenial(page: Page) {
   expect(text.match(/Your saved data has not been overwritten or cleared\./g)).toHaveLength(1);
   expect(text.match(/Changes now work in this tab only/g)).toHaveLength(1);
   expect(text).not.toContain('Your libraries have not been cleared.');
-  expect(await banner.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await banner.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   return { banner, configured };
 }

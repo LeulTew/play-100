@@ -28,30 +28,52 @@ export function useUrlState() {
   const page = pageFromPath(path);
   const parsed = parseUrl(search);
   const gamesView = myGamesTab(path, search);
-  const filters = page === 'games' && gamesView === 'queue' && parsed.filters.list === 'all' ? { ...parsed.filters, list: 'later' as const } : parsed.filters;
+  const filters =
+    page === 'games' && gamesView === 'queue' && parsed.filters.list === 'all'
+      ? { ...parsed.filters, list: 'later' as const }
+      : parsed.filters;
   const game = parsed.game;
 
-  const navigate = useCallback((nextSearch: string, method: 'push' | 'replace', state: object | null = null, nextPath = window.location.pathname) => {
-    if (nextSearch === window.location.search && nextPath === window.location.pathname) return;
-    window.history[method === 'push' ? 'pushState' : 'replaceState'](state, '', `${nextPath}${nextSearch}`);
-    window.dispatchEvent(new Event(NAVIGATION_EVENT));
-  }, []);
+  const navigate = useCallback(
+    (
+      nextSearch: string,
+      method: 'push' | 'replace',
+      state: object | null = null,
+      nextPath = window.location.pathname,
+    ) => {
+      if (nextSearch === window.location.search && nextPath === window.location.pathname) return;
+      window.history[method === 'push' ? 'pushState' : 'replaceState'](state, '', `${nextPath}${nextSearch}`);
+      window.dispatchEvent(new Event(NAVIGATION_EVENT));
+    },
+    [],
+  );
 
-  const updateFilters = useCallback((patch: Partial<Filters>, method: 'push' | 'replace' = 'push') => {
-    const current = parseUrl(window.location.search);
-    if (['games', 'library', 'rankings'].includes(pageFromPath(window.location.pathname))) {
-      const tab = patch.list === 'later' ? 'queue' : myGamesTab(window.location.pathname, window.location.search);
-      navigate(myGamesSearch({ ...current.filters, ...patch }, tab, current.game), method, window.history.state, PAGE_PATHS.games);
-    } else navigate(createSearch({ ...current.filters, ...patch }, current.game), method);
-  }, [navigate]);
+  const updateFilters = useCallback(
+    (patch: Partial<Filters>, method: 'push' | 'replace' = 'push') => {
+      const current = parseUrl(window.location.search);
+      if (['games', 'library', 'rankings'].includes(pageFromPath(window.location.pathname))) {
+        const tab = patch.list === 'later' ? 'queue' : myGamesTab(window.location.pathname, window.location.search);
+        navigate(
+          myGamesSearch({ ...current.filters, ...patch }, tab, current.game),
+          method,
+          window.history.state,
+          PAGE_PATHS.games,
+        );
+      } else navigate(createSearch({ ...current.filters, ...patch }, current.game), method);
+    },
+    [navigate],
+  );
 
-  const openGame = useCallback((slug: string) => {
-    const current = parseUrl(window.location.search);
-    navigate(gameDetailSearch(window.location.search, slug), current.game ? 'replace' : 'push', {
-      ...window.history.state,
-      play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
-    });
-  }, [navigate]);
+  const openGame = useCallback(
+    (slug: string) => {
+      const current = parseUrl(window.location.search);
+      navigate(gameDetailSearch(window.location.search, slug), current.game ? 'replace' : 'push', {
+        ...window.history.state,
+        play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
+      });
+    },
+    [navigate],
+  );
 
   const closeGame = useCallback(() => {
     if (window.history.state?.play100Dialog === true) {
@@ -61,23 +83,44 @@ export function useUrlState() {
     }
   }, [navigate]);
 
-  const goToPage = useCallback((nextPage: AppPage, patch: Partial<Filters> = {}) => {
-    const { filters: current } = parseUrl(window.location.search);
-    const destination = pageDestination(nextPage, current, patch);
-    navigate(destination.search, 'push', null, destination.path);
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [navigate]);
+  const goToPage = useCallback(
+    (nextPage: AppPage, patch: Partial<Filters> = {}) => {
+      const { filters: current } = parseUrl(window.location.search);
+      const destination = pageDestination(nextPage, current, patch);
+      navigate(destination.search, 'push', null, destination.path);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    },
+    [navigate],
+  );
 
-  const changeGamesView = useCallback((tab: MyGamesTab) => {
-    const current = parseUrl(window.location.search);
-    navigate(myGamesSearch(current.filters, tab, current.game), 'push', null, PAGE_PATHS.games);
-  }, [navigate]);
+  const changeGamesView = useCallback(
+    (tab: MyGamesTab) => {
+      const current = parseUrl(window.location.search);
+      navigate(myGamesSearch(current.filters, tab, current.game), 'push', null, PAGE_PATHS.games);
+    },
+    [navigate],
+  );
 
-  const openProfile = useCallback((handle: string) => {
-    if (!/^[a-z][a-z0-9_]{2,23}$/.test(handle)) throw new Error('This profile handle is invalid.');
-    navigate('', 'push', null, `/u/${handle}`);
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [navigate]);
+  const openProfile = useCallback(
+    (handle: string) => {
+      if (!/^[a-z][a-z0-9_]{2,23}$/.test(handle)) throw new Error('This profile handle is invalid.');
+      navigate('', 'push', null, `/u/${handle}`);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    },
+    [navigate],
+  );
 
-  return { page, filters, game, gamesView, changeGamesView, publicHandle: page === 'profile' ? path.split('/')[2] ?? '' : '', updateFilters, openGame, closeGame, goToPage, openProfile };
+  return {
+    page,
+    filters,
+    game,
+    gamesView,
+    changeGamesView,
+    publicHandle: page === 'profile' ? (path.split('/')[2] ?? '') : '',
+    updateFilters,
+    openGame,
+    closeGame,
+    goToPage,
+    openProfile,
+  };
 }

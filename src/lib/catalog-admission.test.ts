@@ -3,26 +3,39 @@ import { createAdmission } from '../../api/_lib/admission';
 
 type GetCatalogPage = typeof import('../../api/catalog').getCatalogPage;
 const EMPTY_SEARCH = { query: { search: [], searchinfo: { totalhits: 0 } } };
-const FREE_GAME = { id: 540, title: 'Admission Test Game', freetogame_profile_url: 'https://www.freetogame.com/admission-test-game', genre: 'Shooter', developer: 'Studio', release_date: '2020-01-02' };
+const FREE_GAME = {
+  id: 540,
+  title: 'Admission Test Game',
+  freetogame_profile_url: 'https://www.freetogame.com/admission-test-game',
+  genre: 'Shooter',
+  developer: 'Studio',
+  release_date: '2020-01-02',
+};
 
 function json(data: unknown, type = 'application/json; charset=utf-8') {
   return new Response(JSON.stringify(data), { headers: { 'content-type': type } });
 }
 
-interface Held { resolve: (response: Response) => void; signal: AbortSignal }
+interface Held {
+  resolve: (response: Response) => void;
+  signal: AbortSignal;
+}
 function holdingFetch() {
   const held: Held[] = [];
-  const upstream = vi.fn((_url: URL, options: RequestInit) => new Promise<Response>((resolve, reject) => {
-    const signal = options.signal!;
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-    held.push({ resolve, signal });
-  }));
+  const upstream = vi.fn(
+    (_url: URL, options: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        const signal = options.signal!;
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        held.push({ resolve, signal });
+      }),
+  );
   return { held, upstream };
 }
 
 async function settle() {
   for (let index = 0; index < 5; index += 1) await Promise.resolve();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 let getCatalogPage: GetCatalogPage;
@@ -54,7 +67,8 @@ describe('bounded admission helper', () => {
     first!();
     const third = admission.acquire();
     expect(third).toBeTypeOf('function');
-    second!(); third!();
+    second!();
+    third!();
     expect(admission.acquire()).toBeNull();
     time += 99;
     expect(admission.acquire()).toBeNull();
@@ -76,7 +90,9 @@ describe('catalog search admission', () => {
     const { held, upstream } = holdingFetch();
     vi.stubGlobal('fetch', upstream);
     const controllers = Array.from({ length: 6 }, () => new AbortController());
-    const pending = controllers.map((controller, index) => getCatalogPage('wikidata', `Held ${index}`, 0, controller.signal));
+    const pending = controllers.map((controller, index) =>
+      getCatalogPage('wikidata', `Held ${index}`, 0, controller.signal),
+    );
     await settle();
     expect(held).toHaveLength(6);
     await expect(getCatalogPage('wikidata', 'Refused', 0, signal())).rejects.toMatchObject(busy);
@@ -101,7 +117,10 @@ describe('catalog search admission', () => {
     await Promise.all(pending.slice(2));
   });
   it('refuses the ninety-first search in a window and admits again after rollover', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => json(EMPTY_SEARCH)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(EMPTY_SEARCH)),
+    );
     for (let index = 0; index < 90; index += 1) await getCatalogPage('wikidata', `Window ${index}`, 0, signal());
     await expect(getCatalogPage('wikidata', 'Window refused', 0, signal())).rejects.toMatchObject(busy);
     vi.setSystemTime(Date.now() + 59_999);
@@ -111,10 +130,19 @@ describe('catalog search admission', () => {
   });
   it('rejects a search upstream that is not JSON before reading it', async () => {
     const cancel = vi.fn(async () => undefined);
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({ cancel }), { headers: { 'content-type': 'text/html' } })));
-    await expect(getCatalogPage('wikidata', 'Markup', 0, signal())).rejects.toMatchObject({ status: 502, code: 'invalid' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(new ReadableStream({ cancel }), { headers: { 'content-type': 'text/html' } })),
+    );
+    await expect(getCatalogPage('wikidata', 'Markup', 0, signal())).rejects.toMatchObject({
+      status: 502,
+      code: 'invalid',
+    });
     expect(cancel).toHaveBeenCalledOnce();
-    vi.stubGlobal('fetch', vi.fn(async () => json([FREE_GAME], 'text/plain')));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json([FREE_GAME], 'text/plain')),
+    );
     await expect(getCatalogPage('freetogame', '', 0, signal())).rejects.toMatchObject({ status: 502, code: 'invalid' });
   });
 });
@@ -133,17 +161,24 @@ describe('FreeToGame cold-cache coalescing', () => {
     await expect(second).rejects.toThrow('waiter left');
     expect(held[0]!.signal.aborted).toBe(false);
     held[0]!.resolve(json([FREE_GAME]));
-    await expect(first).resolves.toMatchObject({ total: 1, items: [expect.objectContaining({ id: 'freetogame:540' })] });
+    await expect(first).resolves.toMatchObject({
+      total: 1,
+      items: [expect.objectContaining({ id: 'freetogame:540' })],
+    });
     await expect(third).resolves.toMatchObject({ total: 0, items: [] });
     await expect(getCatalogPage('freetogame', 'Admission', 0, signal())).resolves.toMatchObject({ total: 1 });
     expect(upstream).toHaveBeenCalledOnce();
   });
   it('clears a failed fill and its admission slot so the next search refetches', async () => {
-    const upstream = vi.fn()
+    const upstream = vi
+      .fn()
       .mockResolvedValueOnce(new Response('{}', { status: 503 }))
       .mockResolvedValueOnce(json([FREE_GAME]));
     vi.stubGlobal('fetch', upstream);
-    const [first, second] = [getCatalogPage('freetogame', '', 0, signal()), getCatalogPage('freetogame', '', 0, signal())];
+    const [first, second] = [
+      getCatalogPage('freetogame', '', 0, signal()),
+      getCatalogPage('freetogame', '', 0, signal()),
+    ];
     await expect(first).rejects.toMatchObject({ status: 503 });
     await expect(second).rejects.toMatchObject({ status: 503 });
     await expect(getCatalogPage('freetogame', '', 0, signal())).resolves.toMatchObject({ total: 1 });

@@ -9,7 +9,9 @@ export function live270fRules(): string {
   const bytes = readFileSync(new URL('./live-270f4c7/firestore.rules', import.meta.url));
   const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
   if (blob !== LIVE_RULES_BLOB || createHash('sha256').update(bytes).digest('hex') !== LIVE_RULES_SHA256) {
-    throw new Error(`The frozen rules fixture no longer matches ${LIVE_RULES_COMMIT}. Do not substitute candidate rules.`);
+    throw new Error(
+      `The frozen rules fixture no longer matches ${LIVE_RULES_COMMIT}. Do not substitute candidate rules.`,
+    );
   }
   return bytes.toString('utf8');
 }
@@ -22,8 +24,11 @@ export function migrationEmulators() {
   const firestoreAddress = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188';
   const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
   for (const address of [firestoreAddress, authAddress]) {
-    if (!/^(127[.]0[.]0[.]1|localhost):[0-9]+$/.test(address) ||
-      Number(address.split(':')[1]) < 1 || Number(address.split(':')[1]) > 65535) {
+    if (
+      !/^(127[.]0[.]0[.]1|localhost):[0-9]+$/.test(address) ||
+      Number(address.split(':')[1]) < 1 ||
+      Number(address.split(':')[1]) > 65535
+    ) {
       throw new Error('Migration fixtures require loopback Auth and Firestore emulators, never production.');
     }
   }

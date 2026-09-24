@@ -8,34 +8,52 @@ export function committedFriendChange(cause: unknown, uid: string): FriendCommit
 }
 export function committedFriendMessage(cause: FriendCommittedError): string {
   switch (cause.receipt.operation) {
-    case 'initialize': return 'Friend settings confirmed. Reconnect to continue.';
-    case 'save-identity': return 'Profile saved. Reconnect to refresh it.';
-    case 'save-settings': return 'Sharing choice saved. Reconnect to refresh its status.';
-    case 'send-request': return 'Request sent. Reconnect to refresh Friends.';
-    case 'respond': return 'Connection updated. Reconnect to refresh Friends.';
-    case 'create-invite': return 'Invitation created. Reconnect and open Invite links to retrieve it.';
-    case 'accept-invite': return 'Invitation accepted. Reconnect to open Friends.';
-    case 'publish-ranking': return 'Friends ranking saved. Refresh or cleanup is still pending.';
-    case 'save-group': return 'Group saved. Refresh groups before editing it again.';
+    case 'initialize':
+      return 'Friend settings confirmed. Reconnect to continue.';
+    case 'save-identity':
+      return 'Profile saved. Reconnect to refresh it.';
+    case 'save-settings':
+      return 'Sharing choice saved. Reconnect to refresh its status.';
+    case 'send-request':
+      return 'Request sent. Reconnect to refresh Friends.';
+    case 'respond':
+      return 'Connection updated. Reconnect to refresh Friends.';
+    case 'create-invite':
+      return 'Invitation created. Reconnect and open Invite links to retrieve it.';
+    case 'accept-invite':
+      return 'Invitation accepted. Reconnect to open Friends.';
+    case 'publish-ranking':
+      return 'Friends ranking saved. Refresh or cleanup is still pending.';
+    case 'save-group':
+      return 'Group saved. Refresh groups before editing it again.';
   }
 }
 export function friendMutationError(cause: unknown): string {
   const kind = syncFailure(cause);
-  if (kind === 'transient') return 'The change could not be confirmed. Reconnect and refresh its status before trying again.';
-  if (kind === 'quota') return 'The online service has reached a limit. Wait, then refresh to check whether the change was saved.';
+  if (kind === 'transient')
+    return 'The change could not be confirmed. Reconnect and refresh its status before trying again.';
+  if (kind === 'quota')
+    return 'The online service has reached a limit. Wait, then refresh to check whether the change was saved.';
   return onlineError(cause);
 }
 
-export async function refreshCommittedFriendChange(store: {
-  pruneSharing: (uid: string) => Promise<number>;
-  settings: (uid: string) => Promise<FriendSettings | null>;
-  shareHead: (uid: string) => Promise<FriendShareHead | null>;
-}, committed: FriendCommittedError, isCurrent: () => boolean): Promise<{ settings: FriendSettings | null; head: FriendShareHead | null } | null> {
+export async function refreshCommittedFriendChange(
+  store: {
+    pruneSharing: (uid: string) => Promise<number>;
+    settings: (uid: string) => Promise<FriendSettings | null>;
+    shareHead: (uid: string) => Promise<FriendShareHead | null>;
+  },
+  committed: FriendCommittedError,
+  isCurrent: () => boolean,
+): Promise<{ settings: FriendSettings | null; head: FriendShareHead | null } | null> {
   if (!isCurrent()) return null;
   if (committed.receipt.operation === 'publish-ranking') {
     await store.pruneSharing(committed.receipt.uid);
     if (!isCurrent()) return null;
   }
-  const [settings, head] = await Promise.all([store.settings(committed.receipt.uid), store.shareHead(committed.receipt.uid)]);
+  const [settings, head] = await Promise.all([
+    store.settings(committed.receipt.uid),
+    store.shareHead(committed.receipt.uid),
+  ]);
   return isCurrent() ? { settings, head } : null;
 }

@@ -17,8 +17,14 @@ const TEMPLATE: readonly TagSpec[] = [
   ['SCRIPT', { type: 'module', crossorigin: '', src: '/assets/index-A.js' }],
   ['LINK', { rel: 'modulepreload', crossorigin: '', href: '/assets/vendor-C.js' }],
   ['LINK', { rel: 'stylesheet', crossorigin: '', href: '/assets/index-B.css' }],
-  ['LINK', { rel: 'preload', href: '/assets/barlow-800.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' }],
-  ['LINK', { rel: 'preload', href: '/data/collection.json', as: 'fetch', type: 'application/json', crossorigin: 'anonymous' }],
+  [
+    'LINK',
+    { rel: 'preload', href: '/assets/barlow-800.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
+  ],
+  [
+    'LINK',
+    { rel: 'preload', href: '/data/collection.json', as: 'fetch', type: 'application/json', crossorigin: 'anonymous' },
+  ],
 ];
 // What start() appends to <head>, in order, and the module script it appends once the stylesheets settled and the document is parsed.
 const STARTUP = [
@@ -56,16 +62,31 @@ class FakeElement {
   readonly attributes = new Map<string, string>();
   readonly listeners: { type: string; listener: () => void }[] = [];
 
-  constructor(readonly tagName: string, attributes: Readonly<Record<string, string>> = {}) {
+  constructor(
+    readonly tagName: string,
+    attributes: Readonly<Record<string, string>> = {},
+  ) {
     for (const [name, value] of Object.entries(attributes)) this.attributes.set(name, value);
   }
 
-  setAttribute(name: string, value: unknown) { this.attributes.set(name, String(value)); }
-  getAttribute(name: string) { return this.attributes.get(name) ?? null; }
-  hasAttribute(name: string) { return this.attributes.has(name); }
-  addEventListener(type: string, listener: () => void) { this.listeners.push({ type, listener }); }
-  dispatch(type: 'load' | 'error') { for (const entry of this.listeners.filter(item => item.type === type)) entry.listener(); }
-  describe() { return [this.tagName.toLowerCase(), ...[...this.attributes].map(([name, value]) => `${name}=${value}`)].join(' '); }
+  setAttribute(name: string, value: unknown) {
+    this.attributes.set(name, String(value));
+  }
+  getAttribute(name: string) {
+    return this.attributes.get(name) ?? null;
+  }
+  hasAttribute(name: string) {
+    return this.attributes.has(name);
+  }
+  addEventListener(type: string, listener: () => void) {
+    this.listeners.push({ type, listener });
+  }
+  dispatch(type: 'load' | 'error') {
+    for (const entry of this.listeners.filter((item) => item.type === type)) entry.listener();
+  }
+  describe() {
+    return [this.tagName.toLowerCase(), ...[...this.attributes].map(([name, value]) => `${name}=${value}`)].join(' ');
+  }
 }
 
 interface FakeObserver {
@@ -85,9 +106,16 @@ function run(environment: BootEnvironment = {}) {
   const listeners: { type: string; listener: () => void }[] = [];
   const template = (environment.template ?? TEMPLATE).map(([tagName, values]) => new FakeElement(tagName, values));
   const root = {
-    setAttribute: (name: string, value: string) => { attributes[name] = value; },
-    appendChild: (child: unknown) => { children.push(child); return child; },
-    removeChild: (child: unknown) => { children.splice(children.indexOf(child), 1); },
+    setAttribute: (name: string, value: string) => {
+      attributes[name] = value;
+    },
+    appendChild: (child: unknown) => {
+      children.push(child);
+      return child;
+    },
+    removeChild: (child: unknown) => {
+      children.splice(children.indexOf(child), 1);
+    },
   };
   const document = {
     documentElement: root,
@@ -95,9 +123,16 @@ function run(environment: BootEnvironment = {}) {
     readyState: environment.readyState ?? 'loading',
     visibilityState: environment.visibilityState ?? 'visible',
     prerendering: environment.prerendering,
-    head: { appendChild: (node: FakeElement) => { appended.push(node); return node; } },
-    addEventListener: (type: string, listener: () => void) => { listeners.push({ type, listener }); },
-    getElementById: (id: string) => id === 'p100-deferred' ? { content: { children: template } } : null,
+    head: {
+      appendChild: (node: FakeElement) => {
+        appended.push(node);
+        return node;
+      },
+    },
+    addEventListener: (type: string, listener: () => void) => {
+      listeners.push({ type, listener });
+    },
+    getElementById: (id: string) => (id === 'p100-deferred' ? { content: { children: template } } : null),
     importNode: (node: FakeElement, deep: boolean) => {
       expect(deep).toBe(true);
       return new FakeElement(node.tagName, Object.fromEntries(node.attributes));
@@ -105,7 +140,8 @@ function run(environment: BootEnvironment = {}) {
     createElement: (name: string): FakeSpan | FakeElement => {
       if (name !== 'span') return new FakeElement(name.toUpperCase());
       const span: FakeSpan = {
-        className: '', textContent: '',
+        className: '',
+        textContent: '',
         getBoundingClientRect: () => {
           if (environment.measureThrows) throw new Error('Layout is unavailable.');
           const size = probes[span.className.split(' ')[1] ?? ''];
@@ -128,9 +164,13 @@ function run(environment: BootEnvironment = {}) {
       if (mode === 'observe throws') throw new TypeError('Unsupported entry type.');
       this.options.push(options);
     }
-    disconnect() { this.disconnected = true; }
+    disconnect() {
+      this.disconnected = true;
+    }
     deliver(...names: string[]) {
-      this.callback({ getEntriesByName: name => names.filter(entry => entry === name).map(entry => ({ name: entry })) });
+      this.callback({
+        getEntriesByName: (name) => names.filter((entry) => entry === name).map((entry) => ({ name: entry })),
+      });
     }
   }
   const window = {
@@ -140,11 +180,12 @@ function run(environment: BootEnvironment = {}) {
     localStorage: {
       getItem: (key: string) => {
         if (environment.storageThrows) throw new Error('Storage is blocked.');
-        return key === HINT_KEY ? environment.hint ?? null : null;
+        return key === HINT_KEY ? (environment.hint ?? null) : null;
       },
     },
     matchMedia: (query: string) => ({
-      matches: (query === '(prefers-reduced-motion: reduce)' && Boolean(environment.reducedMotion)) ||
+      matches:
+        (query === '(prefers-reduced-motion: reduce)' && Boolean(environment.reducedMotion)) ||
         (query === '(pointer: coarse)' && Boolean(environment.coarsePointer)),
     }),
     PerformanceObserver: mode === 'missing' ? undefined : PerformanceObserver,
@@ -155,26 +196,32 @@ function run(environment: BootEnvironment = {}) {
   };
   new Function('window', 'document', bootScript)(window, document);
   if (!environment.measureThrows) expect(children, 'the probes are removed again').toEqual([]);
-  const stylesheets = () => appended.filter(node => node.getAttribute('rel') === 'stylesheet');
+  const stylesheets = () => appended.filter((node) => node.getAttribute('rel') === 'stylesheet');
   return {
     attributes,
     template,
     appended,
     observers,
     timers,
-    inserted: () => appended.map(node => node.describe()),
-    paint: (...names: string[]) => { for (const observer of observers) observer.deliver(...names); },
+    inserted: () => appended.map((node) => node.describe()),
+    paint: (...names: string[]) => {
+      for (const observer of observers) observer.deliver(...names);
+    },
     /** The parser reaches the end of the document: DOMContentLoaded fires once. */
     parsed: () => {
       if (document.readyState !== 'loading') return;
       document.readyState = 'interactive';
-      for (const entry of listeners.filter(item => item.type === 'DOMContentLoaded')) entry.listener();
+      for (const entry of listeners.filter((item) => item.type === 'DOMContentLoaded')) entry.listener();
     },
-    runTimers: () => { for (const timer of timers.splice(0)) timer.callback(); },
-    settle: (event: 'load' | 'error' = 'load') => { for (const sheet of stylesheets()) sheet.dispatch(event); },
+    runTimers: () => {
+      for (const timer of timers.splice(0)) timer.callback();
+    },
+    settle: (event: 'load' | 'error' = 'load') => {
+      for (const sheet of stylesheets()) sheet.dispatch(event);
+    },
     /** Vite's preload helper for a lazy chunk's stylesheet: nothing if the document links it already, else a link appended to <head>. */
     chunkStylesheet: (href: string) => {
-      if (stylesheets().some(sheet => sheet.getAttribute('href') === href)) return;
+      if (stylesheets().some((sheet) => sheet.getAttribute('href') === href)) return;
       document.head.appendChild(new FakeElement('LINK', { rel: 'stylesheet', crossorigin: '', href }));
     },
   };
@@ -207,7 +254,7 @@ describe('first-paint boot gate', () => {
     ['https://play-100.test/?view=table', 'the table view, which hides the hero'],
     ['https://play-100.test/?game=red-dead-redemption-2', 'a game dialog'],
     ['https://play-100.test/?catalogs=off', 'different navigation links'],
-  ])('keeps the shell hidden for %s (%s)', url => {
+  ])('keeps the shell hidden for %s (%s)', (url) => {
     expect(boot({ url })).toEqual({});
   });
 
@@ -217,7 +264,7 @@ describe('first-paint boot gate', () => {
     'https://play-100.test/?info=credits',
     'https://play-100.test/?info=settings',
     'https://play-100.test/?game=',
-  ])('accepts landing URLs whose first commit is unchanged: %s', url => {
+  ])('accepts landing URLs whose first commit is unchanged: %s', (url) => {
     expect(boot({ url })['data-boot']).toBe('landing');
   });
 
@@ -256,7 +303,7 @@ describe('first-paint boot gate', () => {
 });
 
 describe('first-paint app loader', () => {
-  it('waits for the shell\'s first contentful paint, then inserts every startup tag once', () => {
+  it("waits for the shell's first contentful paint, then inserts every startup tag once", () => {
     const result = run();
     expect(result.attributes['data-boot']).toBe('landing');
     expect(result.inserted(), 'nothing starts before the shell has painted').toEqual([]);
@@ -268,22 +315,35 @@ describe('first-paint app loader', () => {
     result.paint('first-contentful-paint');
     expect(result.inserted()).toEqual(STARTUP);
     expect(result.observers[0]?.disconnected).toBe(true);
-    expect(result.appended.filter(node => result.template.includes(node)), 'the template keeps its own inert nodes').toEqual([]);
+    expect(
+      result.appended.filter((node) => result.template.includes(node)),
+      'the template keeps its own inert nodes',
+    ).toEqual([]);
     result.settle('load');
     expect(result.inserted(), 'the module entry also waits for the parsed document').toEqual(STARTUP);
     result.parsed();
     expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
-    expect(result.timers.map(timer => timer.delay), 'a safety net starts the app a second after parsing').toEqual([1000]);
+    expect(
+      result.timers.map((timer) => timer.delay),
+      'a safety net starts the app a second after parsing',
+    ).toEqual([1000]);
     result.runTimers();
     result.paint('first-contentful-paint');
     result.settle('error');
     result.settle('load');
     result.parsed();
-    expect(result.inserted(), 'later triggers insert nothing again, and the module entry exactly once').toEqual([...STARTUP, ENTRY]);
+    expect(result.inserted(), 'later triggers insert nothing again, and the module entry exactly once').toEqual([
+      ...STARTUP,
+      ENTRY,
+    ]);
   });
 
   it('starts at once where it keeps the shell hidden, and runs the entry once the stylesheet settled and the document is parsed', () => {
-    for (const url of ['https://play-100.test/discover', 'https://play-100.test/?catalogs=off', 'https://play-100.test/?view=table']) {
+    for (const url of [
+      'https://play-100.test/discover',
+      'https://play-100.test/?catalogs=off',
+      'https://play-100.test/?view=table',
+    ]) {
       const result = run({ url });
       expect(result.attributes).toEqual({});
       expect(result.inserted(), url).toEqual(STARTUP);
@@ -318,16 +378,19 @@ describe('first-paint app loader', () => {
       template: [...TEMPLATE, ['LINK', { rel: 'stylesheet', crossorigin: '', href: '/assets/extra-D.css' }]],
     });
     result.parsed();
-    const [first, second] = result.appended.filter(node => node.getAttribute('rel') === 'stylesheet');
+    const [first, second] = result.appended.filter((node) => node.getAttribute('rel') === 'stylesheet');
     first?.dispatch('error');
     expect(result.inserted().at(-1)).toBe('link rel=stylesheet crossorigin= href=/assets/extra-D.css');
     second?.dispatch('load');
     expect(result.inserted().at(-1)).toBe(ENTRY);
-    expect(result.inserted().filter(tag => tag === ENTRY)).toHaveLength(1);
+    expect(result.inserted().filter((tag) => tag === ENTRY)).toHaveLength(1);
   });
 
-  it('copies the entry\'s crossorigin setting only when it has one', () => {
-    const result = run({ url: 'https://play-100.test/discover', template: [['SCRIPT', { type: 'module', src: '/assets/index-A.js' }], ...TEMPLATE.slice(1)] });
+  it("copies the entry's crossorigin setting only when it has one", () => {
+    const result = run({
+      url: 'https://play-100.test/discover',
+      template: [['SCRIPT', { type: 'module', src: '/assets/index-A.js' }], ...TEMPLATE.slice(1)],
+    });
     result.parsed();
     result.settle('load');
     expect(result.inserted()[0]).toBe('link rel=modulepreload href=/assets/index-A.js');
@@ -348,8 +411,16 @@ describe('first-paint app loader', () => {
   it.each([
     ['the boot gate throws', { measureThrows: true }, {}],
     ['PerformanceObserver is missing', { observer: 'missing' }, { 'data-boot-art': 'lite', 'data-boot': 'landing' }],
-    ['the paint observer cannot be created', { observer: 'constructor throws' }, { 'data-boot-art': 'lite', 'data-boot': 'landing' }],
-    ['the paint observer refuses the paint type', { observer: 'observe throws' }, { 'data-boot-art': 'lite', 'data-boot': 'landing' }],
+    [
+      'the paint observer cannot be created',
+      { observer: 'constructor throws' },
+      { 'data-boot-art': 'lite', 'data-boot': 'landing' },
+    ],
+    [
+      'the paint observer refuses the paint type',
+      { observer: 'observe throws' },
+      { 'data-boot-art': 'lite', 'data-boot': 'landing' },
+    ],
   ] as const)('starts at once, exactly once, when %s', (_, environment, attributes) => {
     const result = run(environment);
     expect(result.attributes).toEqual(attributes);
@@ -357,12 +428,12 @@ describe('first-paint app loader', () => {
     expect(everything(result)).toEqual([...STARTUP, ENTRY]);
   });
 
-  it('starts a second after parsing when the shell\'s first contentful paint is never reported', () => {
+  it("starts a second after parsing when the shell's first contentful paint is never reported", () => {
     const result = run();
     result.paint('first-paint');
     result.parsed();
     expect(result.inserted(), 'parsing alone does not start the app').toEqual([]);
-    expect(result.timers.map(timer => timer.delay)).toEqual([1000]);
+    expect(result.timers.map((timer) => timer.delay)).toEqual([1000]);
     result.runTimers();
     expect(result.inserted()).toEqual(STARTUP);
     expect(everything(result)).toEqual([...STARTUP, ENTRY]);
@@ -376,8 +447,15 @@ describe('first-paint app loader', () => {
     const chunkStylesheet = 'link rel=stylesheet crossorigin= href=/assets/MyGamesPage-D.css';
     expect(STARTUP).toContain(entryStylesheet);
     const starts: readonly (readonly [string, BootEnvironment, (result: ReturnType<typeof run>) => void])[] = [
-      ['at the landing page\'s first contentful paint', {}, result => result.paint('first-contentful-paint')],
-      ['from the safety net', {}, result => { result.parsed(); result.runTimers(); }],
+      ["at the landing page's first contentful paint", {}, (result) => result.paint('first-contentful-paint')],
+      [
+        'from the safety net',
+        {},
+        (result) => {
+          result.parsed();
+          result.runTimers();
+        },
+      ],
       ['at once on another route', { url: 'https://play-100.test/my-games' }, () => undefined],
       ['at once in a hidden document', { visibilityState: 'hidden' }, () => undefined],
       ['at once when the boot gate throws', { measureThrows: true }, () => undefined],
@@ -393,8 +471,10 @@ describe('first-paint app loader', () => {
       result.chunkStylesheet('/assets/MyGamesPage-D.css');
       const inserted = result.inserted();
       expect(inserted.indexOf(entryStylesheet), when).toBeLessThan(inserted.indexOf(chunkStylesheet));
-      expect(inserted.filter(tag => tag.startsWith('link rel=stylesheet')), `${when}: the entry stylesheet is linked once, first`)
-        .toEqual([entryStylesheet, chunkStylesheet]);
+      expect(
+        inserted.filter((tag) => tag.startsWith('link rel=stylesheet')),
+        `${when}: the entry stylesheet is linked once, first`,
+      ).toEqual([entryStylesheet, chunkStylesheet]);
     }
   });
 });

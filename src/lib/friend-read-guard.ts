@@ -3,9 +3,15 @@ export function createFriendReadGuard() {
   let acceptedEpoch: number | null = null;
   return {
     accept(epoch: number) {
-      if (acceptedEpoch !== epoch) { acceptedEpoch = epoch; generation += 1; }
+      if (acceptedEpoch !== epoch) {
+        acceptedEpoch = epoch;
+        generation += 1;
+      }
     },
-    revoke() { acceptedEpoch = null; generation += 1; },
+    revoke() {
+      acceptedEpoch = null;
+      generation += 1;
+    },
     begin(): { generation: number; epoch: number } | null {
       return acceptedEpoch === null ? null : { generation, epoch: acceptedEpoch };
     },
@@ -18,8 +24,15 @@ export function createFriendReadGuard() {
 export function createFriendWorkGeneration() {
   let generation = 0;
   return {
-    next() { generation += 1; return generation; },
-    cancel() { generation += 1; },
-    current(value: number) { return generation === value; },
+    next() {
+      generation += 1;
+      return generation;
+    },
+    cancel() {
+      generation += 1;
+    },
+    current(value: number) {
+      return generation === value;
+    },
   };
 }

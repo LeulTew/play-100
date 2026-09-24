@@ -101,6 +101,4 @@ export const COLLECTION_IDENTITIES = [
   ['l-a-noire', 'Q1129094'],
 ] as const;
 
-export const CATALOG_EDITION_HINTS: ReadonlyMap<string, string> = new Map([
-  ['wikidata:Q275950', '2005 original'],
-]);
+export const CATALOG_EDITION_HINTS: ReadonlyMap<string, string> = new Map([['wikidata:Q275950', '2005 original']]);

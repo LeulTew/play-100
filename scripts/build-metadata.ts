@@ -6,13 +6,15 @@ export function buildManifestPath(output: string): string {
   const directory = path.resolve(output);
   const destination = path.join(path.dirname(directory), '.build-meta', path.basename(directory), 'vite-manifest.json');
   const relative = path.relative(directory, destination);
-  if (!relative.startsWith(`..${path.sep}`)) throw new Error('Retained build metadata must be outside the deploy output.');
+  if (!relative.startsWith(`..${path.sep}`))
+    throw new Error('Retained build metadata must be outside the deploy output.');
   return destination;
 }
 
 export async function readBuildManifest(output: string): Promise<Manifest> {
   const manifest: Manifest = JSON.parse(await readFile(buildManifestPath(output), 'utf8'));
-  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) throw new Error('Invalid Vite build manifest.');
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest))
+    throw new Error('Invalid Vite build manifest.');
   return manifest;
 }
 
@@ -36,7 +38,7 @@ export async function retainBuildManifest(output: string): Promise<Manifest> {
 export function assertPublicPrecachePaths(urls: readonly string[]): void {
   for (const url of urls) {
     const pathname = decodeURIComponent(new URL(url, 'https://build.invalid/').pathname).replaceAll('\\', '/');
-    if (pathname.split('/').some(part => part.toLowerCase() === '.vite') || /\.map$/i.test(pathname)) {
+    if (pathname.split('/').some((part) => part.toLowerCase() === '.vite') || /\.map$/i.test(pathname)) {
       throw new Error(`Build metadata must not enter the public precache: ${url}`);
     }
   }

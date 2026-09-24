@@ -10,23 +10,37 @@ describe('bounded account product limits', () => {
     expect(rules).toContain(`after.count <= ${ACCOUNT_LIMITS.reports}`);
     expect(rules).toContain(`request.resource.data.count <= ${ACCOUNT_LIMITS.reports}`);
   });
-  it.each(['groups', 'blocks', 'reports'] as const)('counts every visible %s record, including legacy, before allowing creation', async kind => {
-    const limit = ACCOUNT_LIMITS[kind];
-    const read = vi.fn(async (cursor = 0) => {
-      const size = Math.min(20, limit - cursor);
-      return { items: Array.from({ length: size }, (_, index) => ({ id: cursor + index, legacy: index % 2 === 0 })),
-        cursor: cursor + size < limit ? cursor + size : undefined };
-    });
-    await expect(requireVisibleCapacity<number>(kind, read)).rejects.toBeInstanceOf(AccountQuotaFull);
-    expect(read).toHaveBeenCalledTimes(Math.ceil(limit / 20));
-  });
+  it.each(['groups', 'blocks', 'reports'] as const)(
+    'counts every visible %s record, including legacy, before allowing creation',
+    async (kind) => {
+      const limit = ACCOUNT_LIMITS[kind];
+      const read = vi.fn(async (cursor = 0) => {
+        const size = Math.min(20, limit - cursor);
+        return {
+          items: Array.from({ length: size }, (_, index) => ({ id: cursor + index, legacy: index % 2 === 0 })),
+          cursor: cursor + size < limit ? cursor + size : undefined,
+        };
+      });
+      await expect(requireVisibleCapacity<number>(kind, read)).rejects.toBeInstanceOf(AccountQuotaFull);
+      expect(read).toHaveBeenCalledTimes(Math.ceil(limit / 20));
+    },
+  );
   it('allows remaining room, but never treats an unreadable or nonprogressing list as empty', async () => {
-    await expect(requireVisibleCapacity('groups', async () => ({ items: Array(49).fill('fixture'), cursor: undefined }))).resolves.toBeUndefined();
-    await expect(requireVisibleCapacity('groups', async () => { throw new Error('Offline'); })).rejects.toThrow('Offline');
-    await expect(requireVisibleCapacity('groups', async () => ({ items: [], cursor: 'unchanged' }))).rejects.toThrow(/could not be counted/);
+    await expect(
+      requireVisibleCapacity('groups', async () => ({ items: Array(49).fill('fixture'), cursor: undefined })),
+    ).resolves.toBeUndefined();
+    await expect(
+      requireVisibleCapacity('groups', async () => {
+        throw new Error('Offline');
+      }),
+    ).rejects.toThrow('Offline');
+    await expect(requireVisibleCapacity('groups', async () => ({ items: [], cursor: 'unchanged' }))).rejects.toThrow(
+      /could not be counted/,
+    );
   });
   it('continues through a page with no open reports when raw documents were still scanned', async () => {
-    const read = vi.fn()
+    const read = vi
+      .fn()
       .mockResolvedValueOnce({ items: [], scanned: 20, cursor: 'resolved-page' })
       .mockResolvedValueOnce({ items: ['open-report'], scanned: 1, cursor: undefined });
     await expect(requireVisibleCapacity<string>('reports', read)).resolves.toBeUndefined();

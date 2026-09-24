@@ -27,59 +27,104 @@ for (const scenario of [
     await page.emulateMedia({ reducedMotion: 'reduced' in scenario ? 'reduce' : 'no-preference' });
     await page.goto('/favicon.svg');
     const state = { ...emptyPersonalLibrary(), motion: scenario.saved };
-    await page.evaluate(({ name, version, store, key, state, hintKey, hint }) => new Promise<void>((resolve, reject) => {
-      if (hint === null) localStorage.removeItem(hintKey);
-      else localStorage.setItem(hintKey, hint);
-      const open = indexedDB.open(name, version);
-      open.onupgradeneeded = () => open.result.createObjectStore(store);
-      open.onerror = () => reject(open.error);
-      open.onsuccess = () => {
-        const db = open.result;
-        const tx = db.transaction(store, 'readwrite');
-        tx.objectStore(store).put(state, key);
-        tx.oncomplete = () => { db.close(); resolve(); };
-        tx.onabort = () => { db.close(); reject(tx.error); };
-      };
-    }), { name: DB_NAME, version: DB_VERSION, store: STORE_NAME, key: STATE_KEY, state, hintKey: motionHintKey('guest'), hint: scenario.hint });
-    await page.addInitScript(({ name, blocked, saveData, hintKey }) => {
-      Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
-      Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
-      Object.defineProperty(navigator, 'connection', {
-        configurable: true, value: Object.assign(new EventTarget(), { saveData, effectiveType: '4g' }),
-      });
-      if (blocked) {
-        const get = Storage.prototype.getItem;
-        Storage.prototype.getItem = function (key: string) {
-          if (key === hintKey) throw new DOMException('Blocked hint storage', 'SecurityError');
-          return get.call(this, key);
-        };
-      }
-      window.firstMotionPolicies = [];
-      new MutationObserver(changes => {
-        const policyChanges = changes.filter(change => change.attributeName === 'data-motion');
-        policyChanges.forEach((_, index) => {
-          window.firstMotionPolicies.push(policyChanges[index + 1]?.oldValue ?? document.documentElement.getAttribute('data-motion'));
+    await page.evaluate(
+      ({ name, version, store, key, state, hintKey, hint }) =>
+        new Promise<void>((resolve, reject) => {
+          if (hint === null) localStorage.removeItem(hintKey);
+          else localStorage.setItem(hintKey, hint);
+          const open = indexedDB.open(name, version);
+          open.onupgradeneeded = () => open.result.createObjectStore(store);
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const tx = db.transaction(store, 'readwrite');
+            tx.objectStore(store).put(state, key);
+            tx.oncomplete = () => {
+              db.close();
+              resolve();
+            };
+            tx.onabort = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        }),
+      {
+        name: DB_NAME,
+        version: DB_VERSION,
+        store: STORE_NAME,
+        key: STATE_KEY,
+        state,
+        hintKey: motionHintKey('guest'),
+        hint: scenario.hint,
+      },
+    );
+    await page.addInitScript(
+      ({ name, blocked, saveData, hintKey }) => {
+        Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
+        Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
+        Object.defineProperty(navigator, 'connection', {
+          configurable: true,
+          value: Object.assign(new EventTarget(), { saveData, effectiveType: '4g' }),
         });
-      }).observe(document, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['data-motion'] });
-      const releases: (() => void)[] = [];
-      let held = true;
-      window.releaseGuestOpening = () => { held = false; for (const release of releases.splice(0)) release(); };
-      const open = IDBFactory.prototype.open;
-      IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
-        const request = open.apply(this, args);
-        if (args[0] === name && held) {
-          // index.html's static first-paint shell is not a React render; createRoot() replaces it.
-          const root = document.getElementById('root');
-          window.guestReadStartedBeforeRender = root !== null && Array.from(root.childNodes).every(node => node instanceof Element && node.classList.contains('first-paint-shell'));
-          request.addEventListener('success', event => {
-            if (!held) return;
-            event.stopImmediatePropagation();
-            releases.push(() => request.dispatchEvent(new Event('success')));
-          }, { once: true });
+        if (blocked) {
+          const get = Storage.prototype.getItem;
+          Storage.prototype.getItem = function (key: string) {
+            if (key === hintKey) throw new DOMException('Blocked hint storage', 'SecurityError');
+            return get.call(this, key);
+          };
         }
-        return request;
-      };
-    }, { name: DB_NAME, blocked: 'blocked' in scenario, saveData: 'saveData' in scenario, hintKey: motionHintKey('guest') });
+        window.firstMotionPolicies = [];
+        new MutationObserver((changes) => {
+          const policyChanges = changes.filter((change) => change.attributeName === 'data-motion');
+          policyChanges.forEach((_, index) => {
+            window.firstMotionPolicies.push(
+              policyChanges[index + 1]?.oldValue ?? document.documentElement.getAttribute('data-motion'),
+            );
+          });
+        }).observe(document, {
+          subtree: true,
+          attributes: true,
+          attributeOldValue: true,
+          attributeFilter: ['data-motion'],
+        });
+        const releases: (() => void)[] = [];
+        let held = true;
+        window.releaseGuestOpening = () => {
+          held = false;
+          for (const release of releases.splice(0)) release();
+        };
+        const open = IDBFactory.prototype.open;
+        IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
+          const request = open.apply(this, args);
+          if (args[0] === name && held) {
+            // index.html's static first-paint shell is not a React render; createRoot() replaces it.
+            const root = document.getElementById('root');
+            window.guestReadStartedBeforeRender =
+              root !== null &&
+              Array.from(root.childNodes).every(
+                (node) => node instanceof Element && node.classList.contains('first-paint-shell'),
+              );
+            request.addEventListener(
+              'success',
+              (event) => {
+                if (!held) return;
+                event.stopImmediatePropagation();
+                releases.push(() => request.dispatchEvent(new Event('success')));
+              },
+              { once: true },
+            );
+          }
+          return request;
+        };
+      },
+      {
+        name: DB_NAME,
+        blocked: 'blocked' in scenario,
+        saveData: 'saveData' in scenario,
+        hintKey: motionHintKey('guest'),
+      },
+    );
     try {
       await page.goto('/?catalogs=off', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('html')).toHaveAttribute('data-motion', scenario.first);
@@ -89,11 +134,17 @@ for (const scenario of [
       await expect(page.locator('.game-card .save-game').first()).toBeEnabled();
       await expect(page.locator('html')).toHaveAttribute('data-motion', scenario.ready);
       if (scenario.first === scenario.ready) {
-        expect(await page.evaluate(() => window.firstMotionPolicies.every(value => value === document.documentElement.dataset.motion))).toBe(true);
+        expect(
+          await page.evaluate(() =>
+            window.firstMotionPolicies.every((value) => value === document.documentElement.dataset.motion),
+          ),
+        ).toBe(true);
       }
       if (!('blocked' in scenario)) {
-        expect(await page.evaluate(key => localStorage.getItem(key), motionHintKey('guest'))).toBe(scenario.saved);
+        expect(await page.evaluate((key) => localStorage.getItem(key), motionHintKey('guest'))).toBe(scenario.saved);
       }
-    } finally { await page.evaluate(() => window.releaseGuestOpening()); }
+    } finally {
+      await page.evaluate(() => window.releaseGuestOpening());
+    }
   });
 }

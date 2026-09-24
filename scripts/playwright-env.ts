@@ -36,7 +36,8 @@ export const CLOUD_UI_PROBE_PATH = '/src/lib/online-availability.ts';
 export function cloudUiServerProblem(url: string, status: number | null, body: string): string | null {
   const start = `Start the Vite development server with --mode cloud-test and VITE_USE_FIREBASE_EMULATORS=true on ${new URL('/', url).origin} first (docs/online-saving.md).`;
   if (status === null) return `Nothing answers at ${url}. ${start}`;
-  if (status !== 200) return `${url} answered ${status}, so the server there is not the Vite development server (a preview or another project?). ${start}`;
+  if (status !== 200)
+    return `${url} answered ${status}, so the server there is not the Vite development server (a preview or another project?). ${start}`;
   if (!/\bMODE"?\s*:\s*"cloud-test"/.test(body) || !/\bVITE_USE_FIREBASE_EMULATORS"?\s*:\s*"true"/.test(body)) {
     return `The development server at ${url} is not in cloud-test mode with emulators enabled. ${start}`;
   }

@@ -16,9 +16,18 @@ export interface SourceSearchState {
   notices: string[];
 }
 export const CATALOG_SOURCES: readonly CatalogSource[] = ['wikidata', 'freetogame'];
-export const emptySources = (): SourceSearchState[] => CATALOG_SOURCES.map((source) => ({
-  source, status: 'idle', records: [], nextOffset: null, requestOffset: 0, total: 0, error: null, failure: null, notices: [],
-}));
+export const emptySources = (): SourceSearchState[] =>
+  CATALOG_SOURCES.map((source) => ({
+    source,
+    status: 'idle',
+    records: [],
+    nextOffset: null,
+    requestOffset: 0,
+    total: 0,
+    error: null,
+    failure: null,
+    notices: [],
+  }));
 
 export class CatalogSearchSession {
   private snapshot = { key: '', sources: emptySources() };
@@ -29,10 +38,18 @@ export class CatalogSearchSession {
   private query = '';
   private offset = 0;
   constructor(private readonly fetchPage = fetchCatalogPage) {}
-  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
   getSnapshot = () => this.snapshot;
   private update(source: CatalogSource, change: (state: SourceSearchState) => SourceSearchState) {
-    this.snapshot = { ...this.snapshot, sources: this.snapshot.sources.map((state) => state.source === source ? change(state) : state) };
+    this.snapshot = {
+      ...this.snapshot,
+      sources: this.snapshot.sources.map((state) => (state.source === source ? change(state) : state)),
+    };
     for (const listener of this.listeners) listener();
   }
   cancel() {
@@ -51,19 +68,37 @@ export class CatalogSearchSession {
   private async load(source: CatalogSource, offset: number, append: boolean) {
     if (this.requests.has(source)) return;
     if ((this.cooldowns.get(source) ?? 0) > Date.now()) {
-      this.update(source, (state) => ({ ...state, status: 'error', error: 'This provider is rate-limiting requests. Wait a moment before retrying.', failure: 'rate-limited', requestOffset: offset }));
+      this.update(source, (state) => ({
+        ...state,
+        status: 'error',
+        error: 'This provider is rate-limiting requests. Wait a moment before retrying.',
+        failure: 'rate-limited',
+        requestOffset: offset,
+      }));
       return;
     }
     const generation = this.generation;
     const controller = new AbortController();
     this.requests.set(source, controller);
-    this.update(source, (state) => ({ ...state, status: 'loading', error: null, failure: null, requestOffset: offset }));
+    this.update(source, (state) => ({
+      ...state,
+      status: 'loading',
+      error: null,
+      failure: null,
+      requestOffset: offset,
+    }));
     try {
       const page = await this.fetchPage(source, this.query, offset, controller.signal);
       if (generation !== this.generation || controller.signal.aborted) return;
       this.update(source, (state) => ({
-        ...state, status: 'ready', total: page.total, nextOffset: page.nextOffset, notices: page.notices,
-        records: [...new Map([...(append ? state.records : []), ...page.items].map((record) => [record.id, record])).values()],
+        ...state,
+        status: 'ready',
+        total: page.total,
+        nextOffset: page.nextOffset,
+        notices: page.notices,
+        records: [
+          ...new Map([...(append ? state.records : []), ...page.items].map((record) => [record.id, record])).values(),
+        ],
       }));
     } catch (error: unknown) {
       if (generation !== this.generation || controller.signal.aborted) return;
@@ -71,7 +106,9 @@ export class CatalogSearchSession {
         this.cooldowns.set(source, Date.now() + (error.retryAfter || 30) * 1000);
       }
       this.update(source, (state) => ({
-        ...state, status: 'error', failure: error instanceof CatalogRequestError ? error.kind : 'unavailable',
+        ...state,
+        status: 'error',
+        failure: error instanceof CatalogRequestError ? error.kind : 'unavailable',
         error: error instanceof Error ? error.message : 'The catalog could not be reached.',
       }));
     } finally {

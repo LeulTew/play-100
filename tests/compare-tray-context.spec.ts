@@ -18,7 +18,7 @@ for (const width of [320, 393, 768, 1440]) {
     await expect(dock.locator('.compare-tray-error')).toContainText('six games');
     const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true });
     await expect(failedPin).toBeFocused();
-    const failedHit = await failedPin.evaluate(element => {
+    const failedHit = await failedPin.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
     });
@@ -29,18 +29,28 @@ for (const width of [320, 393, 768, 1440]) {
     await expect(action).toHaveCSS('padding-inline-end', '22px');
     await expect(action).toHaveCSS('min-height', '48px');
     await expect(action).toHaveCSS('font-size', '15px');
-    const errorBounds = await dock.evaluate(element => {
+    const errorBounds = await dock.evaluate((element) => {
       const dock = element.getBoundingClientRect();
       const error = element.querySelector('.compare-tray-error')!.getBoundingClientRect();
       const reserve = document.querySelector('.compare-tray-reserve')!.getBoundingClientRect();
-      return { errorTop: error.top, errorBottom: error.bottom, dockTop: dock.top, dockBottom: dock.bottom, reserve: reserve.height, occupied: innerHeight - dock.top };
+      return {
+        errorTop: error.top,
+        errorBottom: error.bottom,
+        dockTop: dock.top,
+        dockBottom: dock.bottom,
+        reserve: reserve.height,
+        occupied: innerHeight - dock.top,
+      };
     });
     expect(errorBounds.errorTop).toBeGreaterThanOrEqual(errorBounds.dockTop);
     expect(errorBounds.errorBottom).toBeLessThanOrEqual(errorBounds.dockBottom);
     expect(errorBounds.reserve).toBeGreaterThanOrEqual(errorBounds.occupied);
-    const completed = page.locator('.game-card').nth(6).getByRole('button', { name: /completed/i });
+    const completed = page
+      .locator('.game-card')
+      .nth(6)
+      .getByRole('button', { name: /completed/i });
     await completed.focus();
-    const hit = await completed.evaluate(element => {
+    const hit = await completed.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
     });
@@ -52,7 +62,11 @@ for (const width of [320, 393, 768, 1440]) {
     await expect(dock.locator('.compare-tray-expand')).toBeFocused();
     const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
     const before = await readLibrary(page);
-    for (const route of ['/my-games?tab=queue&catalogs=off', '/my-games?tab=library&catalogs=off', '/?q=NoMatchContextFixture&catalogs=off']) {
+    for (const route of [
+      '/my-games?tab=queue&catalogs=off',
+      '/my-games?tab=library&catalogs=off',
+      '/?q=NoMatchContextFixture&catalogs=off',
+    ]) {
       await page.goto(route);
       await expect(page.locator('.compare-tray-expand')).toBeVisible();
       await expect(page.locator('.compare-tray-action')).toBeHidden();
@@ -65,9 +79,13 @@ for (const width of [320, 393, 768, 1440]) {
         const button = document.querySelector('.compare-tray-expand')!.getBoundingClientRect();
         const manual = document.querySelector('.manual-add summary')?.getBoundingClientRect();
         return {
-          dockTop: dock.top, footerBottom: footer.bottom, manualBottom: manual?.bottom,
-          buttonWidth: button.width, buttonHeight: button.height,
-          width: document.documentElement.scrollWidth, viewport: innerWidth,
+          dockTop: dock.top,
+          footerBottom: footer.bottom,
+          manualBottom: manual?.bottom,
+          buttonWidth: button.width,
+          buttonHeight: button.height,
+          width: document.documentElement.scrollWidth,
+          viewport: innerWidth,
         };
       });
       expect(geometry.footerBottom).toBeLessThanOrEqual(geometry.dockTop);
@@ -91,10 +109,16 @@ for (const width of [320, 393]) {
   test(`ready sign-in returns to the visible contextual chip at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 852 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname)
-      ? route.continue() : route.abort('blockedbyclient'));
+    await page.route('**/*', (route) =>
+      ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname)
+        ? route.continue()
+        : route.abort('blockedbyclient'),
+    );
     await installGuestLibrary(page, libraryFixture(3));
-    test.skip(await page.locator('.account-nav').count() === 0, 'Requires the centrally configured online build; no remote account requests are allowed.');
+    test.skip(
+      (await page.locator('.account-nav').count()) === 0,
+      'Requires the centrally configured online build; no remote account requests are allowed.',
+    );
     await page.goto('/?catalogs=off');
     await page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
     const before = await readLibrary(page);
@@ -111,15 +135,20 @@ for (const width of [320, 393]) {
       await expect(signIn).toHaveCount(0);
       await chip.focus();
       await chip.press('Enter');
-      await page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Choose friends', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: 'Compare tray', exact: true })
+        .getByRole('button', { name: 'Choose friends', exact: true })
+        .click();
       await expect(signIn.locator('#account-signin-title')).toBeFocused();
       await signIn.getByRole('button', { name: 'Keep using this device', exact: true }).click();
       await expect(signIn).toHaveCount(0);
       await expect(chip).toBeFocused();
-      expect(await chip.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
-      })).toBe(true);
+      expect(
+        await chip.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+        }),
+      ).toBe(true);
     }
     expect(await readLibrary(page)).toEqual(before);
   });

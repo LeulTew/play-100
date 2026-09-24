@@ -14,7 +14,7 @@ describe('unordered Library uses the shared 25-row page contract', () => {
   ])('bounds %i matches at requested offset %i', (total, offset, expected) => {
     expect(getLocalPage(total, 25, offset)).toEqual(expected);
   });
-  it.each([-1, NaN, Infinity, 1.25, Number.MAX_SAFE_INTEGER + 1])('does not mask invalid offset %s', offset => {
+  it.each([-1, NaN, Infinity, 1.25, Number.MAX_SAFE_INTEGER + 1])('does not mask invalid offset %s', (offset) => {
     expect(() => getLocalPage(500, 25, offset)).toThrow(RangeError);
   });
 });

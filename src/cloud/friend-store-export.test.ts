@@ -1,7 +1,15 @@
 import { deleteApp, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { describe, expect, it, vi } from 'vitest';
-import type { FriendBlock, FriendCursor, FriendGroup, FriendIdentity, FriendPage, FriendPair, FriendSettings } from '../lib/friend-types';
+import type {
+  FriendBlock,
+  FriendCursor,
+  FriendGroup,
+  FriendIdentity,
+  FriendPage,
+  FriendPair,
+  FriendSettings,
+} from '../lib/friend-types';
 import { FriendStore } from './friend-store';
 
 const identity = { uid: 'alpha', displayName: 'Alpha' } as unknown as FriendIdentity;
@@ -12,7 +20,11 @@ type Read<T> = (cursor?: FriendCursor) => Promise<FriendPage<T>>;
 
 async function withStore(run: (store: FriendStore) => Promise<void>) {
   const app = initializeApp({ projectId: 'demo-play100' }, crypto.randomUUID());
-  try { await run(new FriendStore(getFirestore(app))); } finally { await deleteApp(app); }
+  try {
+    await run(new FriendStore(getFirestore(app)));
+  } finally {
+    await deleteApp(app);
+  }
 }
 
 // Serves fixed pages; each page cursor is accepted only by the page after it.
@@ -26,7 +38,12 @@ function pager<T>(values: T[][]) {
   });
 }
 
-function install(store: FriendStore, relations: Read<FriendPair>, groups: Read<FriendGroup>, blocks: Read<FriendBlock>) {
+function install(
+  store: FriendStore,
+  relations: Read<FriendPair>,
+  groups: Read<FriendGroup>,
+  blocks: Read<FriendBlock>,
+) {
   return {
     identity: vi.spyOn(store, 'identity').mockResolvedValue(identity),
     settings: vi.spyOn(store, 'settings').mockResolvedValue(settings),
@@ -38,7 +55,7 @@ function install(store: FriendStore, relations: Read<FriendPair>, groups: Read<F
 
 describe('account friend export', () => {
   it('reads identity and settings once and each collection only to its own last page', async () => {
-    await withStore(async store => {
+    await withStore(async (store) => {
       const relations = pager<FriendPair>([[item('pair-1'), item('pair-2')], [item('pair-3')], [item('pair-4')]]);
       const groups = pager<FriendGroup>([[item('group-1')]]);
       const blocks = pager<FriendBlock>([[item('block-1')], [item('block-2')]]);
@@ -51,7 +68,8 @@ describe('account friend export', () => {
       expect(blocks).toHaveBeenCalledTimes(2);
       expect(groups.mock.calls).toEqual([[undefined]]);
       expect(exported).toEqual({
-        identity, settings,
+        identity,
+        settings,
         relations: [item('pair-1'), item('pair-2'), item('pair-3'), item('pair-4')],
         groups: [item('group-1')],
         blocks: [item('block-1'), item('block-2')],
@@ -60,7 +78,7 @@ describe('account friend export', () => {
   });
 
   it('fails the whole export and stops paging the other collections when one page fails', async () => {
-    await withStore(async store => {
+    await withStore(async (store) => {
       const relations = vi.fn(async (cursor?: FriendCursor): Promise<FriendPage<FriendPair>> => {
         if (cursor) throw new Error('Synthetic relations page failure');
         return { items: [item('pair-1')], cursor: token };
@@ -68,27 +86,36 @@ describe('account friend export', () => {
       const blocks = vi.fn(async (): Promise<FriendPage<FriendBlock>> => ({ items: [item('block')], cursor: token }));
       install(store, relations, pager<FriendGroup>([[item('group-1')]]), blocks);
       await expect(store.exportAll('alpha', () => true)).rejects.toThrow('Synthetic relations page failure');
-      await new Promise<void>(resolve => { setTimeout(resolve, 0); });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
       expect(relations).toHaveBeenCalledTimes(2);
       expect(blocks.mock.calls.length).toBeLessThan(10);
     });
   });
 
   it('rejects when the account changes between pages', async () => {
-    await withStore(async store => {
+    await withStore(async (store) => {
       let current = true;
-      const relations = vi.fn(async (): Promise<FriendPage<FriendPair>> => { current = false; return { items: [item('pair-1')], cursor: token }; });
+      const relations = vi.fn(async (): Promise<FriendPage<FriendPair>> => {
+        current = false;
+        return { items: [item('pair-1')], cursor: token };
+      });
       install(store, relations, pager<FriendGroup>([[item('group-1')]]), pager<FriendBlock>([[item('block-1')]]));
-      await expect(store.exportAll('alpha', () => current)).rejects.toThrow('The account changed before export completed.');
+      await expect(store.exportAll('alpha', () => current)).rejects.toThrow(
+        'The account changed before export completed.',
+      );
       expect(relations).toHaveBeenCalledOnce();
     });
   });
 
   it('refuses an export that needs more than 100 pages of one collection', async () => {
-    await withStore(async store => {
+    await withStore(async (store) => {
       const relations = vi.fn(async (): Promise<FriendPage<FriendPair>> => ({ items: [item('pair')], cursor: token }));
       install(store, relations, pager<FriendGroup>([[item('group-1')]]), pager<FriendBlock>([[item('block-1')]]));
-      await expect(store.exportAll('alpha', () => true)).rejects.toThrow('This account export is too large to download at once.');
+      await expect(store.exportAll('alpha', () => true)).rejects.toThrow(
+        'This account export is too large to download at once.',
+      );
       expect(relations).toHaveBeenCalledTimes(100);
     });
   });

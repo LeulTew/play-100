@@ -7,23 +7,28 @@ export const MAX_SNAPSHOT_BYTES = 20 * 1024 * 1024;
 export const CHUNK_BYTES = 192 * 1024;
 export const MAX_CHUNKS = Math.ceil(MAX_SNAPSHOT_BYTES / CHUNK_BYTES);
 // Per row: fixed JSON punctuation/keys, ASCII ID, worst-case \uXXXX title, position, finite score.
-export const MAX_RANKING_JSON_BYTES = MAX_LIBRARY_RECORDS *
-  (42 + MAX_LIBRARY_ID_CHARACTERS + 6 * MAX_LIBRARY_TITLE_CHARACTERS + String(MAX_LIBRARY_RECORDS).length + 32) + 1;
+export const MAX_RANKING_JSON_BYTES =
+  MAX_LIBRARY_RECORDS *
+    (42 + MAX_LIBRARY_ID_CHARACTERS + 6 * MAX_LIBRARY_TITLE_CHARACTERS + String(MAX_LIBRARY_RECORDS).length + 32) +
+  1;
 export const MAX_RANKING_SNAPSHOT_BYTES = 2 ** Math.ceil(Math.log2(MAX_RANKING_JSON_BYTES));
 export const MAX_RANKING_CHUNKS = Math.ceil(MAX_RANKING_SNAPSHOT_BYTES / CHUNK_BYTES);
 export const CONSENT_VERSION = 1;
 export type LibraryScope = 'guest' | `account:${typeof CLOUD_PROJECT | 'demo-play100'}:${string}`;
 
 export function accountScope(uid: string, project: string = CLOUD_PROJECT): LibraryScope {
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) throw new Error('This account has an unsupported identity. No local data was changed.');
-  if (project !== CLOUD_PROJECT && project !== 'demo-play100') throw new Error('This Firebase project is not an approved Play 100 storage scope.');
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid))
+    throw new Error('This account has an unsupported identity. No local data was changed.');
+  if (project !== CLOUD_PROJECT && project !== 'demo-play100')
+    throw new Error('This Firebase project is not an approved Play 100 storage scope.');
   return `account:${project}:${uid}`;
 }
 
 export function scopeUid(scope: LibraryScope): string {
   if (scope === 'guest') throw new Error('Device-only data does not have an account identity.');
   const [, project, uid] = scope.split(':');
-  if (!uid || !project || accountScope(uid, project) !== scope) throw new Error('The account storage scope is invalid.');
+  if (!uid || !project || accountScope(uid, project) !== scope)
+    throw new Error('The account storage scope is invalid.');
   return uid;
 }
 
@@ -73,12 +78,30 @@ export interface ScopedLibrary {
   profile: { displayName: string; avatar: AvatarDescriptor } | null;
 }
 
-export type SyncStatus = 'device' | 'loading' | 'pending' | 'retrying' | 'quota' | 'saving' | 'saved' | 'offline' | 'conflict' | 'paused' | 'error';
+export type SyncStatus =
+  | 'device'
+  | 'loading'
+  | 'pending'
+  | 'retrying'
+  | 'quota'
+  | 'saving'
+  | 'saved'
+  | 'offline'
+  | 'conflict'
+  | 'paused'
+  | 'error';
 export const SYNC_LABELS: Record<SyncStatus, string> = {
-  device: 'Device only', loading: 'Opening online library…', saving: 'Saving online…',
-  saved: 'Saved online', offline: 'Offline · saved here', conflict: 'Needs a choice',
-  paused: 'Online saving paused', error: 'Online saving paused',
-  pending: 'Saved here · online pending', retrying: 'Retrying automatically…', quota: 'Waiting for the online service…',
+  device: 'Device only',
+  loading: 'Opening online library…',
+  saving: 'Saving online…',
+  saved: 'Saved online',
+  offline: 'Offline · saved here',
+  conflict: 'Needs a choice',
+  paused: 'Online saving paused',
+  error: 'Online saving paused',
+  pending: 'Saved here · online pending',
+  retrying: 'Retrying automatically…',
+  quota: 'Waiting for the online service…',
 };
 
 export interface CreatorRank {

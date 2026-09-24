@@ -3,14 +3,29 @@ import { GOOGLE_INTENT_LIFETIME, googleReturnPath, parseGoogleIntent, validateGo
 
 const now = 1789540000000;
 const intent = {
-  version: 1, requestId: 'a'.repeat(32), createdAt: now, returnPath: '/account',
-  kind: 'reauthenticate', uid: 'qa-user-a', target: 'account', epoch: 3,
+  version: 1,
+  requestId: 'a'.repeat(32),
+  createdAt: now,
+  returnPath: '/account',
+  kind: 'reauthenticate',
+  uid: 'qa-user-a',
+  target: 'account',
+  epoch: 3,
 } as const;
 
 describe('Google UI intent is not authentication authority', () => {
   it('retains approved deep links but removes credentials and rejects external/unapproved routes', () => {
-    expect(googleReturnPath('/?q=Racing&game=forza-horizon-5&access_token=not-a-token')).toBe('/?q=Racing&game=forza-horizon-5');
-    for (const route of ['https://evil.example/', '//evil.example/', '/\\evil.example/', '/__/auth/handler', '/unapproved']) expect(googleReturnPath(route)).toBe('/account');
+    expect(googleReturnPath('/?q=Racing&game=forza-horizon-5&access_token=not-a-token')).toBe(
+      '/?q=Racing&game=forza-horizon-5',
+    );
+    for (const route of [
+      'https://evil.example/',
+      '//evil.example/',
+      '/\\evil.example/',
+      '/__/auth/handler',
+      '/unapproved',
+    ])
+      expect(googleReturnPath(route)).toBe('/account');
   });
   it('accepts only a bounded, unexpired, exact-shape request without credentials', () => {
     expect(parseGoogleIntent(JSON.stringify(intent), now)).toEqual(intent);
@@ -23,7 +38,9 @@ describe('Google UI intent is not authentication authority', () => {
     for (const code of [...Array.from({ length: 33 }, (_, index) => index), 92]) {
       expect(googleReturnPath(`/friends/alice#before${String.fromCharCode(code)}after`)).toBe('/account');
     }
-    for (const code of [33, 126, 127, 128, 159, 160, 256, 287, 383, 0x2028, 0x2029, 0x10000, 0x1001f, 0x1007f, 0x1f600]) {
+    for (const code of [
+      33, 126, 127, 128, 159, 160, 256, 287, 383, 0x2028, 0x2029, 0x10000, 0x1001f, 0x1007f, 0x1f600,
+    ]) {
       expect(googleReturnPath(`/friends/alice#before${String.fromCodePoint(code)}after`)).toBe('/friends/alice');
     }
     expect(googleReturnPath('/friends/alice#%00%20%5C')).toBe('/friends/alice');

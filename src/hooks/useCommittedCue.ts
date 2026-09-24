@@ -34,13 +34,21 @@ export function useCommittedCue(
     if (!active || !animate || !current.current.guard()) return;
     const session = runtime.startMotionSession({
       channel: 'route',
-      guard: { isCurrent: () => current.current.active && current.current.cue?.serial === serial && current.current.guard() },
+      guard: {
+        isCurrent: () => current.current.active && current.current.cue?.serial === serial && current.current.guard(),
+      },
     });
     if (!session) return;
-    const element = kind === 'library-page' ? target.current?.querySelector('.local-pager > p') ?? null : target.current;
-    if (!visibleMotionTarget(element)) { session.finish(); return; }
+    const element =
+      kind === 'library-page' ? (target.current?.querySelector('.local-pager > p') ?? null) : target.current;
+    if (!visibleMotionTarget(element)) {
+      session.finish();
+      return;
+    }
     owned.current = session;
-    session.addCleanup(() => { if (owned.current === session) owned.current = null; });
+    session.addCleanup(() => {
+      if (owned.current === session) owned.current = null;
+    });
     playArrival(session, element, arrivalMotion(kind, coarsePointer, direction));
     return () => {
       session.cancel();

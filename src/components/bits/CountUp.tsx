@@ -17,7 +17,7 @@ export default function CountUp({ to, animate, className = '' }: { to: number; a
       current.current = { value: to, velocity: 0 };
       if (element.isConnected) element.textContent = String(to);
     };
-    if (!animate || document.hidden || current.current.value === to && current.current.velocity === 0) {
+    if (!animate || document.hidden || (current.current.value === to && current.current.velocity === 0)) {
       finish();
       return;
     }
@@ -26,7 +26,10 @@ export default function CountUp({ to, animate, className = '' }: { to: number; a
     element.textContent = String(Math.round(from.value));
     const update = (now: number) => {
       frame = null;
-      if (document.hidden || !element.isConnected) { finish(); return; }
+      if (document.hidden || !element.isConnected) {
+        finish();
+        return;
+      }
       const next = stepCount(from, to, now - start);
       current.current = next;
       const text = next.done ? String(to) : String(Math.round(next.value));
@@ -34,8 +37,17 @@ export default function CountUp({ to, animate, className = '' }: { to: number; a
       if (!next.done) frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
-    return () => { if (frame !== null) cancelAnimationFrame(frame); };
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, [to, animate]);
 
-  return <span className={className}><span className="sr-only">{to}</span><span aria-hidden="true" ref={ref}>{initial.current}</span></span>;
+  return (
+    <span className={className}>
+      <span className="sr-only">{to}</span>
+      <span aria-hidden="true" ref={ref}>
+        {initial.current}
+      </span>
+    </span>
+  );
 }

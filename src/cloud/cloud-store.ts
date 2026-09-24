@@ -1,4 +1,18 @@
-import { collection, doc, getDocFromServer, getDocs, getDocsFromServer, limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocFromServer,
+  getDocs,
+  getDocsFromServer,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp,
+  Timestamp,
+  writeBatch,
+} from 'firebase/firestore';
 import type { DocumentData, DocumentReference, Firestore, Transaction } from 'firebase/firestore';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import { creatorRanks, MAX_RANKING_SNAPSHOT_BYTES } from '../lib/cloud-types';
@@ -18,46 +32,80 @@ export interface DeletionCleanupOptions {
 }
 
 export class DeletionCleanupInterrupted extends Error {
-  constructor(readonly kind: 'private' | 'ranking', readonly confirmed: number, cause: unknown) {
+  constructor(
+    readonly kind: 'private' | 'ranking',
+    readonly confirmed: number,
+    cause: unknown,
+  ) {
     const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';
-    super(code === 'resource-exhausted'
-      ? 'Deletion paused because the online service reached a limit. Wait a while, then choose Finish deleting to continue.'
-      : 'Deletion stopped before it finished; your account is still here. Check your connection, then choose Finish deleting to continue.', { cause });
+    super(
+      code === 'resource-exhausted'
+        ? 'Deletion paused because the online service reached a limit. Wait a while, then choose Finish deleting to continue.'
+        : 'Deletion stopped before it finished; your account is still here. Check your connection, then choose Finish deleting to continue.',
+      { cause },
+    );
     this.name = 'DeletionCleanupInterrupted';
   }
 }
 
 export class DeletionListPermissionPending extends Error {
   constructor(cause: unknown) {
-    super('Deletion is paused; no saved content has been removed and online saving and sharing are off. Wait a few minutes, then choose Finish deleting to continue.', { cause });
+    super(
+      'Deletion is paused; no saved content has been removed and online saving and sharing are off. Wait a few minutes, then choose Finish deleting to continue.',
+      { cause },
+    );
     this.name = 'DeletionListPermissionPending';
   }
 }
 
 class DeletionNeedsAnotherPass extends Error {
-  constructor() { super("There's more to delete. Choose Finish deleting to continue."); this.name = 'DeletionNeedsAnotherPass'; }
+  constructor() {
+    super("There's more to delete. Choose Finish deleting to continue.");
+    this.name = 'DeletionNeedsAnotherPass';
+  }
 }
 
 export class RemoteConflict extends Error {
   readonly head: SyncHead;
-  constructor(head: SyncHead) { super('The online copy changed on another device. Both copies are safe; choose which to keep.'); this.name = 'RemoteConflict'; this.head = head; }
+  constructor(head: SyncHead) {
+    super('The online copy changed on another device. Both copies are safe; choose which to keep.');
+    this.name = 'RemoteConflict';
+    this.head = head;
+  }
 }
 
 export class SyncRevoked extends Error {
-  constructor() { super('Online saving was stopped or deleted from another session. Your local copy is safe; reconnect explicitly.'); this.name = 'SyncRevoked'; }
+  constructor() {
+    super('Online saving was stopped or deleted from another session. Your local copy is safe; reconnect explicitly.');
+    this.name = 'SyncRevoked';
+  }
 }
 
 export function parseHead(value: DocumentData): SyncHead {
   const fields = ['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'];
   if ('cleanupEpoch' in value) fields.push('cleanupEpoch');
-  if (Object.keys(value).sort().join() !== fields.sort().join() || value.format !== 1 ||
-    !Number.isSafeInteger(value.epoch) || value.epoch < 1 || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
-    typeof value.enabled !== 'boolean' || typeof value.deleted !== 'boolean' ||
-    !(value.updatedAt instanceof Timestamp) || ('cleanupEpoch' in value && (!Number.isSafeInteger(value.cleanupEpoch) || value.cleanupEpoch < 1))) throw new Error('The online copy uses an unsupported format. Your local data has not been replaced.');
+  if (
+    Object.keys(value).sort().join() !== fields.sort().join() ||
+    value.format !== 1 ||
+    !Number.isSafeInteger(value.epoch) ||
+    value.epoch < 1 ||
+    !Number.isSafeInteger(value.revision) ||
+    value.revision < 0 ||
+    typeof value.enabled !== 'boolean' ||
+    typeof value.deleted !== 'boolean' ||
+    !(value.updatedAt instanceof Timestamp) ||
+    ('cleanupEpoch' in value && (!Number.isSafeInteger(value.cleanupEpoch) || value.cleanupEpoch < 1))
+  )
+    throw new Error('The online copy uses an unsupported format. Your local data has not been replaced.');
   return {
-    format: 1, epoch: value.epoch, revision: value.revision, enabled: value.enabled, deleted: value.deleted,
+    format: 1,
+    epoch: value.epoch,
+    revision: value.revision,
+    enabled: value.enabled,
+    deleted: value.deleted,
     current: value.current === null ? null : parseManifest(value.current),
-    previous: value.previous === null ? null : parseManifest(value.previous), updatedAt: value.updatedAt.toMillis(),
+    previous: value.previous === null ? null : parseManifest(value.previous),
+    updatedAt: value.updatedAt.toMillis(),
     ...('cleanupEpoch' in value ? { cleanupEpoch: value.cleanupEpoch } : {}),
   };
 }
@@ -68,15 +116,28 @@ function sameHead(head: SyncHead, expected: Pick<SyncHead, 'epoch' | 'revision'>
 }
 
 export class CloudStore {
-  constructor(readonly db: Firestore, readonly uid: string) {
+  constructor(
+    readonly db: Firestore,
+    readonly uid: string,
+  ) {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid)) throw new Error('Unsupported online account identity.');
   }
-  private headRef() { return doc(this.db, 'syncHeads', this.uid); }
-  private registryRef() { return doc(this.db, 'accounts', this.uid, 'metadata', 'registry'); }
-  private generationRef(id: string) { return doc(this.db, 'accounts', this.uid, 'generations', id); }
-  private chunkRef(kind: 'private' | 'ranking', digest: string) { return doc(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks', digest); }
+  private headRef() {
+    return doc(this.db, 'syncHeads', this.uid);
+  }
+  private registryRef() {
+    return doc(this.db, 'accounts', this.uid, 'metadata', 'registry');
+  }
+  private generationRef(id: string) {
+    return doc(this.db, 'accounts', this.uid, 'generations', id);
+  }
+  private chunkRef(kind: 'private' | 'ranking', digest: string) {
+    return doc(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks', digest);
+  }
   private sharingHeads(tx: Transaction) {
-    return Promise.all(['games', 'ranking'].map(kind => tx.get(doc(this.db, 'friendAllHeads', this.uid, 'views', kind))));
+    return Promise.all(
+      ['games', 'ranking'].map((kind) => tx.get(doc(this.db, 'friendAllHeads', this.uid, 'views', kind))),
+    );
   }
 
   async head(): Promise<SyncHead | null> {
@@ -93,38 +154,63 @@ export class CloudStore {
         getDocsFromServer(query(collection(this.db, 'creatorRanks', this.uid, 'chunks'), limit(1))),
         getDocFromServer(doc(this.db, 'publicProfiles', this.uid)),
       ]);
-      if (registry.exists() && !Array.isArray(registry.data().ids)) throw new Error('The deletion check could not read its saved state.');
-      return !library.empty || !ranking.empty || profile.exists() || (registry.exists() && registry.data().ids.length > 0)
-        ? 'incomplete' : 'unknown';
+      if (registry.exists() && !Array.isArray(registry.data().ids))
+        throw new Error('The deletion check could not read its saved state.');
+      return !library.empty ||
+        !ranking.empty ||
+        profile.exists() ||
+        (registry.exists() && registry.data().ids.length > 0)
+        ? 'incomplete'
+        : 'unknown';
     } catch (cause) {
-      console.warn('The online-copy deletion check could not finish.', cause && typeof cause === 'object' && 'code' in cause ? cause.code : 'unreadable-state');
+      console.warn(
+        'The online-copy deletion check could not finish.',
+        cause && typeof cause === 'object' && 'code' in cause ? cause.code : 'unreadable-state',
+      );
       return 'unknown';
     }
   }
 
   async markCleanupComplete(epoch: number, isCurrent: () => boolean): Promise<SyncHead> {
-    return runTransaction(this.db, async tx => {
+    return runTransaction(this.db, async (tx) => {
       const snapshot = await tx.get(this.headRef());
       const head = snapshot.exists() ? parseHead(snapshot.data()) : null;
-      if (!isCurrent() || !head?.deleted || head.epoch !== epoch) throw new Error('The account or online saving state changed. Refresh the page before continuing.');
+      if (!isCurrent() || !head?.deleted || head.epoch !== epoch)
+        throw new Error('The account or online saving state changed. Refresh the page before continuing.');
       if (head.cleanupEpoch !== epoch) tx.update(this.headRef(), { cleanupEpoch: epoch });
       return { ...head, cleanupEpoch: epoch };
     });
   }
 
   watch(onHead: (head: SyncHead | null) => void, onError: (error: Error) => void): () => void {
-    return onSnapshot(this.headRef(), { includeMetadataChanges: true }, (snapshot) => {
-      if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
-      try { onHead(snapshot.exists() ? parseHead(snapshot.data()) : null); }
-      catch (error) { onError(error instanceof Error ? error : new Error('Online state is unreadable.')); }
-    }, onError);
+    return onSnapshot(
+      this.headRef(),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+        try {
+          onHead(snapshot.exists() ? parseHead(snapshot.data()) : null);
+        } catch (error) {
+          onError(error instanceof Error ? error : new Error('Online state is unreadable.'));
+        }
+      },
+      onError,
+    );
   }
 
-  async download(head: SyncHead, previous = false, isCurrent: () => boolean = () => true): Promise<PersonalLibraryState | null> {
+  async download(
+    head: SyncHead,
+    previous = false,
+    isCurrent: () => boolean = () => true,
+  ): Promise<PersonalLibraryState | null> {
     const manifest = previous ? head.previous : head.current;
     if (!manifest) return null;
     return unpackLibrary(manifest, async (digest) => {
-      if (!isCurrent()) { const error = new Error('The account session changed before downloading.'); error.name = 'SyncSessionEnded'; throw error; }
+      if (!isCurrent()) {
+        const error = new Error('The account session changed before downloading.');
+        error.name = 'SyncSessionEnded';
+        throw error;
+      }
       const snapshot = await getDocFromServer(this.chunkRef('private', digest));
       return snapshot.exists() ? snapshot.data() : undefined;
     });
@@ -137,12 +223,24 @@ export class CloudStore {
       const part = await getDocFromServer(this.chunkRef('ranking', digest));
       return part.exists() ? part.data() : undefined;
     });
-    if (!Array.isArray(data) || data.length > MAX_LIBRARY_RECORDS) throw new Error('The member ranking summary is invalid.');
+    if (!Array.isArray(data) || data.length > MAX_LIBRARY_RECORDS)
+      throw new Error('The member ranking summary is invalid.');
     return data.map((entry: unknown, index) => {
-      if (!entry || typeof entry !== 'object' || Object.keys(entry).sort().join() !== 'id,position,score,title' ||
-        !('position' in entry) || entry.position !== index + 1 || !('id' in entry) || typeof entry.id !== 'string' ||
-        !('title' in entry) || typeof entry.title !== 'string' || entry.title.length > MAX_LIBRARY_TITLE_CHARACTERS ||
-        !('score' in entry) || (entry.score !== null && (typeof entry.score !== 'number' || !Number.isFinite(entry.score) || entry.score < 0 || entry.score > 10))) {
+      if (
+        !entry ||
+        typeof entry !== 'object' ||
+        Object.keys(entry).sort().join() !== 'id,position,score,title' ||
+        !('position' in entry) ||
+        entry.position !== index + 1 ||
+        !('id' in entry) ||
+        typeof entry.id !== 'string' ||
+        !('title' in entry) ||
+        typeof entry.title !== 'string' ||
+        entry.title.length > MAX_LIBRARY_TITLE_CHARACTERS ||
+        !('score' in entry) ||
+        (entry.score !== null &&
+          (typeof entry.score !== 'number' || !Number.isFinite(entry.score) || entry.score < 0 || entry.score > 10))
+      ) {
         throw new Error('The member ranking contains unsupported fields. It was not displayed.');
       }
       return { id: entry.id, position: index + 1, title: entry.title, score: entry.score };
@@ -160,12 +258,24 @@ export class CloudStore {
       }
       if (current?.enabled && !current.deleted) return current;
       const next: SyncHead = {
-        format: 1, epoch: (current?.epoch ?? 0) + 1, revision: current ? current.revision + 1 : 0,
-        enabled: true, deleted: false, current: current?.current ?? null, previous: current?.previous ?? null, updatedAt: Date.now(),
+        format: 1,
+        epoch: (current?.epoch ?? 0) + 1,
+        revision: current ? current.revision + 1 : 0,
+        enabled: true,
+        deleted: false,
+        current: current?.current ?? null,
+        previous: current?.previous ?? null,
+        updatedAt: Date.now(),
         ...(current?.cleanupEpoch === undefined ? {} : { cleanupEpoch: current.cleanupEpoch }),
       };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
-      for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });
+      for (const view of shared)
+        if (view.exists() && parseFriendAllHead(view.data()).status === 'ready')
+          tx.update(view.ref, {
+            status: 'updating',
+            revision: parseFriendAllHead(view.data()).revision + 1,
+            updatedAt: serverTimestamp(),
+          });
       return next;
     });
   }
@@ -177,9 +287,21 @@ export class CloudStore {
       if (!head.exists()) throw new SyncRevoked();
       sameHead(parseHead(head.data()), expected);
       const ids: string[] = registry.exists() ? registry.data().ids : [];
-      if (!Array.isArray(ids) || ids.length >= 8) throw new Error('Eight older saved copies are still stored online. Wait for cleanup or run it from Account, then retry. Local edits are safe.');
-      tx.set(this.generationRef(manifest.generation), { private: manifest, ranking, epoch: expected.epoch, status: 'staging', createdAt: serverTimestamp() });
-      tx.set(this.registryRef(), { ids: [...ids, manifest.generation], revision: registry.exists() ? registry.data().revision + 1 : 1 });
+      if (!Array.isArray(ids) || ids.length >= 8)
+        throw new Error(
+          'Eight older saved copies are still stored online. Wait for cleanup or run it from Account, then retry. Local edits are safe.',
+        );
+      tx.set(this.generationRef(manifest.generation), {
+        private: manifest,
+        ranking,
+        epoch: expected.epoch,
+        status: 'staging',
+        createdAt: serverTimestamp(),
+      });
+      tx.set(this.registryRef(), {
+        ids: [...ids, manifest.generation],
+        revision: registry.exists() ? registry.data().revision + 1 : 1,
+      });
     });
   }
 
@@ -189,20 +311,37 @@ export class CloudStore {
       const current = await tx.get(ref);
       if (current.exists()) {
         const saved = current.data();
-        if (saved.data !== chunk.data || saved.bytes !== chunk.bytes || saved.digest !== chunk.digest || !Array.isArray(saved.holders)) throw new Error('A previously stored online chunk failed validation. Your local copy is retained.');
-        if (!saved.holders.includes(generation)) tx.update(ref, { holders: [...saved.holders, generation], holder: generation });
+        if (
+          saved.data !== chunk.data ||
+          saved.bytes !== chunk.bytes ||
+          saved.digest !== chunk.digest ||
+          !Array.isArray(saved.holders)
+        )
+          throw new Error('A previously stored online chunk failed validation. Your local copy is retained.');
+        if (!saved.holders.includes(generation))
+          tx.update(ref, { holders: [...saved.holders, generation], holder: generation });
       } else tx.set(ref, { ...chunk, holders: [generation], holder: generation, createdAt: serverTimestamp() });
     });
   }
 
-  async upload(state: PersonalLibraryState, expected: SyncHead, afterChunk?: () => Promise<void>, isCurrent: () => boolean = () => true): Promise<SyncHead> {
+  async upload(
+    state: PersonalLibraryState,
+    expected: SyncHead,
+    afterChunk?: () => Promise<void>,
+    isCurrent: () => boolean = () => true,
+  ): Promise<SyncHead> {
     const guard = () => {
-      if (!isCurrent()) { const error = new Error('This online session ended. Its local copy remains pending.'); error.name = 'SyncSessionEnded'; throw error; }
+      if (!isCurrent()) {
+        const error = new Error('This online session ended. Its local copy remains pending.');
+        error.name = 'SyncSessionEnded';
+        throw error;
+      }
     };
     guard();
     await ensureAccountActivity(this.db, this.uid);
     const [snapshot, summary] = await Promise.all([packLibrary(state), packSnapshot(creatorRanks(state))]);
-    if (summary.manifest.bytes > MAX_RANKING_SNAPSHOT_BYTES) throw new Error('This ranking summary is too large for online saving. Your device copy is unchanged.');
+    if (summary.manifest.bytes > MAX_RANKING_SNAPSHOT_BYTES)
+      throw new Error('This ranking summary is too large for online saving. Your device copy is unchanged.');
     guard();
     summary.manifest.generation = snapshot.manifest.generation;
     if (expected.current?.digest === snapshot.manifest.digest) {
@@ -211,39 +350,86 @@ export class CloudStore {
       if (fresh.current?.digest !== snapshot.manifest.digest) throw new RemoteConflict(fresh);
       return fresh;
     }
-    try { await this.register(snapshot.manifest, summary.manifest, expected); }
-    catch (error) {
-      if (error instanceof RemoteConflict && error.head.enabled && !error.head.deleted && error.head.epoch === expected.epoch && error.head.current?.digest === snapshot.manifest.digest) return error.head;
+    try {
+      await this.register(snapshot.manifest, summary.manifest, expected);
+    } catch (error) {
+      if (
+        error instanceof RemoteConflict &&
+        error.head.enabled &&
+        !error.head.deleted &&
+        error.head.epoch === expected.epoch &&
+        error.head.current?.digest === snapshot.manifest.digest
+      )
+        return error.head;
       throw error;
     }
-    for (const [kind, chunks] of [['private', snapshot.chunks], ['ranking', summary.chunks]] as const) {
+    for (const [kind, chunks] of [
+      ['private', snapshot.chunks],
+      ['ranking', summary.chunks],
+    ] as const) {
       for (let index = 0; index < chunks.length; index += 3) {
         guard();
-        await Promise.all(chunks.slice(index, index + 3).map((chunk) => this.putChunk(kind, chunk, snapshot.manifest.generation)));
+        await Promise.all(
+          chunks.slice(index, index + 3).map((chunk) => this.putChunk(kind, chunk, snapshot.manifest.generation)),
+        );
         if (afterChunk) await afterChunk();
       }
     }
     await runTransaction(this.db, async (tx) => {
-      const [head, generation] = await Promise.all([tx.get(this.headRef()), tx.get(this.generationRef(snapshot.manifest.generation))]);
-      if (!head.exists() || !generation.exists() || generation.data().status !== 'staging') throw new Error('The staged online snapshot is no longer available. Your local copy remains pending.');
+      const [head, generation] = await Promise.all([
+        tx.get(this.headRef()),
+        tx.get(this.generationRef(snapshot.manifest.generation)),
+      ]);
+      if (!head.exists() || !generation.exists() || generation.data().status !== 'staging')
+        throw new Error('The staged online snapshot is no longer available. Your local copy remains pending.');
       sameHead(parseHead(head.data()), expected);
       guard();
       tx.update(this.generationRef(snapshot.manifest.generation), { status: 'ready' });
     });
     return runTransaction(this.db, async (tx) => {
       const summaryRef = doc(this.db, 'creatorRanks', this.uid);
-      const [head, previousSummary, generation, shared] = await Promise.all([tx.get(this.headRef()), tx.get(summaryRef), tx.get(this.generationRef(snapshot.manifest.generation)), this.sharingHeads(tx)]);
+      const [head, previousSummary, generation, shared] = await Promise.all([
+        tx.get(this.headRef()),
+        tx.get(summaryRef),
+        tx.get(this.generationRef(snapshot.manifest.generation)),
+        this.sharingHeads(tx),
+      ]);
       if (!head.exists()) throw new SyncRevoked();
       const current = parseHead(head.data());
-      if (current.enabled && current.epoch === expected.epoch && current.current?.digest === snapshot.manifest.digest) return current;
+      if (current.enabled && current.epoch === expected.epoch && current.current?.digest === snapshot.manifest.digest)
+        return current;
       sameHead(current, expected);
       guard();
-      if (!generation.exists() || generation.data().status !== 'ready') throw new Error('The complete online copy could not be saved. Retry online saving.');
-      const next = { ...current, revision: current.revision + 1, current: snapshot.manifest, previous: current.current, updatedAt: Date.now() };
+      if (!generation.exists() || generation.data().status !== 'ready')
+        throw new Error('The complete online copy could not be saved. Retry online saving.');
+      const next = {
+        ...current,
+        revision: current.revision + 1,
+        current: snapshot.manifest,
+        previous: current.current,
+        updatedAt: Date.now(),
+      };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
-      for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });
-      tx.set(summaryRef, { format: 1, epoch: next.epoch, revision: next.revision, current: summary.manifest, previous: previousSummary.exists() ? previousSummary.data().current : null, updatedAt: serverTimestamp() });
-      tx.update(doc(this.db, 'members', this.uid), { rankCount: state.ranking.length, gameCount: Object.keys(state.records).length, updatedAt: serverTimestamp() });
+      for (const view of shared)
+        if (view.exists() && parseFriendAllHead(view.data()).status === 'ready')
+          tx.update(view.ref, {
+            status: 'updating',
+            revision: parseFriendAllHead(view.data()).revision + 1,
+            updatedAt: serverTimestamp(),
+          });
+      tx.set(summaryRef, {
+        format: 1,
+        epoch: next.epoch,
+        revision: next.revision,
+        current: summary.manifest,
+        previous: previousSummary.exists() ? previousSummary.data().current : null,
+        updatedAt: serverTimestamp(),
+      });
+      tx.update(doc(this.db, 'members', this.uid), {
+        rankCount: state.ranking.length,
+        gameCount: Object.keys(state.records).length,
+        updatedAt: serverTimestamp(),
+      });
       return next;
     });
   }
@@ -254,16 +440,41 @@ export class CloudStore {
       const [current, shared] = await Promise.all([tx.get(this.headRef()), this.sharingHeads(tx)]);
       if (!current.exists()) {
         if (!remove || expected) throw new SyncRevoked();
-        const deleted: SyncHead = { format: 1, enabled: false, deleted: true, epoch: 1, revision: 0, current: null, previous: null, updatedAt: Date.now() };
+        const deleted: SyncHead = {
+          format: 1,
+          enabled: false,
+          deleted: true,
+          epoch: 1,
+          revision: 0,
+          current: null,
+          previous: null,
+          updatedAt: Date.now(),
+        };
         tx.set(this.headRef(), { ...deleted, updatedAt: serverTimestamp() });
         return deleted;
       }
       const head = parseHead(current.data());
       if (remove && head.deleted) return head;
-      if (!expected || head.revision !== expected.revision || head.epoch !== expected.epoch) throw new RemoteConflict(head);
-      const next: SyncHead = { ...head, enabled: false, deleted: remove, epoch: head.epoch + 1, revision: head.revision + 1, current: remove ? null : head.current, previous: remove ? null : head.previous, updatedAt: Date.now() };
+      if (!expected || head.revision !== expected.revision || head.epoch !== expected.epoch)
+        throw new RemoteConflict(head);
+      const next: SyncHead = {
+        ...head,
+        enabled: false,
+        deleted: remove,
+        epoch: head.epoch + 1,
+        revision: head.revision + 1,
+        current: remove ? null : head.current,
+        previous: remove ? null : head.previous,
+        updatedAt: Date.now(),
+      };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
-      for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });
+      for (const view of shared)
+        if (view.exists() && parseFriendAllHead(view.data()).status === 'ready')
+          tx.update(view.ref, {
+            status: 'updating',
+            revision: parseFriendAllHead(view.data()).revision + 1,
+            updatedAt: serverTimestamp(),
+          });
       if (remove) tx.delete(doc(this.db, 'creatorRanks', this.uid));
       return next;
     });
@@ -281,26 +492,35 @@ export class CloudStore {
     for (const kind of ['private', 'ranking'] as const) {
       try {
         for (let page = 0; page <= 100; page += 1) {
-          if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
-          const chunks = await getDocsFromServer(query(collection(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks'), limit(20)))
-            .catch(async cause => {
-              if (confirmed === 0 && cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') {
-                const head = await this.head();
-                if (options.isCurrent?.() !== false && head?.deleted && head.epoch === epoch) throw new DeletionListPermissionPending(cause);
-              }
-              throw cause;
-            });
+          if (options.isCurrent?.() === false)
+            throw new Error('The signed-in account changed. Return to the same account before continuing.');
+          const chunks = await getDocsFromServer(
+            query(collection(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks'), limit(20)),
+          ).catch(async (cause) => {
+            if (
+              confirmed === 0 &&
+              cause &&
+              typeof cause === 'object' &&
+              'code' in cause &&
+              cause.code === 'permission-denied'
+            ) {
+              const head = await this.head();
+              if (options.isCurrent?.() !== false && head?.deleted && head.epoch === epoch)
+                throw new DeletionListPermissionPending(cause);
+            }
+            throw cause;
+          });
           if (chunks.empty) break;
           if (page === 100) throw new DeletionNeedsAnotherPass();
           for (let start = 0; start < chunks.size; start += 10) {
             const batch = chunks.docs.slice(start, start + 10);
-            await runTransaction(this.db, async tx => {
+            await runTransaction(this.db, async (tx) => {
               const snapshot = await tx.get(this.headRef());
               const head = snapshot.exists() ? parseHead(snapshot.data()) : null;
               if (options.isCurrent?.() === false || !head?.deleted || head.epoch !== epoch) {
                 throw new Error('Online saving changed. Refresh the page before continuing.');
               }
-              batch.forEach(chunk => tx.delete(chunk.ref));
+              batch.forEach((chunk) => tx.delete(chunk.ref));
             });
             confirmed += batch.length;
             if (options.onProgress) await options.onProgress({ kind, confirmed });
@@ -321,27 +541,35 @@ export class CloudStore {
     }
     if (deletionEpoch !== null) await this.purgeDeletedPayload(deletionEpoch, options);
     const guardDeletion = async () => {
-      if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
+      if (options.isCurrent?.() === false)
+        throw new Error('The signed-in account changed. Return to the same account before continuing.');
       if (deletionEpoch !== null) {
         const head = await this.head();
-        if (!head?.deleted || head.epoch !== deletionEpoch) throw new Error('Online saving changed. Refresh the page before continuing.');
+        if (!head?.deleted || head.epoch !== deletionEpoch)
+          throw new Error('Online saving changed. Refresh the page before continuing.');
       }
     };
     await guardDeletion();
     const registry = await getDocFromServer(this.registryRef());
-    if (!registry.exists()) { await guardDeletion(); return 0; }
+    if (!registry.exists()) {
+      await guardDeletion();
+      return 0;
+    }
     const ids: unknown = registry.data().ids;
-    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string')) throw new Error("Your online data couldn't be read, so deletion stopped. Try again later.");
+    if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === 'string'))
+      throw new Error("Your online data couldn't be read, so deletion stopped. Try again later.");
     let count = 0;
     const deletedChunks = new Set<string>();
     for (const id of ids) {
       if (!all && count >= 4) break;
       const generation = await runTransaction(this.db, async (tx) => {
-        if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
+        if (options.isCurrent?.() === false)
+          throw new Error('The signed-in account changed. Return to the same account before continuing.');
         const retained = await this.retained(tx);
         if (deletionEpoch !== null) {
           const head = await tx.get(this.headRef());
-          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('Online saving changed. Refresh the page before continuing.');
+          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch)
+            throw new Error('Online saving changed. Refresh the page before continuing.');
         }
         const candidate = await tx.get(this.generationRef(id));
         if (retained.has(id)) return null;
@@ -350,16 +578,24 @@ export class CloudStore {
           if (!registry.exists()) return null;
           const current = registry.data();
           const currentIds: unknown = current.ids;
-          if (!Array.isArray(currentIds) || !currentIds.every((value): value is string => typeof value === 'string') ||
-            !Number.isSafeInteger(current.revision) || current.revision < 1) {
+          if (
+            !Array.isArray(currentIds) ||
+            !currentIds.every((value): value is string => typeof value === 'string') ||
+            !Number.isSafeInteger(current.revision) ||
+            current.revision < 1
+          ) {
             throw new Error("Your online data couldn't be read. Try again later.");
           }
           if (!currentIds.includes(id)) return null;
-          tx.update(this.registryRef(), { ids: currentIds.filter(value => value !== id), revision: current.revision + 1 });
+          tx.update(this.registryRef(), {
+            ids: currentIds.filter((value) => value !== id),
+            revision: current.revision + 1,
+          });
           return { orphaned: true };
         }
         const data = candidate.data();
-        if (!(data.createdAt instanceof Timestamp)) throw new Error("Your online data couldn't be read. Try again later.");
+        if (!(data.createdAt instanceof Timestamp))
+          throw new Error("Your online data couldn't be read. Try again later.");
         const age = Date.now() - data.createdAt.toMillis();
         if (!all && data.status !== 'deleting' && age < (data.status === 'staging' ? 300000 : 30000)) return null;
         const manifests = { private: parseManifest(data.private), ranking: parseManifest(data.ranking) };
@@ -367,99 +603,139 @@ export class CloudStore {
         return manifests;
       });
       if (!generation) continue;
-      if ('orphaned' in generation) { count += 1; continue; }
-      const parts = (['private', 'ranking'] as const).flatMap(kind => generation[kind].chunks.map(digest => ({ kind, digest })));
+      if ('orphaned' in generation) {
+        count += 1;
+        continue;
+      }
+      const parts = (['private', 'ranking'] as const).flatMap((kind) =>
+        generation[kind].chunks.map((digest) => ({ kind, digest })),
+      );
       const releaseHeld = (tx: Transaction, ref: DocumentReference<DocumentData>, data: DocumentData | undefined) => {
         if (!data) return;
         const holders: unknown = data.holders;
-        if (!Array.isArray(holders) || !holders.every(holder => typeof holder === 'string')) {
+        if (!Array.isArray(holders) || !holders.every((holder) => typeof holder === 'string')) {
           throw new Error("Your online data couldn't be checked, so cleanup stopped. Try again later.");
         }
-        const kept = holders.filter(holder => holder !== id);
+        const kept = holders.filter((holder) => holder !== id);
         if (kept.length === holders.length) return;
         if (kept.length) tx.update(ref, { holders: kept, holder: id });
         else tx.delete(ref);
       };
-      await runPayloadCleanup(Math.ceil(parts.length / PRIVATE_RELEASE_BATCH) + 1, async () => {
-        const result = await runTransaction(this.db, async tx => {
-          const [candidate, head] = await Promise.all([tx.get(this.generationRef(id)), tx.get(this.headRef())]);
-          if (options.isCurrent?.() === false || (deletionEpoch !== null &&
-            (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch))) {
-            throw new Error('The account or online saving state changed. Refresh the page before continuing.');
-          }
-          const data = candidate.data();
-          const released: unknown = data && 'released' in data ? data.released : 0;
-          if (!data || data.status !== 'deleting' || typeof released !== 'number' ||
-            !Number.isSafeInteger(released) || released < 0 || released > parts.length) {
-            throw new Error("Your online data couldn't be checked, so deletion stopped. Try again later.");
-          }
-          if (released === parts.length) return { remaining: null, removed: [] };
-          const end = Math.min(parts.length, released + PRIVATE_RELEASE_BATCH);
-          const unique = [...new Map(parts.slice(released, end).map(part => [`${part.kind}:${part.digest}`, part])).entries()];
-          const removeAll = all && head.exists() && parseHead(head.data()).deleted;
-          const removed: string[] = [];
-          // A purged deleted epoch needs only progress writes, including deduplicated positions.
-          if (deletionEpoch === null && removeAll) {
-            for (const [key, part] of unique) if (!deletedChunks.has(key)) {
-              tx.delete(this.chunkRef(part.kind, part.digest));
-              removed.push(key);
+      await runPayloadCleanup(
+        Math.ceil(parts.length / PRIVATE_RELEASE_BATCH) + 1,
+        async () => {
+          const result = await runTransaction(this.db, async (tx) => {
+            const [candidate, head] = await Promise.all([tx.get(this.generationRef(id)), tx.get(this.headRef())]);
+            if (
+              options.isCurrent?.() === false ||
+              (deletionEpoch !== null &&
+                (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch))
+            ) {
+              throw new Error('The account or online saving state changed. Refresh the page before continuing.');
             }
-          } else if (deletionEpoch === null) {
-            const chunks = await Promise.all(unique.map(([, part]) => tx.get(this.chunkRef(part.kind, part.digest))));
-            for (const chunk of chunks) releaseHeld(tx, chunk.ref, chunk.data());
+            const data = candidate.data();
+            const released: unknown = data && 'released' in data ? data.released : 0;
+            if (
+              !data ||
+              data.status !== 'deleting' ||
+              typeof released !== 'number' ||
+              !Number.isSafeInteger(released) ||
+              released < 0 ||
+              released > parts.length
+            ) {
+              throw new Error("Your online data couldn't be checked, so deletion stopped. Try again later.");
+            }
+            if (released === parts.length) return { remaining: null, removed: [] };
+            const end = Math.min(parts.length, released + PRIVATE_RELEASE_BATCH);
+            const unique = [
+              ...new Map(parts.slice(released, end).map((part) => [`${part.kind}:${part.digest}`, part])).entries(),
+            ];
+            const removeAll = all && head.exists() && parseHead(head.data()).deleted;
+            const removed: string[] = [];
+            // A purged deleted epoch needs only progress writes, including deduplicated positions.
+            if (deletionEpoch === null && removeAll) {
+              for (const [key, part] of unique)
+                if (!deletedChunks.has(key)) {
+                  tx.delete(this.chunkRef(part.kind, part.digest));
+                  removed.push(key);
+                }
+            } else if (deletionEpoch === null) {
+              const chunks = await Promise.all(unique.map(([, part]) => tx.get(this.chunkRef(part.kind, part.digest))));
+              for (const chunk of chunks) releaseHeld(tx, chunk.ref, chunk.data());
+            }
+            tx.update(this.generationRef(id), { released: end });
+            return { remaining: parts.length - end, removed };
+          });
+          result.removed.forEach((key) => deletedChunks.add(key));
+          return result.remaining;
+        },
+        async () => {
+          if (deletionEpoch !== null)
+            throw new Error(
+              "This version of the app can't finish deleting. Refresh the page, then choose Finish deleting to continue.",
+            );
+          const removeAll = all && (await this.head())?.deleted === true;
+          for (const part of parts) {
+            const ref = this.chunkRef(part.kind, part.digest);
+            const key = `${part.kind}:${part.digest}`;
+            if (removeAll) {
+              if (deletedChunks.has(key)) continue;
+              const batch = writeBatch(this.db);
+              batch.delete(ref);
+              await batch.commit();
+              deletedChunks.add(key);
+            } else await runTransaction(this.db, async (tx) => releaseHeld(tx, ref, (await tx.get(ref)).data()));
           }
-          tx.update(this.generationRef(id), { released: end });
-          return { remaining: parts.length - end, removed };
-        });
-        result.removed.forEach(key => deletedChunks.add(key));
-        return result.remaining;
-      }, async () => {
-        if (deletionEpoch !== null) throw new Error("This version of the app can't finish deleting. Refresh the page, then choose Finish deleting to continue.");
-        const removeAll = all && (await this.head())?.deleted === true;
-        for (const part of parts) {
-          const ref = this.chunkRef(part.kind, part.digest);
-          const key = `${part.kind}:${part.digest}`;
-          if (removeAll) {
-            if (deletedChunks.has(key)) continue;
-            const batch = writeBatch(this.db);
-            batch.delete(ref);
-            await batch.commit();
-            deletedChunks.add(key);
-          } else await runTransaction(this.db, async tx => releaseHeld(tx, ref, (await tx.get(ref)).data()));
-        }
-      }, undefined, deletionEpoch === null);
+        },
+        undefined,
+        deletionEpoch === null,
+      );
       await runTransaction(this.db, async (tx) => {
-        if (options.isCurrent?.() === false) throw new Error('The signed-in account changed. Return to the same account before continuing.');
+        if (options.isCurrent?.() === false)
+          throw new Error('The signed-in account changed. Return to the same account before continuing.');
         const retained = await this.retained(tx);
         if (deletionEpoch !== null) {
           const head = await tx.get(this.headRef());
-          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) throw new Error('Online saving changed. Refresh the page before continuing.');
+          if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch)
+            throw new Error('Online saving changed. Refresh the page before continuing.');
         }
         const current = await tx.get(this.registryRef());
         if (retained.has(id)) throw new Error('A saved copy changed. Refresh the page before continuing.');
-        if (current.exists()) tx.update(this.registryRef(), { ids: current.data().ids.filter((value: string) => value !== id), revision: current.data().revision + 1 });
+        if (current.exists())
+          tx.update(this.registryRef(), {
+            ids: current.data().ids.filter((value: string) => value !== id),
+            revision: current.data().revision + 1,
+          });
         tx.delete(this.generationRef(id));
       });
       count += 1;
     }
-    if (deletionEpoch !== null) await runTransaction(this.db, async tx => {
-      const [head, registry] = await Promise.all([tx.get(this.headRef()), tx.get(this.registryRef())]);
-      if (options.isCurrent?.() === false || !head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch) {
-        throw new Error('The account or online saving state changed. Refresh the page before continuing.');
-      }
-      if (registry.exists()) {
-        if (!Array.isArray(registry.data().ids) || registry.data().ids.length) throw new Error("There's more to delete. Choose Finish deleting to continue.");
-        tx.delete(this.registryRef());
-      }
-    });
+    if (deletionEpoch !== null)
+      await runTransaction(this.db, async (tx) => {
+        const [head, registry] = await Promise.all([tx.get(this.headRef()), tx.get(this.registryRef())]);
+        if (
+          options.isCurrent?.() === false ||
+          !head.exists() ||
+          !head.data().deleted ||
+          head.data().epoch !== deletionEpoch
+        ) {
+          throw new Error('The account or online saving state changed. Refresh the page before continuing.');
+        }
+        if (registry.exists()) {
+          if (!Array.isArray(registry.data().ids) || registry.data().ids.length)
+            throw new Error("There's more to delete. Choose Finish deleting to continue.");
+          tx.delete(this.registryRef());
+        }
+      });
     await guardDeletion();
     return count;
   }
 }
 
 export async function creatorAccess(db: Firestore): Promise<boolean> {
-  try { return (await getDocFromServer(doc(db, 'ownerAccess', 'status'))).exists(); }
-  catch (error) {
+  try {
+    return (await getDocFromServer(doc(db, 'ownerAccess', 'status'))).exists();
+  } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied') return false;
     throw error;
   }

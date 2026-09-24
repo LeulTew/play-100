@@ -1,11 +1,5 @@
 import * as THREE from 'three';
-import {
-  ARTIFACT_COLORS,
-  FOLIO_DESIGNS,
-  P100_GLYPHS,
-  type FolioDesign,
-  type MarkPoint,
-} from './artifactDesign';
+import { ARTIFACT_COLORS, FOLIO_DESIGNS, P100_GLYPHS, type FolioDesign, type MarkPoint } from './artifactDesign';
 import { FrameBudget, MIN_SCENE_DPR } from './frameBudget';
 import { SCENE_DISPLAY, sceneFont, sceneFontSet, sceneFontsReady, whenSceneFontsReady } from './sceneFonts';
 
@@ -196,20 +190,33 @@ function makeFold() {
   const geometry = new THREE.BufferGeometry();
   const left = -WIDTH / 2;
   const top = THICKNESS / 2;
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
-    left, top, -DEPTH / 2,
-    left + 0.055, top + 0.04, -DEPTH / 2,
-    left + 0.14, top + 0.005, -DEPTH / 2,
-    left, top, DEPTH / 2,
-    left + 0.055, top + 0.04, DEPTH / 2,
-    left + 0.14, top + 0.005, DEPTH / 2,
-  ], 3));
-  geometry.setIndex([
-    0, 3, 4, 0, 4, 1,
-    1, 4, 5, 1, 5, 2,
-    0, 1, 2, 3, 5, 4,
-    0, 2, 5, 0, 5, 3,
-  ]);
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(
+      [
+        left,
+        top,
+        -DEPTH / 2,
+        left + 0.055,
+        top + 0.04,
+        -DEPTH / 2,
+        left + 0.14,
+        top + 0.005,
+        -DEPTH / 2,
+        left,
+        top,
+        DEPTH / 2,
+        left + 0.055,
+        top + 0.04,
+        DEPTH / 2,
+        left + 0.14,
+        top + 0.005,
+        DEPTH / 2,
+      ],
+      3,
+    ),
+  );
+  geometry.setIndex([0, 3, 4, 0, 4, 1, 1, 4, 5, 1, 5, 2, 0, 1, 2, 3, 5, 4, 0, 2, 5, 0, 5, 3]);
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -232,10 +239,7 @@ function makeEmbossedMark() {
   });
 }
 
-export function createCollectionScene(
-  host: HTMLDivElement,
-  options: CollectionSceneOptions,
-): CollectionSceneHandle {
+export function createCollectionScene(host: HTMLDivElement, options: CollectionSceneOptions): CollectionSceneHandle {
   const resources = new Set<Disposable>();
   const canvas = document.createElement('canvas');
   canvas.setAttribute('aria-hidden', 'true');
@@ -330,23 +334,41 @@ export function createCollectionScene(
     const bodyGeometry = keep(new THREE.BoxGeometry(WIDTH, THICKNESS, DEPTH));
     const coverGeometry = keep(new THREE.PlaneGeometry(WIDTH, DEPTH));
     const foldGeometry = keep(makeFold());
-    const foldMaterial = keep(new THREE.MeshStandardMaterial({
-      color: ARTIFACT_COLORS.lime,
-      roughness: 0.87,
-      metalness: 0,
-    }));
+    const foldMaterial = keep(
+      new THREE.MeshStandardMaterial({
+        color: ARTIFACT_COLORS.lime,
+        roughness: 0.87,
+        metalness: 0,
+      }),
+    );
     const edgeGeometry = keep(new THREE.BufferGeometry());
-    edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
-      -WIDTH / 2 + 0.03, -0.012, DEPTH / 2 + 0.001,
-      WIDTH / 2 - 0.03, -0.012, DEPTH / 2 + 0.001,
-      -WIDTH / 2 + 0.03, 0.012, DEPTH / 2 + 0.001,
-      WIDTH / 2 - 0.03, 0.012, DEPTH / 2 + 0.001,
-    ], 3));
-    const edgeMaterial = keep(new THREE.LineBasicMaterial({
-      color: ARTIFACT_COLORS.graphite,
-      transparent: true,
-      opacity: 0.36,
-    }));
+    edgeGeometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(
+        [
+          -WIDTH / 2 + 0.03,
+          -0.012,
+          DEPTH / 2 + 0.001,
+          WIDTH / 2 - 0.03,
+          -0.012,
+          DEPTH / 2 + 0.001,
+          -WIDTH / 2 + 0.03,
+          0.012,
+          DEPTH / 2 + 0.001,
+          WIDTH / 2 - 0.03,
+          0.012,
+          DEPTH / 2 + 0.001,
+        ],
+        3,
+      ),
+    );
+    const edgeMaterial = keep(
+      new THREE.LineBasicMaterial({
+        color: ARTIFACT_COLORS.graphite,
+        transparent: true,
+        opacity: 0.36,
+      }),
+    );
 
     const folios = FOLIO_DESIGNS.map((design, index) => {
       const folio = new THREE.Group();
@@ -354,16 +376,20 @@ export function createCollectionScene(
       const texture = keep(new THREE.CanvasTexture(coverCanvas));
       texture.colorSpace = THREE.SRGBColorSpace;
       textureRedraws.push(() => redrawTexture(texture, coverCanvas, makeCover(design)));
-      const coverMaterial = keep(new THREE.MeshStandardMaterial({
-        map: texture,
-        roughness: 0.92,
-        metalness: 0,
-      }));
-      const bodyMaterial = keep(new THREE.MeshStandardMaterial({
-        color: index % 2 === 0 ? ARTIFACT_COLORS.chalk : ARTIFACT_COLORS.lime,
-        roughness: 0.95,
-        metalness: 0,
-      }));
+      const coverMaterial = keep(
+        new THREE.MeshStandardMaterial({
+          map: texture,
+          roughness: 0.92,
+          metalness: 0,
+        }),
+      );
+      const bodyMaterial = keep(
+        new THREE.MeshStandardMaterial({
+          color: index % 2 === 0 ? ARTIFACT_COLORS.chalk : ARTIFACT_COLORS.lime,
+          roughness: 0.95,
+          metalness: 0,
+        }),
+      );
       folio.add(new THREE.Mesh(bodyGeometry, bodyMaterial));
       const cover = new THREE.Mesh(coverGeometry, coverMaterial);
       cover.rotation.x = -Math.PI / 2;
@@ -372,11 +398,13 @@ export function createCollectionScene(
       folio.add(new THREE.Mesh(foldGeometry, foldMaterial));
       folio.add(new THREE.LineSegments(edgeGeometry, edgeMaterial));
       if (design.motif === 'mark') {
-        const markMaterial = keep(new THREE.MeshStandardMaterial({
-          color: design.ink,
-          roughness: 0.7,
-          metalness: 0,
-        }));
+        const markMaterial = keep(
+          new THREE.MeshStandardMaterial({
+            color: design.ink,
+            roughness: 0.7,
+            metalness: 0,
+          }),
+        );
         const mark = new THREE.Mesh(keep(makeEmbossedMark()), markMaterial);
         mark.rotation.x = -Math.PI / 2;
         mark.position.set(
@@ -394,11 +422,13 @@ export function createCollectionScene(
     const plateTexture = keep(new THREE.CanvasTexture(plateCanvas));
     plateTexture.colorSpace = THREE.SRGBColorSpace;
     textureRedraws.push(() => redrawTexture(plateTexture, plateCanvas, makeRegistrationPlate()));
-    const plateMaterial = keep(new THREE.MeshBasicMaterial({
-      map: plateTexture,
-      transparent: true,
-      depthWrite: false,
-    }));
+    const plateMaterial = keep(
+      new THREE.MeshBasicMaterial({
+        map: plateTexture,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
     const plate = new THREE.Mesh(keep(new THREE.PlaneGeometry(6.7, 6.7)), plateMaterial);
     plate.rotation.x = -Math.PI / 2;
     plate.position.set(0, -0.75, 0);
@@ -406,12 +436,14 @@ export function createCollectionScene(
     scene.add(plate);
     const shadow = new THREE.Mesh(
       keep(new THREE.CircleGeometry(1, 48)),
-      keep(new THREE.MeshBasicMaterial({
-        color: ARTIFACT_COLORS.graphite,
-        transparent: true,
-        opacity: 0.085,
-        depthWrite: false,
-      })),
+      keep(
+        new THREE.MeshBasicMaterial({
+          color: ARTIFACT_COLORS.graphite,
+          transparent: true,
+          opacity: 0.085,
+          depthWrite: false,
+        }),
+      ),
     );
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0.14, -0.742, 0.18);

@@ -4,11 +4,14 @@ import configuration from '../../vercel.json';
 import { isPublicPwaFile } from '../pwa/worker';
 
 const source = readFileSync(new URL('../../public/.well-known/security.txt', import.meta.url), 'utf8');
-const fields = source.trimEnd().split('\n').map(line => {
-  const match = /^([A-Za-z-]+): (\S+)$/.exec(line);
-  if (!match) throw new Error(`Invalid security.txt line: ${line}`);
-  return [match[1]!, match[2]!] as const;
-});
+const fields = source
+  .trimEnd()
+  .split('\n')
+  .map((line) => {
+    const match = /^([A-Za-z-]+): (\S+)$/.exec(line);
+    if (!match) throw new Error(`Invalid security.txt line: ${line}`);
+    return [match[1]!, match[2]!] as const;
+  });
 
 describe('RFC 9116 security.txt', () => {
   it('points reporters at the same private channel as SECURITY.md', () => {
@@ -17,8 +20,9 @@ describe('RFC 9116 security.txt', () => {
     expect(contact).toEqual(['https://github.com/LeulTew/play-100/security/advisories/new']);
     expect(policy).toContain(`(${contact[0]})`);
     expect(Object.fromEntries(fields).Policy).toBe('https://github.com/LeulTew/play-100/blob/main/SECURITY.md');
-    expect(Object.fromEntries(fields).Canonical)
-      .toBe('https://play-100-collection.vercel.app/.well-known/security.txt');
+    expect(Object.fromEntries(fields).Canonical).toBe(
+      'https://play-100-collection.vercel.app/.well-known/security.txt',
+    );
     expect(fields.every(([, value]) => !value.startsWith('http:'))).toBe(true);
   });
   it('has exactly one unexpired Expires within the RFC one-year guidance', () => {
@@ -31,7 +35,7 @@ describe('RFC 9116 security.txt', () => {
   });
   it('stays outside the offline precache and under the main security-header rule', () => {
     expect(isPublicPwaFile('/.well-known/security.txt')).toBe(false);
-    const main = configuration.headers.find(rule => rule.source === '/((?!__/auth/).*)')!;
+    const main = configuration.headers.find((rule) => rule.source === '/((?!__/auth/).*)')!;
     expect(new RegExp(`^${main.source}$`).test('/.well-known/security.txt')).toBe(true);
   });
 });

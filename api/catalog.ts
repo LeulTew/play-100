@@ -16,7 +16,7 @@ const admission = createAdmission({ maxActive: 6, maxPerWindow: 90, windowMs: 60
 type JsonObject = Record<string, unknown>;
 
 function object(value: unknown): JsonObject | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : null;
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : null;
 }
 
 function text(value: unknown): string | null {
@@ -32,10 +32,12 @@ function wikiUrl(parameters: Record<string, string>): URL {
 
 function statements(entity: JsonObject, property: string): JsonObject[] {
   const values = object(entity.claims)?.[property];
-  return Array.isArray(values) ? values.flatMap((value) => {
-    const statement = object(value);
-    return statement && statement.rank !== 'deprecated' ? [statement] : [];
-  }) : [];
+  return Array.isArray(values)
+    ? values.flatMap((value) => {
+        const statement = object(value);
+        return statement && statement.rank !== 'deprecated' ? [statement] : [];
+      })
+    : [];
 }
 
 function statementValue(statement: JsonObject): unknown {
@@ -65,7 +67,7 @@ function sourceYear(entity: JsonObject): number | null {
     const year = Number(/^\+(\d{4})-/.exec(time)?.[1]);
     return Number.isInteger(year) && year >= 1900 && year <= 2100 ? [year] : [];
   });
-  return years.length && new Set(years).size === 1 ? years[0] ?? null : null;
+  return years.length && new Set(years).size === 1 ? (years[0] ?? null) : null;
 }
 
 function joinedLabels(ids: string[], entities: JsonObject): string | null {
@@ -84,52 +86,102 @@ function joinedLabels(ids: string[], entities: JsonObject): string | null {
 async function wikidataPage(query: string, offset: number, signal: AbortSignal): Promise<CatalogPage> {
   const escaped = query.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const search = escaped ? `"${escaped}" haswbstatement:P31=Q7889` : 'haswbstatement:P31=Q7889';
-  const found = object(await upstreamJson(wikiUrl({
-    action: 'query', list: 'search', srsearch: search, srnamespace: '0',
-    srlimit: String(WIKI_PAGE_SIZE), sroffset: String(offset), srprop: '',
-  }), signal, JSON_OPTIONS));
+  const found = object(
+    await upstreamJson(
+      wikiUrl({
+        action: 'query',
+        list: 'search',
+        srsearch: search,
+        srnamespace: '0',
+        srlimit: String(WIKI_PAGE_SIZE),
+        sroffset: String(offset),
+        srprop: '',
+      }),
+      signal,
+      JSON_OPTIONS,
+    ),
+  );
   const searchResult = object(found?.query);
   const hits = searchResult?.search;
   const total = object(searchResult?.searchinfo)?.totalhits;
-  if (!Array.isArray(hits) || typeof total !== 'number' || !Number.isSafeInteger(total)) throw new CatalogError('Wikidata returned an unexpected search format.');
+  if (!Array.isArray(hits) || typeof total !== 'number' || !Number.isSafeInteger(total))
+    throw new CatalogError('Wikidata returned an unexpected search format.');
   const ids = hits.flatMap((hit) => {
     const id = object(hit)?.title;
     return typeof id === 'string' && /^Q\d+$/.test(id) ? [id] : [];
   });
   const continuation = object(found?.continue)?.sroffset;
-  const nextOffset = typeof continuation === 'number' && continuation > offset && continuation <= 10000 ? continuation : null;
+  const nextOffset =
+    typeof continuation === 'number' && continuation > offset && continuation <= 10000 ? continuation : null;
   if (!ids.length) return { source: 'wikidata', query, items: [], total, offset, nextOffset, notices: [] };
-  const response = object(await upstreamJson(wikiUrl({
-    action: 'wbgetentities', ids: ids.join('|'), props: 'labels|claims',
-    languages: 'en|mul', languagefallback: '1',
-  }), signal, JSON_OPTIONS));
+  const response = object(
+    await upstreamJson(
+      wikiUrl({
+        action: 'wbgetentities',
+        ids: ids.join('|'),
+        props: 'labels|claims',
+        languages: 'en|mul',
+        languagefallback: '1',
+      }),
+      signal,
+      JSON_OPTIONS,
+    ),
+  );
   const entities = object(response?.entities);
   if (!entities) throw new CatalogError('Wikidata could not supply the matching game records.');
   const validated = ids.flatMap((id) => {
     const entity = object(entities[id]);
     const title = label(entity);
-    return entity && title && title.length <= 200 && relatedIds(entity, 'P31').includes('Q7889') ? [{ id, title, entity }] : [];
+    return entity && title && title.length <= 200 && relatedIds(entity, 'P31').includes('Q7889')
+      ? [{ id, title, entity }]
+      : [];
   });
-  const related = [...new Set(validated.flatMap(({ entity }) => [...relatedIds(entity, 'P178'), ...relatedIds(entity, 'P136')]))].slice(0, 50);
+  const related = [
+    ...new Set(validated.flatMap(({ entity }) => [...relatedIds(entity, 'P178'), ...relatedIds(entity, 'P136')])),
+  ].slice(0, 50);
   let names: JsonObject = {};
   if (related.length) {
-    const labels = object(await upstreamJson(wikiUrl({ action: 'wbgetentities', ids: related.join('|'), props: 'labels', languages: 'en|mul', languagefallback: '1' }), signal, JSON_OPTIONS));
+    const labels = object(
+      await upstreamJson(
+        wikiUrl({
+          action: 'wbgetentities',
+          ids: related.join('|'),
+          props: 'labels',
+          languages: 'en|mul',
+          languagefallback: '1',
+        }),
+        signal,
+        JSON_OPTIONS,
+      ),
+    );
     const labelEntities = object(labels?.entities);
     if (!labelEntities) throw new CatalogError('Wikidata could not resolve studio and genre labels.');
     names = labelEntities;
   }
   const items: LibraryRecord[] = validated.map(({ id, title, entity }) => ({
-    id: `wikidata:${id}`, title, year: sourceYear(entity),
+    id: `wikidata:${id}`,
+    title,
+    year: sourceYear(entity),
     studio: joinedLabels(relatedIds(entity, 'P178'), names),
     genre: joinedLabels(relatedIds(entity, 'P136'), names),
-    source: 'wikidata', sourceId: id, sourceUrl: `https://www.wikidata.org/wiki/${id}`, collectionRank: null,
+    source: 'wikidata',
+    sourceId: id,
+    sourceUrl: `https://www.wikidata.org/wiki/${id}`,
+    collectionRank: null,
   }));
   return {
-    source: 'wikidata', query, items, total, offset, nextOffset,
+    source: 'wikidata',
+    query,
+    items,
+    total,
+    offset,
+    nextOffset,
     notices: [
       'Wikidata structured data is CC0. This search includes entries explicitly classified as video games; it is not an exhaustive census.',
       'The year is shown only when source date claims yield one unambiguous year. Preferred source dates take precedence.',
-      ...(validated.length < ids.length ? ['Some search hits lacked a usable title or current video-game classification and were not imported.'] : []),
+      ...(validated.length < ids.length
+        ? ['Some search hits lacked a usable title or current video-game classification and were not imported.']
+        : []),
     ],
   };
 }
@@ -141,7 +193,8 @@ const UNCANCELLED = new AbortController().signal;
 
 function admit(): () => void {
   const release = admission.acquire();
-  if (!release) throw new CatalogError('Public catalog searches are busy. Please wait before retrying.', 429, 'rate-limited', 15);
+  if (!release)
+    throw new CatalogError('Public catalog searches are busy. Please wait before retrying.', 429, 'rate-limited', 15);
   return release;
 }
 
@@ -151,8 +204,14 @@ function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
     const onAbort = () => reject(signal.reason);
     signal.addEventListener('abort', onAbort, { once: true });
     work.then(
-      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
-      (error: unknown) => { signal.removeEventListener('abort', onAbort); reject(error); },
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
     );
   });
 }
@@ -167,14 +226,32 @@ async function fillFreeCatalog(): Promise<LibraryRecord[]> {
     const profile = text(item.freetogame_profile_url);
     if (!profile) return [];
     let sourceUrl: URL;
-    try { sourceUrl = new URL(profile); } catch { return []; }
-    if (sourceUrl.protocol !== 'https:' || !['www.freetogame.com', 'freetogame.com'].includes(sourceUrl.hostname) || sourceUrl.username || sourceUrl.password) return [];
+    try {
+      sourceUrl = new URL(profile);
+    } catch {
+      return [];
+    }
+    if (
+      sourceUrl.protocol !== 'https:' ||
+      !['www.freetogame.com', 'freetogame.com'].includes(sourceUrl.hostname) ||
+      sourceUrl.username ||
+      sourceUrl.password
+    )
+      return [];
     const year = Number(/^(\d{4})-\d{2}-\d{2}$/.exec(text(item.release_date) ?? '')?.[1]);
-    return [{
-      id: `freetogame:${item.id}`, title, year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
-      studio: text(item.developer)?.slice(0, 200) ?? null, genre: text(item.genre)?.slice(0, 200) ?? null,
-      source: 'freetogame', sourceId: String(item.id), sourceUrl: sourceUrl.href, collectionRank: null,
-    }];
+    return [
+      {
+        id: `freetogame:${item.id}`,
+        title,
+        year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+        studio: text(item.developer)?.slice(0, 200) ?? null,
+        genre: text(item.genre)?.slice(0, 200) ?? null,
+        source: 'freetogame',
+        sourceId: String(item.id),
+        sourceUrl: sourceUrl.href,
+        collectionRank: null,
+      },
+    ];
   });
   if (payload.length && !records.length) throw new CatalogError('FreeToGame did not return usable game records.');
   freeCatalog = { expires: Date.now() + 10 * 60_000, records };
@@ -188,23 +265,42 @@ async function freeToGamePage(query: string, offset: number, signal: AbortSignal
     // Concurrent cold requests share one upstream fill; a caller that disconnects stops waiting without cancelling it.
     if (!freeCatalogFill) {
       const release = admit();
-      freeCatalogFill = fillFreeCatalog().finally(() => { release(); freeCatalogFill = null; });
+      freeCatalogFill = fillFreeCatalog().finally(() => {
+        release();
+        freeCatalogFill = null;
+      });
     }
     records = await untilAborted(freeCatalogFill, signal);
   }
-  const matches = records.filter((record) => matchesCatalogQuery(`${record.title} ${record.genre ?? ''} ${record.studio ?? ''}`, query)).sort((a, b) => a.title.localeCompare(b.title, 'en'));
+  const matches = records
+    .filter((record) => matchesCatalogQuery(`${record.title} ${record.genre ?? ''} ${record.studio ?? ''}`, query))
+    .sort((a, b) => a.title.localeCompare(b.title, 'en'));
   return {
-    source: 'freetogame', query, items: matches.slice(offset, offset + FREE_PAGE_SIZE), total: matches.length,
-    offset, nextOffset: offset + FREE_PAGE_SIZE < matches.length ? offset + FREE_PAGE_SIZE : null,
-    notices: ['Game data from FreeToGame.com. This source covers its free-to-play catalog, not every commercial game. No artwork or review scores are copied.'],
+    source: 'freetogame',
+    query,
+    items: matches.slice(offset, offset + FREE_PAGE_SIZE),
+    total: matches.length,
+    offset,
+    nextOffset: offset + FREE_PAGE_SIZE < matches.length ? offset + FREE_PAGE_SIZE : null,
+    notices: [
+      'Game data from FreeToGame.com. This source covers its free-to-play catalog, not every commercial game. No artwork or review scores are copied.',
+    ],
   };
 }
 
-export async function getCatalogPage(source: CatalogSource, query: string, offset: number, signal: AbortSignal): Promise<CatalogPage> {
+export async function getCatalogPage(
+  source: CatalogSource,
+  query: string,
+  offset: number,
+  signal: AbortSignal,
+): Promise<CatalogPage> {
   if (source === 'freetogame') return freeToGamePage(query, offset, signal);
   const release = admit();
-  try { return await wikidataPage(query, offset, signal); }
-  finally { release(); }
+  try {
+    return await wikidataPage(query, offset, signal);
+  } finally {
+    release();
+  }
 }
 
 export default async function handler(request: IncomingMessage, response: ServerResponse) {
@@ -222,17 +318,30 @@ export default async function handler(request: IncomingMessage, response: Server
   const rawOffset = url.searchParams.get('offset') ?? '0';
   const offset = Number(rawOffset);
   if (
-    (source !== 'wikidata' && source !== 'freetogame') || query.length > 80 || [...query].some((character) => character.charCodeAt(0) < 32) ||
-    !/^\d+$/.test(rawOffset) || !Number.isSafeInteger(offset) || offset < 0 || offset > 10000 ||
-    [...url.searchParams.keys()].some((key) => !['source', 'q', 'offset'].includes(key) || url.searchParams.getAll(key).length !== 1)
+    (source !== 'wikidata' && source !== 'freetogame') ||
+    query.length > 80 ||
+    [...query].some((character) => character.charCodeAt(0) < 32) ||
+    !/^\d+$/.test(rawOffset) ||
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    offset > 10000 ||
+    [...url.searchParams.keys()].some(
+      (key) => !['source', 'q', 'offset'].includes(key) || url.searchParams.getAll(key).length !== 1,
+    )
   ) {
-    response.writeHead(400).end(JSON.stringify({ error: 'Choose a supported source, a search of up to 80 characters and a valid page offset.' }));
+    response.writeHead(400).end(
+      JSON.stringify({
+        error: 'Choose a supported source, a search of up to 80 characters and a valid page offset.',
+      }),
+    );
     return;
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9000);
   // A superseded client search closes its request; stop the upstream work it no longer needs.
-  const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+  const disconnect = () => {
+    if (!response.writableEnded) controller.abort();
+  };
   request.once('aborted', disconnect);
   response.once('close', disconnect);
   try {
@@ -242,11 +351,18 @@ export default async function handler(request: IncomingMessage, response: Server
     response.writeHead(200).end(JSON.stringify(page));
   } catch (error: unknown) {
     if (response.destroyed) return;
-    const message = controller.signal.aborted ? 'The source took too long to reply. Try again later or add a game manually.' : error instanceof CatalogError ? error.message : 'The public catalog could not be reached. Please try again later.';
+    const message = controller.signal.aborted
+      ? 'The source took too long to reply. Try again later or add a game manually.'
+      : error instanceof CatalogError
+        ? error.message
+        : 'The public catalog could not be reached. Please try again later.';
     if (error instanceof CatalogError && error.retryAfter) response.setHeader('Retry-After', error.retryAfter);
-    response.writeHead(controller.signal.aborted ? 504 : error instanceof CatalogError ? error.status : 503).end(JSON.stringify({
-      error: message, code: controller.signal.aborted ? 'timeout' : error instanceof CatalogError ? error.code : 'unavailable',
-    }));
+    response.writeHead(controller.signal.aborted ? 504 : error instanceof CatalogError ? error.status : 503).end(
+      JSON.stringify({
+        error: message,
+        code: controller.signal.aborted ? 'timeout' : error instanceof CatalogError ? error.code : 'unavailable',
+      }),
+    );
   } finally {
     clearTimeout(timeout);
     request.removeListener('aborted', disconnect);

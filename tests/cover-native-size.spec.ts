@@ -6,28 +6,36 @@ async function expectNativeLayout(page: Page, selector: string, allowHiddenDock 
   const images = page.locator(selector);
   expect(await images.count(), `No workbook images found in ${selector}`).toBeGreaterThan(0);
   for (const image of await images.all()) {
-    if (!await image.isVisible()) {
+    if (!(await image.isVisible())) {
       expect(allowHiddenDock, `Unexpected hidden workbook image in ${selector}`).toBe(true);
-      expect(await image.evaluate(node => {
-        const stack = node.closest('.compare-tray-stack');
-        const dock = stack?.closest('.compare-tray-dock');
-        if (!stack || !dock) return false;
-        const compact = dock.getAttribute('data-compact') === 'true' && dock.getAttribute('data-dragging') !== 'true';
-        if (!matchMedia('(max-width: 760px)').matches && !compact) return false;
-        for (let parent = node.parentElement; parent && stack.contains(parent); parent = parent.parentElement) {
-          if (getComputedStyle(parent).display === 'none') return true;
-        }
-        return false;
-      }), 'Only the declared compact or narrow-screen dock stack may omit a layout-size assertion.').toBe(true);
+      expect(
+        await image.evaluate((node) => {
+          const stack = node.closest('.compare-tray-stack');
+          const dock = stack?.closest('.compare-tray-dock');
+          if (!stack || !dock) return false;
+          const compact = dock.getAttribute('data-compact') === 'true' && dock.getAttribute('data-dragging') !== 'true';
+          if (!matchMedia('(max-width: 760px)').matches && !compact) return false;
+          for (let parent = node.parentElement; parent && stack.contains(parent); parent = parent.parentElement) {
+            if (getComputedStyle(parent).display === 'none') return true;
+          }
+          return false;
+        }),
+        'Only the declared compact or narrow-screen dock stack may omit a layout-size assertion.',
+      ).toBe(true);
       continue;
     }
     await image.scrollIntoViewIfNeeded();
-    await expect.poll(() => image.evaluate(node => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
-    const size = await image.evaluate(node => {
+    await expect
+      .poll(() => image.evaluate((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0))
+      .toBe(true);
+    const size = await image.evaluate((node) => {
       if (!(node instanceof HTMLImageElement)) throw new Error('Expected a workbook image.');
       return {
-        src: node.currentSrc, width: node.offsetWidth, height: node.offsetHeight,
-        naturalWidth: node.naturalWidth, naturalHeight: node.naturalHeight,
+        src: node.currentSrc,
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        naturalWidth: node.naturalWidth,
+        naturalHeight: node.naturalHeight,
       };
     });
     // Rotation enlarges getBoundingClientRect's envelope, not the image's layout or pixels.
@@ -64,7 +72,10 @@ test('canonical Discover covers and comparison thumbnails never enlarge workbook
   await expectNativeLayout(page, '.discovery-card .game-cover img');
   const cards = page.locator('.discovery-card');
   for (const index of [0, 1, 2]) {
-    await cards.nth(index).getByRole('button', { name: /^Pin for comparison: / }).click();
+    await cards
+      .nth(index)
+      .getByRole('button', { name: /^Pin for comparison: / })
+      .click();
   }
   await expect(page.locator('.compare-tray-dock')).toBeVisible();
   await expect(page.locator('.compare-tray-dock img[src^="/covers/"]')).toHaveCount(3);

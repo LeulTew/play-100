@@ -7,7 +7,9 @@ import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../../lib/test-server-ports';
 
 declare global {
-  interface Window { routeHostFixture: { routes: string[] } }
+  interface Window {
+    routeHostFixture: { routes: string[] };
+  }
 }
 
 // Mirrors App: /my-library renders route 'library'; switching tabs navigates to /my-games (route 'games').
@@ -46,24 +48,44 @@ let browser: Browser | undefined;
 let origin: string;
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-route-host-tests',
-    logLevel: 'error', appType: 'custom',
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom', 'react-dom/client', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'] },
-    plugins: [react(), {
-      name: 'route-host-fixture',
-      configureServer(vite) {
-        vite.middlewares.use((request, response, next) => {
-          if (request.url?.split('?')[0] !== '/__route-host') return next();
-          void vite.transformIndexHtml('/__route-host', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }, next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-route-host-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: {
+          noDiscovery: true,
+          include: [
+            'react',
+            'react-dom',
+            'react-dom/client',
+            '@dnd-kit/core',
+            '@dnd-kit/sortable',
+            '@dnd-kit/utilities',
+          ],
+        },
+        plugins: [
+          react(),
+          {
+            name: 'route-host-fixture',
+            configureServer(vite) {
+              vite.middlewares.use((request, response, next) => {
+                if (request.url?.split('?')[0] !== '/__route-host') return next();
+                void vite.transformIndexHtml('/__route-host', fixture).then((html) => {
+                  response.setHeader('Content-Type', 'text/html');
+                  response.end(html);
+                }, next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-route-host-tests$/);
   expect(server.config.server.watch).toBeNull();
@@ -74,7 +96,10 @@ beforeAll(async () => {
 }, 30_000);
 
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
-afterAll(async () => { await browser?.close(); await server?.close(); }, 60_000);
+afterAll(async () => {
+  await browser?.close();
+  await server?.close();
+}, 60_000);
 
 describe('RouteHost My games workspace', () => {
   it('keeps an open manual draft when a legacy library link moves to the My games route', async () => {
@@ -82,15 +107,18 @@ describe('RouteHost My games workspace', () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
-    await context.route('**/*', route => new URL(route.request().url()).origin === origin
-      ? route.continue() : route.abort('blockedbyclient'));
+    page.on('pageerror', (error) => errors.push(error.message));
+    await context.route('**/*', (route) =>
+      new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
+    );
     try {
       await page.goto(`${origin}/__route-host`);
       await browserExpect(page.getByRole('heading', { name: 'My games', level: 1 })).toBeVisible();
       const library = page.locator('.my-games-editor:visible');
-      const view = (label: string) => page.getByRole('navigation', { name: 'My games views', exact: true })
-        .getByRole('button', { name: new RegExp(`^${label}\\b`) });
+      const view = (label: string) =>
+        page
+          .getByRole('navigation', { name: 'My games views', exact: true })
+          .getByRole('button', { name: new RegExp(`^${label}\\b`) });
       await library.locator('.manual-add > summary').click();
       const title = library.getByLabel('Game title', { exact: true });
       await title.fill('Unsubmitted manual draft');
@@ -106,6 +134,8 @@ describe('RouteHost My games workspace', () => {
       expect(routes).toContain('library');
       expect(routes.at(-1)).toBe('games');
       expect(errors).toEqual([]);
-    } finally { await context.close(); }
+    } finally {
+      await context.close();
+    }
   }, 60_000);
 });

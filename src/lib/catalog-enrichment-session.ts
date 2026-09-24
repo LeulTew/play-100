@@ -2,7 +2,10 @@ import { enrichmentIdentity, ENRICHMENT_LIMITS, parseCatalogEnrichment } from '.
 import type { CatalogEnrichment } from './catalog-enrichment';
 import { CatalogRequestError, fetchCatalogJson } from './catalog-transport';
 
-interface CacheEntry { data: CatalogEnrichment; expires: number }
+interface CacheEntry {
+  data: CatalogEnrichment;
+  expires: number;
+}
 const publicCache = new Map<string, CacheEntry>();
 export interface EnrichmentRequest {
   id: string;
@@ -22,8 +25,14 @@ export function enrichmentRequestKey(request: EnrichmentRequest) {
   return JSON.stringify([request.id, request.scopeKey, request.allowed, request.online, request.connected]);
 }
 export async function fetchCatalogEnrichment(id: string, signal: AbortSignal): Promise<CatalogEnrichment> {
-  if (!enrichmentIdentity(id)) throw new CatalogRequestError('This record does not support public detail lookup.', 'invalid');
-  const payload = await fetchCatalogJson(`/api/catalog-detail?${new URLSearchParams({ id })}`, signal, ENRICHMENT_LIMITS.responseBytes, 10_000);
+  if (!enrichmentIdentity(id))
+    throw new CatalogRequestError('This record does not support public detail lookup.', 'invalid');
+  const payload = await fetchCatalogJson(
+    `/api/catalog-detail?${new URLSearchParams({ id })}`,
+    signal,
+    ENRICHMENT_LIMITS.responseBytes,
+    10_000,
+  );
   return parseCatalogEnrichment(payload, id);
 }
 
@@ -39,7 +48,12 @@ export class CatalogEnrichmentSession {
     private readonly now = Date.now,
     private readonly cache = publicCache,
   ) {}
-  subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
   getSnapshot = () => this.snapshot;
   private publish(snapshot: EnrichmentSnapshot) {
     this.snapshot = snapshot;
@@ -67,26 +81,50 @@ export class CatalogEnrichmentSession {
     this.cancel();
     this.request = request;
     const initial = this.peek(request, refresh);
-    if (initial.status !== 'loading') { this.publish(initial); return; }
+    if (initial.status !== 'loading') {
+      this.publish(initial);
+      return;
+    }
     const { key, data, cached } = initial;
     const generation = this.generation;
     const controller = new AbortController();
     this.controller = controller;
     this.publish(initial);
-    void this.load(request.id, controller.signal).then(payload => {
-      if (controller.signal.aborted || generation !== this.generation) return;
-      const current = parseCatalogEnrichment(payload, request.id);
-      const retryAfter = Math.max(0, ...current.sources.map(source => source.retryAfter));
-      this.cooldown = this.now() + retryAfter * 1000;
-      this.cache.delete(request.id);
-      this.cache.set(request.id, { data: current, expires: this.now() + (current.sources.some(source => source.status === 'error') ? 0 : ENRICHMENT_LIMITS.cacheMs) });
-      while (this.cache.size > ENRICHMENT_LIMITS.cacheEntries) this.cache.delete(this.cache.keys().next().value!);
-      this.publish({ key, status: 'ready', data: current, error: null, cached: false });
-    }).catch((error: unknown) => {
-      if (controller.signal.aborted || generation !== this.generation) return;
-      if (error instanceof CatalogRequestError && error.kind === 'rate-limited') this.cooldown = this.now() + (error.retryAfter || 30) * 1000;
-      this.publish({ key, data, cached, status: 'error', error: error instanceof Error ? error.message : 'Public game details could not be loaded. Existing details are unchanged.' });
-    }).finally(() => { if (this.controller === controller) this.controller = null; });
+    void this.load(request.id, controller.signal)
+      .then((payload) => {
+        if (controller.signal.aborted || generation !== this.generation) return;
+        const current = parseCatalogEnrichment(payload, request.id);
+        const retryAfter = Math.max(0, ...current.sources.map((source) => source.retryAfter));
+        this.cooldown = this.now() + retryAfter * 1000;
+        this.cache.delete(request.id);
+        this.cache.set(request.id, {
+          data: current,
+          expires:
+            this.now() + (current.sources.some((source) => source.status === 'error') ? 0 : ENRICHMENT_LIMITS.cacheMs),
+        });
+        while (this.cache.size > ENRICHMENT_LIMITS.cacheEntries) this.cache.delete(this.cache.keys().next().value!);
+        this.publish({ key, status: 'ready', data: current, error: null, cached: false });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || generation !== this.generation) return;
+        if (error instanceof CatalogRequestError && error.kind === 'rate-limited')
+          this.cooldown = this.now() + (error.retryAfter || 30) * 1000;
+        this.publish({
+          key,
+          data,
+          cached,
+          status: 'error',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Public game details could not be loaded. Existing details are unchanged.',
+        });
+      })
+      .finally(() => {
+        if (this.controller === controller) this.controller = null;
+      });
   }
-  retry = () => { if (this.request) this.start(this.request, true); };
+  retry = () => {
+    if (this.request) this.start(this.request, true);
+  };
 }

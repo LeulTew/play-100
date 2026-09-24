@@ -6,7 +6,7 @@ import CollectionArtifact from '../CollectionArtifact';
 import { FOLIO_DESIGNS, P100_GLYPHS, glyphPath } from './artifactDesign';
 
 describe('decorative sleeve illustration', () => {
-  it.each([false, true])('uses non-text print marks instead of scaled microcopy (fanned=%s)', fanned => {
+  it.each([false, true])('uses non-text print marks instead of scaled microcopy (fanned=%s)', (fanned) => {
     const html = renderToStaticMarkup(createElement(ArtifactStill, { fanned }));
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('focusable="false"');
@@ -21,7 +21,7 @@ describe('decorative sleeve illustration', () => {
     { quality: 'lite', reducedMotion: false, constrained: false },
     { quality: 'full', reducedMotion: true, constrained: false },
     { quality: 'auto', reducedMotion: false, constrained: true },
-  ] as const)('omits misleading controls from the first static $quality render', props => {
+  ] as const)('omits misleading controls from the first static $quality render', (props) => {
     const html = renderToStaticMarkup(createElement(CollectionArtifact, props));
     expect(html).toContain('data-activation="static"');
     expect(html).toContain('data-fanned="false"');

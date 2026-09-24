@@ -19,12 +19,16 @@ export async function readAccountLifecycle(db: Firestore, uid: string): Promise<
 }
 
 export async function removeCancelledRegistration(
-  db: Firestore, user: Pick<User, 'uid' | 'getIdTokenResult' | 'delete'>, scope: LibraryScope, isCurrent: () => boolean,
+  db: Firestore,
+  user: Pick<User, 'uid' | 'getIdTokenResult' | 'delete'>,
+  scope: LibraryScope,
+  isCurrent: () => boolean,
 ): Promise<boolean> {
-  if (scopeUid(scope) !== user.uid || !isCurrent()) throw new Error('The signed-in account changed. Nothing was deleted.');
+  if (scopeUid(scope) !== user.uid || !isCurrent())
+    throw new Error('The signed-in account changed. Nothing was deleted.');
   const token = await user.getIdTokenResult(true);
   if (!isCurrent()) throw new Error('The signed-in account changed. Nothing was deleted.');
-  if (token.claims.email_verified !== true || await readAccountLifecycle(db, user.uid) !== 'cancelled') return false;
+  if (token.claims.email_verified !== true || (await readAccountLifecycle(db, user.uid)) !== 'cancelled') return false;
   if (!isCurrent()) throw new Error('The signed-in account changed. Nothing was deleted.');
   // The immutable cancelled marker prohibits content bootstrap; do not create cleanup state.
   await user.delete();
@@ -49,7 +53,10 @@ export async function cancelUnusedRegistration(db: Firestore, uid: string): Prom
     const ref = doc(db, 'accountLifecycle', uid);
     const current = await transaction.get(ref);
     if (current.exists()) {
-      if (current.data().state !== 'cancelled') throw new Error('This account has online activity. Verify its email before using full data and account deletion.');
+      if (current.data().state !== 'cancelled')
+        throw new Error(
+          'This account has online activity. Verify its email before using full data and account deletion.',
+        );
       return;
     }
     transaction.set(ref, { state: 'cancelled' });

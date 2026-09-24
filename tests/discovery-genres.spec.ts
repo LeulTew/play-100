@@ -9,10 +9,15 @@ import { discoveryScope } from '../src/lib/discovery-scope';
 import { readLibrary } from './library-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
 
-const games = parseCollection(JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8'))).games;
-const seed = parseDiscoveryCatalogJson(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'));
+const games = parseCollection(
+  JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8')),
+).games;
+const seed = parseDiscoveryCatalogJson(
+  readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'),
+);
 const items = catalogSearchItems(games, seed.items);
-const ids = (page: Page) => page.locator('[data-catalog-id]').evaluateAll(cards => cards.map(card => card.getAttribute('data-catalog-id')));
+const ids = (page: Page) =>
+  page.locator('[data-catalog-id]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-catalog-id')));
 async function ready(page: Page) {
   await expect(page.locator('.discovery-results-heading')).not.toContainText('Loading');
   await expect(page.locator('[data-catalog-id]').first()).toBeVisible();
@@ -21,9 +26,13 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
-test('small native family choices preserve legacy exact URLs, Back, refresh, reset and private state', async ({ page }) => {
+test('small native family choices preserve legacy exact URLs, Back, refresh, reset and private state', async ({
+  page,
+}) => {
   const requests: string[] = [];
-  page.on('request', request => { if (request.url().includes('/api/catalog?')) requests.push(request.url()); });
+  page.on('request', (request) => {
+    if (request.url().includes('/api/catalog?')) requests.push(request.url());
+  });
   const genre = '2D fighting game / airdasher';
   await page.goto(`/discover?catalogs=off&genre=${encodeURIComponent(genre)}&online=on&offset=48&campaign=preserved`);
   await ready(page);
@@ -34,33 +43,51 @@ test('small native family choices preserve legacy exact URLs, Back, refresh, res
   await expect(family).toHaveValue('');
   await expect(exact).toBeVisible();
   await expect(exact).toHaveValue(genre);
-  expect(await ids(page)).toEqual(discoveryScope(items, { ...defaultDiscoveryFilters, genre }).cards.slice(0, 24).map(item => item.record.id));
+  expect(await ids(page)).toEqual(
+    discoveryScope(items, { ...defaultDiscoveryFilters, genre })
+      .cards.slice(0, 24)
+      .map((item) => item.record.id),
+  );
   const before = await readLibrary(page);
   await family.selectOption('role-playing');
   await expect(page).toHaveURL(/genreFamily=role-playing/);
-  expect(parseDiscoverySearch(new URL(page.url()).search)).toMatchObject({ genre: '', genreFamily: 'role-playing', offset: 0, online: 'auto' });
+  expect(parseDiscoverySearch(new URL(page.url()).search)).toMatchObject({
+    genre: '',
+    genreFamily: 'role-playing',
+    offset: 0,
+    online: 'auto',
+  });
   expect(new URL(page.url()).searchParams.get('campaign')).toBe('preserved');
   const expected = discoveryScope(items, { ...defaultDiscoveryFilters, genreFamily: 'role-playing' }).cards;
-  await expect.poll(() => ids(page)).toEqual(expected.slice(0, 24).map(item => item.record.id));
+  await expect.poll(() => ids(page)).toEqual(expected.slice(0, 24).map((item) => item.record.id));
   await expect(page.locator('.discovery-results-heading')).toContainText(`of ${expected.length} catalog games`);
-  await page.getByRole('navigation', { name: 'Catalog pages' }).getByRole('button', { name: 'Next', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Catalog pages' })
+    .getByRole('button', { name: 'Next', exact: true })
+    .click();
   await expect(page.locator('#discovery-results-title')).toBeFocused();
-  await expect.poll(() => ids(page)).toEqual(expected.slice(24, 48).map(item => item.record.id));
+  await expect.poll(() => ids(page)).toEqual(expected.slice(24, 48).map((item) => item.record.id));
   await page.goBack();
-  await expect.poll(() => ids(page)).toEqual(expected.slice(0, 24).map(item => item.record.id));
+  await expect.poll(() => ids(page)).toEqual(expected.slice(0, 24).map((item) => item.record.id));
   await page.goBack();
   await expect(exact).toHaveValue(genre);
   await expect(family).toHaveValue('');
   await page.goForward();
   await expect(family).toHaveValue('role-playing');
-  await expect.poll(() => ids(page)).toEqual(expected.slice(0, 24).map(item => item.record.id));
+  await expect.poll(() => ids(page)).toEqual(expected.slice(0, 24).map((item) => item.record.id));
   await page.goBack();
   await page.reload();
   await ready(page);
   await openBrowsingFilters(page);
   await expect(exact).toHaveValue(genre);
   await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
-  await expect.poll(() => ids(page)).toEqual(discoveryScope(items, defaultDiscoveryFilters).cards.slice(0, 24).map(item => item.record.id));
+  await expect
+    .poll(() => ids(page))
+    .toEqual(
+      discoveryScope(items, defaultDiscoveryFilters)
+        .cards.slice(0, 24)
+        .map((item) => item.record.id),
+    );
   expect(parseDiscoverySearch(new URL(page.url()).search)).toEqual({ ...defaultDiscoveryFilters, catalogs: 'off' });
   expect(new URL(page.url()).searchParams.get('campaign')).toBe('preserved');
   expect(await readLibrary(page)).toEqual(before);
@@ -68,14 +95,38 @@ test('small native family choices preserve legacy exact URLs, Back, refresh, res
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('new family links roundtrip through details and filter fetched provider results without forwarding local filter parameters', async ({ page }) => {
+test('new family links roundtrip through details and filter fetched provider results without forwarding local filter parameters', async ({
+  page,
+}) => {
   const requests: URL[] = [];
-  const record = { id: 'freetogame:999999', source: 'freetogame', sourceId: '999999', sourceUrl: 'https://www.freetogame.com/game',
-    title: 'Facet fixture', genre: 'Shooter', year: 2020, studio: null, collectionRank: null };
-  await page.route('**/api/catalog?**', route => {
-    const url = new URL(route.request().url()); requests.push(url);
-    return route.fulfill({ json: { source: 'freetogame', query: url.searchParams.get('q') ?? '', offset: Number(url.searchParams.get('offset')), total: 2,
-      nextOffset: null, notices: [], items: [record, { ...record, id: 'freetogame:999998', sourceId: '999998', title: 'Other facet fixture', genre: 'RPG' }] } });
+  const record = {
+    id: 'freetogame:999999',
+    source: 'freetogame',
+    sourceId: '999999',
+    sourceUrl: 'https://www.freetogame.com/game',
+    title: 'Facet fixture',
+    genre: 'Shooter',
+    year: 2020,
+    studio: null,
+    collectionRank: null,
+  };
+  await page.route('**/api/catalog?**', (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url);
+    return route.fulfill({
+      json: {
+        source: 'freetogame',
+        query: url.searchParams.get('q') ?? '',
+        offset: Number(url.searchParams.get('offset')),
+        total: 2,
+        nextOffset: null,
+        notices: [],
+        items: [
+          record,
+          { ...record, id: 'freetogame:999998', sourceId: '999998', title: 'Other facet fixture', genre: 'RPG' },
+        ],
+      },
+    });
   });
   await page.goto('/discover?q=Facet%20fixture&source=freetogame&genreFamily=shooter&online=on');
   const card = page.locator('[data-catalog-id="freetogame:999999"]');
@@ -86,7 +137,10 @@ test('new family links roundtrip through details and filter fetched provider res
   await card.getByRole('button', { name: record.title, exact: true }).click();
   await expect(page.getByRole('dialog', { name: record.title, exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('genreFamily')).toBe('shooter');
-  await page.getByRole('dialog', { name: record.title, exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: record.title, exact: true })
+    .getByRole('button', { name: 'Close dialog', exact: true })
+    .click();
   await expect(card).toBeVisible();
   expect(new URL(page.url()).searchParams.get('genreFamily')).toBe('shooter');
   await page.reload();
@@ -101,12 +155,28 @@ test('clear filters retains search and view while the empty-result reset clears 
   await openBrowsingFilters(page);
   await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
   await expect(page.locator('[data-canonical-id="red-dead-redemption-2"]')).toBeVisible();
-  expect(parseDiscoverySearch(new URL(page.url()).search)).toMatchObject({ q: 'RDR2', source: 'all', genreFamily: '', view: 'list', catalogs: 'off' });
+  expect(parseDiscoverySearch(new URL(page.url()).search)).toMatchObject({
+    q: 'RDR2',
+    source: 'all',
+    genreFamily: '',
+    view: 'list',
+    catalogs: 'off',
+  });
   await page.getByRole('combobox', { name: 'Genre family', exact: true }).selectOption('shooter');
   await expect(page.getByRole('heading', { name: 'No matching games', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Reset search and filters', exact: true }).click();
-  await expect.poll(() => ids(page)).toEqual(discoveryScope(items, defaultDiscoveryFilters).cards.slice(0, 24).map(item => item.record.id));
-  expect(parseDiscoverySearch(new URL(page.url()).search)).toEqual({ ...defaultDiscoveryFilters, view: 'list', catalogs: 'off' });
+  await expect
+    .poll(() => ids(page))
+    .toEqual(
+      discoveryScope(items, defaultDiscoveryFilters)
+        .cards.slice(0, 24)
+        .map((item) => item.record.id),
+    );
+  expect(parseDiscoverySearch(new URL(page.url()).search)).toEqual({
+    ...defaultDiscoveryFilters,
+    view: 'list',
+    catalogs: 'off',
+  });
   expect(new URL(page.url()).searchParams.get('campaign')).toBe('preserved');
 });
 

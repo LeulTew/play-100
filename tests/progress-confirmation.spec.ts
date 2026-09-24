@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { readLibrary } from './library-helpers';
 
-test('a cross-tab progress change cancels rather than revives an obsolete completion confirmation', async ({ page, context }) => {
+test('a cross-tab progress change cancels rather than revives an obsolete completion confirmation', async ({
+  page,
+  context,
+}) => {
   const title = 'Red Dead Redemption 2';
   const id = 'red-dead-redemption-2';
   await page.goto(`/?game=${id}`);

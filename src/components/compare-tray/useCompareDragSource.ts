@@ -8,13 +8,16 @@ export function useCompareDragSource<T extends HTMLElement>(options: CompareSour
   const controller = useContext(CompareDragSourceContext);
   const latest = useRef(options);
   latest.current = options;
-  const source = useMemo<CompareSource>(() => ({
-    read: () => ({
-      node: latest.current.sourceRef.current,
-      record: latest.current.record,
-      disabled: Boolean(latest.current.disabled),
+  const source = useMemo<CompareSource>(
+    () => ({
+      read: () => ({
+        node: latest.current.sourceRef.current,
+        record: latest.current.record,
+        disabled: Boolean(latest.current.disabled),
+      }),
     }),
-  }), []);
+    [],
+  );
   const enabled = Boolean(controller && options.record && !options.disabled);
   useEffect(() => {
     controller?.refreshSource(source);

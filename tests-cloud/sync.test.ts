@@ -3,8 +3,25 @@ import { initializeTestEnvironment, assertFails } from '@firebase/rules-unit-tes
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { initializeApp, deleteApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
-import { connectAuthEmulator, createUserWithEmailAndPassword, getIdToken, inMemoryPersistence, initializeAuth, reload, signInWithEmailAndPassword } from 'firebase/auth';
-import { connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getFirestore, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  connectAuthEmulator,
+  createUserWithEmailAndPassword,
+  getIdToken,
+  inMemoryPersistence,
+  initializeAuth,
+  reload,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
+import {
+  connectFirestoreEmulator,
+  disableNetwork,
+  doc,
+  enableNetwork,
+  getDocFromServer,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CloudStore, RemoteConflict } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
@@ -14,13 +31,36 @@ import type { LibraryRecord } from '../src/lib/personal-types';
 let environment: RulesTestEnvironment;
 const apps: FirebaseApp[] = [];
 const password = 'Emulator-only-passphrase-4382';
-const game: LibraryRecord = { id: 'wikidata:Q123', source: 'wikidata', sourceId: 'Q123', sourceUrl: 'https://www.wikidata.org/wiki/Q123', title: 'Protocol fixture', year: 2020, studio: null, genre: null, collectionRank: null };
+const game: LibraryRecord = {
+  id: 'wikidata:Q123',
+  source: 'wikidata',
+  sourceId: 'Q123',
+  sourceUrl: 'https://www.wikidata.org/wiki/Q123',
+  title: 'Protocol fixture',
+  year: 2020,
+  studio: null,
+  genre: null,
+  collectionRank: null,
+};
 beforeAll(async () => {
-  environment = await initializeTestEnvironment({ projectId: 'demo-play100', firestore: { host: '127.0.0.1', port: 8188, rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } });
+  environment = await initializeTestEnvironment({
+    projectId: 'demo-play100',
+    firestore: {
+      host: '127.0.0.1',
+      port: 8188,
+      rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'),
+    },
+  });
 });
-beforeEach(async () => { await environment.clearFirestore(); });
-afterEach(async () => { await Promise.all(apps.splice(0).map((app) => deleteApp(app))); });
-afterAll(async () => { await environment.cleanup(); });
+beforeEach(async () => {
+  await environment.clearFirestore();
+});
+afterEach(async () => {
+  await Promise.all(apps.splice(0).map((app) => deleteApp(app)));
+});
+afterAll(async () => {
+  await environment.cleanup();
+});
 
 async function client(existingEmail?: string) {
   const app = initializeApp({ apiKey: 'demo-play100-key', projectId: 'demo-play100' }, crypto.randomUUID());
@@ -30,20 +70,31 @@ async function client(existingEmail?: string) {
   const db = getFirestore(app);
   connectFirestoreEmulator(db, '127.0.0.1', 8188);
   const email = existingEmail ?? `protocol-${crypto.randomUUID()}@example.test`;
-  const result = existingEmail ? await signInWithEmailAndPassword(auth, email, password) : await createUserWithEmailAndPassword(auth, email, password);
+  const result = existingEmail
+    ? await signInWithEmailAndPassword(auth, email, password)
+    : await createUserWithEmailAndPassword(auth, email, password);
   if (!existingEmail) {
-    const verified = await fetch('http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
-      body: JSON.stringify({ localId: result.user.uid, emailVerified: true }),
-    });
+    const verified = await fetch(
+      'http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+        body: JSON.stringify({ localId: result.user.uid, emailVerified: true }),
+      },
+    );
     if (!verified.ok) throw new Error('The isolated Auth emulator could not verify its synthetic fixture.');
     await reload(result.user);
     await getIdToken(result.user, true);
     await ensureAccountActivity(db, result.user.uid);
     await setDoc(doc(db, 'members', result.user.uid), {
-      uid: result.user.uid, displayName: 'Protocol fixture',
+      uid: result.user.uid,
+      displayName: 'Protocol fixture',
       avatar: { version: 1, seed: '1'.repeat(32), palette: 'lime' },
-      createdAt: serverTimestamp(), updatedAt: serverTimestamp(), consentVersion: 1, gameCount: 0, rankCount: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      consentVersion: 1,
+      gameCount: 0,
+      rankCount: 0,
     });
   }
   return { db, user: result.user, email, store: new CloudStore(db, result.user.uid) };
@@ -55,8 +106,11 @@ describe('real Auth and Firestore snapshot transactions', () => {
     const head = await store.enable(null);
     await store.revoke(head, true);
     const registry = doc(db, 'accounts', user.uid, 'metadata', 'registry');
-    await environment.withSecurityRulesDisabled(async context => {
-      await context.firestore().doc(registry.path).set({ ids: [crypto.randomUUID()], revision: 1 });
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc(registry.path)
+        .set({ ids: [crypto.randomUUID()], revision: 1 });
     });
     expect(await store.cleanup(true)).toBe(1);
     expect((await getDocFromServer(registry)).exists()).toBe(false);
@@ -98,7 +152,11 @@ describe('real Auth and Firestore snapshot transactions', () => {
     const original = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 6 });
     const before = await store.upload(original, empty);
     const edited = applyPersonalAction(original, { type: 'edit-ranking', id: game.id, score: 10 });
-    await expect(store.upload(edited, before, async () => { throw new Error('Simulated disconnect after chunk acknowledgement'); })).rejects.toThrow(/disconnect/);
+    await expect(
+      store.upload(edited, before, async () => {
+        throw new Error('Simulated disconnect after chunk acknowledgement');
+      }),
+    ).rejects.toThrow(/disconnect/);
     const after = await store.head();
     expect(after?.revision).toBe(before.revision);
     if (!after) throw new Error('The original complete head disappeared.');
@@ -111,7 +169,9 @@ describe('real Auth and Firestore snapshot transactions', () => {
     const original = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8 });
     const saved = await store.upload(original, base);
     const paused = await store.revoke(saved);
-    await expect(store.upload(applyPersonalAction(original, { type: 'edit-ranking', id: game.id, score: 9 }), saved)).rejects.toThrow();
+    await expect(
+      store.upload(applyPersonalAction(original, { type: 'edit-ranking', id: game.id, score: 9 }), saved),
+    ).rejects.toThrow();
     const resumed = await store.enable(paused);
     expect(resumed.epoch).toBe(paused.epoch + 1);
     const deleted = await store.revoke(resumed, true);

@@ -25,5 +25,7 @@ export default async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use.baseURL;
   if (typeof baseURL !== 'string') throw new Error('playwright.cloud.config.ts must set use.baseURL.');
   await assertCloudTestServer(baseURL);
-  execFileSync(process.execPath, [fileURLToPath(new URL('../scripts/seed-cloud-emulators.mjs', import.meta.url))], { stdio: 'inherit' });
+  execFileSync(process.execPath, [fileURLToPath(new URL('../scripts/seed-cloud-emulators.mjs', import.meta.url))], {
+    stdio: 'inherit',
+  });
 }

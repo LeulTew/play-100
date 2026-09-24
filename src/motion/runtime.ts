@@ -1,12 +1,26 @@
 import {
-  copyPublicMotionVisual, createPublicMotionElement, fitMotionVisual, MOTION_EASING,
-  MOTION_ORIGIN_TTL, MOTION_TIMINGS, motionTransform, visibleMotionRect,
+  copyPublicMotionVisual,
+  createPublicMotionElement,
+  fitMotionVisual,
+  MOTION_EASING,
+  MOTION_ORIGIN_TTL,
+  MOTION_TIMINGS,
+  motionTransform,
+  visibleMotionRect,
 } from './public-visual';
 import type { MotionRect } from './public-visual';
 import { originHintBrand, originLeaseBrand } from './types';
 import type {
-  MotionBoundary, MotionCancelReason, MotionChannel, MotionController, MotionGuard,
-  MotionOriginHint, MotionOriginLease, MotionSession, MotionSnapshot, PublicMotionVisual,
+  MotionBoundary,
+  MotionCancelReason,
+  MotionChannel,
+  MotionController,
+  MotionGuard,
+  MotionOriginHint,
+  MotionOriginLease,
+  MotionSession,
+  MotionSnapshot,
+  PublicMotionVisual,
 } from './types';
 
 export interface MotionEnvironment {
@@ -21,7 +35,9 @@ const browserEnvironment: MotionEnvironment = {
   hidden: () => typeof document !== 'undefined' && document.hidden,
   now: () => performance.now(),
   subscribe(listener) {
-    const hidden = () => { if (document.hidden) listener('hidden'); };
+    const hidden = () => {
+      if (document.hidden) listener('hidden');
+    };
     const resize = () => listener('resize');
     const scroll = (event: Event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
@@ -72,11 +88,16 @@ interface OriginLease {
   interrupted?: MotionRect;
 }
 
-const interactive = 'a[href],button,input,textarea,select,summary,video,audio,iframe,[contenteditable]:not([contenteditable="false"])';
+const interactive =
+  'a[href],button,input,textarea,select,summary,video,audio,iframe,[contenteditable]:not([contenteditable="false"])';
 
 function publicTarget(element: HTMLElement | null): element is HTMLElement {
-  return Boolean(element?.isConnected && !element.matches(interactive) && !element.querySelector(interactive) &&
-    !element.closest('[hidden], [inert], dialog:not([open])'));
+  return Boolean(
+    element?.isConnected &&
+    !element.matches(interactive) &&
+    !element.querySelector(interactive) &&
+    !element.closest('[hidden], [inert], dialog:not([open])'),
+  );
 }
 
 function measure(element: HTMLElement): MotionRect | null {
@@ -89,8 +110,11 @@ function measure(element: HTMLElement): MotionRect | null {
 function imageReady(element: HTMLElement, visual: PublicMotionVisual): boolean {
   if (visual.kind === 'jacket') return true;
   const image = element instanceof HTMLImageElement ? element : element.querySelector('img');
-  return Boolean(image?.complete && image.naturalWidth > 0 &&
-    (image.currentSrc || image.src) === new URL(visual.src, window.location.href).href);
+  return Boolean(
+    image?.complete &&
+    image.naturalWidth > 0 &&
+    (image.currentSrc || image.src) === new URL(visual.src, window.location.href).href,
+  );
 }
 
 function sameBoundary(left: MotionBoundary, right: MotionBoundary): boolean {
@@ -98,8 +122,9 @@ function sameBoundary(left: MotionBoundary, right: MotionBoundary): boolean {
 }
 
 function guardCurrent(guard?: MotionGuard): boolean {
-  try { return !guard || guard.isCurrent(); }
-  catch {
+  try {
+    return !guard || guard.isCurrent();
+  } catch {
     console.error('A motion guard could not confirm its current scope. Motion was skipped.');
     return false;
   }
@@ -109,9 +134,15 @@ function nativeSlot(dialog: HTMLDialogElement, slot: HTMLElement | null): slot i
   if (!slot?.isConnected || slot.parentElement !== dialog) return false;
   const style = getComputedStyle(dialog);
   const viewport = window.visualViewport;
-  return dialog.open && style.transform === 'none' && style.filter === 'none' &&
-    style.perspective === 'none' && !/(paint|layout|strict|content)/.test(style.contain) &&
-    getComputedStyle(slot).position === 'fixed' && (!viewport || viewport.scale === 1);
+  return (
+    dialog.open &&
+    style.transform === 'none' &&
+    style.filter === 'none' &&
+    style.perspective === 'none' &&
+    !/(paint|layout|strict|content)/.test(style.contain) &&
+    getComputedStyle(slot).position === 'fixed' &&
+    (!viewport || viewport.scale === 1)
+  );
 }
 
 export function createMotionRuntime(
@@ -129,12 +160,15 @@ export function createMotionRuntime(
   const listeners = new Set<(reason: MotionCancelReason) => void>();
   const dialogs = new Set<HTMLDialogElement>();
 
-  const eligible = () => mounted && read().policy.animate && !read().boundary.blocked &&
-    !environment.hidden() && environment.supported();
+  const eligible = () =>
+    mounted && read().policy.animate && !read().boundary.blocked && !environment.hidden() && environment.supported();
   const notify = (reason: MotionCancelReason) => {
     for (const listener of [...listeners]) {
-      try { listener(reason); }
-      catch { console.error('A motion interruption listener failed. Remaining cleanup will continue.'); }
+      try {
+        listener(reason);
+      } catch {
+        console.error('A motion interruption listener failed. Remaining cleanup will continue.');
+      }
     }
   };
   const syncEvents = () => {
@@ -151,8 +185,11 @@ export function createMotionRuntime(
     origin = null;
     if (old) {
       old.abort.abort(reason);
-      try { old.release?.(); }
-      catch { console.error('A motion authority cleanup failed. Remaining cleanup will continue.'); }
+      try {
+        old.release?.();
+      } catch {
+        console.error('A motion authority cleanup failed. Remaining cleanup will continue.');
+      }
       old.sprite?.remove();
       old.sprite = undefined;
     }
@@ -165,7 +202,7 @@ export function createMotionRuntime(
     if (origin?.sprite?.isConnected) origin.interrupted = measure(origin.sprite) ?? undefined;
   };
   const cancelStaleNavigation = () => {
-    const stale = [...sessions.values()].filter(session => !session.isCurrent());
+    const stale = [...sessions.values()].filter((session) => !session.isCurrent());
     const flight = sessions.get('continuity');
     if (flight && stale.includes(flight)) snapshotSprite();
     for (const session of stale) session.cancel('navigation');
@@ -179,15 +216,23 @@ export function createMotionRuntime(
       notify(reason);
     } else runtime.cancel(reason);
   }
-  const currentOrigin = (entry: OriginLease) => origin === entry && !entry.handle.signal.aborted &&
-    eligible() && sameBoundary(entry.hint.snapshot.boundary, read().boundary) &&
+  const currentOrigin = (entry: OriginLease) =>
+    origin === entry &&
+    !entry.handle.signal.aborted &&
+    eligible() &&
+    sameBoundary(entry.hint.snapshot.boundary, read().boundary) &&
     entry.hint.snapshot.location.viewKey === read().location.viewKey &&
-    entry.hint.snapshot.location.overlayKey === read().location.overlayKey && guardCurrent(entry.guard);
-  const canReturn = (entry: OriginLease) => currentOrigin(entry) && entry.phase !== 'pending' &&
-    read().location.requestedDetailKey === null && read().location.displayedDetailKey === null &&
+    entry.hint.snapshot.location.overlayKey === read().location.overlayKey &&
+    guardCurrent(entry.guard);
+  const canReturn = (entry: OriginLease) =>
+    currentOrigin(entry) &&
+    entry.phase !== 'pending' &&
+    read().location.requestedDetailKey === null &&
+    read().location.displayedDetailKey === null &&
     entry.openedNavigation !== null &&
     read().location.navigationGeneration === entry.openedNavigation + 1;
-  const expectedOpen = (entry: OriginLease) => currentOrigin(entry) &&
+  const expectedOpen = (entry: OriginLease) =>
+    currentOrigin(entry) &&
     read().location.requestedDetailKey === entry.requested &&
     (read().location.displayedDetailKey === entry.displayed || read().location.displayedDetailKey === null) &&
     read().location.navigationGeneration === entry.hint.snapshot.location.navigationGeneration + 1;
@@ -214,8 +259,12 @@ export function createMotionRuntime(
         runtime.cancel('hidden');
         return;
       }
-      if (prior.policy.animate !== next.policy.animate || prior.policy.coarsePointer !== next.policy.coarsePointer ||
-        prior.policy.reducedMotion !== next.policy.reducedMotion || prior.policy.constrained !== next.policy.constrained) {
+      if (
+        prior.policy.animate !== next.policy.animate ||
+        prior.policy.coarsePointer !== next.policy.coarsePointer ||
+        prior.policy.reducedMotion !== next.policy.reducedMotion ||
+        prior.policy.constrained !== next.policy.constrained
+      ) {
         runtime.cancel('policy');
         return;
       }
@@ -223,10 +272,13 @@ export function createMotionRuntime(
         runtime.cancel('authority');
         return;
       }
-      if (prior.location.navigationGeneration !== next.location.navigationGeneration ||
-        prior.location.viewKey !== next.location.viewKey || prior.location.overlayKey !== next.location.overlayKey ||
+      if (
+        prior.location.navigationGeneration !== next.location.navigationGeneration ||
+        prior.location.viewKey !== next.location.viewKey ||
+        prior.location.overlayKey !== next.location.overlayKey ||
         prior.location.requestedDetailKey !== next.location.requestedDetailKey ||
-        prior.location.displayedDetailKey !== next.location.displayedDetailKey) {
+        prior.location.displayedDetailKey !== next.location.displayedDetailKey
+      ) {
         cancelStaleNavigation();
         if (origin && !expectedOpen(origin) && !canReturn(origin)) clearOrigin('navigation');
         notify('navigation');
@@ -250,51 +302,95 @@ export function createMotionRuntime(
     subscribeInterrupt(listener) {
       listeners.add(listener);
       syncEvents();
-      return () => { listeners.delete(listener); syncEvents(); };
+      return () => {
+        listeners.delete(listener);
+        syncEvents();
+      };
     },
     forgetDialog(dialog) {
       dialogs.delete(dialog);
     },
     originHint(input) {
-      if (!eligible() || typeof WeakRef === 'undefined' || !input.presentationId ||
-        !publicTarget(input.source) || !input.trigger.isConnected) return null;
+      if (
+        !eligible() ||
+        typeof WeakRef === 'undefined' ||
+        !input.presentationId ||
+        !publicTarget(input.source) ||
+        !input.trigger.isConnected
+      )
+        return null;
       const visual = copyPublicMotionVisual(input.visual);
       if (!visual) {
         console.error('A motion origin supplied an ineligible public visual. Motion was skipped.');
         return null;
       }
       const handle: MotionOriginHint = { [originHintBrand]: true, presentationId: input.presentationId };
-      pendingHint = { handle, value: {
-        source: new WeakRef(input.source), trigger: new WeakRef(input.trigger), visual, snapshot: read(), generation,
-      } };
+      pendingHint = {
+        handle,
+        value: {
+          source: new WeakRef(input.source),
+          trigger: new WeakRef(input.trigger),
+          visual,
+          snapshot: read(),
+          generation,
+        },
+      };
       return handle;
     },
     captureOrigin(hint, intent) {
       const candidate = pendingHint?.handle === hint ? pendingHint.value : null;
       if (candidate) pendingHint = null;
-      if (!candidate || candidate.generation !== generation || !eligible() || hint.presentationId !== intent.displayedDetailKey ||
+      if (
+        !candidate ||
+        candidate.generation !== generation ||
+        !eligible() ||
+        hint.presentationId !== intent.displayedDetailKey ||
         (read().location.requestedDetailKey === intent.requestedDetailKey &&
           read().location.displayedDetailKey === intent.displayedDetailKey) ||
         !sameBoundary(candidate.snapshot.boundary, read().boundary) ||
         candidate.snapshot.location.viewKey !== read().location.viewKey ||
         candidate.snapshot.location.overlayKey !== read().location.overlayKey ||
         candidate.snapshot.location.navigationGeneration !== read().location.navigationGeneration ||
-        !guardCurrent(intent.guard)) return null;
+        !guardCurrent(intent.guard)
+      )
+        return null;
       const source = candidate.source.deref();
       const trigger = candidate.trigger.deref();
-      if (!publicTarget(source ?? null) || !source || !trigger?.isConnected ||
-        trigger.matches(':disabled') || !imageReady(source, candidate.visual)) return null;
+      if (
+        !publicTarget(source ?? null) ||
+        !source ||
+        !trigger?.isConnected ||
+        trigger.matches(':disabled') ||
+        !imageReady(source, candidate.visual)
+      )
+        return null;
       const sourceRect = measure(source);
       if (!sourceRect) return null;
-      const carry = origin?.phase === 'return' && origin.displayed === intent.displayedDetailKey &&
-        currentOrigin(origin) && origin.sprite ? measure(origin.sprite) : null;
+      const carry =
+        origin?.phase === 'return' &&
+        origin.displayed === intent.displayedDetailKey &&
+        currentOrigin(origin) &&
+        origin.sprite
+          ? measure(origin.sprite)
+          : null;
       runtime.cancel('superseded');
       const abort = new AbortController();
-      const handle: MotionOriginLease = { [originLeaseBrand]: true, presentationId: hint.presentationId, signal: abort.signal };
+      const handle: MotionOriginLease = {
+        [originLeaseBrand]: true,
+        presentationId: hint.presentationId,
+        signal: abort.signal,
+      };
       const entry: OriginLease = {
-        handle, abort, hint: candidate, requested: intent.requestedDetailKey, displayed: intent.displayedDetailKey,
-        created: environment.now(), start: carry ?? fitMotionVisual(candidate.visual, sourceRect),
-        phase: 'pending', openedNavigation: null, guard: intent.guard,
+        handle,
+        abort,
+        hint: candidate,
+        requested: intent.requestedDetailKey,
+        displayed: intent.displayedDetailKey,
+        created: environment.now(),
+        start: carry ?? fitMotionVisual(candidate.visual, sourceRect),
+        phase: 'pending',
+        openedNavigation: null,
+        guard: intent.guard,
       };
       origin = entry;
       try {
@@ -311,8 +407,8 @@ export function createMotionRuntime(
       return handle.signal.aborted ? null : handle;
     },
     startMotionSession({ channel, guard }) {
-      if (!eligible() || (dialogs.size > 0 && channel !== 'dialog' && channel !== 'continuity') ||
-        !guardCurrent(guard)) return null;
+      if (!eligible() || (dialogs.size > 0 && channel !== 'dialog' && channel !== 'continuity') || !guardCurrent(guard))
+        return null;
       sessions.get(channel)?.cancel('superseded');
       const snapshot = read();
       const abort = new AbortController();
@@ -323,8 +419,11 @@ export function createMotionRuntime(
         abort.abort(reason);
         for (const release of [...animations.values()]) release();
         for (const cleanup of [...cleanups]) {
-          try { cleanup(); }
-          catch { console.error('A motion cleanup failed. Remaining cleanup will continue.'); }
+          try {
+            cleanup();
+          } catch {
+            console.error('A motion cleanup failed. Remaining cleanup will continue.');
+          }
         }
         cleanups.clear();
         if (sessions.get(channel) === session) sessions.delete(channel);
@@ -332,11 +431,15 @@ export function createMotionRuntime(
       };
       const session: MotionSession = {
         signal: abort.signal,
-        isCurrent: () => !abort.signal.aborted && sessions.get(channel) === session && eligible() &&
+        isCurrent: () =>
+          !abort.signal.aborted &&
+          sessions.get(channel) === session &&
+          eligible() &&
           sameBoundary(snapshot.boundary, read().boundary) &&
           snapshot.location.navigationGeneration === read().location.navigationGeneration &&
           snapshot.location.viewKey === read().location.viewKey &&
-          snapshot.location.overlayKey === read().location.overlayKey && guardCurrent(guard),
+          snapshot.location.overlayKey === read().location.overlayKey &&
+          guardCurrent(guard),
         addCleanup(cleanup) {
           if (abort.signal.aborted) cleanup();
           else cleanups.add(cleanup);
@@ -344,7 +447,10 @@ export function createMotionRuntime(
         finish: () => dispose('finished'),
         cancel: (reason = 'unmount') => dispose(reason),
         animate(element, frames, timing) {
-          if (!session.isCurrent()) { session.cancel('superseded'); return null; }
+          if (!session.isCurrent()) {
+            session.cancel('superseded');
+            return null;
+          }
           if (frames.length < 2 || !Number.isFinite(timing.duration) || timing.duration <= 0 || timing.duration > 300) {
             console.error('A motion effect supplied invalid timing or keyframes. Motion was skipped.');
             session.finish();
@@ -352,9 +458,14 @@ export function createMotionRuntime(
           }
           let animation: Animation;
           try {
-            animation = element.animate(frames.map(frame => ({ ...frame })), {
-              duration: timing.duration, easing: timing.easing ?? MOTION_EASING, fill: 'both',
-            });
+            animation = element.animate(
+              frames.map((frame) => ({ ...frame })),
+              {
+                duration: timing.duration,
+                easing: timing.easing ?? MOTION_EASING,
+                fill: 'both',
+              },
+            );
           } catch {
             console.error('A motion effect could not start. The current interface is unchanged.');
             session.finish();
@@ -372,16 +483,19 @@ export function createMotionRuntime(
             if (styled) styled.style.willChange = previousWillChange;
           };
           animations.set(animation, release);
-          void animation.finished.then(() => {
-            release();
-            if (!animations.size) session.finish();
-          }, (cause: unknown) => {
-            release();
-            if (!(cause instanceof Error && cause.name === 'AbortError')) {
-              console.error('A motion effect stopped unexpectedly. The current interface is unchanged.');
-            }
-            if (!animations.size) session.finish();
-          });
+          void animation.finished.then(
+            () => {
+              release();
+              if (!animations.size) session.finish();
+            },
+            (cause: unknown) => {
+              release();
+              if (!(cause instanceof Error && cause.name === 'AbortError')) {
+                console.error('A motion effect stopped unexpectedly. The current interface is unchanged.');
+              }
+              if (!animations.size) session.finish();
+            },
+          );
           return animation;
         },
       };
@@ -410,11 +524,14 @@ export function createMotionRuntime(
       let pending: MotionSession | null = null;
       let prepared: MotionRect | null = null;
       let closed = false;
-      const target = options ? options.continuity?.target.current ?? null : null;
+      const target = options ? (options.continuity?.target.current ?? null) : null;
       const nextFrame = (work: () => void) => {
         const session = runtime.startMotionSession({ channel: 'dialog', guard: entry?.guard });
         pending = session;
-        if (!session) { if (entry) finishOrigin(entry); return; }
+        if (!session) {
+          if (entry) finishOrigin(entry);
+          return;
+        }
         const frame = requestAnimationFrame(() => {
           if (!session.isCurrent()) {
             session.cancel('superseded');
@@ -423,8 +540,9 @@ export function createMotionRuntime(
           }
           session.finish();
           pending = null;
-          try { work(); }
-          catch {
+          try {
+            work();
+          } catch {
             if (entry) finishOrigin(entry);
             console.error('Dialog motion failed. Native dialog behavior remains available.');
           }
@@ -436,23 +554,49 @@ export function createMotionRuntime(
         if (options.continuity) {
           if (!publicTarget(target ?? null) || !target) return;
           entrance = runtime.startMotionSession({ channel: 'dialog' });
-          entrance?.animate(target, [{ transform: 'translateY(6px)', opacity: .92 }, { transform: 'none', opacity: 1 }], {
-            duration: read().policy.coarsePointer ? MOTION_TIMINGS.localArtwork.coarse : MOTION_TIMINGS.localArtwork.fine,
-          });
+          entrance?.animate(
+            target,
+            [
+              { transform: 'translateY(6px)', opacity: 0.92 },
+              { transform: 'none', opacity: 1 },
+            ],
+            {
+              duration: read().policy.coarsePointer
+                ? MOTION_TIMINGS.localArtwork.coarse
+                : MOTION_TIMINGS.localArtwork.fine,
+            },
+          );
         } else if (options.preset === 'dialog') {
           entrance = runtime.startMotionSession({ channel: 'dialog' });
-          entrance?.animate(inner, [{ transform: 'translateY(6px)', opacity: .96 }, { transform: 'none', opacity: 1 }], {
-            duration: options.enterMs ?? MOTION_TIMINGS.dialog,
-          });
+          entrance?.animate(
+            inner,
+            [
+              { transform: 'translateY(6px)', opacity: 0.96 },
+              { transform: 'none', opacity: 1 },
+            ],
+            {
+              duration: options.enterMs ?? MOTION_TIMINGS.dialog,
+            },
+          );
         }
       };
-      if (entry && expectedOpen(entry) && read().location.displayedDetailKey === entry.displayed &&
-        environment.now() - entry.created <= MOTION_ORIGIN_TTL && publicTarget(target ?? null) && target) {
+      if (
+        entry &&
+        expectedOpen(entry) &&
+        read().location.displayedDetailKey === entry.displayed &&
+        environment.now() - entry.created <= MOTION_ORIGIN_TTL &&
+        publicTarget(target ?? null) &&
+        target
+      ) {
         entry.phase = 'open';
         entry.openedNavigation = read().location.navigationGeneration;
         nextFrame(() => {
-          if (!dialog.open || !expectedOpen(entry)) { finishOrigin(entry); return; }
-          const destination = nativeSlot(dialog, slot) && imageReady(target, entry.hint.visual) ? measure(target) : null;
+          if (!dialog.open || !expectedOpen(entry)) {
+            finishOrigin(entry);
+            return;
+          }
+          const destination =
+            nativeSlot(dialog, slot) && imageReady(target, entry.hint.visual) ? measure(target) : null;
           if (destination && slot) {
             const to = fitMotionVisual(entry.hint.visual, destination);
             entrance = fly(entry, slot, entry.start, to, 'enter');
@@ -477,7 +621,8 @@ export function createMotionRuntime(
           pending?.cancel('unmount');
           if (entry && canReturn(entry)) {
             prepared = entry.interrupted ?? (entry.sprite ? measure(entry.sprite) : target ? measure(target) : null);
-            if (prepared && !entry.interrupted && !entry.sprite) prepared = fitMotionVisual(entry.hint.visual, prepared);
+            if (prepared && !entry.interrupted && !entry.sprite)
+              prepared = fitMotionVisual(entry.hint.visual, prepared);
           }
           entrance?.cancel('unmount');
         },
@@ -490,13 +635,29 @@ export function createMotionRuntime(
           if (!entry || origin !== entry) return;
           const host = returnHost();
           const source = entry.hint.source.deref();
-          if (prepared && canReturn(entry) && host?.isConnected && !dialogs.size &&
-            !document.querySelector('dialog[open]') && publicTarget(source ?? null) && source &&
-            imageReady(source, entry.hint.visual)) {
+          if (
+            prepared &&
+            canReturn(entry) &&
+            host?.isConnected &&
+            !dialogs.size &&
+            !document.querySelector('dialog[open]') &&
+            publicTarget(source ?? null) &&
+            source &&
+            imageReady(source, entry.hint.visual)
+          ) {
             const from = prepared;
             nextFrame(() => {
-              if (!canReturn(entry) || !host.isConnected || dialogs.size || document.querySelector('dialog[open]') ||
-                !publicTarget(source) || !imageReady(source, entry.hint.visual)) { finishOrigin(entry); return; }
+              if (
+                !canReturn(entry) ||
+                !host.isConnected ||
+                dialogs.size ||
+                document.querySelector('dialog[open]') ||
+                !publicTarget(source) ||
+                !imageReady(source, entry.hint.visual)
+              ) {
+                finishOrigin(entry);
+                return;
+              }
               const destination = measure(source);
               if (destination) {
                 entry.phase = 'return';
@@ -515,9 +676,19 @@ export function createMotionRuntime(
     },
   };
 
-  function fly(entry: OriginLease, host: HTMLElement, from: MotionRect, to: MotionRect, phase: 'enter' | 'return'): MotionSession | null {
+  function fly(
+    entry: OriginLease,
+    host: HTMLElement,
+    from: MotionRect,
+    to: MotionRect,
+    phase: 'enter' | 'return',
+  ): MotionSession | null {
     const session = runtime.startMotionSession({ channel: 'continuity', guard: entry.guard });
-    if (!session || !currentOrigin(entry)) { session?.cancel('authority'); finishOrigin(entry); return null; }
+    if (!session || !currentOrigin(entry)) {
+      session?.cancel('authority');
+      finishOrigin(entry);
+      return null;
+    }
     const sprite = createPublicMotionElement(entry.hint.visual, to, phase);
     entry.sprite = sprite;
     entry.interrupted = undefined;
@@ -528,11 +699,15 @@ export function createMotionRuntime(
       if (phase === 'return' && origin === entry && entry.phase === 'return') finishOrigin(entry);
     });
     const timings = MOTION_TIMINGS.artwork[phase];
-    session.animate(sprite, [
-      { transform: motionTransform(from, to), opacity: .96 },
-      { transform: 'none', opacity: .96, offset: .82 },
-      { transform: 'none', opacity: 0 },
-    ], { duration: read().policy.coarsePointer ? timings.coarse : timings.fine });
+    session.animate(
+      sprite,
+      [
+        { transform: motionTransform(from, to), opacity: 0.96 },
+        { transform: 'none', opacity: 0.96, offset: 0.82 },
+        { transform: 'none', opacity: 0 },
+      ],
+      { duration: read().policy.coarsePointer ? timings.coarse : timings.fine },
+    );
     return session;
   }
   return runtime;

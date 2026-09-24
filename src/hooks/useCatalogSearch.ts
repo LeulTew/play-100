@@ -10,16 +10,34 @@ export function useCatalogSearch(query: string, enabled: boolean, source: 'all' 
   useEffect(() => {
     session.cancel();
     if (!enabled) return;
-    const timer = window.setTimeout(() => session.start(key, term, source === 'all' ? CATALOG_SOURCES : [source], offset), 500);
-    return () => { window.clearTimeout(timer); session.cancel(); };
+    const timer = window.setTimeout(
+      () => session.start(key, term, source === 'all' ? CATALOG_SOURCES : [source], offset),
+      500,
+    );
+    return () => {
+      window.clearTimeout(timer);
+      session.cancel();
+    };
   }, [key, term, source, offset, enabled, session]);
-  const sources = useMemo(() => enabled && snapshot.key === key ? snapshot.sources : emptySources().map((state) =>
-    enabled && (source === 'all' || source === state.source) ? { ...state, status: 'loading' as const } : state),
-  [enabled, snapshot.key, snapshot.sources, key, source]);
-  const records = useMemo(() => sources.flatMap(state => state.records), [sources]);
+  const sources = useMemo(
+    () =>
+      enabled && snapshot.key === key
+        ? snapshot.sources
+        : emptySources().map((state) =>
+            enabled && (source === 'all' || source === state.source) ? { ...state, status: 'loading' as const } : state,
+          ),
+    [enabled, snapshot.key, snapshot.sources, key, source],
+  );
+  const records = useMemo(() => sources.flatMap((state) => state.records), [sources]);
   return {
-    sources, records, loading: sources.some((state) => state.status === 'loading'),
-    retry: (provider: CatalogSource) => { if (enabled && snapshot.key === key) session.retry(provider); },
-    more: (provider: CatalogSource) => { if (enabled && snapshot.key === key) session.more(provider); },
+    sources,
+    records,
+    loading: sources.some((state) => state.status === 'loading'),
+    retry: (provider: CatalogSource) => {
+      if (enabled && snapshot.key === key) session.retry(provider);
+    },
+    more: (provider: CatalogSource) => {
+      if (enabled && snapshot.key === key) session.more(provider);
+    },
   };
 }

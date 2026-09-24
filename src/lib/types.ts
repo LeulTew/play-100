@@ -47,10 +47,27 @@ export interface CollectionData {
 }
 
 export type ListFilter = 'all' | 'later' | 'completed' | 'unplayed';
-export type SortOrder = 'rank' | 'title' | 'newest' | 'oldest' | 'score' | keyof Critics | 'rank-index' | 'author-rating';
+export type SortOrder =
+  'rank' | 'title' | 'newest' | 'oldest' | 'score' | keyof Critics | 'rank-index' | 'author-rating';
 export type SortDirection = 'auto' | 'asc' | 'desc';
 export type ViewMode = 'grid' | 'list' | 'table';
-export type AppPage = 'collection' | 'games' | 'library' | 'rankings' | 'discover' | 'account' | 'publish' | 'community' | 'profile' | 'creator' | 'friends' | 'friend' | 'invite' | 'compare' | 'friend-sharing' | 'friend-shelf';
+export type AppPage =
+  | 'collection'
+  | 'games'
+  | 'library'
+  | 'rankings'
+  | 'discover'
+  | 'account'
+  | 'publish'
+  | 'community'
+  | 'profile'
+  | 'creator'
+  | 'friends'
+  | 'friend'
+  | 'invite'
+  | 'compare'
+  | 'friend-sharing'
+  | 'friend-shelf';
 export type MotionPreference = 'auto' | 'full' | 'lite';
 
 export interface Filters {

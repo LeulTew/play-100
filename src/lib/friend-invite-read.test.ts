@@ -15,7 +15,15 @@ const token = 'a'.repeat(64);
 const invitePath = `friendInvites/${token}`;
 const avatar = { version: 1, seed: 'b'.repeat(32), palette: 'moss' } as const;
 const denied = Object.assign(new Error('Denied.'), { code: 'permission-denied' });
-const settings: FriendSettings = { format: 1, enabled: true, deleted: false, selectedIds: [], epoch: 1, revision: 1, updatedAt: 1000 };
+const settings: FriendSettings = {
+  format: 1,
+  enabled: true,
+  deleted: false,
+  selectedIds: [],
+  epoch: 1,
+  revision: 1,
+  updatedAt: 1000,
+};
 
 function client() {
   const app = initializeApp({ projectId: 'demo-play100' }, crypto.randomUUID());
@@ -23,8 +31,16 @@ function client() {
   return new FriendStore(firestore.getFirestore(app));
 }
 function invitation() {
-  return { format: 1, ownerUid: 'bob', slot: 0, displayName: 'Bob', avatar,
-    createdAt: firestore.Timestamp.now(), state: 'active', acceptedBy: null };
+  return {
+    format: 1,
+    ownerUid: 'bob',
+    slot: 0,
+    displayName: 'Bob',
+    avatar,
+    createdAt: firestore.Timestamp.now(),
+    state: 'active',
+    acceptedBy: null,
+  };
 }
 function snapshot(data: firestore.DocumentData | null): firestore.DocumentSnapshot {
   return { exists: () => data !== null, data: () => data ?? undefined } as firestore.DocumentSnapshot;
@@ -40,7 +56,9 @@ function transactionDouble(data: firestore.DocumentData | null) {
 }
 
 afterEach(async () => {
-  vi.restoreAllMocks(); vi.resetAllMocks(); vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.resetAllMocks();
+  vi.unstubAllGlobals();
   await Promise.all(apps.splice(0).map(deleteApp));
 });
 
@@ -53,11 +71,18 @@ describe('bounded invitation read recovery', () => {
     vi.mocked(firestore.runTransaction).mockImplementation((_db, operation) => operation(retry.tx));
     const preview = await store.previewInvite(token);
     expect(preview).toEqual({
-      ownerUid: 'bob', displayName: 'Bob', avatar, createdAt: data.createdAt.toMillis(),
-      expiresAt: data.createdAt.toMillis() + 7 * 86400000, lifetimeDays: 7, singleUse: true,
+      ownerUid: 'bob',
+      displayName: 'Bob',
+      avatar,
+      createdAt: data.createdAt.toMillis(),
+      expiresAt: data.createdAt.toMillis() + 7 * 86400000,
+      lifetimeDays: 7,
+      singleUse: true,
     });
     expect(firestore.getDocFromServer).toHaveBeenCalledOnce();
-    expect(firestore.runTransaction).toHaveBeenCalledExactlyOnceWith(store.db, expect.any(Function), { maxAttempts: 1 });
+    expect(firestore.runTransaction).toHaveBeenCalledExactlyOnceWith(store.db, expect.any(Function), {
+      maxAttempts: 1,
+    });
     expect(retry.get).toHaveBeenCalledExactlyOnceWith(vi.mocked(firestore.getDocFromServer).mock.calls[0]?.[0]);
     expect(retry.set).not.toHaveBeenCalled();
     expect(retry.update).not.toHaveBeenCalled();
@@ -68,17 +93,21 @@ describe('bounded invitation read recovery', () => {
     vi.mocked(firestore.getDocFromServer).mockRejectedValue(denied);
     vi.mocked(firestore.runTransaction).mockRejectedValue(denied);
     await expect(store.previewInvite(token)).rejects.toMatchObject({
-      code: 'invite-unavailable', message: 'This invite is no longer available.',
+      code: 'invite-unavailable',
+      message: 'This invite is no longer available.',
     });
     expect(firestore.runTransaction).toHaveBeenCalledOnce();
   });
-  it.each(['unavailable', 'deadline-exceeded', 'unauthenticated', 'offline'])('does not retry %s server-read errors', async code => {
-    const store = client();
-    const cause = Object.assign(new Error('Read failed.'), { code });
-    vi.mocked(firestore.getDocFromServer).mockRejectedValue(cause);
-    await expect(store.previewInvite(token)).rejects.toBe(cause);
-    expect(firestore.runTransaction).not.toHaveBeenCalled();
-  });
+  it.each(['unavailable', 'deadline-exceeded', 'unauthenticated', 'offline'])(
+    'does not retry %s server-read errors',
+    async (code) => {
+      const store = client();
+      const cause = Object.assign(new Error('Read failed.'), { code });
+      vi.mocked(firestore.getDocFromServer).mockRejectedValue(cause);
+      await expect(store.previewInvite(token)).rejects.toBe(cause);
+      expect(firestore.runTransaction).not.toHaveBeenCalled();
+    },
+  );
   it('does not retry when the browser goes offline after the denied read', async () => {
     const store = client();
     vi.stubGlobal('navigator', { onLine: false });
@@ -86,10 +115,17 @@ describe('bounded invitation read recovery', () => {
     await expect(store.previewInvite(token)).rejects.toMatchObject({ code: 'offline' });
     expect(firestore.runTransaction).not.toHaveBeenCalled();
   });
-  it.each(['consumed', 'expired', 'missing'])('does not accept a %s retry result', async state => {
+  it.each(['consumed', 'expired', 'missing'])('does not accept a %s retry result', async (state) => {
     const store = client();
-    const data = state === 'missing' ? null : { ...invitation(),
-      ...(state === 'consumed' ? { state, acceptedBy: 'alice' } : { createdAt: firestore.Timestamp.fromMillis(1) }) };
+    const data =
+      state === 'missing'
+        ? null
+        : {
+            ...invitation(),
+            ...(state === 'consumed'
+              ? { state, acceptedBy: 'alice' }
+              : { createdAt: firestore.Timestamp.fromMillis(1) }),
+          };
     const retry = transactionDouble(data);
     vi.mocked(firestore.getDocFromServer).mockRejectedValue(denied);
     vi.mocked(firestore.runTransaction).mockImplementation((_db, operation) => operation(retry.tx));
@@ -118,10 +154,14 @@ describe('bounded invitation read recovery', () => {
     const write = transactionDouble(null);
     const retry = transactionDouble(data);
     vi.mocked(firestore.runTransaction)
-      .mockImplementationOnce(async (_db, operation) => { await operation(write.tx); throw denied; })
+      .mockImplementationOnce(async (_db, operation) => {
+        await operation(write.tx);
+        throw denied;
+      })
       .mockImplementationOnce((_db, operation) => operation(retry.tx));
     await expect(store.acceptInvite('alice', token)).rejects.toMatchObject({
-      code: 'unavailable', message: 'The invitation could not be accepted. Refresh the page, then try again.',
+      code: 'unavailable',
+      message: 'The invitation could not be accepted. Refresh the page, then try again.',
     });
     expect(firestore.runTransaction).toHaveBeenCalledTimes(2);
     expect(write.set).toHaveBeenCalledTimes(2);

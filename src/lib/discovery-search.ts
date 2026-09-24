@@ -20,7 +20,19 @@ export interface DiscoveryFilters {
   online: 'auto' | 'on';
   progress?: ProgressFilter;
 }
-export const defaultDiscoveryFilters: DiscoveryFilters = { q: '', source: 'all', include100: 'off', genre: '', genreFamily: '', year: '', offset: 0, view: 'grid', catalogs: 'on', online: 'auto', progress: 'all' };
+export const defaultDiscoveryFilters: DiscoveryFilters = {
+  q: '',
+  source: 'all',
+  include100: 'off',
+  genre: '',
+  genreFamily: '',
+  year: '',
+  offset: 0,
+  view: 'grid',
+  catalogs: 'on',
+  online: 'auto',
+  progress: 'all',
+};
 
 export function parseDiscoverySearch(search: string): DiscoveryFilters {
   const params = new URLSearchParams(search);
@@ -28,7 +40,10 @@ export function parseDiscoverySearch(search: string): DiscoveryFilters {
   const offset = params.get('offset') ?? '0';
   const year = params.get('year') ?? '';
   return {
-    q: [...(params.get('q') ?? '')].map((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 ? ' ' : character).join('').slice(0, 80),
+    q: [...(params.get('q') ?? '')]
+      .map((character) => (character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 ? ' ' : character))
+      .join('')
+      .slice(0, 80),
     source: source === 'wikidata' || source === 'freetogame' || source === 'collection' ? source : 'all',
     include100: params.get('include100') === 'on' ? 'on' : 'off',
     genre: (params.get('genre') ?? '').slice(0, 200),
@@ -69,22 +84,55 @@ export function patchDiscoverySearch(search: string, patch: Partial<DiscoveryFil
   return params.size ? `?${params}` : '';
 }
 
-export function shouldSearchOnline(query: string, allowed: boolean, seedStatus: 'idle' | 'loading' | 'ready' | 'error', localCount: number, explicit = false): boolean {
-  return allowed && (explicit || seedStatus === 'error' || seedStatus === 'ready' && query.trim().length >= 2 && localCount < 6);
+export function shouldSearchOnline(
+  query: string,
+  allowed: boolean,
+  seedStatus: 'idle' | 'loading' | 'ready' | 'error',
+  localCount: number,
+  explicit = false,
+): boolean {
+  return (
+    allowed &&
+    (explicit || seedStatus === 'error' || (seedStatus === 'ready' && query.trim().length >= 2 && localCount < 6))
+  );
 }
 
-export function searchDiscoveryItems<T extends CatalogSearchItem>(items: readonly T[], filters: Pick<DiscoveryFilters, 'q' | 'source' | 'genre' | 'genreFamily' | 'year'>): T[] {
+export function searchDiscoveryItems<T extends CatalogSearchItem>(
+  items: readonly T[],
+  filters: Pick<DiscoveryFilters, 'q' | 'source' | 'genre' | 'genreFamily' | 'year'>,
+): T[] {
   const found = items.flatMap((item) => {
     const { record } = item;
-    if (filters.source !== 'all' && !(item.sources ?? [record.source]).includes(filters.source) ||
-      !matchesDiscoveryGenre(record.genre, filters.genre, filters.genreFamily) || filters.year && record.year !== Number(filters.year)) return [];
+    if (
+      (filters.source !== 'all' && !(item.sources ?? [record.source]).includes(filters.source)) ||
+      !matchesDiscoveryGenre(record.genre, filters.genre, filters.genreFamily) ||
+      (filters.year && record.year !== Number(filters.year))
+    )
+      return [];
     const relevance = catalogRelevance(record.title, item.aliases, filters.q);
     if (relevance !== null) return [{ item, relevance }];
-    return matchesCatalogQuery(`${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''} ${item.searchTerms?.join(' ') ?? ''}`, filters.q) ? [{ item, relevance: 4 }] : [];
+    return matchesCatalogQuery(
+      `${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''} ${item.searchTerms?.join(' ') ?? ''}`,
+      filters.q,
+    )
+      ? [{ item, relevance: 4 }]
+      : [];
   });
-  return found.sort((a, b) => {
-    if (filters.q.trim()) return a.relevance - b.relevance || Number(Boolean(b.item.game)) - Number(Boolean(a.item.game)) || a.item.record.title.localeCompare(b.item.record.title, 'en') || a.item.record.id.localeCompare(b.item.record.id);
-    return Number(Boolean(b.item.game?.artwork || b.item.artwork)) - Number(Boolean(a.item.game?.artwork || a.item.artwork)) ||
-      a.item.record.title.localeCompare(b.item.record.title, 'en') || a.item.record.id.localeCompare(b.item.record.id);
-  }).map(({ item }) => item);
+  return found
+    .sort((a, b) => {
+      if (filters.q.trim())
+        return (
+          a.relevance - b.relevance ||
+          Number(Boolean(b.item.game)) - Number(Boolean(a.item.game)) ||
+          a.item.record.title.localeCompare(b.item.record.title, 'en') ||
+          a.item.record.id.localeCompare(b.item.record.id)
+        );
+      return (
+        Number(Boolean(b.item.game?.artwork || b.item.artwork)) -
+          Number(Boolean(a.item.game?.artwork || a.item.artwork)) ||
+        a.item.record.title.localeCompare(b.item.record.title, 'en') ||
+        a.item.record.id.localeCompare(b.item.record.id)
+      );
+    })
+    .map(({ item }) => item);
 }

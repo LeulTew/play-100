@@ -18,7 +18,11 @@ test('served head has unique matching social metadata and a fetchable PNG', asyn
     if (!value) throw new Error(`Missing served og:${field}.`);
     await expect(twitter).toHaveAttribute('content', value);
   }
-  for (const [field, value] of [['width', '1200'], ['height', '630'], ['type', 'image/png']] as const) {
+  for (const [field, value] of [
+    ['width', '1200'],
+    ['height', '630'],
+    ['type', 'image/png'],
+  ] as const) {
     const tag = page.locator(`meta[property="og:image:${field}"]`);
     await expect(tag).toHaveCount(1);
     await expect(tag).toHaveAttribute('content', value);

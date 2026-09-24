@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 // origin with a fresh CSP nonce per response. The JS helper paths stay plain vercel.json rewrites.
 export const AUTH_HELPER_UPSTREAM = 'https://play100-online-48823b32.firebaseapp.com';
 export const AUTH_HELPER_PAGES = ['handler', 'iframe'] as const;
-export type AuthHelperPage = typeof AUTH_HELPER_PAGES[number];
+export type AuthHelperPage = (typeof AUTH_HELPER_PAGES)[number];
 export const AUTH_HELPER_TEMPLATE_NONCE = 'firebase-auth-helper';
 export const AUTH_HELPER_MAX_BYTES = 256 * 1024;
 export const AUTH_HELPER_TIMEOUT_MS = 5000;
@@ -33,11 +33,17 @@ const ERROR_CSP = "default-src 'none'; base-uri 'none'; form-action 'none'; fram
 
 function occurrences(haystack: string, needle: string): number[] {
   const found: number[] = [];
-  for (let index = haystack.indexOf(needle); index !== -1; index = haystack.indexOf(needle, index + needle.length)) found.push(index);
+  for (let index = haystack.indexOf(needle); index !== -1; index = haystack.indexOf(needle, index + needle.length))
+    found.push(index);
   return found;
 }
 
-export interface TemplateCounts { attributes: number; literals: number; nonceAttributes: number; placeholders: number }
+export interface TemplateCounts {
+  attributes: number;
+  literals: number;
+  nonceAttributes: number;
+  placeholders: number;
+}
 
 export function templateCounts(html: string): TemplateCounts {
   return {
@@ -52,10 +58,15 @@ export function templateCounts(html: string): TemplateCounts {
 // the one attribute value, no other nonce attribute exists, and the only `{{` is the handler's GET POST_BODY slot.
 export function rewriteTemplateNonce(html: string, page: AuthHelperPage, nonce: string): string | null {
   const counts = templateCounts(html);
-  if (counts.attributes < 1 || counts.literals !== counts.attributes || counts.nonceAttributes !== counts.attributes) return null;
+  if (counts.attributes < 1 || counts.literals !== counts.attributes || counts.nonceAttributes !== counts.attributes)
+    return null;
   const placeholders = occurrences(html, '{{');
-  if (page === 'iframe' ? placeholders.length !== 0
-    : placeholders.length > 1 || placeholders.some(index => !html.startsWith(POST_BODY_PLACEHOLDER, index))) return null;
+  if (
+    page === 'iframe'
+      ? placeholders.length !== 0
+      : placeholders.length > 1 || placeholders.some((index) => !html.startsWith(POST_BODY_PLACEHOLDER, index))
+  )
+    return null;
   return html.split(NONCE_ATTRIBUTE).join(`nonce="${nonce}"`);
 }
 
@@ -80,7 +91,12 @@ function sendText(request: IncomingMessage, response: ServerResponse, status: nu
 }
 
 class HelperFailure extends Error {
-  constructor(readonly status: 502 | 504, readonly detail: Record<string, number | string>) { super('auth helper upstream failure'); }
+  constructor(
+    readonly status: 502 | 504,
+    readonly detail: Record<string, number | string>,
+  ) {
+    super('auth helper upstream failure');
+  }
 }
 
 async function readCapped(upstream: Response, signal: AbortSignal): Promise<Uint8Array> {
@@ -109,15 +125,28 @@ async function readCapped(upstream: Response, signal: AbortSignal): Promise<Uint
   }
   const bytes = new Uint8Array(size);
   let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
   return bytes;
 }
 
 function allowedRedirect(location: string | null): string | null {
   if (!location) return null;
   let target: URL;
-  try { target = new URL(location, AUTH_HELPER_UPSTREAM); } catch { return null; }
-  if (target.origin !== AUTH_HELPER_UPSTREAM || target.username || target.password || !target.pathname.startsWith('/__/auth/')) return null;
+  try {
+    target = new URL(location, AUTH_HELPER_UPSTREAM);
+  } catch {
+    return null;
+  }
+  if (
+    target.origin !== AUTH_HELPER_UPSTREAM ||
+    target.username ||
+    target.password ||
+    !target.pathname.startsWith('/__/auth/')
+  )
+    return null;
   return `${target.pathname}${target.search}`;
 }
 
@@ -138,14 +167,23 @@ export default async function handler(request: IncomingMessage, response: Server
   }
   const helper = page as AuthHelperPage;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(new HelperFailure(504, { reason: 'timeout' })), AUTH_HELPER_TIMEOUT_MS);
-  const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+  const timeout = setTimeout(
+    () => controller.abort(new HelperFailure(504, { reason: 'timeout' })),
+    AUTH_HELPER_TIMEOUT_MS,
+  );
+  const disconnect = () => {
+    if (!response.writableEnded) controller.abort();
+  };
   request.once('aborted', disconnect);
   response.once('close', disconnect);
   try {
     // A fixed upstream URL: no client query, cookies, authorization or other request headers are forwarded.
     const upstream = await fetch(`${AUTH_HELPER_UPSTREAM}/__/auth/${helper}`, {
-      method: 'GET', headers: { Accept: 'text/html' }, redirect: 'manual', credentials: 'omit', signal: controller.signal,
+      method: 'GET',
+      headers: { Accept: 'text/html' },
+      redirect: 'manual',
+      credentials: 'omit',
+      signal: controller.signal,
     });
     if (REDIRECT_STATUSES.has(upstream.status)) {
       await upstream.body?.cancel().catch(() => undefined);
@@ -163,8 +201,11 @@ export default async function handler(request: IncomingMessage, response: Server
     }
     const bytes = await readCapped(upstream, controller.signal);
     let html: string;
-    try { html = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes); }
-    catch { throw new HelperFailure(502, { reason: 'encoding' }); }
+    try {
+      html = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+      throw new HelperFailure(502, { reason: 'encoding' });
+    }
     const nonce = randomBytes(16).toString('base64');
     const rewritten = rewriteTemplateNonce(html, helper, nonce);
     if (rewritten === null) throw new HelperFailure(502, { reason: 'drift', page: helper, ...templateCounts(html) });
@@ -176,13 +217,21 @@ export default async function handler(request: IncomingMessage, response: Server
     response.writeHead(200).end(request.method === 'HEAD' ? undefined : body);
   } catch (error: unknown) {
     if (response.destroyed) return;
-    const failure = error instanceof HelperFailure ? error
-      : controller.signal.reason instanceof HelperFailure ? controller.signal.reason
-        : new HelperFailure(502, { reason: 'unreachable' });
+    const failure =
+      error instanceof HelperFailure
+        ? error
+        : controller.signal.reason instanceof HelperFailure
+          ? controller.signal.reason
+          : new HelperFailure(502, { reason: 'unreachable' });
     console.warn('Auth helper upstream refused.', { page: helper, status: failure.status, ...failure.detail });
-    sendText(request, response, failure.status, failure.status === 504
-      ? 'The sign-in helper took too long to load. Please try again.\n'
-      : 'The sign-in helper is unavailable. Please try again later.\n');
+    sendText(
+      request,
+      response,
+      failure.status,
+      failure.status === 504
+        ? 'The sign-in helper took too long to load. Please try again.\n'
+        : 'The sign-in helper is unavailable. Please try again later.\n',
+    );
   } finally {
     clearTimeout(timeout);
     request.removeListener('aborted', disconnect);

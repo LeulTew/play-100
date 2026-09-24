@@ -22,22 +22,22 @@ interface SceneState {
 }
 
 function systemReducesMotion() {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 }
 
 function hasCoarsePointer() {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(pointer: coarse)').matches;
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
+  );
 }
 
-export default function CollectionArtifact({
-  quality,
-  reducedMotion,
-  constrained,
-}: CollectionArtifactProps) {
+export default function CollectionArtifact({ quality, reducedMotion, constrained }: CollectionArtifactProps) {
   const captionId = useId();
   const rootRef = useRef<HTMLElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -62,11 +62,17 @@ export default function CollectionArtifact({
     if (typeof window.matchMedia !== 'function') return;
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     const pointer = window.matchMedia('(pointer: coarse)');
-    const update = () => { setSystemReduced(preference.matches); setCoarsePointer(pointer.matches); };
+    const update = () => {
+      setSystemReduced(preference.matches);
+      setCoarsePointer(pointer.matches);
+    };
     update();
     preference.addEventListener('change', update);
     pointer.addEventListener('change', update);
-    return () => { preference.removeEventListener('change', update); pointer.removeEventListener('change', update); };
+    return () => {
+      preference.removeEventListener('change', update);
+      pointer.removeEventListener('change', update);
+    };
   }, []);
 
   useEffect(() => {
@@ -89,7 +95,7 @@ export default function CollectionArtifact({
     let loading = false;
     let hasFrame = false;
     let scene: CollectionSceneHandle | null = null;
-    let createScene: typeof import('./scene/CollectionScene')['createCollectionScene'] | null = null;
+    let createScene: (typeof import('./scene/CollectionScene'))['createCollectionScene'] | null = null;
     let idleId: number | null = null;
     let timerId: number | null = null;
     let observer: IntersectionObserver | null = null;
@@ -149,7 +155,7 @@ export default function CollectionArtifact({
         loading = false;
         if (!scene) reconcile();
       }
-    }
+    };
 
     function reconcile() {
       if (cancelled || failed) return;
@@ -166,10 +172,22 @@ export default function CollectionArtifact({
       if (loading || idleId !== null || timerId !== null) return;
       if (typeof window.requestIdleCallback === 'function') {
         idleId = requestedRef.current
-          ? window.requestIdleCallback(() => { void loadScene(); }, { timeout: REQUESTED_SCENE_IDLE_TIMEOUT_MS })
-          : window.requestIdleCallback(() => { void loadScene(); });
+          ? window.requestIdleCallback(
+              () => {
+                void loadScene();
+              },
+              { timeout: REQUESTED_SCENE_IDLE_TIMEOUT_MS },
+            )
+          : window.requestIdleCallback(() => {
+              void loadScene();
+            });
       } else {
-        timerId = window.setTimeout(() => { void loadScene(); }, requestedRef.current ? REQUESTED_SCENE_IDLE_TIMEOUT_MS : 1200);
+        timerId = window.setTimeout(
+          () => {
+            void loadScene();
+          },
+          requestedRef.current ? REQUESTED_SCENE_IDLE_TIMEOUT_MS : 1200,
+        );
       }
     }
 
@@ -185,11 +203,14 @@ export default function CollectionArtifact({
     };
 
     if (typeof IntersectionObserver !== 'undefined') {
-      observer = new IntersectionObserver((entries) => {
-        const entry = entries[0];
-        visible = entry?.isIntersecting === true && entry.intersectionRatio > 0;
-        reconcile();
-      }, { threshold: 0.01 });
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          visible = entry?.isIntersecting === true && entry.intersectionRatio > 0;
+          reconcile();
+        },
+        { threshold: 0.01 },
+      );
       observer.observe(stage);
     } else {
       checkPosition();
@@ -221,12 +242,12 @@ export default function CollectionArtifact({
         ? 'Illustrated view · saving resources'
         : needsInteraction
           ? 'Auto · tap Fan out to start 3D'
-          : state.reason
-          ?? (state.ready
-            ? 'A small, interactive collection study.'
-            : state.status === 'loading'
-              ? 'Illustrated view · 3D is loading…'
-              : 'Illustrated view · ready to explore');
+          : (state.reason ??
+            (state.ready
+              ? 'A small, interactive collection study.'
+              : state.status === 'loading'
+                ? 'Illustrated view · 3D is loading…'
+                : 'Illustrated view · ready to explore'));
 
   return (
     <figure
@@ -235,7 +256,7 @@ export default function CollectionArtifact({
       data-render-mode={renderMode}
       data-scene-status={status}
       data-fanned={canInteract && fanned}
-      data-activation={canInteract ? needsInteraction ? 'on-demand' : 'automatic' : 'static'}
+      data-activation={canInteract ? (needsInteraction ? 'on-demand' : 'automatic') : 'static'}
       aria-describedby={captionId}
     >
       <div ref={stageRef} className="artifact-stage" aria-hidden="true">
@@ -245,28 +266,41 @@ export default function CollectionArtifact({
       <figcaption className="artifact-footer">
         <div id={captionId} className="artifact-caption">
           <span className="artifact-caption-title">Good things, collected.</span>
-          <span className="artifact-status" role="status" aria-live="polite">{explanation}</span>
+          <span className="artifact-status" role="status" aria-live="polite">
+            {explanation}
+          </span>
         </div>
-        {canInteract && <button
-          type="button"
-          className="artifact-control"
-          onClick={() => {
-            if (!requestedRef.current) {
-              requestedRef.current = true;
-              setRequested(true);
-              requestSceneRef.current?.();
-            }
-            setFanned((value) => !value);
-          }}
-          aria-label={fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'}
-        >
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true" focusable="false">
-            {fanned
-              ? <path d="m3 7 7-4 7 4-7 4-7-4Zm0 3 7 4 7-4M3 13l7 4 7-4" />
-              : <path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" />}
-          </svg>
-          {fanned ? 'Stack up' : 'Fan out'}
-        </button>}
+        {canInteract && (
+          <button
+            type="button"
+            className="artifact-control"
+            onClick={() => {
+              if (!requestedRef.current) {
+                requestedRef.current = true;
+                setRequested(true);
+                requestSceneRef.current?.();
+              }
+              setFanned((value) => !value);
+            }}
+            aria-label={fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'}
+          >
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              aria-hidden="true"
+              focusable="false"
+            >
+              {fanned ? (
+                <path d="m3 7 7-4 7 4-7 4-7-4Zm0 3 7 4 7-4M3 13l7 4 7-4" />
+              ) : (
+                <path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" />
+              )}
+            </svg>
+            {fanned ? 'Stack up' : 'Fan out'}
+          </button>
+        )}
       </figcaption>
     </figure>
   );

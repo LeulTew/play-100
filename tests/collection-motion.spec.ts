@@ -13,7 +13,14 @@ interface CollectionMotionProbe {
   holdReturn: boolean;
   calls: { duration: number | null; containsEditor: boolean; phase: string | null }[];
   errors: string[];
-  modifiedClick?: { reachedAnchor: boolean; defaultPrevented: boolean; isTrusted: boolean; button: number; ctrlKey: boolean; metaKey: boolean };
+  modifiedClick?: {
+    reachedAnchor: boolean;
+    defaultPrevented: boolean;
+    isTrusted: boolean;
+    button: number;
+    ctrlKey: boolean;
+    metaKey: boolean;
+  };
 }
 
 declare global {
@@ -35,18 +42,28 @@ test.beforeEach(async ({ page }) => {
       const phase = this.getAttribute('data-motion-phase');
       if (inDetail || this.hasAttribute('data-motion-visual')) {
         const duration = animation.effect?.getTiming().duration;
-        const containsEditor = this.matches('input, textarea, select') || Boolean(this.querySelector('input, textarea, select'));
-        window.__collectionMotionProbe.calls.push({ duration: typeof duration === 'number' ? duration : null, containsEditor, phase });
-        if (inDetail && window.__collectionMotionProbe.hold || phase === 'return' && window.__collectionMotionProbe.holdReturn) {
+        const containsEditor =
+          this.matches('input, textarea, select') || Boolean(this.querySelector('input, textarea, select'));
+        window.__collectionMotionProbe.calls.push({
+          duration: typeof duration === 'number' ? duration : null,
+          containsEditor,
+          phase,
+        });
+        if (
+          (inDetail && window.__collectionMotionProbe.hold) ||
+          (phase === 'return' && window.__collectionMotionProbe.holdReturn)
+        ) {
           animation.pause();
           animation.currentTime = 0;
         }
       }
       return animation;
     };
-    window.addEventListener('error', event => window.__collectionMotionProbe.errors.push(event.message));
-    window.addEventListener('unhandledrejection', event => {
-      window.__collectionMotionProbe.errors.push(event.reason instanceof Error ? event.reason.message : String(event.reason));
+    window.addEventListener('error', (event) => window.__collectionMotionProbe.errors.push(event.message));
+    window.addEventListener('unhandledrejection', (event) => {
+      window.__collectionMotionProbe.errors.push(
+        event.reason instanceof Error ? event.reason.message : String(event.reason),
+      );
     });
   });
 });
@@ -62,23 +79,33 @@ async function prepareSource(page: Page) {
   await expect(link).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
   await page.evaluate(() => document.fonts.ready);
-  await link.locator('.game-cover').evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await link
+    .locator('.game-cover')
+    .evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
   return link;
 }
 
 async function expectStationaryEditor(input: Locator) {
-  expect(await input.evaluate(element => {
-    const dialog = element.closest('dialog');
-    const animated: string[] = [];
-    for (let current: Element | null = element; current && dialog?.contains(current); current = current.parentElement) {
-      const style = getComputedStyle(current);
-      if (style.transform !== 'none' || style.animationName !== 'none' || Number(style.opacity) !== 1) {
-        animated.push(current.tagName);
+  expect(
+    await input.evaluate((element) => {
+      const dialog = element.closest('dialog');
+      const animated: string[] = [];
+      for (
+        let current: Element | null = element;
+        current && dialog?.contains(current);
+        current = current.parentElement
+      ) {
+        const style = getComputedStyle(current);
+        if (style.transform !== 'none' || style.animationName !== 'none' || Number(style.opacity) !== 1) {
+          animated.push(current.tagName);
+        }
       }
-    }
-    return animated;
-  })).toEqual([]);
+      return animated;
+    }),
+  ).toEqual([]);
 }
 
 async function expectBounds(element: Locator, expected: { x: number; y: number; width: number; height: number }) {
@@ -90,7 +117,7 @@ async function expectBounds(element: Locator, expected: { x: number; y: number; 
 }
 
 async function seekPublicEnd(element: Locator) {
-  return element.evaluate(node => {
+  return element.evaluate((node) => {
     const animation = node.getAnimations()[0];
     const duration = animation?.effect?.getTiming().duration;
     if (!animation || typeof duration !== 'number') throw new Error('The public sleeve has no timed animation');
@@ -99,7 +126,10 @@ async function seekPublicEnd(element: Locator) {
   });
 }
 
-test('one public sleeve connects measured endpoints and returns only after native close', async ({ page, isMobile }) => {
+test('one public sleeve connects measured endpoints and returns only after native close', async ({
+  page,
+  isMobile,
+}) => {
   await page.goto('/?catalogs=off');
   const link = await prepareSource(page);
   const source = link.locator('.game-cover');
@@ -114,8 +144,14 @@ test('one public sleeve connects measured endpoints and returns only after nativ
   const entering = page.locator('[data-motion-visual="jacket"][data-motion-phase="enter"]');
   await expect(entering).toHaveCount(1);
   await expect(page.locator('[data-motion-visual]')).toHaveCount(1);
-  expect(await entering.evaluate(node => Boolean(node.closest('dialog[open] [data-motion-host="dialog"]')))).toBe(true);
-  expect(await entering.evaluate(node => Boolean(node.closest('[aria-hidden="true"]')) && Boolean(node.closest('[inert]')))).toBe(true);
+  expect(await entering.evaluate((node) => Boolean(node.closest('dialog[open] [data-motion-host="dialog"]')))).toBe(
+    true,
+  );
+  expect(
+    await entering.evaluate(
+      (node) => Boolean(node.closest('[aria-hidden="true"]')) && Boolean(node.closest('[inert]')),
+    ),
+  ).toBe(true);
   await expect(entering.locator('img, input, textarea, select, button, a, [id], [tabindex]')).toHaveCount(0);
   await expect(entering).not.toContainText(first.title);
   await expectBounds(entering, sourceBounds);
@@ -123,20 +159,26 @@ test('one public sleeve connects measured endpoints and returns only after nativ
   if (!destinationBounds) throw new Error('The detail artwork target has no visible bounds');
   expect(await seekPublicEnd(entering)).toBe(isMobile ? 220 : 240);
   await expectBounds(entering, destinationBounds);
-  await entering.evaluate(node => { for (const animation of node.getAnimations()) animation.finish(); });
+  await entering.evaluate((node) => {
+    for (const animation of node.getAnimations()) animation.finish();
+  });
   await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
   await expectStationaryEditor(dialog.getByRole('spinbutton'));
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   const returning = page.locator('[data-motion-visual="jacket"][data-motion-phase="return"]');
   await expect(returning).toHaveCount(1);
-  expect(await returning.evaluate(node => Boolean(node.closest('[data-motion-host="root"]')) && !node.closest('dialog'))).toBe(true);
+  expect(
+    await returning.evaluate((node) => Boolean(node.closest('[data-motion-host="root"]')) && !node.closest('dialog')),
+  ).toBe(true);
   await expectBounds(returning, destinationBounds);
   const returnBounds = await source.boundingBox();
   if (!returnBounds) throw new Error('The original sleeve is no longer visible');
   expect(await seekPublicEnd(returning)).toBe(160);
   await expectBounds(returning, returnBounds);
-  await returning.evaluate(node => { for (const animation of node.getAnimations()) animation.finish(); });
+  await returning.evaluate((node) => {
+    for (const animation of node.getAnimations()) animation.finish();
+  });
   await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
   await expect(link).toBeFocused();
 });
@@ -145,12 +187,16 @@ for (const view of ['grid', 'list'] as const) {
   test(`${view} public continuity never makes the live editor wait for animation`, async ({ page }) => {
     await page.goto(`/?view=${view}&catalogs=off`);
     const link = await prepareSource(page);
-    await page.evaluate(() => { window.__collectionMotionProbe.hold = true; });
+    await page.evaluate(() => {
+      window.__collectionMotionProbe.hold = true;
+    });
     await link.click();
     const dialog = page.locator('.game-dialog');
     await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeFocused();
     await expect.poll(() => page.evaluate(() => window.__collectionMotionProbe.calls.length)).toBeGreaterThan(0);
-    expect(await page.evaluate(() => window.__collectionMotionProbe.calls.some(call => call.containsEditor))).toBe(false);
+    expect(await page.evaluate(() => window.__collectionMotionProbe.calls.some((call) => call.containsEditor))).toBe(
+      false,
+    );
     const input = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
     await expectStationaryEditor(input);
     await input.fill('8.75');
@@ -158,36 +204,53 @@ for (const view of ['grid', 'list'] as const) {
     await expect(input).toHaveValue('8.75');
     await expect(dialog.locator(`img[src="/covers/${first.id}.webp"]`)).toHaveCount(1);
     await expect(dialog.locator('.detail-cover img')).toHaveJSProperty('complete', true);
-    expect(await dialog.locator('.detail-cover img').evaluate(image => {
-      if (!(image instanceof HTMLImageElement)) throw new Error('The detail artwork is not an image');
-      const style = getComputedStyle(image);
-      return image.naturalWidth > 0 && image.naturalHeight > 0 &&
-        parseFloat(style.width) <= Math.min(Number(image.getAttribute('width')), image.naturalWidth) &&
-        parseFloat(style.height) <= Math.min(Number(image.getAttribute('height')), image.naturalHeight);
-    })).toBe(true);
+    expect(
+      await dialog.locator('.detail-cover img').evaluate((image) => {
+        if (!(image instanceof HTMLImageElement)) throw new Error('The detail artwork is not an image');
+        const style = getComputedStyle(image);
+        return (
+          image.naturalWidth > 0 &&
+          image.naturalHeight > 0 &&
+          parseFloat(style.width) <= Math.min(Number(image.getAttribute('width')), image.naturalWidth) &&
+          parseFloat(style.height) <= Math.min(Number(image.getAttribute('height')), image.naturalHeight)
+        );
+      }),
+    ).toBe(true);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(link).toBeFocused();
     expect(new URL(page.url()).searchParams.has('game')).toBe(false);
-    await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(8.75);
+    await expect
+      .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score)
+      .toBe(8.75);
   });
 }
 
-test('table titles keep native links and use a no-origin detail without moving the form', async ({ page, isMobile }) => {
+test('table titles keep native links and use a no-origin detail without moving the form', async ({
+  page,
+  isMobile,
+}) => {
   await page.goto('/?view=table&q=mass+effect+2&catalogs=off');
   const link = page.locator(`tr[data-game="${second.id}"] .table-game > a`);
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', `/?q=mass+effect+2&view=table&catalogs=off&game=${second.id}`);
   if (!isMobile) {
     const before = page.url();
-    await link.evaluate(anchor => {
-      window.addEventListener('click', event => {
-        window.__collectionMotionProbe.modifiedClick = {
-          reachedAnchor: event.target instanceof Node && anchor.contains(event.target),
-          defaultPrevented: event.defaultPrevented, isTrusted: event.isTrusted,
-          button: event.button, ctrlKey: event.ctrlKey, metaKey: event.metaKey,
-        };
-      }, { once: true });
+    await link.evaluate((anchor) => {
+      window.addEventListener(
+        'click',
+        (event) => {
+          window.__collectionMotionProbe.modifiedClick = {
+            reachedAnchor: event.target instanceof Node && anchor.contains(event.target),
+            defaultPrevented: event.defaultPrevented,
+            isTrusted: event.isTrusted,
+            button: event.button,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+          };
+        },
+        { once: true },
+      );
     });
     await link.click({ modifiers: ['ControlOrMeta'] });
     const click = await page.evaluate(() => window.__collectionMotionProbe.modifiedClick);
@@ -239,17 +302,23 @@ test('direct links and next/previous preserve current-record drafts without a ne
   const editor = await input.elementHandle();
   if (!editor) throw new Error('The first detail rating editor did not mount');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  expect(await editor.evaluate(element => element.isConnected)).toBe(true);
+  expect(await editor.evaluate((element) => element.isConnected)).toBe(true);
   await expect(input).toHaveValue('8.25');
   await dialog.getByRole('button', { name: 'Next game', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: second.title, exact: true })).toBeFocused();
-  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(8.25);
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score)
+    .toBe(8.25);
   const nextInput = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${second.title}`, exact: true });
   await expect(nextInput).toHaveValue('');
   await nextInput.fill('4.5');
   await dialog.getByRole('button', { name: 'Previous game', exact: true }).click();
-  await expect(dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true })).toHaveValue('8.25');
-  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === second.id)?.score).toBe(4.5);
+  await expect(
+    dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true }),
+  ).toHaveValue('8.25');
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === second.id)?.score)
+    .toBe(4.5);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   expect(new URL(page.url()).searchParams.has('game')).toBe(false);
@@ -262,7 +331,9 @@ test('Escape, reopen and live reduced motion cancel a held public flight safely'
   await page.goto('/?catalogs=off');
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const link = await prepareSource(page);
-    await page.evaluate(() => { window.__collectionMotionProbe.hold = true; });
+    await page.evaluate(() => {
+      window.__collectionMotionProbe.hold = true;
+    });
     await link.click();
     const dialog = page.locator('.game-dialog');
     await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeFocused();
@@ -289,7 +360,10 @@ test('removing a filtered origin closes coherently instead of returning to stale
   await page.locator(`${firstCard} .save-game`).click();
   await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'true');
   await openBrowsingFilters(page);
-  await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
+  await page
+    .locator('.collection-tabs')
+    .getByRole('button', { name: /Play later/ })
+    .click();
   await expect(page.locator('.game-card')).toHaveCount(1);
   const link = await prepareSource(page);
   await link.click();
@@ -302,19 +376,29 @@ test('removing a filtered origin closes coherently instead of returning to stale
   expect(new URL(page.url()).searchParams.get('list')).toBe('later');
 });
 
-test('a real desktop title drag pins without opening, then keyboard and a fresh click still open', async ({ page, isMobile }) => {
+test('a real desktop title drag pins without opening, then keyboard and a fresh click still open', async ({
+  page,
+  isMobile,
+}) => {
   test.skip(isMobile, 'Native fine-pointer drag; the separate coarse test exercises visible Pin.');
   await page.goto('/?view=list&catalogs=off');
-  await page.locator(`.game-card[data-game="${second.id}"]`).getByRole('button', {
-    name: `Pin for comparison: ${second.title}`, exact: true,
-  }).click();
+  await page
+    .locator(`.game-card[data-game="${second.id}"]`)
+    .getByRole('button', {
+      name: `Pin for comparison: ${second.title}`,
+      exact: true,
+    })
+    .click();
   const dock = page.locator('.compare-tray-dock');
   await expect(dock).toBeVisible();
   const link = await prepareSource(page);
   await link.dragTo(dock, { targetPosition: { x: 20, y: 20 } });
-  await expect(page.locator(firstCard).getByRole('button', {
-    name: `Pinned for comparison: ${first.title}`, exact: true,
-  })).toBeDisabled();
+  await expect(
+    page.locator(firstCard).getByRole('button', {
+      name: `Pinned for comparison: ${first.title}`,
+      exact: true,
+    }),
+  ).toBeDisabled();
   expect(new URL(page.url()).searchParams.has('game')).toBe(false);
   await expect(page.locator('.game-dialog')).toHaveCount(0);
   await link.focus();
@@ -326,17 +410,27 @@ test('a real desktop title drag pins without opening, then keyboard and a fresh 
   await expect(page.locator('.game-dialog').getByRole('heading', { name: first.title, exact: true })).toBeFocused();
 });
 
-test('320px coarse detail keeps visible Pin, native artwork and reachable 44px close controls', async ({ page, isMobile }) => {
+test('320px coarse detail keeps visible Pin, native artwork and reachable 44px close controls', async ({
+  page,
+  isMobile,
+}) => {
   test.skip(!isMobile, 'Runs with the existing coarse-pointer project, not viewport-only touch claims.');
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/?view=list&catalogs=off');
   const link = await prepareSource(page);
-  await page.locator(firstCard).getByRole('button', {
-    name: `Pin for comparison: ${first.title}`, exact: true,
-  }).tap();
-  await expect(page.locator(firstCard).getByRole('button', {
-    name: `Pinned for comparison: ${first.title}`, exact: true,
-  })).toBeDisabled();
+  await page
+    .locator(firstCard)
+    .getByRole('button', {
+      name: `Pin for comparison: ${first.title}`,
+      exact: true,
+    })
+    .tap();
+  await expect(
+    page.locator(firstCard).getByRole('button', {
+      name: `Pinned for comparison: ${first.title}`,
+      exact: true,
+    }),
+  ).toBeDisabled();
   await link.tap();
   const dialog = page.locator('.game-dialog');
   await expect(dialog.getByRole('heading', { name: first.title, exact: true })).toBeVisible();
@@ -355,5 +449,7 @@ test('320px coarse detail keeps visible Pin, native artwork and reachable 44px c
   await input.fill('6.25');
   await close.tap();
   await expect(dialog).toHaveCount(0);
-  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(6.25);
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score)
+    .toBe(6.25);
 });

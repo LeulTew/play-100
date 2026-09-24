@@ -1,6 +1,14 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { closePersonalLibrary, commitPersonalAction, DB_NAME, DB_VERSION, loadPersonalLibrary, STATE_KEY, STORE_NAME } from './personal-db';
+import {
+  closePersonalLibrary,
+  commitPersonalAction,
+  DB_NAME,
+  DB_VERSION,
+  loadPersonalLibrary,
+  STATE_KEY,
+  STORE_NAME,
+} from './personal-db';
 import { applyPersonalAction, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
@@ -8,22 +16,41 @@ import type { LibraryRecord } from './personal-types';
 // an exported parsePersonalLibrary call during a commit would be a second, redundant validation pass.
 vi.mock('./personal-library', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./personal-library')>();
-  return { ...actual, parsePersonalLibrary: vi.fn(actual.parsePersonalLibrary), applyPersonalAction: vi.fn(actual.applyPersonalAction) };
+  return {
+    ...actual,
+    parsePersonalLibrary: vi.fn(actual.parsePersonalLibrary),
+    applyPersonalAction: vi.fn(actual.applyPersonalAction),
+  };
 });
 
 const record: LibraryRecord = {
-  id: 'game-a', title: 'Game A', year: 2007, studio: null, genre: null,
-  source: 'collection', sourceId: 'game-a', sourceUrl: null, collectionRank: 9,
+  id: 'game-a',
+  title: 'Game A',
+  year: 2007,
+  studio: null,
+  genre: null,
+  source: 'collection',
+  sourceId: 'game-a',
+  sourceUrl: null,
+  collectionRank: 9,
 };
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
   return {
-    get length() { return values.size; },
+    get length() {
+      return values.size;
+    },
     getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => { values.set(key, value); },
-    removeItem: (key) => { values.delete(key); },
-    clear: () => { values.clear(); },
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
+    removeItem: (key) => {
+      values.delete(key);
+    },
+    clear: () => {
+      values.clear();
+    },
     key: (index) => Array.from(values.keys())[index] ?? null,
   };
 }
@@ -39,9 +66,17 @@ async function stored(write?: { value: unknown }): Promise<unknown> {
     const store = tx.objectStore(STORE_NAME);
     const request = write ? store.put(write.value, STATE_KEY) : store.get(STATE_KEY);
     let value: unknown;
-    request.onsuccess = () => { value = request.result; };
-    tx.oncomplete = () => { connection.close(); resolve(value); };
-    tx.onabort = () => { connection.close(); reject(tx.error); };
+    request.onsuccess = () => {
+      value = request.result;
+    };
+    tx.oncomplete = () => {
+      connection.close();
+      resolve(value);
+    };
+    tx.onabort = () => {
+      connection.close();
+      reject(tx.error);
+    };
   });
 }
 
@@ -74,10 +109,11 @@ describe('commit validation boundary', () => {
 
   it('still rejects a corrupted stored library and writes nothing', async () => {
     await loadPersonalLibrary([record]);
-    const corrupted = { ...(await stored() as object), records: 'not a record map' };
+    const corrupted = { ...((await stored()) as object), records: 'not a record map' };
     await stored({ value: corrupted });
-    await expect(commitPersonalAction({ type: 'set-progress', records: [record], key: 'later', value: true }))
-      .rejects.toMatchObject({ name: 'PersonalLibraryValidationError' });
+    await expect(
+      commitPersonalAction({ type: 'set-progress', records: [record], key: 'later', value: true }),
+    ).rejects.toMatchObject({ name: 'PersonalLibraryValidationError' });
     expect(await stored()).toEqual(corrupted);
   });
 });

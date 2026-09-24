@@ -3,12 +3,24 @@ import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteApp, initializeApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import {
-  connectAuthEmulator, createUserWithEmailAndPassword, getIdToken,
-  inMemoryPersistence, initializeAuth, reload,
+  connectAuthEmulator,
+  createUserWithEmailAndPassword,
+  getIdToken,
+  inMemoryPersistence,
+  initializeAuth,
+  reload,
 } from 'firebase/auth';
 import {
-  collection, connectFirestoreEmulator, documentId, getDocsFromServer, getFirestore,
-  limit, orderBy, query, startAfter, where,
+  collection,
+  connectFirestoreEmulator,
+  documentId,
+  getDocsFromServer,
+  getFirestore,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  where,
 } from 'firebase/firestore';
 import type { DocumentData, Firestore } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -25,38 +37,65 @@ interface ListGrant {
   row?: (uid: string, reader: Reader) => DocumentData;
   filters?: (uid: string, reader: Reader) => readonly Filter[];
 }
-interface ListCase extends ListGrant { reader: Reader; queryLimit: number }
+interface ListCase extends ListGrant {
+  reader: Reader;
+  queryLimit: number;
+}
 
-const allFilters = (_uid: string, reader: Reader): readonly Filter[] => reader === 'peer'
-  ? [['format', '==', 3], ['epoch', '==', 1], ['active', '==', true]] : [];
+const allFilters = (_uid: string, reader: Reader): readonly Filter[] =>
+  reader === 'peer'
+    ? [
+        ['format', '==', 3],
+        ['epoch', '==', 1],
+        ['active', '==', true],
+      ]
+    : [];
 const grants: ListGrant[] = [
   { path: 'members', cap: 20, readers: ['creator'] },
   { path: 'accounts/{uid}/generations', cap: 20, readers: ['owner'] },
   { path: 'accounts/{uid}/chunks', cap: 20, readers: ['owner'], deleted: true },
   { path: 'creatorRanks/{uid}/chunks', cap: 20, readers: ['owner'], deleted: true },
   {
-    path: 'publicProfiles', cap: 20, readers: ['public', 'creator'],
-    row: (_uid, reader) => ({ published: reader === 'public', listed: reader === 'public', hidden: reader !== 'public' }),
-    filters: (_uid, reader) => reader === 'public'
-      ? [['published', '==', true], ['listed', '==', true], ['hidden', '==', false]] : [],
+    path: 'publicProfiles',
+    cap: 20,
+    readers: ['public', 'creator'],
+    row: (_uid, reader) => ({
+      published: reader === 'public',
+      listed: reader === 'public',
+      hidden: reader !== 'public',
+    }),
+    filters: (_uid, reader) =>
+      reader === 'public'
+        ? [
+            ['published', '==', true],
+            ['listed', '==', true],
+            ['hidden', '==', false],
+          ]
+        : [],
   },
   { path: 'publicProfiles/{uid}/generations', cap: 20, readers: ['owner'] },
   { path: 'publicProfiles/{uid}/generations/{generation}/entries', cap: 200, readers: ['owner', 'public', 'creator'] },
   {
-    path: 'reports', cap: 20, readers: ['owner', 'creator'],
-    row: uid => ({ reporterUid: uid }),
-    filters: (uid, reader) => reader === 'owner' ? [['reporterUid', '==', uid]] : [],
+    path: 'reports',
+    cap: 20,
+    readers: ['owner', 'creator'],
+    row: (uid) => ({ reporterUid: uid }),
+    filters: (uid, reader) => (reader === 'owner' ? [['reporterUid', '==', uid]] : []),
   },
   {
-    path: 'friendPairs', cap: 20, readers: ['owner'],
-    row: uid => ({ participants: [uid, 'OffsetPeer'] }),
-    filters: uid => [['participants', 'array-contains', uid]],
+    path: 'friendPairs',
+    cap: 20,
+    readers: ['owner'],
+    row: (uid) => ({ participants: [uid, 'OffsetPeer'] }),
+    filters: (uid) => [['participants', 'array-contains', uid]],
   },
   { path: 'friendBlocks/{uid}/items', cap: 20, readers: ['owner'] },
   {
-    path: 'friendInvites', cap: 20, readers: ['owner'],
-    row: uid => ({ ownerUid: uid }),
-    filters: uid => [['ownerUid', '==', uid]],
+    path: 'friendInvites',
+    cap: 20,
+    readers: ['owner'],
+    row: (uid) => ({ ownerUid: uid }),
+    filters: (uid) => [['ownerUid', '==', uid]],
   },
   { path: 'friendInviteSlots/{uid}/slots', cap: 20, readers: ['owner'] },
   { path: 'friendShares/{uid}/generations', cap: 3, readers: ['owner'] },
@@ -65,17 +104,29 @@ const grants: ListGrant[] = [
   { path: 'friendShelves/{uid}/generations', cap: 3, readers: ['owner'] },
   { path: 'friendShelves/{uid}/generations/{generation}/chunks', cap: 100, readers: ['owner', 'peer'] },
   {
-    path: 'friendAllGames/{uid}/entries', cap: 100, peerCap: 25, readers: ['owner', 'peer'],
-    row: () => ({ format: 3, epoch: 1, active: true }), filters: allFilters,
+    path: 'friendAllGames/{uid}/entries',
+    cap: 100,
+    peerCap: 25,
+    readers: ['owner', 'peer'],
+    row: () => ({ format: 3, epoch: 1, active: true }),
+    filters: allFilters,
   },
   {
-    path: 'friendAllRankings/{uid}/entries', cap: 100, peerCap: 25, readers: ['owner', 'peer'],
-    row: () => ({ format: 3, epoch: 1, active: true }), filters: allFilters,
+    path: 'friendAllRankings/{uid}/entries',
+    cap: 100,
+    peerCap: 25,
+    readers: ['owner', 'peer'],
+    row: () => ({ format: 3, epoch: 1, active: true }),
+    filters: allFilters,
   },
 ];
-const cases: ListCase[] = grants.flatMap(grant => grant.readers.map(reader => ({
-  ...grant, reader, queryLimit: reader === 'peer' ? grant.peerCap ?? grant.cap : grant.cap,
-})));
+const cases: ListCase[] = grants.flatMap((grant) =>
+  grant.readers.map((reader) => ({
+    ...grant,
+    reader,
+    queryLimit: reader === 'peer' ? (grant.peerCap ?? grant.cap) : grant.cap,
+  })),
+);
 const endpoints = migrationEmulators();
 const documents = `projects/${endpoints.projectId}/databases/(default)/documents`;
 const restOrigin = `http://${endpoints.host}:${endpoints.port}/v1/${documents}`;
@@ -101,22 +152,35 @@ beforeAll(async () => {
     firestore: { host: endpoints.host, port: endpoints.port, rules: candidateRules() },
   });
   const client = session();
-  const user = (await createUserWithEmailAndPassword(
-    client.auth, `offset-${crypto.randomUUID()}@example.test`, 'Emulator-only-passphrase-4382',
-  )).user;
-  const verified = await fetch(`${endpoints.authOrigin}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
-    body: JSON.stringify({ localId: user.uid, emailVerified: true }),
-  });
+  const user = (
+    await createUserWithEmailAndPassword(
+      client.auth,
+      `offset-${crypto.randomUUID()}@example.test`,
+      'Emulator-only-passphrase-4382',
+    )
+  ).user;
+  const verified = await fetch(
+    `${endpoints.authOrigin}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+      body: JSON.stringify({ localId: user.uid, emailVerified: true }),
+    },
+  );
   if (!verified.ok) throw new Error('The local query-offset Auth actor could not be verified.');
   await reload(user);
   actor = { uid: user.uid, token: await getIdToken(user, true), db: client.db };
   guest = session().db;
 });
-beforeEach(async () => { await environment.clearFirestore(); });
+beforeEach(async () => {
+  await environment.clearFirestore();
+});
 afterAll(async () => {
-  try { await environment?.cleanup(); }
-  finally { await Promise.all(apps.splice(0).map(app => deleteApp(app))); }
+  try {
+    await environment?.cleanup();
+  } finally {
+    await Promise.all(apps.splice(0).map((app) => deleteApp(app)));
+  }
 });
 
 async function fixture(testCase: ListCase) {
@@ -138,8 +202,13 @@ async function fixture(testCase: ListCase) {
     [`friendShareHeads/${uid}`]: pointer,
     [`friendShelfHeads/${uid}`]: pointer,
     [`friendAllPolicies/${uid}`]: {
-      enabled: true, deleted: false, epoch: 1, revision: 1, syncEpoch: 1,
-      ranking: { epoch: 1, revision: 1 }, shelf: { epoch: 1, revision: 1 },
+      enabled: true,
+      deleted: false,
+      epoch: 1,
+      revision: 1,
+      syncEpoch: 1,
+      ranking: { epoch: 1, revision: 1 },
+      shelf: { epoch: 1, revision: 1 },
     },
     [`friendAllHeads/${uid}/views/games`]: allHead,
     [`friendAllHeads/${uid}/views/ranking`]: allHead,
@@ -151,10 +220,12 @@ async function fixture(testCase: ListCase) {
   }
   if (testCase.path === 'publicProfiles/{uid}/generations/{generation}/entries') {
     entries[`publicProfiles/${uid}`] = {
-      generation, published: testCase.reader === 'public', hidden: testCase.reader !== 'public',
+      generation,
+      published: testCase.reader === 'public',
+      hidden: testCase.reader !== 'public',
     };
   }
-  await environment.withSecurityRulesDisabled(async context => {
+  await environment.withSecurityRulesDisabled(async (context) => {
     const batch = context.firestore().batch();
     for (const [entryPath, data] of Object.entries(entries)) batch.set(context.firestore().doc(entryPath), data);
     await batch.commit();
@@ -167,7 +238,11 @@ function restValue(value: Filter[2]) {
   if (typeof value === 'boolean') return { booleanValue: value };
   return { integerValue: String(value) };
 }
-interface QueryOptions { offset?: number; cursor?: boolean; queryLimit?: number | null }
+interface QueryOptions {
+  offset?: number;
+  cursor?: boolean;
+  queryLimit?: number | null;
+}
 async function restQuery(testCase: ListCase, path: string, filters: readonly Filter[], options: QueryOptions = {}) {
   const segments = path.split('/');
   const collectionId = segments.pop();
@@ -183,19 +258,30 @@ async function restQuery(testCase: ListCase, path: string, filters: readonly Fil
     body: JSON.stringify({
       structuredQuery: {
         from: [{ collectionId }],
-        ...(filters.length ? {
-          where: { compositeFilter: {
-            op: 'AND', filters: filters.map(([fieldPath, op, value]) => ({
-              fieldFilter: { field: { fieldPath }, op: op === '==' ? 'EQUAL' : 'ARRAY_CONTAINS', value: restValue(value) },
-            })),
-          } },
-        } : {}),
+        ...(filters.length
+          ? {
+              where: {
+                compositeFilter: {
+                  op: 'AND',
+                  filters: filters.map(([fieldPath, op, value]) => ({
+                    fieldFilter: {
+                      field: { fieldPath },
+                      op: op === '==' ? 'EQUAL' : 'ARRAY_CONTAINS',
+                      value: restValue(value),
+                    },
+                  })),
+                },
+              },
+            }
+          : {}),
         orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
         ...(queryLimit === null ? {} : { limit: queryLimit }),
         ...(options.offset === undefined ? {} : { offset: options.offset }),
-        ...(options.cursor ? {
-          startAt: { values: [{ referenceValue: `${documents}/${path}/a` }], before: false },
-        } : {}),
+        ...(options.cursor
+          ? {
+              startAt: { values: [{ referenceValue: `${documents}/${path}/a` }], before: false },
+            }
+          : {}),
       },
     }),
   });
@@ -224,12 +310,14 @@ async function permissionDenied(response: Response) {
 }
 
 describe('capped list grants reject offsets without rejecting cursor pagination', () => {
-  it.each(cases)('$path as $reader retains its $queryLimit-row cap and cursor pages', async testCase => {
+  it.each(cases)('$path as $reader retains its $queryLimit-row cap and cursor pages', async (testCase) => {
     const { path, filters } = await fixture(testCase);
     const names = [`${documents}/${path}/a`, `${documents}/${path}/b`];
     for (const offset of [undefined, 0]) {
       expect(await documentNames(await restQuery(testCase, path, filters, { offset }))).toEqual(names);
-      expect(await documentNames(await restQuery(testCase, path, filters, { offset, cursor: true }))).toEqual(names.slice(1));
+      expect(await documentNames(await restQuery(testCase, path, filters, { offset, cursor: true }))).toEqual(
+        names.slice(1),
+      );
     }
     for (const offset of [1, 10000]) {
       await permissionDenied(await restQuery(testCase, path, filters, { offset }));
@@ -239,13 +327,17 @@ describe('capped list grants reject offsets without rejecting cursor pagination'
     await permissionDenied(await restQuery(testCase, path, filters, { queryLimit: testCase.queryLimit + 1 }));
 
     const db = testCase.reader === 'public' ? guest : actor.db;
-    const base = query(collection(db, path), ...filters.map(([field, op, value]) => where(field, op, value)),
-      orderBy(documentId()), limit(testCase.queryLimit));
+    const base = query(
+      collection(db, path),
+      ...filters.map(([field, op, value]) => where(field, op, value)),
+      orderBy(documentId()),
+      limit(testCase.queryLimit),
+    );
     const first = await getDocsFromServer(query(base, limit(1)));
-    expect(first.docs.map(row => row.id)).toEqual(['a']);
+    expect(first.docs.map((row) => row.id)).toEqual(['a']);
     const cursor = first.docs[0];
     if (!cursor) throw new Error('The first cursor page must not be empty.');
     const next = await getDocsFromServer(query(base, startAfter(cursor), limit(1)));
-    expect(next.docs.map(row => row.id)).toEqual(['b']);
+    expect(next.docs.map((row) => row.id)).toEqual(['b']);
   });
 });

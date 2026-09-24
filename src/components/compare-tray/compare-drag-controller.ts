@@ -8,19 +8,41 @@ export const COMPARE_TOUCH_HOLD_MS = 280;
 export const COMPARE_TOUCH_SLOP = 8;
 export const COMPARE_CLICK_TAIL_MS = 350;
 
-interface Point { x: number; y: number }
-export interface CompareClickTail extends Point { until: number; pointerId?: number }
-type ClickInput = Pick<MouseEvent, 'button' | 'detail' | 'clientX' | 'clientY' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'> & { pointerId?: number };
+interface Point {
+  x: number;
+  y: number;
+}
+export interface CompareClickTail extends Point {
+  until: number;
+  pointerId?: number;
+}
+type ClickInput = Pick<
+  MouseEvent,
+  'button' | 'detail' | 'clientX' | 'clientY' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'
+> & { pointerId?: number };
 const modified = (event: Pick<MouseEvent, 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>) =>
   event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
 
 export function matchesCompareClick(event: ClickInput, tail: CompareClickTail | null, now: number): boolean {
-  return Boolean(tail && now <= tail.until && event.button === 0 && event.detail > 0 && !modified(event) &&
-    (event.pointerId === undefined || event.pointerId < 0 || tail.pointerId === undefined || event.pointerId === tail.pointerId) &&
-    Math.hypot(event.clientX - tail.x, event.clientY - tail.y) <= COMPARE_TOUCH_SLOP);
+  return Boolean(
+    tail &&
+    now <= tail.until &&
+    event.button === 0 &&
+    event.detail > 0 &&
+    !modified(event) &&
+    (event.pointerId === undefined ||
+      event.pointerId < 0 ||
+      tail.pointerId === undefined ||
+      event.pointerId === tail.pointerId) &&
+    Math.hypot(event.clientX - tail.x, event.clientY - tail.y) <= COMPARE_TOUCH_SLOP,
+  );
 }
 
-export function ownsCompareCaptureLoss(event: Pick<PointerEvent, 'target' | 'pointerId'>, node: EventTarget, pointerId: number): boolean {
+export function ownsCompareCaptureLoss(
+  event: Pick<PointerEvent, 'target' | 'pointerId'>,
+  node: EventTarget,
+  pointerId: number,
+): boolean {
   return event.target === node && event.pointerId === pointerId;
 }
 
@@ -54,8 +76,10 @@ interface Services {
   interaction(): CompareInteractionGate | undefined;
 }
 
-const excluded = 'input,textarea,select,option,label,summary,details,p,[contenteditable]:not([contenteditable="false"]),audio,video,iframe,[data-compare-drag-ignore]';
-const controls = 'button,a[href],[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="switch"],[role="slider"],[role="textbox"],[role="combobox"],[role="listbox"],[role="menuitem"],[role="tab"],[tabindex]';
+const excluded =
+  'input,textarea,select,option,label,summary,details,p,[contenteditable]:not([contenteditable="false"]),audio,video,iframe,[data-compare-drag-ignore]';
+const controls =
+  'button,a[href],[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="switch"],[role="slider"],[role="textbox"],[role="combobox"],[role="listbox"],[role="menuitem"],[role="tab"],[tabindex]';
 const unavailable = '[hidden],[inert]';
 const hiddenSource = `${unavailable},[aria-hidden="true"]`;
 const pointOf = (event: { clientX: number; clientY: number }): Point => ({ x: event.clientX, y: event.clientY });
@@ -84,8 +108,12 @@ export function compareSourceTarget(node: HTMLElement, event: Event): boolean {
   for (const target of path.slice(0, end + 1)) {
     if (!(target instanceof Element)) continue;
     if (target.matches(`${excluded},${unavailable},:disabled,[aria-disabled="true"]`)) return false;
-    if (target.matches(controls) && !(target === node && node.hasAttribute('data-compare-drag-grip')) &&
-      !(target.matches('a,button') && target.hasAttribute('data-compare-drag-title'))) return false;
+    if (
+      target.matches(controls) &&
+      !(target === node && node.hasAttribute('data-compare-drag-grip')) &&
+      !(target.matches('a,button') && target.hasAttribute('data-compare-drag-title'))
+    )
+      return false;
   }
   return true;
 }
@@ -103,16 +131,32 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
   const inputReady = () => alive && isCurrent() && interaction()?.enabled === true && !document.hidden && !modalOpen();
   const current = (gesture: Gesture) => {
     const source = gesture.source.read();
-    return inputReady() && gesture.guard.isCurrent() && !source.disabled && source.node === gesture.node &&
-      source.node.isConnected && !isCompareSourceHidden(source.node) && source.record?.id === gesture.recordId;
+    return (
+      inputReady() &&
+      gesture.guard.isCurrent() &&
+      !source.disabled &&
+      source.node === gesture.node &&
+      source.node.isConnected &&
+      !isCompareSourceHidden(source.node) &&
+      source.record?.id === gesture.recordId
+    );
   };
-  const clearTail = () => { disposeTail(); disposeTail = () => {}; tail = null; };
+  const clearTail = () => {
+    disposeTail();
+    disposeTail = () => {};
+    tail = null;
+  };
   const consumeClick = (event: ClickInput): boolean => {
     if (!matchesCompareClick(event, tail, Date.now())) return false;
     clearTail();
     return true;
   };
-  const rememberTail = (point: Point, pointerId: number | undefined, touchId: number | undefined, terminal: boolean) => {
+  const rememberTail = (
+    point: Point,
+    pointerId: number | undefined,
+    touchId: number | undefined,
+    terminal: boolean,
+  ) => {
     clearTail();
     tail = terminal ? { ...point, pointerId, until: Date.now() + COMPARE_CLICK_TAIL_MS } : null;
     let timer: number | null = null;
@@ -125,23 +169,29 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       document.addEventListener('click', click, true);
       timer = window.setTimeout(clearTail, COMPARE_CLICK_TAIL_MS);
     };
-    const pointerEnd = (event: PointerEvent) => { if (event.pointerId === pointerId) ended(pointOf(event)); };
+    const pointerEnd = (event: PointerEvent) => {
+      if (event.pointerId === pointerId) ended(pointOf(event));
+    };
     const touchEnd = (event: TouchEvent) => {
-      const finger = Array.from(event.changedTouches).find(item => item.identifier === touchId);
+      const finger = Array.from(event.changedTouches).find((item) => item.identifier === touchId);
       if (finger) ended(pointOf(finger));
     };
     const click = (event: MouseEvent) => {
-      if (consumeClick(event)) { event.preventDefault(); event.stopPropagation(); }
+      if (consumeClick(event)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     };
-    const hidden = () => { if (document.hidden) clearTail(); };
+    const hidden = () => {
+      if (document.hidden) clearTail();
+    };
     document.addEventListener('pointerdown', clearTail, true);
     document.addEventListener('touchstart', clearTail, true);
     document.addEventListener('keydown', clearTail, true);
     if (terminal) {
       document.addEventListener('click', click, true);
       timer = window.setTimeout(clearTail, COMPARE_CLICK_TAIL_MS);
-    }
-    else {
+    } else {
       // Escape can precede pointer-up; start the bounded click tail at the actual end.
       document.addEventListener('pointerup', pointerEnd, true);
       document.addEventListener('pointercancel', pointerEnd, true);
@@ -177,54 +227,112 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     if (gesture.token && !endedSession) drag.cancelDrag();
     if (gesture.token) rememberTail(gesture.point, gesture.pointerId, gesture.touchId, terminal);
   };
-  const cancel = (terminal = true) => { if (active) finish(active, false, terminal); };
-  const cancelSource = (source: CompareSource, terminal = true) => { if (active?.source === source) cancel(terminal); };
+  const cancel = (terminal = true) => {
+    if (active) finish(active, false, terminal);
+  };
+  const cancelSource = (source: CompareSource, terminal = true) => {
+    if (active?.source === source) cancel(terminal);
+  };
   const listen = <K extends keyof DocumentEventMap>(
-    gesture: Gesture, type: K, listener: (event: DocumentEventMap[K]) => void, options?: AddEventListenerOptions | boolean,
+    gesture: Gesture,
+    type: K,
+    listener: (event: DocumentEventMap[K]) => void,
+    options?: AddEventListenerOptions | boolean,
   ) => {
     document.addEventListener(type, listener, options);
     gesture.cleanups.push(() => document.removeEventListener(type, listener, options));
   };
   const watch = (gesture: Gesture) => {
-    const interrupt = runtime.subscribeInterrupt(reason => {
+    const interrupt = runtime.subscribeInterrupt((reason) => {
       if (active !== gesture || reason === 'drag' || reason === 'superseded') return;
       if (reason !== 'policy' || !current(gesture)) cancel();
     });
-    if (active === gesture) gesture.cleanups.push(interrupt); else interrupt();
+    if (active === gesture) gesture.cleanups.push(interrupt);
+    else interrupt();
     const unsubscribe = gesture.guard.subscribe?.(() => {
       if (active === gesture && !current(gesture)) cancel();
     });
     if (unsubscribe) {
-      if (active === gesture) gesture.cleanups.push(unsubscribe); else unsubscribe();
+      if (active === gesture) gesture.cleanups.push(unsubscribe);
+      else unsubscribe();
     }
     if (active !== gesture) return;
-    listen(gesture, 'selectionchange', () => { if (selecting()) cancelSource(gesture.source); });
-    listen(gesture, 'keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancelSource(gesture.source, false); }
-      else if (!['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) cancelSource(gesture.source);
-    }, true);
-    listen(gesture, 'pointerdown', () => { cancelSource(gesture.source); clearTail(); }, true);
-    listen(gesture, 'touchstart', event => { if (event.touches.length > 1) cancelSource(gesture.source); }, true);
+    listen(gesture, 'selectionchange', () => {
+      if (selecting()) cancelSource(gesture.source);
+    });
+    listen(
+      gesture,
+      'keydown',
+      (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelSource(gesture.source, false);
+        } else if (!['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) cancelSource(gesture.source);
+      },
+      true,
+    );
+    listen(
+      gesture,
+      'pointerdown',
+      () => {
+        cancelSource(gesture.source);
+        clearTail();
+      },
+      true,
+    );
+    listen(
+      gesture,
+      'touchstart',
+      (event) => {
+        if (event.touches.length > 1) cancelSource(gesture.source);
+      },
+      true,
+    );
     const blur = () => cancelSource(gesture.source);
     window.addEventListener('blur', blur);
     window.addEventListener('pagehide', blur);
-    gesture.cleanups.push(() => { window.removeEventListener('blur', blur); window.removeEventListener('pagehide', blur); });
+    gesture.cleanups.push(() => {
+      window.removeEventListener('blur', blur);
+      window.removeEventListener('pagehide', blur);
+    });
   };
   const prepare = (source: CompareSource, event: Event, point: Point, kind: Gesture['kind']) => {
     const value = source.read();
-    if (!value.node || !value.record || value.disabled || !inputReady() || selecting() || !compareSourceTarget(value.node, event)) return null;
+    if (
+      !value.node ||
+      !value.record ||
+      value.disabled ||
+      !inputReady() ||
+      selecting() ||
+      !compareSourceTarget(value.node, event)
+    )
+      return null;
     cancel();
     clearTail();
     const guard = interaction()?.captureCurrent();
     if (!guard?.isCurrent()) return null;
     const gesture: Gesture = {
-      source, node: value.node, recordId: value.record.id, guard, kind,
-      origin: point, point, ready: kind === 'mouse', token: null, native: false,
-      ghost: null, frame: null, cleanups: [],
+      source,
+      node: value.node,
+      recordId: value.record.id,
+      guard,
+      kind,
+      origin: point,
+      point,
+      ready: kind === 'mouse',
+      token: null,
+      native: false,
+      ghost: null,
+      frame: null,
+      cleanups: [],
     };
     active = gesture;
     watch(gesture);
-    if (active !== gesture || !current(gesture)) { cancelSource(source); return null; }
+    if (active !== gesture || !current(gesture)) {
+      cancelSource(source);
+      return null;
+    }
     if (kind !== 'mouse') {
       const timer = window.setTimeout(() => {
         if (active === gesture && current(gesture) && !selecting()) gesture.ready = true;
@@ -246,13 +354,22 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     return ghost;
   };
   const activate = (gesture: Gesture, native: boolean): boolean => {
-    if (active !== gesture || !current(gesture) || selecting()) { cancelSource(gesture.source); return false; }
+    if (active !== gesture || !current(gesture) || selecting()) {
+      cancelSource(gesture.source);
+      return false;
+    }
     const record = gesture.source.read().record;
     if (!record) return false;
     runtime.cancel('drag');
-    if (!current(gesture)) { cancelSource(gesture.source); return false; }
+    if (!current(gesture)) {
+      cancelSource(gesture.source);
+      return false;
+    }
     const token = drag.beginDrag(record);
-    if (!token) { finish(gesture); return false; }
+    if (!token) {
+      finish(gesture);
+      return false;
+    }
     gesture.token = token;
     gesture.native = native;
     gesture.node.setAttribute('data-compare-dragging', '');
@@ -269,7 +386,10 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     gesture.frame = window.requestAnimationFrame(() => {
       gesture.frame = null;
       if (active !== gesture) return;
-      if (!current(gesture)) { cancel(); return; }
+      if (!current(gesture)) {
+        cancel();
+        return;
+      }
       const over = overDock(gesture.point);
       const x = Math.max(8, Math.min(window.innerWidth - 184, gesture.point.x + 12));
       const y = Math.max(8, Math.min(window.innerHeight - 52, gesture.point.y - 56));
@@ -279,16 +399,28 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
   };
   const moveTouch = (gesture: Gesture, event: Event, point: Point) => {
     if (active !== gesture) return;
-    if (!current(gesture) || selecting()) { cancel(); return; }
+    if (!current(gesture) || selecting()) {
+      cancel();
+      return;
+    }
     gesture.point = point;
     const distance = Math.hypot(point.x - gesture.origin.x, point.y - gesture.origin.y);
     if (!gesture.token) {
-      if (!gesture.ready) { if (distance > COMPARE_TOUCH_SLOP) cancel(); return; }
+      if (!gesture.ready) {
+        if (distance > COMPARE_TOUCH_SLOP) cancel();
+        return;
+      }
       if (distance === 0) return;
       // Broad surfaces retain native panning; a hold cannot change touch-action.
-      if (gesture.kind === 'touch' && !event.cancelable) { cancel(); return; }
+      if (gesture.kind === 'touch' && !event.cancelable) {
+        cancel();
+        return;
+      }
       if (event.cancelable) event.preventDefault();
-      if (gesture.kind === 'touch' && !event.defaultPrevented) { cancel(); return; }
+      if (gesture.kind === 'touch' && !event.defaultPrevented) {
+        cancel();
+        return;
+      }
       if (!activate(gesture, false)) return;
       if (gesture.kind === 'grip' && gesture.pointerId !== undefined) {
         try {
@@ -310,9 +442,15 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         });
       }
     } else {
-      if (gesture.kind === 'touch' && !event.cancelable) { cancel(); return; }
+      if (gesture.kind === 'touch' && !event.cancelable) {
+        cancel();
+        return;
+      }
       if (event.cancelable) event.preventDefault();
-      if (gesture.kind === 'touch' && !event.defaultPrevented) { cancel(); return; }
+      if (gesture.kind === 'touch' && !event.defaultPrevented) {
+        cancel();
+        return;
+      }
     }
     scheduleMove(gesture);
   };
@@ -320,16 +458,24 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     const pending = pendingSettle;
     if (!pending || !arrival || pending.id !== arrival.id || !arrival.node.isConnected) return;
     pendingSettle = null;
-    const animation = pending.session.animate(arrival.node, [
-      { transform: 'translateY(-4px)', opacity: 0.7 }, { transform: 'translateY(0)', opacity: 1 },
-    ], { duration: 150, easing: 'cubic-bezier(.16,1,.3,1)' });
-    if (!animation) { pending.session.finish(); return; }
+    const animation = pending.session.animate(
+      arrival.node,
+      [
+        { transform: 'translateY(-4px)', opacity: 0.7 },
+        { transform: 'translateY(0)', opacity: 1 },
+      ],
+      { duration: 150, easing: 'cubic-bezier(.16,1,.3,1)' },
+    );
+    if (!animation) {
+      pending.session.finish();
+      return;
+    }
     const done = () => pending.session.finish();
     animation.addEventListener('finish', done, { once: true });
     pending.session.addCleanup(() => animation.removeEventListener('finish', done));
   };
   const added = (before: readonly LibraryRecord[]) => {
-    const record = store.getSnapshot().items.find(item => !before.some(prior => prior.id === item.id));
+    const record = store.getSnapshot().items.find((item) => !before.some((prior) => prior.id === item.id));
     if (!record || !inputReady()) return;
     const session = runtime.startMotionSession({ channel: 'drag-settle', guard: interaction()?.captureCurrent() });
     if (!session) return;
@@ -342,12 +488,18 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     });
     startSettle();
     queueMicrotask(() => {
-      if (pendingSettle === pending) { startSettle(); if (pendingSettle === pending) session.finish(); }
+      if (pendingSettle === pending) {
+        startSettle();
+        if (pendingSettle === pending) session.finish();
+      }
     });
   };
   const dropGame = (token: string): boolean => {
     const gesture = active;
-    if (!gesture || !gesture.token || !current(gesture) || !dock) { cancel(); return false; }
+    if (!gesture || !gesture.token || !current(gesture) || !dock) {
+      cancel();
+      return false;
+    }
     const before = store.getSnapshot().items;
     const accepted = drag.dropGame(token);
     finish(gesture, true);
@@ -367,25 +519,51 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     finish(gesture);
   };
   return {
-    resume() { alive = true; },
-    dispose() { alive = false; cancel(); clearTail(); settleSession?.cancel('unmount'); pendingSettle = null; settleSession = null; dock = null; arrival = null; },
-    refresh() { if (active && !current(active)) cancel(); },
-    refreshSource(source: CompareSource) { if (active?.source === source && !current(active)) cancel(); },
-    cancelSource, cancel, consumeClick,
-    canPin() { return alive && isCurrent() && interaction()?.enabled !== false; },
+    resume() {
+      alive = true;
+    },
+    dispose() {
+      alive = false;
+      cancel();
+      clearTail();
+      settleSession?.cancel('unmount');
+      pendingSettle = null;
+      settleSession = null;
+      dock = null;
+      arrival = null;
+    },
+    refresh() {
+      if (active && !current(active)) cancel();
+    },
+    refreshSource(source: CompareSource) {
+      if (active?.source === source && !current(active)) cancel();
+    },
+    cancelSource,
+    cancel,
+    consumeClick,
+    canPin() {
+      return alive && isCurrent() && interaction()?.enabled !== false;
+    },
     pin(record: LibraryRecord) {
       const before = store.getSnapshot().items;
       const accepted = store.pin(record);
       if (accepted) added(before);
       return accepted;
     },
-    clear() { cancel(); settleSession?.cancel(); pendingSettle = null; return store.clear(); },
+    clear() {
+      cancel();
+      settleSession?.cancel();
+      pendingSettle = null;
+      return store.clear();
+    },
     setDock(node: HTMLElement | null) {
       dock = node;
       if (!node && active) {
         const gesture = active;
         // A StrictMode ref rehearsal reattaches in this commit; a real removal stays unavailable.
-        queueMicrotask(() => { if (!dock && active === gesture) cancel(); });
+        queueMicrotask(() => {
+          if (!dock && active === gesture) cancel();
+        });
       }
     },
     setArrivalTarget(id: string | undefined, node: HTMLElement | null) {
@@ -409,18 +587,31 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
           else gesture.node.setAttribute('draggable', previous);
         });
       }
-      listen(gesture, 'pointermove', move => {
-        if (move.pointerId !== gesture.pointerId || gesture.native) return;
-        if (modified(move) || !(move.buttons & 1)) { cancelSource(source); return; }
-        gesture.point = pointOf(move);
-        if (gesture.kind === 'grip') moveTouch(gesture, move, gesture.point);
-        else if (!current(gesture) || selecting()) cancelSource(source);
-      }, { passive: false });
-      listen(gesture, 'pointerup', up => {
-        if (up.pointerId === gesture.pointerId && !gesture.native) release(gesture, pointOf(up));
-      }, true);
+      listen(
+        gesture,
+        'pointermove',
+        (move) => {
+          if (move.pointerId !== gesture.pointerId || gesture.native) return;
+          if (modified(move) || !(move.buttons & 1)) {
+            cancelSource(source);
+            return;
+          }
+          gesture.point = pointOf(move);
+          if (gesture.kind === 'grip') moveTouch(gesture, move, gesture.point);
+          else if (!current(gesture) || selecting()) cancelSource(source);
+        },
+        { passive: false },
+      );
+      listen(
+        gesture,
+        'pointerup',
+        (up) => {
+          if (up.pointerId === gesture.pointerId && !gesture.native) release(gesture, pointOf(up));
+        },
+        true,
+      );
       // HTML drag deliberately cancels the pointer stream when the UA takes over.
-      listen(gesture, 'pointercancel', canceled => {
+      listen(gesture, 'pointercancel', (canceled) => {
         if (canceled.pointerId === gesture.pointerId && !gesture.native) cancelSource(source);
       });
     },
@@ -431,15 +622,28 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       const gesture = prepare(source, event, pointOf(touch), 'touch');
       if (!gesture) return;
       gesture.touchId = touch.identifier;
-      listen(gesture, 'touchmove', move => {
-        if (move.touches.length !== 1) { cancelSource(source); return; }
-        const finger = Array.from(move.touches).find(item => item.identifier === gesture.touchId);
-        if (finger) moveTouch(gesture, move, pointOf(finger));
-      }, { capture: true, passive: false });
-      listen(gesture, 'touchend', end => {
-        const finger = Array.from(end.changedTouches).find(item => item.identifier === gesture.touchId);
-        if (finger) release(gesture, pointOf(finger));
-      }, true);
+      listen(
+        gesture,
+        'touchmove',
+        (move) => {
+          if (move.touches.length !== 1) {
+            cancelSource(source);
+            return;
+          }
+          const finger = Array.from(move.touches).find((item) => item.identifier === gesture.touchId);
+          if (finger) moveTouch(gesture, move, pointOf(finger));
+        },
+        { capture: true, passive: false },
+      );
+      listen(
+        gesture,
+        'touchend',
+        (end) => {
+          const finger = Array.from(end.changedTouches).find((item) => item.identifier === gesture.touchId);
+          if (finger) release(gesture, pointOf(finger));
+        },
+        true,
+      );
       listen(gesture, 'touchcancel', () => cancelSource(source));
     },
     nativeStart(source: CompareSource, event: DragEvent) {
@@ -461,7 +665,10 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         cancel();
         return;
       }
-      if (!activate(gesture, true) || !gesture.token || !gesture.ghost) { event.preventDefault(); return; }
+      if (!activate(gesture, true) || !gesture.token || !gesture.ghost) {
+        event.preventDefault();
+        return;
+      }
       try {
         event.dataTransfer.clearData();
         event.dataTransfer.effectAllowed = 'copy';
@@ -479,15 +686,27 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       finish(active);
     },
     nativeOver(event: DragEvent) {
-      if (!active?.native || !active.token || !current(active) || !dock ||
-        !event.dataTransfer?.types.includes(COMPARE_DRAG_TYPE)) return;
+      if (
+        !active?.native ||
+        !active.token ||
+        !current(active) ||
+        !dock ||
+        !event.dataTransfer?.types.includes(COMPARE_DRAG_TYPE)
+      )
+        return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'copy';
       active.point = pointOf(event);
     },
     nativeDrop(event: DragEvent) {
-      if (!active?.native || !current(active) || !dock || !overDock(pointOf(event)) ||
-        !event.dataTransfer?.types.includes(COMPARE_DRAG_TYPE)) return;
+      if (
+        !active?.native ||
+        !current(active) ||
+        !dock ||
+        !overDock(pointOf(event)) ||
+        !event.dataTransfer?.types.includes(COMPARE_DRAG_TYPE)
+      )
+        return;
       event.preventDefault();
       event.stopPropagation();
       active.point = pointOf(event);

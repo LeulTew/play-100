@@ -25,7 +25,9 @@ describe('canonical data and critic semantics', () => {
   it('normalizes ten-point columns and counts both Metacritic entries', () => {
     expect(normalizedAverage({ metacritic: 97, metacriticPc: 93, ign: 10, gamespot: 9, pcGamer: null })).toBe(95);
     expect(normalizedAverage({ metacritic: 96, metacriticPc: 94, ign: 9.6, gamespot: 9, pcGamer: 90 })).toBe(93.2);
-    expect(normalizedAverage({ metacritic: 95, metacriticPc: null, ign: 10, gamespot: 8, pcGamer: null })).toBeCloseTo(91.6666667);
+    expect(normalizedAverage({ metacritic: 95, metacriticPc: null, ign: 10, gamespot: 8, pcGamer: null })).toBeCloseTo(
+      91.6666667,
+    );
   });
   it('never turns missing scores into zeros', () => {
     expect(normalizedAverage(emptyScores)).toBeNull();
@@ -35,22 +37,25 @@ describe('canonical data and critic semantics', () => {
   });
   it('uses a numeric derived rank index, never an independent review', () => {
     expect(data.games[0]?.rankIndex).toBe(10);
-    expect(data.games[6]?.rankIndex).toBeCloseTo(10 - 6 * 3 / 99);
+    expect(data.games[6]?.rankIndex).toBeCloseTo(10 - (6 * 3) / 99);
     expect(data.games[99]?.rankIndex).toBe(7);
   });
-  it.each(['rank', 'tier', 'average', 'slug', 'scale', 'index', 'artwork'] as const)('rejects inconsistent %s rather than substituting data', (field) => {
-    const bad = clone();
-    const game = bad.games[0];
-    if (!game) throw new Error('Missing fixture entry');
-    if (field === 'rank') game.rank = 99;
-    if (field === 'tier') game.tier = 'essential';
-    if (field === 'average') game.criticAverage = 0;
-    if (field === 'slug') game.slug = bad.games[1]?.slug ?? '';
-    if (field === 'scale') game.critics.ign = 98;
-    if (field === 'index') game.rankIndex = 8.7;
-    if (field === 'artwork' && game.artwork) game.artwork.file = 'https://untrusted.invalid/image.jpg';
-    expect(() => parseCollection(bad)).toThrow();
-  });
+  it.each(['rank', 'tier', 'average', 'slug', 'scale', 'index', 'artwork'] as const)(
+    'rejects inconsistent %s rather than substituting data',
+    (field) => {
+      const bad = clone();
+      const game = bad.games[0];
+      if (!game) throw new Error('Missing fixture entry');
+      if (field === 'rank') game.rank = 99;
+      if (field === 'tier') game.tier = 'essential';
+      if (field === 'average') game.criticAverage = 0;
+      if (field === 'slug') game.slug = bad.games[1]?.slug ?? '';
+      if (field === 'scale') game.critics.ign = 98;
+      if (field === 'index') game.rankIndex = 8.7;
+      if (field === 'artwork' && game.artwork) game.artwork.file = 'https://untrusted.invalid/image.jpg';
+      expect(() => parseCollection(bad)).toThrow();
+    },
+  );
   it('rejects incomplete collections and unknown schema versions', () => {
     expect(() => parseCollection({ ...data, games: data.games.slice(0, 50) })).toThrow(/100/);
     expect(() => parseCollection({ ...data, schemaVersion: 2 })).toThrow(/format/);
@@ -68,7 +73,11 @@ describe('browsing without rewriting rank', () => {
     expect(results.map((game) => game.rank)).toEqual([1]);
   });
   it('combines exact original genre, year and tier filters', () => {
-    const results = filterGames(data.games, { ...defaultFilters, genre: 'Open-world / Action-Adventure', year: '2018', tier: 'core' }, {});
+    const results = filterGames(
+      data.games,
+      { ...defaultFilters, genre: 'Open-world / Action-Adventure', year: '2018', tier: 'core' },
+      {},
+    );
     expect(results.map((game) => game.rank)).toEqual([1]);
     expect(filterGames(data.games, { ...defaultFilters, genre: 'not a real genre' }, {})).toEqual([]);
   });
@@ -76,8 +85,12 @@ describe('browsing without rewriting rank', () => {
     expect(filterGames(data.games, { ...defaultFilters, list: 'completed' }, {})).toHaveLength(0);
     expect(filterGames(data.games, { ...defaultFilters, list: 'unplayed' }, {})).toHaveLength(100);
     const progress = { 'mass-effect-2': { later: true, completed: true } };
-    expect(filterGames(data.games, { ...defaultFilters, list: 'later' }, progress).map((game) => game.rank)).toEqual([2]);
-    expect(filterGames(data.games, { ...defaultFilters, list: 'completed' }, progress).map((game) => game.rank)).toEqual([2]);
+    expect(filterGames(data.games, { ...defaultFilters, list: 'later' }, progress).map((game) => game.rank)).toEqual([
+      2,
+    ]);
+    expect(
+      filterGames(data.games, { ...defaultFilters, list: 'completed' }, progress).map((game) => game.rank),
+    ).toEqual([2]);
     expect(filterGames(data.games, { ...defaultFilters, list: 'unplayed' }, progress)).toHaveLength(99);
   });
   it('sorts meaningfully without mutating source order and puts unavailable averages last', () => {
@@ -98,7 +111,16 @@ describe('browsing without rewriting rank', () => {
 
 describe('shareable and reversible URL state', () => {
   it('roundtrips every filter, original genre punctuation and selected game', () => {
-    const filters = { ...defaultFilters, q: 'sci-fi & RPG', genre: 'Action RPG / Sci-Fi', year: '2010', tier: 'core' as const, sort: 'oldest' as const, view: 'list' as const, list: 'later' as const };
+    const filters = {
+      ...defaultFilters,
+      q: 'sci-fi & RPG',
+      genre: 'Action RPG / Sci-Fi',
+      year: '2010',
+      tier: 'core' as const,
+      sort: 'oldest' as const,
+      view: 'list' as const,
+      list: 'later' as const,
+    };
     expect(parseUrl(createSearch(filters, 'mass-effect-2'))).toEqual({ filters, game: 'mass-effect-2' });
   });
   it('keeps default URLs clean and recovers safely from invalid enum values', () => {
@@ -112,7 +134,13 @@ describe('shareable and reversible URL state', () => {
     expect(parseUrl('?catalogs=unknown').filters.catalogs).toBe('on');
   });
   it('omits device-list filters from shared links but preserves public filters', () => {
-    const url = new URL(createShareUrl('https://play100.example', { ...defaultFilters, list: 'completed', year: '2018' }, 'red-dead-redemption-2'));
+    const url = new URL(
+      createShareUrl(
+        'https://play100.example',
+        { ...defaultFilters, list: 'completed', year: '2018' },
+        'red-dead-redemption-2',
+      ),
+    );
     expect(url.searchParams.get('list')).toBeNull();
     expect(url.searchParams.get('year')).toBe('2018');
     expect(url.searchParams.get('game')).toBe('red-dead-redemption-2');
@@ -124,10 +152,20 @@ describe('private device data format', () => {
     expect(parseLibrary(null)).toEqual(emptyLibrary());
   });
   it('roundtrips independent states without treating source notes as progress', () => {
-    const state = { version: 1 as const, motion: 'lite' as const, progress: { 'mass-effect-2': { later: true, completed: true } } };
+    const state = {
+      version: 1 as const,
+      motion: 'lite' as const,
+      progress: { 'mass-effect-2': { later: true, completed: true } },
+    };
     expect(parseLibrary(JSON.stringify(state))).toEqual(state);
   });
-  it.each(['{bad', 'null', '{"version":2,"motion":"auto","progress":{}}', '{"version":1,"motion":"fast","progress":{}}', '{"version":1,"motion":"auto","progress":{"game":{"later":"true","completed":false}}}'])('rejects unreadable data without silently accepting it', (raw) => {
+  it.each([
+    '{bad',
+    'null',
+    '{"version":2,"motion":"auto","progress":{}}',
+    '{"version":1,"motion":"fast","progress":{}}',
+    '{"version":1,"motion":"auto","progress":{"game":{"later":"true","completed":false}}}',
+  ])('rejects unreadable data without silently accepting it', (raw) => {
     expect(() => parseLibrary(raw)).toThrow();
   });
 });

@@ -33,10 +33,14 @@ export interface RouteHostProps {
 
 function publicContent(content: PublicContent, route: AppPage) {
   switch (content.kind) {
-    case 'private-library': return <RouteFallback route={route} kind="private-library" />;
-    case 'personal': return <MyGamesPage {...content.props} />;
-    case 'discover': return <DiscoverPage {...content.props} />;
-    case 'collection': return <CollectionPage {...content.props} />;
+    case 'private-library':
+      return <RouteFallback route={route} kind="private-library" />;
+    case 'personal':
+      return <MyGamesPage {...content.props} />;
+    case 'discover':
+      return <DiscoverPage {...content.props} />;
+    case 'collection':
+      return <CollectionPage {...content.props} />;
   }
 }
 
@@ -44,8 +48,39 @@ export function RouteHost({ route, scope, online, content }: RouteHostProps) {
   // The private placeholder is not page content: the lazy page that replaces it mounts a new Suspense
   // boundary, which shows its fallback even when a transition (the opened library) brings the page in.
   const boundary = content?.kind === 'private-library' ? 'private' : 'page';
-  return <>
-    {online && <OnlineBoundary onDevice={online.onDevice}><Suspense fallback={online.fallback ? <RouteFallback {...online.fallback} /> : null}><OnlineController {...online.props} /></Suspense></OnlineBoundary>}
-    {content?.kind === 'unconfigured' ? <section className="app-page empty-state"><h1>Online tools are not configured in this build.</h1><p>Your device library and the original collection remain available.</p><a className="button button-dark" href="/">Open the collection</a></section> : content && <ChunkBoundary key={routeBoundaryKey(route, content.kind, scope)} fallback={<section className="app-page data-error"><ChunkRecovery message="This page didn't load." /></section>}><Suspense key={boundary} fallback={<RouteFallback route={route} kind="public-page" />}><div key={scope}>{publicContent(content, route)}</div></Suspense></ChunkBoundary>}
-  </>;
+  return (
+    <>
+      {online && (
+        <OnlineBoundary onDevice={online.onDevice}>
+          <Suspense fallback={online.fallback ? <RouteFallback {...online.fallback} /> : null}>
+            <OnlineController {...online.props} />
+          </Suspense>
+        </OnlineBoundary>
+      )}
+      {content?.kind === 'unconfigured' ? (
+        <section className="app-page empty-state">
+          <h1>Online tools are not configured in this build.</h1>
+          <p>Your device library and the original collection remain available.</p>
+          <a className="button button-dark" href="/">
+            Open the collection
+          </a>
+        </section>
+      ) : (
+        content && (
+          <ChunkBoundary
+            key={routeBoundaryKey(route, content.kind, scope)}
+            fallback={
+              <section className="app-page data-error">
+                <ChunkRecovery message="This page didn't load." />
+              </section>
+            }
+          >
+            <Suspense key={boundary} fallback={<RouteFallback route={route} kind="public-page" />}>
+              <div key={scope}>{publicContent(content, route)}</div>
+            </Suspense>
+          </ChunkBoundary>
+        )
+      )}
+    </>
+  );
 }

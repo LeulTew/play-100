@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { sourceTokenBytes } from '../../scripts/source-contract';
 import { describe, expect, it } from 'vitest';
-import { DISCOVERY_GENRE_FAMILIES, discoveryGenreFamilies, matchesDiscoveryGenre, parseDiscoveryGenreFamily } from './discovery-genres';
+import {
+  DISCOVERY_GENRE_FAMILIES,
+  discoveryGenreFamilies,
+  matchesDiscoveryGenre,
+  parseDiscoveryGenreFamily,
+} from './discovery-genres';
 import { parseDiscoveryCatalogJson } from './discovery-catalog';
 import { parseCollection } from './collection';
 import { catalogSearchItems } from './catalog-identity';
@@ -10,10 +15,16 @@ import { getLocalPage } from './local-pagination';
 
 describe('explicit browsing families without rewriting source genres', () => {
   it.each([
-    ['action role-playing game / first-person shooter / cyberpunk video game / role-playing video game / stealth game / immersive sim', ['action-adventure', 'role-playing', 'shooter']],
+    [
+      'action role-playing game / first-person shooter / cyberpunk video game / role-playing video game / stealth game / immersive sim',
+      ['action-adventure', 'role-playing', 'shooter'],
+    ],
     ['Action RPG / Sci-Fi', ['action-adventure', 'role-playing']],
     ['turn-based strategy video game / 4X', ['strategy']],
-    ['city-building game / construction and management simulation / simulation video game / strategic game', ['simulation', 'strategy']],
+    [
+      'city-building game / construction and management simulation / simulation video game / strategic game',
+      ['simulation', 'strategy'],
+    ],
     ['puzzle-platformer', ['platform', 'puzzle']],
     ['Metroidvania / video game with LGBT character / 2D platform game / soulsvania', ['platform']],
     ['2D fighting game / airdasher', ['fighting']],
@@ -28,7 +39,17 @@ describe('explicit browsing families without rewriting source genres', () => {
     expect([...discoveryGenreFamilies(genre)].sort()).toEqual([...expected].sort());
     expect(discoveryGenreFamilies(` ${genre.toUpperCase()} `)).toEqual(discoveryGenreFamilies(genre));
   });
-  it.each([null, '', 'Fantasy', 'MMO', 'massively multiplayer online game', 'roguelike', 'Battle Royale', 'augmented reality / location-based game', 'unknown shooterish theme'])('keeps ambiguous or unrecognized %s in Other and All', genre => {
+  it.each([
+    null,
+    '',
+    'Fantasy',
+    'MMO',
+    'massively multiplayer online game',
+    'roguelike',
+    'Battle Royale',
+    'augmented reality / location-based game',
+    'unknown shooterish theme',
+  ])('keeps ambiguous or unrecognized %s in Other and All', (genre) => {
     expect(discoveryGenreFamilies(genre)).toEqual(['other']);
     expect(matchesDiscoveryGenre(genre, '', 'other')).toBe(true);
     expect(matchesDiscoveryGenre(genre, '')).toBe(true);
@@ -44,31 +65,51 @@ describe('explicit browsing families without rewriting source genres', () => {
     expect(parseDiscoveryGenreFamily('unknown')).toBe('');
     expect(DISCOVERY_GENRE_FAMILIES.length + 1).toBeLessThanOrEqual(15);
     // Bound the taxonomy/code payload, not its indentation or explanatory comments.
-    expect(sourceTokenBytes(readFileSync(new URL('./discovery-genres.ts', import.meta.url), 'utf8'))).toBeLessThanOrEqual(8192);
+    expect(
+      sourceTokenBytes(readFileSync(new URL('./discovery-genres.ts', import.meta.url), 'utf8')),
+    ).toBeLessThanOrEqual(8192);
   });
 });
 
 describe('complete shipped catalog coverage', () => {
-  const seed = parseDiscoveryCatalogJson(readFileSync(new URL('../../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'));
-  const collection = parseCollection(JSON.parse(readFileSync(new URL('../../public/data/collection.json', import.meta.url), 'utf8')));
+  const seed = parseDiscoveryCatalogJson(
+    readFileSync(new URL('../../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'),
+  );
+  const collection = parseCollection(
+    JSON.parse(readFileSync(new URL('../../public/data/collection.json', import.meta.url), 'utf8')),
+  );
   const items = catalogSearchItems(collection.games, seed.items);
   it('keeps every raw and canonical record reachable through All, a family and its original exact genre', () => {
     const before = JSON.stringify({ seed, collection, items });
     for (const item of [...seed.items, ...items]) {
       const families = discoveryGenreFamilies(item.record.genre);
       expect(families.length).toBeGreaterThan(0);
-      expect(families.every(family => DISCOVERY_GENRE_FAMILIES.some(option => option.id === family))).toBe(true);
+      expect(families.every((family) => DISCOVERY_GENRE_FAMILIES.some((option) => option.id === family))).toBe(true);
       if (families.includes('other')) expect(families).toEqual(['other']);
       expect(matchesDiscoveryGenre(item.record.genre, '')).toBe(true);
       if (item.record.genre) expect(matchesDiscoveryGenre(item.record.genre, item.record.genre)).toBe(true);
     }
     const all = searchDiscoveryItems(items, defaultDiscoveryFilters);
-    const union = new Set(DISCOVERY_GENRE_FAMILIES.flatMap(({ id }) => searchDiscoveryItems(items, { ...defaultDiscoveryFilters, genreFamily: id }).map(item => item.record.id)));
-    expect([...union].sort()).toEqual(all.map(item => item.record.id).sort());
+    const union = new Set(
+      DISCOVERY_GENRE_FAMILIES.flatMap(({ id }) =>
+        searchDiscoveryItems(items, { ...defaultDiscoveryFilters, genreFamily: id }).map((item) => item.record.id),
+      ),
+    );
+    expect([...union].sort()).toEqual(all.map((item) => item.record.id).sort());
     expect(all).toHaveLength(items.length);
-    for (const genre of new Set(items.map(item => item.record.genre).filter((value): value is string => value !== null))) {
-      expect(searchDiscoveryItems(items, { ...defaultDiscoveryFilters, genre }).map(item => item.record.id).sort())
-        .toEqual(items.filter(item => item.record.genre === genre).map(item => item.record.id).sort());
+    for (const genre of new Set(
+      items.map((item) => item.record.genre).filter((value): value is string => value !== null),
+    )) {
+      expect(
+        searchDiscoveryItems(items, { ...defaultDiscoveryFilters, genre })
+          .map((item) => item.record.id)
+          .sort(),
+      ).toEqual(
+        items
+          .filter((item) => item.record.genre === genre)
+          .map((item) => item.record.id)
+          .sort(),
+      );
     }
     expect(JSON.stringify({ seed, collection, items })).toBe(before);
   });
@@ -79,9 +120,9 @@ describe('complete shipped catalog coverage', () => {
     const reached = [];
     for (let offset = 0; offset < rolePlaying.length; offset += DISCOVERY_PAGE_SIZE) {
       const page = getLocalPage(rolePlaying.length, DISCOVERY_PAGE_SIZE, offset);
-      reached.push(...rolePlaying.slice(page.offset, page.offset + DISCOVERY_PAGE_SIZE).map(item => item.record.id));
+      reached.push(...rolePlaying.slice(page.offset, page.offset + DISCOVERY_PAGE_SIZE).map((item) => item.record.id));
     }
-    expect(reached).toEqual(rolePlaying.map(item => item.record.id));
+    expect(reached).toEqual(rolePlaying.map((item) => item.record.id));
     expect(new Set(reached).size).toBe(rolePlaying.length);
   });
 });

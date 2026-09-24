@@ -74,27 +74,36 @@ let browser: Browser | undefined;
 let base: string;
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false,
-    root: process.cwd(),
-    cacheDir: 'node_modules/.vite-motion-scroll-tests',
-    logLevel: 'error',
-    appType: 'custom',
-    optimizeDeps: { noDiscovery: true, include: [] },
-    plugins: [{
-      name: 'motion-scroll-fixture',
-      configureServer(server) {
-        server.middlewares.use((request, response, next) => {
-          if (request.url?.split('?')[0] !== '/motion-scroll-fixture') return next();
-          void server.transformIndexHtml('/motion-scroll-fixture', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }).catch(next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-motion-scroll-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: { noDiscovery: true, include: [] },
+        plugins: [
+          {
+            name: 'motion-scroll-fixture',
+            configureServer(server) {
+              server.middlewares.use((request, response, next) => {
+                if (request.url?.split('?')[0] !== '/motion-scroll-fixture') return next();
+                void server
+                  .transformIndexHtml('/motion-scroll-fixture', fixture)
+                  .then((html) => {
+                    response.setHeader('Content-Type', 'text/html');
+                    response.end(html);
+                  })
+                  .catch(next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
+      }),
+    )
+  ).server;
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Motion scroll fixture did not bind a port.');
   base = `http://127.0.0.1:${address.port}`;
@@ -104,7 +113,9 @@ beforeAll(async () => {
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
+  const failures = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason);
   if (failures.length) throw new AggregateError(failures, 'Motion scroll fixture teardown failed.');
 }, 60_000);
 
@@ -114,26 +125,36 @@ describe('native motion scroll sources', () => {
       if (!browser) throw new Error('Motion scroll browser did not start.');
       const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
       const pageErrors: string[] = [];
-      page.on('pageerror', error => pageErrors.push(error.message));
+      page.on('pageerror', (error) => pageErrors.push(error.message));
       try {
         await page.goto(`${base}/motion-scroll-fixture`);
         await page.waitForFunction(() => Boolean(window.motionScrollFixture));
         await page.evaluate(() => window.motionScrollFixture.start());
         expect(await page.evaluate(() => window.motionScrollFixture.state())).toMatchObject({
-          active: true, originAborted: false, reason: null, originReason: null, animation: 'paused',
+          active: true,
+          originAborted: false,
+          reason: null,
+          originReason: null,
+          animation: 'paused',
         });
-        const offsets = await page.evaluate(target => {
+        const offsets = await page.evaluate((target) => {
           const element = target === 'document' ? document.scrollingElement : document.getElementById(target);
           if (!(element instanceof HTMLElement)) throw new Error('Scroll target is missing.');
           const before = { left: element.scrollLeft, top: element.scrollTop };
           if (target === 'document') window.scrollTo(0, 100);
           else if (target === 'input') element.scrollLeft = 80;
-          else if (target === 'textarea') { element.scrollLeft = 80; element.scrollTop = 80; }
-          else element.scrollTop = 70;
+          else if (target === 'textarea') {
+            element.scrollLeft = 80;
+            element.scrollTop = 80;
+          } else element.scrollTop = 70;
           return {
-            before, left: element.scrollLeft, top: element.scrollTop,
-            width: element.clientWidth, scrollWidth: element.scrollWidth,
-            height: element.clientHeight, scrollHeight: element.scrollHeight,
+            before,
+            left: element.scrollLeft,
+            top: element.scrollTop,
+            width: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            height: element.clientHeight,
+            scrollHeight: element.scrollHeight,
           };
         }, target);
         if (target === 'input' || target === 'textarea') {
@@ -144,16 +165,29 @@ describe('native motion scroll sources', () => {
           expect(offsets.scrollHeight).toBeGreaterThan(offsets.height);
           expect(offsets.top).toBeGreaterThan(offsets.before.top);
         }
-        await browserExpect.poll(() => page.evaluate(target =>
-          window.motionScrollFixture.state().events.some(event => event.target === target && event.trusted), target)).toBe(true);
+        await browserExpect
+          .poll(() =>
+            page.evaluate(
+              (target) =>
+                window.motionScrollFixture.state().events.some((event) => event.target === target && event.trusted),
+              target,
+            ),
+          )
+          .toBe(true);
         const textControl = target === 'input' || target === 'textarea';
         expect(await page.evaluate(() => window.motionScrollFixture.state())).toMatchObject({
-          active: textControl, originAborted: !textControl,
-          reason: textControl ? null : 'scroll', originReason: textControl ? null : 'scroll',
+          active: textControl,
+          originAborted: !textControl,
+          reason: textControl ? null : 'scroll',
+          originReason: textControl ? null : 'scroll',
           animation: textControl ? 'paused' : 'idle',
         });
-        if (textControl) expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))).toEqual({ x: 0, y: 0 });
-      } finally { await page.close(); expect(pageErrors).toEqual([]); }
+        if (textControl)
+          expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))).toEqual({ x: 0, y: 0 });
+      } finally {
+        await page.close();
+        expect(pageErrors).toEqual([]);
+      }
     });
   }
 });

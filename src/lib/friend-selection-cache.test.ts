@@ -9,12 +9,28 @@ import type { LibraryRecord } from './personal-types';
 
 const a = accountScope('selection-a');
 const b = accountScope('selection-b');
-const game: LibraryRecord = { id: 'test-game', title: 'Synthetic game', year: null, source: 'collection', sourceId: 'test-game', sourceUrl: null, studio: null, genre: null, collectionRank: 1 };
+const game: LibraryRecord = {
+  id: 'test-game',
+  title: 'Synthetic game',
+  year: null,
+  source: 'collection',
+  sourceId: 'test-game',
+  sourceUrl: null,
+  studio: null,
+  genre: null,
+  collectionRank: 1,
+};
 beforeEach(() => {
-  closePersonalLibrary(); vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('window', undefined);
+  closePersonalLibrary();
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('window', undefined);
   vi.stubGlobal('localStorage', { getItem: () => null, removeItem: () => undefined });
 });
-afterEach(() => { closePersonalLibrary(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  closePersonalLibrary();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 it('removal followed by immediate re-add still requires explicit friends re-selection', async () => {
   await commitScopedAction(a, { type: 'rate-game', record: game, score: 7 });
   await updateFriendSelectionCache(a, 1, [game.id]);
@@ -46,7 +62,9 @@ it('a stale settings acknowledgement cannot overwrite a newer explicit selection
 it('marker and ranking removal roll back together if the device transaction fails', async () => {
   const before = await commitScopedAction(a, { type: 'rate-game', record: game, score: 7 });
   await updateFriendSelectionCache(a, 1, [game.id]);
-  const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => { throw new DOMException('Synthetic storage full', 'QuotaExceededError'); });
+  const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
+    throw new DOMException('Synthetic storage full', 'QuotaExceededError');
+  });
   await expect(commitScopedAction(a, { type: 'remove-ranking', ids: [game.id] })).rejects.toThrow();
   put.mockRestore();
   expect(await loadScopedLibrary(a)).toEqual(before);
@@ -64,7 +82,8 @@ it('an unreadable optional sharing marker blocks only friends sharing, not priva
   expect((await pendingFriendRemovals(a)).size).toBe(0);
 });
 it('keeps selection suppression inside the correct account', async () => {
-  await updateFriendSelectionCache(a, 1, [game.id]); await updateFriendSelectionCache(b, 1, [game.id]);
+  await updateFriendSelectionCache(a, 1, [game.id]);
+  await updateFriendSelectionCache(b, 1, [game.id]);
   await commitScopedAction(a, { type: 'rate-game', record: game, score: 7 });
   await commitScopedAction(a, { type: 'remove-ranking', ids: [game.id] });
   expect((await pendingFriendRemovals(a)).has(game.id)).toBe(true);
@@ -73,11 +92,19 @@ it('keeps selection suppression inside the correct account', async () => {
 it('requires a fresh sharing review after an old writer skips the removal journal, without breaking private saving', async () => {
   const initial = await commitScopedAction(a, { type: 'rate-game', record: game, score: 7 });
   await updateFriendSelectionCache(a, 1, [game.id], undefined, initial.state.revision);
-  for (const action of [{ type: 'remove-ranking' as const, ids: [game.id] }, { type: 'rate-game' as const, record: game, score: 9 }]) {
+  for (const action of [
+    { type: 'remove-ranking' as const, ids: [game.id] },
+    { type: 'rate-game' as const, record: game, score: 9 },
+  ]) {
     await accountStorageTransaction(a, (value, store) => {
       const current = parseScopedLibrary(value, a);
-      const next = { ...current, state: applyPersonalAction(current.state, action), sync: { ...current.sync, dirty: true, dataRevision: current.sync.dataRevision + 1 } };
-      store.put(next, a); return next;
+      const next = {
+        ...current,
+        state: applyPersonalAction(current.state, action),
+        sync: { ...current.sync, dirty: true, dataRevision: current.sync.dataRevision + 1 },
+      };
+      store.put(next, a);
+      return next;
     });
   }
   const legacy = await loadScopedLibrary(a);

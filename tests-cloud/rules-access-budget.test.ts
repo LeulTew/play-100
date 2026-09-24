@@ -25,24 +25,28 @@ let environment: RulesTestEnvironment;
 
 beforeAll(async () => {
   environment = await initializeTestEnvironment({
-    projectId: endpoints.projectId, firestore: { host: endpoints.host, port: endpoints.port, rules: controlRules },
+    projectId: endpoints.projectId,
+    firestore: { host: endpoints.host, port: endpoints.port, rules: controlRules },
   });
 });
 beforeEach(async () => {
   await environment.clearFirestore();
-  await environment.withSecurityRulesDisabled(async context => {
+  await environment.withSecurityRulesDisabled(async (context) => {
     const batch = context.firestore().batch();
-    for (const id of ['left', 'middle', 'six', 'seven']) for (let index = 0; index < 7; index += 1) {
-      batch.set(context.firestore().doc(`accessProofs/${id}-${index}`), { allowed: true });
-    }
+    for (const id of ['left', 'middle', 'six', 'seven'])
+      for (let index = 0; index < 7; index += 1) {
+        batch.set(context.firestore().doc(`accessProofs/${id}-${index}`), { allowed: true });
+      }
     await batch.commit();
   });
 });
 afterAll(async () => {
-  try { await environment?.cleanup(); }
-  finally {
+  try {
+    await environment?.cleanup();
+  } finally {
     const restored = await initializeTestEnvironment({
-      projectId: endpoints.projectId, firestore: { host: endpoints.host, port: endpoints.port, rules: candidateRules() },
+      projectId: endpoints.projectId,
+      firestore: { host: endpoints.host, port: endpoints.port, rules: candidateRules() },
     });
     await restored.cleanup();
   }
@@ -54,7 +58,7 @@ describe('emulator transaction access-limit calibration, not production permissi
     const batch = db.batch();
     for (const id of ['left', 'middle', 'six']) batch.set(db.doc(`accessTargets/${id}`), { value: true });
     await batch.commit();
-    await environment.withSecurityRulesDisabled(async context => {
+    await environment.withSecurityRulesDisabled(async (context) => {
       expect((await context.firestore().collection('accessTargets').get()).size).toBe(3);
     });
   });
@@ -63,7 +67,7 @@ describe('emulator transaction access-limit calibration, not production permissi
     const batch = db.batch();
     for (const id of ['left', 'middle', 'seven']) batch.set(db.doc(`accessTargets/${id}`), { value: true });
     await expect(batch.commit()).rejects.toMatchObject({ code: 'permission-denied' });
-    await environment.withSecurityRulesDisabled(async context => {
+    await environment.withSecurityRulesDisabled(async (context) => {
       expect((await context.firestore().collection('accessTargets').get()).empty).toBe(true);
     });
   });

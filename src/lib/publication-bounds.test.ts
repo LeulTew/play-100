@@ -2,18 +2,37 @@ import { describe, expect, it } from 'vitest';
 import { parsePublicEntry, projectOwnRanking, projectPublicRanking, recordFromPublic } from './community';
 import type { PublicEntry } from './community';
 import { parseFriendChunk, projectFriendRanking, validateFriendEntries } from './friend-types';
-import { applyPersonalAction, createLibraryBackup, emptyPersonalLibrary, parseLibraryBackup, parsePersonalLibrary } from './personal-library';
+import {
+  applyPersonalAction,
+  createLibraryBackup,
+  emptyPersonalLibrary,
+  parseLibraryBackup,
+  parsePersonalLibrary,
+} from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
 const prefix = 'https://www.freetogame.com/';
 const sourceLink = (length: number) => prefix + 'a'.repeat(length - prefix.length);
 const record = (length: number): LibraryRecord => ({
-  id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: sourceLink(length),
-  title: 'Publication boundary fixture', year: null, collectionRank: null, studio: null, genre: null,
+  id: 'freetogame:10',
+  source: 'freetogame',
+  sourceId: '10',
+  sourceUrl: sourceLink(length),
+  title: 'Publication boundary fixture',
+  year: null,
+  collectionRank: null,
+  studio: null,
+  genre: null,
 });
 const published = (length: number): PublicEntry => ({
-  position: 1, id: 'freetogame:10', source: 'freetogame', sourceId: '10', sourceUrl: sourceLink(length),
-  title: 'Publication boundary fixture', year: null, score: 7,
+  position: 1,
+  id: 'freetogame:10',
+  source: 'freetogame',
+  sourceId: '10',
+  sourceUrl: sourceLink(length),
+  title: 'Publication boundary fixture',
+  year: null,
+  score: 7,
 });
 
 describe('new-publication source URL boundaries without private or historical migration', () => {
@@ -37,10 +56,13 @@ describe('new-publication source URL boundaries without private or historical mi
     expect(state).toEqual(before);
   });
 
-  it.each([2049, 8192])('keeps historical%s-character public and selected-ranking entries readable and importable', length => {
-    const entry = published(length);
-    expect(parsePublicEntry(entry)).toEqual(entry);
-    expect(parseFriendChunk({ index: 0, entries: [entry], ids: [entry.id] }, 0, 1)).toEqual([entry]);
-    expect(recordFromPublic(entry, [])).toEqual(record(length));
-  });
+  it.each([2049, 8192])(
+    'keeps historical%s-character public and selected-ranking entries readable and importable',
+    (length) => {
+      const entry = published(length);
+      expect(parsePublicEntry(entry)).toEqual(entry);
+      expect(parseFriendChunk({ index: 0, entries: [entry], ids: [entry.id] }, 0, 1)).toEqual([entry]);
+      expect(recordFromPublic(entry, [])).toEqual(record(length));
+    },
+  );
 });

@@ -1,18 +1,35 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import type { DeletionCleanupOptions } from '../src/cloud/cloud-store';
-import { authOrigin, createAccount, emailFor, enableSync, firestoreOrigin, password, signIn, uidFor, verifyEmail } from './helpers';
+import {
+  authOrigin,
+  createAccount,
+  emailFor,
+  enableSync,
+  firestoreOrigin,
+  password,
+  signIn,
+  uidFor,
+  verifyEmail,
+} from './helpers';
 import { writeManagerDocuments } from './friend-manager-fixtures';
 
 test.beforeEach(async ({ page, context, baseURL }) => {
-  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Use only the owned demo-emulator app.');
-  await context.route('**/*', route => [new URL(baseURL).origin, authOrigin, firestoreOrigin].includes(new URL(route.request().url()).origin)
-    ? route.continue() : route.abort('blockedbyclient'));
+  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname))
+    throw new Error('Use only the owned demo-emulator app.');
+  await context.route('**/*', (route) =>
+    [new URL(baseURL).origin, authOrigin, firestoreOrigin].includes(new URL(route.request().url()).origin)
+      ? route.continue()
+      : route.abort('blockedbyclient'),
+  );
   await page.goto('/account');
   await expect(page.locator('.emulator-page-note')).toContainText('no production account');
 });
 
-test('interrupted private deletion keeps Auth and resumes on the next sign-in before removing the account', async ({ page, request }) => {
+test('interrupted private deletion keeps Auth and resumes on the next sign-in before removing the account', async ({
+  page,
+  request,
+}) => {
   const email = emailFor('private-deletion-resume');
   await createAccount(page, email);
   await verifyEmail(page, request, email);
@@ -24,7 +41,12 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
     const bytes = Buffer.from(`Legacy private orphan ${index}`, 'utf8');
     const digest = createHash('sha256').update(bytes).digest('hex');
     documents[`accounts/${uid}/chunks/${digest}`] = {
-      digest, data: bytes.toString('base64'), bytes: bytes.length, holders: [holder], holder, createdAt: new Date(),
+      digest,
+      data: bytes.toString('base64'),
+      bytes: bytes.length,
+      holders: [holder],
+      holder,
+      createdAt: new Date(),
     };
   }
   await writeManagerDocuments(request, documents);
@@ -33,10 +55,10 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
     const module: typeof import('../src/cloud/cloud-store') = await import(source);
     const original = module.CloudStore.prototype.cleanup;
     let interrupted = false;
-    module.CloudStore.prototype.cleanup = function(all = false, options: DeletionCleanupOptions = {}) {
+    module.CloudStore.prototype.cleanup = function (all = false, options: DeletionCleanupOptions = {}) {
       return original.call(this, all, {
         ...options,
-        onProgress: async progress => {
+        onProgress: async (progress) => {
           await options.onProgress?.(progress);
           if (all && !interrupted && progress.confirmed === 20) {
             interrupted = true;
@@ -53,9 +75,11 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText('Deletion stopped before it finished');
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText('choose Finish deleting to continue');
   await expect(page.locator('.sync-panel [role="alert"]')).not.toContainText('chunk');
-  const lookup = () => request.post(`${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:lookup?key=demo-play100-key`, {
-    headers: { Authorization: 'Bearer owner' }, data: { localId: [uid] },
-  });
+  const lookup = () =>
+    request.post(`${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:lookup?key=demo-play100-key`, {
+      headers: { Authorization: 'Bearer owner' },
+      data: { localId: [uid] },
+    });
   expect((await (await lookup()).json()).users).toHaveLength(1);
   // Pausing online saving remounts the keyed Account page, which already closed the confirmation.
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -65,33 +89,58 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: "Deletion isn't finished", exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toBeVisible();
-  await page.route('**/identitytoolkit.googleapis.com/v1/accounts:delete?*', route => route.fulfill({
-    status: 400, contentType: 'application/json',
-    body: JSON.stringify({ error: { code: 400, message: 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN' } }),
-  }), { times: 1 });
+  await page.route(
+    '**/identitytoolkit.googleapis.com/v1/accounts:delete?*',
+    (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 400, message: 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN' } }),
+      }),
+    { times: 1 },
+  );
   await page.getByRole('button', { name: 'Delete account', exact: true }).click();
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
-  await expect(page.locator('.sync-panel [role="alert"]')).toContainText('To delete your sign-in, confirm your password again');
+  await expect(page.locator('.sync-panel [role="alert"]')).toContainText(
+    'To delete your sign-in, confirm your password again',
+  );
   expect((await (await lookup()).json()).users).toHaveLength(1);
-  const marked = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`, {
-    headers: { Authorization: 'Bearer owner' },
-  });
+  const marked = await request.get(
+    `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`,
+    {
+      headers: { Authorization: 'Bearer owner' },
+    },
+  );
   const head = (await marked.json()).fields;
   expect(head.cleanupEpoch.integerValue).toBe(head.epoch.integerValue);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   expect((await (await lookup()).json()).users ?? []).toEqual([]);
   for (const kind of ['accounts', 'creatorRanks']) {
-    const remaining = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/${kind}/${uid}/chunks?pageSize=20`, {
-      headers: { Authorization: 'Bearer owner' },
-    });
+    const remaining = await request.get(
+      `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/${kind}/${uid}/chunks?pageSize=20`,
+      {
+        headers: { Authorization: 'Bearer owner' },
+      },
+    );
     expect(remaining.ok()).toBe(true);
     expect((await remaining.json()).documents ?? []).toEqual([]);
   }
 });
 
-for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs', 'all', 'shelf', 'friends', 'marker'] as const) {
+for (const step of [
+  'private',
+  'public',
+  'reports',
+  'groups',
+  'blocks',
+  'pairs',
+  'all',
+  'shelf',
+  'friends',
+  'marker',
+] as const) {
   test(`interruption at ${step} cleanup never records completion or removes Auth`, async ({ page, request }) => {
     const email = emailFor(`deletion-stop-${step}`);
     await createAccount(page, email);
@@ -103,43 +152,80 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs',
     if (step === 'reports') {
       const id = `Reported_${uid}`;
       await writeManagerDocuments(request, {
-        [`reports/${id}`]: { reporterUid: uid, targetUid: 'Reported', reason: 'Synthetic pending report', status: 'open', counted: true, createdAt: new Date() },
+        [`reports/${id}`]: {
+          reporterUid: uid,
+          targetUid: 'Reported',
+          reason: 'Synthetic pending report',
+          status: 'open',
+          counted: true,
+          createdAt: new Date(),
+        },
         [`accountQuotas/${uid}/limits/reports`]: { count: 1, revision: 1, lastReport: id },
       });
     } else if (step === 'groups' || step === 'blocks') {
       const id = step === 'groups' ? crypto.randomUUID() : 'BlockedPeer';
       await writeManagerDocuments(request, {
-        [`${step === 'groups' ? 'friendGroups' : 'friendBlocks'}/${uid}/items/${id}`]: step === 'groups'
-          ? { format: 1, name: 'Synthetic group', participantUids: [uid, 'KnownPeer'], revision: 1, createdAt: new Date(), updatedAt: new Date() }
-          : { createdAt: new Date() },
+        [`${step === 'groups' ? 'friendGroups' : 'friendBlocks'}/${uid}/items/${id}`]:
+          step === 'groups'
+            ? {
+                format: 1,
+                name: 'Synthetic group',
+                participantUids: [uid, 'KnownPeer'],
+                revision: 1,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }
+            : { createdAt: new Date() },
         [`accountQuotas/${uid}/limits/${step}`]: { ids: [id], revision: 1 },
       });
     } else if (step === 'pairs') {
-      const peer = 'RetainedPeer'; const participants = [uid, peer].sort(); const id = participants.join('~');
+      const peer = 'RetainedPeer';
+      const participants = [uid, peer].sort();
+      const id = participants.join('~');
       await writeManagerDocuments(request, {
-        [`friendPairs/${id}`]: { format: 2, creatorUid: uid, a: participants[0], b: participants[1], participants,
-          from: uid, state: 'pending', epoch: 1, inviteSlot: null, createdAt: new Date(), updatedAt: new Date() },
+        [`friendPairs/${id}`]: {
+          format: 2,
+          creatorUid: uid,
+          a: participants[0],
+          b: participants[1],
+          participants,
+          from: uid,
+          state: 'pending',
+          epoch: 1,
+          inviteSlot: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
         [`accountQuotas/${uid}/limits/pairs`]: { count: 1, revision: 1, lastPair: id },
       });
     }
-    if (step === 'all') await expect.poll(async () => {
-      const policy = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/friendAllPolicies/${uid}`, {
-        headers: { Authorization: 'Bearer owner' },
-      });
-      return policy.status();
-    }).toBe(200);
-    await page.evaluate(async step => {
+    if (step === 'all')
+      await expect
+        .poll(async () => {
+          const policy = await request.get(
+            `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/friendAllPolicies/${uid}`,
+            {
+              headers: { Authorization: 'Bearer owner' },
+            },
+          );
+          return policy.status();
+        })
+        .toBe(200);
+    await page.evaluate(async (step) => {
       // Each stub records that its own interruption point ran and fails with a step-specific message.
       const reached: string[] = [];
       Reflect.set(window, 'deletionStopsReached', reached);
-      const stop = () => { reached.push(step); return Promise.reject(new Error(`Synthetic stop at the ${step} cleanup step.`)); };
+      const stop = () => {
+        reached.push(step);
+        return Promise.reject(new Error(`Synthetic stop at the ${step} cleanup step.`));
+      };
       const load = async (source: string) => import(source);
       if (step === 'private' || step === 'marker') {
         const module: typeof import('../src/cloud/cloud-store') = await load('/src/cloud/cloud-store.ts');
         if (step === 'marker') module.CloudStore.prototype.markCleanupComplete = stop;
         else {
           const original = module.CloudStore.prototype.cleanup;
-          module.CloudStore.prototype.cleanup = function(all = false, options: DeletionCleanupOptions = {}) {
+          module.CloudStore.prototype.cleanup = function (all = false, options: DeletionCleanupOptions = {}) {
             return all ? stop() : original.call(this, all, options);
           };
         }
@@ -167,11 +253,16 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs',
     await page.getByRole('button', { name: 'Delete account', exact: true }).click();
     await page.getByLabel('Confirm your password', { exact: true }).fill(password);
     await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
-    await expect(page.locator('.sync-panel [role="alert"]')).toContainText(`Synthetic stop at the ${step} cleanup step.`);
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText(
+      `Synthetic stop at the ${step} cleanup step.`,
+    );
     expect(await page.evaluate(() => Reflect.get(window, 'deletionStopsReached'))).toEqual([step]);
-    const read = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`, {
-      headers: { Authorization: 'Bearer owner' },
-    });
+    const read = await request.get(
+      `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`,
+      {
+        headers: { Authorization: 'Bearer owner' },
+      },
+    );
     const head = (await read.json()).fields;
     expect(head.deleted.booleanValue).toBe(true);
     expect(head.cleanupEpoch).toBeUndefined();
@@ -182,7 +273,10 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs',
   });
 }
 
-test('a completed online-copy deletion stays complete after reload and offers account deletion without Finish deleting', async ({ page, request }) => {
+test('a completed online-copy deletion stays complete after reload and offers account deletion without Finish deleting', async ({
+  page,
+  request,
+}) => {
   const email = emailFor('complete-copy');
   await createAccount(page, email);
   await verifyEmail(page, request, email);
@@ -227,9 +321,11 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
     const store = new module.CloudStore(client.cloudDb, uid);
     await store.revoke(await store.head(), true);
     const original = module.CloudStore.prototype.probeDeletedCopy;
-    module.CloudStore.prototype.probeDeletedCopy = function(head) {
+    module.CloudStore.prototype.probeDeletedCopy = function (head) {
       return new Promise<Awaited<ReturnType<typeof original>>>((resolve, reject) => {
-        Reflect.set(window, 'releaseDeletionProbe', () => { void original.call(this, head).then(resolve, reject); });
+        Reflect.set(window, 'releaseDeletionProbe', () => {
+          void original.call(this, head).then(resolve, reject);
+        });
       });
     };
     history.pushState({}, '', '/account');
@@ -237,12 +333,14 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
   });
   const pending = page.getByRole('region', { name: 'Deletion was requested', exact: true });
   await expect(pending.getByRole('status')).toHaveText("Checking what's still stored online…");
-  await expect(pending).not.toContainText("Removal of all online data could not be confirmed.");
+  await expect(pending).not.toContainText('Removal of all online data could not be confirmed.');
   await expect(pending.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
   await page.evaluate(() => {
     const release: unknown = Reflect.get(window, 'releaseDeletionProbe');
     if (typeof release !== 'function') throw new Error('The deletion probe has not started.');
     release();
   });
-  await expect(page.getByRole('region', { name: "Deletion isn't finished", exact: true }).getByRole('status')).toHaveText('Some online data is still stored.');
+  await expect(
+    page.getByRole('region', { name: "Deletion isn't finished", exact: true }).getByRole('status'),
+  ).toHaveText('Some online data is still stored.');
 });

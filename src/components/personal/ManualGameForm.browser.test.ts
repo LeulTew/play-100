@@ -40,24 +40,34 @@ let browser: Browser | undefined;
 let origin: string;
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-manual-form-tests',
-    logLevel: 'error', appType: 'custom',
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
-    plugins: [react(), {
-      name: 'manual-form-fixture',
-      configureServer(vite) {
-        vite.middlewares.use((request, response, next) => {
-          if (request.url !== '/__manual-form') return next();
-          void vite.transformIndexHtml('/__manual-form', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }, next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-manual-form-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+        plugins: [
+          react(),
+          {
+            name: 'manual-form-fixture',
+            configureServer(vite) {
+              vite.middlewares.use((request, response, next) => {
+                if (request.url !== '/__manual-form') return next();
+                void vite.transformIndexHtml('/__manual-form', fixture).then((html) => {
+                  response.setHeader('Content-Type', 'text/html');
+                  response.end(html);
+                }, next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-manual-form-tests$/);
   expect(server.config.server.watch).toBeNull();
@@ -68,22 +78,28 @@ beforeAll(async () => {
 }, 30_000);
 
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
-afterAll(async () => { await browser?.close(); await server?.close(); }, 60_000);
+afterAll(async () => {
+  await browser?.close();
+  await server?.close();
+}, 60_000);
 
 async function withForm(work: (page: Page) => Promise<void>) {
   if (!browser) throw new Error('Manual form fixture browser unavailable.');
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await context.route('**/*', route => new URL(route.request().url()).origin === origin
-    ? route.continue() : route.abort('blockedbyclient'));
+  page.on('pageerror', (error) => errors.push(error.message));
+  await context.route('**/*', (route) =>
+    new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
+  );
   try {
     await page.goto(`${origin}/__manual-form`);
     await page.getByText('Add a game manually').click();
     await work(page);
     expect(errors).toEqual([]);
-  } finally { await context.close(); }
+  } finally {
+    await context.close();
+  }
 }
 
 const title = (page: Page) => page.getByRole('textbox', { name: 'Game title' });
@@ -94,11 +110,12 @@ const submit = async (page: Page, name: string, value: string) => {
   await page.getByRole('button', { name: 'Add to my library' }).click();
   await browserExpect.poll(() => page.evaluate(() => window.manualFormFixture.pending())).toBe(1);
 };
-const finish = (page: Page, result: boolean | 'reject') => page.evaluate(value => window.manualFormFixture.finish(value), result);
+const finish = (page: Page, result: boolean | 'reject') =>
+  page.evaluate((value) => window.manualFormFixture.finish(value), result);
 
 describe('manual game form', () => {
   it('clears the submitted draft after an ordinary success', async () => {
-    await withForm(async page => {
+    await withForm(async (page) => {
       await submit(page, 'Game A', '2001');
       await finish(page, true);
       await browserExpect(title(page)).toHaveValue('');
@@ -108,7 +125,7 @@ describe('manual game form', () => {
   });
 
   it('keeps a newer draft typed while the earlier add was saving', async () => {
-    await withForm(async page => {
+    await withForm(async (page) => {
       await submit(page, 'Game A', '2001');
       await title(page).fill('Game B');
       await year(page).fill('2002');
@@ -121,7 +138,7 @@ describe('manual game form', () => {
   });
 
   it('keeps the draft after a refused or rejected add', async () => {
-    await withForm(async page => {
+    await withForm(async (page) => {
       await submit(page, 'Game A', '2001');
       await finish(page, false);
       await browserExpect.poll(() => page.evaluate(() => window.manualFormFixture.pending())).toBe(0);
@@ -130,7 +147,9 @@ describe('manual game form', () => {
       await page.getByRole('button', { name: 'Add to my library' }).click();
       await browserExpect.poll(() => page.evaluate(() => window.manualFormFixture.pending())).toBe(1);
       await finish(page, 'reject');
-      await browserExpect(page.getByRole('alert')).toHaveText('The game could not be added. Your entry is unchanged; try again.');
+      await browserExpect(page.getByRole('alert')).toHaveText(
+        'The game could not be added. Your entry is unchanged; try again.',
+      );
       await browserExpect(title(page)).toHaveValue('Game A');
       await browserExpect(year(page)).toHaveValue('2001');
     });

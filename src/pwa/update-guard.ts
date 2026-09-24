@@ -8,7 +8,9 @@ import type { PwaUpdateGuard } from './types';
 export function useInputGeneration(): RefObject<number> {
   const generation = useRef(0);
   useEffect(() => {
-    const edited = () => { generation.current += 1; };
+    const edited = () => {
+      generation.current += 1;
+    };
     document.addEventListener('input', edited, true);
     document.addEventListener('change', edited, true);
     return () => {
@@ -34,11 +36,14 @@ export function createPwaUpdateGuard({ isCurrent, busy, inputGeneration }: PwaUp
   return {
     isCurrent,
     prepare: async () => {
-      if (!await flushPendingEdits()) return false;
-      if (hasUnsubmittedPwaForm()) throw new Error('Finish or clear unsubmitted forms, or return to The 100 before updating. Nothing was reloaded.');
+      if (!(await flushPendingEdits())) return false;
+      if (hasUnsubmittedPwaForm())
+        throw new Error(
+          'Finish or clear unsubmitted forms, or return to The 100 before updating. Nothing was reloaded.',
+        );
       return isCurrent();
     },
-    canReload: () => isCurrent() && !busy() && inputGeneration.current === edits &&
-      !hasPendingEdits() && !hasUnsubmittedPwaForm(),
+    canReload: () =>
+      isCurrent() && !busy() && inputGeneration.current === edits && !hasPendingEdits() && !hasUnsubmittedPwaForm(),
   };
 }

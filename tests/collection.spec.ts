@@ -20,7 +20,9 @@ test('all 100 games retain real ranks; pagination loads covers progressively', a
   const requestedCovers = new Set<string>();
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  page.on('request', (request) => { if (request.url().includes('/covers/')) requestedCovers.add(request.url()); });
+  page.on('request', (request) => {
+    if (request.url().includes('/covers/')) requestedCovers.add(request.url());
+  });
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   expect(requestedCovers.size).toBeLessThan(30);
@@ -28,7 +30,9 @@ test('all 100 games retain real ranks; pagination loads covers progressively', a
     await page.getByRole('button', { name: /^Show \d+ more/ }).click();
   }
   await expect(page.locator('.game-card')).toHaveCount(100);
-  expect(await page.locator('.cover-rank').allTextContents()).toEqual(Array.from({ length: 100 }, (_, i) => String(i + 1).padStart(2, '0')));
+  expect(await page.locator('.cover-rank').allTextContents()).toEqual(
+    Array.from({ length: 100 }, (_, i) => String(i + 1).padStart(2, '0')),
+  );
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -64,12 +68,15 @@ test('all declared fonts and page resources load without console or CSP errors',
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   // The first-paint shell's metric-matched fallbacks are local() fonts, which may be absent (Impact on Linux).
-  const fonts = await page.evaluate(async (localOnly) => {
-    const faces = [...document.fonts].filter((face) => !localOnly.includes(face.family.replace(/^["']|["']$/g, '')));
-    await Promise.all(faces.map((face) => face.load()));
-    await document.fonts.ready;
-    return faces.map((face) => ({ family: face.family, status: face.status }));
-  }, ['P100 DF Impact', 'P100 DF Arial', 'P100 Sans Fallback']);
+  const fonts = await page.evaluate(
+    async (localOnly) => {
+      const faces = [...document.fonts].filter((face) => !localOnly.includes(face.family.replace(/^["']|["']$/g, '')));
+      await Promise.all(faces.map((face) => face.load()));
+      await document.fonts.ready;
+      return faces.map((face) => ({ family: face.family, status: face.status }));
+    },
+    ['P100 DF Impact', 'P100 DF Arial', 'P100 Sans Fallback'],
+  );
   expect(fonts.every((font) => font.status === 'loaded')).toBe(true);
   await page.locator(`${firstCard} .game-link`).click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: firstTitle, exact: true })).toBeVisible();
@@ -129,7 +136,9 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
   await expect(page.locator('.average')).toContainText('95');
   await expect(page.locator('.critic-scores')).toContainText('Unavailable');
   await page.keyboard.press('Tab');
-  expect(await page.evaluate(() => Boolean(document.querySelector('dialog[open]')?.contains(document.activeElement)))).toBe(true);
+  expect(
+    await page.evaluate(() => Boolean(document.querySelector('dialog[open]')?.contains(document.activeElement))),
+  ).toBe(true);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page).toHaveTitle('Find your next game | Play 100');
@@ -157,24 +166,39 @@ test('play-later and completion are independent and persist on this device', asy
   await page.getByRole('dialog').getByRole('button', { name: 'Play later', exact: true }).click();
   await page.getByRole('button', { name: 'Completed', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Play later', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.reload();
   await expect(page.getByRole('button', { name: 'Play later', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await openBrowsingFilters(page);
-  await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
+  await page
+    .locator('.collection-tabs')
+    .getByRole('button', { name: /Play later/ })
+    .click();
   await expect(page.locator('.game-card')).toHaveCount(1);
   await expect(page.locator('.list-privacy')).toContainText('including games you added beyond the 100');
   await expect(page.locator('.list-privacy').getByRole('button', { name: 'Open my full library' })).toBeVisible();
-  await page.locator('.collection-tabs').getByRole('button', { name: /^Completed/ }).click();
+  await page
+    .locator('.collection-tabs')
+    .getByRole('button', { name: /^Completed/ })
+    .click();
   await expect(page.locator('.game-card')).toHaveCount(1);
   await page.locator(`${firstCard} .save-game`).click();
   await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'false');
   await page.reload();
   await expect(page.locator('.game-card')).toHaveCount(1);
   await openBrowsingFilters(page);
-  await page.locator('.collection-tabs').getByRole('button', { name: /Play later/ }).click();
+  await page
+    .locator('.collection-tabs')
+    .getByRole('button', { name: /Play later/ })
+    .click();
   await expect(page.getByRole('heading', { name: 'Your next great game goes here.' })).toBeVisible();
 });
 
@@ -187,11 +211,17 @@ test('blocked and corrupt storage remain usable, explicit and non-destructive', 
   await expect(page.locator('.storage-banner')).toContainText('The original data has not been changed.');
   await page.locator(`${firstCard} .save-game`).click();
   await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'true');
-  expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)).toBe('{"this":"is not valid library data"}');
+  expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)).toBe(
+    '{"this":"is not valid library data"}',
+  );
   await page.locator('.storage-banner').getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Your active library, queue, ranking and preferences have been reset.' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Your active library, queue, ranking and preferences have been reset.' }),
+  ).toBeVisible();
   expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)).toBeNull();
 });
 
@@ -199,8 +229,14 @@ test('storage denial warns while allowing temporary list changes', async ({ page
   await page.addInitScript((storageKey) => {
     const read = Storage.prototype.getItem;
     const write = Storage.prototype.setItem;
-    Storage.prototype.getItem = function (key) { if (key === storageKey) throw new DOMException('Storage denied', 'SecurityError'); return read.call(this, key); };
-    Storage.prototype.setItem = function (key, value) { if (key === storageKey) throw new DOMException('Storage denied', 'SecurityError'); return write.call(this, key, value); };
+    Storage.prototype.getItem = function (key) {
+      if (key === storageKey) throw new DOMException('Storage denied', 'SecurityError');
+      return read.call(this, key);
+    };
+    Storage.prototype.setItem = function (key, value) {
+      if (key === storageKey) throw new DOMException('Storage denied', 'SecurityError');
+      return write.call(this, key, value);
+    };
   }, key);
   await page.goto('/');
   await expect(page.locator('.storage-banner')).toContainText('Changes now work in this tab only');
@@ -211,7 +247,14 @@ test('storage denial warns while allowing temporary list changes', async ({ page
 
 test('share fallback exposes a copyable public URL without private list state', async ({ page }) => {
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new DOMException('Clipboard denied', 'NotAllowedError'); } } });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async () => {
+          throw new DOMException('Clipboard denied', 'NotAllowedError');
+        },
+      },
+    });
   });
   await page.goto('/?list=completed&year=2018');
   await page.getByRole('button', { name: 'Share this view', exact: true }).click();
@@ -220,28 +263,53 @@ test('share fallback exposes a copyable public URL without private list state', 
   expect(new URL(link).searchParams.get('list')).toBeNull();
   expect(new URL(link).searchParams.get('year')).toBe('2018');
   await page.getByRole('button', { name: 'Select link to copy', exact: true }).click();
-  expect(await page.getByLabel('Shareable link', { exact: true }).evaluate((input: HTMLInputElement) => input.selectionEnd === input.value.length && input.selectionStart === 0)).toBe(true);
+  expect(
+    await page
+      .getByLabel('Shareable link', { exact: true })
+      .evaluate((input: HTMLInputElement) => input.selectionEnd === input.value.length && input.selectionStart === 0),
+  ).toBe(true);
 });
 
 test('clipboard sharing reports success and retains a game deep link', async ({ page }) => {
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (value: string) => { document.documentElement.dataset.copiedLink = value; } } });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          document.documentElement.dataset.copiedLink = value;
+        },
+      },
+    });
   });
   await page.goto(`/?game=${firstSlug}`);
   await page.getByRole('button', { name: `Share ${firstTitle}`, exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('Link copied');
-  expect(await page.evaluate(() => new URL(document.documentElement.dataset.copiedLink ?? '').searchParams.get('game'))).toBe(firstSlug);
+  expect(
+    await page.evaluate(() => new URL(document.documentElement.dataset.copiedLink ?? '').searchParams.get('game')),
+  ).toBe(firstSlug);
 });
 
 test('native sharing receives the public deep link and a cancellation is harmless', async ({ page }) => {
   await page.goto(`/?game=${firstSlug}`);
   await page.evaluate(() => {
-    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => { document.documentElement.dataset.nativeShared = data.url; } });
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: ShareData) => {
+        document.documentElement.dataset.nativeShared = data.url;
+      },
+    });
   });
   await page.getByRole('button', { name: `Share ${firstTitle}`, exact: true }).click();
-  expect(await page.evaluate(() => new URL(document.documentElement.dataset.nativeShared ?? '').searchParams.get('game'))).toBe(firstSlug);
+  expect(
+    await page.evaluate(() => new URL(document.documentElement.dataset.nativeShared ?? '').searchParams.get('game')),
+  ).toBe(firstSlug);
   await page.evaluate(() => {
-    Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { throw new DOMException('Canceled', 'AbortError'); } });
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async () => {
+        throw new DOMException('Canceled', 'AbortError');
+      },
+    });
   });
   await page.getByRole('button', { name: `Share ${firstTitle}`, exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(1);
@@ -278,7 +346,10 @@ test('Lite and live system reduced-motion settings always retain functional brow
   await page.getByRole('searchbox').fill('mass effect 2');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
+  await page
+    .locator('.footer-tools')
+    .getByRole('button', { name: /Effects:/ })
+    .click();
   await page.getByRole('radio', { name: /Full/ }).click();
   await expect(page.getByRole('radio', { name: /Full/ })).toBeChecked();
   await expect(page.locator('.preference-note')).toContainText('Your system requests reduced motion');
@@ -316,7 +387,11 @@ test('unknown game links recover; workbook download is the exact enhanced XLSX',
   const file = await download.path();
   expect(file).not.toBeNull();
   if (!file) throw new Error('Workbook download did not produce a file.');
-  expect((await readFile(file)).equals(await readFile(new URL('../public/downloads/Play-100-Collection.xlsx', import.meta.url)))).toBe(true);
+  expect(
+    (await readFile(file)).equals(
+      await readFile(new URL('../public/downloads/Play-100-Collection.xlsx', import.meta.url)),
+    ),
+  ).toBe(true);
 });
 
 test('browse and game detail meet automated accessibility checks without horizontal overflow', async ({ page }) => {

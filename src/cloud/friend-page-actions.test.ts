@@ -16,23 +16,50 @@ vi.mock('./friend-store', () => ({
     saveIdentity = vi.fn();
   },
 }));
-vi.mock('./friend-all-store', () => ({ FriendAllStore: class { startDefault = startDefault; } }));
+vi.mock('./friend-all-store', () => ({
+  FriendAllStore: class {
+    startDefault = startDefault;
+  },
+}));
 
 const identity: OwnFriendIdentity = {
-  uid: 'alice', verified: true, displayName: 'Alice',
+  uid: 'alice',
+  verified: true,
+  displayName: 'Alice',
   avatar: { version: 1, seed: 'a'.repeat(32), palette: 'moss' },
 };
-const settings: FriendSettings = { format: 1, enabled: false, deleted: false, selectedIds: [], epoch: 1, revision: 1, updatedAt: 1 };
+const settings: FriendSettings = {
+  format: 1,
+  enabled: false,
+  deleted: false,
+  selectedIds: [],
+  epoch: 1,
+  revision: 1,
+  updatedAt: 1,
+};
 
-beforeEach(() => { auth.currentUser = { uid: 'alice' }; startDefault.mockReset(); });
-afterEach(() => { vi.unstubAllGlobals(); });
+beforeEach(() => {
+  auth.currentUser = { uid: 'alice' };
+  startDefault.mockReset();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 it('keeps exact friend routing and rejects invalid UIDs before navigation', () => {
-  const pushState = vi.fn(); const dispatchEvent = vi.fn(); const scrollTo = vi.fn();
+  const pushState = vi.fn();
+  const dispatchEvent = vi.fn();
+  const scrollTo = vi.fn();
   vi.stubGlobal('history', { pushState });
   vi.stubGlobal('window', { dispatchEvent, scrollTo });
-  vi.stubGlobal('PopStateEvent', class { constructor(readonly type: string) {} });
-  for (const uid of ['', '../alice', 'a/b', 'a?b', 'a#b', 'a'.repeat(129)]) expect(() => navigateFriend(uid)).toThrow(/invalid/);
+  vi.stubGlobal(
+    'PopStateEvent',
+    class {
+      constructor(readonly type: string) {}
+    },
+  );
+  for (const uid of ['', '../alice', 'a/b', 'a?b', 'a#b', 'a'.repeat(129)])
+    expect(() => navigateFriend(uid)).toThrow(/invalid/);
   expect(pushState).not.toHaveBeenCalled();
   navigateFriend('Alice_123-');
   expect(pushState).toHaveBeenCalledExactlyOnceWith(null, '', '/friends/Alice_123-');
@@ -52,7 +79,11 @@ it('requires verification and current identity before reading or initializing sh
 it('rejects a settings result after account replacement without initializing or publishing an old identity', async () => {
   const store = new FriendStore(cloudDb);
   let resolveSettings: ((value: FriendSettings | null) => void) | undefined;
-  vi.mocked(store.settings).mockReturnValue(new Promise(resolve => { resolveSettings = resolve; }));
+  vi.mocked(store.settings).mockReturnValue(
+    new Promise((resolve) => {
+      resolveSettings = resolve;
+    }),
+  );
   vi.mocked(store.identity).mockResolvedValue(null);
   const pending = prepareFriendIdentity(store, identity);
   auth.currentUser = { uid: 'bob' };
@@ -75,7 +106,11 @@ it('starts the automatic default for a missing setup instead of creating off con
   expect(startDefault).toHaveBeenCalledExactlyOnceWith('alice', expect.any(Function));
   expect(startDefault.mock.calls[0]![1]()).toBe(true);
   expect(store.initialize).not.toHaveBeenCalled();
-  expect(store.saveIdentity).toHaveBeenCalledExactlyOnceWith('alice', { displayName: 'Alice', avatar: identity.avatar }, 0);
+  expect(store.saveIdentity).toHaveBeenCalledExactlyOnceWith(
+    'alice',
+    { displayName: 'Alice', avatar: identity.avatar },
+    0,
+  );
 });
 
 it('keeps the off initialization only when the default cannot start and rechecks the account after starting it', async () => {
@@ -85,9 +120,15 @@ it('keeps the off initialization only when the default cannot start and rechecks
   vi.mocked(store.initialize).mockResolvedValue(settings);
   startDefault.mockResolvedValue(null);
   expect(await prepareFriendIdentity(store, identity)).toBe(settings);
-  expect(startDefault.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(store.initialize).mock.invocationCallOrder[0]!);
-  vi.mocked(store.initialize).mockClear(); vi.mocked(store.saveIdentity).mockClear();
-  startDefault.mockImplementation(async () => { auth.currentUser = { uid: 'bob' }; return null; });
+  expect(startDefault.mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(store.initialize).mock.invocationCallOrder[0]!,
+  );
+  vi.mocked(store.initialize).mockClear();
+  vi.mocked(store.saveIdentity).mockClear();
+  startDefault.mockImplementation(async () => {
+    auth.currentUser = { uid: 'bob' };
+    return null;
+  });
   await expect(prepareFriendIdentity(store, identity)).rejects.toThrow(/account changed/);
   expect(store.initialize).not.toHaveBeenCalled();
   expect(store.saveIdentity).not.toHaveBeenCalled();
@@ -96,7 +137,14 @@ it('keeps the off initialization only when the default cannot start and rechecks
 it('does not re-save an unchanged identity or overwrite settings consent', async () => {
   const store = new FriendStore(cloudDb);
   vi.mocked(store.settings).mockResolvedValue(settings);
-  vi.mocked(store.identity).mockResolvedValue({ format: 1, uid: identity.uid, displayName: identity.displayName, avatar: identity.avatar, revision: 4, updatedAt: 1 });
+  vi.mocked(store.identity).mockResolvedValue({
+    format: 1,
+    uid: identity.uid,
+    displayName: identity.displayName,
+    avatar: identity.avatar,
+    revision: 4,
+    updatedAt: 1,
+  });
   expect(await prepareFriendIdentity(store, identity)).toBe(settings);
   expect(store.initialize).not.toHaveBeenCalled();
   expect(startDefault).not.toHaveBeenCalled();

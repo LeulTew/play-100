@@ -17,14 +17,22 @@ export function CompareTrayProvider({ scope, children, interaction }: CompareTra
     const isCurrent = () => mounted.current && currentLease.current === lease;
     const store = createCompareTrayStore(scope, () => window.localStorage, isCurrent);
     const drag = createCompareDragSession(scope, store, isCurrent);
-    const controller = createCompareDragController({ store, drag, runtime, isCurrent, interaction: () => input.current });
+    const controller = createCompareDragController({
+      store,
+      drag,
+      runtime,
+      isCurrent,
+      interaction: () => input.current,
+    });
     return { store, controller, lease };
   }, [scope, runtime]);
   currentLease.current = lease;
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
   useEffect(() => {
     controller.resume();
@@ -38,9 +46,26 @@ export function CompareTrayProvider({ scope, children, interaction }: CompareTra
       controller.dispose();
     };
   }, [scope, store, controller]);
-  useEffect(() => { controller.refresh(); }, [controller, interaction]);
-  const value = useMemo(() => ({
-    ...snapshot, currentScope: scope, pin: controller.pin, unpin: store.unpin, clear: controller.clear, dismissError: store.dismissError,
-  }), [snapshot, scope, store, controller]);
-  return <CompareTrayContext.Provider value={value}><CompareDragSourceContext.Provider value={controller}>{children}</CompareDragSourceContext.Provider><span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{snapshot.status}</span></CompareTrayContext.Provider>;
+  useEffect(() => {
+    controller.refresh();
+  }, [controller, interaction]);
+  const value = useMemo(
+    () => ({
+      ...snapshot,
+      currentScope: scope,
+      pin: controller.pin,
+      unpin: store.unpin,
+      clear: controller.clear,
+      dismissError: store.dismissError,
+    }),
+    [snapshot, scope, store, controller],
+  );
+  return (
+    <CompareTrayContext.Provider value={value}>
+      <CompareDragSourceContext.Provider value={controller}>{children}</CompareDragSourceContext.Provider>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {snapshot.status}
+      </span>
+    </CompareTrayContext.Provider>
+  );
 }

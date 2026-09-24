@@ -14,6 +14,7 @@ export interface AvatarProps {
 export function Avatar({ descriptor, size = 48, className = '', label = '' }: AvatarProps) {
   const { version, seed, palette } = parseAvatarDescriptor(descriptor);
   const src = useMemo(() => generateAvatarDataUri({ version, seed, palette }), [version, seed, palette]);
-  if (!Number.isInteger(size) || size < 1 || size > 4096) throw new RangeError('Avatar size must be an integer from 1 to 4096.');
+  if (!Number.isInteger(size) || size < 1 || size > 4096)
+    throw new RangeError('Avatar size must be an integer from 1 to 4096.');
   return <img className={`avatar ${className}`} src={src} width={size} height={size} alt={label} draggable={false} />;
 }

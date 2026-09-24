@@ -11,12 +11,33 @@ const first = data.games[0];
 if (!first) throw new Error('The canonical fixture is missing its first game.');
 const canonical = recordFromGame(first);
 const a: LibraryRecord = {
-  id: 'wikidata:Q900001', source: 'wikidata', sourceId: 'Q900001',
-  title: 'Atlas 2', year: 2020, genre: 'Action RPG', studio: 'Example Studio',
-  sourceUrl: 'https://www.wikidata.org/wiki/Q900001', collectionRank: null,
+  id: 'wikidata:Q900001',
+  source: 'wikidata',
+  sourceId: 'Q900001',
+  title: 'Atlas 2',
+  year: 2020,
+  genre: 'Action RPG',
+  studio: 'Example Studio',
+  sourceUrl: 'https://www.wikidata.org/wiki/Q900001',
+  collectionRank: null,
 };
-const b: LibraryRecord = { ...a, id: 'freetogame:900001', source: 'freetogame', sourceId: '900001', sourceUrl: null, title: 'Atlas 20', year: 2024 };
-const c: LibraryRecord = { ...a, id: 'wikidata:Q900002', sourceId: 'Q900002', sourceUrl: null, title: 'Zero Edition', year: null };
+const b: LibraryRecord = {
+  ...a,
+  id: 'freetogame:900001',
+  source: 'freetogame',
+  sourceId: '900001',
+  sourceUrl: null,
+  title: 'Atlas 20',
+  year: 2024,
+};
+const c: LibraryRecord = {
+  ...a,
+  id: 'wikidata:Q900002',
+  sourceId: 'Q900002',
+  sourceUrl: null,
+  title: 'Zero Edition',
+  year: null,
+};
 const records = [a, b, c];
 
 describe('saved and live unranked search', () => {
@@ -31,7 +52,10 @@ describe('saved and live unranked search', () => {
 
   it('does not silently merge source IDs or editions with identical titles', () => {
     const duplicateTitle = { ...b, title: a.title };
-    expect(unrankedRecords(data.games, { [a.id]: a }, [duplicateTitle]).map((record) => record.id)).toEqual([b.id, a.id]);
+    expect(unrankedRecords(data.games, { [a.id]: a }, [duplicateTitle]).map((record) => record.id)).toEqual([
+      b.id,
+      a.id,
+    ]);
   });
 
   it('finds stored additions across title, studio, genre and exact numeric search terms', () => {
@@ -48,7 +72,9 @@ describe('saved and live unranked search', () => {
   it('keeps provider alias matches while still applying year and genre filters', () => {
     const aliases = new Set([a.id]);
     expect(filterUnranked(records, { ...defaultFilters, q: 'an upstream alias' }, {}, aliases)).toEqual([a]);
-    expect(filterUnranked(records, { ...defaultFilters, q: 'an upstream alias', year: '2024' }, {}, aliases)).toEqual([]);
+    expect(filterUnranked(records, { ...defaultFilters, q: 'an upstream alias', year: '2024' }, {}, aliases)).toEqual(
+      [],
+    );
     expect(filterUnranked(records, { ...defaultFilters, genre: 'Not this genre' }, {}, aliases)).toEqual([]);
   });
 

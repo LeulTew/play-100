@@ -5,12 +5,22 @@ import { matchesCatalogQuery } from './catalog-query';
 import { matchesProgressFilters } from './game-progress';
 import { collectionGameForId } from './catalog-identity';
 
-export function unrankedRecords(games: Game[], saved: Record<string, LibraryRecord>, online: LibraryRecord[]): LibraryRecord[] {
-  return [...new Map([...online, ...Object.values(saved)].map((record) => [record.id, record])).values()]
-    .filter((record) => !collectionGameForId(games, record.id));
+export function unrankedRecords(
+  games: Game[],
+  saved: Record<string, LibraryRecord>,
+  online: LibraryRecord[],
+): LibraryRecord[] {
+  return [...new Map([...online, ...Object.values(saved)].map((record) => [record.id, record])).values()].filter(
+    (record) => !collectionGameForId(games, record.id),
+  );
 }
 
-export function filterUnranked(records: LibraryRecord[], filters: Filters, progress: Record<string, PersonalProgress>, onlineMatches: ReadonlySet<string> = new Set()): LibraryRecord[] {
+export function filterUnranked(
+  records: LibraryRecord[],
+  filters: Filters,
+  progress: Record<string, PersonalProgress>,
+  onlineMatches: ReadonlySet<string> = new Set(),
+): LibraryRecord[] {
   if (filters.tier !== 'all') return [];
   const result = records.filter((record) => {
     if (filters.genre && record.genre !== filters.genre) return false;
@@ -19,7 +29,10 @@ export function filterUnranked(records: LibraryRecord[], filters: Filters, progr
     if (!matchesProgressFilters(state, filters)) return false;
     // Source searches can match an alias that is not included in the imported title.
     if (onlineMatches.has(record.id)) return true;
-    return matchesCatalogQuery(`${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''}`, filters.q);
+    return matchesCatalogQuery(
+      `${record.title} ${record.studio ?? ''} ${record.genre ?? ''} ${record.year ?? ''}`,
+      filters.q,
+    );
   });
   if (filters.sort === 'rank') return result;
   const direction = sortDirection(filters) === 'asc' ? 1 : -1;

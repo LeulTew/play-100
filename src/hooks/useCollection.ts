@@ -13,7 +13,10 @@ export function useCollection() {
   useEffect(() => {
     const controller = new AbortController();
     let timedOut = false;
-    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15000);
     setResult({ status: 'loading', data: null, error: null });
     fetch('/data/collection.json', { signal: controller.signal, cache: attempt ? 'reload' : 'no-cache' })
       .then((response) => {
@@ -29,13 +32,20 @@ export function useCollection() {
       .catch((error: unknown) => {
         if (controller.signal.aborted && !timedOut) return;
         setResult({
-          status: 'error', data: null,
-          error: timedOut ? 'The collection took too long to load. Check your connection and try again.' :
-            error instanceof Error ? error.message : 'The collection could not be loaded.',
+          status: 'error',
+          data: null,
+          error: timedOut
+            ? 'The collection took too long to load. Check your connection and try again.'
+            : error instanceof Error
+              ? error.message
+              : 'The collection could not be loaded.',
         });
       })
       .finally(() => window.clearTimeout(timeout));
-    return () => { window.clearTimeout(timeout); controller.abort(); };
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [attempt]);
   return { ...result, retry: () => setAttempt((value) => value + 1) };
 }

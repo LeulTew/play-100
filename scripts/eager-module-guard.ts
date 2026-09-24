@@ -10,7 +10,11 @@ interface BuiltChunk {
 }
 type BuiltOutput = BuiltChunk | { type: 'asset' };
 
-export function assertDeferredBundleModules(root: string, bundle: Readonly<Record<string, BuiltOutput>>, htmlFiles: readonly string[]): void {
+export function assertDeferredBundleModules(
+  root: string,
+  bundle: Readonly<Record<string, BuiltOutput>>,
+  htmlFiles: readonly string[],
+): void {
   const visited = new Set<string>();
   const visit = (file: string) => {
     if (visited.has(file) || !file.endsWith('.js')) return;
@@ -20,7 +24,7 @@ export function assertDeferredBundleModules(root: string, bundle: Readonly<Recor
     for (const [id, module] of Object.entries(chunk.modules)) {
       if (module.renderedLength <= 0) continue;
       const source = path.relative(root, id.split('?')[0]!).split(path.sep).join('/');
-      if (DEFERRED_SOURCE_MODULES.some(deferred => deferred === source)) {
+      if (DEFERRED_SOURCE_MODULES.some((deferred) => deferred === source)) {
         throw new Error(`Deferred module is eager: ${source} in ${file}.`);
       }
     }

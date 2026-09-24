@@ -6,16 +6,36 @@ import { readLibrary } from './library-helpers';
 import { installGuestLibrary, libraryFixture } from './library-pagination-helpers';
 
 const guestTrayKey = compareTrayStorageKey('guest');
-const trayRaw = (page: Page) => page.evaluate(key => localStorage.getItem(key), guestTrayKey);
+const trayRaw = (page: Page) => page.evaluate((key) => localStorage.getItem(key), guestTrayKey);
 const publicSources = [
-  { name: 'collection card artwork', url: '/?catalogs=off', card: '.game-card', source: '.game-link .game-cover', identity: 'data-game' },
-  { name: 'collection title', url: '/?catalogs=off', card: '.game-card', source: '.game-link h3', identity: 'data-game' },
-  { name: 'Discover title', url: '/discover?catalogs=off', card: '.discovery-card', source: 'h3 button', identity: 'data-catalog-id' },
+  {
+    name: 'collection card artwork',
+    url: '/?catalogs=off',
+    card: '.game-card',
+    source: '.game-link .game-cover',
+    identity: 'data-game',
+  },
+  {
+    name: 'collection title',
+    url: '/?catalogs=off',
+    card: '.game-card',
+    source: '.game-link h3',
+    identity: 'data-game',
+  },
+  {
+    name: 'Discover title',
+    url: '/discover?catalogs=off',
+    card: '.discovery-card',
+    source: 'h3 button',
+    identity: 'data-catalog-id',
+  },
 ];
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/api/catalog?**', route => route.fulfill({ status: 503, json: { error: 'Controlled offline provider.' } }));
+  await page.route('**/api/catalog?**', (route) =>
+    route.fulfill({ status: 503, json: { error: 'Controlled offline provider.' } }),
+  );
 });
 
 async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, source: Locator, touch: boolean) {
@@ -23,15 +43,17 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
   await expect(page.locator('.compare-tray-dock,.compare-drag-ghost,.drag-preview,dialog[open]')).toHaveCount(0);
   expect(await trayRaw(page)).toBeNull();
   await page.evaluate(() => document.fonts.ready);
-  await source.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await source.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
   const box = await source.boundingBox();
   if (!box) throw new Error('The actual broad Compare source is not laid out.');
   const start = { x: box.x + Math.min(24, box.width / 2), y: box.y + Math.min(22, box.height / 2) };
-  expect(await source.evaluate((element, point) => {
-    const hit = document.elementFromPoint(point.x, point.y);
-    return Boolean(hit && element.contains(hit) && !hit.closest('.compare-drag-handle,.drag-handle'));
-  }, start)).toBe(true);
-  expect(await source.evaluate(element => getComputedStyle(element).touchAction)).not.toBe('none');
+  expect(
+    await source.evaluate((element, point) => {
+      const hit = document.elementFromPoint(point.x, point.y);
+      return Boolean(hit && element.contains(hit) && !hit.closest('.compare-drag-handle,.drag-handle'));
+    }, start),
+  ).toBe(true);
+  expect(await source.evaluate((element) => getComputedStyle(element).touchAction)).not.toBe('none');
   const cdp = touch ? await context.newCDPSession(page) : null;
   let held = false;
   try {
@@ -41,7 +63,10 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
       await page.waitForTimeout(310);
       await expect(page.locator('.compare-tray-dock,.compare-drag-ghost')).toHaveCount(0);
       // The 8px tolerance is pre-hold; this deliberate move reaches the UA's touchmove delivery threshold.
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x + 24, y: start.y + 24 }] });
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: start.x + 24, y: start.y + 24 }],
+      });
     } else {
       await page.mouse.move(start.x, start.y);
       await page.mouse.down();
@@ -58,10 +83,12 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
     const target = await dock.boundingBox();
     if (!target) throw new Error('The first empty Compare dock did not produce a real drop target.');
     const end = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-    expect(await dock.evaluate((element, point) => {
-      const hit = document.elementFromPoint(point.x, point.y);
-      return Boolean(hit && element.contains(hit));
-    }, end)).toBe(true);
+    expect(
+      await dock.evaluate((element, point) => {
+        const hit = document.elementFromPoint(point.x, point.y);
+        return Boolean(hit && element.contains(hit));
+      }, end),
+    ).toBe(true);
     if (cdp) {
       const nav = await page.locator('.mobile-nav').boundingBox();
       if (!nav) throw new Error('The coarse app navigation is not laid out.');
@@ -69,10 +96,12 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
       for (let step = 1; step <= 8; step++) {
         await cdp.send('Input.dispatchTouchEvent', {
           type: 'touchMove',
-          touchPoints: [{
-            x: start.x + 24 + (end.x - start.x - 24) * step / 8,
-            y: start.y + 24 + (end.y - start.y - 24) * step / 8,
-          }],
+          touchPoints: [
+            {
+              x: start.x + 24 + ((end.x - start.x - 24) * step) / 8,
+              y: start.y + 24 + ((end.y - start.y - 24) * step) / 8,
+            },
+          ],
         });
       }
       await expect(dock).toHaveAttribute('data-compare-drop-ready', 'true');
@@ -91,18 +120,26 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
         if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
         else await page.mouse.up();
       }
-    } finally { await cdp?.detach(); }
+    } finally {
+      await cdp?.detach();
+    }
   }
 }
 
-async function reorderWithDedicatedGrip(page: Page, context: BrowserContext, row: Locator, nextRow: Locator, touch: boolean) {
-  await row.evaluate(element => {
+async function reorderWithDedicatedGrip(
+  page: Page,
+  context: BrowserContext,
+  row: Locator,
+  nextRow: Locator,
+  touch: boolean,
+) {
+  await row.evaluate((element) => {
     const headerBottom = document.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0;
     window.scrollTo({ top: scrollY + element.getBoundingClientRect().top - headerBottom - 16, behavior: 'instant' });
   });
   const grip = row.locator('.record-order > .drag-handle');
   await expect(grip).toBeEnabled();
-  expect(await grip.evaluate(element => element.closest('[data-compare-drag-source]') === null)).toBe(true);
+  expect(await grip.evaluate((element) => element.closest('[data-compare-drag-source]') === null)).toBe(true);
   const startBox = await grip.boundingBox();
   const targetBox = await nextRow.boundingBox();
   if (!startBox || !targetBox) throw new Error('The dedicated private reorder targets are not laid out.');
@@ -130,7 +167,8 @@ async function reorderWithDedicatedGrip(page: Page, context: BrowserContext, row
     if (cdp) {
       for (let step = 1; step <= 8; step++) {
         await cdp.send('Input.dispatchTouchEvent', {
-          type: 'touchMove', touchPoints: [{ x: start.x, y: start.y + 4 + (endY - start.y - 4) * step / 8 }],
+          type: 'touchMove',
+          touchPoints: [{ x: start.x, y: start.y + 4 + ((endY - start.y - 4) * step) / 8 }],
         });
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
@@ -146,12 +184,17 @@ async function reorderWithDedicatedGrip(page: Page, context: BrowserContext, row
         if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
         else await page.mouse.up();
       }
-    } finally { await cdp?.detach(); }
+    } finally {
+      await cdp?.detach();
+    }
   }
 }
 
 for (const scenario of publicSources) {
-  test(`actual native ${scenario.name} drag pins metadata without opening or changing the library`, async ({ page, isMobile }) => {
+  test(`actual native ${scenario.name} drag pins metadata without opening or changing the library`, async ({
+    page,
+    isMobile,
+  }) => {
     test.skip(isMobile, 'Native mouse contract; the touch experiment has a separate owned fixture.');
     await page.goto(scenario.url);
     const card = page.locator(scenario.card).first();
@@ -180,7 +223,7 @@ for (const scenario of publicSources) {
     await expect(page.locator('dialog[open],.compare-drag-ghost')).toHaveCount(0);
     const raw = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
     if (!raw) throw new Error('The accepted pin was not persisted in the guest tray.');
-    expect(parseCompareTray(raw, 'guest').map(record => record.id)).toEqual([id]);
+    expect(parseCompareTray(raw, 'guest').map((record) => record.id)).toEqual([id]);
     expect(await readLibrary(page)).toEqual(before);
     const title = card.locator(scenario.card === '.game-card' ? '.game-link' : 'h3 button');
     await title.focus();
@@ -188,15 +231,21 @@ for (const scenario of publicSources) {
     await expect(page.locator('dialog[open]')).toHaveCount(1);
   });
 
-  test(`actual coarse 320px ${scenario.name} hold reaches the first empty dock and preserves the fresh next tap`, async ({ page, context, isMobile }) => {
+  test(`actual coarse 320px ${scenario.name} hold reaches the first empty dock and preserves the fresh next tap`, async ({
+    page,
+    context,
+    isMobile,
+  }) => {
     test.skip(!isMobile, 'This proves the actual coarse 320px broad surface, not the grip alternative.');
     await page.setViewportSize({ width: 320, height: 740 });
     await page.goto(scenario.url);
     const card = page.locator(scenario.card).first();
     await expect(card.locator('.compare-drag-handle')).toBeEnabled();
     const capabilities = await page.evaluate(() => ({
-      width: innerWidth, height: innerHeight,
-      coarse: matchMedia('(pointer: coarse)').matches, touchPoints: navigator.maxTouchPoints,
+      width: innerWidth,
+      height: innerHeight,
+      coarse: matchMedia('(pointer: coarse)').matches,
+      touchPoints: navigator.maxTouchPoints,
     }));
     expect(capabilities.width).toBe(320);
     expect(capabilities.height).toBe(740);
@@ -212,23 +261,34 @@ for (const scenario of publicSources) {
     await expect.poll(() => new URL(page.url()).searchParams.get('game')).toBe(id);
     const raw = await trayRaw(page);
     if (!raw) throw new Error('The broad touch drop did not persist a validated guest tray.');
-    expect(parseCompareTray(raw, 'guest').map(record => record.id)).toEqual([id]);
+    expect(parseCompareTray(raw, 'guest').map((record) => record.id)).toEqual([id]);
     expect(await readLibrary(page)).toEqual(before);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
 
 for (const kind of ['queue', 'ranking'] as const) {
-  test(`private ${kind} Compare title drag preserves all data while its separate reorder grip still works`, async ({ page, context, isMobile }) => {
+  test(`private ${kind} Compare title drag preserves all data while its separate reorder grip still works`, async ({
+    page,
+    context,
+    isMobile,
+  }) => {
     const fixture = libraryFixture(3);
     await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
-    if (kind === 'ranking') await page.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: /^Ranking/ }).click();
+    if (kind === 'ranking')
+      await page
+        .getByRole('navigation', { name: 'My games views' })
+        .getByRole('button', { name: /^Ranking/ })
+        .click();
     const editor = page.locator('.my-games-editor:visible');
     await expect(editor).toHaveCount(1);
-    const list = editor.getByRole('list', { name: kind === 'queue' ? 'Your play order' : 'Your ranked games', exact: true });
+    const list = editor.getByRole('list', {
+      name: kind === 'queue' ? 'Your play order' : 'Your ranked games',
+      exact: true,
+    });
     await expect(list.locator('.personal-row')).toHaveCount(3);
     const before = await readLibrary(page);
-    const ids = kind === 'queue' ? before.queueOrder : before.ranking.map(entry => entry.id);
+    const ids = kind === 'queue' ? before.queueOrder : before.ranking.map((entry) => entry.id);
     const [firstId, secondId] = ids;
     if (!firstId || !secondId) throw new Error('The private order fixture requires two exact records.');
     const row = list.locator(`[data-record-id="${firstId}"]`);
@@ -236,14 +296,20 @@ for (const kind of ['queue', 'ranking'] as const) {
     await expect(row.locator('.compare-drag-handle')).toBeEnabled();
     expect(await row.getAttribute('data-compare-drag-source')).toBeNull();
     if (isMobile) {
-      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0)).toBe(true);
+      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0)).toBe(
+        true,
+      );
     }
     await dropIntoFirstEmptyTray(page, context, row.locator('.record-title'), isMobile);
     expect(await readLibrary(page)).toEqual(before);
     const pinned = await trayRaw(page);
     if (!pinned) throw new Error('The private title was not pinned through the Compare tray.');
     expect(parseCompareTray(pinned, 'guest')).toEqual([before.records[firstId]]);
-    expect(await list.locator('.personal-row').evaluateAll(rows => rows.map(element => element.getAttribute('data-record-id')))).toEqual(ids);
+    expect(
+      await list
+        .locator('.personal-row')
+        .evaluateAll((rows) => rows.map((element) => element.getAttribute('data-record-id'))),
+    ).toEqual(ids);
     await reorderWithDedicatedGrip(page, context, row, nextRow, isMobile);
     const expected = applyPersonalAction(before, { type: 'move-item', list: kind, id: firstId, overId: secondId });
     await expect.poll(() => readLibrary(page)).toEqual(expected);

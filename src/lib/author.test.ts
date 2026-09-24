@@ -14,7 +14,11 @@ describe('public creator ratings stay separate from visitor opinions', () => {
     expect(collection.games.every((game) => game.authorRating !== null)).toBe(true);
     expect(collection.collection.authorRatingsAreOriginal).toBe(true);
     expect(collection.games[1]?.authorRating?.rawValue).toBe('9.9696969696969688');
-    expect(collection.games[2]?.authorRating).toMatchObject({ value: 9.9, rawValue: '9.9 (AI – not played)', sourceCell: 'L7' });
+    expect(collection.games[2]?.authorRating).toMatchObject({
+      value: 9.9,
+      rawValue: '9.9 (AI – not played)',
+      sourceCell: 'L7',
+    });
     expect(collection.games[6]?.authorRating).toMatchObject({ value: 9.8, rawValue: '9.8', sourceCell: 'L11' });
     expect(collection.games[98]?.authorRating?.rawValue).toBe('7.0303030303030303');
     expect(collection.games[99]?.authorRating?.value).toBe(7);

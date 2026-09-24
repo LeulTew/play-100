@@ -17,7 +17,14 @@ describe('known local page bounds', () => {
   it('does not add an empty page to an exact multiple', () => {
     expect(getLocalPage(48, 24, 48)).toEqual({ offset: 24, page: 2, pageCount: 2, start: 25, end: 48 });
   });
-  it.each([[1, 0, 0], [-1, 24, 0], [1, 24, -1], [1.5, 24, 0], [1, 24, Infinity], [1, NaN, 0]])('rejects invalid internal input %j', (total, pageSize, offset) => {
+  it.each([
+    [1, 0, 0],
+    [-1, 24, 0],
+    [1, 24, -1],
+    [1.5, 24, 0],
+    [1, 24, Infinity],
+    [1, NaN, 0],
+  ])('rejects invalid internal input %j', (total, pageSize, offset) => {
     expect(() => getLocalPage(total, pageSize, offset)).toThrow(RangeError);
   });
 });

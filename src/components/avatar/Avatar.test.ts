@@ -18,7 +18,9 @@ describe('Avatar image boundary', () => {
   });
 
   it.each([32, 48, 96])('reserves %ipx dimensions with an escaped accessible label', (size) => {
-    const markup = renderToStaticMarkup(createElement(Avatar, { descriptor, size, className: 'profile-avatar', label: 'Sam <player> avatar' }));
+    const markup = renderToStaticMarkup(
+      createElement(Avatar, { descriptor, size, className: 'profile-avatar', label: 'Sam <player> avatar' }),
+    );
     expect(markup).toContain(`width="${size}" height="${size}"`);
     expect(markup).toContain('class="avatar profile-avatar"');
     expect(markup).toContain('alt="Sam &lt;player&gt; avatar"');
@@ -29,6 +31,8 @@ describe('Avatar image boundary', () => {
   });
 
   it('does not turn invalid metadata into a different face', () => {
-    expect(() => renderToStaticMarkup(createElement(Avatar, { descriptor: { ...descriptor, seed: 'bad' } }))).toThrow(TypeError);
+    expect(() => renderToStaticMarkup(createElement(Avatar, { descriptor: { ...descriptor, seed: 'bad' } }))).toThrow(
+      TypeError,
+    );
   });
 });

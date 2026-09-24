@@ -10,8 +10,8 @@ export function startGuestLibraryLoad(): void {
   // Retain failures for the hook's normal migration/recovery path, without an
   // unhandled rejection if React has not mounted its consumer yet.
   const result = loadPersonalLibrary(records).then<StartupResult, StartupResult>(
-    value => ({ ok: true, value }),
-    error => ({ ok: false, error }),
+    (value) => ({ ok: true, value }),
+    (error) => ({ ok: false, error }),
   );
   pending = { records, result };
 }
@@ -19,11 +19,13 @@ export function startGuestLibraryLoad(): void {
 export function takeGuestLibraryLoad(): { records: LibraryRecord[]; promise: Promise<PersonalLibraryLoad> } | null {
   const attempt = pending;
   pending = null;
-  return attempt ? {
-    records: attempt.records,
-    promise: attempt.result.then(result => {
-      if (!result.ok) throw result.error;
-      return result.value;
-    }),
-  } : null;
+  return attempt
+    ? {
+        records: attempt.records,
+        promise: attempt.result.then((result) => {
+          if (!result.ok) throw result.error;
+          return result.value;
+        }),
+      }
+    : null;
 }

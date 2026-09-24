@@ -38,7 +38,11 @@ declare global {
       failRelease(): void;
       failOpen(): void;
       staleFrame(change: 'boundary' | 'policy'): Promise<{
-        aborted: boolean; subscriptions: number; flights: number; sourceVisible: boolean; targetReads: number;
+        aborted: boolean;
+        subscriptions: number;
+        flights: number;
+        sourceVisible: boolean;
+        targetReads: number;
       }>;
     };
   }
@@ -290,24 +294,34 @@ let errors: string[];
 let externalRequests: string[];
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-motion-tests',
-    logLevel: 'error', appType: 'custom',
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
-    plugins: [react(), {
-      name: 'native-motion-fixture',
-      configureServer(vite) {
-        vite.middlewares.use((request, response, next) => {
-          if (request.url?.split('?')[0] !== '/__motion-test') return next();
-          void vite.transformIndexHtml('/__motion-test', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }, next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 4201, strictPort: true, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-motion-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+        plugins: [
+          react(),
+          {
+            name: 'native-motion-fixture',
+            configureServer(vite) {
+              vite.middlewares.use((request, response, next) => {
+                if (request.url?.split('?')[0] !== '/__motion-test') return next();
+                void vite.transformIndexHtml('/__motion-test', fixture).then((html) => {
+                  response.setHeader('Content-Type', 'text/html');
+                  response.end(html);
+                }, next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 4201, strictPort: true, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-motion-tests$/);
   expect(server.config.server.watch).toBeNull();
@@ -319,7 +333,10 @@ beforeAll(async () => {
 }, 30_000);
 
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
-afterAll(async () => { await browser?.close(); await server?.close(); }, 60_000);
+afterAll(async () => {
+  await browser?.close();
+  await server?.close();
+}, 60_000);
 
 beforeEach(async () => {
   if (!browser) throw new Error('The motion test browser is unavailable.');
@@ -327,9 +344,13 @@ beforeEach(async () => {
   externalRequests = [];
   context = await browser.newContext({ viewport: { width: 1280, height: 960 } });
   page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  context.on('request', request => { if (!request.url().startsWith(`${origin}/`)) externalRequests.push(request.url()); });
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  context.on('request', (request) => {
+    if (!request.url().startsWith(`${origin}/`)) externalRequests.push(request.url());
+  });
   await page.goto(`${origin}/__motion-test`);
   await page.getByRole('button', { name: 'Open game', exact: true }).waitFor();
 });
@@ -345,13 +366,20 @@ const detail = () => page.getByRole('dialog', { name: 'Public game', exact: true
 const stats = () => page.evaluate(() => window.motionFixture.stats);
 
 describe('native Dialog motion lifecycle', () => {
-  it.each(['boundary', 'policy'] as const)('releases an origin when %s changes before its scheduled frame', async change => {
-    expect(await page.evaluate(value => window.motionFixture.staleFrame(value), change)).toEqual({
-      aborted: true, subscriptions: 0, flights: 0, sourceVisible: true, targetReads: 0,
-    });
-    await browserExpect(activeVisuals()).toHaveCount(0);
-    await browserExpect(page.locator('dialog[open]')).toHaveCount(0);
-  });
+  it.each(['boundary', 'policy'] as const)(
+    'releases an origin when %s changes before its scheduled frame',
+    async (change) => {
+      expect(await page.evaluate((value) => window.motionFixture.staleFrame(value), change)).toEqual({
+        aborted: true,
+        subscriptions: 0,
+        flights: 0,
+        sourceVisible: true,
+        targetReads: 0,
+      });
+      await browserExpect(activeVisuals()).toHaveCount(0);
+      await browserExpect(page.locator('dialog[open]')).toHaveCount(0);
+    },
+  );
 
   it('focuses and accepts input immediately while animation completion is held', async () => {
     await page.getByRole('button', { name: 'Open game', exact: true }).click();
@@ -359,41 +387,59 @@ describe('native Dialog motion lifecycle', () => {
     await page.locator('#private-draft').fill('A new unsaved fixture value');
     await browserExpect(page.locator('#private-draft')).toHaveValue('A new unsaved fixture value');
     await browserExpect(activeVisuals()).toHaveCount(1);
-    expect(await page.locator('.dialog-inner').evaluate(element => getComputedStyle(element).transform)).toBe('none');
+    expect(await page.locator('.dialog-inner').evaluate((element) => getComputedStyle(element).transform)).toBe('none');
     const records = await stats();
     expect(records.sourceReads).toBe(1);
-    expect(records.effects.filter(effect => effect.target.startsWith('sprite:')).every(effect => effect.duration === 240)).toBe(true);
+    expect(
+      records.effects
+        .filter((effect) => effect.target.startsWith('sprite:'))
+        .every((effect) => effect.duration === 240),
+    ).toBe(true);
   });
 
   it('paints only the public primitive above the native backdrop without intercepting input', async () => {
     await page.getByRole('button', { name: 'Open game', exact: true }).click();
     await browserExpect(activeVisuals()).toHaveCount(1);
     await browserExpect(page.locator('dialog > [data-motion-host="dialog"] > [data-motion-visual]')).toHaveCount(1);
-    expect(await activeVisuals().evaluate(element => ({
-      inert: element instanceof HTMLElement && element.inert,
-      pointer: getComputedStyle(element).pointerEvents,
-      hidden: element.getAttribute('aria-hidden'),
-      controls: element.querySelectorAll('input,button,a,textarea,[id]').length,
-    }))).toEqual({ inert: true, pointer: 'none', hidden: 'true', controls: 0 });
+    expect(
+      await activeVisuals().evaluate((element) => ({
+        inert: element instanceof HTMLElement && element.inert,
+        pointer: getComputedStyle(element).pointerEvents,
+        hidden: element.getAttribute('aria-hidden'),
+        controls: element.querySelectorAll('input,button,a,textarea,[id]').length,
+      })),
+    ).toEqual({ inert: true, pointer: 'none', hidden: 'true', controls: 0 });
     // This 4px crop contains only the first-party public sleeve, never the form.
     const crop = await page.screenshot({ clip: { x: 40, y: 128, width: 4, height: 4 } });
     const { data } = await sharp(crop).removeAlpha().raw().toBuffer({ resolveWithObject: true });
     expect(data[1]).toBeGreaterThan(200);
-    expect(await page.evaluate(() => Boolean(document.elementFromPoint(40, 128)?.closest('[data-motion-visual]')))).toBe(false);
+    expect(
+      await page.evaluate(() => Boolean(document.elementFromPoint(40, 128)?.closest('[data-motion-visual]'))),
+    ).toBe(false);
   });
 
   it('removes the real form and unlocks/focuses before a held public return finishes', async () => {
-    await page.evaluate(() => { document.body.style.overflow = 'clip'; document.body.style.paddingRight = '3px'; });
+    await page.evaluate(() => {
+      document.body.style.overflow = 'clip';
+      document.body.style.paddingRight = '3px';
+    });
     await page.getByRole('button', { name: 'Open game', exact: true }).click();
     await browserExpect(page.locator('#detail-title')).toBeFocused();
     await page.keyboard.press('Escape');
     await browserExpect(detail()).toHaveCount(0);
     await browserExpect(page.locator('#private-draft')).toHaveCount(0);
     await browserExpect(page.locator('#source-trigger')).toBeFocused();
-    expect(await page.evaluate(() => [document.body.style.overflow, document.body.style.paddingRight])).toEqual(['clip', '3px']);
-    await browserExpect(page.locator('[data-motion-host="root"] [data-motion-phase="return"]')).toHaveCount(1, { timeout: 2000 });
+    expect(await page.evaluate(() => [document.body.style.overflow, document.body.style.paddingRight])).toEqual([
+      'clip',
+      '3px',
+    ]);
+    await browserExpect(page.locator('[data-motion-host="root"] [data-motion-phase="return"]')).toHaveCount(1, {
+      timeout: 2000,
+    });
     expect((await stats()).closeRequests).toBe(1);
-    expect((await stats()).effects.some(effect => effect.target === 'sprite:return' && effect.duration === 160)).toBe(true);
+    expect((await stats()).effects.some((effect) => effect.target === 'sprite:return' && effect.duration === 160)).toBe(
+      true,
+    );
   });
 
   it('keeps nested body locks and Escape local to the top native dialog', async () => {
@@ -425,12 +471,16 @@ describe('native Dialog motion lifecycle', () => {
   it('contains a throwing motion unsubscribe without losing native cleanup or focus', async () => {
     const reports: string[] = [];
     page.removeAllListeners('console');
-    page.on('console', message => { if (message.type() === 'error') reports.push(message.text()); });
+    page.on('console', (message) => {
+      if (message.type() === 'error') reports.push(message.text());
+    });
     await page.getByRole('button', { name: 'Open game', exact: true }).click();
     await browserExpect(activeVisuals()).toHaveCount(1);
     await page.evaluate(() => window.motionFixture.failRelease());
     await page.getByRole('button', { name: 'Open confirmation', exact: true }).click();
-    await browserExpect(page.getByRole('dialog', { name: 'Confirm fixture', exact: true })).toBeVisible({ timeout: 1000 });
+    await browserExpect(page.getByRole('dialog', { name: 'Confirm fixture', exact: true })).toBeVisible({
+      timeout: 1000,
+    });
     await page.keyboard.press('Escape');
     await browserExpect(page.locator('#nested-trigger')).toBeFocused();
     expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
@@ -447,7 +497,9 @@ describe('native Dialog motion lifecycle', () => {
   it('always registers native cleanup even when optional motion startup throws', async () => {
     const reports: string[] = [];
     page.removeAllListeners('console');
-    page.on('console', message => { if (message.type() === 'error') reports.push(message.text()); });
+    page.on('console', (message) => {
+      if (message.type() === 'error') reports.push(message.text());
+    });
     await page.evaluate(() => window.motionFixture.failOpen());
     await page.getByRole('button', { name: 'Open menu', exact: true }).click();
     await browserExpect(page.locator('#utility-title')).toBeFocused();
@@ -476,14 +528,17 @@ describe('native Dialog motion lifecycle', () => {
     await browserExpect(activeVisuals()).toHaveCount(0);
   });
 
-  it.each(['scope', 'revoke', 'removeRecord', 'navigate'] as const)('never paints an exit after %s', async operation => {
-    await page.getByRole('button', { name: 'Open game', exact: true }).click();
-    await browserExpect(activeVisuals()).toHaveCount(1);
-    await page.evaluate(method => window.motionFixture[method](), operation);
-    await browserExpect(detail()).toHaveCount(0);
-    await browserExpect(activeVisuals()).toHaveCount(0);
-    expect((await stats()).effects.some(effect => effect.target === 'sprite:return')).toBe(false);
-  });
+  it.each(['scope', 'revoke', 'removeRecord', 'navigate'] as const)(
+    'never paints an exit after %s',
+    async (operation) => {
+      await page.getByRole('button', { name: 'Open game', exact: true }).click();
+      await browserExpect(activeVisuals()).toHaveCount(1);
+      await page.evaluate((method) => window.motionFixture[method](), operation);
+      await browserExpect(detail()).toHaveCount(0);
+      await browserExpect(activeVisuals()).toHaveCount(0);
+      expect((await stats()).effects.some((effect) => effect.target === 'sprite:return')).toBe(false);
+    },
+  );
 
   it('does zero optional geometry/effect setup for Lite and stops rather than replaying on policy changes', async () => {
     await page.evaluate(() => window.motionFixture.policy({ animate: false }));
@@ -505,17 +560,25 @@ describe('native Dialog motion lifecycle', () => {
     await page.evaluate(() => window.motionFixture.open('local'));
     await browserExpect(page.locator('#detail-title')).toBeFocused();
     await browserExpect(activeVisuals()).toHaveCount(0);
-    await browserExpect.poll(async () => (await stats()).effects.some(effect => effect.target === 'public-target')).toBe(true);
-    expect((await stats()).effects.every(effect => effect.target === 'public-target' && effect.duration <= 160)).toBe(true);
+    await browserExpect
+      .poll(async () => (await stats()).effects.some((effect) => effect.target === 'public-target'))
+      .toBe(true);
+    expect((await stats()).effects.every((effect) => effect.target === 'public-target' && effect.duration <= 160)).toBe(
+      true,
+    );
     expect((await stats()).sourceReads).toBe(0);
-    expect(await page.locator('.dialog-inner').evaluate(element => getComputedStyle(element).transform)).toBe('none');
+    expect(await page.locator('.dialog-inner').evaluate((element) => getComputedStyle(element).transform)).toBe('none');
   });
 
   it('expires a captured but unadopted source without blocking the real detail', async () => {
-    await page.evaluate(() => { window.motionFixture.prepare(); window.motionFixture.expire(); window.motionFixture.commit(); });
+    await page.evaluate(() => {
+      window.motionFixture.prepare();
+      window.motionFixture.expire();
+      window.motionFixture.commit();
+    });
     await browserExpect(page.locator('#detail-title')).toBeFocused();
     await browserExpect(activeVisuals()).toHaveCount(0);
-    expect((await stats()).effects.every(effect => effect.target === 'public-target')).toBe(true);
+    expect((await stats()).effects.every((effect) => effect.target === 'public-target')).toBe(true);
   });
 
   it('does not enroll or measure a duplicate open when the URL would not change', async () => {
@@ -540,20 +603,27 @@ describe('native Dialog motion lifecycle', () => {
   });
 
   it('finishes repeated coarse-pointer cycles without retaining visuals or animations', async () => {
-    await page.evaluate(() => { window.motionFixture.hold(false); window.motionFixture.policy({ coarsePointer: true }); });
+    await page.evaluate(() => {
+      window.motionFixture.hold(false);
+      window.motionFixture.policy({ coarsePointer: true });
+    });
     for (let index = 0; index < 3; index += 1) {
       await page.getByRole('button', { name: 'Open game', exact: true }).click();
       await browserExpect(page.locator('#detail-title')).toBeFocused();
-      await browserExpect.poll(async () => (await stats()).effects.filter(effect => effect.target === 'sprite:enter').length).toBe(index + 1);
+      await browserExpect
+        .poll(async () => (await stats()).effects.filter((effect) => effect.target === 'sprite:enter').length)
+        .toBe(index + 1);
       await browserExpect(activeVisuals()).toHaveCount(0);
       await page.keyboard.press('Escape');
       await browserExpect(detail()).toHaveCount(0);
-      await browserExpect.poll(async () => (await stats()).effects.filter(effect => effect.target === 'sprite:return').length).toBe(index + 1);
+      await browserExpect
+        .poll(async () => (await stats()).effects.filter((effect) => effect.target === 'sprite:return').length)
+        .toBe(index + 1);
       await browserExpect(activeVisuals()).toHaveCount(0);
     }
     const effects = (await stats()).effects;
-    expect(effects.some(effect => effect.target === 'sprite:enter' && effect.duration === 220)).toBe(true);
-    expect(effects.some(effect => effect.target === 'sprite:return' && effect.duration === 160)).toBe(true);
+    expect(effects.some((effect) => effect.target === 'sprite:enter' && effect.duration === 220)).toBe(true);
+    expect(effects.some((effect) => effect.target === 'sprite:return' && effect.duration === 160)).toBe(true);
     expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
     await browserExpect(page.locator('[data-motion-host="root"]')).toHaveCount(1);
     expect(await page.evaluate(() => document.body.style.overflow)).toBe('');

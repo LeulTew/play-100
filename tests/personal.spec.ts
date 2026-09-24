@@ -11,22 +11,32 @@ const third = 'the-witcher-3-wild-hunt';
 const legacyKey = 'play100.library.v1';
 
 async function seedLegacy(page: Page) {
-  await page.addInitScript(({ key, first, second, third }) => {
-    if (sessionStorage.getItem('play100-test-seeded')) return;
-    localStorage.setItem(key, JSON.stringify({
-      version: 1, motion: 'lite',
-      progress: {
-        [third]: { later: true, completed: false },
-        [second]: { later: true, completed: true },
-        [first]: { later: true, completed: false },
-      },
-    }));
-    sessionStorage.setItem('play100-test-seeded', 'yes');
-  }, { key: legacyKey, first, second, third });
+  await page.addInitScript(
+    ({ key, first, second, third }) => {
+      if (sessionStorage.getItem('play100-test-seeded')) return;
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          version: 1,
+          motion: 'lite',
+          progress: {
+            [third]: { later: true, completed: false },
+            [second]: { later: true, completed: true },
+            [first]: { later: true, completed: false },
+          },
+        }),
+      );
+      sessionStorage.setItem('play100-test-seeded', 'yes');
+    },
+    { key: legacyKey, first, second, third },
+  );
 }
 
 async function openSettings(page: Page) {
-  await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
+  await page
+    .locator('.footer-tools')
+    .getByRole('button', { name: /Effects:/ })
+    .click();
   await expect(page.getByRole('dialog')).toBeVisible();
 }
 
@@ -82,7 +92,9 @@ test('bulk selection updates queue, completion and own ranking without changing 
   await expect.poll(async () => (await readLibrary(page)).queueOrder.length).toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
   await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
-  await expect.poll(async () => Object.values((await readLibrary(page)).progress).filter((entry) => entry.completed).length).toBe(3);
+  await expect
+    .poll(async () => Object.values((await readLibrary(page)).progress).filter((entry) => entry.completed).length)
+    .toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(3);
@@ -117,7 +129,9 @@ test('play queue reorders by keyboard and accessible arrows, then survives reloa
   await expect(page.locator('.personal-row').first()).toHaveAttribute('data-record-id', first);
   await page.getByRole('searchbox', { name: 'Search your queue' }).fill('Mass');
   await expect(page.locator('.personal-row')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Drag Mass Effect 2 to reorder your queue', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Drag Mass Effect 2 to reorder your queue', exact: true }),
+  ).toBeDisabled();
   expect(new URL(page.url()).searchParams.has('q')).toBe(false);
 });
 
@@ -138,7 +152,10 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
     await page.waitForTimeout(220);
     for (let step = 1; step <= 8; step++) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + (endY - y) * step / 8 }] });
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x, y: y + ((endY - y) * step) / 8 }],
+      });
     }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await cdp.detach();
@@ -153,8 +170,10 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
 
 test('a manual draft opened from a legacy library link survives a Ranking round trip', async ({ page }) => {
   const editor = page.locator('.my-games-editor:visible');
-  const view = (label: string) => page.getByRole('navigation', { name: 'My games views', exact: true })
-    .getByRole('button', { name: new RegExp(`^${label}\\b`) });
+  const view = (label: string) =>
+    page
+      .getByRole('navigation', { name: 'My games views', exact: true })
+      .getByRole('button', { name: new RegExp(`^${label}\\b`) });
   await page.goto('/my-library');
   await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
   await editor.locator('.manual-add > summary').click();
@@ -166,7 +185,9 @@ test('a manual draft opened from a legacy library link survives a Ranking round 
   await expect(editor.locator('.manual-add')).toHaveJSProperty('open', true);
   await expect(editor.getByLabel('Game title', { exact: true })).toHaveValue('Unsubmitted manual draft');
   await expect(editor.getByLabel('Year (optional)', { exact: false })).toHaveValue('1999');
-  expect(Object.values((await readLibrary(page)).records).map(record => record.title)).not.toContain('Unsubmitted manual draft');
+  expect(Object.values((await readLibrary(page)).records).map((record) => record.title)).not.toContain(
+    'Unsubmitted manual draft',
+  );
 });
 
 test('personal rankings accept unplayed and historical games, scores and notes', async ({ page }) => {
@@ -177,17 +198,23 @@ test('personal rankings accept unplayed and historical games, scores and notes',
   await page.locator('.my-games-editor:visible').getByLabel('Year (optional)', { exact: false }).fill('1962');
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
-  await expect(page.getByRole('checkbox', { name: 'I have played it: My historical game', exact: true })).not.toBeChecked();
+  await expect(
+    page.getByRole('checkbox', { name: 'I have played it: My historical game', exact: true }),
+  ).not.toBeChecked();
   const score = page.getByRole('spinbutton', { name: 'Your rating / 10 for My historical game', exact: true });
   await score.fill('9.4');
   await score.press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(9.4);
   await page.locator('.ranking-note summary').click();
-  await page.getByRole('textbox', { name: 'Your note for My historical game', exact: true }).fill('Ranked for historical importance, not personal play experience.');
+  await page
+    .getByRole('textbox', { name: 'Your note for My historical game', exact: true })
+    .fill('Ranked for historical importance, not personal play experience.');
   await page.getByRole('textbox', { name: 'Your note for My historical game', exact: true }).press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.note).toContain('not personal play experience');
   await page.reload();
-  await expect(page.getByRole('spinbutton', { name: 'Your rating / 10 for My historical game', exact: true })).toHaveValue('9.4');
+  await expect(
+    page.getByRole('spinbutton', { name: 'Your rating / 10 for My historical game', exact: true }),
+  ).toHaveValue('9.4');
   const saved = await readLibrary(page);
   const id = saved.ranking[0]?.id;
   if (!id) throw new Error('Personal game missing.');
@@ -220,59 +247,101 @@ test('backup export and validated replacement restore queue and private rankings
   await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([]);
-  await page.getByLabel('Import personal library backup file').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: bytes });
+  await page
+    .getByLabel('Import personal library backup file')
+    .setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: bytes });
   await expect(page.locator('.restore-preview')).toContainText('3 games, 3 queued, 1 ranked');
   await page.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([first, second, third]);
   expect((await readLibrary(page)).ranking[0]?.id).toBe(first);
-  await expect(page.locator('.backup-panel').getByRole('status')).toHaveText('Your backup was restored and saved on this device.');
-  await page.getByLabel('Import personal library backup file').setInputFiles({ name: 'corrupt.json', mimeType: 'application/json', buffer: Buffer.from('{"formatVersion":2,"library":{"bad":true}}') });
+  await expect(page.locator('.backup-panel').getByRole('status')).toHaveText(
+    'Your backup was restored and saved on this device.',
+  );
+  await page.getByLabel('Import personal library backup file').setInputFiles({
+    name: 'corrupt.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"formatVersion":2,"library":{"bad":true}}'),
+  });
   await expect(page.locator('.backup-panel .inline-error')).toContainText('No data was changed');
   expect((await readLibrary(page)).queueOrder).toEqual([first, second, third]);
 });
 
 for (const [outcome, copy] of [
   ['granted', 'Storage protection was granted.'],
-  ['denied', 'This browser did not grant storage protection. Your library is still saved on this device; keep a downloaded backup.'],
+  [
+    'denied',
+    'This browser did not grant storage protection. Your library is still saved on this device; keep a downloaded backup.',
+  ],
   ['unsupported', 'This browser does not support requesting storage protection. Keep a downloaded backup.'],
   ['rejected', 'The browser could not request storage protection. Keep a downloaded backup.'],
   ['status-error', 'This browser could not check storage protection. Keep a downloaded backup.'],
 ] as const) {
   test(`backup storage protection explains the ${outcome} result without storage jargon`, async ({ page }) => {
-    await page.addInitScript(outcome => {
+    await page.addInitScript((outcome) => {
       Object.defineProperties(navigator.storage, {
-        persisted: { configurable: true, value: async () => {
-          if (outcome === 'status-error') throw new Error('Synthetic protection status failure.');
-          return false;
-        } },
-        persist: { configurable: true, value: outcome === 'unsupported' ? undefined : async () => {
-          if (outcome === 'rejected') throw new Error('Synthetic protection request failure.');
-          return outcome === 'granted';
-        } },
+        persisted: {
+          configurable: true,
+          value: async () => {
+            if (outcome === 'status-error') throw new Error('Synthetic protection status failure.');
+            return false;
+          },
+        },
+        persist: {
+          configurable: true,
+          value:
+            outcome === 'unsupported'
+              ? undefined
+              : async () => {
+                  if (outcome === 'rejected') throw new Error('Synthetic protection request failure.');
+                  return outcome === 'granted';
+                },
+        },
       });
     }, outcome);
     await page.goto('/?info=settings&catalogs=off');
     const panel = page.locator('.backup-panel');
     await expect(panel).toContainText('protection from automatic storage cleanup');
     await expect(panel).toContainText('Clearing site data can still remove your library.');
-    if (outcome !== 'status-error') await panel.getByRole('button', { name: 'Ask browser to protect saved data', exact: true }).click();
+    if (outcome !== 'status-error')
+      await panel.getByRole('button', { name: 'Ask browser to protect saved data', exact: true }).click();
     await expect(panel.getByRole(outcome === 'rejected' ? 'alert' : 'status')).toHaveText(copy);
     await expect(panel).not.toContainText('eviction');
     await expect(panel).not.toContainText('IndexedDB');
-    if (outcome === 'granted') await expect(panel.getByRole('button', { name: 'Ask browser to protect saved data', exact: true })).toHaveCount(0);
+    if (outcome === 'granted')
+      await expect(panel.getByRole('button', { name: 'Ask browser to protect saved data', exact: true })).toHaveCount(
+        0,
+      );
     await expect(panel).toContainText('Clearing site data can still remove your library.');
   });
 }
 
 test('catalog results are explicitly imported and upstream errors remain recoverable', async ({ page }) => {
-  const item = { id: 'wikidata:Q100', title: 'Catalog game for verification', year: 2020, studio: 'A source studio', genre: 'Adventure', source: 'wikidata', sourceId: 'Q100', sourceUrl: 'https://www.wikidata.org/wiki/Q100', collectionRank: null };
+  const item = {
+    id: 'wikidata:Q100',
+    title: 'Catalog game for verification',
+    year: 2020,
+    studio: 'A source studio',
+    genre: 'Adventure',
+    source: 'wikidata',
+    sourceId: 'Q100',
+    sourceUrl: 'https://www.wikidata.org/wiki/Q100',
+    collectionRank: null,
+  };
   await page.route('**/api/catalog?**', (route) => {
     const url = new URL(route.request().url());
     const source = url.searchParams.get('source');
     const found = source === 'wikidata' ? [item] : [];
     return route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({ source, query: url.searchParams.get('q') ?? '', items: found, total: found.length, offset: 0, nextOffset: null, notices: source === 'wikidata' ? ['Data from Wikidata, CC0.'] : [] }),
+      body: JSON.stringify({
+        source,
+        query: url.searchParams.get('q') ?? '',
+        items: found,
+        total: found.length,
+        offset: 0,
+        nextOffset: null,
+        notices: source === 'wikidata' ? ['Data from Wikidata, CC0.'] : [],
+      }),
     });
   });
   await page.goto('/discover');
@@ -293,7 +362,13 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await expect(page.getByRole('button', { name: item.title, exact: true })).toBeVisible();
   await page.goto('/discover');
   await page.unroute('**/api/catalog?**');
-  await page.route('**/api/catalog?**', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }) }));
+  await page.route('**/api/catalog?**', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }),
+    }),
+  );
   await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill('Catalog outage');
   const errors = page.getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert');
   await expect(errors).toHaveCount(2);
@@ -303,7 +378,12 @@ test('catalog results are explicitly imported and upstream errors remain recover
 });
 test('IndexedDB denial is explicit and never claims a durable save', async ({ page }) => {
   await page.addInitScript(() => {
-    Object.defineProperty(window, 'indexedDB', { configurable: true, get: () => { throw new DOMException('IndexedDB denied', 'SecurityError'); } });
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      get: () => {
+        throw new DOMException('IndexedDB denied', 'SecurityError');
+      },
+    });
   });
   await page.goto('/');
   const { banner, configured } = await expectStorageDenial(page);
@@ -332,14 +412,25 @@ test('the untouched original Excel is also a real exact-byte download', async ({
   expect(downloaded.suggestedFilename()).toBe('AAA_games_u_have_to_play_list_top_100.xlsx');
   const file = await downloaded.path();
   if (!file) throw new Error('Original workbook download missing.');
-  expect((await readFile(file)).equals(await readFile(new URL('../public/downloads/AAA_games_u_have_to_play_list_top_100.xlsx', import.meta.url)))).toBe(true);
+  expect(
+    (await readFile(file)).equals(
+      await readFile(new URL('../public/downloads/AAA_games_u_have_to_play_list_top_100.xlsx', import.meta.url)),
+    ),
+  ).toBe(true);
 });
 
 test('catalog endpoint rejects writes and arbitrary proxy targets', async ({ request }) => {
-  const post = await request.post('/api/catalog', { data: { example: 'Synthetic write attempt; must not be stored.' } });
+  const post = await request.post('/api/catalog', {
+    data: { example: 'Synthetic write attempt; must not be stored.' },
+  });
   expect(post.status()).toBe(405);
   expect(post.headers().allow).toBe('GET');
-  for (const query of ['source=steam', 'source=wikidata&offset=-1', `source=wikidata&q=${'x'.repeat(81)}`, 'source=wikidata&url=https%3A%2F%2Fexample.com']) {
+  for (const query of [
+    'source=steam',
+    'source=wikidata&offset=-1',
+    `source=wikidata&q=${'x'.repeat(81)}`,
+    'source=wikidata&url=https%3A%2F%2Fexample.com',
+  ]) {
     const response = await request.get(`/api/catalog?${query}`);
     expect(response.status()).toBe(400);
     expect((await response.json()).error).toContain('supported source');

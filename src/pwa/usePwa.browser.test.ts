@@ -50,23 +50,36 @@ let server: ViteDevServer;
 let browser: Browser;
 let base: string;
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-pwa-controls-tests',
-    appType: 'custom',
-    plugins: [react(), {
-      name: 'direct-settings-pwa-fixture',
-      configureServer(server) {
-        server.middlewares.use((request, response, next) => {
-          if (request.url !== '/pwa-controls-fixture') return next();
-          void server.transformIndexHtml('/pwa-controls-fixture', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html'); response.end(html);
-          }).catch(next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-pwa-controls-tests',
+        appType: 'custom',
+        plugins: [
+          react(),
+          {
+            name: 'direct-settings-pwa-fixture',
+            configureServer(server) {
+              server.middlewares.use((request, response, next) => {
+                if (request.url !== '/pwa-controls-fixture') return next();
+                void server
+                  .transformIndexHtml('/pwa-controls-fixture', fixture)
+                  .then((html) => {
+                    response.setHeader('Content-Type', 'text/html');
+                    response.end(html);
+                  })
+                  .catch(next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.server.watch).toBeNull();
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-pwa-controls-tests$/);
   const address = server.httpServer?.address();
@@ -77,7 +90,9 @@ beforeAll(async () => {
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
+  const failures = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason);
   if (failures.length) throw new AggregateError(failures, 'PWA fixture teardown failed.');
 }, 60_000);
 
@@ -85,7 +100,7 @@ describe('direct Settings PWA connection', () => {
   it('connects without Menu or idle and explains the pending disabled control inside the native dialog', async () => {
     const page = await browser.newPage();
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     try {
       await page.goto(`${base}/pwa-controls-fixture`);
       await browserExpect(page.getByRole('button', { name: 'Open Settings directly' })).toBeVisible();
@@ -100,6 +115,9 @@ describe('direct Settings PWA connection', () => {
       await browserExpect(dialog.getByRole('button', { name: 'Enable offline access', exact: true })).toBeEnabled();
       await browserExpect(dialog.getByRole('status').filter({ hasText: 'Loading offline controls…' })).toHaveCount(0);
       await browserExpect(dialog.locator('#settings-title')).toBeFocused();
-    } finally { await page.close(); expect(errors).toEqual([]); }
+    } finally {
+      await page.close();
+      expect(errors).toEqual([]);
+    }
   });
 });

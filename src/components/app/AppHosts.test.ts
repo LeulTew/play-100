@@ -14,13 +14,28 @@ import { discoveryFixture } from '../../lib/discovery-test-fixtures';
 import { STORAGE_DENIED_MESSAGE, temporaryLibraryWarning } from '../../lib/storage-notices';
 
 const dialogs = (): DialogHostProps => ({
-  page: 'collection', game: null, catalog: null, loadingGame: false, canonicalError: null, missingGame: false,
-  onCloseGame: vi.fn(), menu: null, about: null, settings: null, manualShare: null,
+  page: 'collection',
+  game: null,
+  catalog: null,
+  loadingGame: false,
+  canonicalError: null,
+  missingGame: false,
+  onCloseGame: vi.fn(),
+  menu: null,
+  about: null,
+  settings: null,
+  manualShare: null,
 });
 
 const bannerProps = (): GlobalBannersProps => ({
-  warning: null, onlineConfigError: null, offline: false, offlineReady: false, hintError: '',
-  onSettings: vi.fn(), onAccount: vi.fn(), onDeviceOnly: vi.fn(),
+  warning: null,
+  onlineConfigError: null,
+  offline: false,
+  offlineReady: false,
+  hintError: '',
+  onSettings: vi.fn(),
+  onAccount: vi.fn(),
+  onDeviceOnly: vi.fn(),
 });
 
 describe('app status host', () => {
@@ -28,31 +43,45 @@ describe('app status host', () => {
     expect(renderToStaticMarkup(createElement(GlobalBanners, bannerProps()))).toBe('');
   });
 
-  it.each([false, true])('reports a storage denial once with every applicable action (account hint=%s)', accountHint => {
-    const props = {
-      ...bannerProps(), warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE),
-      hintError: accountHint ? STORAGE_DENIED_MESSAGE : '',
-    };
-    const html = renderToStaticMarkup(createElement(GlobalBanners, props));
-    expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
-    expect(html.match(/Device storage is blocked\./g)).toHaveLength(1);
-    expect(html.match(/Allow this site to use device storage and try again\./g)).toHaveLength(1);
-    expect(html.match(/Your saved data has not been overwritten or cleared\./g)).toHaveLength(1);
-    expect(html).not.toContain('Your existing saved data has not been overwritten.');
-    expect(html).not.toContain('Your libraries have not been cleared.');
-    expect(html.match(/Changes now work in this tab only; download a backup before closing it, or reset device data in Settings\./g)).toHaveLength(1);
-    expect(html.match(/>Settings</g)).toHaveLength(1);
-    for (const text of ['Open Account', 'Use this device only', 'Choose an account check or continue with this device explicitly.']) {
-      expect(html.split(text).length - 1).toBe(accountHint ? 1 : 0);
-    }
-    expect(props.onSettings).not.toHaveBeenCalled();
-    expect(props.onAccount).not.toHaveBeenCalled();
-    expect(props.onDeviceOnly).not.toHaveBeenCalled();
-  });
+  it.each([false, true])(
+    'reports a storage denial once with every applicable action (account hint=%s)',
+    (accountHint) => {
+      const props = {
+        ...bannerProps(),
+        warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE),
+        hintError: accountHint ? STORAGE_DENIED_MESSAGE : '',
+      };
+      const html = renderToStaticMarkup(createElement(GlobalBanners, props));
+      expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
+      expect(html.match(/Device storage is blocked\./g)).toHaveLength(1);
+      expect(html.match(/Allow this site to use device storage and try again\./g)).toHaveLength(1);
+      expect(html.match(/Your saved data has not been overwritten or cleared\./g)).toHaveLength(1);
+      expect(html).not.toContain('Your existing saved data has not been overwritten.');
+      expect(html).not.toContain('Your libraries have not been cleared.');
+      expect(
+        html.match(
+          /Changes now work in this tab only; download a backup before closing it, or reset device data in Settings\./g,
+        ),
+      ).toHaveLength(1);
+      expect(html.match(/>Settings</g)).toHaveLength(1);
+      for (const text of [
+        'Open Account',
+        'Use this device only',
+        'Choose an account check or continue with this device explicitly.',
+      ]) {
+        expect(html.split(text).length - 1).toBe(accountHint ? 1 : 0);
+      }
+      expect(props.onSettings).not.toHaveBeenCalled();
+      expect(props.onAccount).not.toHaveBeenCalled();
+      expect(props.onDeviceOnly).not.toHaveBeenCalled();
+    },
+  );
 
   it('merges the same denial without inventing temporary mode and preserves additional fallback errors', () => {
     for (const warning of [STORAGE_DENIED_MESSAGE, `${STORAGE_DENIED_MESSAGE} The legacy fallback also failed.`]) {
-      const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), warning, hintError: STORAGE_DENIED_MESSAGE }));
+      const html = renderToStaticMarkup(
+        createElement(GlobalBanners, { ...bannerProps(), warning, hintError: STORAGE_DENIED_MESSAGE }),
+      );
       expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
       expect(html).toContain(warning);
       expect(html).not.toContain('Changes now work in this tab only');
@@ -63,7 +92,9 @@ describe('app status host', () => {
   });
 
   it('keeps an account-only denial actionable without repeating its reassurance', () => {
-    const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), hintError: STORAGE_DENIED_MESSAGE }));
+    const html = renderToStaticMarkup(
+      createElement(GlobalBanners, { ...bannerProps(), hintError: STORAGE_DENIED_MESSAGE }),
+    );
     expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
     expect(html.match(/has not been overwritten/g)).toHaveLength(1);
     expect(html).not.toContain('Your libraries have not been cleared.');
@@ -74,9 +105,15 @@ describe('app status host', () => {
 
   it.each([
     { warning: 'Your saved data could not be parsed.', hintError: STORAGE_DENIED_MESSAGE },
-    { warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE), hintError: 'Device storage is blocked for a different account check.' },
-    { warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE), hintError: `${STORAGE_DENIED_MESSAGE} A separate account error also occurred.` },
-  ])('does not merge different diagnostics merely because they mention storage: %j', messages => {
+    {
+      warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE),
+      hintError: 'Device storage is blocked for a different account check.',
+    },
+    {
+      warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE),
+      hintError: `${STORAGE_DENIED_MESSAGE} A separate account error also occurred.`,
+    },
+  ])('does not merge different diagnostics merely because they mention storage: %j', (messages) => {
     const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), ...messages }));
     expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(2);
     expect(html).toContain(messages.warning);
@@ -84,10 +121,15 @@ describe('app status host', () => {
   });
 
   it('keeps configuration and offline conditions separate from a combined storage alert', () => {
-    const html = renderToStaticMarkup(createElement(GlobalBanners, {
-      ...bannerProps(), warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE), hintError: STORAGE_DENIED_MESSAGE,
-      onlineConfigError: 'Configuration warning', offline: true,
-    }));
+    const html = renderToStaticMarkup(
+      createElement(GlobalBanners, {
+        ...bannerProps(),
+        warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE),
+        hintError: STORAGE_DENIED_MESSAGE,
+        onlineConfigError: 'Configuration warning',
+        offline: true,
+      }),
+    );
     expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(2);
     expect(html.match(/role="status"/g)).toHaveLength(1);
     expect(html.match(/Device storage is blocked\./g)).toHaveLength(1);
@@ -96,7 +138,13 @@ describe('app status host', () => {
   });
 
   it('preserves independent alert/status branches and their order', () => {
-    const props = { ...bannerProps(), warning: 'Device warning', onlineConfigError: 'Configuration warning', offline: true, hintError: 'Account warning' };
+    const props = {
+      ...bannerProps(),
+      warning: 'Device warning',
+      onlineConfigError: 'Configuration warning',
+      offline: true,
+      hintError: 'Account warning',
+    };
     const html = renderToStaticMarkup(createElement(GlobalBanners, props));
     expect(html.match(/class="global-storage"/g)).toHaveLength(4);
     expect(html.match(/role="alert"/g)).toHaveLength(3);
@@ -111,29 +159,49 @@ describe('app status host', () => {
     expect(props.onDeviceOnly).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])('retains offline preparation and scope distinctions (ready=%s)', offlineReady => {
+  it.each([false, true])('retains offline preparation and scope distinctions (ready=%s)', (offlineReady) => {
     const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), offline: true, offlineReady }));
-    expect(html).toContain(offlineReady ? 'Prepared app files and saved device games can work offline.' : 'Enable offline access in Settings when connected.');
+    expect(html).toContain(
+      offlineReady
+        ? 'Prepared app files and saved device games can work offline.'
+        : 'Enable offline access in Settings when connected.',
+    );
     expect(html).toContain('Cloud saving and live lookups need a connection.');
     expect(html).toContain('Guest and account libraries stay separate.');
   });
 });
 
 describe('contextual tray host', () => {
-  it.each(['collection', 'games', 'discover', 'compare'] as const)('forwards the current %s route without invoking or changing actions', page => {
-    const onCompare = vi.fn();
-    const value = {
-      currentScope: 'guest', items: [discoveryFixture.record], persistent: true,
-      warning: null, error: null, status: '', dragging: false,
-      pin: vi.fn(() => true), unpin: vi.fn(() => true), clear: vi.fn(() => true), dismissError: vi.fn(),
-    };
-    const html = renderToStaticMarkup(createElement(CompareTrayContext.Provider, { value },
-      createElement(TrayHost, { page, tray: { page: page === 'collection' ? 'games' : 'collection', onCompare } })));
-    expect(html).toContain(`data-compact="${page !== 'collection'}"`);
-    expect(html).toContain('Open Compare tray, 1 game');
-    expect(onCompare).not.toHaveBeenCalled();
-    expect(value.pin).not.toHaveBeenCalled();
-  });
+  it.each(['collection', 'games', 'discover', 'compare'] as const)(
+    'forwards the current %s route without invoking or changing actions',
+    (page) => {
+      const onCompare = vi.fn();
+      const value = {
+        currentScope: 'guest',
+        items: [discoveryFixture.record],
+        persistent: true,
+        warning: null,
+        error: null,
+        status: '',
+        dragging: false,
+        pin: vi.fn(() => true),
+        unpin: vi.fn(() => true),
+        clear: vi.fn(() => true),
+        dismissError: vi.fn(),
+      };
+      const html = renderToStaticMarkup(
+        createElement(
+          CompareTrayContext.Provider,
+          { value },
+          createElement(TrayHost, { page, tray: { page: page === 'collection' ? 'games' : 'collection', onCompare } }),
+        ),
+      );
+      expect(html).toContain(`data-compact="${page !== 'collection'}"`);
+      expect(html).toContain('Open Compare tray, 1 game');
+      expect(onCompare).not.toHaveBeenCalled();
+      expect(value.pin).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('route fallback host', () => {
@@ -155,7 +223,9 @@ describe('route fallback host', () => {
   it('keeps cold sign-in in a native dialog with its existing focus target', () => {
     const onClose = vi.fn();
     const getReturnFocus = vi.fn(() => null);
-    const html = renderToStaticMarkup(createElement(RouteFallback, { route: 'collection', kind: 'account-sheet', onClose, getReturnFocus }));
+    const html = renderToStaticMarkup(
+      createElement(RouteFallback, { route: 'collection', kind: 'account-sheet', onClose, getReturnFocus }),
+    );
     expect(html).toContain('<dialog');
     expect(html).toContain('aria-labelledby="loading-account-title"');
     expect(html).toContain('id="loading-account-title"');
@@ -168,24 +238,52 @@ describe('route fallback host', () => {
 });
 
 describe('navigation and dialog hosts', () => {
-  it.each([0, 1, 2])('names the header queue count without repeating its purpose (%i)', savedCount => {
-    const html = renderToStaticMarkup(createElement(AppHeader, {
-      page: 'collection', onlineAvailable: false, libraryScope: 'guest', libraryLabel: 'Device only', syncStatus: 'device',
-      headerIdentity: null, savedCount, animate: false, menuOpen: false,
-      pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onQueue: vi.fn(), onMenu: vi.fn(), onAccount: vi.fn(),
-    }));
+  it.each([0, 1, 2])('names the header queue count without repeating its purpose (%i)', (savedCount) => {
+    const html = renderToStaticMarkup(
+      createElement(AppHeader, {
+        page: 'collection',
+        onlineAvailable: false,
+        libraryScope: 'guest',
+        libraryLabel: 'Device only',
+        syncStatus: 'device',
+        headerIdentity: null,
+        savedCount,
+        animate: false,
+        menuOpen: false,
+        pageHref: (page) => `/${page}`,
+        onNavigateLink: vi.fn(),
+        onQueue: vi.fn(),
+        onMenu: vi.fn(),
+        onAccount: vi.fn(),
+      }),
+    );
     expect(html).toContain(`aria-label="Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'}"`);
     // Label in Name: the visible label and count stay separate words contained in the name.
-    expect(html).toContain(`>Play later</span> <span class="saved-count"><span class="sr-only">${savedCount}</span><span aria-hidden="true">${savedCount}</span></span></button>`);
+    expect(html).toContain(
+      `>Play later</span> <span class="saved-count"><span class="sr-only">${savedCount}</span><span aria-hidden="true">${savedCount}</span></span></button>`,
+    );
     expect(html).not.toContain('in your queue');
   });
 
   it('retains header selectors, navigation order and verified display inputs', () => {
-    const html = renderToStaticMarkup(createElement(AppHeader, {
-      page: 'discover', onlineAvailable: true, libraryScope: 'guest', libraryLabel: 'Device only', syncStatus: 'device',
-      headerIdentity: null, savedCount: 3, animate: false, menuOpen: true,
-      pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onQueue: vi.fn(), onMenu: vi.fn(), onAccount: vi.fn(),
-    }));
+    const html = renderToStaticMarkup(
+      createElement(AppHeader, {
+        page: 'discover',
+        onlineAvailable: true,
+        libraryScope: 'guest',
+        libraryLabel: 'Device only',
+        syncStatus: 'device',
+        headerIdentity: null,
+        savedCount: 3,
+        animate: false,
+        menuOpen: true,
+        pageHref: (page) => `/${page}`,
+        onNavigateLink: vi.fn(),
+        onQueue: vi.fn(),
+        onMenu: vi.fn(),
+        onAccount: vi.fn(),
+      }),
+    );
     expect(html).toMatch(/^<header class="site-header site-header-online">/);
     expect(html).toContain('class="menu-nav" aria-haspopup="dialog" aria-expanded="true"');
     expect(html).toContain('href="/discover" aria-current="page"');
@@ -199,11 +297,20 @@ describe('navigation and dialog hosts', () => {
     expect(html).toContain('class="saved-count"><span class="sr-only">3</span>');
   });
 
-  it.each([false, true])('retains mobile online navigation choice (online=%s)', onlineAvailable => {
-    const html = renderToStaticMarkup(createElement(MobileNav, {
-      page: 'games', personalPage: 'rankings', gamesView: 'ranking', onlineAvailable, menuOpen: false,
-      pageHref: page => `/${page}`, onNavigateLink: vi.fn(), onBrowseLink: vi.fn(), onMenu: vi.fn(),
-    }));
+  it.each([false, true])('retains mobile online navigation choice (online=%s)', (onlineAvailable) => {
+    const html = renderToStaticMarkup(
+      createElement(MobileNav, {
+        page: 'games',
+        personalPage: 'rankings',
+        gamesView: 'ranking',
+        onlineAvailable,
+        menuOpen: false,
+        pageHref: (page) => `/${page}`,
+        onNavigateLink: vi.fn(),
+        onBrowseLink: vi.fn(),
+        onMenu: vi.fn(),
+      }),
+    );
     expect(html).toMatch(/^<nav class="mobile-nav" aria-label="Mobile navigation">/);
     expect(html).toContain(onlineAvailable ? 'href="/friends"' : 'href="/rankings" aria-current="page"');
     expect(html).not.toContain(onlineAvailable ? 'href="/rankings"' : 'href="/friends"');
@@ -217,9 +324,12 @@ describe('navigation and dialog hosts', () => {
     const missing = renderToStaticMarkup(createElement(DialogHost, { ...dialogs(), page: 'games', missingGame: true }));
     expect(missing).toContain('Guest and account libraries stay separate.');
     expect(missing).toContain('id="missing-game-title"');
-    const sharing = renderToStaticMarkup(createElement(DialogHost, {
-      ...dialogs(), manualShare: { link: 'https://example.com/?game=one', onClose: vi.fn() },
-    }));
+    const sharing = renderToStaticMarkup(
+      createElement(DialogHost, {
+        ...dialogs(),
+        manualShare: { link: 'https://example.com/?game=one', onClose: vi.fn() },
+      }),
+    );
     expect(sharing).toContain('aria-labelledby="share-title"');
     expect(sharing).toContain('id="share-link"');
     expect(sharing).toContain('Your private progress isn&#x27;t included.');

@@ -31,7 +31,7 @@ export function sceneFontSet(): SceneFontSet | null {
 export function sceneFontsReady(fonts: SceneFontSet | null): boolean {
   if (!fonts) return false;
   try {
-    return SCENE_FONT_FACES.every(font => fonts.check(font));
+    return SCENE_FONT_FACES.every((font) => fonts.check(font));
   } catch {
     return false;
   }
@@ -44,8 +44,12 @@ export function sceneFontsReady(fonts: SceneFontSet | null): boolean {
 export function whenSceneFontsReady(fonts: SceneFontSet | null, timeoutMs = SCENE_FONT_TIMEOUT_MS): Promise<boolean> {
   if (!fonts) return Promise.resolve(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), timeoutMs); });
-  const loaded = Promise.all(SCENE_FONT_FACES.map(font => fonts.load(font)))
-    .then(faces => faces.every(face => face.length > 0) && sceneFontsReady(fonts), () => false);
+  const timeout = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), timeoutMs);
+  });
+  const loaded = Promise.all(SCENE_FONT_FACES.map((font) => fonts.load(font))).then(
+    (faces) => faces.every((face) => face.length > 0) && sceneFontsReady(fonts),
+    () => false,
+  );
   return Promise.race([loaded, timeout]).finally(() => clearTimeout(timer));
 }

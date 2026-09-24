@@ -9,16 +9,20 @@ export function parseMotionHint(value: unknown): MotionPreference | null {
 }
 
 export function readMotionHint(scope: LibraryScope): MotionPreference | null {
-  try { return parseMotionHint(localStorage.getItem(motionHintKey(scope))); }
-  catch {
+  try {
+    return parseMotionHint(localStorage.getItem(motionHintKey(scope)));
+  } catch {
     console.warn('The visual preference hint could not be read. Motion stays limited until the device library opens.');
     return null;
   }
 }
 
 export function clearMotionHint(scope: LibraryScope): void {
-  try { localStorage.removeItem(motionHintKey(scope)); }
-  catch { console.warn('The visual preference hint could not be removed. The saved library remains authoritative.'); }
+  try {
+    localStorage.removeItem(motionHintKey(scope));
+  } catch {
+    console.warn('The visual preference hint could not be removed. The saved library remains authoritative.');
+  }
 }
 
 export function rememberMotionHint(scope: LibraryScope, preference: MotionPreference): void {
@@ -32,7 +36,9 @@ export function rememberMotionHint(scope: LibraryScope, preference: MotionPrefer
 }
 
 export function effectiveMotionPreference(
-  status: 'loading' | 'ready' | 'temporary', authoritative: MotionPreference, hint: MotionPreference | null,
+  status: 'loading' | 'ready' | 'temporary',
+  authoritative: MotionPreference,
+  hint: MotionPreference | null,
 ): MotionPreference {
-  return status === 'loading' ? hint ?? 'lite' : authoritative;
+  return status === 'loading' ? (hint ?? 'lite') : authoritative;
 }

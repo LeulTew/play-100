@@ -14,7 +14,8 @@ export type ComparisonIdentity = Readonly<Pick<PublicEntry, 'id' | 'source' | 's
 export type ComparisonAvailability = 'ready' | 'loading' | 'unshared' | 'unavailable' | 'error';
 export type ComparisonFreshness = 'fresh' | 'stale' | 'unknown';
 type UnreadyAvailability = Exclude<ComparisonAvailability, 'ready'>;
-export type ComparisonCoverage = { kind: 'complete' | 'page'; total: number } | { kind: 'exact'; total: number; ids: readonly string[] };
+export type ComparisonCoverage =
+  { kind: 'complete' | 'page'; total: number } | { kind: 'exact'; total: number; ids: readonly string[] };
 
 export interface ComparisonParticipantInfo {
   readonly id: string;
@@ -34,36 +35,43 @@ type ParticipantDetails = Omit<ComparisonParticipantInfo, 'availability' | 'upda
  * Only ready snapshots contribute entries. Usable cached data is ready + stale;
  * all other availability states must omit entries, not substitute an empty list.
  */
-export type ComparisonParticipant = ParticipantDetails & (
-  | { readonly availability: 'ready'; readonly entries: readonly ComparisonEntry[] }
-  | { readonly availability: UnreadyAvailability; readonly entries?: never }
-);
+export type ComparisonParticipant = ParticipantDetails &
+  (
+    | { readonly availability: 'ready'; readonly entries: readonly ComparisonEntry[] }
+    | { readonly availability: UnreadyAvailability; readonly entries?: never }
+  );
 
 export type ComparisonCell =
   | {
-    readonly participantId: string;
-    readonly status: 'ranked';
-    readonly entry: ComparisonEntry;
-    readonly position: number;
-    readonly score: number | null;
-  }
+      readonly participantId: string;
+      readonly status: 'ranked';
+      readonly entry: ComparisonEntry;
+      readonly position: number;
+      readonly score: number | null;
+    }
   | {
-    readonly participantId: string;
-    /** Absent means not in the supplied list, not necessarily unranked or unplayed. */
-    readonly status: 'absent' | 'unfetched' | UnreadyAvailability;
-    readonly position: null;
-    readonly score: null;
-  };
+      readonly participantId: string;
+      /** Absent means not in the supplied list, not necessarily unranked or unplayed. */
+      readonly status: 'absent' | 'unfetched' | UnreadyAvailability;
+      readonly position: null;
+      readonly score: null;
+    };
 
 /** Visible text for a cell without a ranked entry; the status codes themselves stay as they are. */
 export function unrankedCellLabel(status: Exclude<ComparisonCell['status'], 'ranked'>): string {
   switch (status) {
-    case 'absent': return 'Not in shared list';
-    case 'unfetched': return 'Not loaded yet';
-    case 'loading': return 'Loading…';
-    case 'unshared': return 'Not shared';
-    case 'unavailable': return 'Unavailable';
-    case 'error': return 'Could not load';
+    case 'absent':
+      return 'Not in shared list';
+    case 'unfetched':
+      return 'Not loaded yet';
+    case 'loading':
+      return 'Loading…';
+    case 'unshared':
+      return 'Not shared';
+    case 'unavailable':
+      return 'Unavailable';
+    case 'error':
+      return 'Could not load';
   }
 }
 
@@ -122,8 +130,7 @@ export interface FriendComparison {
 
 type AggregateSort = 'title' | 'coverage' | 'rater-count' | 'mean-score' | 'score-spread' | 'score-difference';
 export type ComparisonSort = (
-  | { readonly by: AggregateSort }
-  | { readonly by: 'position' | 'score'; readonly participantId: string }
+  { readonly by: AggregateSort } | { readonly by: 'position' | 'score'; readonly participantId: string }
 ) & { readonly direction?: 'asc' | 'desc' };
 
 export interface ComparisonPageOptions {
@@ -185,8 +192,10 @@ function object(value: unknown, label: string): Record<string, unknown> {
 
 function shape(value: unknown, required: readonly string[], label: string, optional: readonly string[] = []) {
   const row = object(value, label);
-  if (required.some((key) => !Object.hasOwn(row, key)) ||
-    Object.keys(row).some((key) => !required.includes(key) && !optional.includes(key))) {
+  if (
+    required.some((key) => !Object.hasOwn(row, key)) ||
+    Object.keys(row).some((key) => !required.includes(key) && !optional.includes(key))
+  ) {
     return invalid(`${label} has missing or unsupported fields.`);
   }
   return row;
@@ -222,9 +231,11 @@ function identity(row: Record<string, unknown>) {
     if (id !== sourceId || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sourceId)) {
       return invalid('A collection identity must use its exact collection slug.');
     }
-  } else if (id !== `${source}:${sourceId}` ||
+  } else if (
+    id !== `${source}:${sourceId}` ||
     (source === 'wikidata' && !/^Q[1-9]\d*$/.test(sourceId)) ||
-    ((source === 'steam' || source === 'freetogame') && !/^[1-9]\d*$/.test(sourceId))) {
+    ((source === 'steam' || source === 'freetogame') && !/^[1-9]\d*$/.test(sourceId))
+  ) {
     return invalid('A game identity has an unsupported or inconsistent source ID.');
   }
   return { id, source, sourceId, key: source === 'manual' ? id : `${source}:${sourceId}` };
@@ -280,7 +291,11 @@ interface IndexedParticipant {
 }
 
 function readParticipant(value: unknown): IndexedParticipant {
-  const row = shape(value, ['id', 'displayName', 'kind', 'availability', 'freshness'], 'A participant', ['updatedAt', 'entries', 'coverage']);
+  const row = shape(value, ['id', 'displayName', 'kind', 'availability', 'freshness'], 'A participant', [
+    'updatedAt',
+    'entries',
+    'coverage',
+  ]);
   const id = text(row.id, 'A participant ID');
   if (id !== id.trim()) return invalid('A participant ID must not have surrounding whitespace.');
   if (row.kind !== 'self' && row.kind !== 'friend') return invalid('A participant kind must be self or friend.');
@@ -293,17 +308,21 @@ function readParticipant(value: unknown): IndexedParticipant {
     kind: row.kind,
     availability,
     freshness,
-    updatedAt: row.updatedAt === undefined || row.updatedAt === null
-      ? null : integer(row.updatedAt, 0, Number.MAX_SAFE_INTEGER, 'A snapshot timestamp'),
+    updatedAt:
+      row.updatedAt === undefined || row.updatedAt === null
+        ? null
+        : integer(row.updatedAt, 0, Number.MAX_SAFE_INTEGER, 'A snapshot timestamp'),
   };
-  let complete = true; let resolvedIds: ReadonlySet<string> | null = null;
+  let complete = true;
+  let resolvedIds: ReadonlySet<string> | null = null;
   if (row.coverage !== undefined) {
     const coverage = object(row.coverage, 'Coverage');
     if (!['complete', 'page', 'exact'].includes(String(coverage.kind))) return invalid('Unsupported loaded coverage.');
     const total = integer(coverage.total, 0, 10_000, 'Shared total');
     if (coverage.kind === 'exact') {
       shape(coverage, ['kind', 'total', 'ids'], 'Exact coverage');
-      if (!Array.isArray(coverage.ids) || !coverage.ids.length || coverage.ids.length > 6) return invalid('Exact coverage requires one to six IDs.');
+      if (!Array.isArray(coverage.ids) || !coverage.ids.length || coverage.ids.length > 6)
+        return invalid('Exact coverage requires one to six IDs.');
       resolvedIds = new Set(coverage.ids.map(safeGameId));
       if (resolvedIds.size !== coverage.ids.length) return invalid('Exact coverage contains duplicate IDs.');
       Object.assign(info, { coverage: { kind: 'exact', total, ids: [...resolvedIds] } });
@@ -317,8 +336,10 @@ function readParticipant(value: unknown): IndexedParticipant {
     if (row.entries !== undefined) return invalid('A participant that is not ready must omit entries.');
     return { info, entries: null, complete: false, resolvedIds: null };
   }
-  const limit = row.kind === 'self' || row.coverage !== undefined
-    ? FRIEND_COMPARISON_LIMITS.maxSelfEntries : FRIEND_COMPARISON_LIMITS.maxFriendEntries;
+  const limit =
+    row.kind === 'self' || row.coverage !== undefined
+      ? FRIEND_COMPARISON_LIMITS.maxSelfEntries
+      : FRIEND_COMPARISON_LIMITS.maxFriendEntries;
   if (!Array.isArray(row.entries) || row.entries.length > limit) {
     return invalid(`A ${row.kind} snapshot must have an entries array of at most ${limit} rows.`);
   }
@@ -333,7 +354,8 @@ function readParticipant(value: unknown): IndexedParticipant {
     positions.add(entry.position);
     if (resolvedIds && !resolvedIds.has(entry.id)) return invalid('An exact lookup returned an unresolved game.');
   }
-  if (info.coverage && (entries.size > info.coverage.total || complete && entries.size !== info.coverage.total)) return invalid('Loaded coverage disagrees with the shared total.');
+  if (info.coverage && (entries.size > info.coverage.total || (complete && entries.size !== info.coverage.total)))
+    return invalid('Loaded coverage disagrees with the shared total.');
   return { info, entries, complete, resolvedIds };
 }
 
@@ -342,8 +364,11 @@ function compareText(left: string, right: string): number {
 }
 
 function compareTitles(left: ComparisonRow, right: ComparisonRow): number {
-  return compareText(left.game.title.toLowerCase(), right.game.title.toLowerCase()) ||
-    compareText(left.game.title, right.game.title) || compareText(left.key, right.key);
+  return (
+    compareText(left.game.title.toLowerCase(), right.game.title.toLowerCase()) ||
+    compareText(left.game.title, right.game.title) ||
+    compareText(left.key, right.key)
+  );
 }
 
 function makeRow(key: string, game: ComparisonRow['game'], participants: readonly IndexedParticipant[]): ComparisonRow {
@@ -354,14 +379,20 @@ function makeRow(key: string, game: ComparisonRow['game'], participants: readonl
       return { participantId: info.id, status: info.availability, position: null, score: null };
     }
     const entry = entries!.get(key);
-    if (!entry) return { participantId: info.id, status: complete || resolvedIds?.has(game.id) ? 'absent' : 'unfetched', position: null, score: null };
+    if (!entry)
+      return {
+        participantId: info.id,
+        status: complete || resolvedIds?.has(game.id) ? 'absent' : 'unfetched',
+        position: null,
+        score: null,
+      };
     coverage++;
     if (entry.score !== null) scores.push(entry.score);
     return { participantId: info.id, status: 'ranked', entry, position: entry.position, score: entry.score };
   });
   const first = cells[0]!;
   const second = cells[1]!;
-  const partial = cells.some(cell => cell.status === 'unfetched');
+  const partial = cells.some((cell) => cell.status === 'unfetched');
   return {
     key,
     game,
@@ -370,8 +401,10 @@ function makeRow(key: string, game: ComparisonRow['game'], participants: readonl
     raterCount: scores.length,
     meanScore: !partial && scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null,
     scoreSpread: !partial && scores.length >= 2 ? Math.max(...scores) - Math.min(...scores) : null,
-    scoreDifference: !partial && cells.length === 2 && first.score !== null && second.score !== null
-      ? first.score - second.score : null,
+    scoreDifference:
+      !partial && cells.length === 2 && first.score !== null && second.score !== null
+        ? first.score - second.score
+        : null,
   };
 }
 
@@ -384,8 +417,8 @@ function pairSummary(left: IndexedParticipant, right: IndexedParticipant): Compa
     return { ...base, incomplete: true, sharedGameCount: null, jointlyRatedCount: null, meanAbsoluteScoreGap: null };
   }
   // Only explicitly complete bounded snapshots contribute whole-list metrics.
-  const [smaller, larger] = left.entries.size <= right.entries.size
-    ? [left.entries, right.entries] : [right.entries, left.entries];
+  const [smaller, larger] =
+    left.entries.size <= right.entries.size ? [left.entries, right.entries] : [right.entries, left.entries];
   const common: { key: string; left: ComparisonEntry; right: ComparisonEntry }[] = [];
   for (const [key, entry] of smaller!) {
     const other = larger!.get(key);
@@ -418,8 +451,11 @@ function pairSummary(left: IndexedParticipant, right: IndexedParticipant): Compa
  * common rows and null intersection counts, while ready pairs still have their own metrics.
  */
 export function compareFriendRankings(input: readonly ComparisonParticipant[]): FriendComparison {
-  if (!Array.isArray(input) || input.length < FRIEND_COMPARISON_LIMITS.minParticipants ||
-    input.length > FRIEND_COMPARISON_LIMITS.maxParticipants) {
+  if (
+    !Array.isArray(input) ||
+    input.length < FRIEND_COMPARISON_LIMITS.minParticipants ||
+    input.length > FRIEND_COMPARISON_LIMITS.maxParticipants
+  ) {
     return invalid('Choose between 2 and 6 distinct participants.');
   }
   // Index the bounded arrays; user-supplied iterators must not expand a checked cohort.
@@ -433,15 +469,19 @@ export function compareFriendRankings(input: readonly ComparisonParticipant[]): 
   if (participants.filter(({ kind }) => kind === 'self').length > 1) {
     return invalid('The cohort may contain at most one local self.');
   }
-  const availableParticipantIds = participants.filter(({ availability }) => availability === 'ready').map(({ id }) => id);
+  const availableParticipantIds = participants
+    .filter(({ availability }) => availability === 'ready')
+    .map(({ id }) => id);
   const cohort: ComparisonCohort = {
     participantIds: participants.map(({ id }) => id),
     participantCount: participants.length,
     availableParticipantIds,
     availableParticipantCount: availableParticipantIds.length,
     unavailableParticipantIds: participants.filter(({ availability }) => availability !== 'ready').map(({ id }) => id),
-    staleParticipantIds: participants.filter(({ availability, freshness }) => availability === 'ready' && freshness === 'stale').map(({ id }) => id),
-    incomplete: availableParticipantIds.length !== participants.length || indexed.some(value => !value.complete),
+    staleParticipantIds: participants
+      .filter(({ availability, freshness }) => availability === 'ready' && freshness === 'stale')
+      .map(({ id }) => id),
+    incomplete: availableParticipantIds.length !== participants.length || indexed.some((value) => !value.complete),
   };
   const games = new Map<string, ComparisonRow['game']>();
   for (const { entries } of indexed) {
@@ -468,16 +508,27 @@ export function compareFriendRankings(input: readonly ComparisonParticipant[]): 
     summary: {
       availableGameCount: allShared.length,
       sharedGameCount: cohort.incomplete ? null : commonRanked.length,
-      jointlyRatedCount: cohort.incomplete ? null : commonRanked.filter((row) => row.raterCount === participants.length).length,
+      jointlyRatedCount: cohort.incomplete
+        ? null
+        : commonRanked.filter((row) => row.raterCount === participants.length).length,
       pairs,
     },
   };
 }
 
 function sortRows(rows: ComparisonRow[], comparison: FriendComparison, value: unknown): void {
-  const sort: Record<string, unknown> = value === undefined
-    ? { by: 'title' } : shape(value, ['by'], 'A row sort', ['direction', 'participantId']);
-  const fields = ['title', 'coverage', 'rater-count', 'mean-score', 'score-spread', 'score-difference', 'position', 'score'];
+  const sort: Record<string, unknown> =
+    value === undefined ? { by: 'title' } : shape(value, ['by'], 'A row sort', ['direction', 'participantId']);
+  const fields = [
+    'title',
+    'coverage',
+    'rater-count',
+    'mean-score',
+    'score-spread',
+    'score-difference',
+    'position',
+    'score',
+  ];
   if (typeof sort.by !== 'string' || !fields.includes(sort.by)) return invalid('The row sort is unsupported.');
   const direction = sort.direction === undefined ? 'asc' : sort.direction;
   if (direction !== 'asc' && direction !== 'desc') return invalid('A sort direction must be asc or desc.');
@@ -488,14 +539,22 @@ function sortRows(rows: ComparisonRow[], comparison: FriendComparison, value: un
   }
   const metric = (row: ComparisonRow): number | null => {
     switch (sort.by) {
-      case 'coverage': return row.coverage;
-      case 'rater-count': return row.raterCount;
-      case 'mean-score': return row.meanScore;
-      case 'score-spread': return row.scoreSpread;
-      case 'score-difference': return row.scoreDifference;
-      case 'position': return row.cells[participantIndex]!.position;
-      case 'score': return row.cells[participantIndex]!.score;
-      default: return null;
+      case 'coverage':
+        return row.coverage;
+      case 'rater-count':
+        return row.raterCount;
+      case 'mean-score':
+        return row.meanScore;
+      case 'score-spread':
+        return row.scoreSpread;
+      case 'score-difference':
+        return row.scoreDifference;
+      case 'position':
+        return row.cells[participantIndex]!.position;
+      case 'score':
+        return row.cells[participantIndex]!.score;
+      default:
+        return null;
     }
   };
   const multiplier = direction === 'asc' ? 1 : -1;
@@ -513,27 +572,51 @@ function sortRows(rows: ComparisonRow[], comparison: FriendComparison, value: un
 
 /** Defaults to common-ranked, title ascending, page 1, and at most 25 rows. No result arrays are mutated. */
 export function getComparisonPage(comparison: FriendComparison, options: ComparisonPageOptions = {}): ComparisonPage {
-  const input = shape(options, [], 'Page options', ['mode', 'query', 'minCoverage', 'minRaters', 'sort', 'page', 'pageSize', 'games']);
+  const input = shape(options, [], 'Page options', [
+    'mode',
+    'query',
+    'minCoverage',
+    'minRaters',
+    'sort',
+    'page',
+    'pageSize',
+    'games',
+  ]);
   const mode = input.mode === undefined ? 'common-ranked' : input.mode;
   if (mode !== 'common-ranked' && mode !== 'all-shared') return invalid('The comparison mode is unsupported.');
   const query = input.query === undefined ? '' : text(input.query, 'A search query', false).trim().toLowerCase();
-  const minCoverage = input.minCoverage === undefined ? 1
-    : integer(input.minCoverage, 1, comparison.cohort.participantCount, 'Minimum coverage');
-  const minRaters = input.minRaters === undefined ? 0
-    : integer(input.minRaters, 0, comparison.cohort.participantCount, 'Minimum raters');
+  const minCoverage =
+    input.minCoverage === undefined
+      ? 1
+      : integer(input.minCoverage, 1, comparison.cohort.participantCount, 'Minimum coverage');
+  const minRaters =
+    input.minRaters === undefined
+      ? 0
+      : integer(input.minRaters, 0, comparison.cohort.participantCount, 'Minimum raters');
   const page = input.page === undefined ? 1 : integer(input.page, 1, Number.MAX_SAFE_INTEGER, 'A page number');
-  const pageSize = input.pageSize === undefined ? FRIEND_COMPARISON_LIMITS.maxPageSize
-    : integer(input.pageSize, 1, FRIEND_COMPARISON_LIMITS.maxPageSize, 'A page size');
+  const pageSize =
+    input.pageSize === undefined
+      ? FRIEND_COMPARISON_LIMITS.maxPageSize
+      : integer(input.pageSize, 1, FRIEND_COMPARISON_LIMITS.maxPageSize, 'A page size');
   let selectedGames: Set<string> | null = null;
   if (input.games !== undefined) {
-    if (!Array.isArray(input.games) || input.games.length < 1 || input.games.length > 6) return invalid('Choose one to six comparison games.');
+    if (!Array.isArray(input.games) || input.games.length < 1 || input.games.length > 6)
+      return invalid('Choose one to six comparison games.');
     selectedGames = new Set();
-    for (let index = 0; index < input.games.length; index += 1) selectedGames.add(identity(object(input.games[index], 'A comparison game')).key);
-    if (selectedGames.size !== input.games.length) return invalid('Comparison games must use distinct source identities.');
+    for (let index = 0; index < input.games.length; index += 1)
+      selectedGames.add(identity(object(input.games[index], 'A comparison game')).key);
+    if (selectedGames.size !== input.games.length)
+      return invalid('Comparison games must use distinct source identities.');
   }
-  const rows = comparison.rows[mode].filter((row) => (!selectedGames || selectedGames.has(row.key)) && row.coverage >= minCoverage && row.raterCount >= minRaters &&
-    (!query || row.key.toLowerCase().includes(query) || row.cells.some((cell) =>
-      cell.status === 'ranked' && cell.entry.title.toLowerCase().includes(query))));
+  const rows = comparison.rows[mode].filter(
+    (row) =>
+      (!selectedGames || selectedGames.has(row.key)) &&
+      row.coverage >= minCoverage &&
+      row.raterCount >= minRaters &&
+      (!query ||
+        row.key.toLowerCase().includes(query) ||
+        row.cells.some((cell) => cell.status === 'ranked' && cell.entry.title.toLowerCase().includes(query))),
+  );
   sortRows(rows, comparison, input.sort);
   const pageCount = Math.ceil(rows.length / pageSize);
   return {

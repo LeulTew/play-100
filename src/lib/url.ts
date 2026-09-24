@@ -1,8 +1,38 @@
 import type { AppPage, Filters, SortOrder } from './types';
 import { parseProgressFilter } from './game-progress';
 
-export const SORT_ORDERS = ['rank', 'title', 'newest', 'oldest', 'score', 'metacritic', 'metacriticPc', 'ign', 'gamespot', 'pcGamer', 'rank-index', 'author-rating'] as const satisfies readonly SortOrder[];
-export const PAGE_PATHS: Record<AppPage, string> = { collection: '/', games: '/my-games', library: '/my-library', rankings: '/my-rankings', discover: '/discover', account: '/account', publish: '/publish', community: '/community', profile: '/community', creator: '/creator', friends: '/friends', friend: '/friends', invite: '/invite', compare: '/compare', 'friend-sharing': '/friends/sharing', 'friend-shelf': '/friends/sharing/games' };
+export const SORT_ORDERS = [
+  'rank',
+  'title',
+  'newest',
+  'oldest',
+  'score',
+  'metacritic',
+  'metacriticPc',
+  'ign',
+  'gamespot',
+  'pcGamer',
+  'rank-index',
+  'author-rating',
+] as const satisfies readonly SortOrder[];
+export const PAGE_PATHS: Record<AppPage, string> = {
+  collection: '/',
+  games: '/my-games',
+  library: '/my-library',
+  rankings: '/my-rankings',
+  discover: '/discover',
+  account: '/account',
+  publish: '/publish',
+  community: '/community',
+  profile: '/community',
+  creator: '/creator',
+  friends: '/friends',
+  friend: '/friends',
+  invite: '/invite',
+  compare: '/compare',
+  'friend-sharing': '/friends/sharing',
+  'friend-shelf': '/friends/sharing/games',
+};
 
 export function pageFromPath(path: string): AppPage {
   const normalized = path.replace(/\/+$/, '') || '/';
@@ -25,7 +55,16 @@ export function pageFromPath(path: string): AppPage {
 }
 
 export const defaultFilters: Filters = {
-  q: '', genre: '', year: '', tier: 'all', list: 'all', sort: 'rank', direction: 'auto', view: 'grid', catalogs: 'on', progress: 'all',
+  q: '',
+  genre: '',
+  year: '',
+  tier: 'all',
+  list: 'all',
+  sort: 'rank',
+  direction: 'auto',
+  view: 'grid',
+  catalogs: 'on',
+  progress: 'all',
 };
 
 export function parseUrl(search: string): { filters: Filters; game: string | null } {

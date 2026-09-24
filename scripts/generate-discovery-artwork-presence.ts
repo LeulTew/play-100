@@ -7,15 +7,33 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // This is a fetch hint, not catalog validation. The collector and seed tests validate the complete catalog.
 export function discoveryArtworkPresenceJson(value: unknown): string {
-  if (!value || typeof value !== 'object' || !('schemaVersion' in value) || value.schemaVersion !== 1 ||
-    !('items' in value) || !Array.isArray(value.items) || value.items.length > 1000) throw new Error('Invalid artwork presence source.');
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('schemaVersion' in value) ||
+    value.schemaVersion !== 1 ||
+    !('items' in value) ||
+    !Array.isArray(value.items) ||
+    value.items.length > 1000
+  )
+    throw new Error('Invalid artwork presence source.');
   const seen = new Set<string>();
   const ids: string[] = [];
   const items: unknown[] = value.items;
   for (const item of items) {
-    if (!item || typeof item !== 'object' || !('record' in item) || !item.record || typeof item.record !== 'object' || !('id' in item.record) ||
-      typeof item.record.id !== 'string' || !/^(wikidata:Q[1-9]\d{0,14}|freetogame:[1-9]\d{0,14})$/.test(item.record.id) ||
-      seen.has(item.record.id) || !('artwork' in item) || (item.artwork !== null && (!item.artwork || typeof item.artwork !== 'object' || Array.isArray(item.artwork)))) {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      !('record' in item) ||
+      !item.record ||
+      typeof item.record !== 'object' ||
+      !('id' in item.record) ||
+      typeof item.record.id !== 'string' ||
+      !/^(wikidata:Q[1-9]\d{0,14}|freetogame:[1-9]\d{0,14})$/.test(item.record.id) ||
+      seen.has(item.record.id) ||
+      !('artwork' in item) ||
+      (item.artwork !== null && (!item.artwork || typeof item.artwork !== 'object' || Array.isArray(item.artwork)))
+    ) {
       throw new Error('Invalid or duplicate artwork presence record.');
     }
     seen.add(item.record.id);
@@ -36,7 +54,9 @@ export async function writeArtworkPresence(value: unknown, root = ROOT): Promise
   try {
     await writeFile(temporary, contents, { flag: 'wx' });
     await rename(temporary, destination);
-  } finally { await rm(temporary, { force: true }); }
+  } finally {
+    await rm(temporary, { force: true });
+  }
 }
 
 async function main() {
@@ -44,9 +64,12 @@ async function main() {
   if (args.length > 1 || (args.length === 1 && args[0] !== '--verify')) {
     throw new Error('Usage: node scripts/generate-discovery-artwork-presence.ts [--verify]');
   }
-  const catalog: unknown = JSON.parse(await readFile(path.join(ROOT, 'public', 'data', 'discovery', 'catalog.v1.json'), 'utf8'));
+  const catalog: unknown = JSON.parse(
+    await readFile(path.join(ROOT, 'public', 'data', 'discovery', 'catalog.v1.json'), 'utf8'),
+  );
   if (args[0] === '--verify') {
-    if (await readFile(artworkPresencePath(), 'utf8') !== discoveryArtworkPresenceJson(catalog)) throw new Error('Artwork presence index is stale. Regenerate it from the checked-in catalog.');
+    if ((await readFile(artworkPresencePath(), 'utf8')) !== discoveryArtworkPresenceJson(catalog))
+      throw new Error('Artwork presence index is stale. Regenerate it from the checked-in catalog.');
   } else await writeArtworkPresence(catalog);
 }
 

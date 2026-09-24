@@ -8,7 +8,8 @@ const first = { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' };
 const second = { id: 'mass-effect-2', title: 'Mass Effect 2' };
 const menu = (page: Page) => page.getByRole('dialog', { name: 'Menu', exact: true });
 const trigger = (page: Page) => page.getByRole('button', { name: 'Menu', exact: true });
-const rating = (page: Page) => page.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
+const rating = (page: Page) =>
+  page.getByRole('spinbutton', { name: `Your rating / 10 for ${first.title}`, exact: true });
 
 async function openMenu(page: Page) {
   await trigger(page).click();
@@ -20,12 +21,14 @@ async function prepareRanking(page: Page) {
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
   for (const game of [first, second]) {
     await page.getByRole('button', { name: `Add ${game.title} to ranking`, exact: true }).click();
-    await expect.poll(async () => (await readLibrary(page)).ranking.some(entry => entry.id === game.id)).toBe(true);
+    await expect.poll(async () => (await readLibrary(page)).ranking.some((entry) => entry.id === game.id)).toBe(true);
   }
   await page.getByRole('button', { name: 'Close game picker', exact: true }).click();
   await rating(page).fill('5');
   await rating(page).press('Tab');
-  await expect.poll(async () => (await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(5);
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score)
+    .toBe(5);
 }
 
 async function rejectMenuWrites(page: Page) {
@@ -33,7 +36,9 @@ async function rejectMenuWrites(page: Page) {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
       if (document.documentElement.dataset.rejectMenuWrite === 'yes') {
-        document.documentElement.dataset.menuWriteAttempts = String(Number(document.documentElement.dataset.menuWriteAttempts ?? 0) + 1);
+        document.documentElement.dataset.menuWriteAttempts = String(
+          Number(document.documentElement.dataset.menuWriteAttempts ?? 0) + 1,
+        );
         throw new DOMException('Synthetic Menu storage failure', 'QuotaExceededError');
       }
       return put.apply(this, args);
@@ -45,17 +50,21 @@ async function rejectMenuWrites(page: Page) {
 test.beforeEach(async ({ context, page, baseURL }) => {
   const origin = new URL(baseURL!);
   expect(['localhost', '127.0.0.1']).toContain(origin.hostname);
-  await context.route('**/*', route => {
+  await context.route('**/*', (route) => {
     const url = new URL(route.request().url());
-    if (!['localhost', '127.0.0.1'].includes(url.hostname) || ![origin.port, '9199', '8188'].includes(url.port)) return route.abort('blockedbyclient');
-    if (url.pathname === '/api/catalog') return route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } });
+    if (!['localhost', '127.0.0.1'].includes(url.hostname) || ![origin.port, '9199', '8188'].includes(url.port))
+      return route.abort('blockedbyclient');
+    if (url.pathname === '/api/catalog')
+      return route.fulfill({ status: 503, json: { error: 'Synthetic offline provider.' } });
     return route.continue();
   });
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
 for (const width of [390, 1280]) {
-  test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the heading`, async ({ page }) => {
+  test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the heading`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/?catalogs=off');
     for (const name of ['Settings & backups', 'About & credits']) {
@@ -73,8 +82,8 @@ for (const width of [390, 1280]) {
     const footer = page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true });
     await footer.click();
     await expect(page.locator('#about-title')).toBeFocused();
-    await footer.evaluate(element => element.setAttribute('disabled', ''));
-    await page.locator('[data-page-heading], #collection-title, main h1').evaluateAll(headings => {
+    await footer.evaluate((element) => element.setAttribute('disabled', ''));
+    await page.locator('[data-page-heading], #collection-title, main h1').evaluateAll((headings) => {
       for (const heading of headings) heading.removeAttribute('tabindex');
     });
     await page.keyboard.press('Escape');
@@ -82,9 +91,14 @@ for (const width of [390, 1280]) {
   });
 }
 
-test('Menu is secondary, grouped, current, keyboard-operable and does not bootstrap or mutate a guest', async ({ page, isMobile }) => {
+test('Menu is secondary, grouped, current, keyboard-operable and does not bootstrap or mutate a guest', async ({
+  page,
+  isMobile,
+}) => {
   const accountRequests: string[] = [];
-  page.on('request', request => { if (/\/src\/cloud\/|:9199\/|:8188\//.test(request.url())) accountRequests.push(request.url()); });
+  page.on('request', (request) => {
+    if (/\/src\/cloud\/|:9199\/|:8188\//.test(request.url())) accountRequests.push(request.url());
+  });
   await page.goto('/my-games?tab=queue&catalogs=off');
   await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
   const before = await readLibrary(page);
@@ -99,7 +113,9 @@ test('Menu is secondary, grouped, current, keyboard-operable and does not bootst
   await expect(menu(page).getByRole('menu')).toHaveCount(0);
   await expect(menu(page).locator('#menu-title')).toBeFocused();
   await expect(menu(page).locator('[aria-current="page"]')).toHaveText('QueueCurrent');
-  const hrefs = await menu(page).locator('a').evaluateAll(links => links.map(link => link.getAttribute('href')));
+  const hrefs = await menu(page)
+    .locator('a')
+    .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
   expect(new Set(hrefs).size).toBe(hrefs.length);
   expect(hrefs).not.toContain('/my-library');
   expect(hrefs).not.toContain('/my-rankings');
@@ -125,18 +141,23 @@ test('Menu is secondary, grouped, current, keyboard-operable and does not bootst
 test('every applicable route uses its real target and only one current link', async ({ page }) => {
   await page.goto('/?catalogs=off');
   await openMenu(page);
-  const online = await menu(page).getByRole('link', { name: 'Account', exact: true }).count() > 0;
+  const online = (await menu(page).getByRole('link', { name: 'Account', exact: true }).count()) > 0;
   const destinations = [
     ['Discover', '/discover?catalogs=off'],
     ['Library', '/my-games?catalogs=off'],
     ['Queue', '/my-games?catalogs=off&tab=queue'],
     ['Ranking', '/my-games?catalogs=off&tab=ranking'],
-    ...(online ? [
-      ['Friends', '/friends?catalogs=off'], ['Compare', '/compare?catalogs=off'],
-      ['Community', '/community?catalogs=off'], ['Public ranking', '/publish?catalogs=off'],
-      ['Friends sharing', '/friends/sharing?catalogs=off'], ['Shared games', '/friends/sharing/games?catalogs=off'],
-      ['Account', '/account?catalogs=off'],
-    ] : []),
+    ...(online
+      ? [
+          ['Friends', '/friends?catalogs=off'],
+          ['Compare', '/compare?catalogs=off'],
+          ['Community', '/community?catalogs=off'],
+          ['Public ranking', '/publish?catalogs=off'],
+          ['Friends sharing', '/friends/sharing?catalogs=off'],
+          ['Shared games', '/friends/sharing/games?catalogs=off'],
+          ['Account', '/account?catalogs=off'],
+        ]
+      : []),
     ['The 100', '/?catalogs=off'],
   ];
   for (const [name, path] of destinations) {
@@ -151,7 +172,9 @@ test('every applicable route uses its real target and only one current link', as
   }
 });
 
-test('Settings, credits, Data use and both actual workbook downloads retain their existing handlers', async ({ page }) => {
+test('Settings, credits, Data use and both actual workbook downloads retain their existing handlers', async ({
+  page,
+}) => {
   await page.goto('/?catalogs=off');
   await openMenu(page);
   await menu(page).getByRole('button', { name: 'Settings & backups', exact: true }).click();
@@ -215,15 +238,20 @@ for (const field of ['rating', 'note'] as const) {
       await rating(page).fill('8.75');
     } else {
       await page.locator(`[data-record-id="${first.id}"] .ranking-note summary`).click();
-      await page.getByRole('textbox', { name: `Your note for ${first.title}`, exact: true }).fill('Menu preserves this private draft.');
+      await page
+        .getByRole('textbox', { name: `Your note for ${first.title}`, exact: true })
+        .fill('Menu preserves this private draft.');
     }
     await openMenu(page);
     await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();
     await expect(page).toHaveURL(/\/discover\?catalogs=off$/);
     const after = await readLibrary(page);
-    expect(after.ranking.find(entry => entry.id === first.id)?.[field === 'rating' ? 'score' : 'note'])
-      .toBe(field === 'rating' ? 8.75 : 'Menu preserves this private draft.');
-    expect(after.ranking.find(entry => entry.id === second.id)).toEqual(before.ranking.find(entry => entry.id === second.id));
+    expect(after.ranking.find((entry) => entry.id === first.id)?.[field === 'rating' ? 'score' : 'note']).toBe(
+      field === 'rating' ? 8.75 : 'Menu preserves this private draft.',
+    );
+    expect(after.ranking.find((entry) => entry.id === second.id)).toEqual(
+      before.ranking.find((entry) => entry.id === second.id),
+    );
     expect(after.records).toEqual(before.records);
     expect(after.progress).toEqual(before.progress);
     expect(after.queueOrder).toEqual(before.queueOrder);
@@ -233,7 +261,9 @@ for (const field of ['rating', 'note'] as const) {
   });
 }
 
-test('invalid ratings block destinations and Settings without losing the draft, then allow correction', async ({ page }) => {
+test('invalid ratings block destinations and Settings without losing the draft, then allow correction', async ({
+  page,
+}) => {
   await prepareRanking(page);
   const before = await readLibrary(page);
   await rating(page).fill('11');
@@ -255,10 +285,12 @@ test('invalid ratings block destinations and Settings without losing the draft, 
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Queue', exact: true }).click();
   await expect(page).toHaveURL(/\/my-games\?catalogs=off&tab=queue$/);
-  expect((await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(9.25);
+  expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score).toBe(9.25);
 });
 
-test('rejected local writes stay recoverable and Menu does not retry or discard the rejected edit', async ({ page }) => {
+test('rejected local writes stay recoverable and Menu does not retry or discard the rejected edit', async ({
+  page,
+}) => {
   await prepareRanking(page);
   const before = await readLibrary(page);
   await rejectMenuWrites(page);
@@ -277,34 +309,40 @@ test('rejected local writes stay recoverable and Menu does not retry or discard 
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Library', exact: true }).click();
   await expect(menu(page).getByRole('alert')).toContainText('Your edit has not saved');
-  await rating(page).evaluate(input => input.removeAttribute('aria-invalid'));
+  await rating(page).evaluate((input) => input.removeAttribute('aria-invalid'));
   await menu(page).getByRole('button', { name: 'Return to edit', exact: true }).click();
   await expect(rating(page)).toBeFocused();
   await expect(rating(page)).toHaveValue('9');
   expect(await readLibrary(page)).toEqual(before);
   expect(await page.evaluate(() => document.documentElement.dataset.menuWriteAttempts)).toBe(attempts);
-  await page.evaluate(() => { document.documentElement.dataset.rejectMenuWrite = 'no'; });
+  await page.evaluate(() => {
+    document.documentElement.dataset.rejectMenuWrite = 'no';
+  });
   await rating(page).fill('9.1');
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Library', exact: true }).click();
   await expect(page).toHaveURL(/\/my-games\?catalogs=off$/);
-  expect((await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(9.1);
+  expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score).toBe(9.1);
 });
 
-test('Return to edit focuses the exact rejected note without relying on an invalid marker or another record', async ({ page }) => {
+test('Return to edit focuses the exact rejected note without relying on an invalid marker or another record', async ({
+  page,
+}) => {
   await prepareRanking(page);
   const before = await readLibrary(page);
   await rejectMenuWrites(page);
-  const firstRow = page.getByRole('list', { name: 'Your ranked games', exact: true }).locator(`[data-record-id="${first.id}"]`);
+  const firstRow = page
+    .getByRole('list', { name: 'Your ranked games', exact: true })
+    .locator(`[data-record-id="${first.id}"]`);
   await firstRow.locator('.ranking-note summary').click();
   const note = firstRow.getByRole('textbox');
   await note.fill('Keep this rejected note on its exact original record.');
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();
   await expect(menu(page).getByRole('alert')).toContainText('Your edit has not saved');
-  await note.evaluate(input => input.removeAttribute('aria-invalid'));
+  await note.evaluate((input) => input.removeAttribute('aria-invalid'));
   const otherRating = page.getByRole('spinbutton', { name: `Your rating / 10 for ${second.title}`, exact: true });
-  await otherRating.evaluate(input => input.setAttribute('aria-invalid', 'true'));
+  await otherRating.evaluate((input) => input.setAttribute('aria-invalid', 'true'));
   await menu(page).getByRole('button', { name: 'Return to edit', exact: true }).click();
   await expect(note).toBeFocused();
   await expect(note).toHaveValue('Keep this rejected note on its exact original record.');
@@ -333,28 +371,38 @@ test('Return to edit never focuses a retained hidden editor and keeps its invali
   expect(await readLibrary(page)).toEqual(before);
 });
 
-test('Return to edit does not apply stale focus after navigation leaves and returns to the same view', async ({ page }) => {
+test('Return to edit does not apply stale focus after navigation leaves and returns to the same view', async ({
+  page,
+}) => {
   await prepareRanking(page);
   await rating(page).fill('11');
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();
   await expect(menu(page).getByRole('alert')).toContainText('Your edit has not saved');
-  await rating(page).evaluate(input => {
+  await rating(page).evaluate((input) => {
     const focus = input.focus.bind(input);
     document.documentElement.dataset.menuRecoveryFocusAttempts = '0';
-    input.focus = options => {
-      document.documentElement.dataset.menuRecoveryFocusAttempts = String(Number(document.documentElement.dataset.menuRecoveryFocusAttempts) + 1);
+    input.focus = (options) => {
+      document.documentElement.dataset.menuRecoveryFocusAttempts = String(
+        Number(document.documentElement.dataset.menuRecoveryFocusAttempts) + 1,
+      );
       focus(options);
     };
   });
-  await menu(page).getByRole('button', { name: 'Return to edit', exact: true }).evaluate(button => {
-    button.addEventListener('click', () => {
-      history.pushState(history.state, '', '/my-games?catalogs=off&tab=queue');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      history.pushState(history.state, '', '/my-games?catalogs=off&tab=ranking');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    }, { capture: true, once: true });
-  });
+  await menu(page)
+    .getByRole('button', { name: 'Return to edit', exact: true })
+    .evaluate((button) => {
+      button.addEventListener(
+        'click',
+        () => {
+          history.pushState(history.state, '', '/my-games?catalogs=off&tab=queue');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+          history.pushState(history.state, '', '/my-games?catalogs=off&tab=ranking');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        },
+        { capture: true, once: true },
+      );
+    });
   await menu(page).getByRole('button', { name: 'Return to edit', exact: true }).click();
   await expect(menu(page)).toHaveCount(0);
   await expect(rating(page)).toHaveValue('11');
@@ -367,7 +415,10 @@ test('Data use and modified-click links keep an invalid draft in its original ta
   await openMenu(page);
   await context.addInitScript(() => {
     if (location.pathname !== '/data-use') return;
-    const recordAccess = () => { document.documentElement.dataset.privateBootstrap = 'yes'; throw new Error('Data use opened private storage.'); };
+    const recordAccess = () => {
+      document.documentElement.dataset.privateBootstrap = 'yes';
+      throw new Error('Data use opened private storage.');
+    };
     indexedDB.open = recordAccess;
     Storage.prototype.getItem = recordAccess;
   });
@@ -376,7 +427,11 @@ test('Data use and modified-click links keep an invalid draft in its original ta
   const privacy = await popupPromise;
   await expect(privacy.getByRole('heading', { name: 'Data use', exact: true })).toBeVisible();
   expect(await privacy.evaluate(() => document.documentElement.dataset.privateBootstrap)).toBeUndefined();
-  expect(await privacy.evaluate(() => performance.getEntriesByType('resource').some(entry => /:9199\/|:8188\/|\/src\/cloud\//.test(entry.name)))).toBe(false);
+  expect(
+    await privacy.evaluate(() =>
+      performance.getEntriesByType('resource').some((entry) => /:9199\/|:8188\/|\/src\/cloud\//.test(entry.name)),
+    ),
+  ).toBe(false);
   await privacy.close();
   const modifiedClicks: Parameters<Locator['click']>[0][] = [{ modifiers: ['Control'] }, { button: 'middle' }];
   for (const options of modifiedClicks) {
@@ -390,7 +445,7 @@ test('Data use and modified-click links keep an invalid draft in its original ta
   }
   await page.keyboard.press('Escape');
   await expect(rating(page)).toHaveValue('11');
-  expect((await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(5);
+  expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score).toBe(5);
 });
 
 test('Escape cancels an in-flight Menu transition even when the pending save finishes later', async ({ page }) => {
@@ -398,20 +453,41 @@ test('Escape cancels an in-flight Menu transition even when the pending save fin
   await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
   await page.evaluate(async () => {
     const path = '/src/hooks/useExitSave.ts';
-    const loaded = performance.getEntriesByType('resource').map(entry => entry.name).findLast(value => new URL(value).pathname === path);
+    const loaded = performance
+      .getEntriesByType('resource')
+      .map((entry) => entry.name)
+      .findLast((value) => new URL(value).pathname === path);
     if (!loaded) throw new Error('The active app editor registry was not loaded.');
     const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
     let pending = true;
-    const saved = new Promise<boolean>(resolve => window.addEventListener('menu-test:finish', () => { pending = false; resolve(true); }, { once: true }));
+    const saved = new Promise<boolean>((resolve) =>
+      window.addEventListener(
+        'menu-test:finish',
+        () => {
+          pending = false;
+          resolve(true);
+        },
+        { once: true },
+      ),
+    );
     const release = registerPendingEditor({ pending: () => pending, flush: () => saved });
-    window.addEventListener('menu-test:release', () => { void release(); }, { once: true });
+    window.addEventListener(
+      'menu-test:release',
+      () => {
+        void release();
+      },
+      { once: true },
+    );
   });
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();
   await expect(menu(page).getByRole('status')).toContainText('Saving your open edit');
   await page.keyboard.press('Escape');
   await expect(trigger(page)).toBeFocused();
-  await page.evaluate(() => { window.dispatchEvent(new Event('menu-test:finish')); window.dispatchEvent(new Event('menu-test:release')); });
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('menu-test:finish'));
+    window.dispatchEvent(new Event('menu-test:release'));
+  });
   await expect(page).toHaveURL(/\/my-games\?tab=ranking&catalogs=off$/);
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();
@@ -426,28 +502,43 @@ test('Menu stays scrollable, reachable and accessible at 320px with five bottom 
   await openMenu(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const scroll = menu(page).getByRole('navigation', { name: 'All navigation' });
-  expect(await scroll.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
-  const sizes = await menu(page).locator('a, button').evaluateAll(elements => elements.map(element => {
-    const rect = element.getBoundingClientRect();
-    return { width: rect.width, height: rect.height };
-  }));
-  expect(sizes.every(size => size.width >= 44 && size.height >= 44)).toBe(true);
+  expect(await scroll.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const sizes = await menu(page)
+    .locator('a, button')
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      }),
+    );
+  expect(sizes.every((size) => size.width >= 44 && size.height >= 44)).toBe(true);
   const last = menu(page).getByRole('link', { name: 'Original spreadsheet', exact: true });
   await last.focus();
   await expect(last).toBeInViewport();
   await expect(menu(page).getByRole('button', { name: 'Close dialog', exact: true })).toBeInViewport();
-  expect(await scroll.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-  expect((await new AxeBuilder({ page }).include('.menu-dialog').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations).toEqual([]);
+  expect(await scroll.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .include('.menu-dialog')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(trigger(page)).toBeFocused();
 });
 
-test('primary route anchors preserve modified clicks, draft guards, current location and keyboard focus', async ({ page, context, isMobile }) => {
+test('primary route anchors preserve modified clicks, draft guards, current location and keyboard focus', async ({
+  page,
+  context,
+  isMobile,
+}) => {
   await prepareRanking(page);
   const primary = page.locator(isMobile ? '.mobile-nav' : '.desktop-nav');
   const discover = primary.getByRole('link', { name: 'Discover', exact: true });
   await expect(discover).toHaveAttribute('href', '/discover?catalogs=off');
-  const current = isMobile && !await page.locator('.account-nav').count() ? 'Ranking' : 'My games';
+  const current = isMobile && !(await page.locator('.account-nav').count()) ? 'Ranking' : 'My games';
   await expect(primary.locator('[aria-current="page"]')).toHaveText(current);
   if (isMobile) {
     await expect(primary.getByRole('link')).toHaveCount(4);
@@ -463,12 +554,12 @@ test('primary route anchors preserve modified clicks, draft guards, current loca
   await expect(page.locator('.toast')).toContainText('Finish or correct the open rating or note');
   await expect(page).toHaveURL(/\/my-games\?tab=ranking&catalogs=off$/);
   await expect(rating(page)).toHaveValue('11');
-  expect((await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(5);
+  expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score).toBe(5);
   await rating(page).fill('8.25');
   await discover.click();
   await expect(page).toHaveURL(/\/discover\?catalogs=off$/);
   await expect(discover).toHaveAttribute('aria-current', 'page');
-  expect((await readLibrary(page)).ranking.find(entry => entry.id === first.id)?.score).toBe(8.25);
+  expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score).toBe(8.25);
   const home = primary.getByRole('link', { name: 'The 100', exact: true });
   await home.focus();
   await page.keyboard.press('Enter');

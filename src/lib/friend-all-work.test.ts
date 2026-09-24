@@ -6,15 +6,22 @@ import { parseFriendAllCooldown, readFriendAllCooldown, saveFriendAllCooldown } 
 import { deleteScopedLibrary } from './scoped-library';
 
 beforeEach(() => {
-  closePersonalLibrary(); vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('window', undefined);
+  closePersonalLibrary();
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  vi.stubGlobal('window', undefined);
   vi.stubGlobal('localStorage', { getItem: () => null, removeItem: () => undefined });
 });
-afterEach(() => { closePersonalLibrary(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  closePersonalLibrary();
+  vi.unstubAllGlobals();
+});
 describe('account-bound durable All retry state', () => {
   it('survives a connection reload, stays isolated and is removed with the account cache', async () => {
-    const scope = accountScope('all-retry'); const other = accountScope('other');
+    const scope = accountScope('all-retry');
+    const other = accountScope('other');
     const cooldown = { version: 2 as const, epoch: 3, nextAttemptAt: Date.now() + 120_000 };
-    await saveFriendAllCooldown(scope, cooldown); closePersonalLibrary();
+    await saveFriendAllCooldown(scope, cooldown);
+    closePersonalLibrary();
     expect(await readFriendAllCooldown(scope)).toEqual(cooldown);
     expect(await readFriendAllCooldown(other)).toBeNull();
     await deleteScopedLibrary(scope);

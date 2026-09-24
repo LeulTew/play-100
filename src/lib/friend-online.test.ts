@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as lifecycle from '../cloud/account-lifecycle';
 import { FriendStore } from '../cloud/friend-store';
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('friend changes require an explicit offline signal', () => {
   it.each([
@@ -26,6 +29,8 @@ describe('friend changes require an explicit offline signal', () => {
         await expect(store.initialize('test-user')).rejects.toBe(networkError);
         expect(activity).toHaveBeenCalledOnce();
       }
-    } finally { await deleteApp(app); }
+    } finally {
+      await deleteApp(app);
+    }
   });
 });

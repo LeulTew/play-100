@@ -20,18 +20,30 @@ function tokenTexts(text: string, kind: ts.ScriptKind): string[] {
     const children = node.getChildren(source);
     if (children.length) children.forEach(visit);
     else if (node.getWidth(source)) {
-      tokens.push({ kind: node.kind, text: ts.isStringLiteral(node) ? JSON.stringify(node.text) : node.getText(source) });
+      tokens.push({
+        kind: node.kind,
+        text: ts.isStringLiteral(node) ? JSON.stringify(node.text) : node.getText(source),
+      });
     }
   };
   visit(source);
-  return tokens.filter((token, index) => token.kind !== ts.SyntaxKind.CommaToken ||
-    tokens[index - 1]?.kind === ts.SyntaxKind.CommaToken || tokens[index - 1]?.kind === ts.SyntaxKind.OpenBracketToken ||
-    ![ts.SyntaxKind.CloseParenToken, ts.SyntaxKind.CloseBracketToken, ts.SyntaxKind.CloseBraceToken].includes(tokens[index + 1]?.kind ?? ts.SyntaxKind.Unknown))
-    .map(token => token.text);
+  return tokens
+    .filter(
+      (token, index) =>
+        token.kind !== ts.SyntaxKind.CommaToken ||
+        tokens[index - 1]?.kind === ts.SyntaxKind.CommaToken ||
+        tokens[index - 1]?.kind === ts.SyntaxKind.OpenBracketToken ||
+        ![ts.SyntaxKind.CloseParenToken, ts.SyntaxKind.CloseBracketToken, ts.SyntaxKind.CloseBraceToken].includes(
+          tokens[index + 1]?.kind ?? ts.SyntaxKind.Unknown,
+        ),
+    )
+    .map((token) => token.text);
 }
 
 export function sourceTokens(text: string, kind = ts.ScriptKind.TS): string {
-  return tokenTexts(text, kind).map(token => JSON.stringify(token)).join('\n');
+  return tokenTexts(text, kind)
+    .map((token) => JSON.stringify(token))
+    .join('\n');
 }
 
 export function sourceTokenBytes(text: string): number {

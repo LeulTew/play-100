@@ -17,28 +17,38 @@ async function searchOnline(page: Page) {
 
 async function openActions(page: Page, record: LibraryRecord) {
   const details = row(page, record).locator('.discovery-card-details');
-  if (await details.getAttribute('open') === null) await details.getByText('Actions & source', { exact: true }).click();
+  if ((await details.getAttribute('open')) === null)
+    await details.getByText('Actions & source', { exact: true }).click();
   await expect(details).toHaveAttribute('open', '');
 }
 
 async function mockGames(page: Page) {
   await page.route('**/api/catalog?**', (route) => {
     const source = new URL(route.request().url()).searchParams.get('source');
-    return respondWithCatalog(route, [a, b].filter((record) => record.source === source));
+    return respondWithCatalog(
+      route,
+      [a, b].filter((record) => record.source === source),
+    );
   });
 }
 
 async function rate(page: Page, record: LibraryRecord, value: string) {
   await openActions(page, record);
-  await row(page, record).getByRole('spinbutton', { name: `Your rating / 10 for ${record.title}`, exact: true }).fill(value);
-  await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score).toBe(value ? Number(value) : null);
+  await row(page, record)
+    .getByRole('spinbutton', { name: `Your rating / 10 for ${record.title}`, exact: true })
+    .fill(value);
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score)
+    .toBe(value ? Number(value) : null);
 }
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
-test('main search combines the 100 and unranked catalogs; preview, rating and saving have distinct effects', async ({ page }) => {
+test('main search combines the 100 and unranked catalogs; preview, rating and saving have distinct effects', async ({
+  page,
+}) => {
   await mockGames(page);
   await page.goto('/?q=mass');
   await expect(page.locator('[data-game="mass-effect-2"]')).toBeVisible();
@@ -63,7 +73,9 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   await expect(inMyGames).toHaveText('In My games');
   await expect(inMyGames).toBeDisabled();
   await openActions(page, b);
-  await row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true }).click();
+  await row(page, b)
+    .getByRole('button', { name: `Play later: ${b.title}`, exact: true })
+    .click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([b.id]);
   const saved = await readLibrary(page);
   expect(saved.records[a.id]).toEqual(a);
@@ -76,7 +88,10 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   await openActions(page, a);
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('9.25');
   await openActions(page, b);
-  await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.goto('/my-library');
   await expect(page.locator('.my-games-editor:visible [data-record-id]')).toHaveCount(2);
 });
@@ -99,14 +114,21 @@ test('bulk actions span original and external search matches and private filters
   await page.locator('.selection-actions').getByRole('button', { name: 'Mark completed', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[a.id]?.completed).toBe(true);
   await openBrowsingFilters(page);
-  await page.locator('.collection-tabs').getByRole('button', { name: /^Completed/ }).click();
+  await page
+    .locator('.collection-tabs')
+    .getByRole('button', { name: /^Completed/ })
+    .click();
   await expect(page.locator('tr[data-game]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(1);
   await openActions(page, a);
   await expect(row(page, a).getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).toBeDisabled();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await row(page, a).getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
+    true,
+  );
+  await row(page, a)
+    .getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })
+    .click();
   // Unmarking a completed game asks first, since it also clears Completed (621bcef); nothing changes until confirmed.
   const confirmation = page.getByRole('dialog', { name: `Mark ${a.title} not played?`, exact: true });
   await expect(confirmation).toContainText('This also clears Completed.');
@@ -118,7 +140,10 @@ test('bulk actions span original and external search matches and private filters
   expect((await readLibrary(page)).progress[a.id]).toEqual({ played: false, completed: false, later: true });
 });
 
-test('search ratings preserve manual ranking slots and notes while played and ratings synchronize across tabs', async ({ page, context }) => {
+test('search ratings preserve manual ranking slots and notes while played and ratings synchronize across tabs', async ({
+  page,
+  context,
+}) => {
   await mockGames(page);
   await page.goto('/?q=mass&view=table');
   await searchOnline(page);
@@ -152,7 +177,9 @@ test('search ratings preserve manual ranking slots and notes while played and ra
   await peer.close();
 });
 
-test('saved additions remain searchable after provider failure and an online opt-out survives reload', async ({ page }) => {
+test('saved additions remain searchable after provider failure and an online opt-out survives reload', async ({
+  page,
+}) => {
   let unavailable = false;
   let requests = 0;
   await page.route('**/api/catalog?**', (route) => {
@@ -172,7 +199,9 @@ test('saved additions remain searchable after provider failure and an online opt
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('8.5');
   await searchOnline(page);
   await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
-  await expect(beyond(page).getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert').first()).toContainText('The source is temporarily unavailable.');
+  await expect(
+    beyond(page).getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert').first(),
+  ).toContainText('The source is temporarily unavailable.');
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('8.5');
   await openBrowsingFilters(page);
   await page.getByRole('checkbox', { name: 'Search public catalogs', exact: true }).uncheck();
@@ -187,7 +216,9 @@ test('saved additions remain searchable after provider failure and an online opt
   await expect(page.locator('.discovery-source-status')).toHaveCount(0);
 });
 
-test('online search is debounced, length bounded, scoped and URL reversible without a background crawl', async ({ page }) => {
+test('online search is debounced, length bounded, scoped and URL reversible without a background crawl', async ({
+  page,
+}) => {
   const queries: string[] = [];
   await page.clock.install({ time: new Date('2026-09-01T12:00:00Z') });
   await page.clock.pauseAt(new Date('2026-09-01T12:00:10Z'));
@@ -224,7 +255,10 @@ test('online search is debounced, length bounded, scoped and URL reversible with
   await expect(page.locator('#catalog-search-help')).toContainText('80 characters maximum');
   await page.getByRole('checkbox', { name: 'Search public catalogs', exact: true }).uncheck();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('link', { name: 'Ranking', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Menu', exact: true })
+    .getByRole('link', { name: 'Ranking', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/my-games\?catalogs=off&tab=ranking$/);
   await page.locator('.wordmark').first().click();
   await input.fill('mass');
@@ -247,7 +281,9 @@ test('late results from a cancelled query never replace the current search', asy
     const url = new URL(route.request().url());
     if (url.searchParams.get('source') !== 'wikidata') return respondWithCatalog(route, []);
     if (url.searchParams.get('q') === 'old') {
-      await new Promise<void>((resolve) => { release = resolve; });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
       await respondWithCatalog(route, [old]);
       finished = true;
       return;
@@ -267,10 +303,14 @@ test('late results from a cancelled query never replace the current search', asy
     await expect(row(page, old)).toHaveCount(0);
     await expect(row(page, current)).toHaveCount(1);
     await expect(page.getByRole('searchbox')).toHaveValue('new');
-  } finally { release?.(); }
+  } finally {
+    release?.();
+  }
 });
 
-test('failed load-more retries the failed page without losing prior records or duplicating saved games', async ({ page }) => {
+test('failed load-more retries the failed page without losing prior records or duplicating saved games', async ({
+  page,
+}) => {
   const more = catalogRecord('wikidata', 'Q990002', 'Mass Second Edition');
   const offsets: number[] = [];
   await page.route('**/api/catalog?**', (route) => {
@@ -279,7 +319,8 @@ test('failed load-more retries the failed page without losing prior records or d
     const offset = Number(url.searchParams.get('offset'));
     offsets.push(offset);
     if (!offset) return respondWithCatalog(route, [a], 5);
-    if (offsets.length === 2) return route.fulfill({ status: 503, json: { error: 'This page is temporarily unavailable.' } });
+    if (offsets.length === 2)
+      return route.fulfill({ status: 503, json: { error: 'This page is temporarily unavailable.' } });
     return respondWithCatalog(route, [a, more]);
   });
   await page.goto('/?q=mass&view=table');
@@ -295,7 +336,9 @@ test('failed load-more retries the failed page without losing prior records or d
   expect((await readLibrary(page)).ranking).toHaveLength(1);
 });
 
-test('a quota failure keeps an unranked rating draft without partially importing or endlessly retrying', async ({ page }) => {
+test('a quota failure keeps an unranked rating draft without partially importing or endlessly retrying', async ({
+  page,
+}) => {
   await mockGames(page);
   await page.goto('/?q=mass&view=table');
   await searchOnline(page);
@@ -306,7 +349,9 @@ test('a quota failure keeps an unranked rating draft without partially importing
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
       if (document.documentElement.dataset.failImport === 'yes') {
-        document.documentElement.dataset.importAttempts = String(Number(document.documentElement.dataset.importAttempts ?? 0) + 1);
+        document.documentElement.dataset.importAttempts = String(
+          Number(document.documentElement.dataset.importAttempts ?? 0) + 1,
+        );
         throw new DOMException('Storage full', 'QuotaExceededError');
       }
       return put.apply(this, args);
@@ -320,45 +365,70 @@ test('a quota failure keeps an unranked rating draft without partially importing
   const attempts = await page.evaluate(() => document.documentElement.dataset.importAttempts);
   await page.waitForTimeout(1600);
   expect(await page.evaluate(() => document.documentElement.dataset.importAttempts)).toBe(attempts);
-  await page.evaluate(() => { document.documentElement.dataset.failImport = 'no'; });
+  await page.evaluate(() => {
+    document.documentElement.dataset.failImport = 'no';
+  });
   await rate(page, a, '8.5');
   expect((await readLibrary(page)).records[a.id]).toEqual(a);
 });
 
-test('external metadata, ratings and queue survive a full browser restart even when both providers fail', async ({ baseURL, isMobile, viewport }, testInfo) => {
+test('external metadata, ratings and queue survive a full browser restart even when both providers fail', async ({
+  baseURL,
+  isMobile,
+  viewport,
+}, testInfo) => {
   const profile = testInfo.outputPath('persistent-search-profile');
-  const options = { headless: true, baseURL, isMobile, hasTouch: isMobile, viewport, args: ['--enable-unsafe-swiftshader'] };
+  const options = {
+    headless: true,
+    baseURL,
+    isMobile,
+    hasTouch: isMobile,
+    viewport,
+    args: ['--enable-unsafe-swiftshader'],
+  };
   let context = await chromium.launchPersistentContext(profile, options);
   try {
-    let page = context.pages()[0] ?? await context.newPage();
+    let page = context.pages()[0] ?? (await context.newPage());
     await mockGames(page);
     await page.goto('/?q=mass&view=table');
     await searchOnline(page);
     await rate(page, a, '9');
     await openActions(page, b);
-    await row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true }).click();
+    await row(page, b)
+      .getByRole('button', { name: `Play later: ${b.title}`, exact: true })
+      .click();
     await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([b.id]);
     const before = await readLibrary(page);
     await context.close();
     context = await chromium.launchPersistentContext(profile, options);
-    page = context.pages()[0] ?? await context.newPage();
-    await page.route('**/api/catalog?**', (route) => route.fulfill({ status: 503, json: { error: 'Source offline for this check.' } }));
+    page = context.pages()[0] ?? (await context.newPage());
+    await page.route('**/api/catalog?**', (route) =>
+      route.fulfill({ status: 503, json: { error: 'Source offline for this check.' } }),
+    );
     await page.goto('/?q=mass&view=table');
     await searchOnline(page);
     await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
     await openActions(page, a);
     await expect(row(page, a).getByRole('spinbutton')).toHaveValue('9');
     await openActions(page, b);
-    await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     const after = await readLibrary(page);
     expect(after.records).toEqual(before.records);
     expect(after.ranking).toEqual(before.ranking);
     expect(after.queueOrder).toEqual(before.queueOrder);
     expect(after.progress).toEqual(before.progress);
-  } finally { await context.close(); }
+  } finally {
+    await context.close();
+  }
 });
 
-test('native selects have aligned labels, values and chevrons across viewports with accessible unranked actions', async ({ page, viewport }, testInfo) => {
+test('native selects have aligned labels, values and chevrons across viewports with accessible unranked actions', async ({
+  page,
+  viewport,
+}, testInfo) => {
   await mockGames(page);
   await page.goto('/?q=Mass%20Atlas&view=table');
   await expect(row(page, a)).toBeVisible();
@@ -377,9 +447,12 @@ test('native selects have aligned labels, values and chevrons across viewports w
         const chevron = arrow.getBoundingClientRect();
         const style = getComputedStyle(select);
         return {
-          native: select.tagName, height: input.height, labelGap: input.top - label.getBoundingClientRect().bottom,
+          native: select.tagName,
+          height: input.height,
+          labelGap: input.top - label.getBoundingClientRect().bottom,
           centered: Math.abs(input.y + input.height / 2 - chevron.y - chevron.height / 2),
-          evenPadding: style.paddingTop === style.paddingBottom, pointerEvents: getComputedStyle(arrow).pointerEvents,
+          evenPadding: style.paddingTop === style.paddingBottom,
+          pointerEvents: getComputedStyle(arrow).pointerEvents,
         };
       });
       return { fields, noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth };
@@ -397,7 +470,9 @@ test('native selects have aligned labels, values and chevrons across viewports w
   }
   await page.setViewportSize(viewport ?? { width: 1440, height: 1000 });
   await openBrowsingFilters(page);
-  const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  const accessibility = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .analyze();
   expect(accessibility.violations).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('unified-search.png'), fullPage: true });
   const year = page.getByLabel('Year', { exact: true });

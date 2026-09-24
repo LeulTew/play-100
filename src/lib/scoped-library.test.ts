@@ -2,18 +2,57 @@ import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import type { SyncHead } from './cloud-types';
-import { closePersonalLibrary, loadPersonalLibrary, commitPersonalAction, subscribePersonalLibrary } from './personal-db';
-import { acknowledgeScopedUpload, adoptScopedRemote, cacheScopedProfile, commitScopedAction, connectScopedLibrary, deleteScopedLibrary, loadScopedLibrary, parseScopedLibrary, pauseScopedLibrary, rebaseScopedLibrary } from './scoped-library';
+import {
+  closePersonalLibrary,
+  loadPersonalLibrary,
+  commitPersonalAction,
+  subscribePersonalLibrary,
+} from './personal-db';
+import {
+  acknowledgeScopedUpload,
+  adoptScopedRemote,
+  cacheScopedProfile,
+  commitScopedAction,
+  connectScopedLibrary,
+  deleteScopedLibrary,
+  loadScopedLibrary,
+  parseScopedLibrary,
+  pauseScopedLibrary,
+  rebaseScopedLibrary,
+} from './scoped-library';
 import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 
 const alice = accountScope('alice');
 const bob = accountScope('bob');
-const game: LibraryRecord = { id: 'example-game', title: 'Example game', source: 'collection', sourceId: 'example-game', year: 2020, genre: null, studio: null, sourceUrl: null, collectionRank: 1 };
-const head: SyncHead = { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: 0 };
+const game: LibraryRecord = {
+  id: 'example-game',
+  title: 'Example game',
+  source: 'collection',
+  sourceId: 'example-game',
+  year: 2020,
+  genre: null,
+  studio: null,
+  sourceUrl: null,
+  collectionRank: 1,
+};
+const head: SyncHead = {
+  format: 1,
+  epoch: 1,
+  revision: 0,
+  enabled: true,
+  deleted: false,
+  current: null,
+  previous: null,
+  updatedAt: 0,
+};
 async function connect(nextHead = head, dirty = false) {
   const before = await loadScopedLibrary(alice);
-  return connectScopedLibrary(alice, emptyPersonalLibrary(), nextHead, 'Alice', dirty, { localRevision: before.state.revision, epoch: before.sync.epoch, enabled: before.sync.enabled });
+  return connectScopedLibrary(alice, emptyPersonalLibrary(), nextHead, 'Alice', dirty, {
+    localRevision: before.state.revision,
+    epoch: before.sync.epoch,
+    enabled: before.sync.enabled,
+  });
 }
 
 beforeEach(() => {
@@ -22,7 +61,11 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: () => null, removeItem: () => undefined });
   vi.stubGlobal('window', undefined);
 });
-afterEach(() => { closePersonalLibrary(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  closePersonalLibrary();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('explicit account scopes in the existing local database', () => {
   it('removes only the confirmed clean device copy and blocks dirty or concurrently changed revisions', async () => {
@@ -61,7 +104,9 @@ describe('explicit account scopes in the existing local database', () => {
     expect(saved.sync.dirty).toBe(true);
     closePersonalLibrary();
     expect(await loadScopedLibrary(alice)).toEqual(saved);
-    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => { throw new DOMException('Storage full', 'QuotaExceededError'); });
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('Storage full', 'QuotaExceededError');
+    });
     await expect(commitScopedAction(alice, { type: 'rate-game', record: game, score: 10 })).rejects.toThrow();
     put.mockRestore();
     expect(await loadScopedLibrary(alice)).toEqual(saved);
@@ -93,16 +138,28 @@ describe('explicit account scopes in the existing local database', () => {
   it('guards remote adoption against dirty data and a newer local revision, retaining a recovery copy', async () => {
     await connect();
     const dirty = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 8.5 });
-    await expect(adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, dirty.state.revision)).rejects.toThrow(/changed/);
-    await expect(adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, dirty.state.revision - 1, true)).rejects.toThrow(/changed/);
-    const chosen = await adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, dirty.state.revision, true);
+    await expect(
+      adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, dirty.state.revision),
+    ).rejects.toThrow(/changed/);
+    await expect(
+      adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, dirty.state.revision - 1, true),
+    ).rejects.toThrow(/changed/);
+    const chosen = await adoptScopedRemote(
+      alice,
+      emptyPersonalLibrary(),
+      { ...head, revision: 2 },
+      dirty.state.revision,
+      true,
+    );
     expect(chosen.state.ranking).toEqual([]);
     expect(chosen.recovery?.state).toEqual(dirty.state);
     expect(chosen.sync.dirty).toBe(false);
   });
 
   it('notifies only consumers of the affected scope', async () => {
-    const guestChange = vi.fn(); const aliceChange = vi.fn(); const bobChange = vi.fn();
+    const guestChange = vi.fn();
+    const aliceChange = vi.fn();
+    const bobChange = vi.fn();
     subscribePersonalLibrary(guestChange);
     subscribePersonalLibrary(aliceChange, alice);
     subscribePersonalLibrary(bobChange, bob);
@@ -115,39 +172,65 @@ describe('explicit account scopes in the existing local database', () => {
   it('rejects wrong-account or corrupt metadata without falling back to guest', async () => {
     const initial = await loadScopedLibrary(alice);
     expect(() => parseScopedLibrary(initial, bob)).toThrow(/different account/);
-    expect(() => parseScopedLibrary({ ...initial, sync: { ...initial.sync, dirty: 'false' } }, alice)).toThrow(/metadata/);
-    expect(() => parseScopedLibrary(null, alice)).toThrow("This account's copy on this device is unreadable. It has not been overwritten.");
+    expect(() => parseScopedLibrary({ ...initial, sync: { ...initial.sync, dirty: 'false' } }, alice)).toThrow(
+      /metadata/,
+    );
+    expect(() => parseScopedLibrary(null, alice)).toThrow(
+      "This account's copy on this device is unreadable. It has not been overwritten.",
+    );
     expect(() => accountScope('../someone')).toThrow(/identity/);
   });
 
   it('rejects a stale connection preview inside the transaction without replacing peer-tab edits', async () => {
     const preview = await loadScopedLibrary(alice);
     const edited = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 9.4 });
-    await expect(connectScopedLibrary(alice, preview.state, head, 'Alice', true, {
-      localRevision: preview.state.revision, epoch: preview.sync.epoch, enabled: preview.sync.enabled,
-    })).rejects.toThrow(/changed while the preview/);
+    await expect(
+      connectScopedLibrary(alice, preview.state, head, 'Alice', true, {
+        localRevision: preview.state.revision,
+        epoch: preview.sync.epoch,
+        enabled: preview.sync.enabled,
+      }),
+    ).rejects.toThrow(/changed while the preview/);
     expect(await loadScopedLibrary(alice)).toEqual(edited);
   });
 
   it('rejects connecting a preview whose consent state changed without a domain edit', async () => {
     const preview = await connect();
     const paused = await pauseScopedLibrary(alice);
-    await expect(connectScopedLibrary(alice, preview.state, head, 'Alice', true, {
-      localRevision: preview.state.revision, epoch: preview.sync.epoch, enabled: preview.sync.enabled,
-    })).rejects.toThrow(/connection changed/);
+    await expect(
+      connectScopedLibrary(alice, preview.state, head, 'Alice', true, {
+        localRevision: preview.state.revision,
+        epoch: preview.sync.epoch,
+        enabled: preview.sync.enabled,
+      }),
+    ).rejects.toThrow(/connection changed/);
     expect(await loadScopedLibrary(alice)).toEqual(paused);
   });
 
   it('keeps receiving-device motion on connect and remote adoption without uploading presentation changes', async () => {
     const first = await loadScopedLibrary(alice, 'lite');
-    const connected = await connectScopedLibrary(alice, { ...emptyPersonalLibrary(), motion: 'full' }, head, 'Alice', false, {
-      localRevision: first.state.revision, epoch: first.sync.epoch, enabled: first.sync.enabled,
-    });
+    const connected = await connectScopedLibrary(
+      alice,
+      { ...emptyPersonalLibrary(), motion: 'full' },
+      head,
+      'Alice',
+      false,
+      {
+        localRevision: first.state.revision,
+        epoch: first.sync.epoch,
+        enabled: first.sync.enabled,
+      },
+    );
     expect(connected.state.motion).toBe('lite');
     const changed = await commitScopedAction(alice, { type: 'set-motion', motion: 'auto' });
     expect(changed.sync.dirty).toBe(false);
     expect(changed.sync.dataRevision).toBe(connected.sync.dataRevision);
-    const adopted = await adoptScopedRemote(alice, { ...emptyPersonalLibrary(), motion: 'full' }, { ...head, revision: 2 }, changed.state.revision);
+    const adopted = await adoptScopedRemote(
+      alice,
+      { ...emptyPersonalLibrary(), motion: 'full' },
+      { ...head, revision: 2 },
+      changed.state.revision,
+    );
     expect(adopted.state.motion).toBe('auto');
   });
 
@@ -164,40 +247,76 @@ describe('explicit account scopes in the existing local database', () => {
   it('persists a stable account creature/name for offline reload without dirtying the game snapshot', async () => {
     const before = await connect();
     const profile = {
-      uid: 'alice', displayName: 'Alice chooses a creature', avatar: { version: 1 as const, seed: 'a'.repeat(32), palette: 'clay' as const },
-      createdAt: 1, updatedAt: 2, consentVersion: 1 as const, gameCount: 0, rankCount: 0,
+      uid: 'alice',
+      displayName: 'Alice chooses a creature',
+      avatar: { version: 1 as const, seed: 'a'.repeat(32), palette: 'clay' as const },
+      createdAt: 1,
+      updatedAt: 2,
+      consentVersion: 1 as const,
+      gameCount: 0,
+      rankCount: 0,
     };
     const updated = await cacheScopedProfile(alice, profile);
     expect(updated.sync).toEqual(before.sync);
     expect(updated.state).toEqual(before.state);
     closePersonalLibrary();
-    expect((await loadScopedLibrary(alice)).profile).toEqual({ displayName: profile.displayName, avatar: profile.avatar });
+    expect((await loadScopedLibrary(alice)).profile).toEqual({
+      displayName: profile.displayName,
+      avatar: profile.avatar,
+    });
     await expect(cacheScopedProfile(bob, profile)).rejects.toThrow(/another account/);
     expect((await loadScopedLibrary(bob)).profile).toBeNull();
   });
 
   it('checks for uncommitted editor drafts inside the final remote-adoption transaction', async () => {
     const initial = await connect();
-    await expect(adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, initial.state.revision, false, () => false)).rejects.toThrow(/changed/);
+    await expect(
+      adoptScopedRemote(
+        alice,
+        emptyPersonalLibrary(),
+        { ...head, revision: 2 },
+        initial.state.revision,
+        false,
+        () => false,
+      ),
+    ).rejects.toThrow(/changed/);
     expect(await loadScopedLibrary(alice)).toEqual(initial);
   });
 
   it('does not apply an old session acknowledgement or profile callback to a later account lifetime', async () => {
     const before = await connect(head, true);
-    await expect(acknowledgeScopedUpload(alice, before.sync.dataRevision, { ...head, revision: 1 }, () => false)).rejects.toThrow(/session changed/);
-    await expect(rebaseScopedLibrary(alice, { ...head, revision: 1 }, before.state.revision, () => false)).rejects.toThrow(/permission changed/);
+    await expect(
+      acknowledgeScopedUpload(alice, before.sync.dataRevision, { ...head, revision: 1 }, () => false),
+    ).rejects.toThrow(/session changed/);
+    await expect(
+      rebaseScopedLibrary(alice, { ...head, revision: 1 }, before.state.revision, () => false),
+    ).rejects.toThrow(/permission changed/);
     expect(await loadScopedLibrary(alice)).toEqual(before);
-    await expect(cacheScopedProfile(alice, {
-      uid: 'alice', displayName: 'Old session', avatar: { version: 1, seed: 'a'.repeat(32), palette: 'lime' },
-      createdAt: 1, updatedAt: 2, consentVersion: 1, gameCount: 0, rankCount: 0,
-    }, () => false)).rejects.toThrow(/account changed/);
+    await expect(
+      cacheScopedProfile(
+        alice,
+        {
+          uid: 'alice',
+          displayName: 'Old session',
+          avatar: { version: 1, seed: 'a'.repeat(32), palette: 'lime' },
+          createdAt: 1,
+          updatedAt: 2,
+          consentVersion: 1,
+          gameCount: 0,
+          rankCount: 0,
+        },
+        () => false,
+      ),
+    ).rejects.toThrow(/account changed/);
     expect(await loadScopedLibrary(alice)).toEqual(before);
   });
 
   it('keeps manual stop and a newer consent epoch protected from delayed adoption and pause', async () => {
     const connected = await connect();
     const stopped = await pauseScopedLibrary(alice);
-    await expect(adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, connected.state.revision)).rejects.toThrow(/permission changed/);
+    await expect(
+      adoptScopedRemote(alice, emptyPersonalLibrary(), { ...head, revision: 2 }, connected.state.revision),
+    ).rejects.toThrow(/permission changed/);
     expect(await loadScopedLibrary(alice)).toEqual(stopped);
     const reconnected = await connect({ ...head, epoch: 3 }, true);
     await expect(pauseScopedLibrary(alice, 1)).rejects.toThrow(/session changed/);

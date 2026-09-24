@@ -15,7 +15,7 @@ async function htmlDocuments(root: string, relative = ''): Promise<string[]> {
   const files: string[] = [];
   for (const entry of await readdir(path.join(root, relative), { withFileTypes: true })) {
     const name = relative ? `${relative}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) files.push(...await htmlDocuments(root, name));
+    if (entry.isDirectory()) files.push(...(await htmlDocuments(root, name)));
     else if (entry.isFile() && name.endsWith('.html')) files.push(name);
   }
   return files.sort();
@@ -25,8 +25,10 @@ export function emittedDocumentPolicy(manifest: unknown): string | null {
   if (!manifest || typeof manifest !== 'object' || !('documentPolicy' in manifest)) return null;
   const policy: unknown = manifest.documentPolicy;
   if (!policy || typeof policy !== 'object' || !('headers' in policy) || !Array.isArray(policy.headers)) return null;
-  const header: unknown = policy.headers.find((entry: unknown) => Boolean(entry) && typeof entry === 'object' &&
-    (entry as { name?: unknown }).name === 'content-security-policy');
+  const header: unknown = policy.headers.find(
+    (entry: unknown) =>
+      Boolean(entry) && typeof entry === 'object' && (entry as { name?: unknown }).name === 'content-security-policy',
+  );
   const value = header && typeof header === 'object' ? (header as { value?: unknown }).value : undefined;
   return typeof value === 'string' ? value : null;
 }
@@ -34,13 +36,22 @@ export function emittedDocumentPolicy(manifest: unknown): string | null {
 export async function checkCsp(root: string, configuration: unknown): Promise<{ lines: string[]; problems: string[] }> {
   const policy = mainDocumentPolicy(configuration);
   const documents: CspDocument[] = [];
-  for (const name of await htmlDocuments(root)) documents.push({ name, html: await readFile(path.join(root, ...name.split('/')), 'utf8') });
-  if (!documents.some(entry => entry.name === 'index.html')) throw new Error(`No index.html in ${root}. Build before checking the CSP.`);
+  for (const name of await htmlDocuments(root))
+    documents.push({ name, html: await readFile(path.join(root, ...name.split('/')), 'utf8') });
+  if (!documents.some((entry) => entry.name === 'index.html'))
+    throw new Error(`No index.html in ${root}. Build before checking the CSP.`);
   // One build holds one shell variant, so stale style hashes are left to the build, which knows both.
   const problems = cspProblems(documents, policy, { otherVariantStyles: 'unchecked' });
   const emitted = emittedDocumentPolicy(JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8')));
-  if (emitted !== policy) problems.push('pwa-assets.json embeds a different content-security-policy than vercel.json for the documents the service worker serves.');
-  const lines = documents.flatMap(entry => inlineBlocks(entry.html).map((block, index) => `${entry.name} inline ${block.kind} #${index}: ${block.bytes} B ${block.source}`));
+  if (emitted !== policy)
+    problems.push(
+      'pwa-assets.json embeds a different content-security-policy than vercel.json for the documents the service worker serves.',
+    );
+  const lines = documents.flatMap((entry) =>
+    inlineBlocks(entry.html).map(
+      (block, index) => `${entry.name} inline ${block.kind} #${index}: ${block.bytes} B ${block.source}`,
+    ),
+  );
   return { lines, problems };
 }
 
@@ -51,7 +62,10 @@ async function main() {
   if (problems.length) {
     for (const problem of problems) console.error(`CSP: ${problem}`);
     process.exitCode = 1;
-  } else console.log('CSP: every built document matches the vercel.json main-document policy and the emitted offline policy.');
+  } else
+    console.log(
+      'CSP: every built document matches the vercel.json main-document policy and the emitted offline policy.',
+    );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

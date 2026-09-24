@@ -13,12 +13,16 @@ export const PWA_ICONS = [
 export async function renderPwaIcons(root: string) {
   const standard = await readFile(path.join(root, 'public', 'favicon.svg'));
   const maskable = await readFile(path.join(root, 'public', 'pwa', 'icon-source.svg'));
-  return Promise.all(PWA_ICONS.map(async icon => ({
-    ...icon,
-    bytes: await sharp(icon.maskable ? maskable : standard, { density: 576 })
-      .resize(icon.size, icon.size).flatten({ background: '#d3f36b' })
-      .png({ compressionLevel: 9 }).toBuffer(),
-  })));
+  return Promise.all(
+    PWA_ICONS.map(async (icon) => ({
+      ...icon,
+      bytes: await sharp(icon.maskable ? maskable : standard, { density: 576 })
+        .resize(icon.size, icon.size)
+        .flatten({ background: '#d3f36b' })
+        .png({ compressionLevel: 9 })
+        .toBuffer(),
+    })),
+  );
 }
 
 export async function writePwaIcons(root: string, output: string) {

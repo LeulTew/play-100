@@ -13,9 +13,17 @@ export function createShelfPreviewAuthority(scope: LibraryScope, ownerUid: strin
   let ids = new Set<string>();
   const listeners = new Set<() => void>();
   const authority: PreviewAuthority = {
-    kind: 'friend-shelf', scope, ownerUid, authGeneration,
+    kind: 'friend-shelf',
+    scope,
+    ownerUid,
+    authGeneration,
     permits: (id) => ids.has(id),
-    subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
   };
   return {
     authority,

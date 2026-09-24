@@ -26,7 +26,8 @@ export function compareTrayStorageKey(scope: string): string {
 }
 
 function records(value: unknown): LibraryRecord[] {
-  if (!Array.isArray(value) || value.length > COMPARE_TRAY_LIMIT) throw new Error('Pin up to six games for comparison.');
+  if (!Array.isArray(value) || value.length > COMPARE_TRAY_LIMIT)
+    throw new Error('Pin up to six games for comparison.');
   const input: Record<string, unknown> = Object.create(null);
   const ids: string[] = [];
   const length = value.length;
@@ -44,10 +45,14 @@ function records(value: unknown): LibraryRecord[] {
   const validated = parsePersonalLibrary({ ...emptyPersonalLibrary(), records: input }).records;
   return ids.map((id) => {
     const record = validated[id];
-    if (!record || record.id !== (record.source === 'collection' ? record.sourceId : `${record.source}:${record.sourceId}`)) {
+    if (
+      !record ||
+      record.id !== (record.source === 'collection' ? record.sourceId : `${record.source}:${record.sourceId}`)
+    ) {
       throw new Error('A pinned game does not match its exact source ID.');
     }
-    if (record.sourceUrl !== null && record.sourceUrl.length > 2_048) throw new Error('The pinned game source link is too long.');
+    if (record.sourceUrl !== null && record.sourceUrl.length > 2_048)
+      throw new Error('The pinned game source link is too long.');
     return Object.freeze(record);
   });
 }
@@ -55,7 +60,8 @@ function records(value: unknown): LibraryRecord[] {
 export function serializeCompareTray(scope: string, items: readonly LibraryRecord[]): string {
   compareTrayStorageKey(scope);
   const raw = JSON.stringify({ version: 1, scope, items: records(items) });
-  if (encoder.encode(raw).byteLength > COMPARE_TRAY_MAX_BYTES) throw new Error('These game references exceed the Compare tray storage limit.');
+  if (encoder.encode(raw).byteLength > COMPARE_TRAY_MAX_BYTES)
+    throw new Error('These game references exceed the Compare tray storage limit.');
   return raw;
 }
 
@@ -65,9 +71,15 @@ export function parseCompareTray(raw: string, scope: string): LibraryRecord[] {
     throw new Error('The saved Compare tray exceeds its storage limit.');
   }
   const value: unknown = JSON.parse(raw);
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('The saved Compare tray is invalid.');
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new Error('The saved Compare tray is invalid.');
   const entry = value as Record<string, unknown>;
-  if (Object.keys(entry).length !== 3 || entry.version !== 1 || entry.scope !== scope || !Object.hasOwn(entry, 'items')) {
+  if (
+    Object.keys(entry).length !== 3 ||
+    entry.version !== 1 ||
+    entry.scope !== scope ||
+    !Object.hasOwn(entry, 'items')
+  ) {
     throw new Error('The saved Compare tray has an unsupported version or account scope.');
   }
   return records(entry.items);
@@ -77,11 +89,22 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : 'The game could not be pinned.';
 }
 
-export function createCompareTrayStore(scope: string, getStorage: () => CompareTrayStorage, isCurrent: () => boolean = () => true) {
+export function createCompareTrayStore(
+  scope: string,
+  getStorage: () => CompareTrayStorage,
+  isCurrent: () => boolean = () => true,
+) {
   const key = compareTrayStorageKey(scope);
   const listeners = new Set<() => void>();
   let protectedStorage = false;
-  let snapshot: CompareTraySnapshot = { items: Object.freeze([]), persistent: true, warning: null, error: null, status: '', dragging: false };
+  let snapshot: CompareTraySnapshot = {
+    items: Object.freeze([]),
+    persistent: true,
+    warning: null,
+    error: null,
+    status: '',
+    dragging: false,
+  };
   const publish = (next: CompareTraySnapshot) => {
     snapshot = Object.freeze({ ...next, items: Object.freeze([...next.items]) });
     for (const listener of listeners) listener();
@@ -93,7 +116,12 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
       raw = getStorage().getItem(key);
     } catch {
       protectedStorage = true;
-      publish({ ...snapshot, persistent: false, warning: 'Compare tray storage is unavailable. Pins stay in this tab only; your saved tray has not been replaced.' });
+      publish({
+        ...snapshot,
+        persistent: false,
+        warning:
+          'Compare tray storage is unavailable. Pins stay in this tab only; your saved tray has not been replaced.',
+      });
       return;
     }
     try {
@@ -102,7 +130,12 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
       publish({ items, persistent: true, warning: null, error: null, status: '', dragging: snapshot.dragging });
     } catch {
       protectedStorage = true;
-      publish({ ...snapshot, persistent: false, warning: 'The saved Compare tray could not be read. It has been left untouched. New pins are temporary; use Reset saved tray to replace it.' });
+      publish({
+        ...snapshot,
+        persistent: false,
+        warning:
+          'The saved Compare tray could not be read. It has been left untouched. New pins are temporary; use Reset saved tray to replace it.',
+      });
     }
   };
   const save = (items: readonly LibraryRecord[], status: string) => {
@@ -122,7 +155,8 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
         persistent = true;
         warning = null;
       } catch {
-        warning = 'Compare tray storage is unavailable. These pins stay in this tab only; retry by pinning again or keep this tab open.';
+        warning =
+          'Compare tray storage is unavailable. These pins stay in this tab only; retry by pinning again or keep this tab open.';
       }
     }
     publish({ items, persistent, warning, error: null, status, dragging: snapshot.dragging });
@@ -132,7 +166,12 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
   return {
     currentScope: scope,
     getSnapshot: () => snapshot,
-    subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     reload,
     setDragging(dragging: boolean) {
       if (isCurrent()) publish({ ...snapshot, dragging });
@@ -164,14 +203,21 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
         publish({ ...snapshot, error, status: error });
         return false;
       }
-      return save([...snapshot.items, valid], `${valid.title} pinned for comparison. ${snapshot.items.length + 1} of six games.`);
+      return save(
+        [...snapshot.items, valid],
+        `${valid.title} pinned for comparison. ${snapshot.items.length + 1} of six games.`,
+      );
     },
     unpin(id: string): boolean {
       if (!isCurrent()) return false;
-      const record = snapshot.items.find((item) => item.id === id) ??
+      const record =
+        snapshot.items.find((item) => item.id === id) ??
         snapshot.items.find((item) => canonicalCatalogId(item.id) === canonicalCatalogId(id));
       if (!record) return false;
-      return save(snapshot.items.filter((item) => item.id !== record.id), `${record.title} unpinned from comparison.`);
+      return save(
+        snapshot.items.filter((item) => item.id !== record.id),
+        `${record.title} unpinned from comparison.`,
+      );
     },
     clear(): boolean {
       if (!isCurrent()) return false;
@@ -182,9 +228,17 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
         protectedStorage = false;
       } catch {
         persistent = false;
-        warning = 'The tray is empty in this tab, but its saved copy could not be cleared. It may return on reload. Allow storage and clear again.';
+        warning =
+          'The tray is empty in this tab, but its saved copy could not be cleared. It may return on reload. Allow storage and clear again.';
       }
-      publish({ items: [], persistent, warning, error: null, status: 'Compare tray cleared. Your library is unchanged.', dragging: false });
+      publish({
+        items: [],
+        persistent,
+        warning,
+        error: null,
+        status: 'Compare tray cleared. Your library is unchanged.',
+        dragging: false,
+      });
       return true;
     },
   };
@@ -193,8 +247,10 @@ export function createCompareTrayStore(scope: string, getStorage: () => CompareT
 export type CompareTrayStore = ReturnType<typeof createCompareTrayStore>;
 
 export function createCompareDragSession(
-  scope: string, store: Pick<CompareTrayStore, 'pin' | 'setDragging' | 'reportError'>,
-  isCurrent: () => boolean, createToken: () => string = () => crypto.randomUUID(),
+  scope: string,
+  store: Pick<CompareTrayStore, 'pin' | 'setDragging' | 'reportError'>,
+  isCurrent: () => boolean,
+  createToken: () => string = () => crypto.randomUUID(),
 ) {
   compareTrayStorageKey(scope);
   let active: { token: string; record: LibraryRecord } | null = null;
@@ -209,7 +265,8 @@ export function createCompareDragSession(
       try {
         const valid = parseCompareTray(serializeCompareTray(scope, [record]), scope)[0];
         const token = createToken();
-        if (!valid || !/^[a-f0-9-]{36}$/i.test(token)) throw new Error('A safe drag could not be started. Use Pin for comparison instead.');
+        if (!valid || !/^[a-f0-9-]{36}$/i.test(token))
+          throw new Error('A safe drag could not be started. Use Pin for comparison instead.');
         active = { token, record: valid };
         store.setDragging(true);
         // Only an opaque one-use token crosses DataTransfer, never an account ID or game metadata.
@@ -221,7 +278,10 @@ export function createCompareDragSession(
     },
     cancelDrag,
     dropGame(token: string): boolean {
-      if (!isCurrent()) { active = null; return false; }
+      if (!isCurrent()) {
+        active = null;
+        return false;
+      }
       const pending = active;
       cancelDrag();
       if (!pending || token.length !== 36 || token !== pending.token) {

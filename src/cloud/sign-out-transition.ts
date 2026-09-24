@@ -1,6 +1,7 @@
 import type { ScopedLibrary } from '../lib/cloud-types';
 
-export const UNSYNCED_DEVICE_COPY = 'This device has unsynced changes. Save or export them before removing its copy. Ordinary Sign out keeps them.';
+export const UNSYNCED_DEVICE_COPY =
+  'This device has unsynced changes. Save or export them before removing its copy. Ordinary Sign out keeps them.';
 export const CHANGED_ACCOUNT = 'The signed-in account changed. Nothing was removed.';
 
 export interface SignOutSteps {

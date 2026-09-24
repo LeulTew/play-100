@@ -8,42 +8,84 @@ let environment: RulesTestEnvironment;
 const avatar = { version: 1, seed: 'a'.repeat(32), palette: 'lime' };
 const user = (uid: string, verified = true) =>
   environment.authenticatedContext(uid, { email: `${uid}@example.test`, email_verified: verified }).firestore();
-const seed = (entries: Record<string, object>) => environment.withSecurityRulesDisabled(async context => {
-  const batch = context.firestore().batch();
-  for (const [path, value] of Object.entries(entries)) batch.set(context.firestore().doc(path), value);
-  await batch.commit();
+const seed = (entries: Record<string, object>) =>
+  environment.withSecurityRulesDisabled(async (context) => {
+    const batch = context.firestore().batch();
+    for (const [path, value] of Object.entries(entries)) batch.set(context.firestore().doc(path), value);
+    await batch.commit();
+  });
+const identity = (uid: string) => ({
+  format: 1,
+  uid,
+  displayName: `Private ${uid}`,
+  avatar,
+  revision: 1,
+  updatedAt: Timestamp.now(),
 });
-const identity = (uid: string) => ({ format: 1, uid, displayName: `Private ${uid}`, avatar, revision: 1, updatedAt: Timestamp.now() });
-const settings = { format: 1, enabled: false, deleted: false, selection: '', epoch: 1, revision: 1, updatedAt: Timestamp.now() };
+const settings = {
+  format: 1,
+  enabled: false,
+  deleted: false,
+  selection: '',
+  epoch: 1,
+  revision: 1,
+  updatedAt: Timestamp.now(),
+};
 const pair = (from: string, state: string, updatedAt = Timestamp.now()) => ({
-  format: 1, a: 'Alice', b: 'Bob', participants: ['Alice', 'Bob'], from, state, epoch: 1,
-  inviteSlot: null, createdAt: Timestamp.fromMillis(1), updatedAt,
+  format: 1,
+  a: 'Alice',
+  b: 'Bob',
+  participants: ['Alice', 'Bob'],
+  from,
+  state,
+  epoch: 1,
+  inviteSlot: null,
+  createdAt: Timestamp.fromMillis(1),
+  updatedAt,
 });
 
 beforeAll(async () => {
   environment = await initializeTestEnvironment({
-    projectId: 'demo-play100', firestore: { host: '127.0.0.1', port: 8188, rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') },
+    projectId: 'demo-play100',
+    firestore: {
+      host: '127.0.0.1',
+      port: 8188,
+      rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'),
+    },
   });
 });
 beforeEach(async () => {
   await environment.clearFirestore();
   await seed({
     '_owner/config': { uid: 'Owner', email: 'Owner@example.test' },
-    'accountLifecycle/Alice': { state: 'active' }, 'accountLifecycle/Bob': { state: 'active' },
-    'friendSettings/Alice': settings, 'friendSettings/Bob': settings,
-    'friendIdentities/Alice': identity('Alice'), 'friendIdentities/Bob': identity('Bob'),
+    'accountLifecycle/Alice': { state: 'active' },
+    'accountLifecycle/Bob': { state: 'active' },
+    'friendSettings/Alice': settings,
+    'friendSettings/Bob': settings,
+    'friendIdentities/Alice': identity('Alice'),
+    'friendIdentities/Bob': identity('Bob'),
     'publicProfiles/Alice': { published: true, hidden: false, uid: 'Alice' },
     'publicProfiles/Bob': { published: true, hidden: false, uid: 'Bob' },
   });
 });
-afterAll(async () => { await environment.cleanup(); });
+afterAll(async () => {
+  await environment.cleanup();
+});
 
 describe('S3 report and friendship boundaries', () => {
   it('returns permission-denied to a third party for both missing and existing predictable report IDs', async () => {
     const outsider = user('Third');
     await expect(outsider.doc('reports/Bob_Alice').get()).rejects.toMatchObject({ code: 'permission-denied' });
     await assertSucceeds(user('Alice').doc('reports/Bob_Alice').get());
-    await seed({ 'reports/Bob_Alice': { reporterUid: 'Alice', targetUid: 'Bob', reason: 'Fixture', status: 'open', createdAt: Timestamp.now() } });
+    await seed({
+      'reports/Bob_Alice': {
+        reporterUid: 'Alice',
+        targetUid: 'Bob',
+        reason: 'Fixture',
+        status: 'open',
+        createdAt: Timestamp.now(),
+      },
+    });
     await expect(outsider.doc('reports/Bob_Alice').get()).rejects.toMatchObject({ code: 'permission-denied' });
     await assertSucceeds(user('Alice').doc('reports/Bob_Alice').get());
     await assertSucceeds(user('Owner').doc('reports/Bob_Alice').get());
@@ -63,9 +105,18 @@ describe('S3 report and friendship boundaries', () => {
     const db = user(reporterUid);
     const create = db.batch();
     create.set(db.doc(`reports/${targetUid}_${reporterUid}`), {
-      reporterUid, targetUid, reason: 'Fixture report', status: 'open', createdAt: serverTimestamp(), counted: true,
+      reporterUid,
+      targetUid,
+      reason: 'Fixture report',
+      status: 'open',
+      createdAt: serverTimestamp(),
+      counted: true,
     });
-    create.set(db.doc(`accountQuotas/${reporterUid}/limits/reports`), { count: 1, revision: 1, lastReport: `${targetUid}_${reporterUid}` });
+    create.set(db.doc(`accountQuotas/${reporterUid}/limits/reports`), {
+      count: 1,
+      revision: 1,
+      lastReport: `${targetUid}_${reporterUid}`,
+    });
     await assertSucceeds(create.commit());
     await assertSucceeds(ref.get());
   });
@@ -80,19 +131,33 @@ describe('S3 report and friendship boundaries', () => {
     });
     const ref = user(reporterUid).doc(`reports/${targetUid}_${reporterUid}`);
     await expect(ref.get()).rejects.toMatchObject({ code: 'permission-denied' });
-    await assertFails(ref.set({
-      reporterUid, targetUid, reason: 'Fixture report', status: 'open', createdAt: serverTimestamp(),
-    }));
+    await assertFails(
+      ref.set({
+        reporterUid,
+        targetUid,
+        reason: 'Fixture report',
+        status: 'open',
+        createdAt: serverTimestamp(),
+      }),
+    );
   });
 
   it('never attributes an existing ambiguous legacy ID to another reporter segment', async () => {
     await seed({
       'reports/Target_Alice_Bob': {
-        reporterUid: 'Alice_Bob', targetUid: 'Target', reason: 'Legacy fixture', status: 'open', createdAt: Timestamp.now(),
+        reporterUid: 'Alice_Bob',
+        targetUid: 'Target',
+        reason: 'Legacy fixture',
+        status: 'open',
+        createdAt: Timestamp.now(),
       },
     });
-    await expect(user('Bob').doc('reports/Target_Alice_Bob').get()).rejects.toMatchObject({ code: 'permission-denied' });
-    await expect(user('Bob').doc('reports/Missing_Alice_Bob').get()).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(user('Bob').doc('reports/Target_Alice_Bob').get()).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(user('Bob').doc('reports/Missing_Alice_Bob').get()).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
     await assertSucceeds(user('Alice_Bob').doc('reports/Target_Alice_Bob').get());
   });
 
@@ -102,29 +167,46 @@ describe('S3 report and friendship boundaries', () => {
     expect((await verified.doc('accountLifecycle/Cancelled').get()).data()).toEqual({ state: 'cancelled' });
     await assertFails(verified.doc('accountLifecycle/Cancelled').update({ state: 'active' }));
     await assertFails(verified.doc('accountLifecycle/Cancelled').delete());
-    await assertFails(verified.doc('members/Cancelled').set({
-      uid: 'Cancelled', displayName: 'Verified', avatar, consentVersion: 1, rankCount: 0, gameCount: 0,
-      createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    }));
+    await assertFails(
+      verified.doc('members/Cancelled').set({
+        uid: 'Cancelled',
+        displayName: 'Verified',
+        avatar,
+        consentVersion: 1,
+        rankCount: 0,
+        gameCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
     await assertFails(verified.doc('friendSettings/Cancelled').set({ ...settings, updatedAt: serverTimestamp() }));
     await assertFails(verified.doc('publicControls/Cancelled').set({ epoch: 0, hidden: false, deleted: false }));
   });
 
-  it.each(['Alice', 'Bob'])('allows only the recipient to read requester %s private identity while pending', async from => {
-    const recipient = from === 'Alice' ? 'Bob' : 'Alice';
-    await seed({ 'friendPairs/Alice~Bob': pair(from, 'pending') });
-    await assertSucceeds(user(recipient).doc(`friendIdentities/${from}`).get());
-    await assertFails(user(from).doc(`friendIdentities/${recipient}`).get());
-    await assertSucceeds(user(from).doc(`publicProfiles/${recipient}`).get());
-    await seed({ 'friendPairs/Alice~Bob': pair(from, 'accepted') });
-    await assertSucceeds(user(from).doc(`friendIdentities/${recipient}`).get());
-  });
+  it.each(['Alice', 'Bob'])(
+    'allows only the recipient to read requester %s private identity while pending',
+    async (from) => {
+      const recipient = from === 'Alice' ? 'Bob' : 'Alice';
+      await seed({ 'friendPairs/Alice~Bob': pair(from, 'pending') });
+      await assertSucceeds(user(recipient).doc(`friendIdentities/${from}`).get());
+      await assertFails(user(from).doc(`friendIdentities/${recipient}`).get());
+      await assertSucceeds(user(from).doc(`publicProfiles/${recipient}`).get());
+      await seed({ 'friendPairs/Alice~Bob': pair(from, 'accepted') });
+      await assertSucceeds(user(from).doc(`friendIdentities/${recipient}`).get());
+    },
+  );
 
   it('prevents immediate re-request by a declined sender, but allows the decliner to initiate', async () => {
     await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'declined') });
     for (const uid of ['Alice', 'Bob']) {
-      const db = user(uid); const request = db.batch();
-      request.update(db.doc('friendPairs/Alice~Bob'), { from: uid, state: 'pending', epoch: 2, updatedAt: serverTimestamp() });
+      const db = user(uid);
+      const request = db.batch();
+      request.update(db.doc('friendPairs/Alice~Bob'), {
+        from: uid,
+        state: 'pending',
+        epoch: 2,
+        updatedAt: serverTimestamp(),
+      });
       request.set(db.doc(`accountQuotas/${uid}/limits/pairs`), { count: 0, revision: 1, lastPair: 'Alice~Bob' });
       if (uid === 'Alice') await assertFails(request.commit());
       else await assertSucceeds(request.commit());
@@ -132,12 +214,27 @@ describe('S3 report and friendship boundaries', () => {
   });
 
   it('uses the enforced server update time for the 30-day cooldown, never a forged client timestamp', async () => {
-    await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'declined', Timestamp.fromMillis(Date.now() - 31 * 86400000)) });
-    await assertFails(user('Alice').doc('friendPairs/Alice~Bob').update({
-      from: 'Alice', state: 'pending', epoch: 2, updatedAt: Timestamp.fromMillis(0),
-    }));
-    const db = user('Alice'); const request = db.batch();
-    request.update(db.doc('friendPairs/Alice~Bob'), { from: 'Alice', state: 'pending', epoch: 2, updatedAt: serverTimestamp() });
+    await seed({
+      'friendPairs/Alice~Bob': pair('Alice', 'declined', Timestamp.fromMillis(Date.now() - 31 * 86400000)),
+    });
+    await assertFails(
+      user('Alice')
+        .doc('friendPairs/Alice~Bob')
+        .update({
+          from: 'Alice',
+          state: 'pending',
+          epoch: 2,
+          updatedAt: Timestamp.fromMillis(0),
+        }),
+    );
+    const db = user('Alice');
+    const request = db.batch();
+    request.update(db.doc('friendPairs/Alice~Bob'), {
+      from: 'Alice',
+      state: 'pending',
+      epoch: 2,
+      updatedAt: serverTimestamp(),
+    });
     request.set(db.doc('accountQuotas/Alice/limits/pairs'), { count: 0, revision: 1, lastPair: 'Alice~Bob' });
     await assertSucceeds(request.commit());
   });
@@ -160,14 +257,23 @@ describe('S3 report and friendship boundaries', () => {
     const db = user('Alice');
     const manifest = { format: 1, generation: ids[8], digest: 'a'.repeat(64), bytes: 1, chunks: ['a'.repeat(64)] };
     const growth = db.batch();
-    growth.set(db.doc(`accounts/Alice/generations/${ids[8]}`), { private: manifest, ranking: manifest, epoch: 1, status: 'staging', createdAt: serverTimestamp() });
+    growth.set(db.doc(`accounts/Alice/generations/${ids[8]}`), {
+      private: manifest,
+      ranking: manifest,
+      epoch: 1,
+      status: 'staging',
+      createdAt: serverTimestamp(),
+    });
     growth.update(db.doc('accounts/Alice/metadata/registry'), { ids: ids.slice(0, 9), revision: 2 });
     await assertFails(growth.commit());
     await seed({
       'accounts/Alice/metadata/registry': { ids, revision: 1 },
       [`accounts/Alice/generations/${ids[9]}`]: {
-        private: { ...manifest, generation: ids[9] }, ranking: { ...manifest, generation: ids[9] },
-        epoch: 1, status: 'deleting', createdAt: Timestamp.now(),
+        private: { ...manifest, generation: ids[9] },
+        ranking: { ...manifest, generation: ids[9] },
+        epoch: 1,
+        status: 'deleting',
+        createdAt: Timestamp.now(),
       },
     });
     await assertSucceeds(db.doc(`accounts/Alice/generations/${ids[9]}`).update({ released: 2 }));
@@ -179,30 +285,55 @@ describe('S3 report and friendship boundaries', () => {
 
   it('requires atomic public registry enrollment and refuses a fifth retained generation', async () => {
     await seed({ 'publicControls/Alice': { epoch: 0, hidden: false, deleted: false } });
-    const db = user('Alice'); const ids: string[] = [];
+    const db = user('Alice');
+    const ids: string[] = [];
     for (let index = 0; index < 5; index += 1) {
-      const id = crypto.randomUUID(); ids.push(id);
+      const id = crypto.randomUUID();
+      ids.push(id);
       const batch = db.batch();
       batch.set(db.doc(`publicProfiles/Alice/generations/${id}`), {
-        epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp(),
+        epoch: 0,
+        count: 1,
+        uploaded: 0,
+        status: 'staging',
+        createdAt: serverTimestamp(),
       });
       batch.set(db.doc('publicProfiles/Alice/metadata/registry'), { ids: [...ids], revision: index + 1 });
       if (index < 4) await assertSucceeds(batch.commit());
       else await assertFails(batch.commit());
     }
-    await assertFails(db.doc(`publicProfiles/Alice/generations/${crypto.randomUUID()}`).set({
-      epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp(),
-    }));
+    await assertFails(
+      db.doc(`publicProfiles/Alice/generations/${crypto.randomUUID()}`).set({
+        epoch: 0,
+        count: 1,
+        uploaded: 0,
+        status: 'staging',
+        createdAt: serverTimestamp(),
+      }),
+    );
   });
 
   it('requires releasing an old handle in the publication batch and rejects reserved prefixes', async () => {
     const id = crypto.randomUUID();
     const profile = {
-      uid: 'Alice', handle: 'previous_games', displayName: 'Alice', avatar, title: 'Games', count: 1, preview: ['Game'],
-      generation: id, epoch: 1, published: true, listed: false, hidden: false, creator: false, updatedAt: Timestamp.now(),
+      uid: 'Alice',
+      handle: 'previous_games',
+      displayName: 'Alice',
+      avatar,
+      title: 'Games',
+      count: 1,
+      preview: ['Game'],
+      generation: id,
+      epoch: 1,
+      published: true,
+      listed: false,
+      hidden: false,
+      creator: false,
+      updatedAt: Timestamp.now(),
     };
     await seed({
-      'publicProfiles/Alice': profile, 'handles/previous_games': { uid: 'Alice' },
+      'publicProfiles/Alice': profile,
+      'handles/previous_games': { uid: 'Alice' },
       'publicControls/Alice': { epoch: 1, hidden: false, deleted: false },
       [`publicProfiles/Alice/generations/${id}`]: { status: 'ready', epoch: 1, uploaded: 1 },
     });

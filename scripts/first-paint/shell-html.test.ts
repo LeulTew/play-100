@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ROOT_OPEN, STYLESHEET_MARKER, normalizeShellWhitespace, selectShellVariant, shellMarkup, shellText } from './shell-html.ts';
+import {
+  ROOT_OPEN,
+  STYLESHEET_MARKER,
+  normalizeShellWhitespace,
+  selectShellVariant,
+  shellMarkup,
+  shellText,
+} from './shell-html.ts';
 
 const indexHtml = readFileSync(new URL('../../index.html', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const wrap = (region: string) => `<head></head><body>${ROOT_OPEN}${region}</div>${STYLESHEET_MARKER}</body>`;
@@ -11,8 +18,13 @@ describe('shell comment removal', () => {
       const selected = selectShellVariant(indexHtml, variant);
       const start = selected.indexOf(ROOT_OPEN);
       const end = selected.indexOf(STYLESHEET_MARKER);
-      const reference = selected.slice(0, start) +
-        selected.slice(start, end).replace(/<!--[\s\S]*?-->/g, '').replace(/>\s*\n\s*</g, '><') + selected.slice(end);
+      const reference =
+        selected.slice(0, start) +
+        selected
+          .slice(start, end)
+          .replace(/<!--[\s\S]*?-->/g, '')
+          .replace(/>\s*\n\s*</g, '><') +
+        selected.slice(end);
       expect(normalizeShellWhitespace(selected)).toBe(reference);
     }
   });

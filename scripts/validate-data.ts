@@ -10,12 +10,17 @@ const collection = parseCollection(JSON.parse(dataBytes.toString('utf8')));
 const canonicalWorkbook = await readFile(path.join('data', 'Play-100-Collection.xlsx'));
 const publicWorkbook = await readFile(path.join('public', 'downloads', 'Play-100-Collection.xlsx'));
 if (!canonicalWorkbook.equals(publicWorkbook)) throw new Error('The download is not the canonical enhanced workbook.');
-if (publicWorkbook.subarray(0, 2).toString() !== 'PK') throw new Error('The workbook is not a valid ZIP-based XLSX container.');
+if (publicWorkbook.subarray(0, 2).toString() !== 'PK')
+  throw new Error('The workbook is not a valid ZIP-based XLSX container.');
 const originalWorkbook = await readFile(path.join('public', 'downloads', 'AAA_games_u_have_to_play_list_top_100.xlsx'));
 const manifest: unknown = JSON.parse(await readFile(path.join('data', 'artifact-manifest.json'), 'utf8'));
 if (
-  typeof manifest !== 'object' || manifest === null || !('source' in manifest) ||
-  typeof manifest.source !== 'object' || manifest.source === null || !('sha256' in manifest.source) ||
+  typeof manifest !== 'object' ||
+  manifest === null ||
+  !('source' in manifest) ||
+  typeof manifest.source !== 'object' ||
+  manifest.source === null ||
+  !('sha256' in manifest.source) ||
   typeof manifest.source.sha256 !== 'string' ||
   createHash('sha256').update(originalWorkbook).digest('hex') !== manifest.source.sha256
 ) {
@@ -27,5 +32,7 @@ for (const game of collection.games) {
   await stat(path.join('public', 'covers', `${game.slug}.webp`));
 }
 const covers = collection.games.filter((game) => game.artwork).length;
-console.log(`Valid: 100 ordered games, 50 core + 50 essential, ${covers} supplied artworks, exact source/public JSON and workbook match.`);
+console.log(
+  `Valid: 100 ordered games, 50 core + 50 essential, ${covers} supplied artworks, exact source/public JSON and workbook match.`,
+);
 console.log(`Workbook SHA-256: ${createHash('sha256').update(publicWorkbook).digest('hex')}`);

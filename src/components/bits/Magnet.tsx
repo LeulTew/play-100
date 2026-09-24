@@ -28,7 +28,14 @@ export default function Magnet({ children, disabled = false }: { children: React
   }, [disabled]);
   return (
     <div ref={ref} className="magnet">
-      <div style={{ transform: disabled ? undefined : `translate3d(${position.x}px, ${position.y}px, 0)`, transition: 'transform 180ms cubic-bezier(.16,1,.3,1)' }}>{children}</div>
+      <div
+        style={{
+          transform: disabled ? undefined : `translate3d(${position.x}px, ${position.y}px, 0)`,
+          transition: 'transform 180ms cubic-bezier(.16,1,.3,1)',
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

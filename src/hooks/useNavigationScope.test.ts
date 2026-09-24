@@ -11,7 +11,7 @@ describe('navigation and library scope guard', () => {
     expect(current()).toBe(true);
   });
 
-  it.each(['scope', 'navigation'] as const)('invalidates pending work when %s changes', kind => {
+  it.each(['scope', 'navigation'] as const)('invalidates pending work when %s changes', (kind) => {
     const scope = { current: 2 };
     const navigation = { current: 4 };
     const current = captureScopeNavigation(scope, navigation);

@@ -34,8 +34,12 @@ describe('scene canvas fonts', () => {
     expect(SCENE_SANS).toBe('"Hanken Grotesk Variable", sans-serif');
     expect(SCENE_DISPLAY).toBe('"Barlow Condensed", sans-serif');
     expect(read('src/main.tsx')).toContain("import '@fontsource-variable/hanken-grotesk/wght.css';");
-    expect(read('node_modules/@fontsource-variable/hanken-grotesk/wght.css')).toContain("font-family: 'Hanken Grotesk Variable'");
-    expect(read('node_modules/@fontsource/barlow-condensed/latin-800.css')).toContain("font-family: 'Barlow Condensed'");
+    expect(read('node_modules/@fontsource-variable/hanken-grotesk/wght.css')).toContain(
+      "font-family: 'Hanken Grotesk Variable'",
+    );
+    expect(read('node_modules/@fontsource/barlow-condensed/latin-800.css')).toContain(
+      "font-family: 'Barlow Condensed'",
+    );
     expect(read('src/styles/tokens.css')).toContain("'Hanken Grotesk Variable'");
   });
 
@@ -60,7 +64,12 @@ describe('scene canvas fonts', () => {
     expect(sceneFontsReady(null)).toBe(false);
     expect(sceneFontsReady(fakeFonts({ ready: true }))).toBe(true);
     expect(sceneFontsReady(fakeFonts({ ready: false }))).toBe(false);
-    const throwing = { check: () => { throw new Error('bad font'); }, load: () => Promise.resolve([]) };
+    const throwing = {
+      check: () => {
+        throw new Error('bad font');
+      },
+      load: () => Promise.resolve([]),
+    };
     expect(sceneFontsReady(throwing)).toBe(false);
   });
 
@@ -71,8 +80,12 @@ describe('scene canvas fonts', () => {
   });
 
   it('keeps the fallback when a face does not match or fails to load', async () => {
-    await expect(whenSceneFontsReady(fakeFonts({ ready: true, load: () => Promise.resolve([]) }), 1000)).resolves.toBe(false);
-    await expect(whenSceneFontsReady(fakeFonts({ ready: true, load: () => Promise.reject(new Error('network')) }), 1000)).resolves.toBe(false);
+    await expect(whenSceneFontsReady(fakeFonts({ ready: true, load: () => Promise.resolve([]) }), 1000)).resolves.toBe(
+      false,
+    );
+    await expect(
+      whenSceneFontsReady(fakeFonts({ ready: true, load: () => Promise.reject(new Error('network')) }), 1000),
+    ).resolves.toBe(false);
     await expect(whenSceneFontsReady(null)).resolves.toBe(false);
   });
 
@@ -80,7 +93,9 @@ describe('scene canvas fonts', () => {
     vi.useFakeTimers();
     const fonts = fakeFonts({ ready: true, load: () => new Promise<FontFace[]>(() => {}) });
     let result: boolean | undefined;
-    void whenSceneFontsReady(fonts, 250).then(value => { result = value; });
+    void whenSceneFontsReady(fonts, 250).then((value) => {
+      result = value;
+    });
     await vi.advanceTimersByTimeAsync(249);
     expect(result).toBeUndefined();
     await vi.advanceTimersByTimeAsync(1);

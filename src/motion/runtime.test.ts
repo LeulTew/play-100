@@ -7,7 +7,13 @@ function fixture(animate = true) {
   let snapshot: MotionSnapshot = {
     policy: { animate, reducedMotion: false, coarsePointer: false, hidden: false, constrained: false },
     boundary: { scopeKey: 'guest', generation: 0, blocked: false },
-    location: { viewKey: '/', requestedDetailKey: null, displayedDetailKey: null, navigationGeneration: 0, overlayKey: null },
+    location: {
+      viewKey: '/',
+      requestedDetailKey: null,
+      displayedDetailKey: null,
+      navigationGeneration: 0,
+      overlayKey: null,
+    },
   };
   let listener: ((reason: MotionCancelReason) => void) | null = null;
   const release = vi.fn();
@@ -15,17 +21,31 @@ function fixture(animate = true) {
     supported: vi.fn(() => true),
     hidden: () => snapshot.policy.hidden,
     now: () => 0,
-    subscribe: vi.fn(next => {
+    subscribe: vi.fn((next) => {
       listener = next;
-      return () => { listener = null; release(); };
+      return () => {
+        listener = null;
+        release();
+      };
     }),
   };
-  const runtime = createMotionRuntime(() => snapshot, () => null, environment);
+  const runtime = createMotionRuntime(
+    () => snapshot,
+    () => null,
+    environment,
+  );
   runtime.mount();
   return {
-    runtime, environment, release,
-    emit(reason: MotionCancelReason) { listener?.(reason); },
-    update(change: (current: MotionSnapshot) => MotionSnapshot) { snapshot = change(snapshot); runtime.update(); },
+    runtime,
+    environment,
+    release,
+    emit(reason: MotionCancelReason) {
+      listener?.(reason);
+    },
+    update(change: (current: MotionSnapshot) => MotionSnapshot) {
+      snapshot = change(snapshot);
+      runtime.update();
+    },
   };
 }
 
@@ -76,7 +96,7 @@ describe('bounded optional motion sessions', () => {
     expect(environment.subscribe).toHaveBeenCalledTimes(1);
     emit('resize');
     emit('navigation');
-    update(current => ({ ...current, boundary: { ...current.boundary, generation: 1 } }));
+    update((current) => ({ ...current, boundary: { ...current.boundary, generation: 1 } }));
     expect(interrupted.mock.calls.map(([reason]) => reason)).toEqual(['resize', 'navigation', 'scope']);
     expect(runtime.startMotionSession({ channel: 'drag-settle' })).toBeNull();
     unsubscribe();
@@ -86,7 +106,7 @@ describe('bounded optional motion sessions', () => {
 
   it.each(['resize', 'scroll', 'hidden', 'modal', 'drag', 'authority'] as const)(
     'cleans up every active channel on %s without retaining event listeners',
-    reason => {
+    (reason) => {
       const { runtime, emit, release } = fixture();
       const clean = vi.fn();
       const first = runtime.startMotionSession({ channel: 'route' });
@@ -105,10 +125,10 @@ describe('bounded optional motion sessions', () => {
   it('cancels live policy changes and never replays on re-enable', () => {
     const { runtime, update, environment } = fixture();
     const session = runtime.startMotionSession({ channel: 'route' });
-    update(current => ({ ...current, policy: { ...current.policy, animate: false, reducedMotion: true } }));
+    update((current) => ({ ...current, policy: { ...current.policy, animate: false, reducedMotion: true } }));
     expect(session?.signal.aborted).toBe(true);
     expect(runtime.startMotionSession({ channel: 'route' })).toBeNull();
-    update(current => ({ ...current, policy: { ...current.policy, animate: true, reducedMotion: false } }));
+    update((current) => ({ ...current, policy: { ...current.policy, animate: true, reducedMotion: false } }));
     expect(environment.subscribe).toHaveBeenCalledTimes(1);
     expect(session?.isCurrent()).toBe(false);
     runtime.dispose();
@@ -117,12 +137,12 @@ describe('bounded optional motion sessions', () => {
   it('does not let a late native navigation notification cancel a just-committed effect', () => {
     const { runtime, update, emit } = fixture();
     const old = runtime.startMotionSession({ channel: 'route' });
-    update(current => ({ ...current, location: { ...current.location, navigationGeneration: 1 } }));
+    update((current) => ({ ...current, location: { ...current.location, navigationGeneration: 1 } }));
     expect(old?.signal.aborted).toBe(true);
     const current = runtime.startMotionSession({ channel: 'route' });
     emit('navigation');
     expect(current?.isCurrent()).toBe(true);
-    update(snapshot => ({ ...snapshot, location: { ...snapshot.location, navigationGeneration: 2 } }));
+    update((snapshot) => ({ ...snapshot, location: { ...snapshot.location, navigationGeneration: 2 } }));
     expect(current?.signal.aborted).toBe(true);
     runtime.dispose();
   });
@@ -134,7 +154,13 @@ describe('bounded optional motion sessions', () => {
     const unsubscribe = vi.fn();
     const session = runtime.startMotionSession({
       channel: 'route',
-      guard: { isCurrent: () => permitted, subscribe: listener => { changed = listener; return unsubscribe; } },
+      guard: {
+        isCurrent: () => permitted,
+        subscribe: (listener) => {
+          changed = listener;
+          return unsubscribe;
+        },
+      },
     });
     permitted = false;
     changed?.();
@@ -148,7 +174,7 @@ describe('bounded optional motion sessions', () => {
   it('invalidates scope boundaries before any new optional session can start', () => {
     const { runtime, update } = fixture();
     const session = runtime.startMotionSession({ channel: 'route' });
-    update(current => ({ ...current, boundary: { scopeKey: 'account:fixture:two', generation: 1, blocked: true } }));
+    update((current) => ({ ...current, boundary: { scopeKey: 'account:fixture:two', generation: 1, blocked: true } }));
     expect(session?.isCurrent()).toBe(false);
     expect(session?.signal.aborted).toBe(true);
     expect(runtime.startMotionSession({ channel: 'route' })).toBeNull();
@@ -159,10 +185,17 @@ describe('bounded optional motion sessions', () => {
     const report = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { runtime, environment } = fixture();
     try {
-      expect(runtime.startMotionSession({
-        channel: 'route',
-        guard: { isCurrent: () => true, subscribe: () => { throw new Error('Synthetic subscription failure.'); } },
-      })).toBeNull();
+      expect(
+        runtime.startMotionSession({
+          channel: 'route',
+          guard: {
+            isCurrent: () => true,
+            subscribe: () => {
+              throw new Error('Synthetic subscription failure.');
+            },
+          },
+        }),
+      ).toBeNull();
       expect(report).toHaveBeenCalledOnce();
       expect(environment.subscribe).not.toHaveBeenCalled();
     } finally {

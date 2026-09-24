@@ -73,20 +73,33 @@ export function isAvatarDescriptor(value: unknown): value is AvatarDescriptor {
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return false;
   const keys = Reflect.ownKeys(value);
-  if (keys.length !== 3 || !keys.every((key) => {
-    if (key !== 'version' && key !== 'seed' && key !== 'palette') return false;
-    const property = Object.getOwnPropertyDescriptor(value, key);
-    return property?.enumerable === true && 'value' in property;
-  })) return false;
-  return 'version' in value && value.version === 1 &&
-    'seed' in value && typeof value.seed === 'string' && value.seed.length === 32 && /^[0-9a-f]{32}$/.test(value.seed) &&
-    'palette' in value && isAvatarPalette(value.palette);
+  if (
+    keys.length !== 3 ||
+    !keys.every((key) => {
+      if (key !== 'version' && key !== 'seed' && key !== 'palette') return false;
+      const property = Object.getOwnPropertyDescriptor(value, key);
+      return property?.enumerable === true && 'value' in property;
+    })
+  )
+    return false;
+  return (
+    'version' in value &&
+    value.version === 1 &&
+    'seed' in value &&
+    typeof value.seed === 'string' &&
+    value.seed.length === 32 &&
+    /^[0-9a-f]{32}$/.test(value.seed) &&
+    'palette' in value &&
+    isAvatarPalette(value.palette)
+  );
 }
 
 /** Validates decoded metadata, returning a copy. Does not repair or replace bad data. */
 export function parseAvatarDescriptor(value: unknown): AvatarDescriptor {
   if (!isAvatarDescriptor(value)) {
-    throw new TypeError('Invalid avatar descriptor: expected only version 1, a 32-character lowercase hex seed, and a supported palette.');
+    throw new TypeError(
+      'Invalid avatar descriptor: expected only version 1, a 32-character lowercase hex seed, and a supported palette.',
+    );
   }
   return { version: 1, seed: value.seed, palette: value.palette };
 }
@@ -94,7 +107,8 @@ export function parseAvatarDescriptor(value: unknown): AvatarDescriptor {
 /** Uses 128 random bits, never account identifiers or Math.random(). */
 export function createAvatarDescriptor(palette: AvatarPalette = 'lime'): AvatarDescriptor {
   if (!isAvatarPalette(palette)) throw new TypeError('Unsupported avatar palette.');
-  if (!globalThis.crypto?.getRandomValues) throw new Error('Secure randomness is unavailable. Open Play 100 in a secure browser context to create avatars.');
+  if (!globalThis.crypto?.getRandomValues)
+    throw new Error('Secure randomness is unavailable. Open Play 100 in a secure browser context to create avatars.');
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return { version: 1, seed: Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(''), palette };
 }

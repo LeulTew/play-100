@@ -1,6 +1,11 @@
 import { createRetryableModule } from '../lib/retryable-module';
 import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
-import { guardedReload, isModuleLoadFailure, offlineRecoveryMessage, unavailableRecoveryMessage } from '../lib/chunk-recovery';
+import {
+  guardedReload,
+  isModuleLoadFailure,
+  offlineRecoveryMessage,
+  unavailableRecoveryMessage,
+} from '../lib/chunk-recovery';
 import type { PwaController, PwaState } from './types';
 
 export const initialDeferredPwaState: PwaState = {
@@ -19,9 +24,7 @@ interface DeferredPwaController extends PwaController {
   connectNow(): void;
 }
 
-export function createDeferredPwaController(
-  loadClient = pwaClientModule.load,
-): DeferredPwaController {
+export function createDeferredPwaController(loadClient = pwaClientModule.load): DeferredPwaController {
   let state = initialDeferredPwaState;
   let controller: PwaController | null = null;
   let active = false;
@@ -40,19 +43,26 @@ export function createDeferredPwaController(
     for (const listener of listeners) listener();
   };
   const capturePrompt = (event: Event) => {
-    if (!('prompt' in event) || typeof event.prompt !== 'function' ||
-      !('userChoice' in event) || !(event.userChoice instanceof Promise)) return;
+    if (
+      !('prompt' in event) ||
+      typeof event.prompt !== 'function' ||
+      !('userChoice' in event) ||
+      !(event.userChoice instanceof Promise)
+    )
+      return;
     event.preventDefault();
     prompt = event;
   };
   const availability = () => {
     const standalone = installed || media?.matches || ('standalone' in navigator && navigator.standalone === true);
-    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
-      /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    const ios =
+      /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+      (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
     publish({ ...state, installState: standalone ? 'installed' : ios ? 'ios-instructions' : 'unavailable' });
   };
   const captureInstalled = () => {
-    installed = true; prompt = null;
+    installed = true;
+    prompt = null;
     publish({ ...state, installState: 'installed', message: 'Play 100 was added by this browser.' });
   };
   const online = () => {
@@ -71,44 +81,64 @@ export function createDeferredPwaController(
     if (pending) return pending;
     if (!active || state.moduleError) return Promise.resolve(null);
     const request = generation;
-    const operation = Promise.resolve().then(loadClient).then(module => {
-      if (!active || generation !== request) return null;
-      const next = module.createPwaController();
-      controller = next;
-      unsubscribe = next.subscribe(() => publish(next.getSnapshot()));
-      disconnect = next.connect();
-      stopCapture();
-      // Replay the original browser event, retaining its prompt() method.
-      if (prompt) {
-        const saved = prompt;
-        prompt = null;
-        window.dispatchEvent(saved);
-      }
-      if (installed) window.dispatchEvent(new Event('appinstalled'));
-      publish(next.getSnapshot());
-      return next;
-    }).catch(error => {
-      console.error('Offline controls could not load.', error instanceof Error ? error.message : 'Unknown module error.');
-      if (active && generation === request) {
-        const moduleError = isModuleLoadFailure(error);
-        if (moduleError) {
-          stopCapture(); stopIdle?.();
-          prompt = null; media = undefined; stopIdle = undefined;
+    const operation = Promise.resolve()
+      .then(loadClient)
+      .then((module) => {
+        if (!active || generation !== request) return null;
+        const next = module.createPwaController();
+        controller = next;
+        unsubscribe = next.subscribe(() => publish(next.getSnapshot()));
+        disconnect = next.connect();
+        stopCapture();
+        // Replay the original browser event, retaining its prompt() method.
+        if (prompt) {
+          const saved = prompt;
+          prompt = null;
+          window.dispatchEvent(saved);
         }
-        publish({ ...state, moduleError, error: "Offline controls didn't load." });
-      }
-      return null;
-    }).finally(() => { if (pending === operation) pending = null; });
+        if (installed) window.dispatchEvent(new Event('appinstalled'));
+        publish(next.getSnapshot());
+        return next;
+      })
+      .catch((error) => {
+        console.error(
+          'Offline controls could not load.',
+          error instanceof Error ? error.message : 'Unknown module error.',
+        );
+        if (active && generation === request) {
+          const moduleError = isModuleLoadFailure(error);
+          if (moduleError) {
+            stopCapture();
+            stopIdle?.();
+            prompt = null;
+            media = undefined;
+            stopIdle = undefined;
+          }
+          publish({ ...state, moduleError, error: "Offline controls didn't load." });
+        }
+        return null;
+      })
+      .finally(() => {
+        if (pending === operation) pending = null;
+      });
     pending = operation;
     return operation;
   };
   return {
     isConnected: () => controller !== null,
-    connectNow: () => { void ensure(); },
+    connectNow: () => {
+      void ensure();
+    },
     getSnapshot: () => state,
-    subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     connect() {
-      if (active || !window.isSecureContext || /^\/(?:data-use|__|api)(?:\/|$)/.test(location.pathname)) return () => {};
+      if (active || !window.isSecureContext || /^\/(?:data-use|__|api)(?:\/|$)/.test(location.pathname))
+        return () => {};
       active = true;
       generation += 1;
       publish({ ...initialDeferredPwaState, online: navigator.onLine });
@@ -162,23 +192,38 @@ export function createDeferredPwaController(
         let failureMessage = 'This page could not reload. Save your changes before reloading when connected.';
         try {
           let prepared: boolean;
-          try { prepared = await guard.prepare(); }
-          catch (error) {
+          try {
+            prepared = await guard.prepare();
+          } catch (error) {
             if (error instanceof Error && error.message) failureMessage = error.message;
             throw error;
           }
           if (!prepared || !current()) {
-            if (active && generation === request) publish({ ...state, message: 'Your edit or page changed. Save or correct it before reloading.' });
+            if (active && generation === request)
+              publish({ ...state, message: 'Your edit or page changed. Save or correct it before reloading.' });
             return false;
           }
           const result = await guardedReload({ isCurrent: current });
-          if (active && generation === request) publish({ ...state, message: result === 'offline' ? offlineRecoveryMessage : result === 'unavailable' ? unavailableRecoveryMessage : result === 'cancelled' ? 'Your edit or page changed. Save or correct it before reloading.' : '' });
+          if (active && generation === request)
+            publish({
+              ...state,
+              message:
+                result === 'offline'
+                  ? offlineRecoveryMessage
+                  : result === 'unavailable'
+                    ? unavailableRecoveryMessage
+                    : result === 'cancelled'
+                      ? 'Your edit or page changed. Save or correct it before reloading.'
+                      : '',
+            });
           return result === 'navigating';
         } catch (error) {
           console.error('Offline controls recovery could not finish.', error);
           if (active && generation === request) publish({ ...state, message: failureMessage });
           return false;
-        } finally { recovering = false; }
+        } finally {
+          recovering = false;
+        }
       }
       const next = await ensure();
       return next && active && generation === request && guard.isCurrent() ? next.applyUpdate(guard) : false;

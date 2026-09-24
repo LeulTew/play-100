@@ -96,7 +96,10 @@ export interface PwaWorkerHost {
   };
   fetch(request: Request): Promise<Response>;
   skipWaiting(): Promise<void>;
-  addEventListener(type: 'install' | 'activate', handler: (event: { waitUntil(work: Promise<unknown>): void }) => void): void;
+  addEventListener(
+    type: 'install' | 'activate',
+    handler: (event: { waitUntil(work: Promise<unknown>): void }) => void,
+  ): void;
   addEventListener(type: 'fetch', handler: (event: PwaFetchEvent) => void): void;
   addEventListener(type: 'message', handler: (event: PwaMessageEvent) => void): void;
 }

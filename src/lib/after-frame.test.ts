@@ -8,10 +8,16 @@ function fixture() {
   let task: (() => void) | undefined;
   const cancelFrame = vi.fn();
   const clearTimer = vi.fn();
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frame = callback; return 1; });
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frame = callback;
+    return 1;
+  });
   vi.stubGlobal('cancelAnimationFrame', cancelFrame);
   vi.stubGlobal('window', {
-    setTimeout: (callback: () => void) => { task = callback; return 2; },
+    setTimeout: (callback: () => void) => {
+      task = callback;
+      return 2;
+    },
     clearTimeout: clearTimer,
   });
   return { frame: () => frame?.(0), task: () => task?.(), cancelFrame, clearTimer };
@@ -29,7 +35,7 @@ describe('post-frame enrichment scheduling', () => {
     expect(work).toHaveBeenCalledOnce();
   });
 
-  it.each(['before-frame', 'after-frame'] as const)('cancels a closed or superseded detail %s', phase => {
+  it.each(['before-frame', 'after-frame'] as const)('cancels a closed or superseded detail %s', (phase) => {
     const timing = fixture();
     const work = vi.fn();
     const cancel = afterFrame(work);

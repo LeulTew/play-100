@@ -1,12 +1,20 @@
 import type {
-  GameSource, LibraryBackup, LibraryRecord, PersonalAction, PersonalLibraryState,
-  PersonalProgress, PersonalRanking,
+  GameSource,
+  LibraryBackup,
+  LibraryRecord,
+  PersonalAction,
+  PersonalLibraryState,
+  PersonalProgress,
+  PersonalRanking,
 } from './personal-types.js';
 import { parseLibrary } from './storage.js';
 import type { MotionPreference } from './types.js';
 import { orderByRating, retainManualPositions } from './ranking-order.js';
 import {
-  MAX_BACKUP_FILE_BYTES, MAX_LIBRARY_BACKUP_BYTES, MAX_LIBRARY_RECORDS as MAX_RECORDS, MAX_LIBRARY_ID_CHARACTERS,
+  MAX_BACKUP_FILE_BYTES,
+  MAX_LIBRARY_BACKUP_BYTES,
+  MAX_LIBRARY_RECORDS as MAX_RECORDS,
+  MAX_LIBRARY_ID_CHARACTERS,
   MAX_LIBRARY_TITLE_CHARACTERS,
 } from './personal-types.js';
 
@@ -50,7 +58,10 @@ function object(value: unknown, label: string): Record<string, unknown> {
 }
 
 function shape(
-  value: unknown, required: readonly string[], label: string, optional: readonly string[] = [],
+  value: unknown,
+  required: readonly string[],
+  label: string,
+  optional: readonly string[] = [],
 ): Record<string, unknown> {
   const result = object(value, label);
   if (
@@ -64,7 +75,9 @@ function shape(
 
 function safeId(value: unknown): string {
   if (
-    typeof value !== 'string' || value.length > MAX_LIBRARY_ID_CHARACTERS || !/^[A-Za-z0-9][A-Za-z0-9:_-]*$/.test(value) ||
+    typeof value !== 'string' ||
+    value.length > MAX_LIBRARY_ID_CHARACTERS ||
+    !/^[A-Za-z0-9][A-Za-z0-9:_-]*$/.test(value) ||
     forbiddenKeys.has(value)
   ) {
     return invalid('a game has an unsafe or missing ID.');
@@ -98,9 +111,11 @@ function score(value: unknown): number | null {
 }
 
 function record(value: unknown): LibraryRecord {
-  const input = shape(value, [
-    'id', 'title', 'year', 'studio', 'genre', 'source', 'sourceId', 'sourceUrl', 'collectionRank',
-  ], 'A game record');
+  const input = shape(
+    value,
+    ['id', 'title', 'year', 'studio', 'genre', 'source', 'sourceId', 'sourceUrl', 'collectionRank'],
+    'A game record',
+  );
   const source = sources.find((candidate) => candidate === input.source);
   if (!source) return invalid('a game has an unsupported source.');
   const year = input.year;
@@ -145,8 +160,10 @@ function record(value: unknown): LibraryRecord {
 function progress(value: unknown): PersonalProgress {
   const input = shape(value, ['later', 'completed', 'played'], 'Game progress');
   if (
-    typeof input.later !== 'boolean' || typeof input.completed !== 'boolean' ||
-    typeof input.played !== 'boolean' || (input.completed && !input.played)
+    typeof input.later !== 'boolean' ||
+    typeof input.completed !== 'boolean' ||
+    typeof input.played !== 'boolean' ||
+    (input.completed && !input.played)
   ) {
     return invalid('game progress must use booleans, and completed games must also be played.');
   }
@@ -154,12 +171,21 @@ function progress(value: unknown): PersonalProgress {
 }
 
 function ranking(value: unknown, legacy: boolean, index: number): PersonalRanking {
-  const input = shape(value, legacy ? ['id', 'score', 'note'] : ['id', 'score', 'note', 'manualPosition'], 'A personal ranking');
+  const input = shape(
+    value,
+    legacy ? ['id', 'score', 'note'] : ['id', 'score', 'note', 'manualPosition'],
+    'A personal ranking',
+  );
   const position = legacy ? index + 1 : input.manualPosition;
   if (position !== null && (typeof position !== 'number' || !Number.isInteger(position) || position < 1)) {
     return invalid('a manual rank must be null or a positive integer.');
   }
-  return { id: safeId(input.id), score: score(input.score), note: text(input.note, 'A note', 2_000), manualPosition: position };
+  return {
+    id: safeId(input.id),
+    score: score(input.score),
+    note: text(input.note, 'A note', 2_000),
+    manualPosition: position,
+  };
 }
 
 function list(value: unknown, label: string): unknown[] {
@@ -178,18 +204,27 @@ function nextRevision(revision: number): number {
 
 export function emptyPersonalLibrary(): PersonalLibraryState {
   return {
-    version: 3, revision: 0, records: dictionary(), progress: dictionary(),
-    queueOrder: [], ranking: [], motion: 'auto',
+    version: 3,
+    revision: 0,
+    records: dictionary(),
+    progress: dictionary(),
+    queueOrder: [],
+    ranking: [],
+    motion: 'auto',
   };
 }
 
 export function parsePersonalLibrary(value: unknown): PersonalLibraryState {
-  const input = shape(value, [
-    'version', 'revision', 'records', 'progress', 'queueOrder', 'ranking', 'motion',
-  ], 'The library');
+  const input = shape(
+    value,
+    ['version', 'revision', 'records', 'progress', 'queueOrder', 'ranking', 'motion'],
+    'The library',
+  );
   if (
-    (input.version !== 2 && input.version !== 3) || typeof input.revision !== 'number' ||
-    !Number.isSafeInteger(input.revision) || input.revision < 0
+    (input.version !== 2 && input.version !== 3) ||
+    typeof input.revision !== 'number' ||
+    !Number.isSafeInteger(input.revision) ||
+    input.revision < 0
   ) {
     return invalid('the saved version or revision is unsupported.');
   }
@@ -260,7 +295,11 @@ function progressKey(value: unknown): keyof PersonalProgress {
 }
 
 function setProgress(
-  state: PersonalLibraryState, queued: Set<string>, id: string, key: keyof PersonalProgress, value: boolean,
+  state: PersonalLibraryState,
+  queued: Set<string>,
+  id: string,
+  key: keyof PersonalProgress,
+  value: boolean,
 ): void {
   const current = state.progress[id] ?? { later: false, completed: false, played: false };
   const updated = { ...current, [key]: value };
@@ -295,7 +334,10 @@ export function utf8Length(value: string): number {
     else if (code < 0x800) bytes += 2;
     else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
       const next = value.charCodeAt(index + 1);
-      if (next >= 0xdc00 && next <= 0xdfff) { bytes += 4; index += 1; } else bytes += 3;
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        index += 1;
+      } else bytes += 3;
     } else bytes += 3;
   }
   return bytes;
@@ -306,12 +348,14 @@ export function utf8Length(value: string): number {
  * fixed-width ISO string, so a stand-in measures the same as the real one; one compact stringify, O(n).
  */
 export function libraryBackupBytes(state: PersonalLibraryState): number {
-  return utf8Length(JSON.stringify({ app: 'Play 100', formatVersion: 3, exportedAt: MEASURED_EXPORT_TIME, library: state }));
+  return utf8Length(
+    JSON.stringify({ app: 'Play 100', formatVersion: 3, exportedAt: MEASURED_EXPORT_TIME, library: state }),
+  );
 }
 
 export function formatBackupBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.ceil(bytes / 1024))} KB`;
-  return `${(Math.ceil(bytes / (1024 * 1024) * 10) / 10).toFixed(1)} MB`;
+  return `${(Math.ceil((bytes / (1024 * 1024)) * 10) / 10).toFixed(1)} MB`;
 }
 
 /** A budget as user copy: whole mebibytes read as "20 MB"; anything else uses the rounded-up size. */
@@ -328,7 +372,11 @@ export function applyPersonalAction(state: unknown, action: PersonalAction): Per
 // byte budget: a result past the budget is refused unless the action did not grow the library, so removals,
 // dequeues and reorders always succeed, even for a legacy library that is already over. Cost: one compact
 // stringify per action; a second parse and stringify of the prior state only when the result is over budget.
-export function applyPersonalActionWithin(state: unknown, action: PersonalAction, budget: number): PersonalLibraryState {
+export function applyPersonalActionWithin(
+  state: unknown,
+  action: PersonalAction,
+  budget: number,
+): PersonalLibraryState {
   const result = parsePersonalLibrary(state);
   const input = object(action, 'The library action');
   const queued = new Set(result.queueOrder);
@@ -416,8 +464,7 @@ export function applyPersonalActionWithin(state: unknown, action: PersonalAction
           move(result.ranking, id, overId, (item) => item.id);
           retainManualPositions(result.ranking, id);
         } else if (!result.ranking.some((entry) => entry.id === id)) return invalid('the game being moved is missing.');
-      }
-      else return invalid('the list to reorder is unsupported.');
+      } else return invalid('the list to reorder is unsupported.');
       break;
     }
     case 'use-rating-order': {
@@ -447,7 +494,9 @@ export function applyPersonalActionWithin(state: unknown, action: PersonalAction
     // The revision always advances; its extra digit is not growth the user can undo.
     const revisionDigits = String(result.revision).length - String(prior.revision).length;
     if (after - revisionDigits > libraryBackupBytes(prior)) {
-      return budgetError(`This change would take your library past its ${formatBackupLimit(budget)} backup limit. Remove games or shorten notes, then try again. Nothing was changed.`);
+      return budgetError(
+        `This change would take your library past its ${formatBackupLimit(budget)} backup limit. Remove games or shorten notes, then try again. Nothing was changed.`,
+      );
     }
   }
   return result;
@@ -489,21 +538,25 @@ export function migrateLegacyLibrary(raw: string, canonicalRecords: LibraryRecor
 
 export function createLibraryBackup(state: PersonalLibraryState): LibraryBackup {
   return {
-    app: 'Play 100', formatVersion: 3, exportedAt: new Date().toISOString(),
+    app: 'Play 100',
+    formatVersion: 3,
+    exportedAt: new Date().toISOString(),
     library: parsePersonalLibrary(state),
   };
 }
 
 /** Compact backup text for download, or how far a (legacy) library is over the budget. */
 export function exportLibraryBackup(
-  state: PersonalLibraryState, budget = MAX_LIBRARY_BACKUP_BYTES,
+  state: PersonalLibraryState,
+  budget = MAX_LIBRARY_BACKUP_BYTES,
 ): { ok: true; text: string; bytes: number } | { ok: false; bytes: number; message: string } {
   const text = JSON.stringify(createLibraryBackup(state));
   const bytes = utf8Length(text);
   if (bytes <= budget) return { ok: true, text, bytes };
   const over = formatBackupBytes(bytes - budget);
   return {
-    ok: false, bytes,
+    ok: false,
+    bytes,
     message: `This library is ${over} over its ${formatBackupLimit(budget)} backup limit, so no file was made. Remove games or shorten notes by at least ${over}, then export again. Nothing was changed.`,
   };
 }
@@ -511,7 +564,9 @@ export function exportLibraryBackup(
 /** Pre-parse size gate for a backup file; pretty-printed older exports get the extra allowance. */
 export function backupFileSizeError(size: number, budget = MAX_LIBRARY_BACKUP_BYTES): string | null {
   const cap = budget + (MAX_BACKUP_FILE_BYTES - MAX_LIBRARY_BACKUP_BYTES);
-  return size > cap ? `This backup file exceeds the ${formatBackupLimit(cap)} import limit. No data was changed.` : null;
+  return size > cap
+    ? `This backup file exceeds the ${formatBackupLimit(cap)} import limit. No data was changed.`
+    : null;
 }
 
 /** Parses backup text and applies the library budget to its compact size. */
@@ -519,7 +574,9 @@ export function readLibraryBackup(text: string, budget = MAX_LIBRARY_BACKUP_BYTE
   const state = parseLibraryBackup(JSON.parse(text));
   const bytes = libraryBackupBytes(state);
   if (bytes > budget) {
-    return budgetError(`This backup holds a library ${formatBackupBytes(bytes - budget)} over the ${formatBackupLimit(budget)} backup limit. No data was changed.`);
+    return budgetError(
+      `This backup holds a library ${formatBackupBytes(bytes - budget)} over the ${formatBackupLimit(budget)} backup limit. No data was changed.`,
+    );
   }
   return state;
 }
@@ -535,7 +592,8 @@ export function parseLibraryBackup(value: unknown): PersonalLibraryState {
     typeof input.exportedAt !== 'string' ||
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(input.exportedAt) ||
     !Number.isFinite(Date.parse(input.exportedAt)) ||
-    new Date(`${input.exportedAt.slice(0, 10)}T00:00:00.000Z`).toISOString().slice(0, 10) !== input.exportedAt.slice(0, 10)
+    new Date(`${input.exportedAt.slice(0, 10)}T00:00:00.000Z`).toISOString().slice(0, 10) !==
+      input.exportedAt.slice(0, 10)
   ) {
     return invalid('the backup export date must be an ISO timestamp.');
   }

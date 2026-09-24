@@ -3,10 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { parseDiscoveryCatalogJson } from './discovery-catalog';
 import { defaultDiscoveryFilters, searchDiscoveryItems } from './discovery-search';
 
-const seed = parseDiscoveryCatalogJson(readFileSync(new URL('../../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'));
+const seed = parseDiscoveryCatalogJson(
+  readFileSync(new URL('../../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'),
+);
 
 describe('shipped discovery seed integration', () => {
-  it.each(['Kingdomcome', 'Kingdom Come', 'Kingdom Come: Deliverance', 'KCD', 'KCD1', 'Kingdom Come Deliverance: Royal Edition'])('finds the actual provider identity for %s without provider requests', (q) => {
+  it.each([
+    'Kingdomcome',
+    'Kingdom Come',
+    'Kingdom Come: Deliverance',
+    'KCD',
+    'KCD1',
+    'Kingdom Come Deliverance: Royal Edition',
+  ])('finds the actual provider identity for %s without provider requests', (q) => {
     const found = searchDiscoveryItems(seed.items, { ...defaultDiscoveryFilters, q });
     expect(found[0]?.record.id).toBe('wikidata:Q15408545');
     expect(found[0]?.artwork?.src).toMatch(/^\/images\/discovery\/[a-f0-9]{64}\.webp$/);

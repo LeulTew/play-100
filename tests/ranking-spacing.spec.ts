@@ -9,20 +9,32 @@ for (const forcedColors of ['none', 'active'] as const) {
     await page.emulateMedia({ reducedMotion: 'reduce', forcedColors });
     await installGuestLibrary(page, libraryFixture(3));
     await page.addStyleTag({ content: textSpacingCSS });
-    await page.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: /^Ranking/ }).click();
+    await page
+      .getByRole('navigation', { name: 'My games views' })
+      .getByRole('button', { name: /^Ranking/ })
+      .click();
     await expectReadableSurface(page, 'Ranking completed controls', true);
     const buttons = page.locator('.my-games-editor:visible .played-check .completed-toggle');
     await expect(buttons).toHaveCount(3);
-    const geometry = await buttons.evaluateAll(elements => elements.map(element => {
-      const bounds = element.getBoundingClientRect();
-      const parent = element.parentElement!.getBoundingClientRect();
-      return { width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, parentLeft: parent.left, parentRight: parent.right };
-    }));
+    const geometry = await buttons.evaluateAll((elements) =>
+      elements.map((element) => {
+        const bounds = element.getBoundingClientRect();
+        const parent = element.parentElement!.getBoundingClientRect();
+        return {
+          width: bounds.width,
+          height: bounds.height,
+          left: bounds.left,
+          right: bounds.right,
+          parentLeft: parent.left,
+          parentRight: parent.right,
+        };
+      }),
+    );
     for (const bounds of geometry) {
       expect(bounds.width).toBeGreaterThanOrEqual(44);
       expect(bounds.height).toBeGreaterThanOrEqual(44);
       expect(bounds.left).toBeGreaterThanOrEqual(bounds.parentLeft);
-      expect(bounds.right).toBeLessThanOrEqual(bounds.parentRight + .5);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.parentRight + 0.5);
       expect(bounds.right).toBeLessThanOrEqual(320);
     }
     const before = await readLibrary(page);
@@ -31,7 +43,10 @@ for (const forcedColors of ['none', 'active'] as const) {
     await toggle.focus();
     await expect(toggle).toBeFocused();
     await toggle.press('Space');
-    await expect(page.getByRole('button', { name: `Completed: ${first.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: `Completed: ${first.title}`, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     const after = await readLibrary(page);
     expect(after.progress[first.id]).toEqual({ ...before.progress[first.id], played: true, completed: true });
     expect(after.records).toEqual(before.records);

@@ -8,7 +8,15 @@ const valid = {
 };
 describe('public Firebase build/runtime configuration boundary', () => {
   it('accepts explicit primitive configuration fields without JSON escaping', () => {
-    expect(readFirebaseConfiguration(valid)).toEqual({ config: { apiKey: valid.VITE_FIREBASE_API_KEY, authDomain: valid.VITE_FIREBASE_AUTH_DOMAIN, projectId: valid.VITE_FIREBASE_PROJECT_ID, appId: valid.VITE_FIREBASE_APP_ID }, error: null });
+    expect(readFirebaseConfiguration(valid)).toEqual({
+      config: {
+        apiKey: valid.VITE_FIREBASE_API_KEY,
+        authDomain: valid.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: valid.VITE_FIREBASE_PROJECT_ID,
+        appId: valid.VITE_FIREBASE_APP_ID,
+      },
+      error: null,
+    });
   });
   it('permits a deliberately device-only build', () => {
     expect(readFirebaseConfiguration({})).toEqual({ config: null, error: null });

@@ -40,12 +40,14 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 393, height: 851 } } },
   ],
-  webServer: deployedUrl ? undefined : {
-    command: developmentFixtures
-      ? 'npm run dev -- --port 4187 --strictPort'
-      : 'npm run preview -- --port 4187 --strictPort',
-    url: developmentFixtures ? 'http://127.0.0.1:4187/src/main.tsx' : 'http://127.0.0.1:4187',
-    reuseExistingServer: gate.reuseExistingServer,
-    timeout: 120000,
-  },
+  webServer: deployedUrl
+    ? undefined
+    : {
+        command: developmentFixtures
+          ? 'npm run dev -- --port 4187 --strictPort'
+          : 'npm run preview -- --port 4187 --strictPort',
+        url: developmentFixtures ? 'http://127.0.0.1:4187/src/main.tsx' : 'http://127.0.0.1:4187',
+        reuseExistingServer: gate.reuseExistingServer,
+        timeout: 120000,
+      },
 });

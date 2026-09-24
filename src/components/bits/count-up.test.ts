@@ -5,12 +5,18 @@ import CountUp from './CountUp';
 import { stepCount } from './count-up';
 
 describe('the bounded native queue counter', () => {
-  it.each([0, 1, 10000])('renders the exact initial and accessible value without an intro (%s)', to => {
-    expect(renderToStaticMarkup(createElement(CountUp, { to, animate: true, className: 'saved-count' })))
-      .toBe(`<span class="saved-count"><span class="sr-only">${to}</span><span aria-hidden="true">${to}</span></span>`);
+  it.each([0, 1, 10000])('renders the exact initial and accessible value without an intro (%s)', (to) => {
+    expect(renderToStaticMarkup(createElement(CountUp, { to, animate: true, className: 'saved-count' }))).toBe(
+      `<span class="saved-count"><span class="sr-only">${to}</span><span aria-hidden="true">${to}</span></span>`,
+    );
   });
 
-  it.each([[0, 1], [0, 10000], [10000, 0], [42, 2]])('approaches %s to %s without an initial jump or overshoot', (from, to) => {
+  it.each([
+    [0, 1],
+    [0, 10000],
+    [10000, 0],
+    [42, 2],
+  ])('approaches %s to %s without an initial jump or overshoot', (from, to) => {
     const start = { value: from, velocity: 0 };
     expect(stepCount(start, to, 0).value).toBe(from);
     for (let elapsed = 0; elapsed <= 3000; elapsed += 16.7) {

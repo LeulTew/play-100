@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadSecondaryDialog, loadSecondaryDialogs, secondaryDialogReady, secondaryDialogsStarted } from '../lib/secondary-dialogs';
+import {
+  loadSecondaryDialog,
+  loadSecondaryDialogs,
+  secondaryDialogReady,
+  secondaryDialogsStarted,
+} from '../lib/secondary-dialogs';
 import type { AppPanel } from '../lib/secondary-dialogs';
 import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
 
@@ -49,27 +54,35 @@ export function useAppPanel(scope: string, opening: boolean) {
     noticeTimer.current = setTimeout(() => {
       if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}…`, error: false });
     }, 500);
-    void loadSecondaryDialog(next).then(() => {
-      if (!alive.current || generation.current !== request) return;
-      clearTimeout(noticeTimer.current);
-      setMessage({ text: '', error: false });
-      urlIntentActive.current = false;
-      commit(next);
-    }).catch(error => {
-      console.error('The requested dialog could not load.', error instanceof Error ? error.message : 'Unknown module error.');
-      if (alive.current && generation.current === request) {
+    void loadSecondaryDialog(next)
+      .then(() => {
+        if (!alive.current || generation.current !== request) return;
         clearTimeout(noticeTimer.current);
-        setMessage({ text: `${next === 'about' ? 'Credits' : title} didn't load.`, error: true });
-        setPanelFailure(next);
-      }
-    });
+        setMessage({ text: '', error: false });
+        urlIntentActive.current = false;
+        commit(next);
+      })
+      .catch((error) => {
+        console.error(
+          'The requested dialog could not load.',
+          error instanceof Error ? error.message : 'Unknown module error.',
+        );
+        if (alive.current && generation.current === request) {
+          clearTimeout(noticeTimer.current);
+          setMessage({ text: `${next === 'about' ? 'Credits' : title} didn't load.`, error: true });
+          setPanelFailure(next);
+        }
+      });
   }, []);
-  const setPanel = useCallback((next: AppPanel) => {
-    setPanelFromMenu(next === 'menu' || Boolean(next && panel && panelFromMenu));
-    urlIntentActive.current = false;
-    clearPanelIntent();
-    openPanel(next);
-  }, [openPanel, panel, panelFromMenu]);
+  const setPanel = useCallback(
+    (next: AppPanel) => {
+      setPanelFromMenu(next === 'menu' || Boolean(next && panel && panelFromMenu));
+      urlIntentActive.current = false;
+      clearPanelIntent();
+      openPanel(next);
+    },
+    [openPanel, panel, panelFromMenu],
+  );
   const cancel = useCallback(() => {
     generation.current += 1;
     clearTimeout(noticeTimer.current);
@@ -83,10 +96,16 @@ export function useAppPanel(scope: string, opening: boolean) {
   }, [panel, warm]);
   useEffect(() => {
     alive.current = true;
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') cancel(); };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancel();
+    };
     const intent = (event: Event) => {
       const target = event.target;
-      if (target instanceof Element && target.closest('.menu-nav, .mobile-nav button[aria-haspopup="dialog"], .menu-dialog, .site-footer')) warm();
+      if (
+        target instanceof Element &&
+        target.closest('.menu-nav, .mobile-nav button[aria-haspopup="dialog"], .menu-dialog, .site-footer')
+      )
+        warm();
     };
     for (const name of ['pointerover', 'focusin', 'pointerdown']) document.addEventListener(name, intent, true);
     window.addEventListener('popstate', cancel);
@@ -114,7 +133,18 @@ export function useAppPanel(scope: string, opening: boolean) {
     const previous = settledScope.current;
     settledScope.current = scope;
     if (previous === null) return;
-    if (urlIntentActive.current) { cancel(); commit(null); }
+    if (urlIntentActive.current) {
+      cancel();
+      commit(null);
+    }
   }, [scope, opening, cancel]);
-  return { panel, setPanel, panelMessage: message.text, panelMessageError: message.error, panelFailure, dismissPanelMessage, panelFromMenu };
+  return {
+    panel,
+    setPanel,
+    panelMessage: message.text,
+    panelMessageError: message.error,
+    panelFailure,
+    dismissPanelMessage,
+    panelFromMenu,
+  };
 }

@@ -20,12 +20,19 @@ async function prepare(page: Page) {
 
 async function rate(page: Page, game: typeof a, value: string) {
   await page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true }).fill(value);
-  await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score).toBe(value ? Number(value) : null);
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
+    .toBe(value ? Number(value) : null);
 }
 
-test('played state is one committed value across detail, grid, list, table, library and rankings', async ({ page, context }) => {
+test('played state is one committed value across detail, grid, list, table, library and rankings', async ({
+  page,
+  context,
+}) => {
   await page.goto(`/?game=${a.id}`);
-  const detailPlayed = page.getByRole('dialog').getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
+  const detailPlayed = page
+    .getByRole('dialog')
+    .getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
   await detailPlayed.click();
   await expect(detailPlayed).toBeChecked();
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
@@ -54,11 +61,15 @@ test('played state is one committed value across detail, grid, list, table, libr
   await expect(peerPlayed).not.toBeChecked();
   await expect(libraryPlayed).not.toBeChecked();
   await page.reload();
-  await expect(page.locator(`.my-games-editor:visible [data-record-id="${a.id}"] [data-played-id] input`)).not.toBeChecked();
+  await expect(
+    page.locator(`.my-games-editor:visible [data-record-id="${a.id}"] [data-played-id] input`),
+  ).not.toBeChecked();
   await peer.close();
 });
 
-test('unmarking played visibly confirms completion loss and keeps the replay queue, rating and note', async ({ page }, info) => {
+test('unmarking played visibly confirms completion loss and keeps the replay queue, rating and note', async ({
+  page,
+}, info) => {
   await page.goto(`/?game=${a.id}`);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Play later', exact: true }).click();
@@ -69,7 +80,7 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('8.5');
   await dialog.getByRole('spinbutton').press('Tab');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
-  await page.evaluate(async id => {
+  await page.evaluate(async (id) => {
     const modulePath = '/src/lib/personal-db.ts';
     const source: typeof import('../src/lib/personal-db') = await import(modulePath);
     await source.commitPersonalAction({ type: 'edit-ranking', id, note: 'Keep this replay note.' });
@@ -99,7 +110,9 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   expect(state.ranking).toEqual(before.ranking);
 });
 
-test('scores automatically reorder and persist while manually moved games keep their chosen slots', async ({ page }) => {
+test('scores automatically reorder and persist while manually moved games keep their chosen slots', async ({
+  page,
+}) => {
   await prepare(page);
   await rate(page, a, '8');
   await rate(page, b, '9');
@@ -119,30 +132,53 @@ test('scores automatically reorder and persist while manually moved games keep t
   expect(Object.values((await readLibrary(page)).progress).every((entry) => !entry.played)).toBe(true);
 });
 
-test('older IndexedDB rankings keep their saved order until automatic sorting is explicitly chosen', async ({ page, request }) => {
-  const source = await (await request.get('/data/collection.json')).json() as { games: Game[] };
+test('older IndexedDB rankings keep their saved order until automatic sorting is explicitly chosen', async ({
+  page,
+  request,
+}) => {
+  const source = (await (await request.get('/data/collection.json')).json()) as { games: Game[] };
   const records = source.games.filter((game) => [a.id, b.id].includes(game.slug)).map(recordFromGame);
   await page.goto('/favicon.svg');
-  await page.evaluate(({ records, a, b }) => new Promise<void>((resolve, reject) => {
-    const open = indexedDB.open('play100-personal', 1);
-    open.onupgradeneeded = () => open.result.createObjectStore('library');
-    open.onerror = () => reject(open.error);
-    open.onsuccess = () => {
-      const db = open.result;
-      const tx = db.transaction('library', 'readwrite');
-      tx.objectStore('library').put({
-        version: 2, revision: 11, records: Object.fromEntries(records.map((record) => [record.id, record])),
-        progress: { [a]: { later: false, completed: false, played: true } },
-        queueOrder: [], ranking: [{ id: a, score: 1, note: 'Old custom order' }, { id: b, score: 9, note: '' }], motion: 'lite',
-      }, 'state');
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onabort = () => reject(tx.error);
-    };
-  }), { records, a: a.id, b: b.id });
+  await page.evaluate(
+    ({ records, a, b }) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('play100-personal', 1);
+        open.onupgradeneeded = () => open.result.createObjectStore('library');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction('library', 'readwrite');
+          tx.objectStore('library').put(
+            {
+              version: 2,
+              revision: 11,
+              records: Object.fromEntries(records.map((record) => [record.id, record])),
+              progress: { [a]: { later: false, completed: false, played: true } },
+              queueOrder: [],
+              ranking: [
+                { id: a, score: 1, note: 'Old custom order' },
+                { id: b, score: 9, note: '' },
+              ],
+              motion: 'lite',
+            },
+            'state',
+          );
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onabort = () => reject(tx.error);
+        };
+      }),
+    { records, a: a.id, b: b.id },
+  );
   await page.goto('/my-rankings');
   await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(2);
   expect((await readLibrary(page)).version).toBe(3);
-  expect((await readLibrary(page)).ranking.map((entry) => [entry.id, entry.manualPosition])).toEqual([[a.id, 1], [b.id, 2]]);
+  expect((await readLibrary(page)).ranking.map((entry) => [entry.id, entry.manualPosition])).toEqual([
+    [a.id, 1],
+    [b.id, 2],
+  ]);
   await rate(page, b, '10');
   expect((await readLibrary(page)).ranking[0]?.id).toBe(a.id);
   await page.getByRole('button', { name: 'Use rating order for all', exact: true }).click();
@@ -152,11 +188,31 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
 });
 
 test('catalog played state follows the saved game into its library, detail and personal ranking', async ({ page }) => {
-  const record = { id: 'wikidata:Q555', title: 'Shared catalog game', year: 2020, studio: null, genre: null, source: 'wikidata', sourceId: 'Q555', sourceUrl: 'https://www.wikidata.org/wiki/Q555', collectionRank: null };
-  await page.route('**/api/catalog?**', (route) => route.fulfill({
-    contentType: 'application/json',
-    body: JSON.stringify({ source: 'wikidata', query: record.title, items: [record], total: 1, offset: 0, nextOffset: null, notices: [] }),
-  }));
+  const record = {
+    id: 'wikidata:Q555',
+    title: 'Shared catalog game',
+    year: 2020,
+    studio: null,
+    genre: null,
+    source: 'wikidata',
+    sourceId: 'Q555',
+    sourceUrl: 'https://www.wikidata.org/wiki/Q555',
+    collectionRank: null,
+  };
+  await page.route('**/api/catalog?**', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        source: 'wikidata',
+        query: record.title,
+        items: [record],
+        total: 1,
+        offset: 0,
+        nextOffset: null,
+        notices: [],
+      }),
+    }),
+  );
   await page.goto(`/discover?source=wikidata&catalogs=off&q=${encodeURIComponent(record.title)}`);
   await page.getByRole('button', { name: 'Search online', exact: true }).click();
   const card = page.locator(`[data-catalog-id="${record.id}"]`);
@@ -170,7 +226,9 @@ test('catalog played state follows the saved game into its library, detail and p
   await page.goto('/my-rankings');
   await expect(page.getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true })).toBeChecked();
   await page.getByRole('button', { name: record.title, exact: true }).click();
-  await expect(page.getByRole('dialog').getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true })).toBeChecked();
+  await expect(
+    page.getByRole('dialog').getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true }),
+  ).toBeChecked();
 });
 
 test('failed rating autosave keeps the prior score and does not retry in a background loop', async ({ page }) => {
@@ -180,7 +238,9 @@ test('failed rating autosave keeps the prior score and does not retry in a backg
     const original = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
       if (document.documentElement.dataset.failRatingSave === 'yes') {
-        document.documentElement.dataset.ratingSaveAttempts = String(Number(document.documentElement.dataset.ratingSaveAttempts ?? 0) + 1);
+        document.documentElement.dataset.ratingSaveAttempts = String(
+          Number(document.documentElement.dataset.ratingSaveAttempts ?? 0) + 1,
+        );
         throw new DOMException('Storage is full', 'QuotaExceededError');
       }
       return original.apply(this, args);
@@ -193,29 +253,44 @@ test('failed rating autosave keeps the prior score and does not retry in a backg
   await page.waitForTimeout(1600);
   expect(await page.evaluate(() => document.documentElement.dataset.ratingSaveAttempts)).toBe(attempts);
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.score).toBe(7);
-  await page.evaluate(() => { document.documentElement.dataset.failRatingSave = 'no'; });
+  await page.evaluate(() => {
+    document.documentElement.dataset.failRatingSave = 'no';
+  });
   await rate(page, a, '8');
 });
 
-test('played state, score ordering and manual slots survive a full browser restart', async ({ baseURL, isMobile, viewport }, testInfo) => {
+test('played state, score ordering and manual slots survive a full browser restart', async ({
+  baseURL,
+  isMobile,
+  viewport,
+}, testInfo) => {
   const profile = testInfo.outputPath('persistent-library-profile');
-  const options = { headless: true, baseURL, isMobile, hasTouch: isMobile, viewport, args: ['--enable-unsafe-swiftshader'] };
+  const options = {
+    headless: true,
+    baseURL,
+    isMobile,
+    hasTouch: isMobile,
+    viewport,
+    args: ['--enable-unsafe-swiftshader'],
+  };
   let context = await chromium.launchPersistentContext(profile, options);
   try {
-    let page = context.pages()[0] ?? await context.newPage();
+    let page = context.pages()[0] ?? (await context.newPage());
     await prepare(page);
     await rate(page, a, '8');
     await rate(page, b, '9');
     await rate(page, c, '10');
     await page.getByRole('button', { name: `Move ${a.title} up in ranking`, exact: true }).click();
-    await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.manualPosition).toBe(2);
+    await expect
+      .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.manualPosition)
+      .toBe(2);
     const played = page.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
     await played.click();
     await expect(played).toBeChecked();
     const before = await readLibrary(page);
     await context.close();
     context = await chromium.launchPersistentContext(profile, options);
-    page = context.pages()[0] ?? await context.newPage();
+    page = context.pages()[0] ?? (await context.newPage());
     await page.goto('/my-rankings');
     await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(3);
     const after = await readLibrary(page);
@@ -224,7 +299,11 @@ test('played state, score ordering and manual slots survive a full browser resta
     expect(after.ranking.map((entry) => entry.id)).toEqual([c.id, a.id, b.id]);
     await expect(page.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })).toBeChecked();
     await rate(page, c, '6');
-    await expect.poll(async () => (await readLibrary(page)).ranking.map((entry) => entry.id)).toEqual([b.id, a.id, c.id]);
+    await expect
+      .poll(async () => (await readLibrary(page)).ranking.map((entry) => entry.id))
+      .toEqual([b.id, a.id, c.id]);
     expect((await readLibrary(page)).ranking[1]?.manualPosition).toBe(2);
-  } finally { await context.close(); }
+  } finally {
+    await context.close();
+  }
 });

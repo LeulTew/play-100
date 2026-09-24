@@ -60,24 +60,44 @@ let browser: Browser | undefined;
 let origin: string;
 
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-my-games-guard-tests',
-    logLevel: 'error', appType: 'custom',
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom', 'react-dom/client', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'] },
-    plugins: [react(), {
-      name: 'my-games-guard-fixture',
-      configureServer(vite) {
-        vite.middlewares.use((request, response, next) => {
-          if (request.url?.split('?')[0] !== '/__my-games-guard') return next();
-          void vite.transformIndexHtml('/__my-games-guard', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }, next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-my-games-guard-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: {
+          noDiscovery: true,
+          include: [
+            'react',
+            'react-dom',
+            'react-dom/client',
+            '@dnd-kit/core',
+            '@dnd-kit/sortable',
+            '@dnd-kit/utilities',
+          ],
+        },
+        plugins: [
+          react(),
+          {
+            name: 'my-games-guard-fixture',
+            configureServer(vite) {
+              vite.middlewares.use((request, response, next) => {
+                if (request.url?.split('?')[0] !== '/__my-games-guard') return next();
+                void vite.transformIndexHtml('/__my-games-guard', fixture).then((html) => {
+                  response.setHeader('Content-Type', 'text/html');
+                  response.end(html);
+                }, next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-my-games-guard-tests$/);
   expect(server.config.server.watch).toBeNull();
@@ -88,26 +108,33 @@ beforeAll(async () => {
 }, 30_000);
 
 // Chromium can take tens of seconds to exit on a loaded host; closing beyond 60 s still fails.
-afterAll(async () => { await browser?.close(); await server?.close(); }, 60_000);
+afterAll(async () => {
+  await browser?.close();
+  await server?.close();
+}, 60_000);
 
 async function withPage(work: (page: Page) => Promise<void>, view = 'ranking') {
   if (!browser) throw new Error('My games fixture browser unavailable.');
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await context.route('**/*', route => new URL(route.request().url()).origin === origin
-    ? route.continue() : route.abort('blockedbyclient'));
+  page.on('pageerror', (error) => errors.push(error.message));
+  await context.route('**/*', (route) =>
+    new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
+  );
   try {
     await page.goto(`${origin}/__my-games-guard?view=${view}`);
     await browserExpect(page.getByRole('heading', { name: 'My games', level: 1 })).toBeVisible();
     await work(page);
     expect(errors).toEqual([]);
-  } finally { await context.close(); }
+  } finally {
+    await context.close();
+  }
 }
 
 // The Library pane stays mounted (hidden) and renders the same .personal-row rows, so ranking locators are scoped.
-const rankedRow = (page: Page, id: string) => page.getByRole('list', { name: 'Your ranked games', exact: true }).locator(`.personal-row[data-record-id="${id}"]`);
+const rankedRow = (page: Page, id: string) =>
+  page.getByRole('list', { name: 'Your ranked games', exact: true }).locator(`.personal-row[data-record-id="${id}"]`);
 const rankingStatus = (page: Page) => page.locator('.personal-tools:has(#ranking-search) [role="status"]');
 const exits = (page: Page) => page.evaluate(() => [...window.myGamesFixture.exits]);
 const blocked = 'Your edit has not saved. Fix the highlighted field or retry before changing views.';
@@ -132,7 +159,7 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
 
 describe('My games exit guard', () => {
   it('keeps a failed note draft through Find games, Publish, Discover and a row-hiding search', async () => {
-    await withPage(async page => {
+    await withPage(async (page) => {
       await rankedRow(page, 'alpha').locator('summary').click();
       const note = rankedRow(page, 'alpha').locator('#note-alpha');
       await note.fill('Unsaved draft');
@@ -145,7 +172,9 @@ describe('My games exit guard', () => {
         await browserExpect(note).toBeEnabled();
       });
       // Only the draft's failed save was attempted; no guarded exit retried or discarded it.
-      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([JSON.stringify({ id: 'alpha', note: 'Unsaved draft' })]);
+      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
+        JSON.stringify({ id: 'alpha', note: 'Unsaved draft' }),
+      ]);
 
       await page.evaluate(() => window.myGamesFixture.accept(true));
       await note.fill('Saved draft');
@@ -160,18 +189,22 @@ describe('My games exit guard', () => {
   });
 
   it('keeps a failed rating draft through the same exits and search', async () => {
-    await withPage(async page => {
+    await withPage(async (page) => {
       const rating = rankedRow(page, 'alpha').getByRole('spinbutton', { name: 'Your rating / 10 for Alpha game' });
       await rating.fill('9');
       await rating.press('Tab');
       const failure = page.getByRole('alert').filter({ hasText: 'The rating could not be saved.' });
       await browserExpect(failure).toBeVisible();
-      await browserExpect(failure).toHaveText('The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.');
+      await browserExpect(failure).toHaveText(
+        'The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.',
+      );
       await expectGuardedExits(page, async () => {
         await browserExpect(rating).toHaveValue('9');
         await browserExpect(failure).toBeVisible();
       });
-      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([JSON.stringify({ id: 'alpha', score: 9 })]);
+      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
+        JSON.stringify({ id: 'alpha', score: 9 }),
+      ]);
 
       await page.evaluate(() => window.myGamesFixture.accept(true));
       await rating.press('Enter');
@@ -179,21 +212,26 @@ describe('My games exit guard', () => {
       await browserExpect(rankingStatus(page)).toHaveText('1 ranked game in this view');
       await browserExpect(rankedRow(page, 'alpha')).toHaveCount(0);
       expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
-        JSON.stringify({ id: 'alpha', score: 9 }), JSON.stringify({ id: 'alpha', score: 9 }),
+        JSON.stringify({ id: 'alpha', score: 9 }),
+        JSON.stringify({ id: 'alpha', score: 9 }),
       ]);
     });
   });
 
   it('explains invalid number input without clearing or saving the previous rating', async () => {
-    await withPage(async page => {
+    await withPage(async (page) => {
       const rating = rankedRow(page, 'alpha').getByRole('spinbutton', { name: 'Your rating / 10 for Alpha game' });
       await rating.focus();
       await rating.press('ControlOrMeta+A');
       await rating.press('e');
-      expect(await rating.evaluate(element => element instanceof HTMLInputElement && element.validity.badInput)).toBe(true);
+      expect(await rating.evaluate((element) => element instanceof HTMLInputElement && element.validity.badInput)).toBe(
+        true,
+      );
       await rating.press('Tab');
       const failure = page.getByRole('alert').filter({ hasText: 'Enter a rating from 0 to 10' });
-      await browserExpect(failure).toHaveText('Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.');
+      await browserExpect(failure).toHaveText(
+        'Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.',
+      );
       expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([]);
 
       await rating.fill('7');
@@ -207,7 +245,7 @@ describe('My games exit guard', () => {
 
 describe('My games Ranking pane mounting', () => {
   it('mounts Ranking on its first visit and keeps it mounted afterwards', async () => {
-    await withPage(async page => {
+    await withPage(async (page) => {
       const search = page.getByRole('searchbox', { name: 'Search your ranking' });
       await browserExpect(page.getByRole('list', { name: 'Your games', exact: true })).toBeVisible();
       // The unvisited Ranking pane mounts no rows, editors or search.
@@ -215,7 +253,10 @@ describe('My games Ranking pane mounting', () => {
       await browserExpect(page.locator('#ranking-search')).toHaveCount(0);
       await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
       await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toBeVisible();
-      await browserExpect(page.getByRole('button', { name: 'Ranking, 2', exact: true })).toHaveAttribute('aria-current', 'page');
+      await browserExpect(page.getByRole('button', { name: 'Ranking, 2', exact: true })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
       await search.fill('Alpha');
       await browserExpect(rankedRow(page, 'alpha')).toHaveCount(1);
       await browserExpect(rankedRow(page, 'beta')).toHaveCount(0);

@@ -6,22 +6,33 @@ import { arrivalEvents, mountMotionFixture, patchRoute } from './route-motion-he
 const fixture = '#route-motion-fixture';
 
 test.beforeEach(async ({ page, baseURL }) => {
-  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Use an owned loopback dev server for mounted motion fixtures.');
-  await page.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL).origin
-    ? route.continue() : route.abort('blockedbyclient'));
+  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname))
+    throw new Error('Use an owned loopback dev server for mounted motion fixtures.');
+  await page.route('**/*', (route) =>
+    new URL(route.request().url()).origin === new URL(baseURL).origin
+      ? route.continue()
+      : route.abort('blockedbyclient'),
+  );
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 });
 
 test.afterEach(async ({ page }) => {
-  await page.evaluate(() => { window.routeArrivalHarness?.destroy(); });
+  await page.evaluate(() => {
+    window.routeArrivalHarness?.destroy();
+  });
 });
 
-test('mounted route bridge adds one bounded heading arrival after commit, never remounting its editor', async ({ page, isMobile }) => {
+test('mounted route bridge adds one bounded heading arrival after commit, never remounting its editor', async ({
+  page,
+  isMobile,
+}) => {
   await mountMotionFixture(page);
   expect(await arrivalEvents(page)).toEqual([]);
   const input = page.locator(fixture).getByRole('textbox', { name: 'Uncontrolled draft', exact: true });
   await input.fill('Keep this exact editor');
-  await input.evaluate(element => { element.dataset.sameEditor = 'yes'; });
+  await input.evaluate((element) => {
+    element.dataset.sameEditor = 'yes';
+  });
   await page.evaluate(() => window.routeArrivalHarness.requestRoute('discover'));
   await expect(page.locator(`${fixture} h1`)).toHaveText('discover');
   await expect.poll(async () => (await arrivalEvents(page, 'heading')).length).toBe(1);
@@ -35,17 +46,25 @@ test('mounted route bridge adds one bounded heading arrival after commit, never 
   expect(await arrivalEvents(page, 'other')).toEqual([]);
 });
 
-test('same-family detail/query epochs, blocked readiness and initial loading never replay a root arrival', async ({ page }) => {
+test('same-family detail/query epochs, blocked readiness and initial loading never replay a root arrival', async ({
+  page,
+}) => {
   await mountMotionFixture(page);
   await patchRoute(page, { family: 'collection', navigationEpoch: 1 });
   expect(await arrivalEvents(page)).toEqual([]);
-  await page.evaluate(() => window.routeArrivalHarness.patch({
-    route: { family: 'my-games', scopeEpoch: 0, navigationEpoch: 2, blocked: true }, loading: true,
-  }));
+  await page.evaluate(() =>
+    window.routeArrivalHarness.patch({
+      route: { family: 'my-games', scopeEpoch: 0, navigationEpoch: 2, blocked: true },
+      loading: true,
+    }),
+  );
   await expect(page.locator(`${fixture} h1`)).toHaveText('Loading...');
-  await page.evaluate(() => window.routeArrivalHarness.patch({
-    route: { family: 'my-games', scopeEpoch: 0, navigationEpoch: 2, blocked: false }, loading: false,
-  }));
+  await page.evaluate(() =>
+    window.routeArrivalHarness.patch({
+      route: { family: 'my-games', scopeEpoch: 0, navigationEpoch: 2, blocked: false },
+      loading: false,
+    }),
+  );
   await expect(page.locator(`${fixture} h1`)).toHaveText('my-games');
   expect(await arrivalEvents(page)).toEqual([]);
   await patchRoute(page, { family: 'my-games', scopeEpoch: 0, navigationEpoch: 3 });
@@ -73,16 +92,20 @@ test('controlled pending editor gates the committed route cue and stale A-B-A ca
   expect(await arrivalEvents(page)).toEqual([]);
 });
 
-test('rapid committed routes cancel only the old owned effect and same-family interruption starts nothing new', async ({ page }) => {
+test('rapid committed routes cancel only the old owned effect and same-family interruption starts nothing new', async ({
+  page,
+}) => {
   await mountMotionFixture(page);
-  await page.evaluate(() => { window.routeArrivalLog.pause = true; });
+  await page.evaluate(() => {
+    window.routeArrivalLog.pause = true;
+  });
   await patchRoute(page, { family: 'discover', navigationEpoch: 1 });
   await expect.poll(async () => (await arrivalEvents(page)).length).toBe(1);
   await patchRoute(page, { family: 'friends', navigationEpoch: 2 });
-  await expect.poll(async () => (await arrivalEvents(page)).map(event => event.ended)).toEqual([true, false]);
+  await expect.poll(async () => (await arrivalEvents(page)).map((event) => event.ended)).toEqual([true, false]);
   expect((await arrivalEvents(page))[1]?.ended).toBe(false);
   await patchRoute(page, { family: 'friends', navigationEpoch: 3 });
-  await expect.poll(async () => (await arrivalEvents(page)).every(event => event.ended)).toBe(true);
+  await expect.poll(async () => (await arrivalEvents(page)).every((event) => event.ended)).toBe(true);
   expect(await arrivalEvents(page)).toHaveLength(2);
 });
 
@@ -102,13 +125,17 @@ for (const policy of [
   { animate: false, hidden: true },
   { animate: false, constrained: true },
 ] satisfies Array<Partial<MotionPolicy>>) {
-  test(`policy ${JSON.stringify(policy)} skips optional setup and cancels active effects without replay`, async ({ page }) => {
+  test(`policy ${JSON.stringify(policy)} skips optional setup and cancels active effects without replay`, async ({
+    page,
+  }) => {
     await mountMotionFixture(page);
-    await page.evaluate(() => { window.routeArrivalLog.pause = true; });
+    await page.evaluate(() => {
+      window.routeArrivalLog.pause = true;
+    });
     await patchRoute(page, { family: 'discover', navigationEpoch: 1 });
     await expect.poll(async () => (await arrivalEvents(page)).length).toBe(1);
-    await page.evaluate(policy => window.routeArrivalHarness.patch({ policy }), policy);
-    await expect.poll(async () => (await arrivalEvents(page)).every(event => event.ended)).toBe(true);
+    await page.evaluate((policy) => window.routeArrivalHarness.patch({ policy }), policy);
+    await expect.poll(async () => (await arrivalEvents(page)).every((event) => event.ended)).toBe(true);
     await patchRoute(page, { family: 'friends', navigationEpoch: 2 });
     expect(await arrivalEvents(page)).toHaveLength(1);
     await page.evaluate(() => window.routeArrivalHarness.patch({ policy: {} }));
@@ -117,19 +144,28 @@ for (const policy of [
   });
 }
 
-test('real My games tabs and range animate bounded noninteractive targets with 25+3 retained rows and no paging writes', async ({ page, isMobile }, info) => {
+test('real My games tabs and range animate bounded noninteractive targets with 25+3 retained rows and no paging writes', async ({
+  page,
+  isMobile,
+}, info) => {
   await mountMotionFixture(page, true);
   const workspace = page.locator(fixture);
   const before = await readLibrary(page);
   const marker = workspace.locator('.my-games-tab-marker:not([hidden])');
   expect(await arrivalEvents(page)).toEqual([]);
-  await workspace.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: 'Ranking, 3', exact: true }).click();
+  await workspace
+    .getByRole('navigation', { name: 'My games views' })
+    .getByRole('button', { name: 'Ranking, 3', exact: true })
+    .click();
   await expect.poll(async () => (await arrivalEvents(page, 'tab')).length).toBe(1);
   expect((await arrivalEvents(page, 'tab'))[0]?.duration).toBe(isMobile ? 100 : 120);
   await expect(marker).toHaveCSS('background-color', 'rgb(32, 35, 30)');
   await expect(workspace.locator('[hidden] ul.personal-records > .personal-row-static')).toHaveCount(25);
   await expect(workspace.locator('.ranking-row-content')).toHaveCount(3);
-  await workspace.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: 'Library, 500', exact: true }).click();
+  await workspace
+    .getByRole('navigation', { name: 'My games views' })
+    .getByRole('button', { name: 'Library, 500', exact: true })
+    .click();
   const pages = workspace.getByRole('navigation', { name: 'Library pages', exact: true });
   await pages.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(pages.getByRole('combobox')).toHaveValue('2');
@@ -159,13 +195,17 @@ test('a real invalid Ranking draft stays in place and cannot trigger a tab arriv
   expect((await readLibrary(page)).ranking[0]?.score).toBe(8.5);
 });
 
-test('typing, passive changes and full-match selection do not animate list rows or interpolate counts', async ({ page }) => {
+test('typing, passive changes and full-match selection do not animate list rows or interpolate counts', async ({
+  page,
+}) => {
   await mountMotionFixture(page, true);
   const workspace = page.locator(fixture);
   await workspace.getByRole('searchbox', { name: 'Search your library', exact: true }).fill('Mass Effect');
   await workspace.getByRole('searchbox', { name: 'Search your library', exact: true }).fill('');
   await workspace.getByRole('button', { name: 'Select games', exact: true }).click();
   await workspace.getByRole('button', { name: 'Select all 500 matching games (all 20 pages)', exact: true }).click();
-  await expect(workspace.getByRole('region', { name: 'Bulk game actions' }).getByRole('status')).toHaveText('500 selected');
+  await expect(workspace.getByRole('region', { name: 'Bulk game actions' }).getByRole('status')).toHaveText(
+    '500 selected',
+  );
   expect(await arrivalEvents(page)).toEqual([]);
 });

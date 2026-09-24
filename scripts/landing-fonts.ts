@@ -17,8 +17,8 @@ export const LANDING_FONTS = [
 
 /** The emitted file of each landing font, in preload order. A missing or ambiguous one fails the build. */
 export function landingFontFiles(fileNames: readonly string[]): string[] {
-  return LANDING_FONTS.map(pattern => {
-    const matches = fileNames.filter(name => pattern.test(name));
+  return LANDING_FONTS.map((pattern) => {
+    const matches = fileNames.filter((name) => pattern.test(name));
     const [file] = matches;
     if (matches.length !== 1 || file === undefined) {
       throw new Error(`The build must emit exactly one landing font file matching ${pattern}, not ${matches.length}.`);

@@ -4,9 +4,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { FRIEND_ALL_QUOTA_MESSAGE } from '../lib/friend-all';
 import { FriendSharingSummary } from './FriendSharingSummary';
 
-const render = (status: string, error: string) => renderToStaticMarkup(createElement(FriendSharingSummary, {
-  mode: 'all', status, canEnable: false, enabled: true, error, onEnable: vi.fn(), onStop: vi.fn(), onRefresh: vi.fn(),
-}));
+const render = (status: string, error: string) =>
+  renderToStaticMarkup(
+    createElement(FriendSharingSummary, {
+      mode: 'all',
+      status,
+      canEnable: false,
+      enabled: true,
+      error,
+      onEnable: vi.fn(),
+      onStop: vi.fn(),
+      onRefresh: vi.fn(),
+    }),
+  );
 
 describe('friend sharing summary', () => {
   it('shows one quota explanation after the Continuing later label, without an alert or a repeated promise', () => {
@@ -33,10 +43,18 @@ describe('friend sharing summary', () => {
     expect(html).toContain('>Refresh sharing status</button>');
   });
   it('shows a failed policy read as a recoverable checking error without any sharing controls', () => {
-    const html = renderToStaticMarkup(createElement(FriendSharingSummary, {
-      mode: 'checking', status: 'error', canEnable: false, enabled: false, error: 'Synthetic controls read failure',
-      onEnable: vi.fn(), onStop: vi.fn(), onRefresh: vi.fn(),
-    }));
+    const html = renderToStaticMarkup(
+      createElement(FriendSharingSummary, {
+        mode: 'checking',
+        status: 'error',
+        canEnable: false,
+        enabled: false,
+        error: 'Synthetic controls read failure',
+        onEnable: vi.fn(),
+        onStop: vi.fn(),
+        onRefresh: vi.fn(),
+      }),
+    );
     expect(html).toContain('<p role="status">Checking friend sharing…</p>');
     expect(html).toContain('<p class="inline-error" role="alert">Synthetic controls read failure</p>');
     expect(html).toContain('>Refresh sharing status</button>');

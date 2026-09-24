@@ -27,6 +27,8 @@ describe('local lazy-module containment', () => {
       const failure = new ModuleLoadFailure(bug);
       boundary.componentDidCatch(failure);
       expect(log).toHaveBeenCalledWith('An app module did not load.', failure);
-    } finally { log.mockRestore(); }
+    } finally {
+      log.mockRestore();
+    }
   });
 });

@@ -12,7 +12,8 @@ describe('external static fallback styling', () => {
     }
     expect(readFileSync(new URL('../../public/pwa/offline.html', import.meta.url), 'utf8')).not.toMatch(/<style\b/i);
     expect(isPublicPwaFile('/pwa/fallback.css')).toBe(true);
-    expect(sourceTokens(readFileSync(new URL('../../scripts/pwa-build.ts', import.meta.url), 'utf8')))
-      .toContain(sourceTokens("'/pwa/fallback.css'"));
+    expect(sourceTokens(readFileSync(new URL('../../scripts/pwa-build.ts', import.meta.url), 'utf8'))).toContain(
+      sourceTokens("'/pwa/fallback.css'"),
+    );
   });
 });

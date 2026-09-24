@@ -8,9 +8,18 @@ interface PendingEditor {
 }
 const editors = new Set<PendingEditor>();
 const observers = new Set<() => void>();
-function changed() { for (const observer of observers) observer(); }
-function subscribe(observer: () => void) { observers.add(observer); return () => { observers.delete(observer); }; }
-export function usePendingEdits(): boolean { return useSyncExternalStore(subscribe, hasPendingEdits, () => false); }
+function changed() {
+  for (const observer of observers) observer();
+}
+function subscribe(observer: () => void) {
+  observers.add(observer);
+  return () => {
+    observers.delete(observer);
+  };
+}
+export function usePendingEdits(): boolean {
+  return useSyncExternalStore(subscribe, hasPendingEdits, () => false);
+}
 
 export function hasPendingEdits(): boolean {
   return [...editors].some((editor) => editor.pending());
@@ -20,8 +29,9 @@ export async function flushPendingEdits(onBlocked?: (target: HTMLElement | null)
   for (const editor of [...editors]) {
     if (!editor.pending()) continue;
     let saved: boolean;
-    try { saved = await editor.flush(); }
-    catch (cause) {
+    try {
+      saved = await editor.flush();
+    } catch (cause) {
       onBlocked?.(editor.focusTarget?.() ?? null);
       throw cause;
     }
@@ -36,26 +46,47 @@ export async function flushPendingEdits(onBlocked?: (target: HTMLElement | null)
 export function registerPendingEditor(editor: PendingEditor): () => Promise<boolean> {
   let closing = false;
   let finishing: Promise<boolean> | null = null;
-  const registered = { pending: () => closing || editor.pending(), flush: () => finishing ?? editor.flush(), focusTarget: editor.focusTarget };
+  const registered = {
+    pending: () => closing || editor.pending(),
+    flush: () => finishing ?? editor.flush(),
+    focusTarget: editor.focusTarget,
+  };
   editors.add(registered);
   changed();
   return () => {
     if (finishing) return finishing;
-    if (!editor.pending()) { editors.delete(registered); changed(); return Promise.resolve(true); }
+    if (!editor.pending()) {
+      editors.delete(registered);
+      changed();
+      return Promise.resolve(true);
+    }
     closing = true;
     changed();
-    finishing = editor.flush().then((saved) => {
-      editors.delete(registered); changed(); return saved;
-    }, (error: unknown) => {
-      editors.delete(registered); changed();
-      console.error('An exiting editor could not finish saving.', error instanceof Error ? error.message : 'Unknown storage failure.');
-      return false;
-    });
+    finishing = editor.flush().then(
+      (saved) => {
+        editors.delete(registered);
+        changed();
+        return saved;
+      },
+      (error: unknown) => {
+        editors.delete(registered);
+        changed();
+        console.error(
+          'An exiting editor could not finish saving.',
+          error instanceof Error ? error.message : 'Unknown storage failure.',
+        );
+        return false;
+      },
+    );
     return finishing;
   };
 }
 
-export function useExitSave(flush: () => Promise<boolean>, pending: boolean, focusTarget?: RefObject<HTMLElement | null>) {
+export function useExitSave(
+  flush: () => Promise<boolean>,
+  pending: boolean,
+  focusTarget?: RefObject<HTMLElement | null>,
+) {
   const latest = useRef(flush);
   const dirty = useRef(pending);
   const target = useRef(focusTarget);
@@ -65,9 +96,17 @@ export function useExitSave(flush: () => Promise<boolean>, pending: boolean, foc
   useEffect(() => {
     const current = latest;
     const status = dirty;
-    const release = registerPendingEditor({ pending: () => status.current, flush: () => current.current(), focusTarget: () => target.current?.current ?? null });
+    const release = registerPendingEditor({
+      pending: () => status.current,
+      flush: () => current.current(),
+      focusTarget: () => target.current?.current ?? null,
+    });
     // A cancelled debounce must not discard an edit when its field disappears.
-    return () => { void release(); };
+    return () => {
+      void release();
+    };
   }, []);
-  useEffect(() => { changed(); }, [pending]);
+  useEffect(() => {
+    changed();
+  }, [pending]);
 }

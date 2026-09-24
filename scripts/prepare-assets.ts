@@ -13,15 +13,23 @@ for (const game of collection.games) {
   if (!game.artwork) continue;
   const original = path.join(project, 'data', game.artwork.file);
   const file = `${game.slug}.webp`;
-  const info = await sharp(original).rotate().resize({ width: 480, height: 720, fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: 86, effort: 5 }).toFile(path.join(output, file));
+  const info = await sharp(original)
+    .rotate()
+    .resize({ width: 480, height: 720, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 86, effort: 5 })
+    .toFile(path.join(output, file));
   assets.push({ file, width: info.width, height: info.height, bytes: info.size });
   metadata[game.slug] = { width: info.width, height: info.height };
 }
 await writeFile(path.join(project, 'data', 'web-assets.json'), `${JSON.stringify(assets, null, 2)}\n`);
 await mkdir(path.join(project, 'src', 'generated'), { recursive: true });
-await writeFile(path.join(project, 'src', 'generated', 'cover-metadata.json'), `${JSON.stringify(metadata, null, 2)}\n`);
-await sharp(path.join(project, 'public', 'social-card.svg')).png().toFile(path.join(project, 'public', 'social-card.png'));
+await writeFile(
+  path.join(project, 'src', 'generated', 'cover-metadata.json'),
+  `${JSON.stringify(metadata, null, 2)}\n`,
+);
+await sharp(path.join(project, 'public', 'social-card.svg'))
+  .png()
+  .toFile(path.join(project, 'public', 'social-card.png'));
 const notices = path.join(project, 'public', 'licenses');
 await mkdir(notices, { recursive: true });
 for (const [source, target] of [
@@ -39,4 +47,6 @@ for (const [source, target] of [
   if (!source || !target) throw new Error('Invalid license copy entry.');
   await copyFile(path.join(project, source), path.join(notices, target));
 }
-console.log(`Prepared ${assets.length} native-size WebP thumbnails, social image and public third-party licenses. No source image enlarged.`);
+console.log(
+  `Prepared ${assets.length} native-size WebP thumbnails, social image and public third-party licenses. No source image enlarged.`,
+);

@@ -10,7 +10,8 @@ describe('exact account provider IDs', () => {
     expect(hasProvider({ providers: [GoogleAuthProvider.PROVIDER_ID] }, EmailAuthProvider.PROVIDER_ID)).toBe(false);
   });
   it.each(['not-google.com', 'google.com.example', 'https://google.com', 'GOOGLE.COM', 'google.com,password'])(
-    'does not treat %s as a Google provider ID', providerId => {
+    'does not treat %s as a Google provider ID',
+    (providerId) => {
       expect(hasProvider({ providers: [providerId] }, GoogleAuthProvider.PROVIDER_ID)).toBe(false);
     },
   );

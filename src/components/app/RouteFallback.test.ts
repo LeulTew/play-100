@@ -8,10 +8,22 @@ import { RouteFallback } from './RouteFallback';
 
 describe('destination loading anatomy', () => {
   it.each([
-    ['collection', 'The 100'], ['games', 'My games'], ['library', 'My games'], ['rankings', 'My games'],
-    ['discover', 'Discover'], ['account', 'Account'], ['publish', 'Publish ranking'], ['community', 'Community'],
-    ['profile', 'Public ranking'], ['creator', 'Creator desk'], ['friends', 'Friends'], ['friend', 'Player'],
-    ['invite', 'Invitation'], ['compare', 'Compare rankings'], ['friend-sharing', 'Friends sharing'], ['friend-shelf', 'Shared games'],
+    ['collection', 'The 100'],
+    ['games', 'My games'],
+    ['library', 'My games'],
+    ['rankings', 'My games'],
+    ['discover', 'Discover'],
+    ['account', 'Account'],
+    ['publish', 'Publish ranking'],
+    ['community', 'Community'],
+    ['profile', 'Public ranking'],
+    ['creator', 'Creator desk'],
+    ['friends', 'Friends'],
+    ['friend', 'Player'],
+    ['invite', 'Invitation'],
+    ['compare', 'Compare rankings'],
+    ['friend-sharing', 'Friends sharing'],
+    ['friend-shelf', 'Shared games'],
   ] as const)('names %s without inventing loaded contents', (route, title) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route, kind: 'public-page' }));
     expect(html).toContain(`<h1>${title}</h1>`);
@@ -27,7 +39,9 @@ describe('destination loading anatomy', () => {
   it('keeps sign-in as a static native form skeleton even when opened from Discover', () => {
     const onClose = vi.fn();
     const getReturnFocus = vi.fn(() => null);
-    const html = renderToStaticMarkup(createElement(RouteFallback, { route: 'discover', kind: 'account-sheet', onClose, getReturnFocus }));
+    const html = renderToStaticMarkup(
+      createElement(RouteFallback, { route: 'discover', kind: 'account-sheet', onClose, getReturnFocus }),
+    );
     expect(html).toContain('aria-labelledby="loading-account-title"');
     expect(html).toContain('data-motion-owned="true"');
     expect(html).toContain('data-autofocus="true" tabindex="-1">Sign in</h2>');
@@ -53,9 +67,15 @@ describe('destination loading anatomy', () => {
     const collection = readFileSync(new URL('../CollectionPage.tsx', import.meta.url), 'utf8');
     const extended = readFileSync(new URL('../catalog/ExtendedResults.tsx', import.meta.url), 'utf8');
     const card = readFileSync(new URL('../catalog/DiscoveryCard.tsx', import.meta.url), 'utf8');
-    expect(sourceTokens(host, ts.ScriptKind.TSX)).toContain(sourceTokens("import CollectionPage from '../CollectionPage'"));
-    expect(sourceTokens(collection, ts.ScriptKind.TSX)).toContain(sourceTokens("import ExtendedResults from './catalog/ExtendedResults'"));
-    expect(sourceTokens(extended, ts.ScriptKind.TSX)).toContain(sourceTokens("import { DiscoveryCard } from './DiscoveryCard'"));
+    expect(sourceTokens(host, ts.ScriptKind.TSX)).toContain(
+      sourceTokens("import CollectionPage from '../CollectionPage'"),
+    );
+    expect(sourceTokens(collection, ts.ScriptKind.TSX)).toContain(
+      sourceTokens("import ExtendedResults from './catalog/ExtendedResults'"),
+    );
+    expect(sourceTokens(extended, ts.ScriptKind.TSX)).toContain(
+      sourceTokens("import { DiscoveryCard } from './DiscoveryCard'"),
+    );
     expect(sourceTokens(card, ts.ScriptKind.TSX)).toContain(sourceTokens("import './discover.css'"));
   });
 });

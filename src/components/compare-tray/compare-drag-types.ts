@@ -8,8 +8,12 @@ export interface CompareTitleProps {
 
 export type CompareSurfaceProps<T extends HTMLElement> = Pick<
   HTMLAttributes<T>,
-  'onPointerDownCapture' | 'onTouchStartCapture' | 'onDragStartCapture' |
-  'onDragEndCapture' | 'onClickCapture' | 'onContextMenuCapture'
+  | 'onPointerDownCapture'
+  | 'onTouchStartCapture'
+  | 'onDragStartCapture'
+  | 'onDragEndCapture'
+  | 'onClickCapture'
+  | 'onContextMenuCapture'
 > & { 'data-compare-drag-source'?: '' };
 
 export interface CompareSourceBinding<T extends HTMLElement> {
@@ -29,9 +33,11 @@ export interface CompareSourceOptions<T extends HTMLElement> {
 export interface CompareDragSourceProps {
   record: LibraryRecord | undefined;
   disabled?: boolean;
-  children(binding: CompareSourceBinding<HTMLDivElement> & {
-    sourceRef: RefObject<HTMLDivElement | null>;
-  }): ReactNode;
+  children(
+    binding: CompareSourceBinding<HTMLDivElement> & {
+      sourceRef: RefObject<HTMLDivElement | null>;
+    },
+  ): ReactNode;
 }
 
 export interface CompareInteractionGate {

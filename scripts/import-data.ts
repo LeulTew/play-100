@@ -17,8 +17,14 @@ for (const game of collection.games) {
 }
 await mkdir(path.join(project, 'data'), { recursive: true });
 for (const name of [
-  'collection.json', 'Play-100-Collection.xlsx', 'artifact-manifest.json', 'source-audit.json',
-  'generate_collection.py', 'requirements.txt', 'test_collection.py', 'assets',
+  'collection.json',
+  'Play-100-Collection.xlsx',
+  'artifact-manifest.json',
+  'source-audit.json',
+  'generate_collection.py',
+  'requirements.txt',
+  'test_collection.py',
+  'assets',
   'author.json',
 ]) {
   await cp(path.join(source, name), path.join(project, 'data', name), { recursive: true });
@@ -26,5 +32,10 @@ for (const name of [
 await mkdir(path.join(project, 'public', 'data'), { recursive: true });
 await mkdir(path.join(project, 'public', 'downloads'), { recursive: true });
 await cp(path.join(source, 'collection.json'), path.join(project, 'public', 'data', 'collection.json'));
-await cp(path.join(source, 'Play-100-Collection.xlsx'), path.join(project, 'public', 'downloads', 'Play-100-Collection.xlsx'));
-console.log(`Imported ${collection.games.length} canonical games, ${collection.games.filter((game) => game.artwork).length} source artworks, workbook and reproduction material.`);
+await cp(
+  path.join(source, 'Play-100-Collection.xlsx'),
+  path.join(project, 'public', 'downloads', 'Play-100-Collection.xlsx'),
+);
+console.log(
+  `Imported ${collection.games.length} canonical games, ${collection.games.filter((game) => game.artwork).length} source artworks, workbook and reproduction material.`,
+);

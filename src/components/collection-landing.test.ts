@@ -3,21 +3,34 @@ import { scrollCollectionIntoView } from './collection-landing';
 
 afterEach(() => vi.unstubAllGlobals());
 
-function fixture({ titleTop = 900, titleBottom = 940, obstacleTop = 571.5, hidden = false, identity = true, nestedLink = false, headingTabIndex = true } = {}) {
+function fixture({
+  titleTop = 900,
+  titleBottom = 940,
+  obstacleTop = 571.5,
+  hidden = false,
+  identity = true,
+  nestedLink = false,
+  headingTabIndex = true,
+} = {}) {
   const scrollTo = vi.fn();
   const link = { focus: vi.fn() };
-  const heading = { getBoundingClientRect: () => ({ top: 620, bottom: 650 }), focus: vi.fn(), hasAttribute: () => headingTabIndex, tabIndex: headingTabIndex ? -1 : 0 };
+  const heading = {
+    getBoundingClientRect: () => ({ top: 620, bottom: 650 }),
+    focus: vi.fn(),
+    hasAttribute: () => headingTabIndex,
+    tabIndex: headingTabIndex ? -1 : 0,
+  };
   const title = {
     getBoundingClientRect: () => ({ top: titleTop, bottom: titleBottom }),
-    closest: () => nestedLink ? null : link,
-    querySelector: () => nestedLink ? link : null,
+    closest: () => (nestedLink ? null : link),
+    querySelector: () => (nestedLink ? link : null),
   };
-  const section = { getBoundingClientRect: () => ({ top: 600 }), querySelector: () => identity ? title : null };
-  const obstacle = { getBoundingClientRect: () => ({ top: obstacleTop }), getClientRects: () => hidden ? [] : [{}] };
+  const section = { getBoundingClientRect: () => ({ top: 600 }), querySelector: () => (identity ? title : null) };
+  const obstacle = { getBoundingClientRect: () => ({ top: obstacleTop }), getClientRects: () => (hidden ? [] : [{}]) };
   vi.stubGlobal('window', { scrollY: 100, innerHeight: 740, scrollTo });
   vi.stubGlobal('document', {
     documentElement: {},
-    getElementById: (id: string) => id === 'collection-title' ? heading : section,
+    getElementById: (id: string) => (id === 'collection-title' ? heading : section),
     querySelector: () => ({ getBoundingClientRect: () => ({ bottom: 66 }) }),
     querySelectorAll: () => [obstacle],
   });
@@ -42,7 +55,8 @@ describe('explicit collection landing', () => {
     const { scrollTo } = fixture({ titleTop, titleBottom, obstacleTop });
     scrollCollectionIntoView('smooth');
     expect(scrollTo).toHaveBeenCalledExactlyOnceWith({
-      top: Math.max(615, 100 + titleBottom - obstacleTop + 12), behavior: 'smooth',
+      top: Math.max(615, 100 + titleBottom - obstacleTop + 12),
+      behavior: 'smooth',
     });
   });
 
@@ -68,13 +82,16 @@ describe('explicit collection landing', () => {
     expect(empty.link.focus).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])('focuses the primary identity link when the heading would be obscured (nested: %s)', nestedLink => {
-    const { scrollTo, heading, link } = fixture({ titleTop: 1101, titleBottom: 1140, nestedLink });
-    scrollCollectionIntoView('smooth');
-    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 680.5, behavior: 'smooth' });
-    expect(link.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
-    expect(heading.focus).not.toHaveBeenCalled();
-  });
+  it.each([false, true])(
+    'focuses the primary identity link when the heading would be obscured (nested: %s)',
+    (nestedLink) => {
+      const { scrollTo, heading, link } = fixture({ titleTop: 1101, titleBottom: 1140, nestedLink });
+      scrollCollectionIntoView('smooth');
+      expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 680.5, behavior: 'smooth' });
+      expect(link.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+      expect(heading.focus).not.toHaveBeenCalled();
+    },
+  );
 
   it('keeps heading focus when a small identity-clearance adjustment still leaves it visible', () => {
     const { scrollTo, heading, link } = fixture({ titleTop: 1070, titleBottom: 1109 });

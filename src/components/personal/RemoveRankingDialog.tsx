@@ -5,9 +5,18 @@ import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../
 import { Dialog } from '../Dialog';
 import { Icon } from '../Icon';
 
-export function RemoveRankingDialog({ record, state, busy, onAction, onClose }: {
-  record: LibraryRecord; state: PersonalLibraryState; busy: boolean;
-  onAction: (action: PersonalAction) => Promise<boolean>; onClose: () => void;
+export function RemoveRankingDialog({
+  record,
+  state,
+  busy,
+  onAction,
+  onClose,
+}: {
+  record: LibraryRecord;
+  state: PersonalLibraryState;
+  busy: boolean;
+  onAction: (action: PersonalAction) => Promise<boolean>;
+  onClose: () => void;
 }) {
   const { scope } = useLibraryMode();
   const reviewedScope = useRef(scope);
@@ -36,8 +45,9 @@ export function RemoveRankingDialog({ record, state, busy, onAction, onClose }: 
   }, []);
 
   const ownsReview = () => active.current && current.current.scope === reviewedScope.current;
-  const targetExists = () => current.current.state.records[record.id]?.title === record.title &&
-    current.current.state.ranking.some(entry => entry.id === record.id);
+  const targetExists = () =>
+    current.current.state.records[record.id]?.title === record.title &&
+    current.current.state.ranking.some((entry) => entry.id === record.id);
   const close = () => {
     if (submitting.current === 'removing') return;
     active.current = false;
@@ -57,7 +67,9 @@ export function RemoveRankingDialog({ record, state, busy, onAction, onClose }: 
         return;
       }
       if (!saved) {
-        setError('Your edit has not saved. Keep this ranking, then correct the highlighted field or retry the edit before removing it.');
+        setError(
+          'Your edit has not saved. Keep this ranking, then correct the highlighted field or retry the edit before removing it.',
+        );
         return;
       }
       submitting.current = 'removing';
@@ -72,21 +84,50 @@ export function RemoveRankingDialog({ record, state, busy, onAction, onClose }: 
       }
     } catch (cause) {
       console.error('The ranking removal could not finish.', cause);
-      if (ownsReview()) setError('This ranking could not be removed. Keep it and retry after checking the storage warning.');
+      if (ownsReview())
+        setError('This ranking could not be removed. Keep it and retry after checking the storage warning.');
     } finally {
       submitting.current = null;
       if (ownsReview()) setStage(null);
     }
   };
 
-  return <Dialog open titleId={titleId} descriptionId={descriptionId} className="info-dialog ranking-removal-dialog" onClose={close}>
-    <h2 id={titleId}>Remove {record.title} from ranking?</h2>
-    <p id={descriptionId}>This removes its rating, note and ranking position. The game stays in your Library. Played, Completed and Queue stay unchanged.</p>
-    <p className="removal-warning">This cannot be undone. To keep a copy, choose Keep ranking and export a backup from Settings first.</p>
-    {error && <p className="inline-error" role="alert">{error}</p>}
-    <div className="button-row">
-      <button className="button button-outline" data-autofocus disabled={stage === 'removing'} onClick={close}>Keep ranking</button>
-      <button className="button button-danger" disabled={busy || stage !== null} onClick={() => { void submit(); }}><Icon name="trash" width="18" height="18" />{stage === 'checking' ? 'Checking edits…' : stage === 'removing' ? 'Removing…' : 'Remove from ranking'}</button>
-    </div>
-  </Dialog>;
+  return (
+    <Dialog
+      open
+      titleId={titleId}
+      descriptionId={descriptionId}
+      className="info-dialog ranking-removal-dialog"
+      onClose={close}
+    >
+      <h2 id={titleId}>Remove {record.title} from ranking?</h2>
+      <p id={descriptionId}>
+        This removes its rating, note and ranking position. The game stays in your Library. Played, Completed and Queue
+        stay unchanged.
+      </p>
+      <p className="removal-warning">
+        This cannot be undone. To keep a copy, choose Keep ranking and export a backup from Settings first.
+      </p>
+      {error && (
+        <p className="inline-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="button-row">
+        <button className="button button-outline" data-autofocus disabled={stage === 'removing'} onClick={close}>
+          Keep ranking
+        </button>
+        <button
+          className="button button-danger"
+          disabled={busy || stage !== null}
+          onClick={() => {
+            void submit();
+          }}
+        >
+          <Icon name="trash" width="18" height="18" />
+          {stage === 'checking' ? 'Checking edits…' : stage === 'removing' ? 'Removing…' : 'Remove from ranking'}
+        </button>
+      </div>
+    </Dialog>
+  );
 }

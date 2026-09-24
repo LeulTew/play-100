@@ -1,10 +1,4 @@
-import {
-  ARTIFACT_COLORS,
-  FOLIO_DESIGNS,
-  P100_GLYPHS,
-  glyphPath,
-  type FolioDesign,
-} from './artifactDesign';
+import { ARTIFACT_COLORS, FOLIO_DESIGNS, P100_GLYPHS, glyphPath, type FolioDesign } from './artifactDesign';
 
 interface ArtifactStillProps {
   fanned: boolean;
@@ -18,12 +12,16 @@ function CoverPrint({ design }: { design: FolioDesign }) {
       <path d="M21 32H201M21 132H201" stroke={design.ink} strokeWidth=".65" opacity=".5" />
       <path d="M22 20h38m6 0h14" stroke={design.ink} strokeWidth="3" />
       <g stroke={design.ink} strokeWidth="3">
-        {Array.from({ length: Number(design.number) }, (_, index) => <path key={index} d={`M${201 - index * 6} 16v8`} />)}
+        {Array.from({ length: Number(design.number) }, (_, index) => (
+          <path key={index} d={`M${201 - index * 6} 16v8`} />
+        ))}
       </g>
       {design.motif === 'mark' && (
         <>
           <g transform="translate(23 48) scale(.51)" fill={design.ink} fillRule="evenodd">
-            {P100_GLYPHS.map((glyph, index) => <path key={index} d={glyphPath(glyph)} />)}
+            {P100_GLYPHS.map((glyph, index) => (
+              <path key={index} d={glyphPath(glyph)} />
+            ))}
           </g>
           <rect x="22" y="119" width="179" height="13" fill={design.accent} />
           <path d="M29 125h18m5 0h42m5 0h12" stroke={design.ink} strokeWidth="3" />
@@ -66,13 +64,7 @@ function CoverPrint({ design }: { design: FolioDesign }) {
 
 export default function ArtifactStill({ fanned }: ArtifactStillProps) {
   return (
-    <svg
-      className="artifact-still"
-      viewBox="0 0 600 360"
-      fill="none"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg className="artifact-still" viewBox="0 0 600 360" fill="none" aria-hidden="true" focusable="false">
       <g stroke={ARTIFACT_COLORS.graphite} opacity=".25">
         <ellipse cx="300" cy="282" rx="240" ry="60" transform="rotate(-7 300 282)" strokeWidth=".8" />
         <ellipse cx="300" cy="282" rx="206" ry="48" transform="rotate(-7 300 282)" strokeWidth=".65" />
@@ -114,7 +106,15 @@ export default function ArtifactStill({ fanned }: ArtifactStillProps) {
             <path d="m-43 57 194-59" stroke={ARTIFACT_COLORS.graphite} strokeWidth=".75" opacity=".38" />
             <g transform="matrix(.92 -.28 .68 .54 -145 -28)">
               <CoverPrint design={design} />
-              <rect x=".5" y=".5" width="219" height="149" stroke={ARTIFACT_COLORS.graphite} strokeWidth=".7" opacity=".5" />
+              <rect
+                x=".5"
+                y=".5"
+                width="219"
+                height="149"
+                stroke={ARTIFACT_COLORS.graphite}
+                strokeWidth=".7"
+                opacity=".5"
+              />
               <path d="M0 0h8l6 5v145H0Z" fill={ARTIFACT_COLORS.lime} />
               <path d="m8 0 6 5v145" stroke={ARTIFACT_COLORS.graphite} strokeWidth=".8" opacity=".45" />
             </g>

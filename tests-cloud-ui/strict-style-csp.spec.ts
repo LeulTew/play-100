@@ -18,7 +18,9 @@ async function record(page: Page, baseURL: string | undefined) {
   return recordViolations(page, attributePolicy, new URL(baseURL ?? '/').origin, { network: 'continue' });
 }
 
-test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+});
 
 test('Account sign-in adds no style attribute or third-party style element', async ({ page, baseURL }) => {
   const violations = await record(page, baseURL);
@@ -31,17 +33,29 @@ test('Account sign-in adds no style attribute or third-party style element', asy
   expect(await violations.read()).toEqual([]);
 });
 
-test('Google redirect sign-in and reauthentication add no style attribute or third-party style element', async ({ page, baseURL }) => {
+test('Google redirect sign-in and reauthentication add no style attribute or third-party style element', async ({
+  page,
+  baseURL,
+}) => {
   const email = emailFor('strict-style');
   const violations = await record(page, baseURL);
   await page.goto('/account');
-  await googleRedirect(page, () => page.getByRole('button', { name: 'Continue with Google', exact: true }).click(), email, true);
+  await googleRedirect(
+    page,
+    () => page.getByRole('button', { name: 'Continue with Google', exact: true }).click(),
+    email,
+    true,
+  );
   await expect(page.locator('.account-heading')).toContainText(email);
   // Firebase inserts its auth-event iframe (styled by gapi) into this document; record whether it did.
   test.info().annotations.push({ type: 'auth iframes', description: String(await page.locator('iframe').count()) });
   await page.locator('.account-danger summary').click();
   await page.getByRole('button', { name: 'Delete account', exact: true }).click();
-  await googleRedirect(page, () => page.getByRole('dialog').getByRole('button', { name: 'Continue in this tab', exact: true }).click(), email);
+  await googleRedirect(
+    page,
+    () => page.getByRole('dialog').getByRole('button', { name: 'Continue in this tab', exact: true }).click(),
+    email,
+  );
   await expect(page.getByRole('dialog')).toContainText('Google confirmed this account. Confirm below to delete.');
   expect(await violations.read()).toEqual([]);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();

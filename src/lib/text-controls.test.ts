@@ -10,7 +10,25 @@ it('rejects exactly C0 and DEL across every UTF-16 code unit', () => {
 });
 
 it('does not mistake non-ASCII code points or low bytes for ASCII controls', () => {
-  for (const value of ['', ' ', '~', '\u0080', '\u009f', '\u00a0', '\u0100', '\u011f', '\u017f', '\u2028', '\u2029', '\ud800', '\udfff', '\u{1f600}', '\u{10000}', '\u{1001f}', '\u{1007f}']) {
+  for (const value of [
+    '',
+    ' ',
+    '~',
+    '\u0080',
+    '\u009f',
+    '\u00a0',
+    '\u0100',
+    '\u011f',
+    '\u017f',
+    '\u2028',
+    '\u2029',
+    '\ud800',
+    '\udfff',
+    '\u{1f600}',
+    '\u{10000}',
+    '\u{1001f}',
+    '\u{1007f}',
+  ]) {
     expect(hasAsciiControl(value)).toBe(false);
     expect(hasAsciiControl(`${value}\u0000`)).toBe(true);
     expect(hasAsciiControl(`\u007f${value}`)).toBe(true);

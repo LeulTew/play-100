@@ -13,7 +13,11 @@ function subscribe(listener: () => void) {
 }
 
 export function useDiscoveryUrl() {
-  const search = useSyncExternalStore(subscribe, () => window.location.search, () => '');
+  const search = useSyncExternalStore(
+    subscribe,
+    () => window.location.search,
+    () => '',
+  );
   const filters = parseDiscoverySearch(search);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -21,14 +25,24 @@ export function useDiscoveryUrl() {
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    const unsubscribe = subscribe(() => { intent.current += 1; setSaving(false); });
-    return () => { mounted.current = false; intent.current += 1; unsubscribe(); };
+    const unsubscribe = subscribe(() => {
+      intent.current += 1;
+      setSaving(false);
+    });
+    return () => {
+      mounted.current = false;
+      intent.current += 1;
+      unsubscribe();
+    };
   }, []);
   const update = useCallback(async (patch: Partial<DiscoveryFilters>, method: 'push' | 'replace' = 'push') => {
     const request = ++intent.current;
     const origin = `${window.location.pathname}${window.location.search}`;
     const next = patchDiscoverySearch(window.location.search, patch);
-    const isCurrent = () => mounted.current && request === intent.current && origin === `${window.location.pathname}${window.location.search}`;
+    const isCurrent = () =>
+      mounted.current &&
+      request === intent.current &&
+      origin === `${window.location.pathname}${window.location.search}`;
     setSaving(false);
     if (window.location.search === next) return false;
     setError('');
@@ -43,7 +57,11 @@ export function useDiscoveryUrl() {
         }
       }
       if (!isCurrent()) return false;
-      window.history[method === 'push' ? 'pushState' : 'replaceState'](window.history.state, '', `${window.location.pathname}${next}`);
+      window.history[method === 'push' ? 'pushState' : 'replaceState'](
+        window.history.state,
+        '',
+        `${window.location.pathname}${next}`,
+      );
       window.dispatchEvent(new Event('play100:navigate'));
       return true;
     } catch (cause) {

@@ -1,6 +1,11 @@
 import type { BeforeInstallPromptEvent, PwaController, PwaState, PwaUpdateGuard } from './types';
 import { createRetryableModule } from '../lib/retryable-module';
-import { guardedReload, isModuleLoadFailure, offlineRecoveryMessage, unavailableRecoveryMessage } from '../lib/chunk-recovery';
+import {
+  guardedReload,
+  isModuleLoadFailure,
+  offlineRecoveryMessage,
+  unavailableRecoveryMessage,
+} from '../lib/chunk-recovery';
 
 const updateModule = createRetryableModule(() => import('./apply-update'));
 
@@ -10,17 +15,25 @@ const versionPattern = /^[a-f0-9]{64}$/;
 export const PWA_IOS_INSTRUCTIONS =
   'In Safari, open Share, then Add to Home Screen. Turn on Open as Web App if offered, then choose Add. This website cannot open that system dialog for you.';
 
-export function pwaInstallAvailability(standalone: boolean, ios: boolean, hasPrompt: boolean): PwaState['installState'] {
+export function pwaInstallAvailability(
+  standalone: boolean,
+  ios: boolean,
+  hasPrompt: boolean,
+): PwaState['installState'] {
   return standalone ? 'installed' : hasPrompt ? 'prompt' : ios ? 'ios-instructions' : 'unavailable';
 }
 
 export async function preparePwaUpdate(guard: PwaUpdateGuard): Promise<boolean> {
-  return guard.isCurrent() && await guard.prepare() && guard.isCurrent() && guard.canReload();
+  return guard.isCurrent() && (await guard.prepare()) && guard.isCurrent() && guard.canReload();
 }
 
 function isInstallPrompt(event: Event): event is BeforeInstallPromptEvent {
-  return 'prompt' in event && typeof event.prompt === 'function' && 'userChoice' in event &&
-    event.userChoice instanceof Promise;
+  return (
+    'prompt' in event &&
+    typeof event.prompt === 'function' &&
+    'userChoice' in event &&
+    event.userChoice instanceof Promise
+  );
 }
 
 export function trustedPwaWorker(worker: Pick<ServiceWorker, 'scriptURL'> | null, origin: string): boolean {
@@ -28,7 +41,9 @@ export function trustedPwaWorker(worker: Pick<ServiceWorker, 'scriptURL'> | null
   try {
     const url = new URL(worker.scriptURL);
     return url.origin === origin && url.pathname === '/sw.js' && !url.search && !url.hash;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 interface WorkerReply {
@@ -39,35 +54,68 @@ interface WorkerReply {
   reason?: string;
 }
 
-export function sendPwaRequest(worker: ServiceWorker, type: 'STATUS' | 'ACTIVATE', version?: string, previousVersion?: string): Promise<WorkerReply> {
+export function sendPwaRequest(
+  worker: ServiceWorker,
+  type: 'STATUS' | 'ACTIVATE',
+  version?: string,
+  previousVersion?: string,
+): Promise<WorkerReply> {
   return new Promise((resolve, reject) => {
     const ports = new MessageChannel();
-    const finish = () => { clearTimeout(timeout); ports.port1.close(); ports.port2.close(); };
-    const timeout = window.setTimeout(() => { finish(); reject(new Error('The offline worker did not reply. Retry when it is available.')); }, 5000);
-    ports.port1.onmessage = event => {
+    const finish = () => {
+      clearTimeout(timeout);
+      ports.port1.close();
+      ports.port2.close();
+    };
+    const timeout = window.setTimeout(() => {
+      finish();
+      reject(new Error('The offline worker did not reply. Retry when it is available.'));
+    }, 5000);
+    ports.port1.onmessage = (event) => {
       const reply: unknown = event.data;
-      if (!reply || typeof reply !== 'object' || !('channel' in reply) || reply.channel !== channel ||
-        !('version' in reply) || typeof reply.version !== 'string' || !versionPattern.test(reply.version)) {
-        finish(); reject(new Error('The offline worker returned an invalid version.')); return;
+      if (
+        !reply ||
+        typeof reply !== 'object' ||
+        !('channel' in reply) ||
+        reply.channel !== channel ||
+        !('version' in reply) ||
+        typeof reply.version !== 'string' ||
+        !versionPattern.test(reply.version)
+      ) {
+        finish();
+        reject(new Error('The offline worker returned an invalid version.'));
+        return;
       }
       finish();
       resolve({
         version: reply.version,
-        clientVersion: 'clientVersion' in reply && typeof reply.clientVersion === 'string' && versionPattern.test(reply.clientVersion)
-          ? reply.clientVersion : undefined,
+        clientVersion:
+          'clientVersion' in reply &&
+          typeof reply.clientVersion === 'string' &&
+          versionPattern.test(reply.clientVersion)
+            ? reply.clientVersion
+            : undefined,
         ready: 'ready' in reply && reply.ready === true,
         accepted: 'accepted' in reply && reply.accepted === true,
         reason: 'reason' in reply && typeof reply.reason === 'string' ? reply.reason : undefined,
       });
     };
-    try { worker.postMessage({ channel, type, version, previousVersion }, [ports.port2]); }
-    catch (cause) { finish(); reject(cause); }
+    try {
+      worker.postMessage({ channel, type, version, previousVersion }, [ports.port2]);
+    } catch (cause) {
+      finish();
+      reject(cause);
+    }
   });
 }
 
 export const initialPwaState: PwaState = {
-  installState: 'unavailable', offlineState: 'idle', updateState: 'none',
-  online: true, message: '', error: '',
+  installState: 'unavailable',
+  offlineState: 'idle',
+  updateState: 'none',
+  online: true,
+  message: '',
+  error: '',
 };
 
 export function createPwaController(): PwaController {
@@ -94,8 +142,7 @@ export function createPwaController(): PwaController {
   };
   const availablePage = () => window.isSecureContext && !/^\/(?:data-use|__|api)(?:\/|$)/.test(location.pathname);
   const ensureAvailable = () => {
-    if (!attached || !window.isSecureContext || !('serviceWorker' in navigator) ||
-      !availablePage()) {
+    if (!attached || !window.isSecureContext || !('serviceWorker' in navigator) || !availablePage()) {
       throw new Error('Offline access is unavailable in this page or browser.');
     }
   };
@@ -110,15 +157,22 @@ export function createPwaController(): PwaController {
     const worker = navigator.serviceWorker.controller ?? registration?.active;
     if (worker && trustedPwaWorker(worker, location.origin)) {
       const reply = await sendPwaRequest(worker, 'STATUS');
-      if (!current(start) || request !== refreshRequest ||
-        worker !== (navigator.serviceWorker.controller ?? registration?.active)) return;
-      const retainedDocument = worker === navigator.serviceWorker.controller &&
+      if (
+        !current(start) ||
+        request !== refreshRequest ||
+        worker !== (navigator.serviceWorker.controller ?? registration?.active)
+      )
+        return;
+      const retainedDocument =
+        worker === navigator.serviceWorker.controller &&
         Boolean(reply.clientVersion && reply.clientVersion !== reply.version);
       if (reply.ready && retainedDocument) {
         requestedVersion = reply.version;
         publish({
-          offlineState: 'ready', updateState: 'reload-required',
-          message: 'An update is active, but this page still uses its previous version. Save your edits before choosing to reload.',
+          offlineState: 'ready',
+          updateState: 'reload-required',
+          message:
+            'An update is active, but this page still uses its previous version. Save your edits before choosing to reload.',
         });
         return;
       }
@@ -126,11 +180,16 @@ export function createPwaController(): PwaController {
       publish({
         offlineState: reply.ready ? 'ready' : 'error',
         ...(reply.ready && !navigator.serviceWorker.controller
-          ? { message: 'Offline files are ready. Reopen The 100 or the installed app to use them offline.' } : {}),
+          ? { message: 'Offline files are ready. Reopen The 100 or the installed app to use them offline.' }
+          : {}),
       });
     }
     if (!current(start) || request !== refreshRequest || applying) return;
-    if (registration?.waiting) publish({ updateState: 'waiting', message: 'An update is ready. Your current page stays open until you choose to update.' });
+    if (registration?.waiting)
+      publish({
+        updateState: 'waiting',
+        message: 'An update is ready. Your current page stays open until you choose to update.',
+      });
     else publish({ updateState: 'none' });
   };
   const observe = (value: ServiceWorkerRegistration, start: number) => {
@@ -143,11 +202,17 @@ export function createPwaController(): PwaController {
       const change = () => {
         if (!current(start)) return;
         if (worker.state === 'redundant') {
-          publish({ offlineState: 'error', error: 'Offline preparation failed. The current version was not replaced. Retry when connected.' });
+          publish({
+            offlineState: 'error',
+            error: 'Offline preparation failed. The current version was not replaced. Retry when connected.',
+          });
         } else if (worker.state === 'installed') {
-          if (value.waiting) publish({ updateState: 'waiting', message: 'An update is ready when you choose to apply it.' });
+          if (value.waiting)
+            publish({ updateState: 'waiting', message: 'An update is ready when you choose to apply it.' });
         } else if (worker.state === 'activated') {
-          void refresh(start).catch(cause => report('Offline readiness could not be confirmed. Retry from Settings.', cause));
+          void refresh(start).catch((cause) =>
+            report('Offline readiness could not be confirmed. Retry from Settings.', cause),
+          );
         }
       };
       worker.addEventListener('statechange', change);
@@ -156,31 +221,46 @@ export function createPwaController(): PwaController {
     value.addEventListener('updatefound', watch);
     releases.push(() => value.removeEventListener('updatefound', watch));
     watch();
-    removeRegistrationListeners = () => { for (const release of releases) release(); };
+    removeRegistrationListeners = () => {
+      for (const release of releases) release();
+    };
   };
   const controller: PwaController = {
     getSnapshot: () => state,
-    subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     connect() {
       if (attached || !availablePage()) return () => {};
       attached = true;
       const start = ++generation;
       const media = window.matchMedia('(display-mode: standalone)');
-      const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+      const ios =
+        /iPhone|iPad|iPod/.test(navigator.userAgent) ||
         (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
       const standalone = () => media.matches || ('standalone' in navigator && navigator.standalone === true);
       let installedHere = false;
-      const availability = () => publish({ installState: pwaInstallAvailability(installedHere || standalone(), ios, deferred !== null) });
+      const availability = () =>
+        publish({ installState: pwaInstallAvailability(installedHere || standalone(), ios, deferred !== null) });
       const prompt = (event: Event) => {
         if (!isInstallPrompt(event)) return;
         event.preventDefault();
         deferred = event;
         availability();
       };
-      const installed = () => { installedHere = true; deferred = null; publish({ installState: 'installed', message: 'Play 100 was added by this browser.' }); };
+      const installed = () => {
+        installedHere = true;
+        deferred = null;
+        publish({ installState: 'installed', message: 'Play 100 was added by this browser.' });
+      };
       const checkExisting = () => {
         if (registration && current(start)) {
-          void refresh(start).catch(cause => report('The active offline page version could not be checked. Your page was not reloaded.', cause));
+          void refresh(start).catch((cause) =>
+            report('The active offline page version could not be checked. Your page was not reloaded.', cause),
+          );
         }
       };
       const online = () => {
@@ -188,14 +268,32 @@ export function createPwaController(): PwaController {
         if (navigator.onLine) checkExisting();
       };
       const message = (event: MessageEvent) => {
-        const expected = [navigator.serviceWorker.controller, registration?.active, registration?.installing, registration?.waiting];
-        if (!expected.some(worker => worker && event.source === worker)) return;
+        const expected = [
+          navigator.serviceWorker.controller,
+          registration?.active,
+          registration?.installing,
+          registration?.waiting,
+        ];
+        if (!expected.some((worker) => worker && event.source === worker)) return;
         const data: unknown = event.data;
-        if (!data || typeof data !== 'object' || !('channel' in data) || data.channel !== channel ||
-          !('version' in data) || typeof data.version !== 'string' || !versionPattern.test(data.version) ||
-          !('status' in data)) return;
-        if (data.status === 'error') publish({ offlineState: 'error', error: 'Offline preparation or storage failed. Reconnect, free storage if needed, and retry.' });
-        if (data.status === 'warning') publish({ message: 'Some public artwork could not be saved offline. Your library is unchanged.' });
+        if (
+          !data ||
+          typeof data !== 'object' ||
+          !('channel' in data) ||
+          data.channel !== channel ||
+          !('version' in data) ||
+          typeof data.version !== 'string' ||
+          !versionPattern.test(data.version) ||
+          !('status' in data)
+        )
+          return;
+        if (data.status === 'error')
+          publish({
+            offlineState: 'error',
+            error: 'Offline preparation or storage failed. Reconnect, free storage if needed, and retry.',
+          });
+        if (data.status === 'warning')
+          publish({ message: 'Some public artwork could not be saved offline. Your library is unchanged.' });
       };
       window.addEventListener('beforeinstallprompt', prompt);
       window.addEventListener('appinstalled', installed);
@@ -205,18 +303,23 @@ export function createPwaController(): PwaController {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.addEventListener('message', message);
         navigator.serviceWorker.addEventListener('controllerchange', checkExisting);
-        void navigator.serviceWorker.getRegistration('/').then(value => {
-          if (!value || !current(start)) return;
-          checkRegistration(value);
-          observe(value, start);
-          return refresh(start);
-        }).catch(cause => report('Existing offline access could not be checked. Your library is unchanged.', cause));
+        void navigator.serviceWorker
+          .getRegistration('/')
+          .then((value) => {
+            if (!value || !current(start)) return;
+            checkRegistration(value);
+            observe(value, start);
+            return refresh(start);
+          })
+          .catch((cause) => report('Existing offline access could not be checked. Your library is unchanged.', cause));
       }
       availability();
       online();
       stopConnection = () => {
         if (!current(start)) return;
-        attached = false; generation += 1; deferred = null;
+        attached = false;
+        generation += 1;
+        deferred = null;
         removeRegistrationListeners();
         window.removeEventListener('beforeinstallprompt', prompt);
         window.removeEventListener('appinstalled', installed);
@@ -232,7 +335,10 @@ export function createPwaController(): PwaController {
     },
     async install() {
       if (!attached || !deferred) {
-        if (state.installState === 'ios-instructions') { publish({ message: PWA_IOS_INSTRUCTIONS }); return 'instructions'; }
+        if (state.installState === 'ios-instructions') {
+          publish({ message: PWA_IOS_INSTRUCTIONS });
+          return 'instructions';
+        }
         return 'unavailable';
       }
       const prompt = deferred;
@@ -262,7 +368,11 @@ export function createPwaController(): PwaController {
           const existing = await navigator.serviceWorker.getRegistration('/');
           if (existing) checkRegistration(existing);
           if (!current(start)) return false;
-          const value = await navigator.serviceWorker.register('/sw.js', { scope: '/', type: 'module', updateViaCache: 'none' });
+          const value = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/',
+            type: 'module',
+            updateViaCache: 'none',
+          });
           if (!current(start)) return false;
           checkRegistration(value);
           observe(value, start);
@@ -275,16 +385,23 @@ export function createPwaController(): PwaController {
         }
       })();
       preparing = task;
-      void task.finally(() => { if (preparing === task) preparing = null; });
+      void task.finally(() => {
+        if (preparing === task) preparing = null;
+      });
       return task;
     },
     async checkForUpdate() {
       try {
         ensureAvailable();
-        if (!registration) { publish({ message: 'Enable offline access before checking its updates.' }); return; }
+        if (!registration) {
+          publish({ message: 'Enable offline access before checking its updates.' });
+          return;
+        }
         await registration.update();
         await refresh(generation);
-      } catch (cause) { report('An update could not be checked. Your current page remains available.', cause); }
+      } catch (cause) {
+        report('An update could not be checked. Your current page remains available.', cause);
+      }
     },
     async applyUpdate(guard: PwaUpdateGuard) {
       if (applying) return false;
@@ -298,14 +415,17 @@ export function createPwaController(): PwaController {
       applying = true;
       try {
         if (state.moduleError) {
-          if (!await preparePwaUpdate(guard) || !current(start)) {
+          if (!(await preparePwaUpdate(guard)) || !current(start)) {
             publish({ message: 'Your edit or page changed. Save or correct it before reloading.' });
             return false;
           }
-          const result = await guardedReload({ isCurrent: () => current(start) && guard.isCurrent() && guard.canReload() });
+          const result = await guardedReload({
+            isCurrent: () => current(start) && guard.isCurrent() && guard.canReload(),
+          });
           if (current(start) && result === 'offline') publish({ message: offlineRecoveryMessage });
           if (current(start) && result === 'unavailable') publish({ message: unavailableRecoveryMessage });
-          if (current(start) && result === 'cancelled') publish({ message: 'Your edit or page changed. Save or correct it before reloading.' });
+          if (current(start) && result === 'cancelled')
+            publish({ message: 'Your edit or page changed. Save or correct it before reloading.' });
           return result === 'navigating';
         }
         const { executePwaUpdate } = await updateModule.load();
@@ -313,17 +433,23 @@ export function createPwaController(): PwaController {
           isCurrent: () => current(start),
           waiting: () => registration?.waiting ?? null,
           requestedVersion: () => requestedVersion,
-          rememberVersion: version => { requestedVersion = version; },
-          publish, report,
+          rememberVersion: (version) => {
+            requestedVersion = version;
+          },
+          publish,
+          report,
         });
       } catch (cause) {
         publish({ updateState: requestedVersion ? 'reload-required' : registration?.waiting ? 'waiting' : 'none' });
         if (isModuleLoadFailure(cause)) {
           publish({ moduleError: true });
           report("The update controls didn't load.", cause);
-        } else report(cause instanceof Error ? cause.message : 'The requested update or reload could not finish.', cause);
+        } else
+          report(cause instanceof Error ? cause.message : 'The requested update or reload could not finish.', cause);
         return false;
-      } finally { applying = false; }
+      } finally {
+        applying = false;
+      }
     },
   };
   return controller;

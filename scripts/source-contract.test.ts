@@ -3,9 +3,15 @@ import { sourceTokenBytes, sourceTokens } from './source-contract';
 
 describe('source contract tokens', () => {
   it.each([
-    ["where('participants', 'array-contains', uid), where('creatorUid', '==', uid)", 'where(\n"participants", "array-contains", uid,\n),\n/* next clause */ where("creatorUid", "==", uid,)'],
+    [
+      "where('participants', 'array-contains', uid), where('creatorUid', '==', uid)",
+      'where(\n"participants", "array-contains", uid,\n),\n/* next clause */ where("creatorUid", "==", uid,)',
+    ],
     ["head.format === 3 ? [where('format', '==', 3)] : []", 'head.format === 3\n? [where("format", "==", 3,),]\n: []'],
-    ["if (before?.format === 3 && row.format === 2) continue;", 'if (\nbefore?.format === 3 && row.format === 2\n)\ncontinue;'],
+    [
+      'if (before?.format === 3 && row.format === 2) continue;',
+      'if (\nbefore?.format === 3 && row.format === 2\n)\ncontinue;',
+    ],
     ["import { DiscoveryCard } from './DiscoveryCard';", 'import {\n DiscoveryCard,\n} from "./DiscoveryCard";'],
   ])('ignores only formatting in %s', (compact, expanded) => {
     expect(sourceTokens(expanded)).toBe(sourceTokens(compact));

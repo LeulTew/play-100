@@ -1,6 +1,11 @@
 export function normalizeCatalogQuery(value: string): string {
-  return value.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase('en')
-    .replace(/['\u2019]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return value
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLocaleLowerCase('en')
+    .replace(/['\u2019]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 }
 
 export function matchesCatalogQuery(text: string, query: string): boolean {
@@ -8,7 +13,7 @@ export function matchesCatalogQuery(text: string, query: string): boolean {
   const terms = normalizeCatalogQuery(query).split(' ').filter(Boolean);
   const words = searchable.split(' ');
   const compact = searchable.replaceAll(' ', '');
-  return terms.every((term) => /^\d+$/.test(term) ? words.includes(term) : compact.includes(term));
+  return terms.every((term) => (/^\d+$/.test(term) ? words.includes(term) : compact.includes(term)));
 }
 
 export function catalogRelevance(title: string, aliases: readonly string[], query: string): number | null {

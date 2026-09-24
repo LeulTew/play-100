@@ -6,8 +6,22 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
 import {
-  assertCharsetDeclaration, assertFallbackCoverage, assertFontPreloads, assertInlineSafe, assertNoCssImports, assertRootFontStacks, assertRootRelativeUrls,
-  assertShellNeutralCss, beastiesOptions, criticalAppCss, DEFERRED_TEMPLATE_ID, firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, startupTags,
+  assertCharsetDeclaration,
+  assertFallbackCoverage,
+  assertFontPreloads,
+  assertInlineSafe,
+  assertNoCssImports,
+  assertRootFontStacks,
+  assertRootRelativeUrls,
+  assertShellNeutralCss,
+  beastiesOptions,
+  criticalAppCss,
+  DEFERRED_TEMPLATE_ID,
+  firstPaintShell,
+  firstPaintVariant,
+  inlineFirstPaintShell,
+  minifyShellCss,
+  startupTags,
   stripBootScript,
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
@@ -30,17 +44,21 @@ const FONT_FACES = [
 ].join('');
 
 // The tags the public-metadata plugin adds with Vite's default head-prepend placement.
-const VITE_HEAD_TAGS = '\n    <meta name="author" content="Leul Tewodros Agonafer">' +
+const VITE_HEAD_TAGS =
+  '\n    <meta name="author" content="Leul Tewodros Agonafer">' +
   '\n    <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
   '\n    <link rel="preload" href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous">\n';
 // Vite's own tags, which it injects before </head>: the module entry, its modulepreloads and the entry stylesheet.
-const VITE_ENTRY_TAGS = '    <script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>\n' +
+const VITE_ENTRY_TAGS =
+  '    <script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>\n' +
   '    <link rel="modulepreload" crossorigin href="/assets/vendor-CCCCCCCC.js">\n' +
   '    <link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">\n';
 
 /** index.html as Vite's build hands it to post hooks: prepended tags, entry script, modulepreload and stylesheet in <head>. */
 function builtIndexHtml(): string {
-  const built = indexHtml.replace('  <head>', `  <head>${VITE_HEAD_TAGS}`).replace('    <script type="module" src="/src/main.tsx"></script>\n', '')
+  const built = indexHtml
+    .replace('  <head>', `  <head>${VITE_HEAD_TAGS}`)
+    .replace('    <script type="module" src="/src/main.tsx"></script>\n', '')
     .replace('  </head>', `${VITE_ENTRY_TAGS}  </head>`);
   expect(built).not.toContain('/src/main.tsx');
   expect(built).toContain('/assets/index-BBBBBBBB.css');
@@ -48,7 +66,8 @@ function builtIndexHtml(): string {
 }
 
 /** The startup tags in the order the boot script inserts them, as the template holds them. */
-const TEMPLATE_CONTENT = '<script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>' +
+const TEMPLATE_CONTENT =
+  '<script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>' +
   '<link rel="modulepreload" crossorigin href="/assets/vendor-CCCCCCCC.js">' +
   '<link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">' +
   '<link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
@@ -56,7 +75,8 @@ const TEMPLATE_CONTENT = '<script type="module" crossorigin src="/assets/index-A
 
 describe('first-paint boot script', () => {
   it('drops comments and indentation but keeps every statement', () => {
-    const source = '/* global window */\r\n// leading note\r\n(function () {\r\n  // inner note\r\n  var a = 1; /* inline */\r\n  return a;\r\n})();\r\n';
+    const source =
+      '/* global window */\r\n// leading note\r\n(function () {\r\n  // inner note\r\n  var a = 1; /* inline */\r\n  return a;\r\n})();\r\n';
     expect(stripBootScript(source)).toBe('(function () {\nvar a = 1;\nreturn a;\n})();');
     expect(stripBootScript(source.replaceAll('\r\n', '\n'))).toBe(stripBootScript(source));
   });
@@ -80,8 +100,11 @@ describe('first-paint boot script', () => {
 
 describe('inline safety', () => {
   it.each([
-    ['style', 'a{content:"</style>"}'], ['style', 'a{content:"</STYLE"}'], ['style', '<!--a{}'],
-    ['script', 'var a = "</script>";'], ['script', '<!-- var a;'],
+    ['style', 'a{content:"</style>"}'],
+    ['style', 'a{content:"</STYLE"}'],
+    ['style', '<!--a{}'],
+    ['script', 'var a = "</script>";'],
+    ['script', '<!-- var a;'],
   ] as const)('rejects %s content that would end the element early: %s', (kind, content) => {
     expect(() => assertInlineSafe(kind, content)).toThrow('would end the element early');
   });
@@ -92,15 +115,28 @@ describe('inline safety', () => {
   });
 
   it('refuses entry-stylesheet selectors that differ between the shell and React', () => {
-    for (const css of ['[inert]{opacity:.5}', '.a[style*=x]{}', '.collection-artifact[data-activation=automatic] b{}',
-      '.collection-artifact[data-scene-status=ready]{}', '[data-shell-art]{}', 'html[data-boot-art=lite] a{}', '.first-paint-shell{}']) {
+    for (const css of [
+      '[inert]{opacity:.5}',
+      '.a[style*=x]{}',
+      '.collection-artifact[data-activation=automatic] b{}',
+      '.collection-artifact[data-scene-status=ready]{}',
+      '[data-shell-art]{}',
+      'html[data-boot-art=lite] a{}',
+      '.first-paint-shell{}',
+    ]) {
       expect(() => assertShellNeutralCss(css), css).toThrow('differs between the first-paint shell');
     }
-    expect(() => assertShellNeutralCss('.collection-artifact[data-render-mode=webgl] .artifact-canvas{visibility:visible}')).not.toThrow();
+    expect(() =>
+      assertShellNeutralCss('.collection-artifact[data-render-mode=webgl] .artifact-canvas{visibility:visible}'),
+    ).not.toThrow();
   });
 
   it('allows only URLs that resolve the same from index.html', () => {
-    expect(() => assertRootRelativeUrls('a{background:url(/assets/a.png)}b{mask:url("data:image/svg+xml,%3Csvg%3E")}c{fill:url(#g)}d{b:url(https://example.com/a)}')).not.toThrow();
+    expect(() =>
+      assertRootRelativeUrls(
+        'a{background:url(/assets/a.png)}b{mask:url("data:image/svg+xml,%3Csvg%3E")}c{fill:url(#g)}d{b:url(https://example.com/a)}',
+      ),
+    ).not.toThrow();
     for (const url of ['url(a.png)', 'url(../assets/a.png)', "url('./a.png')", 'url(//cdn.example/a.png)']) {
       expect(() => assertRootRelativeUrls(`a{background:${url}}`), url).toThrow('would resolve against index.html');
     }
@@ -118,10 +154,16 @@ describe('charset declaration', () => {
 
   it('fails the build when the declaration would end beyond the first 1024 bytes, naming its byte offset', () => {
     expect(() => assertCharsetDeclaration(at(1000))).toThrow('at byte 1000;');
-    expect(() => assertCharsetDeclaration(at(1127))).toThrow('index.html declares <meta charset> at byte 1127; it must start before byte 1000');
+    expect(() => assertCharsetDeclaration(at(1127))).toThrow(
+      'index.html declares <meta charset> at byte 1127; it must start before byte 1000',
+    );
     // Bytes, not UTF-16 code units: 340 characters before the declaration are 1006 bytes.
-    expect(() => assertCharsetDeclaration(`<!--${'…'.repeat(333)}--><meta charset="UTF-8" />`)).toThrow('at byte 1006;');
-    expect(() => assertCharsetDeclaration('<!doctype html><html><head><title>Play 100</title></head></html>')).toThrow('no <meta charset>');
+    expect(() => assertCharsetDeclaration(`<!--${'…'.repeat(333)}--><meta charset="UTF-8" />`)).toThrow(
+      'at byte 1006;',
+    );
+    expect(() => assertCharsetDeclaration('<!doctype html><html><head><title>Play 100</title></head></html>')).toThrow(
+      'no <meta charset>',
+    );
   });
 });
 
@@ -147,8 +189,14 @@ describe('beasties critical CSS', () => {
   it('uses the reviewed options', () => {
     const options = beastiesOptions({});
     expect(options).toMatchObject({
-      external: false, fonts: false, mergeStylesheets: true, reduceInlineStyles: true, keyframes: 'critical',
-      compress: true, safeParser: false, dedupeWarnings: false,
+      external: false,
+      fonts: false,
+      mergeStylesheets: true,
+      reduceInlineStyles: true,
+      keyframes: 'critical',
+      compress: true,
+      safeParser: false,
+      dedupeWarnings: false,
     });
     expect(options.allowRules).toEqual([/^:/]);
     expect(options).not.toHaveProperty('preload');
@@ -158,18 +206,34 @@ describe('beasties critical CSS', () => {
 
   it('keeps the rules that can apply inside the shell and drops the rest', async () => {
     const css = [
-      ':root{--ink:#20231e}', ':where(button,a){scroll-margin-block:8px}', 'body{margin:0}',
-      '.hero-copy h1{font-size:64px}', '.button-dark:hover{color:red}', '.game-card{color:blue}', '#root .wordmark{color:green}',
+      ':root{--ink:#20231e}',
+      ':where(button,a){scroll-margin-block:8px}',
+      'body{margin:0}',
+      '.hero-copy h1{font-size:64px}',
+      '.button-dark:hover{color:red}',
+      '.game-card{color:blue}',
+      '#root .wordmark{color:green}',
       '@media (max-width:760px){.mobile-nav{display:flex}.games-grid{gap:1px}}',
-      '@keyframes pulse{0%{opacity:0}to{opacity:1}}', '.loading-jackets span{animation:pulse 1s}', '@keyframes unused{0%{opacity:0}to{opacity:1}}',
+      '@keyframes pulse{0%{opacity:0}to{opacity:1}}',
+      '.loading-jackets span{animation:pulse 1s}',
+      '@keyframes unused{0%{opacity:0}to{opacity:1}}',
       '@font-face{font-family:Barlow Condensed;src:url(/assets/b.woff2)format("woff2")}',
     ].join('');
     const critical = await criticalAppCss(css, offlineRoot);
-    for (const kept of [':root{--ink:#20231e}', ':where(button,a){scroll-margin-block:8px}', 'body{margin:0}', '.hero-copy h1{font-size:64px}',
-      '.button-dark:hover{color:red}', '.mobile-nav{display:flex}', '@keyframes pulse', '.loading-jackets span{animation:pulse 1s}']) {
+    for (const kept of [
+      ':root{--ink:#20231e}',
+      ':where(button,a){scroll-margin-block:8px}',
+      'body{margin:0}',
+      '.hero-copy h1{font-size:64px}',
+      '.button-dark:hover{color:red}',
+      '.mobile-nav{display:flex}',
+      '@keyframes pulse',
+      '.loading-jackets span{animation:pulse 1s}',
+    ]) {
       expect(critical).toContain(kept);
     }
-    for (const dropped of ['.game-card', '#root .wordmark', '.games-grid', '@keyframes unused', '@font-face']) expect(critical).not.toContain(dropped);
+    for (const dropped of ['.game-card', '#root .wordmark', '.games-grid', '@keyframes unused', '@font-face'])
+      expect(critical).not.toContain(dropped);
   });
 
   it('fails the build on a CSS syntax error instead of repairing it', async () => {
@@ -177,7 +241,9 @@ describe('beasties critical CSS', () => {
   });
 
   it('fails the build on any beasties warning', async () => {
-    await expect(criticalAppCss('.hero-actions{color:red;& .button{color:blue}}', offlineRoot)).rejects.toThrow('beasties could not select');
+    await expect(criticalAppCss('.hero-actions{color:red;& .button{color:blue}}', offlineRoot)).rejects.toThrow(
+      'beasties could not select',
+    );
     await expect(criticalAppCss('.game-card{color:blue}', offlineRoot)).rejects.toThrow('beasties could not select');
   });
 
@@ -192,31 +258,40 @@ describe('first-paint fallback faces', () => {
       const text = shellText(shellMarkup(indexHtml, variant));
       expect(text).toContain('Opening the collection…');
       expect(text).toContain('Illustrated view · Lite mode');
-      expect([...new Set(text)].filter(char => char > '~').sort()).toEqual(['·', '…']);
+      expect([...new Set(text)].filter((char) => char > '~').sort()).toEqual(['·', '…']);
       expect(() => assertFallbackCoverage(shellCss, text)).not.toThrow();
     }
   });
 
   it('fail the build when the shell renders a character the fallback faces do not cover', () => {
     expect(() => assertFallbackCoverage(shellCss, 'Less choosing — more playing')).toThrow(
-      "renders \"—\" (U+2014), which the fallback face 'P100 DF Impact' (unicode-range U+20-7E, U+B7, U+2026) does not cover",
+      'renders "—" (U+2014), which the fallback face \'P100 DF Impact\' (unicode-range U+20-7E, U+B7, U+2026) does not cover',
     );
-    expect(() => assertFallbackCoverage('@font-face { font-family: A; src: local("A"); unicode-range: U+41; }', 'AB')).toThrow('"B" (U+0042)');
-    expect(() => assertFallbackCoverage('@font-face { font-family: A; src: local("A"); }', 'anything — at all')).not.toThrow();
-    expect(() => assertFallbackCoverage('/* @font-face { unicode-range: U+41; } */ .a { color: red; }', 'A')).toThrow('declares no fallback faces');
+    expect(() =>
+      assertFallbackCoverage('@font-face { font-family: A; src: local("A"); unicode-range: U+41; }', 'AB'),
+    ).toThrow('"B" (U+0042)');
+    expect(() =>
+      assertFallbackCoverage('@font-face { font-family: A; src: local("A"); }', 'anything — at all'),
+    ).not.toThrow();
+    expect(() => assertFallbackCoverage('/* @font-face { unicode-range: U+41; } */ .a { color: red; }', 'A')).toThrow(
+      'declares no fallback faces',
+    );
   });
 });
 
 describe('first-paint shell stylesheet', () => {
   it('minifies without changing selectors, strings or values', () => {
-    expect(minifyShellCss("/* note */\n.a > b,\n.c {\n  color: red;\n  font: 800 100px 'P100 DF Impact', monospace;\n}\n"))
-      .toBe(".a > b,.c{color: red;font: 800 100px 'P100 DF Impact',monospace}");
+    expect(
+      minifyShellCss("/* note */\n.a > b,\n.c {\n  color: red;\n  font: 800 100px 'P100 DF Impact', monospace;\n}\n"),
+    ).toBe(".a > b,.c{color: red;font: 800 100px 'P100 DF Impact',monospace}");
     const shell = minifyShellCss(shellCss);
     expect(shell).not.toContain('/*');
     expect(shell).toContain('html[data-boot=landing] .first-paint-shell{display: contents}');
     expect(shell).toContain('.first-paint-shell > main{min-height: 100vh}');
     expect(shell).toContain("font-family: 'Hanken Grotesk Variable','P100 Sans Fallback','Segoe UI',sans-serif");
-    expect(shell).toContain("--display: 'Barlow Condensed','P100 DF Impact','P100 DF Arial',Impact,'Arial Narrow',sans-serif");
+    expect(shell).toContain(
+      "--display: 'Barlow Condensed','P100 DF Impact','P100 DF Arial',Impact,'Arial Narrow',sans-serif",
+    );
     expect(shell.match(/unicode-range: U\+20-7E,U\+B7,U\+2026\}/g)).toHaveLength(9);
     expect(() => assertInlineSafe('style', shell)).not.toThrow();
   });
@@ -224,7 +299,8 @@ describe('first-paint shell stylesheet', () => {
 
 describe('emitted entry stylesheets', () => {
   it('accept compiled CSS without @import, whatever strings, comments and other at-rules contain', () => {
-    const css = `@charset "UTF-8";${FONT_FACES}@media (min-width:761px){.hero{display:grid}}@supports (display:grid){.a{color:red}}` +
+    const css =
+      `@charset "UTF-8";${FONT_FACES}@media (min-width:761px){.hero{display:grid}}@supports (display:grid){.a{color:red}}` +
       '.b::before{content:"@import url(/x.css)"}.c::after{content:\'@import\'}/* @import "y.css"; */@importance{}';
     expect(() => assertNoCssImports('/assets/index-A.css', css)).not.toThrow();
   });
@@ -234,12 +310,15 @@ describe('emitted entry stylesheets', () => {
     '@import url(/assets/partial-B.css) screen;',
     '.a{color:red}@IMPORT url("https://fonts.example/css");',
     '@\\69mport "x.css";',
-  ])('refuse an @import left in an emitted stylesheet, naming the file: %s', css => {
-    expect(() => assertNoCssImports('/assets/index-A.css', css)).toThrow('The emitted stylesheet /assets/index-A.css contains an @import');
+  ])('refuse an @import left in an emitted stylesheet, naming the file: %s', (css) => {
+    expect(() => assertNoCssImports('/assets/index-A.css', css)).toThrow(
+      'The emitted stylesheet /assets/index-A.css contains an @import',
+    );
   });
 
-  it('accept root font stacks the shell\'s fallbacks outrank, and font rules of their own elsewhere', () => {
-    const css = ':root{font-family:Hanken Grotesk Variable,Segoe UI,sans-serif;color:#20231e;--display:Barlow Condensed,Impact,Arial Narrow,sans-serif}' +
+  it("accept root font stacks the shell's fallbacks outrank, and font rules of their own elsewhere", () => {
+    const css =
+      ':root{font-family:Hanken Grotesk Variable,Segoe UI,sans-serif;color:#20231e;--display:Barlow Condensed,Impact,Arial Narrow,sans-serif}' +
       `${FONT_FACES}@media (max-width:760px){:root{--display:Impact}}html{font-family:Arial}:root{font-family:inherit}` +
       '.hero-copy h1{font-family:var(--display)}.sheet-head{font:800 28px/1 var(--display)}button,input,select,textarea{font:inherit}' +
       '.google-signin{font-family:Arial,sans-serif}body{font:inherit}#root{font-family:unset!important}*{font-family:inherit}' +
@@ -269,16 +348,23 @@ describe('emitted entry stylesheets', () => {
     ['*|body{font-family:Arial}', 'font-family', '*|body'],
     ['*|html[lang]{font-family:Arial}', 'font-family', '*|html[lang]'],
     [':is(*|html,h1){font-family:Arial}', 'font-family', ':is(*|html,h1)'],
-  ])('refuse %s, which would outrank or bypass the shell\'s fallback stacks', (css, property, selector) => {
-    expect(() => assertRootFontStacks('/assets/index-A.css', css)).toThrow(`The entry stylesheet /assets/index-A.css sets ${property} on "${selector}"`);
+  ])("refuse %s, which would outrank or bypass the shell's fallback stacks", (css, property, selector) => {
+    expect(() => assertRootFontStacks('/assets/index-A.css', css)).toThrow(
+      `The entry stylesheet /assets/index-A.css sets ${property} on "${selector}"`,
+    );
   });
 
-  it('are checked one by one before the shell\'s rules are selected', async () => {
+  it("are checked one by one before the shell's rules are selected", async () => {
     const input = { html: builtIndexHtml(), variant: 'offline' as const, shellCss, bootScript: bootJs };
-    await expect(inlineFirstPaintShell({ ...input, readStylesheet: () => '@import "./styles/tokens.css";.site-header{display:flex}' }))
-      .rejects.toThrow('The emitted stylesheet /assets/index-BBBBBBBB.css contains an @import');
-    await expect(inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}body{font-family:Arial}' }))
-      .rejects.toThrow('The entry stylesheet /assets/index-BBBBBBBB.css sets font-family on "body"');
+    await expect(
+      inlineFirstPaintShell({
+        ...input,
+        readStylesheet: () => '@import "./styles/tokens.css";.site-header{display:flex}',
+      }),
+    ).rejects.toThrow('The emitted stylesheet /assets/index-BBBBBBBB.css contains an @import');
+    await expect(
+      inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}body{font-family:Arial}' }),
+    ).rejects.toThrow('The entry stylesheet /assets/index-BBBBBBBB.css sets font-family on "body"');
   });
 });
 
@@ -286,7 +372,7 @@ describe('first-paint startup tags', () => {
   it('reads every startup tag in <head>, in document order, with an HTML tokenizer', () => {
     const html = builtIndexHtml();
     const tags = startupTags(html);
-    expect(tags.map(tag => [tag.kind, tag.url])).toEqual([
+    expect(tags.map((tag) => [tag.kind, tag.url])).toEqual([
       ['preload', '/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2'],
       ['preload', '/data/collection.json'],
       ['entry', '/assets/index-AAAAAAAA.js'],
@@ -298,9 +384,13 @@ describe('first-paint startup tags', () => {
   });
 
   it('ignores comments, raw text, noscript content, other links and <body>', () => {
-    expect(startupTags('<head><!-- <script src="/a.js"></script><link rel="stylesheet" href="/assets/a.css"> --><title><link rel="preload" href="/x"></title>' +
-      '<noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript><link rel="icon" href="/favicon.svg"><link rel="canonical" href="https://play.example/">' +
-      '<link rel="manifest" href="/manifest.webmanifest"></head><body><link rel="stylesheet" href="/pwa/fallback.css"><script src="/b.js"></script></body>')).toEqual([]);
+    expect(
+      startupTags(
+        '<head><!-- <script src="/a.js"></script><link rel="stylesheet" href="/assets/a.css"> --><title><link rel="preload" href="/x"></title>' +
+          '<noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript><link rel="icon" href="/favicon.svg"><link rel="canonical" href="https://play.example/">' +
+          '<link rel="manifest" href="/manifest.webmanifest"></head><body><link rel="stylesheet" href="/pwa/fallback.css"><script src="/b.js"></script></body>',
+      ),
+    ).toEqual([]);
     expect(() => startupTags('<html><body></body></html>')).toThrow('no </head>');
   });
 
@@ -323,45 +413,100 @@ describe('first-paint startup tags', () => {
 
 describe('first-paint font preloads', () => {
   const preload = (attributes: string) => startupTags(`<head><link rel="preload" ${attributes}></head>`);
-  const font = (file: string, crossorigin = ' crossorigin="anonymous"') => `href="/assets/${file}.woff2" as="font" type="font/woff2"${crossorigin}`;
+  const font = (file: string, crossorigin = ' crossorigin="anonymous"') =>
+    `href="/assets/${file}.woff2" as="font" type="font/woff2"${crossorigin}`;
   // The landing fonts as vite.config.ts preloads them (scripts/landing-fonts.ts).
-  const LANDING = ['barlow-condensed-latin-800-normal-BKzMuPgK', 'hanken-grotesk-latin-wght-normal-CaVRRdDk', 'barlow-condensed-latin-700-normal-v1xN8_Wq'];
+  const LANDING = [
+    'barlow-condensed-latin-800-normal-BKzMuPgK',
+    'hanken-grotesk-latin-wght-normal-CaVRRdDk',
+    'barlow-condensed-latin-700-normal-v1xN8_Wq',
+  ];
 
   it('accept font preloads that make exactly the request an @font-face of the entry stylesheet makes', () => {
-    const tags = [...LANDING.flatMap(file => preload(font(file))), ...preload(font(LANDING[0] ?? '', ' crossorigin')),
-      ...preload('href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous"')];
-    expect(tags.map(tag => tag.attributes.as)).toEqual(['font', 'font', 'font', 'font', 'fetch']);
+    const tags = [
+      ...LANDING.flatMap((file) => preload(font(file))),
+      ...preload(font(LANDING[0] ?? '', ' crossorigin')),
+      ...preload('href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous"'),
+    ];
+    expect(tags.map((tag) => tag.attributes.as)).toEqual(['font', 'font', 'font', 'font', 'fetch']);
     expect(() => assertFontPreloads(tags, FONT_FACES)).not.toThrow();
-    expect(() => assertFontPreloads(preload(font('hanken-grotesk-latin-wght-normal-CaVRRdDk')), '@font-face{src:url("/assets/hanken-grotesk-latin-wght-normal-CaVRRdDk.woff2")}')).not.toThrow();
+    expect(() =>
+      assertFontPreloads(
+        preload(font('hanken-grotesk-latin-wght-normal-CaVRRdDk')),
+        '@font-face{src:url("/assets/hanken-grotesk-latin-wght-normal-CaVRRdDk.woff2")}',
+      ),
+    ).not.toThrow();
   });
 
   it.each([
-    ['a font no face requests', font('barlow-condensed-latin-900-normal-AAAAAAAA'), FONT_FACES, 'a URL an @font-face of the entry stylesheet requests'],
-    ['a URL that differs from the face\'s', font('Barlow-condensed-latin-800-normal-BKzMuPgK'), FONT_FACES, 'a URL an @font-face of the entry stylesheet requests'],
-    ['a URL only a comment or another rule names', font('commented-AAAAAAAA'),
-      `${FONT_FACES}/*@font-face{src:url(/assets/commented-AAAAAAAA.woff2)}*/.a{background:url(/assets/commented-AAAAAAAA.woff2)}`, 'a URL an @font-face of the entry stylesheet requests'],
+    [
+      'a font no face requests',
+      font('barlow-condensed-latin-900-normal-AAAAAAAA'),
+      FONT_FACES,
+      'a URL an @font-face of the entry stylesheet requests',
+    ],
+    [
+      "a URL that differs from the face's",
+      font('Barlow-condensed-latin-800-normal-BKzMuPgK'),
+      FONT_FACES,
+      'a URL an @font-face of the entry stylesheet requests',
+    ],
+    [
+      'a URL only a comment or another rule names',
+      font('commented-AAAAAAAA'),
+      `${FONT_FACES}/*@font-face{src:url(/assets/commented-AAAAAAAA.woff2)}*/.a{background:url(/assets/commented-AAAAAAAA.woff2)}`,
+      'a URL an @font-face of the entry stylesheet requests',
+    ],
     ['no crossorigin', font(LANDING[1] ?? '', ''), FONT_FACES, 'crossorigin (anonymous)'],
-    ['a credentialed request', font(LANDING[1] ?? '', ' crossorigin="use-credentials"'), FONT_FACES, 'crossorigin (anonymous)'],
-    ['no type', `href="/assets/${LANDING[2] ?? ''}.woff2" as="font" crossorigin="anonymous"`, FONT_FACES, 'type="font/woff2"'],
-    ['another type', `href="/assets/${LANDING[2] ?? ''}.woff2" as="font" type="font/woff" crossorigin="anonymous"`, FONT_FACES, 'type="font/woff2"'],
-    ['a font file preloaded as something else', `href="/assets/${LANDING[0] ?? ''}.woff2" as="fetch" type="font/woff2" crossorigin="anonymous"`, FONT_FACES, 'as="font"'],
+    [
+      'a credentialed request',
+      font(LANDING[1] ?? '', ' crossorigin="use-credentials"'),
+      FONT_FACES,
+      'crossorigin (anonymous)',
+    ],
+    [
+      'no type',
+      `href="/assets/${LANDING[2] ?? ''}.woff2" as="font" crossorigin="anonymous"`,
+      FONT_FACES,
+      'type="font/woff2"',
+    ],
+    [
+      'another type',
+      `href="/assets/${LANDING[2] ?? ''}.woff2" as="font" type="font/woff" crossorigin="anonymous"`,
+      FONT_FACES,
+      'type="font/woff2"',
+    ],
+    [
+      'a font file preloaded as something else',
+      `href="/assets/${LANDING[0] ?? ''}.woff2" as="fetch" type="font/woff2" crossorigin="anonymous"`,
+      FONT_FACES,
+      'as="font"',
+    ],
   ])('refuse %s, which would download the font twice', (_, attributes, css, problem) => {
-    expect(() => assertFontPreloads(preload(attributes), css)).toThrow(`The font preload <link rel="preload" ${attributes}> needs ${problem}`);
+    expect(() => assertFontPreloads(preload(attributes), css)).toThrow(
+      `The font preload <link rel="preload" ${attributes}> needs ${problem}`,
+    );
   });
 
-  it('are checked against the entry stylesheet before the shell\'s rules are selected', async () => {
+  it("are checked against the entry stylesheet before the shell's rules are selected", async () => {
     const input = { html: builtIndexHtml(), variant: 'offline' as const, shellCss, bootScript: bootJs };
-    await expect(inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}' }))
-      .rejects.toThrow('The font preload <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2"');
+    await expect(
+      inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}' }),
+    ).rejects.toThrow(
+      'The font preload <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2"',
+    );
   });
 });
 
 describe('first-paint index.html', () => {
-  it.each(['offline', 'online'] as const)('inlines the %s shell, its style and its boot script', async variant => {
+  it.each(['offline', 'online'] as const)('inlines the %s shell, its style and its boot script', async (variant) => {
     const appCss = `${FONT_FACES}:root{--ink:#20231e}.site-header{display:flex}.game-card{color:blue}`;
     const result = await inlineFirstPaintShell({
-      html: builtIndexHtml(), variant, shellCss, bootScript: bootJs,
-      readStylesheet: href => {
+      html: builtIndexHtml(),
+      variant,
+      shellCss,
+      bootScript: bootJs,
+      readStylesheet: (href) => {
         expect(href).toBe('/assets/index-BBBBBBBB.css');
         return appCss;
       },
@@ -371,20 +516,31 @@ describe('first-paint index.html', () => {
     // Every startup tag moved into the inert template, in the order the boot script inserts them.
     expect(head).toContain(template);
     expect(head.match(/<template\b/g)).toHaveLength(1);
-    expect(result.startup.map(tag => tag.source).join('')).toBe(TEMPLATE_CONTENT);
+    expect(result.startup.map((tag) => tag.source).join('')).toBe(TEMPLATE_CONTENT);
     expect(head.replace(template, '')).not.toMatch(/rel="(?:stylesheet|modulepreload|preload)"|<script type="module"/);
     // Nor does <body> link one: after #root it would follow the lazy chunk stylesheets Vite appends to <head> and
     // win their equal-specificity ties. <noscript> content never loads with scripting on.
-    expect(result.html.replace(template, '').replace(/<noscript>[\s\S]*?<\/noscript>/g, '')).not.toMatch(/rel="stylesheet"/);
+    expect(result.html.replace(template, '').replace(/<noscript>[\s\S]*?<\/noscript>/g, '')).not.toMatch(
+      /rel="stylesheet"/,
+    );
     expect(head.match(/<style>/g)).toHaveLength(1);
     expect(head.indexOf('<meta charset="UTF-8" />')).toBeLessThan(head.indexOf('<style>'));
     expect(head.indexOf('<style>')).toBeLessThan(head.indexOf(template));
     expect(head.endsWith(`${template}\n  <script>${result.script}</script>\n  `)).toBe(true);
     // The head-prepended preloads left, so the charset declaration moved up; the budget gate still counts the template's tags as eager.
     expect(assertCharsetDeclaration(result.html)).toBe(105);
-    expect(eagerHtmlFiles(result.html)).toEqual(['assets/index-AAAAAAAA.js', 'assets/index-BBBBBBBB.css', 'assets/vendor-CCCCCCCC.js']);
+    expect(eagerHtmlFiles(result.html)).toEqual([
+      'assets/index-AAAAAAAA.js',
+      'assets/index-BBBBBBBB.css',
+      'assets/vendor-CCCCCCCC.js',
+    ]);
     expect(eagerHtmlFiles(result.html)).toEqual(eagerHtmlFiles(builtIndexHtml()));
-    expect(cspProblems([{ name: 'index.html', html: result.html }], `default-src 'self'; script-src 'self' ${sha256Source(result.script)}; style-src 'self' 'unsafe-inline'`)).toEqual([]);
+    expect(
+      cspProblems(
+        [{ name: 'index.html', html: result.html }],
+        `default-src 'self'; script-src 'self' ${sha256Source(result.script)}; style-src 'self' 'unsafe-inline'`,
+      ),
+    ).toEqual([]);
     expect(result.script).toBe(stripBootScript(bootJs));
     // No web font face reaches the inline style; the only faces are shell.css's local fallbacks.
     expect(result.style.slice(0, -minifyShellCss(shellCss).length)).not.toContain('@font-face');
@@ -400,17 +556,34 @@ describe('first-paint index.html', () => {
   });
 
   it('needs exactly one module entry and an entry stylesheet', async () => {
-    const input = { variant: 'offline' as const, shellCss, bootScript: bootJs, readStylesheet: () => ':root{--ink:#20231e}' };
-    await expect(inlineFirstPaintShell({ ...input, html: builtIndexHtml().replace(/ {4}<link rel="stylesheet"[^\n]*\n/, '') })).rejects.toThrow('not 1 and 0.');
-    await expect(inlineFirstPaintShell({
-      ...input, html: builtIndexHtml().replace('  </head>', '    <script type="module" crossorigin src="/assets/other-DDDDDDDD.js"></script>\n  </head>'),
-    })).rejects.toThrow('not 2 and 1.');
+    const input = {
+      variant: 'offline' as const,
+      shellCss,
+      bootScript: bootJs,
+      readStylesheet: () => ':root{--ink:#20231e}',
+    };
+    await expect(
+      inlineFirstPaintShell({ ...input, html: builtIndexHtml().replace(/ {4}<link rel="stylesheet"[^\n]*\n/, '') }),
+    ).rejects.toThrow('not 1 and 0.');
+    await expect(
+      inlineFirstPaintShell({
+        ...input,
+        html: builtIndexHtml().replace(
+          '  </head>',
+          '    <script type="module" crossorigin src="/assets/other-DDDDDDDD.js"></script>\n  </head>',
+        ),
+      }),
+    ).rejects.toThrow('not 2 and 1.');
   });
 
   it('serves an empty #root in development and in builds without a shell', async () => {
-    for (const [variant, context] of [['offline', { path: '/', filename: 'index.html' }], [null, { path: '/', filename: 'index.html', bundle: {} }]] as const) {
+    for (const [variant, context] of [
+      ['offline', { path: '/', filename: 'index.html' }],
+      [null, { path: '/', filename: 'index.html', bundle: {} }],
+    ] as const) {
       const hook = firstPaintShell({ variant }).transformIndexHtml;
-      if (!hook || typeof hook === 'function') throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
+      if (!hook || typeof hook === 'function')
+        throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
       expect(hook.order).toBe('post');
       expect(await hook.handler.call({} as never, indexHtml, context as never)).toBe(removeShell(indexHtml));
     }
@@ -421,17 +594,31 @@ describe('first-paint index.html', () => {
     const plugin = firstPaintShell({ variant: 'offline' });
     const logged: string[] = [];
     if (typeof plugin.configResolved !== 'function') throw new Error('The shell plugin must read the resolved root.');
-    await plugin.configResolved.call({} as never, { root: repository, logger: { info: (message: string) => logged.push(message) } } as never);
+    await plugin.configResolved.call(
+      {} as never,
+      { root: repository, logger: { info: (message: string) => logged.push(message) } } as never,
+    );
     const hook = plugin.transformIndexHtml;
-    if (!hook || typeof hook === 'function') throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
-    const bundle = { 'assets/index-BBBBBBBB.css': { type: 'asset', fileName: 'assets/index-BBBBBBBB.css', source: `${FONT_FACES}.site-header{display:flex}` } };
+    if (!hook || typeof hook === 'function')
+      throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
+    const bundle = {
+      'assets/index-BBBBBBBB.css': {
+        type: 'asset',
+        fileName: 'assets/index-BBBBBBBB.css',
+        source: `${FONT_FACES}.site-header{display:flex}`,
+      },
+    };
     // The committed strict style-src lists the real build's critical CSS, not this fixture's, so only
     // the style hashes may be reported: the boot script hash must still match.
-    const failure = await (async () => hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never))().then(() => null, (cause: unknown) => cause);
+    const failure = await (async () =>
+      hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never))().then(
+      () => null,
+      (cause: unknown) => cause,
+    );
     expect(failure).toBeInstanceOf(Error);
     const problems = (failure as Error).message.split('\n').slice(1);
     expect(problems.length).toBeGreaterThan(0);
-    expect(problems.every(problem => problem.includes('style'))).toBe(true);
+    expect(problems.every((problem) => problem.includes('style'))).toBe(true);
     expect((failure as Error).message).not.toContain('script-src');
     expect((failure as Error).message).toMatch(/add 'sha256-[\w+/=]+' to style-src in vercel\.json/);
     expect(logged).toHaveLength(0);
@@ -439,9 +626,27 @@ describe('first-paint index.html', () => {
 
   it('under a strict style-src requires exactly the inline styles of both shell variants', async () => {
     const appCss = `${FONT_FACES}.site-header{display:flex}.site-header-online{color:red}`;
-    const styles = Object.fromEntries(await Promise.all((['offline', 'online'] as const).map(async variant => [variant, sha256Source((await inlineFirstPaintShell({
-      html: builtIndexHtml(), variant, shellCss, bootScript: bootJs, readStylesheet: () => appCss,
-    })).style)] as const)));
+    const styles = Object.fromEntries(
+      await Promise.all(
+        (['offline', 'online'] as const).map(
+          async (variant) =>
+            [
+              variant,
+              sha256Source(
+                (
+                  await inlineFirstPaintShell({
+                    html: builtIndexHtml(),
+                    variant,
+                    shellCss,
+                    bootScript: bootJs,
+                    readStylesheet: () => appCss,
+                  })
+                ).style,
+              ),
+            ] as const,
+        ),
+      ),
+    );
     expect(styles.offline).not.toBe(styles.online);
     const root = await mkdtemp(path.join(tmpdir(), 'play100-strict-style-'));
     try {
@@ -450,24 +655,42 @@ describe('first-paint index.html', () => {
       await writeFile(path.join(root, 'src', 'first-paint', 'boot.js'), bootJs);
       const build = async (styleSources: string) => {
         const csp = `default-src 'self'; script-src 'self' ${sha256Source(stripBootScript(bootJs))}; style-src 'self' ${styleSources}`;
-        await writeFile(path.join(root, 'vercel.json'), JSON.stringify({ headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: csp }] }] }));
+        await writeFile(
+          path.join(root, 'vercel.json'),
+          JSON.stringify({
+            headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: csp }] }],
+          }),
+        );
         const plugin = firstPaintShell({ variant: 'offline' });
         const logged: string[] = [];
-        if (typeof plugin.configResolved !== 'function') throw new Error('The shell plugin must read the resolved root.');
-        await plugin.configResolved.call({} as never, { root, logger: { info: (message: string) => logged.push(message) } } as never);
+        if (typeof plugin.configResolved !== 'function')
+          throw new Error('The shell plugin must read the resolved root.');
+        await plugin.configResolved.call(
+          {} as never,
+          { root, logger: { info: (message: string) => logged.push(message) } } as never,
+        );
         const hook = plugin.transformIndexHtml;
-        if (!hook || typeof hook === 'function') throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
-        const bundle = { 'assets/index-BBBBBBBB.css': { type: 'asset', fileName: 'assets/index-BBBBBBBB.css', source: appCss } };
+        if (!hook || typeof hook === 'function')
+          throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
+        const bundle = {
+          'assets/index-BBBBBBBB.css': { type: 'asset', fileName: 'assets/index-BBBBBBBB.css', source: appCss },
+        };
         await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
         return logged;
       };
       const logged = await build(`${styles.offline} ${styles.online}`);
       const literal = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       expect(logged).toHaveLength(1);
-      expect(logged[0]).toMatch(new RegExp(`^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \\d+ B ${literal(styles.offline!)}; inline script \\d+ B 'sha256-[\\w+/=]+'; online variant inline style ${literal(styles.online!)}$`));
+      expect(logged[0]).toMatch(
+        new RegExp(
+          `^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \\d+ B ${literal(styles.offline!)}; inline script \\d+ B 'sha256-[\\w+/=]+'; online variant inline style ${literal(styles.online!)}$`,
+        ),
+      );
       await expect(build(styles.offline!)).rejects.toThrow(`other shell variant's inline style ${styles.online}`);
       await expect(build(styles.online!)).rejects.toThrow(`add ${styles.offline} to style-src`);
-      await expect(build(`${styles.offline} ${styles.online} ${sha256Source('old{}')}`)).rejects.toThrow(`${sha256Source('old{}')}, which matches no inline style`);
+      await expect(build(`${styles.offline} ${styles.online} ${sha256Source('old{}')}`)).rejects.toThrow(
+        `${sha256Source('old{}')}, which matches no inline style`,
+      );
     } finally {
       await rm(root, { recursive: true, force: true, maxRetries: 5 });
     }

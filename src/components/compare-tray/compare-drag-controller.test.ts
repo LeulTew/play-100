@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { COMPARE_CLICK_TAIL_MS, COMPARE_TOUCH_HOLD_MS, COMPARE_TOUCH_SLOP, isCompareSourceHidden, matchesCompareClick, ownsCompareCaptureLoss } from './compare-drag-controller';
+import {
+  COMPARE_CLICK_TAIL_MS,
+  COMPARE_TOUCH_HOLD_MS,
+  COMPARE_TOUCH_SLOP,
+  isCompareSourceHidden,
+  matchesCompareClick,
+  ownsCompareCaptureLoss,
+} from './compare-drag-controller';
 import type { CompareClickTail } from './compare-drag-controller';
 
 const click = {
-  button: 0, detail: 1, clientX: 120, clientY: 240, pointerId: 1,
-  altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
+  button: 0,
+  detail: 1,
+  clientX: 120,
+  clientY: 240,
+  pointerId: 1,
+  altKey: false,
+  ctrlKey: false,
+  metaKey: false,
+  shiftKey: false,
 };
 const tail: CompareClickTail = { x: 120, y: 240, pointerId: 1, until: 1_000 + COMPARE_CLICK_TAIL_MS };
 
@@ -12,7 +26,7 @@ class VisibilityNode {
   readonly selectors = new Set<string>();
   constructor(readonly parentElement: VisibilityNode | null = null) {}
   matches(selector: string): boolean {
-    return selector.split(',').some(part => this.selectors.has(part));
+    return selector.split(',').some((part) => this.selectors.has(part));
   }
 }
 
@@ -27,28 +41,34 @@ describe('Compare source visibility', () => {
     expect(isCompareSourceHidden(grip)).toBe(true);
   });
 
-  it.each(['[aria-hidden="true"]', '[inert]', '[hidden]'])('refuses a grip under a %s ancestor and recovers when it is cleared', selector => {
-    const ancestor = new VisibilityNode();
-    const grip = new VisibilityNode(new VisibilityNode(ancestor));
-    grip.selectors.add('[data-compare-drag-grip]');
-    grip.selectors.add('[aria-hidden="true"]');
-    expect(isCompareSourceHidden(grip)).toBe(false);
-    ancestor.selectors.add(selector);
-    expect(isCompareSourceHidden(grip)).toBe(true);
-    ancestor.selectors.delete(selector);
-    expect(isCompareSourceHidden(grip)).toBe(false);
-  });
+  it.each(['[aria-hidden="true"]', '[inert]', '[hidden]'])(
+    'refuses a grip under a %s ancestor and recovers when it is cleared',
+    (selector) => {
+      const ancestor = new VisibilityNode();
+      const grip = new VisibilityNode(new VisibilityNode(ancestor));
+      grip.selectors.add('[data-compare-drag-grip]');
+      grip.selectors.add('[aria-hidden="true"]');
+      expect(isCompareSourceHidden(grip)).toBe(false);
+      ancestor.selectors.add(selector);
+      expect(isCompareSourceHidden(grip)).toBe(true);
+      ancestor.selectors.delete(selector);
+      expect(isCompareSourceHidden(grip)).toBe(false);
+    },
+  );
 
-  it.each(['[hidden]', '[inert]'])('refuses a grip with its own %s state and recovers when it is cleared', selector => {
-    const grip = new VisibilityNode();
-    grip.selectors.add('[data-compare-drag-grip]');
-    grip.selectors.add('[aria-hidden="true"]');
-    expect(isCompareSourceHidden(grip)).toBe(false);
-    grip.selectors.add(selector);
-    expect(isCompareSourceHidden(grip)).toBe(true);
-    grip.selectors.delete(selector);
-    expect(isCompareSourceHidden(grip)).toBe(false);
-  });
+  it.each(['[hidden]', '[inert]'])(
+    'refuses a grip with its own %s state and recovers when it is cleared',
+    (selector) => {
+      const grip = new VisibilityNode();
+      grip.selectors.add('[data-compare-drag-grip]');
+      grip.selectors.add('[aria-hidden="true"]');
+      expect(isCompareSourceHidden(grip)).toBe(false);
+      grip.selectors.add(selector);
+      expect(isCompareSourceHidden(grip)).toBe(true);
+      grip.selectors.delete(selector);
+      expect(isCompareSourceHidden(grip)).toBe(false);
+    },
+  );
 
   it('refuses an aria-hidden non-grip source and recovers when the attribute is cleared', () => {
     const source = new VisibilityNode();
@@ -85,9 +105,15 @@ describe('Compare terminal click matching', () => {
 
   it('never consumes native keyboard, assistive technology, middle or modified activation', () => {
     for (const patch of [
-      { detail: 0 }, { button: 1 }, { button: 2 },
-      { altKey: true }, { ctrlKey: true }, { metaKey: true }, { shiftKey: true },
-    ]) expect(matchesCompareClick({ ...click, ...patch }, tail, 1_000)).toBe(false);
+      { detail: 0 },
+      { button: 1 },
+      { button: 2 },
+      { altKey: true },
+      { ctrlKey: true },
+      { metaKey: true },
+      { shiftKey: true },
+    ])
+      expect(matchesCompareClick({ ...click, ...patch }, tail, 1_000)).toBe(false);
   });
 
   it('allows legacy mouse-event matching without assuming that every click has a pointer ID', () => {

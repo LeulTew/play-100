@@ -20,15 +20,24 @@ export function createCatalogMotionVisual(
 ): Extract<PublicMotionVisual, { kind: 'catalog-art' }> | null {
   if (!artwork) return null;
   const { src, width, height } = artwork;
-  if (!isCatalogMotionSource(src) || !Number.isInteger(width) || width < 1 || width > 640 ||
-    !Number.isInteger(height) || height < 1 || height > 640) return null;
+  if (
+    !isCatalogMotionSource(src) ||
+    !Number.isInteger(width) ||
+    width < 1 ||
+    width > 640 ||
+    !Number.isInteger(height) ||
+    height < 1 ||
+    height > 640
+  )
+    return null;
   return { kind: 'catalog-art', src, width, height };
 }
 
 export function copyPublicMotionVisual(visual: PublicMotionVisual): PublicMotionVisual | null {
   if (visual.kind === 'catalog-art') return createCatalogMotionVisual(visual);
   return Number.isInteger(visual.rank) && visual.rank >= 1 && visual.rank <= 100
-    ? { kind: 'jacket', rank: visual.rank } : null;
+    ? { kind: 'jacket', rank: visual.rank }
+    : null;
 }
 
 export interface MotionRect {
@@ -39,9 +48,15 @@ export interface MotionRect {
 }
 
 export function visibleMotionRect(rect: MotionRect, width: number, height: number): boolean {
-  return [rect.x, rect.y, rect.width, rect.height].every(Number.isFinite) &&
-    rect.width > 0 && rect.height > 0 && rect.x >= 0 && rect.y >= 0 &&
-    rect.x + rect.width <= width + 1 && rect.y + rect.height <= height + 1;
+  return (
+    [rect.x, rect.y, rect.width, rect.height].every(Number.isFinite) &&
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.x >= 0 &&
+    rect.y >= 0 &&
+    rect.x + rect.width <= width + 1 &&
+    rect.y + rect.height <= height + 1
+  );
 }
 
 export function fitMotionVisual(visual: PublicMotionVisual, rect: MotionRect): MotionRect {
@@ -68,13 +83,16 @@ export function createPublicMotionElement(
   element.setAttribute('aria-hidden', 'true');
   element.inert = true;
   Object.assign(element.style, {
-    left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px`,
+    left: `${rect.x}px`,
+    top: `${rect.y}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
   });
   if (visual.kind === 'jacket') {
     const rank = document.createElement('span');
     rank.className = 'motion-public-rank';
     rank.textContent = String(visual.rank).padStart(2, '0');
-    rank.style.fontSize = `${Math.min(rect.width, rect.height) * .65}px`;
+    rank.style.fontSize = `${Math.min(rect.width, rect.height) * 0.65}px`;
     element.append(rank);
   } else {
     const image = document.createElement('img');

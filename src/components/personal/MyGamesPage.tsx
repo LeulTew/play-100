@@ -32,7 +32,12 @@ export default function MyGamesPage(props: MyGamesPageProps) {
   return <MyGamesWorkspace key={props.scope} {...props} isCurrent={() => currentScope.current === props.scope} />;
 }
 
-function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPageProps & { isCurrent: () => boolean }) {
+function MyGamesWorkspace({
+  view,
+  onViewChange,
+  isCurrent,
+  ...props
+}: MyGamesPageProps & { isCurrent: () => boolean }) {
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState('');
   const mounted = useRef(true);
@@ -77,10 +82,19 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
     const order: MyGamesView[] = ['library', 'queue', 'ranking'];
     const serial = prior.serial + 1;
     tabHistory.current = { view, serial };
-    setTabCue({ serial, kind: 'tab', generation: generation.current, direction: order.indexOf(view) > order.indexOf(prior.view) ? 1 : -1 });
+    setTabCue({
+      serial,
+      kind: 'tab',
+      generation: generation.current,
+      direction: order.indexOf(view) > order.indexOf(prior.view) ? 1 : -1,
+    });
   }, [view]);
-  useCommittedCue(marker, tabCue, !switching, () =>
-    mounted.current && isCurrent() && generation.current === tabCue?.generation);
+  useCommittedCue(
+    marker,
+    tabCue,
+    !switching,
+    () => mounted.current && isCurrent() && generation.current === tabCue?.generation,
+  );
   const change = async (commit: () => void): Promise<boolean> => {
     if (changing.current !== null || !mounted.current || !isCurrent()) return false;
     const request = ++generation.current;
@@ -115,33 +129,94 @@ function MyGamesWorkspace({ view, onViewChange, isCurrent, ...props }: MyGamesPa
   };
   const titles: Record<MyGamesView, string> = { library: 'Library', queue: 'Queue', ranking: 'Ranking' };
   const editorBusy = props.busy || switching;
-  const onFilters = (patch: Partial<Filters>, method?: 'push' | 'replace') => { void change(() => props.onFilters(patch, method)); };
+  const onFilters = (patch: Partial<Filters>, method?: 'push' | 'replace') => {
+    void change(() => props.onFilters(patch, method));
+  };
   // Leaving My games unmounts both editors, so it passes the same save guard as a view change.
-  const guarded = (leave: () => void) => () => { void change(leave); };
+  const guarded = (leave: () => void) => () => {
+    void change(leave);
+  };
   const onDiscover = guarded(props.onDiscover);
   const onBrowse = guarded(props.onBrowse);
   const onPublish = props.onPublish && guarded(props.onPublish);
   return (
     <section className="app-page my-games-workspace" aria-labelledby="my-games-title">
       <div className="page-heading">
-        <h1 id="my-games-title" tabIndex={-1} data-page-heading>My games</h1>
-        <button className="button button-dark" onClick={onDiscover}><Icon name="plus" width="18" height="18" />Find games</button>
+        <h1 id="my-games-title" tabIndex={-1} data-page-heading>
+          My games
+        </h1>
+        <button className="button button-dark" onClick={onDiscover}>
+          <Icon name="plus" width="18" height="18" />
+          Find games
+        </button>
       </div>
       {props.friendSharing}
       <div className="my-games-navigation">
         <nav className="personal-tabs my-games-motion-tabs" aria-label="My games views">
-          {(['library', 'queue', 'ranking'] as const).map((value) => <button key={value} aria-label={`${titles[value]}, ${counts[value]}`} aria-current={view === value ? 'page' : undefined} aria-pressed={view === value} disabled={switching} onClick={() => { if (value !== view) void change(() => onViewChange(value)); }}>{titles[value]}{' '}<span>{counts[value]}</span><span className="my-games-tab-marker" ref={view === value ? marker : undefined} hidden={view !== value} aria-hidden="true" /></button>)}
+          {(['library', 'queue', 'ranking'] as const).map((value) => (
+            <button
+              key={value}
+              aria-label={`${titles[value]}, ${counts[value]}`}
+              aria-current={view === value ? 'page' : undefined}
+              aria-pressed={view === value}
+              disabled={switching}
+              onClick={() => {
+                if (value !== view) void change(() => onViewChange(value));
+              }}
+            >
+              {titles[value]} <span>{counts[value]}</span>
+              <span
+                className="my-games-tab-marker"
+                ref={view === value ? marker : undefined}
+                hidden={view !== value}
+                aria-hidden="true"
+              />
+            </button>
+          ))}
         </nav>
-        <ProgressFilter value={progressView} disabled={switching} onChange={value => onFilters(progressFilterPatch(value, props.filters))} />
+        <ProgressFilter
+          value={progressView}
+          disabled={switching}
+          onChange={(value) => onFilters(progressFilterPatch(value, props.filters))}
+        />
       </div>
-      {error && <p className="inline-error" role="alert">{error}</p>}
+      {error && (
+        <p className="inline-error" role="alert">
+          {error}
+        </p>
+      )}
       <div hidden={view === 'ranking'}>
-        <LibraryPage {...props} busy={editorBusy} embedded active={view !== 'ranking'} workspaceView={lastLibraryView.current} progressFilter={progressView} completedOnly={completedOnly} onFilters={onFilters} onDiscover={onDiscover} onBrowse={onBrowse} onPresentationChange={change} />
+        <LibraryPage
+          {...props}
+          busy={editorBusy}
+          embedded
+          active={view !== 'ranking'}
+          workspaceView={lastLibraryView.current}
+          progressFilter={progressView}
+          completedOnly={completedOnly}
+          onFilters={onFilters}
+          onDiscover={onDiscover}
+          onBrowse={onBrowse}
+          onPresentationChange={change}
+        />
       </div>
       <div hidden={view !== 'ranking'}>
-        {rankingVisited.current && <RankingsPage {...props} busy={editorBusy} embedded active={view === 'ranking'} progressFilter={progressView} onDiscover={onDiscover} onPublish={onPublish} onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))} />}
+        {rankingVisited.current && (
+          <RankingsPage
+            {...props}
+            busy={editorBusy}
+            embedded
+            active={view === 'ranking'}
+            progressFilter={progressView}
+            onDiscover={onDiscover}
+            onPublish={onPublish}
+            onClearProgress={() => onFilters(progressFilterPatch('all', props.filters))}
+          />
+        )}
       </div>
-      <span className="sr-only" role="status">{switching ? 'Saving your edit before changing view…' : ''}</span>
+      <span className="sr-only" role="status">
+        {switching ? 'Saving your edit before changing view…' : ''}
+      </span>
     </section>
   );
 }

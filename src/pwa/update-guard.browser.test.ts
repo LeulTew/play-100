@@ -66,23 +66,36 @@ let server: ViteDevServer;
 let browser: Browser;
 let base: string;
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-pwa-update-guard-tests',
-    appType: 'custom',
-    plugins: [react(), {
-      name: 'pwa-update-guard-fixture',
-      configureServer(server) {
-        server.middlewares.use((request, response, next) => {
-          if (request.url !== '/pwa-update-guard-fixture') return next();
-          void server.transformIndexHtml('/pwa-update-guard-fixture', fixture).then(html => {
-            response.setHeader('Content-Type', 'text/html'); response.end(html);
-          }).catch(next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-pwa-update-guard-tests',
+        appType: 'custom',
+        plugins: [
+          react(),
+          {
+            name: 'pwa-update-guard-fixture',
+            configureServer(server) {
+              server.middlewares.use((request, response, next) => {
+                if (request.url !== '/pwa-update-guard-fixture') return next();
+                void server
+                  .transformIndexHtml('/pwa-update-guard-fixture', fixture)
+                  .then((html) => {
+                    response.setHeader('Content-Type', 'text/html');
+                    response.end(html);
+                  })
+                  .catch(next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, watch: null },
+      }),
+    )
+  ).server;
   expect(server.config.server.watch).toBeNull();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('PWA update guard fixture did not bind a port.');
@@ -91,7 +104,9 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
+  const failures = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason);
   if (failures.length) throw new AggregateError(failures, 'PWA update guard fixture teardown failed.');
 }, 60_000);
 
@@ -105,14 +120,16 @@ describe('mounted PWA update input guard', () => {
   it('defers the reload when the user types during an update, then reloads on a later request', async () => {
     const page = await browser.newPage();
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     try {
       const instance = await openFixture(page);
       await page.getByRole('button', { name: 'Apply update' }).click();
       await browserExpect.poll(() => page.evaluate(() => window.statusRequests())).toBe(1);
       await page.getByLabel('Search games').fill('zelda');
       await page.evaluate(() => window.releaseStatus());
-      await browserExpect(page.getByRole('alert')).toHaveText('The waiting update or current edit changed. Review it again.');
+      await browserExpect(page.getByRole('alert')).toHaveText(
+        'The waiting update or current edit changed. Review it again.',
+      );
       await browserExpect(page.getByTestId('update-state')).toHaveText('reload-required');
       expect(await page.evaluate(() => window.pageInstance)).toBe(instance);
       await expect(page.getByLabel('Search games').inputValue()).resolves.toBe('zelda');
@@ -124,13 +141,16 @@ describe('mounted PWA update input guard', () => {
       await reloaded;
       await browserExpect(page.getByRole('button', { name: 'Apply update' })).toBeVisible();
       expect(await page.evaluate(() => window.pageInstance)).not.toBe(instance);
-    } finally { await page.close(); expect(errors).toEqual([]); }
+    } finally {
+      await page.close();
+      expect(errors).toEqual([]);
+    }
   });
 
   it('reloads when nothing is typed while the update is confirmed', async () => {
     const page = await browser.newPage();
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     try {
       const instance = await openFixture(page);
       await page.getByRole('button', { name: 'Apply update' }).click();
@@ -140,6 +160,9 @@ describe('mounted PWA update input guard', () => {
       await reloaded;
       await browserExpect(page.getByRole('button', { name: 'Apply update' })).toBeVisible();
       expect(await page.evaluate(() => window.pageInstance)).not.toBe(instance);
-    } finally { await page.close(); expect(errors).toEqual([]); }
+    } finally {
+      await page.close();
+      expect(errors).toEqual([]);
+    }
   });
 });

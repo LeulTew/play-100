@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  assertPublicBuildOutput, assertPublicPrecachePaths, buildManifestPath, readBuildManifest, retainBuildManifest,
+  assertPublicBuildOutput,
+  assertPublicPrecachePaths,
+  buildManifestPath,
+  readBuildManifest,
+  retainBuildManifest,
 } from './build-metadata';
 
 const folders: string[] = [];
@@ -44,7 +48,8 @@ describe('private build metadata', () => {
     expect(await readdir(output)).not.toContain('.vite');
     await expect(readBuildManifest(output)).resolves.toEqual(JSON.parse(manifest));
     await expect(assertPublicBuildOutput(output)).resolves.toBeUndefined();
-    for (const [file, bytes] of Object.entries(publicFiles)) expect(await readFile(path.join(output, file), 'utf8')).toBe(bytes);
+    for (const [file, bytes] of Object.entries(publicFiles))
+      expect(await readFile(path.join(output, file), 'utf8')).toBe(bytes);
   });
 
   it('fails rather than reusing stale metadata when this build did not emit a manifest', async () => {
@@ -63,7 +68,7 @@ describe('private build metadata', () => {
     expect(await readdir(path.join(output, '.vite'))).toContain('unexpected.json');
   });
 
-  it.each(['.vite', 'assets/.vite'])('rejects even an empty deployed %s directory', async relative => {
+  it.each(['.vite', 'assets/.vite'])('rejects even an empty deployed %s directory', async (relative) => {
     const { output } = await fixture();
     const directory = path.join(output, ...relative.split('/'));
     await mkdir(directory);
@@ -72,19 +77,27 @@ describe('private build metadata', () => {
     await expect(assertPublicBuildOutput(output)).resolves.toBeUndefined();
   });
 
-  it.each(['main.js.map', 'assets/styles.css.map'])('rejects deployed sourcemap %s but accepts the same output without it', async relative => {
-    const { output } = await fixture();
-    const file = path.join(output, ...relative.split('/'));
-    await writeFile(file, '{"sources":["src/App.tsx"]}');
-    await expect(assertPublicBuildOutput(output)).rejects.toThrow('Build metadata must not be deployed');
-    await rm(file);
-    await expect(assertPublicBuildOutput(output)).resolves.toBeUndefined();
-  });
+  it.each(['main.js.map', 'assets/styles.css.map'])(
+    'rejects deployed sourcemap %s but accepts the same output without it',
+    async (relative) => {
+      const { output } = await fixture();
+      const file = path.join(output, ...relative.split('/'));
+      await writeFile(file, '{"sources":["src/App.tsx"]}');
+      await expect(assertPublicBuildOutput(output)).rejects.toThrow('Build metadata must not be deployed');
+      await rm(file);
+      await expect(assertPublicBuildOutput(output)).resolves.toBeUndefined();
+    },
+  );
 
   it.each(['/.vite/manifest.json', '/assets/.vite/manifest.json', '/%2evite/manifest.json', '/assets/main.js.map'])(
-    'rejects precache metadata entry %s', url => {
-      expect(() => assertPublicPrecachePaths(['/index.html', url])).toThrow('Build metadata must not enter the public precache');
-      expect(() => assertPublicPrecachePaths(['/index.html', '/assets/main.js', '/manifest.webmanifest'])).not.toThrow();
+    'rejects precache metadata entry %s',
+    (url) => {
+      expect(() => assertPublicPrecachePaths(['/index.html', url])).toThrow(
+        'Build metadata must not enter the public precache',
+      );
+      expect(() =>
+        assertPublicPrecachePaths(['/index.html', '/assets/main.js', '/manifest.webmanifest']),
+      ).not.toThrow();
     },
   );
 });

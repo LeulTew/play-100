@@ -20,6 +20,8 @@ const root = createRoot(document.getElementById('root')!);
 // guest library and collection results.
 startTransition(() => {
   root.render(
-    <StrictMode><ErrorBoundary>{dataUsePage ? <DataUsePage /> : <App />}</ErrorBoundary></StrictMode>,
+    <StrictMode>
+      <ErrorBoundary>{dataUsePage ? <DataUsePage /> : <App />}</ErrorBoundary>
+    </StrictMode>,
   );
 });

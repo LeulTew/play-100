@@ -26,22 +26,29 @@ async function prepareRanking(page: Page) {
 }
 
 for (const field of ['score', 'note'] as const) {
-  test(`untouched focused ${field} follows another tab instead of overwriting its update`, async ({ page, context }) => {
+  test(`untouched focused ${field} follows another tab instead of overwriting its update`, async ({
+    page,
+    context,
+  }) => {
     await prepareRanking(page);
     const peer = await context.newPage();
     await peer.goto('/my-rankings');
     await expect(peer.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
-    const currentInput = field === 'score'
-      ? page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
-      : page.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
-    const otherInput = field === 'score'
-      ? peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
-      : peer.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
+    const currentInput =
+      field === 'score'
+        ? page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
+        : page.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
+    const otherInput =
+      field === 'score'
+        ? peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
+        : peer.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
     if (field === 'note') await peer.locator('.ranking-note summary').click();
     await currentInput.focus();
     await otherInput.fill(field === 'score' ? '9' : 'New note from another tab');
     await otherInput.press('Tab');
-    await expect.poll(async () => (await readLibrary(peer)).ranking[0]?.[field]).toBe(field === 'score' ? 9 : 'New note from another tab');
+    await expect
+      .poll(async () => (await readLibrary(peer)).ranking[0]?.[field])
+      .toBe(field === 'score' ? 9 : 'New note from another tab');
     await peer.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true }).click();
     await expect(page.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true })).toBeChecked();
     await expect(currentInput).toHaveValue(field === 'score' ? '9' : 'New note from another tab');
@@ -51,7 +58,10 @@ for (const field of ['score', 'note'] as const) {
   });
 }
 
-test('an actual dirty draft is preserved through another-tab updates and saves intentionally', async ({ page, context }) => {
+test('an actual dirty draft is preserved through another-tab updates and saves intentionally', async ({
+  page,
+  context,
+}) => {
   await prepareRanking(page);
   const peer = await context.newPage();
   await peer.goto('/my-rankings');
@@ -77,7 +87,9 @@ test('invalid native number input never clears a previously saved personal score
   await score.press('ControlOrMeta+A');
   await score.press('e');
   await score.press('Tab');
-  await expect(page.locator('.ranking-row-content .inline-error')).toHaveText('Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.');
+  await expect(page.locator('.ranking-row-content .inline-error')).toHaveText(
+    'Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.',
+  );
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === id)?.score).toBe(7);
 });
 
@@ -92,7 +104,9 @@ test('temporary user edits survive a later successful author-data retry', async 
       },
     });
   });
-  await page.route('**/data/collection.json', (route) => route.fulfill({ status: 503, body: 'Temporarily unavailable' }));
+  await page.route('**/data/collection.json', (route) =>
+    route.fulfill({ status: 503, body: 'Temporarily unavailable' }),
+  );
   await page.goto('/discover');
   const { banner, configured } = await expectStorageDenial(page);
   if (configured) {
@@ -106,12 +120,17 @@ test('temporary user edits survive a later successful author-data retry', async 
   await page.locator('.discovery-heading').getByRole('button', { name: 'My games', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Temporary game to retain', exact: true })).toBeVisible();
   await page.locator('.wordmark').first().click();
-  await page.evaluate(() => { document.documentElement.dataset.reviewStorageAllowed = 'yes'; });
+  await page.evaluate(() => {
+    document.documentElement.dataset.reviewStorageAllowed = 'yes';
+  });
   await page.unroute('**/data/collection.json');
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.locator('.game-card')).toHaveCount(24);
   await page.locator('.saved-nav').click();
-  await page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', { name: /^Library, \d+$/ }).click();
+  await page
+    .getByRole('navigation', { name: 'My games views', exact: true })
+    .getByRole('button', { name: /^Library, \d+$/ })
+    .click();
   await expect(page.getByRole('button', { name: 'Temporary game to retain', exact: true })).toBeVisible();
   await expect(banner).toHaveCount(1);
   await expect(banner).toHaveAttribute('role', 'alert');
@@ -141,15 +160,19 @@ async function expectLabelInName(page: Page, surface: string, include?: string) 
   });
   if (include) builder.include(include);
   const result = await builder.analyze();
-  expect(result.violations.map(({ id, nodes }) => ({ surface, id, targets: nodes.map(node => node.target.join(' ')) }))).toEqual([]);
+  expect(
+    result.violations.map(({ id, nodes }) => ({ surface, id, targets: nodes.map((node) => node.target.join(' ')) })),
+  ).toEqual([]);
 }
 
 test('every primary surface keeps visible labels inside accessible names', async ({ page, baseURL }) => {
-  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Label-in-name fixtures require the owned local app.');
+  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname))
+    throw new Error('Label-in-name fixtures require the owned local app.');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/*', route => {
+  await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
-    if (url.origin !== new URL(baseURL).origin || url.pathname.startsWith('/api/')) return route.abort('blockedbyclient');
+    if (url.origin !== new URL(baseURL).origin || url.pathname.startsWith('/api/'))
+      return route.abort('blockedbyclient');
     return route.continue();
   });
   await installGuestLibrary(page, libraryFixture(3));
@@ -179,7 +202,11 @@ test('every primary surface keeps visible labels inside accessible names', async
   await detail.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(detail).toHaveCount(0);
 
-  for (const [tab, name] of [['library', /^Library, \d+$/], ['queue', /^Queue, \d+$/], ['ranking', /^Ranking, \d+$/]] as const) {
+  for (const [tab, name] of [
+    ['library', /^Library, \d+$/],
+    ['queue', /^Queue, \d+$/],
+    ['ranking', /^Ranking, \d+$/],
+  ] as const) {
     await page.goto(`/my-games?tab=${tab}&catalogs=off`);
     const views = page.getByRole('navigation', { name: 'My games views', exact: true });
     await expect(views.getByRole('button', { name })).toHaveAttribute('aria-current', 'page');
@@ -198,7 +225,7 @@ test('every primary surface keeps visible labels inside accessible names', async
   await expect(settings).toHaveCount(0);
 
   // The signed-out account sheet exists only in the centrally configured online build.
-  if (await page.locator('.account-nav').count() === 0) return;
+  if ((await page.locator('.account-nav').count()) === 0) return;
   await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await page.locator('.account-nav').click();
   const signIn = page.getByRole('dialog', { name: 'Sign in', exact: true });
@@ -207,7 +234,9 @@ test('every primary surface keeps visible labels inside accessible names', async
 });
 test('Auto defers touch-screen WebGL until requested while Full remains automatic', async ({ page, isMobile }) => {
   const sceneRequests: string[] = [];
-  page.on('request', (request) => { if (/\/assets\/CollectionScene-/.test(request.url())) sceneRequests.push(request.url()); });
+  page.on('request', (request) => {
+    if (/\/assets\/CollectionScene-/.test(request.url())) sceneRequests.push(request.url());
+  });
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   await expect(page.locator('.save-game').first()).toBeEnabled();
@@ -224,7 +253,10 @@ test('Auto defers touch-screen WebGL until requested while Full remains automati
     await expect(scene).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
     await expect(scene).toHaveAttribute('data-render-mode', 'webgl');
   }
-  await page.locator('.footer-tools').getByRole('button', { name: /Effects:/ }).click();
+  await page
+    .locator('.footer-tools')
+    .getByRole('button', { name: /Effects:/ })
+    .click();
   await page.getByRole('radio', { name: /Full/ }).click();
   await expect(page.getByRole('radio', { name: /Full/ })).toBeChecked();
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();

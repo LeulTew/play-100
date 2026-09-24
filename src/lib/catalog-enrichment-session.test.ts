@@ -6,17 +6,25 @@ import { CatalogRequestError } from './catalog-transport';
 import { enrichmentFixture } from './discovery-test-fixtures';
 
 const request = (patch: Partial<EnrichmentRequest> = {}): EnrichmentRequest => ({
-  id: 'wikidata:Q15408545', scopeKey: 'guest', allowed: true, online: true, connected: true, ...patch,
+  id: 'wikidata:Q15408545',
+  scopeKey: 'guest',
+  allowed: true,
+  online: true,
+  connected: true,
+  ...patch,
 });
-afterEach(() => { vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('public detail lookup eligibility and lifecycle', () => {
   it.each(['disabled', 'offline', 'ready', 'error', 'loading'] as const)(
     'peeks the exact first %s snapshot without requests, publication or cache mutation',
-    async status => {
+    async (status) => {
       const data = enrichmentFixture();
       const cache = new Map([[data.id, { data, expires: status === 'ready' ? 2000 : 0 }]]);
-      const load = vi.fn<(id: string, signal: AbortSignal) => Promise<CatalogEnrichment>>()
+      const load = vi
+        .fn<(id: string, signal: AbortSignal) => Promise<CatalogEnrichment>>()
         .mockImplementation(() => new Promise(() => {}));
       const session = new CatalogEnrichmentSession(load, () => 1000, cache);
       if (status === 'error') {
@@ -26,7 +34,9 @@ describe('public detail lookup eligibility and lifecycle', () => {
         load.mockClear();
       }
       const published: EnrichmentSnapshot[] = [];
-      const unsubscribe = session.subscribe(() => { published.push(session.getSnapshot()); });
+      const unsubscribe = session.subscribe(() => {
+        published.push(session.getSnapshot());
+      });
       const input = request({ online: status !== 'disabled', connected: status !== 'offline' });
       const before = session.getSnapshot();
       const cached = [...cache.entries()];
@@ -45,7 +55,8 @@ describe('public detail lookup eligibility and lifecycle', () => {
   );
 
   it('does not cancel a live request, construct a controller or change retry identity when peeking', () => {
-    const load = vi.fn<(id: string, signal: AbortSignal) => Promise<CatalogEnrichment>>()
+    const load = vi
+      .fn<(id: string, signal: AbortSignal) => Promise<CatalogEnrichment>>()
       .mockImplementation(() => new Promise(() => {}));
     const session = new CatalogEnrichmentSession(load, () => 1000, new Map());
     session.start(request());
@@ -56,7 +67,9 @@ describe('public detail lookup eligibility and lifecycle', () => {
     session.subscribe(listener);
     const before = session.getSnapshot();
     expect(session.peek(request({ id: 'manual:private', scopeKey: 'other' }))).toMatchObject({
-      status: 'disabled', data: null, cached: false,
+      status: 'disabled',
+      data: null,
+      cached: false,
     });
     expect(controller).not.toHaveBeenCalled();
     expect(signal.aborted).toBe(false);
@@ -70,9 +83,13 @@ describe('public detail lookup eligibility and lifecycle', () => {
   });
 
   it.each([
-    { allowed: false }, { online: false }, { connected: false }, { id: 'manual:private-title' },
-    { id: 'red-dead-redemption-2' }, { id: 'wikidata:Q27438121' },
-  ])('makes no request for ineligible input %j', patch => {
+    { allowed: false },
+    { online: false },
+    { connected: false },
+    { id: 'manual:private-title' },
+    { id: 'red-dead-redemption-2' },
+    { id: 'wikidata:Q27438121' },
+  ])('makes no request for ineligible input %j', (patch) => {
     const load = vi.fn();
     const session = new CatalogEnrichmentSession(load, Date.now, new Map());
     session.start(request(patch));
@@ -94,7 +111,12 @@ describe('public detail lookup eligibility and lifecycle', () => {
   });
   it('aborts and suppresses a late close, scope change, and superseded ID', async () => {
     const pending: { id: string; signal: AbortSignal; resolve: (data: CatalogEnrichment) => void }[] = [];
-    const load = vi.fn((id: string, signal: AbortSignal) => new Promise<CatalogEnrichment>(resolve => { pending.push({ id, signal, resolve }); }));
+    const load = vi.fn(
+      (id: string, signal: AbortSignal) =>
+        new Promise<CatalogEnrichment>((resolve) => {
+          pending.push({ id, signal, resolve });
+        }),
+    );
     const session = new CatalogEnrichmentSession(load, Date.now, new Map());
     session.start(request());
     session.cancel();
@@ -129,7 +151,13 @@ describe('public detail lookup eligibility and lifecycle', () => {
   it('retains explicit partial errors and respects retry-after without clearing other scores', async () => {
     let clock = 1000;
     const data = enrichmentFixture();
-    data.sources[1] = { source: 'steam', status: 'error', code: 'rate-limited', message: 'Steam rate limit.', retryAfter: 30 };
+    data.sources[1] = {
+      source: 'steam',
+      status: 'error',
+      code: 'rate-limited',
+      message: 'Steam rate limit.',
+      retryAfter: 30,
+    };
     const load = vi.fn().mockResolvedValue(data);
     const session = new CatalogEnrichmentSession(load, () => clock, new Map());
     session.start(request());
@@ -142,7 +170,10 @@ describe('public detail lookup eligibility and lifecycle', () => {
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   });
   it('does not replace a valid cached response with malformed or wrong-game data', async () => {
-    const load = vi.fn().mockResolvedValueOnce(enrichmentFixture()).mockResolvedValueOnce({ ...enrichmentFixture(), id: 'wikidata:Q1' });
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce(enrichmentFixture())
+      .mockResolvedValueOnce({ ...enrichmentFixture(), id: 'wikidata:Q1' });
     const session = new CatalogEnrichmentSession(load, Date.now, new Map());
     session.start(request());
     await vi.waitFor(() => expect(session.getSnapshot().status).toBe('ready'));
@@ -151,8 +182,14 @@ describe('public detail lookup eligibility and lifecycle', () => {
     expect(session.getSnapshot().data).toEqual(enrichmentFixture());
   });
   it('shows a transport failure honestly without fabricating a successful empty result', async () => {
-    const session = new CatalogEnrichmentSession(vi.fn().mockRejectedValue(new CatalogRequestError('Timed out', 'timeout')), Date.now, new Map());
+    const session = new CatalogEnrichmentSession(
+      vi.fn().mockRejectedValue(new CatalogRequestError('Timed out', 'timeout')),
+      Date.now,
+      new Map(),
+    );
     session.start(request());
-    await vi.waitFor(() => expect(session.getSnapshot()).toMatchObject({ status: 'error', data: null, error: 'Timed out' }));
+    await vi.waitFor(() =>
+      expect(session.getSnapshot()).toMatchObject({ status: 'error', data: null, error: 'Timed out' }),
+    );
   });
 });

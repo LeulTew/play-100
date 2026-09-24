@@ -34,17 +34,29 @@ function hasText(value: unknown): value is string {
 function readAuthorRating(value: unknown, rank: number): AuthorRating | null {
   if (value === undefined || value === null) return null;
   if (
-    !isRecord(value) || typeof value.value !== 'number' || !Number.isFinite(value.value) ||
-    value.value < 0 || value.value > 10 || !hasText(value.rawValue) || value.rawValue.length > 150 ||
-    !hasText(value.display) || value.display.length > 150 ||
+    !isRecord(value) ||
+    typeof value.value !== 'number' ||
+    !Number.isFinite(value.value) ||
+    value.value < 0 ||
+    value.value > 10 ||
+    !hasText(value.rawValue) ||
+    value.rawValue.length > 150 ||
+    !hasText(value.display) ||
+    value.display.length > 150 ||
     value.sourceCell !== `L${rank <= 50 ? rank + 4 : rank + 5}` ||
-    !hasText(value.numberFormat) || value.numberFormat.length > 100 ||
+    !hasText(value.numberFormat) ||
+    value.numberFormat.length > 100 ||
     (value.sourceType !== 'number' && value.sourceType !== 'text') ||
     Number.parseFloat(value.rawValue) !== value.value
-  ) throw new Error(`The original author rating is invalid for entry ${rank}.`);
+  )
+    throw new Error(`The original author rating is invalid for entry ${rank}.`);
   return {
-    value: value.value, rawValue: value.rawValue, display: value.display, sourceCell: value.sourceCell,
-    numberFormat: value.numberFormat, sourceType: value.sourceType,
+    value: value.value,
+    rawValue: value.rawValue,
+    display: value.display,
+    sourceCell: value.sourceCell,
+    numberFormat: value.numberFormat,
+    sourceType: value.sourceType,
   };
 }
 
@@ -54,8 +66,11 @@ export function parseCollection(value: unknown): CollectionData {
   }
   const metadata = value.collection;
   if (
-    !hasText(metadata.title) || !hasText(metadata.sourceFile) || !hasText(metadata.scope) ||
-    !hasText(metadata.rankingBasis) || metadata.criticScoresAreSnapshot !== true
+    !hasText(metadata.title) ||
+    !hasText(metadata.sourceFile) ||
+    !hasText(metadata.scope) ||
+    !hasText(metadata.rankingBasis) ||
+    metadata.criticScoresAreSnapshot !== true
   ) {
     throw new Error('The collection source information is incomplete.');
   }
@@ -66,16 +81,27 @@ export function parseCollection(value: unknown): CollectionData {
     if (!isRecord(row)) throw new Error(`Collection entry ${index + 1} is unreadable.`);
     const tier = index < 50 ? 'core' : 'essential';
     const authorRating = readAuthorRating(row.authorRating, index + 1);
-    if (metadata.authorRatingsAreOriginal === true && !authorRating) throw new Error(`The original author rating is missing for entry ${index + 1}.`);
+    if (metadata.authorRatingsAreOriginal === true && !authorRating)
+      throw new Error(`The original author rating is missing for entry ${index + 1}.`);
     if (
-      row.rank !== index + 1 || !hasText(row.slug) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug) ||
-      slugs.has(row.slug) || !hasText(row.title) || !hasText(row.studio) || !hasText(row.genre) ||
-      !hasText(row.rationale) || !Number.isInteger(row.year) || typeof row.year !== 'number' ||
-      row.year < 1970 || row.year > 2100 ||
-      !Array.isArray(row.genreTags) || !row.genreTags.every(hasText) ||
+      row.rank !== index + 1 ||
+      !hasText(row.slug) ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug) ||
+      slugs.has(row.slug) ||
+      !hasText(row.title) ||
+      !hasText(row.studio) ||
+      !hasText(row.genre) ||
+      !hasText(row.rationale) ||
+      !Number.isInteger(row.year) ||
+      typeof row.year !== 'number' ||
+      row.year < 1970 ||
+      row.year > 2100 ||
+      !Array.isArray(row.genreTags) ||
+      !row.genreTags.every(hasText) ||
       row.tier !== tier ||
       (row.sourceNote !== null && !hasText(row.sourceNote)) ||
-      typeof row.rankIndex !== 'number' || Math.abs(row.rankIndex - (10 - index * 3 / 99)) > 0.0001
+      typeof row.rankIndex !== 'number' ||
+      Math.abs(row.rankIndex - (10 - (index * 3) / 99)) > 0.0001
     ) {
       throw new Error(`Collection entry ${index + 1} has invalid or inconsistent information.`);
     }
@@ -83,14 +109,20 @@ export function parseCollection(value: unknown): CollectionData {
     const values = row.critics;
     const readScore = (key: keyof Critics): number | null => {
       const score = values[key];
-      if (score !== null && (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > SCORE_SCALES[key])) {
+      if (
+        score !== null &&
+        (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > SCORE_SCALES[key])
+      ) {
         throw new Error(`The ${key} score is invalid for entry ${index + 1}.`);
       }
       return score;
     };
     const critics: Critics = {
-      metacritic: readScore('metacritic'), metacriticPc: readScore('metacriticPc'),
-      ign: readScore('ign'), gamespot: readScore('gamespot'), pcGamer: readScore('pcGamer'),
+      metacritic: readScore('metacritic'),
+      metacriticPc: readScore('metacriticPc'),
+      ign: readScore('ign'),
+      gamespot: readScore('gamespot'),
+      pcGamer: readScore('pcGamer'),
     };
     const average = normalizedAverage(critics);
     if (
@@ -102,8 +134,10 @@ export function parseCollection(value: unknown): CollectionData {
     let artwork: Game['artwork'] = null;
     if (row.artwork !== null) {
       if (
-        !isRecord(row.artwork) || row.artwork.source !== 'User-provided workbook' ||
-        typeof row.artwork.file !== 'string' || !/^assets\/[a-z0-9-]+\.(?:jpe?g|png|webp)$/i.test(row.artwork.file)
+        !isRecord(row.artwork) ||
+        row.artwork.source !== 'User-provided workbook' ||
+        typeof row.artwork.file !== 'string' ||
+        !/^assets\/[a-z0-9-]+\.(?:jpe?g|png|webp)$/i.test(row.artwork.file)
       ) {
         throw new Error(`The artwork reference is invalid for entry ${index + 1}.`);
       }
@@ -111,16 +145,31 @@ export function parseCollection(value: unknown): CollectionData {
     }
     slugs.add(row.slug);
     return {
-      rank: index + 1, slug: row.slug, title: row.title, year: row.year, studio: row.studio,
-      genre: row.genre, genreTags: row.genreTags, tier, critics, criticAverage: average,
-      rankIndex: row.rankIndex, authorRating, rationale: row.rationale, sourceNote: row.sourceNote, artwork,
+      rank: index + 1,
+      slug: row.slug,
+      title: row.title,
+      year: row.year,
+      studio: row.studio,
+      genre: row.genre,
+      genreTags: row.genreTags,
+      tier,
+      critics,
+      criticAverage: average,
+      rankIndex: row.rankIndex,
+      authorRating,
+      rationale: row.rationale,
+      sourceNote: row.sourceNote,
+      artwork,
     };
   });
   return {
     schemaVersion: 1,
     collection: {
-      title: metadata.title, sourceFile: metadata.sourceFile, scope: metadata.scope,
-      rankingBasis: metadata.rankingBasis, criticScoresAreSnapshot: true,
+      title: metadata.title,
+      sourceFile: metadata.sourceFile,
+      scope: metadata.scope,
+      rankingBasis: metadata.rankingBasis,
+      criticScoresAreSnapshot: true,
       authorRatingsAreOriginal: metadata.authorRatingsAreOriginal === true,
     },
     games,
@@ -128,10 +177,20 @@ export function parseCollection(value: unknown): CollectionData {
 }
 
 export function searchText(text: string): string {
-  return text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return text
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 }
 
-export function filterGames(games: Game[], filters: Filters, progress: Progress, catalogMatches: ReadonlySet<string> = new Set()): Game[] {
+export function filterGames(
+  games: Game[],
+  filters: Filters,
+  progress: Progress,
+  catalogMatches: ReadonlySet<string> = new Set(),
+): Game[] {
   const terms = searchText(filters.q).split(' ').filter(Boolean);
   const selected = games.filter((game) => {
     if (filters.genre && game.genre !== filters.genre) return false;
@@ -141,7 +200,10 @@ export function filterGames(games: Game[], filters: Filters, progress: Progress,
     if (!matchesProgressFilters(state, filters)) return false;
     const searchable = searchText(`${game.title} ${game.studio} ${game.genre} ${game.year}`);
     const words = searchable.split(' ');
-    return catalogMatches.has(game.slug) || terms.every((term) => /^\d+$/.test(term) ? words.includes(term) : searchable.includes(term));
+    return (
+      catalogMatches.has(game.slug) ||
+      terms.every((term) => (/^\d+$/.test(term) ? words.includes(term) : searchable.includes(term)))
+    );
   });
   const sign = sortDirection(filters) === 'asc' ? 1 : -1;
   return selected.sort((a, b) => {
@@ -149,8 +211,10 @@ export function filterGames(games: Game[], filters: Filters, progress: Progress,
     const right = sortValue(b, filters.sort);
     if (left === null) return right === null ? a.rank - b.rank : 1;
     if (right === null) return -1;
-    const difference = typeof left === 'string' && typeof right === 'string'
-      ? left.localeCompare(right, 'en') : Number(left) - Number(right);
+    const difference =
+      typeof left === 'string' && typeof right === 'string'
+        ? left.localeCompare(right, 'en')
+        : Number(left) - Number(right);
     return sign * difference || a.rank - b.rank;
   });
 }

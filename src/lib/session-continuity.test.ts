@@ -3,15 +3,62 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import type { SyncHead } from './cloud-types';
 import type { Member } from './community';
-import { closePersonalLibrary, commitPersonalAction, loadPersonalLibrary, readOnlineLoadHint, saveOnlineLoadHint } from './personal-db';
+import {
+  closePersonalLibrary,
+  commitPersonalAction,
+  loadPersonalLibrary,
+  readOnlineLoadHint,
+  saveOnlineLoadHint,
+} from './personal-db';
 import { applyPersonalAction, emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
-import { commitScopedAction, connectScopedLibrary, loadScopedLibrary, pauseScopedLibrary, restoreConsentedAccount, restoreScopedLibrary } from './scoped-library';
+import {
+  commitScopedAction,
+  connectScopedLibrary,
+  loadScopedLibrary,
+  pauseScopedLibrary,
+  restoreConsentedAccount,
+  restoreScopedLibrary,
+} from './scoped-library';
 
 const scope = accountScope('continuity-user');
-const game: LibraryRecord = { id: 'example-game', title: 'Example game', source: 'collection', sourceId: 'example-game', year: 2020, genre: null, studio: null, sourceUrl: null, collectionRank: 1 };
-const head: SyncHead = { format: 1, epoch: 3, revision: 8, enabled: true, deleted: false, current: { format: 1, generation: '11111111-1111-4111-8111-111111111111', digest: 'a'.repeat(64), bytes: 1, chunks: ['a'.repeat(64)] }, previous: null, updatedAt: 1 };
-const member: Member = { uid: 'continuity-user', displayName: 'Synthetic player', avatar: { version: 1, seed: 'a'.repeat(32), palette: 'moss' }, consentVersion: 1, gameCount: 1, rankCount: 1, createdAt: 1, updatedAt: 1 };
+const game: LibraryRecord = {
+  id: 'example-game',
+  title: 'Example game',
+  source: 'collection',
+  sourceId: 'example-game',
+  year: 2020,
+  genre: null,
+  studio: null,
+  sourceUrl: null,
+  collectionRank: 1,
+};
+const head: SyncHead = {
+  format: 1,
+  epoch: 3,
+  revision: 8,
+  enabled: true,
+  deleted: false,
+  current: {
+    format: 1,
+    generation: '11111111-1111-4111-8111-111111111111',
+    digest: 'a'.repeat(64),
+    bytes: 1,
+    chunks: ['a'.repeat(64)],
+  },
+  previous: null,
+  updatedAt: 1,
+};
+const member: Member = {
+  uid: 'continuity-user',
+  displayName: 'Synthetic player',
+  avatar: { version: 1, seed: 'a'.repeat(32), palette: 'moss' },
+  consentVersion: 1,
+  gameCount: 1,
+  rankCount: 1,
+  createdAt: 1,
+  updatedAt: 1,
+};
 const incoming = () => applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8.7 });
 
 beforeEach(() => {
@@ -20,7 +67,11 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { getItem: () => null, removeItem: () => undefined });
   vi.stubGlobal('window', undefined);
 });
-afterEach(() => { closePersonalLibrary(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  closePersonalLibrary();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('own account restoration without another consent or guest upload', () => {
   it('restores an active prior-consented cloud copy into an empty cache and preserves guest and device motion', async () => {
@@ -30,21 +81,33 @@ describe('own account restoration without another consent or guest upload', () =
     const restored = await restoreConsentedAccount(scope, incoming(), head, member, () => true);
     expect(restored.state.ranking[0]?.score).toBe(8.7);
     expect(restored.state.motion).toBe('lite');
-    expect(restored.sync).toMatchObject({ enabled: true, epoch: 3, baseRemoteRevision: 8, dirty: false, dataRevision: 1 });
+    expect(restored.sync).toMatchObject({
+      enabled: true,
+      epoch: 3,
+      baseRemoteRevision: 8,
+      dirty: false,
+      dataRevision: 1,
+    });
     expect(restored.recovery).toBeNull();
     expect(restored.profile).toEqual({ displayName: member.displayName, avatar: member.avatar });
     expect((await loadPersonalLibrary([game])).state).toEqual(guest);
     closePersonalLibrary();
     expect(await loadScopedLibrary(scope)).toEqual(restored);
   });
-  it.each([{ ...head, enabled: false }, { ...head, deleted: true }, { ...head, current: null }])('does not restore a stopped, deleted or incomplete head', async (invalid) => {
+  it.each([
+    { ...head, enabled: false },
+    { ...head, deleted: true },
+    { ...head, current: null },
+  ])('does not restore a stopped, deleted or incomplete head', async (invalid) => {
     const before = await loadScopedLibrary(scope);
     await expect(restoreConsentedAccount(scope, incoming(), invalid, member, () => true)).rejects.toThrow(/active/);
     expect(await loadScopedLibrary(scope)).toEqual(before);
   });
   it('rejects another owner and a stale auth/editor callback', async () => {
     const before = await loadScopedLibrary(scope);
-    await expect(restoreConsentedAccount(scope, incoming(), head, { ...member, uid: 'another-user' }, () => true)).rejects.toThrow();
+    await expect(
+      restoreConsentedAccount(scope, incoming(), head, { ...member, uid: 'another-user' }, () => true),
+    ).rejects.toThrow();
     await expect(restoreConsentedAccount(scope, incoming(), head, member, () => false)).rejects.toThrow(/changed/);
     expect(await loadScopedLibrary(scope)).toEqual(before);
   });
@@ -58,9 +121,15 @@ describe('own account restoration without another consent or guest upload', () =
   });
   it('does not re-enable a previously connected, intentionally paused cache', async () => {
     const before = await loadScopedLibrary(scope);
-    await connectScopedLibrary(scope, incoming(), head, member.displayName, false, { localRevision: before.state.revision, epoch: 0, enabled: false });
+    await connectScopedLibrary(scope, incoming(), head, member.displayName, false, {
+      localRevision: before.state.revision,
+      epoch: 0,
+      enabled: false,
+    });
     const paused = await pauseScopedLibrary(scope);
-    await expect(restoreConsentedAccount(scope, incoming(), head, member, () => true)).rejects.toThrow(/previously connected/);
+    await expect(restoreConsentedAccount(scope, incoming(), head, member, () => true)).rejects.toThrow(
+      /previously connected/,
+    );
     expect(await loadScopedLibrary(scope)).toEqual(paused);
   });
   it('allows only one concurrent initial adoption', async () => {

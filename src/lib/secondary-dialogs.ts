@@ -10,8 +10,11 @@ export function secondaryDialogsStarted(): boolean {
 }
 
 export function secondaryDialogReady(panel: AppPanel): boolean {
-  return panel === 'about' ? aboutDialogModule.peek() !== null :
-    panel === 'settings' ? settingsDialogModule.peek() !== null : true;
+  return panel === 'about'
+    ? aboutDialogModule.peek() !== null
+    : panel === 'settings'
+      ? settingsDialogModule.peek() !== null
+      : true;
 }
 
 export function loadSecondaryDialog(panel: 'about' | 'settings'): Promise<unknown> {
