@@ -20,7 +20,7 @@ declare global {
       calls: SaveCall[];
       cancelCalls: number;
       props(next: { value?: AvatarDescriptor; identityKey?: string }): void;
-      mode(value: 'success' | 'failure' | 'throw' | 'deferred'): void;
+      mode(value: 'success' | 'failure' | 'throw' | 'opaque' | 'deferred'): void;
       resolve(index: number): void;
       reject(index: number): void;
       unmount(): void;
@@ -55,6 +55,7 @@ function render() {
       window.avatarTest.calls.push({ identityKey: identity, descriptor: structuredClone(next) });
       if (mode === 'throw') throw new Error('Synthetic synchronous failure.');
       if (mode === 'failure') return Promise.reject(new Error('Synthetic save failure.'));
+      if (mode === 'opaque') return Promise.reject({ code: 'synthetic-non-error' });
       if (mode === 'deferred') return new Promise((resolve, reject) => pending.push({ resolve, reject }));
       return Promise.resolve();
     }
@@ -250,6 +251,17 @@ describe('AvatarPicker in a real browser', () => {
     expect(saved).toHaveLength(2);
     expect(saved[0]).toEqual(saved[1]);
     await browserExpect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  it('asks once to try again when the save fails without an Error, keeping a real cause otherwise', async () => {
+    await faces().nth(4).check();
+    await page.evaluate(() => window.avatarTest.mode('opaque'));
+    await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
+    await browserExpect(page.getByRole('alert')).toHaveText('Could not save avatar. Your choice is still here. Try saving again.');
+    await page.evaluate(() => window.avatarTest.mode('failure'));
+    await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
+    await browserExpect(page.getByRole('alert')).toHaveText('Could not save avatar. Synthetic save failure. Your choice is still here. Try saving again.');
+    await browserExpect(faces().nth(4)).toBeChecked();
   });
 
   it('discards an unsaved old identity draft instead of passing it to the new callback', async () => {

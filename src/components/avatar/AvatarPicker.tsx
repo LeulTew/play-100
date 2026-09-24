@@ -84,7 +84,7 @@ function AvatarPickerDraft({ value, onSave, onCancel, titleId }: AvatarPickerPro
       if (active.current) setStatus('saved');
     } catch (error) {
       if (active.current) {
-        setError(`Could not save avatar. ${error instanceof Error ? error.message : 'Please try again.'} Your choice is still here. Try saving again.`);
+        setError(`Could not save avatar. ${error instanceof Error ? `${error.message} ` : ''}Your choice is still here. Try saving again.`);
         setStatus('editing');
       }
     } finally {
