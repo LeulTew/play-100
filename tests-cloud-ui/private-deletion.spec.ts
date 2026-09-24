@@ -98,6 +98,8 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs',
     await verifyEmail(page, request, email);
     await enableSync(page, 'empty');
     const uid = await uidFor(request, email);
+    // Settle automatic sharing so every run crosses the real All cleanup before reaching its own interruption point.
+    await expect(page.locator('.friend-sharing-summary')).toContainText('Up to date', { timeout: 30000 });
     if (step === 'reports') {
       const id = `Reported_${uid}`;
       await writeManagerDocuments(request, {
@@ -127,7 +129,10 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs',
       return policy.status();
     }).toBe(200);
     await page.evaluate(async step => {
-      const stop = () => Promise.reject(new Error('Synthetic stop before the final deletion marker.'));
+      // Each stub records that its own interruption point ran and fails with a step-specific message.
+      const reached: string[] = [];
+      Reflect.set(window, 'deletionStopsReached', reached);
+      const stop = () => { reached.push(step); return Promise.reject(new Error(`Synthetic stop at the ${step} cleanup step.`)); };
       const load = async (source: string) => import(source);
       if (step === 'private' || step === 'marker') {
         const module: typeof import('../src/cloud/cloud-store') = await load('/src/cloud/cloud-store.ts');
@@ -162,7 +167,8 @@ for (const step of ['private', 'public', 'reports', 'groups', 'blocks', 'pairs',
     await page.getByRole('button', { name: 'Delete account', exact: true }).click();
     await page.getByLabel('Confirm your password', { exact: true }).fill(password);
     await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
-    await expect(page.locator('.sync-panel [role="alert"]')).toBeVisible();
+    await expect(page.locator('.sync-panel [role="alert"]')).toContainText(`Synthetic stop at the ${step} cleanup step.`);
+    expect(await page.evaluate(() => Reflect.get(window, 'deletionStopsReached'))).toEqual([step]);
     const read = await request.get(`${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`, {
       headers: { Authorization: 'Bearer owner' },
     });
