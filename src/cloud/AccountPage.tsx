@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { EmailAuthProvider, GoogleAuthProvider } from 'firebase/auth';
 import type { AccountIdentity } from './ui-types';
+import { hasProvider } from './account-providers';
 import type { ScopedLibrary, SyncHead, SyncStatus } from '../lib/cloud-types';
 import { SYNC_LABELS } from '../lib/cloud-types';
 import type { Member } from '../lib/community';
@@ -68,7 +70,7 @@ export function AccountPage(props: AccountPageProps) {
     setNameError('Enter a name from 1 to 60 characters.'); nameInput.current?.focus(); return false;
   };
   const closeConfirmation = () => { setConfirmation(null); setPassword(''); onDismissDeletion(); };
-  const googleConfirmation = confirmation?.startsWith('delete') && !identity.providers.includes('password');
+  const googleConfirmation = confirmation?.startsWith('delete') && !hasProvider(identity, EmailAuthProvider.PROVIDER_ID);
   const googleConfirmed = googleDeletion?.target === (confirmation === 'delete-account' ? 'account' : 'copy');
   const confirm = async () => {
     const result = confirmation === 'signout-device' ? await onSignOutAndRemove?.() : confirmation === 'pause' ? await onPause() : confirmation === 'remote' ? conflictVersion && await onUseRemote(conflictVersion.head, conflictVersion.localRevision)
@@ -143,7 +145,7 @@ export function AccountPage(props: AccountPageProps) {
           {nameError && <p id="account-name-error" className="inline-error" role="alert">{nameError}</p>}
           <button className="text-button" disabled={busy || !identity.verified || !cache}>Save name</button>
         </form>
-        {!identity.providers.includes('google.com') && <button className="text-button" disabled={busy || !identity.verified} onClick={() => { void onLinkGoogle(); }}>Link Google</button>}
+        {!hasProvider(identity, GoogleAuthProvider.PROVIDER_ID) && <button className="text-button" disabled={busy || !identity.verified} onClick={() => { void onLinkGoogle(); }}>Link Google</button>}
       </section>
       <section className="account-section"><h2>Sharing</h2>
         {sharedGames}
@@ -164,7 +166,7 @@ export function AccountPage(props: AccountPageProps) {
       {cancelledRegistration && confirmation === 'delete-account' && <p>This removes the cancelled sign-in and its account copy on this device. You can then register again with the same email. Your guest library stays here.</p>}
       {identity.verified && !cancelledRegistration && confirmation.startsWith('delete') && <p>If deletion is interrupted, your account stays and you can finish from this page later.</p>}
       <p>{confirmation === 'signout-device' ? 'Sign out and remove only this account copy, its recovery data and sharing caches from this device. Your guest library and online copy are not deleted. Unsynced or newly changed data prevents removal.' : confirmation === 'pause' ? 'Uploads stop on all devices. Your saved copies remain available.' : confirmation === 'remote' ? "Replace this account's device library with the online copy. A recovery copy stays here." : confirmation === 'local' ? 'Replace the online library with this device copy. A newer update will require another choice.' : !identity.verified ? 'Cancel only if this registration has no prior online activity. Your device-only library stays here.' : 'Remove online profile and library data, unpublish its ranking and stop older sessions from restoring it. Export a backup first. Your guest library stays here.'}</p>
-      {(confirmation === 'delete-copy' || confirmation === 'delete-account') && identity.providers.includes('password') && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
+      {(confirmation === 'delete-copy' || confirmation === 'delete-account') && hasProvider(identity, EmailAuthProvider.PROVIDER_ID) && <><label htmlFor="confirm-account-password">Confirm your password</label><input id="confirm-account-password" name="current-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
       {googleConfirmation && <p className="section-help">{googleConfirmed ? 'Google confirmed this account. Confirm below to delete.' : 'Confirm with Google in this tab, then return here. Returning does not delete anything.'}</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div className="button-row"><button data-autofocus className="button button-outline" disabled={busy} onClick={closeConfirmation}>Keep my data</button><button className={`button ${confirmation.startsWith('delete') || confirmation === 'signout-device' ? 'button-danger' : 'button-dark'}`} disabled={busy} onClick={() => { void confirm(); }}>{busy ? 'Working…' : confirmation === 'signout-device' ? 'Sign out and remove copy' : googleConfirmation && !googleConfirmed ? 'Continue in this tab' : confirmation.startsWith('delete') ? 'Confirm deletion' : 'Confirm this choice'}</button></div>

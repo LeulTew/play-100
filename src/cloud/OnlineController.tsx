@@ -40,6 +40,7 @@ import { AuthPanel } from './AuthPanel';
 import { AccountPage } from './AccountPage';
 import type { ConnectionChoice } from './AccountPage';
 import type { AccountIdentity, OnlineBridge } from './ui-types';
+import { hasProvider } from './account-providers';
 import { CommunityPage, PublicProfilePage } from './CommunityPages';
 import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
@@ -577,7 +578,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       const session = authSessionEpoch.current;
       const targetKind = removeAccount ? 'account' : 'copy';
       if (!navigator.onLine) throw new Error('Connect to the internet before deleting online data.');
-      if (identity?.providers.includes('password')) {
+      if (hasProvider(identity, EmailAuthProvider.PROVIDER_ID)) {
         if (!password) throw new Error('Confirm your password before deleting.');
         await reauthenticateWithCredential(signedIn, EmailAuthProvider.credential(signedIn.email ?? '', password));
       } else {
@@ -695,7 +696,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
         catch (cause) {
           if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'auth/requires-recent-login') {
             setDeletionApproval(null);
-            throw new Error(identityRef.current?.providers.includes('password')
+            throw new Error(hasProvider(identityRef.current, EmailAuthProvider.PROVIDER_ID)
               ? 'Your online data is deleted. To delete your sign-in, confirm your password again.'
               : 'Your online data is deleted. Confirm with Google again to delete your sign-in.', { cause });
           }
