@@ -42,7 +42,7 @@
 .ratings-explainer { display: flex; justify-content: space-between; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 13px; }
 .ratings-explainer > p { color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 63ch; }
 .ratings-explainer .check-control { font-size: 12px; }
-.ratings-scroll { overflow: auto; max-height: min(75vh, 780px); border: 1px solid #aab39b; border-radius: 4px; scrollbar-gutter: stable; }
+.ratings-scroll { position: relative; overflow: auto; max-height: min(75vh, 780px); border: 1px solid #aab39b; border-radius: 4px; scrollbar-gutter: stable; }
 .ratings-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
 .ratings-table th, .ratings-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; background: var(--paper); }
 .ratings-table th { text-align: left; }

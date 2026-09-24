@@ -104,7 +104,7 @@
 .menu-dialog h2 { flex: 0 0 auto; margin: 0; padding: 24px 76px 20px 28px; font-size: 36px; }
 .menu-feedback { flex: 0 0 auto; padding-inline: 28px; font-size: 14px; }
 .menu-feedback:has(p:not(:empty)) { padding-bottom: 16px; }
-.menu-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 28px 28px; scroll-padding-block: 8px; }
+.menu-scroll { position: relative; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 28px 28px; scroll-padding-block: 8px; }
 .menu-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
 .menu-groups section { min-width: 0; border-top: 1px solid var(--line); padding-top: 12px; }
 .menu-groups h3 { font-size: 14px; line-height: 1.4; font-weight: 650; color: var(--muted); }
