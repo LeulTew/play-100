@@ -9,6 +9,17 @@ import { openBrowsingFilters } from './browsing-helpers';
 const a = catalogRecord('wikidata', 'Q990001', 'Mass Atlas');
 const b = catalogRecord('freetogame', '990001', 'Mass Meridian');
 const row = (page: Page, record: LibraryRecord) => page.locator(`[data-unranked-id="${record.id}"]`);
+const beyond = (page: Page) => page.getByRole('region', { name: 'Beyond The 100', exact: true });
+
+async function searchOnline(page: Page) {
+  await beyond(page).getByRole('button', { name: 'Search online', exact: true }).click();
+}
+
+async function openActions(page: Page, record: LibraryRecord) {
+  const details = row(page, record).locator('.discovery-card-details');
+  if (await details.getAttribute('open') === null) await details.getByText('Actions & source', { exact: true }).click();
+  await expect(details).toHaveAttribute('open', '');
+}
 
 async function mockGames(page: Page) {
   await page.route('**/api/catalog?**', (route) => {
@@ -18,6 +29,7 @@ async function mockGames(page: Page) {
 }
 
 async function rate(page: Page, record: LibraryRecord, value: string) {
+  await openActions(page, record);
   await row(page, record).getByRole('spinbutton', { name: `Your rating / 10 for ${record.title}`, exact: true }).fill(value);
   await expect.poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score).toBe(value ? Number(value) : null);
 }
@@ -30,9 +42,16 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   await mockGames(page);
   await page.goto('/?q=mass');
   await expect(page.locator('[data-game="mass-effect-2"]')).toBeVisible();
-  await expect(page.locator('[data-unranked-id]')).toHaveCount(2);
-  await expect(row(page, a).locator('.unranked-label')).toHaveText('Unranked');
+  const unranked = page.locator('[data-unranked-id]');
+  await expect(beyond(page).getByText(/^\d+ matches?$/)).toBeVisible();
+  const seeded = await unranked.count();
+  await searchOnline(page);
+  await expect(unranked).toHaveCount(seeded + 2);
+  await expect(row(page, b)).toHaveCount(1);
+  await expect(row(page, a).locator('.discovery-canonical')).toHaveCount(0);
+  await expect(row(page, a).getByRole('button', { name: `Add to My games: ${a.title}`, exact: true })).toBeEnabled();
   await expect(row(page, a).locator('.cover-rank, .author-rating-card, .numeric-score')).toHaveCount(0);
+  await openActions(page, a);
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('');
   await row(page, a).getByRole('button', { name: a.title, exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Preview only');
@@ -40,7 +59,10 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(row(page, a).getByRole('button', { name: a.title, exact: true })).toBeFocused();
   await rate(page, a, '9.25');
-  await expect(row(page, a).locator('.in-library')).toHaveText('In your library');
+  const inMyGames = row(page, a).getByRole('button', { name: `In My games: ${a.title}`, exact: true });
+  await expect(inMyGames).toHaveText('In My games');
+  await expect(inMyGames).toBeDisabled();
+  await openActions(page, b);
   await row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([b.id]);
   const saved = await readLibrary(page);
@@ -51,15 +73,18 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   expect(saved.progress[b.id]).toEqual({ later: true, played: false, completed: false });
   await page.reload();
   await expect(row(page, a)).toHaveCount(1);
+  await openActions(page, a);
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('9.25');
+  await openActions(page, b);
   await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.goto('/my-library');
-  await expect(page.locator('[data-record-id]')).toHaveCount(2);
+  await expect(page.locator('.my-games-editor:visible [data-record-id]')).toHaveCount(2);
 });
 
 test('bulk actions span original and external search matches and private filters include both', async ({ page }) => {
   await mockGames(page);
   await page.goto('/?q=mass&view=table');
+  await searchOnline(page);
   await expect(row(page, a)).toBeVisible();
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
   const canonical = page.getByRole('checkbox', { name: 'Select Mass Effect 2', exact: true });
@@ -73,9 +98,11 @@ test('bulk actions span original and external search matches and private filters
   await external.check();
   await page.locator('.selection-actions').getByRole('button', { name: 'Mark completed', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).progress[a.id]?.completed).toBe(true);
+  await openBrowsingFilters(page);
   await page.locator('.collection-tabs').getByRole('button', { name: /^Completed/ }).click();
   await expect(page.locator('tr[data-game]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(1);
+  await openActions(page, a);
   await expect(row(page, a).getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -88,13 +115,14 @@ test('bulk actions span original and external search matches and private filters
 test('search ratings preserve manual ranking slots and notes while played and ratings synchronize across tabs', async ({ page, context }) => {
   await mockGames(page);
   await page.goto('/?q=mass&view=table');
+  await searchOnline(page);
   await rate(page, a, '6');
   await rate(page, b, '9');
   await page.goto('/my-rankings');
-  await expect(page.locator('.personal-row').first()).toHaveAttribute('data-record-id', b.id);
+  await expect(page.locator('.my-games-editor:visible .personal-row').first()).toHaveAttribute('data-record-id', b.id);
   await page.getByRole('button', { name: `Move ${a.title} up in ranking`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.manualPosition).toBe(1);
-  const ranked = page.locator(`[data-record-id="${a.id}"]`);
+  const ranked = page.locator(`.my-games-editor:visible [data-record-id="${a.id}"]`);
   await ranked.locator('.ranking-note summary').click();
   await ranked.getByRole('textbox').fill('Keep this in my chosen place.');
   await ranked.getByRole('textbox').press('Tab');
@@ -130,24 +158,30 @@ test('saved additions remain searchable after provider failure and an online opt
     return respondWithCatalog(route, url.searchParams.get('source') === 'wikidata' ? [a] : []);
   });
   await page.goto('/?q=mass&view=table');
+  await searchOnline(page);
   await rate(page, a, '8.5');
   unavailable = true;
   await page.reload();
+  await openActions(page, a);
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('8.5');
+  await searchOnline(page);
   await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
-  await expect(page.locator('.source-search-error').first()).toContainText('Saved games remain available');
+  await expect(beyond(page).getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert').first()).toContainText('The source is temporarily unavailable.');
+  await expect(row(page, a).getByRole('spinbutton')).toHaveValue('8.5');
+  await openBrowsingFilters(page);
   await page.getByRole('checkbox', { name: 'Search public catalogs', exact: true }).uncheck();
   await expect(page).toHaveURL(/catalogs=off/);
   const requestCount = requests;
   await page.reload();
   await expect(row(page, a)).toBeVisible();
+  await openBrowsingFilters(page);
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).not.toBeChecked();
   await page.waitForTimeout(1000);
   expect(requests).toBe(requestCount);
-  await expect(page.locator('.source-searches')).toHaveCount(0);
+  await expect(page.locator('.discovery-source-status')).toHaveCount(0);
 });
 
-test('online search is debounced, length bounded, scoped and URL reversible without a background crawl', async ({ page, isMobile }) => {
+test('online search is debounced, length bounded, scoped and URL reversible without a background crawl', async ({ page }) => {
   const queries: string[] = [];
   await page.clock.install({ time: new Date('2026-09-01T12:00:00Z') });
   await page.clock.pauseAt(new Date('2026-09-01T12:00:10Z'));
@@ -166,8 +200,9 @@ test('online search is debounced, length bounded, scoped and URL reversible with
   await input.fill('ma');
   await page.clock.runFor(400);
   await input.fill('mass');
+  await searchOnline(page);
   await expect(page.getByText('Searching public catalogs…', { exact: true })).toBeVisible();
-  await page.clock.runFor(749);
+  await page.clock.runFor(499);
   expect(queries).toEqual([]);
   await page.clock.runFor(1);
   await expect.poll(() => queries).toEqual(['mass', 'mass']);
@@ -182,9 +217,9 @@ test('online search is debounced, length bounded, scoped and URL reversible with
   expect(queries).toHaveLength(2);
   await expect(page.locator('#catalog-search-help')).toContainText('80 characters maximum');
   await page.getByRole('checkbox', { name: 'Search public catalogs', exact: true }).uncheck();
-  const nav = page.locator(isMobile ? '.mobile-nav' : '.desktop-nav');
-  await nav.getByRole(isMobile ? 'button' : 'link', { name: 'My rankings', exact: true }).click();
-  await expect(page).toHaveURL(/my-rankings\?catalogs=off$/);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Menu', exact: true }).getByRole('link', { name: 'Ranking', exact: true }).click();
+  await expect(page).toHaveURL(/\/my-games\?catalogs=off&tab=ranking$/);
   await page.locator('.wordmark').first().click();
   await input.fill('mass');
   await page.clock.runFor(1000);
@@ -193,6 +228,7 @@ test('online search is debounced, length bounded, scoped and URL reversible with
   await expect(input).toHaveValue('');
   await page.goForward();
   await expect(input).toHaveValue('mass');
+  await openBrowsingFilters(page);
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).not.toBeChecked();
 });
 
@@ -214,8 +250,10 @@ test('late results from a cancelled query never replace the current search', asy
   });
   try {
     await page.goto('/?q=old&view=table');
+    await searchOnline(page);
     await expect.poll(() => Boolean(release)).toBe(true);
     await page.getByRole('searchbox').fill('new');
+    await searchOnline(page);
     await expect(row(page, current)).toBeVisible();
     if (!release) throw new Error('The old request was not captured.');
     release();
@@ -239,6 +277,7 @@ test('failed load-more retries the failed page without losing prior records or d
     return respondWithCatalog(route, [a, more]);
   });
   await page.goto('/?q=mass&view=table');
+  await searchOnline(page);
   await rate(page, a, '8');
   await page.getByRole('button', { name: 'More from Wikidata', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
@@ -253,6 +292,8 @@ test('failed load-more retries the failed page without losing prior records or d
 test('a quota failure keeps an unranked rating draft without partially importing or endlessly retrying', async ({ page }) => {
   await mockGames(page);
   await page.goto('/?q=mass&view=table');
+  await searchOnline(page);
+  await openActions(page, a);
   await expect(row(page, a).getByRole('spinbutton')).toBeEnabled();
   const before = await readLibrary(page);
   await page.evaluate(() => {
@@ -286,7 +327,9 @@ test('external metadata, ratings and queue survive a full browser restart even w
     let page = context.pages()[0] ?? await context.newPage();
     await mockGames(page);
     await page.goto('/?q=mass&view=table');
+    await searchOnline(page);
     await rate(page, a, '9');
+    await openActions(page, b);
     await row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true }).click();
     await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([b.id]);
     const before = await readLibrary(page);
@@ -295,7 +338,11 @@ test('external metadata, ratings and queue survive a full browser restart even w
     page = context.pages()[0] ?? await context.newPage();
     await page.route('**/api/catalog?**', (route) => route.fulfill({ status: 503, json: { error: 'Source offline for this check.' } }));
     await page.goto('/?q=mass&view=table');
+    await searchOnline(page);
+    await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
+    await openActions(page, a);
     await expect(row(page, a).getByRole('spinbutton')).toHaveValue('9');
+    await openActions(page, b);
     await expect(row(page, b).getByRole('button', { name: `Play later: ${b.title}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     const after = await readLibrary(page);
     expect(after.records).toEqual(before.records);
