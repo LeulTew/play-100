@@ -14,11 +14,15 @@ import { FriendStore } from '../src/cloud/friend-store';
 import { FriendShelfStore } from '../src/cloud/friend-shelf-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { CloudStore } from '../src/cloud/cloud-store';
+import { prepareFriendIdentity } from '../src/cloud/friend-page-actions';
 import type { FriendAllPolicy } from '../src/lib/friend-all';
 import type { FriendShelfEntry } from '../src/lib/friend-shelf-types';
 import type { PublicEntry } from '../src/lib/community';
 import { emptyPersonalLibrary } from '../src/lib/personal-library';
 
+// prepareFriendIdentity checks the app's auth singleton; each race test points it at the fixture acting now.
+const signedIn = vi.hoisted(() => ({ currentUser: null as { uid: string } | null }));
+vi.mock('../src/cloud/firebase-client', () => ({ cloudAuth: signedIn, cloudDb: {} }));
 vi.mock('firebase/firestore', async original => {
   const actual = await original<typeof import('firebase/firestore')>();
   return { ...actual, runTransaction: vi.fn(actual.runTransaction), writeBatch: vi.fn(actual.writeBatch), getDocsFromServer: vi.fn(actual.getDocsFromServer) };
@@ -522,4 +526,142 @@ describe('All-sharing bounded SDK transport', () => {
     expect((await b.all.page(a.uid, 'games')).entries).toEqual(entries);
     expect((await b.all.page(a.uid, 'ranking')).entries).toEqual(scores);
   });
+});
+
+describe('default sharing against invitation creation and acceptance', () => {
+  const realSetPolicy = FriendAllStore.prototype.setPolicy;
+  // The real first-friend-action preparation used by FriendPages, then the invitation step itself.
+  const prepare = (actor: Client) => {
+    signedIn.currentUser = { uid: actor.uid };
+    return prepareFriendIdentity(actor.friends, { uid: actor.uid, verified: true, displayName: 'Invitation race fixture', avatar });
+  };
+  const invite = async (owner: Client) => { await prepare(owner); return owner.friends.createInvite(owner.uid); };
+  const accept = async (recipient: Client, token: string) => { await prepare(recipient); return recipient.friends.acceptInvite(recipient.uid, token); };
+  // The Account hook's automatic default (useFriendAll): read the controls, then initialize the default policy.
+  const automaticDefault = async (actor: Client) => actor.all.setPolicy(actor.uid, true, 'default', await actor.all.controls(actor.uid), () => true);
+  // Holds the next policy write after its caller has read the controls, so the other initializer commits in that window.
+  function holdNextPolicyWrite() {
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let entered: () => void = () => {};
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    vi.spyOn(FriendAllStore.prototype, 'setPolicy').mockImplementationOnce(async function (this: FriendAllStore, ...args: Parameters<FriendAllStore['setPolicy']>) {
+      entered(); await gate; return realSetPolicy.apply(this, args);
+    });
+    return { started, release: () => release() };
+  }
+  const defaultPolicy = { enabled: true, deleted: false, origin: 'default', epoch: 1, revision: 1, syncEpoch: 1 };
+  const defaultControls = { policy: defaultPolicy, ranking: { enabled: true, selectedIds: [], epoch: 1, revision: 1 }, shelf: { enabled: true, selectedIds: [], consentSyncEpoch: 1, epoch: 1, revision: 1 } };
+
+  it('leaves a new owner on one default policy whichever of invitation setup and the automatic default commits first', async () => {
+    const inviteFirst = await client();
+    const heldDefault = holdNextPolicyWrite();
+    const automatic = automaticDefault(inviteFirst);
+    await heldDefault.started;
+    expect(await invite(inviteFirst)).toMatchObject({ ownerUid: inviteFirst.uid, state: 'active' });
+    heldDefault.release();
+    expect(await automatic).toMatchObject(defaultPolicy);
+    expect(await inviteFirst.all.controls(inviteFirst.uid)).toMatchObject(defaultControls);
+
+    const defaultFirst = await client();
+    const heldInvitation = holdNextPolicyWrite();
+    const created = invite(defaultFirst);
+    await heldInvitation.started;
+    expect(await automaticDefault(defaultFirst)).toMatchObject(defaultPolicy);
+    heldInvitation.release();
+    expect(await created).toMatchObject({ ownerUid: defaultFirst.uid, state: 'active' });
+    expect(await defaultFirst.all.controls(defaultFirst.uid)).toMatchObject(defaultControls);
+  }, 90000);
+
+  it('leaves a new recipient on one default policy whichever of acceptance and the automatic default commits first', async () => {
+    for (const acceptanceFirst of [true, false]) {
+      const owner = await client(); const recipient = await client();
+      const { token } = await invite(owner);
+      const held = holdNextPolicyWrite();
+      if (acceptanceFirst) {
+        const automatic = automaticDefault(recipient);
+        await held.started;
+        expect(await accept(recipient, token)).toMatchObject({ state: 'accepted' });
+        held.release();
+        expect(await automatic).toMatchObject(defaultPolicy);
+      } else {
+        const accepted = accept(recipient, token);
+        await held.started;
+        expect(await automaticDefault(recipient)).toMatchObject(defaultPolicy);
+        held.release();
+        expect(await accepted).toMatchObject({ state: 'accepted' });
+      }
+      expect(await recipient.all.controls(recipient.uid)).toMatchObject(defaultControls);
+      expect((await owner.friends.listRelations(owner.uid, 'accepted')).items).toHaveLength(1);
+    }
+  }, 90000);
+
+  it('keeps explicit off, selected-only, stale-consent and deleted choices through invitations in both orders', async () => {
+    const choices: Array<[string, (actor: Client) => Promise<void>]> = [
+      ['explicit off', async actor => { await actor.all.setPolicy(actor.uid, false, 'explicit', await actor.all.controls(actor.uid), () => true); }],
+      ['selected only', async actor => {
+        await actor.friends.saveSettings(actor.uid, { enabled: true, selectedIds: ['wikidata:Q1'] }, await actor.friends.initialize(actor.uid));
+      }],
+      // Online saving restarted after the choice, so its consent is for an older saving epoch until the owner re-enables it.
+      ['stale consent', async actor => {
+        await enable(actor);
+        await seed(`syncHeads/${actor.uid}`, { format: 1, epoch: 2, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
+      }],
+      ['deleted', async actor => { await enable(actor); await actor.all.revokeForDeletion(actor.uid); }],
+    ];
+    for (const [name, arrange] of choices) {
+      const actor = await client(); await arrange(actor);
+      const before = await actor.all.controls(actor.uid);
+      const deleted = name === 'deleted';
+      for (const automaticFirst of [true, false]) {
+        const { token } = await invite(await client());
+        const automatic = async () => {
+          if (deleted) await expect(automaticDefault(actor)).rejects.toMatchObject({ code: 'deleted' });
+          else await automaticDefault(actor);
+        };
+        const invitations = async () => {
+          if (deleted) {
+            await expect(invite(actor)).rejects.toThrow('This account is being deleted.');
+            await expect(accept(actor, token)).rejects.toThrow('This account is being deleted.');
+            return;
+          }
+          expect(await invite(actor)).toMatchObject({ ownerUid: actor.uid, state: 'active' });
+          expect(await accept(actor, token)).toMatchObject({ state: 'accepted' });
+        };
+        if (automaticFirst) { await automatic(); await invitations(); } else { await invitations(); await automatic(); }
+      }
+      expect(await actor.all.controls(actor.uid), name).toEqual(before);
+      expect((await actor.friends.listRelations(actor.uid, 'accepted')).items, name).toHaveLength(deleted ? 0 : 2);
+    }
+  }, 180000);
+
+  it('denies a raw writer that relabels an existing explicit choice as the default to enable sharing', async () => {
+    // Rebinds both legacy controls and writes the policy in one batch, as a valid explicit change must.
+    const rawPolicy = async (actor: Client, origin: 'default' | 'explicit', enabled: boolean) => {
+      const current = await actor.all.controls(actor.uid);
+      const ranking = { epoch: (current.ranking?.epoch ?? 0) + 1, revision: (current.ranking?.revision ?? 0) + 1 };
+      const shelf = { epoch: (current.shelf?.epoch ?? 0) + 1, revision: (current.shelf?.revision ?? 0) + 1 };
+      const batch = writeBatch(actor.db);
+      batch.set(doc(actor.db, 'friendSettings', actor.uid), { format: 1, enabled, deleted: false, selection: '', ...ranking, updatedAt: serverTimestamp() });
+      batch.set(doc(actor.db, 'friendShelfSettings', actor.uid), { format: 1, enabled, deleted: false, selection: '', consentSyncEpoch: enabled ? 1 : null, ...shelf, updatedAt: serverTimestamp() });
+      batch.set(doc(actor.db, 'friendAllPolicies', actor.uid), { format: 2, uid: actor.uid, enabled, deleted: false, origin,
+        epoch: (current.policy?.epoch ?? 0) + 1, revision: (current.policy?.revision ?? 0) + 1, syncEpoch: 1, ranking, shelf, updatedAt: serverTimestamp() });
+      return batch.commit();
+    };
+    const explicitOff = await client();
+    await explicitOff.all.setPolicy(explicitOff.uid, false, 'explicit', await explicitOff.all.controls(explicitOff.uid), () => true);
+    const legacyOff = await client();
+    await legacyOff.friends.initialize(legacyOff.uid);
+    const selectedOnly = await client();
+    await selectedOnly.friends.saveSettings(selectedOnly.uid, { enabled: true, selectedIds: ['wikidata:Q1'] }, await selectedOnly.friends.initialize(selectedOnly.uid));
+    for (const actor of [explicitOff, legacyOff, selectedOnly]) {
+      const before = await actor.all.controls(actor.uid);
+      await assertFails(rawPolicy(actor, 'default', true));
+      // Nor can it pose as a waiting default that would later turn itself on.
+      await assertFails(rawPolicy(actor, 'default', false));
+      expect(await actor.all.controls(actor.uid)).toEqual(before);
+      await rawPolicy(actor, 'explicit', true);
+      expect(await actor.all.policy(actor.uid)).toMatchObject({ enabled: true, origin: 'explicit' });
+    }
+  }, 90000);
 });
