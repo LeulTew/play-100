@@ -62,6 +62,7 @@ import { recordFromFriendShelf } from '../lib/friend-shelf-types';
 import { GameArtwork } from '../components/games/GameArtwork';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import { signOutTransition } from './sign-out-transition';
+import { libraryBackupText } from './backup-download';
 import './cloud-ui.css';
 import './friends-ui.css';
 
@@ -74,8 +75,9 @@ const loadingAvatar: AvatarDescriptor = { version: 1, seed: '0000000000000000000
 function identityOf(user: User, verified: boolean, verificationPending = !verified && user.emailVerified): AccountIdentity {
   return { uid: user.uid, email: user.email ?? '', displayName: user.displayName ?? '', verified, verificationPending, providers: user.providerData.map((provider) => provider.providerId) };
 }
-function download(value: unknown, name: string) {
-  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+// Every download is compact JSON; library backups also carry the Backup import's byte budget (libraryBackupText).
+function download(text: string, name: string) {
+  const blob = new Blob([text], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url; link.download = name; link.click();
@@ -519,7 +521,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
   });
   const downloadData = (source: 'local' | 'online' | 'guest' | 'all') => run(async () => {
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before exporting.');
-    if (source === 'guest') { download(createLibraryBackup(guest.state), 'Play-100-guest-backup.json'); return; }
+    if (source === 'guest') { download(libraryBackupText(guest.state), 'Play-100-guest-backup.json'); return; }
     if (!scope || !sync.store || !identity) throw new Error('Sign in before exporting account data.');
     let local = account.snapshot;
     let cacheError: string | null = null;
@@ -530,13 +532,13 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     }
     if (source === 'local') {
       if (!local) throw new Error('The account device copy is unavailable. Export the online copy instead.');
-      download(createLibraryBackup(local.state), 'Play-100-account-device-backup.json'); return;
+      download(libraryBackupText(local.state), 'Play-100-account-device-backup.json'); return;
     }
     const remoteHead = await sync.store.head();
     const remoteLibrary = remoteHead?.current ? await sync.store.download(remoteHead) : null;
     if (source === 'online') {
       if (!remoteLibrary) throw new Error('There is no complete online copy to export yet.');
-      download(createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }), 'Play-100-online-backup.json'); return;
+      download(libraryBackupText({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }), 'Play-100-online-backup.json'); return;
     }
     const publicCopy = await social.ownProfile(identity.uid);
     const entries = publicCopy ? await social.entries(publicCopy) : [];
@@ -544,11 +546,11 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     const sharedGames = await shelf.store.exportOwn(identity.uid);
     const automaticSharing = await automatic.store.exportOwn(identity.uid);
     if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
-    download({ app: 'Play 100', formatVersion: 1, exportedAt: new Date().toISOString(), identity, member,
+    download(JSON.stringify({ app: 'Play 100', formatVersion: 1, exportedAt: new Date().toISOString(), identity, member,
       deviceLibrary: local ? createLibraryBackup(local.state) : null, deviceCacheError: cacheError,
       onlineLibrary: remoteLibrary ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }) : null,
       recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries,
-      friends: { identity: ownSocial.identity, settings: ownSocial.settings, relationships: ownSocial.relations, groups: ownSocial.groups, blocks: ownSocial.blocks, sharedGames, automaticSharing } }, 'Play-100-account-export.json');
+      friends: { identity: ownSocial.identity, settings: ownSocial.settings, relationships: ownSocial.relations, groups: ownSocial.groups, blocks: ownSocial.blocks, sharedGames, automaticSharing } }), 'Play-100-account-export.json');
     if (cacheError) setMessage('Online account data was exported. The unreadable device cache is explicitly marked unavailable in the export; it was not replaced or deleted.');
   });
   const deleteOnline = (removeAccount: boolean, password: string) => {

@@ -55,6 +55,10 @@ Motion/quality and the local revision are excluded from the cloud library
 payload. A receiving device keeps its own Auto/Full/Lite setting. New account
 caches inherit that browser's guest preference, not a remote desktop's Full
 setting. Explicit JSON backups still include preferences for compatibility.
+The Account page's library downloads (device copy, online copy and device-only
+library) are the same compact backup that the Settings import accepts, within
+its 20 MB budget. A larger library is refused with how much to remove. The
+account-data export is compact JSON for reference, not an importable backup.
 
 ## Chunked snapshots and recovery
 

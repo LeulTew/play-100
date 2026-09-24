@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { createAccount, emailFor, enableSync, googleRedirect, password, readAccount, seedGuestRating, signIn, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
@@ -49,7 +50,22 @@ test('corrupt account cache does not trap sign-out or prevent a network-only acc
   await page.getByRole('button', { name: 'Export account data', exact: true }).click();
   const backup = await downloaded;
   expect(backup.suggestedFilename()).toBe('Play-100-account-export.json');
+  const exportFile = await backup.path(); if (!exportFile) throw new Error('The account export was not produced.');
+  const exported = await readFile(exportFile, 'utf8');
+  // Every account download is compact JSON; the account-data export is a reference file, not an importable backup.
+  expect(exported).not.toContain('\n');
+  expect(JSON.parse(exported)).toMatchObject({ app: 'Play 100', formatVersion: 1, deviceCacheError: expect.any(String) });
   await expect(page.getByRole('status').filter({ hasText: 'unreadable device cache' })).toBeVisible();
+  const backups = page.locator('.account-backups');
+  if (await backups.getAttribute('open') === null) await backups.locator('summary').click();
+  const guestDownloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export device-only library', exact: true }).click();
+  const guestBackup = await guestDownloaded;
+  expect(guestBackup.suggestedFilename()).toBe('Play-100-guest-backup.json');
+  const guestFile = await guestBackup.path(); if (!guestFile) throw new Error('The device-only backup was not produced.');
+  const guestText = await readFile(guestFile, 'utf8');
+  expect(guestText).not.toContain('\n');
+  expect(JSON.parse(guestText)).toMatchObject({ app: 'Play 100', formatVersion: 3, library: { version: 3 } });
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   expect((await readLibrary(page)).records).toEqual({});
