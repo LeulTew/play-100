@@ -3,10 +3,10 @@ import type { Page } from '@playwright/test';
 import { createAccount, emailFor, enableSync, verifyEmail } from './helpers';
 
 declare global {
-  interface Window { inviteGate?: { calls: number; committed: boolean; identityWrites?: number; release: () => void } }
+  interface Window { inviteGate?: { calls: number; committed: boolean; identityWrites?: number; initializes?: number; release: () => void } }
 }
-// New setups initialize friend settings through the automatic sharing default at consent. Holding that default keeps
-// the first invite responsible for delayed settings initialization, as when it starts before the default lands.
+// New setups set up friend controls through the automatic default at consent. Holding only that Account default lets
+// the first invite start before it lands; the invite must then set up the same default instead of off controls.
 async function holdAutomaticSharingDefault(page: Page) {
   await page.evaluate(async () => {
     const sourceUrl = performance.getEntriesByType('resource').map(entry => entry.name).find(url => new URL(url).pathname === '/src/cloud/friend-all-store.ts');
@@ -14,7 +14,11 @@ async function holdAutomaticSharingDefault(page: Page) {
     const source: typeof import('../src/cloud/friend-all-store') = await import(sourceUrl);
     const setPolicy = source.FriendAllStore.prototype.setPolicy;
     source.FriendAllStore.prototype.setPolicy = function(uid, enabled, origin, expected, isCurrent) {
-      return origin === 'default' ? new Promise<never>(() => {}) : setPolicy.call(this, uid, enabled, origin, expected, isCurrent);
+      if (origin === 'default' && !Reflect.get(window, 'automaticDefaultHeld')) {
+        Reflect.set(window, 'automaticDefaultHeld', true);
+        return new Promise<never>(() => {});
+      }
+      return setPolicy.call(this, uid, enabled, origin, expected, isCurrent);
     };
   });
 }
@@ -22,32 +26,40 @@ test.beforeEach(async ({ page, request }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const email = emailFor('invite-feedback');
   await createAccount(page, email); await verifyEmail(page, request, email);
-  if (testInfo.tags.includes('@delayed-sharing-default')) await holdAutomaticSharingDefault(page);
+  const delayedDefault = testInfo.tags.includes('@delayed-sharing-default');
+  if (delayedDefault) await holdAutomaticSharingDefault(page);
   await enableSync(page, 'empty');
+  if (delayedDefault) await expect.poll(() => page.evaluate(() => Reflect.get(window, 'automaticDefaultHeld'))).toBe(true);
   await page.locator('#page-main').getByRole('button', { name: 'Friends', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Invite someone', exact: true })).toBeEnabled();
 });
 
-test('first friend identity waits for delayed lifecycle and settings initialization before writing', { tag: '@delayed-sharing-default' }, async ({ page }) => {
+test('a first invite ahead of the delayed automatic default still sets up that default before writing its identity', { tag: '@delayed-sharing-default' }, async ({ page }) => {
   await page.evaluate(async () => {
-    const sourceUrl = performance.getEntriesByType('resource').map(entry => entry.name).find(url => new URL(url).pathname === '/src/cloud/friend-store.ts');
-    if (!sourceUrl) throw new Error('Loaded FriendStore module missing.');
-    const source: typeof import('../src/cloud/friend-store') = await import(sourceUrl);
-    const initialize = source.FriendStore.prototype.initialize;
-    const saveIdentity = source.FriendStore.prototype.saveIdentity;
-    const gate: NonNullable<Window['inviteGate']> = { calls: 0, committed: false, identityWrites: 0, release: () => {} };
-    window.inviteGate = gate;
-    source.FriendStore.prototype.initialize = async function(uid) {
-      gate.calls += 1;
-      if (await this.settings(uid) !== null || await this.identity(uid) !== null) throw new Error('Expected an uninitialized friend identity.');
-      await new Promise<void>(resolve => { gate.release = resolve; gate.committed = true; });
-      const settings = await initialize.call(this, uid);
-      gate.committed = false;
-      return settings;
+    const loaded = (pathname: string) => {
+      const url = performance.getEntriesByType('resource').map(entry => entry.name).find(value => new URL(value).pathname === pathname);
+      if (!url) throw new Error(`Loaded module missing: ${pathname}`);
+      return url;
     };
-    source.FriendStore.prototype.saveIdentity = function(uid, input, revision) {
+    const friends: typeof import('../src/cloud/friend-store') = await import(loaded('/src/cloud/friend-store.ts'));
+    const all: typeof import('../src/cloud/friend-all-store') = await import(loaded('/src/cloud/friend-all-store.ts'));
+    const setPolicy = all.FriendAllStore.prototype.setPolicy;
+    const initialize = friends.FriendStore.prototype.initialize;
+    const saveIdentity = friends.FriendStore.prototype.saveIdentity;
+    const gate: NonNullable<Window['inviteGate']> = { calls: 0, committed: false, identityWrites: 0, initializes: 0, release: () => {} };
+    window.inviteGate = gate;
+    all.FriendAllStore.prototype.setPolicy = async function(uid, enabled, origin, expected, isCurrent) {
+      if (origin !== 'default') return setPolicy.call(this, uid, enabled, origin, expected, isCurrent);
+      gate.calls += 1;
+      await new Promise<void>(resolve => { gate.release = resolve; gate.committed = true; });
+      const policy = await setPolicy.call(this, uid, enabled, origin, expected, isCurrent);
+      gate.committed = false;
+      return policy;
+    };
+    friends.FriendStore.prototype.initialize = function(uid) { gate.initializes = (gate.initializes ?? 0) + 1; return initialize.call(this, uid); };
+    friends.FriendStore.prototype.saveIdentity = function(uid, input, revision) {
       gate.identityWrites = (gate.identityWrites ?? 0) + 1;
-      if (gate.committed) throw new Error('Identity write started before initialization was acknowledged.');
+      if (gate.committed) throw new Error('Identity write started before the default sharing setup was acknowledged.');
       return saveIdentity.call(this, uid, input, revision);
     };
   });
@@ -58,8 +70,21 @@ test('first friend identity waits for delayed lifecycle and settings initializat
   await expect(page.getByLabel('Invitation link', { exact: true })).toHaveCount(0);
   await page.evaluate(() => window.inviteGate?.release());
   await expect(page.getByLabel('Invitation link', { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => window.inviteGate?.identityWrites)).toBe(1);
-  expect(await page.evaluate(() => window.inviteGate?.calls)).toBe(1);
+  expect(await page.evaluate(() => ({ calls: window.inviteGate?.calls, identityWrites: window.inviteGate?.identityWrites, initializes: window.inviteGate?.initializes })))
+    .toEqual({ calls: 1, identityWrites: 1, initializes: 0 });
+  const controls = await page.evaluate(async () => {
+    const clientPath = '/src/cloud/firebase-client.ts';
+    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const url = performance.getEntriesByType('resource').map(entry => entry.name).find(value => new URL(value).pathname === '/src/cloud/friend-all-store.ts');
+    if (!url) throw new Error('Loaded FriendAllStore module missing.');
+    const all: typeof import('../src/cloud/friend-all-store') = await import(url);
+    const uid = client.cloudAuth.currentUser?.uid;
+    if (!uid) throw new Error('The synthetic actor is not signed in.');
+    return new all.FriendAllStore(client.cloudDb).controls(uid);
+  });
+  expect(controls).toMatchObject({ policy: { enabled: true, origin: 'default' }, ranking: { enabled: true, selectedIds: [] }, shelf: { enabled: true, selectedIds: [] } });
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page.locator('.friend-sharing-summary')).toContainText('Sharing all saved games and rankings with friends.');
 });
 
 test('creation feedback is immediate, duplicate clicks create once, and closing cannot reopen a late confirmed link', async ({ page }) => {

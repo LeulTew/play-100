@@ -127,6 +127,12 @@ formats below retain their current bounds and selected-mode semantics.
 - Bootstrap must confirm the current verified account/cache and authoritative
   private-saving controls. Only absent policy **and both absent legacy controls**
   qualify for default All. Unknown reads never mean Off or consent.
+- The first friend action on a setup without controls (invite, request or
+  acceptance, via `prepareFriendIdentity`) starts that same default with
+  `FriendAllStore.startDefault` before any off initialization. Both writers use
+  the atomic default `setPolicy`, so whichever lands second sees the policy and
+  changes nothing. Only when the default cannot start (online saving is off)
+  does the action fall back to the earlier off `initialize`.
 - A v2 policy records default versus explicit origin, its epoch/revision, the
   private-saving epoch and both legacy control epoch/revision bindings. A changed
   legacy control invalidates All; it does not silently erase that legacy choice.

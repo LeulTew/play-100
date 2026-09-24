@@ -1,5 +1,6 @@
 import type { FriendIdentity, FriendSettings } from '../lib/friend-types';
 import type { FriendStore } from './friend-store';
+import { FriendAllStore } from './friend-all-store';
 import { cloudAuth } from './firebase-client';
 
 export function navigateFriend(uid: string) {
@@ -9,10 +10,16 @@ export function navigateFriend(uid: string) {
 export type OwnFriendIdentity = { uid: string; verified: boolean; displayName: string; avatar: FriendIdentity['avatar'] };
 export async function prepareFriendIdentity(store: FriendStore, identity: OwnFriendIdentity): Promise<FriendSettings> {
   if (!identity.verified || cloudAuth.currentUser?.uid !== identity.uid) throw new Error('Verify your signed-in account before continuing.');
+  const current = () => cloudAuth.currentUser?.uid === identity.uid;
   const [settings, previous] = await Promise.all([
-    store.settings(identity.uid).then((existing) => {
-      if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed. Review before continuing.');
-      return existing ?? store.initialize(identity.uid);
+    store.settings(identity.uid).then(async (existing) => {
+      if (!current()) throw new Error('The account changed. Review before continuing.');
+      if (existing) return existing;
+      // No friend settings means no sharing choice yet. Start the automatic default so this first friend action
+      // cannot pre-empt it with off controls that would read as an existing legacy choice.
+      await new FriendAllStore(store.db).startDefault(identity.uid, current);
+      if (!current()) throw new Error('The account changed. Review before continuing.');
+      return await store.settings(identity.uid) ?? store.initialize(identity.uid);
     }),
     store.identity(identity.uid),
   ]);

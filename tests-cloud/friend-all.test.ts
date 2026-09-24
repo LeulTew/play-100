@@ -216,6 +216,29 @@ describe('All-sharing bounded SDK transport', () => {
     expect(stopped?.enabled).toBe(false);
     expect(await a.all.setPolicy(a.uid, true, 'default', await a.all.controls(a.uid), () => true)).toMatchObject({ enabled: false });
   });
+  it('converges a first friend action and the automatic default on one default policy in either order', async () => {
+    const automaticFirst = await client(); const friendFirst = await client(); const racing = await client();
+    const automatic = await automaticFirst.all.setPolicy(automaticFirst.uid, true, 'default', await automaticFirst.all.controls(automaticFirst.uid), () => true);
+    expect(await automaticFirst.all.startDefault(automaticFirst.uid, () => true)).toEqual(automatic);
+    const started = await friendFirst.all.startDefault(friendFirst.uid, () => true);
+    expect(started).toMatchObject({ enabled: true, origin: 'default', epoch: 1, revision: 1 });
+    expect(await friendFirst.all.setPolicy(friendFirst.uid, true, 'default', await friendFirst.all.controls(friendFirst.uid), () => true)).toEqual(started);
+    const controls = await racing.all.controls(racing.uid);
+    const [friendAction, automaticDefault] = await Promise.all([
+      racing.all.startDefault(racing.uid, () => true), racing.all.setPolicy(racing.uid, true, 'default', controls, () => true),
+    ]);
+    expect(friendAction).toEqual(automaticDefault);
+    for (const actor of [automaticFirst, friendFirst, racing]) {
+      expect(await actor.all.controls(actor.uid)).toMatchObject({
+        policy: { enabled: true, origin: 'default', epoch: 1, revision: 1 }, ranking: { enabled: true, selectedIds: [] }, shelf: { enabled: true, selectedIds: [] },
+      });
+      expect(await actor.friends.initialize(actor.uid)).toMatchObject({ enabled: true, epoch: 1, revision: 1 });
+    }
+    const legacy = await client();
+    await legacy.friends.initialize(legacy.uid);
+    expect(await legacy.all.startDefault(legacy.uid, () => true)).toBeNull();
+    expect(await legacy.all.controls(legacy.uid)).toMatchObject({ policy: null, ranking: { enabled: false } });
+  });
   it('exposes all205 entries across pages and updates one score without rewriting other rows', async () => {
     const a = await client(); const b = await client(); const policy = await enable(a); await enable(b); await connect(a, b);
     const entries = ranks(205);

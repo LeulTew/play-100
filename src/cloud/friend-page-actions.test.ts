@@ -6,6 +6,7 @@ import type { OwnFriendIdentity } from './friend-page-actions';
 import type { FriendSettings } from '../lib/friend-types';
 
 const auth = vi.hoisted(() => ({ currentUser: { uid: 'alice' } }));
+const startDefault = vi.hoisted(() => vi.fn());
 vi.mock('./firebase-client', () => ({ cloudAuth: auth, cloudDb: {} }));
 vi.mock('./friend-store', () => ({
   FriendStore: class {
@@ -15,6 +16,7 @@ vi.mock('./friend-store', () => ({
     saveIdentity = vi.fn();
   },
 }));
+vi.mock('./friend-all-store', () => ({ FriendAllStore: class { startDefault = startDefault; } }));
 
 const identity: OwnFriendIdentity = {
   uid: 'alice', verified: true, displayName: 'Alice',
@@ -22,7 +24,7 @@ const identity: OwnFriendIdentity = {
 };
 const settings: FriendSettings = { format: 1, enabled: false, deleted: false, selectedIds: [], epoch: 1, revision: 1, updatedAt: 1 };
 
-beforeEach(() => { auth.currentUser = { uid: 'alice' }; });
+beforeEach(() => { auth.currentUser = { uid: 'alice' }; startDefault.mockReset(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 it('keeps exact friend routing and rejects invalid UIDs before navigation', () => {
@@ -58,8 +60,37 @@ it('rejects a settings result after account replacement without initializing or 
   resolveSettings(null);
   await expect(pending).rejects.toThrow(/account changed/);
   expect(store.initialize).not.toHaveBeenCalled();
+  expect(startDefault).not.toHaveBeenCalled();
   expect(store.saveIdentity).not.toHaveBeenCalled();
   expect(cloudAuth.currentUser?.uid).toBe('bob');
+});
+
+it('starts the automatic default for a missing setup instead of creating off controls first', async () => {
+  const store = new FriendStore(cloudDb);
+  const created: FriendSettings = { ...settings, enabled: true };
+  vi.mocked(store.settings).mockResolvedValueOnce(null).mockResolvedValueOnce(created);
+  vi.mocked(store.identity).mockResolvedValue(null);
+  startDefault.mockResolvedValue({ enabled: true, origin: 'default' });
+  expect(await prepareFriendIdentity(store, identity)).toBe(created);
+  expect(startDefault).toHaveBeenCalledExactlyOnceWith('alice', expect.any(Function));
+  expect(startDefault.mock.calls[0]![1]()).toBe(true);
+  expect(store.initialize).not.toHaveBeenCalled();
+  expect(store.saveIdentity).toHaveBeenCalledExactlyOnceWith('alice', { displayName: 'Alice', avatar: identity.avatar }, 0);
+});
+
+it('keeps the off initialization only when the default cannot start and rechecks the account after starting it', async () => {
+  const store = new FriendStore(cloudDb);
+  vi.mocked(store.settings).mockResolvedValue(null);
+  vi.mocked(store.identity).mockResolvedValue(null);
+  vi.mocked(store.initialize).mockResolvedValue(settings);
+  startDefault.mockResolvedValue(null);
+  expect(await prepareFriendIdentity(store, identity)).toBe(settings);
+  expect(startDefault.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(store.initialize).mock.invocationCallOrder[0]!);
+  vi.mocked(store.initialize).mockClear(); vi.mocked(store.saveIdentity).mockClear();
+  startDefault.mockImplementation(async () => { auth.currentUser = { uid: 'bob' }; return null; });
+  await expect(prepareFriendIdentity(store, identity)).rejects.toThrow(/account changed/);
+  expect(store.initialize).not.toHaveBeenCalled();
+  expect(store.saveIdentity).not.toHaveBeenCalled();
 });
 
 it('does not re-save an unchanged identity or overwrite settings consent', async () => {
@@ -68,6 +99,7 @@ it('does not re-save an unchanged identity or overwrite settings consent', async
   vi.mocked(store.identity).mockResolvedValue({ format: 1, uid: identity.uid, displayName: identity.displayName, avatar: identity.avatar, revision: 4, updatedAt: 1 });
   expect(await prepareFriendIdentity(store, identity)).toBe(settings);
   expect(store.initialize).not.toHaveBeenCalled();
+  expect(startDefault).not.toHaveBeenCalled();
   expect(store.saveIdentity).not.toHaveBeenCalled();
   vi.mocked(store.settings).mockResolvedValue({ ...settings, deleted: true });
   await expect(prepareFriendIdentity(store, identity)).rejects.toThrow(/being deleted/);

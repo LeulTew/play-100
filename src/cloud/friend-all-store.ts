@@ -17,6 +17,7 @@ import type { FriendCursor, FriendSettings, FriendSourceRevision } from '../lib/
 import { parseFriendShelfConfig, parseFriendShelfHead, sameShelfSource } from '../lib/friend-shelf-types';
 import type { FriendShelfConfig } from '../lib/friend-shelf-types';
 import { parseHead } from './cloud-store';
+import { ensureAccountActivity } from './account-lifecycle';
 
 export interface FriendAllControls {
   policy: FriendAllPolicy | null;
@@ -133,6 +134,25 @@ export class FriendAllStore {
     if (!changed) return this.policy(uid);
     try { guard(); return await this.confirmed(ref, value => parseFriendAllPolicy(value, uid)); }
     catch (cause) { throw new FriendAllCommittedError(uid, 'policy', cause); }
+  }
+  /**
+   * Sets up a new account's friend controls through the default policy. A first friend action (invite, request,
+   * acceptance) calls this instead of creating off controls that would read as an existing legacy choice.
+   */
+  async startDefault(uid: string, isCurrent: () => boolean): Promise<FriendAllPolicy | null> {
+    online();
+    await ensureAccountActivity(this.db, uid);
+    if (!isCurrent()) conflict();
+    const controls = await this.controls(uid);
+    if (controls.policy || controls.ranking || controls.shelf) return controls.policy;
+    try { return await this.setPolicy(uid, true, 'default', controls, isCurrent); }
+    catch (cause) {
+      // Without active online saving the default cannot start; the caller keeps the earlier off initialization.
+      if (cause instanceof FriendStoreError && (cause.code === 'unavailable' || cause.code === 'deleted')) return null;
+      // An acknowledged default already created both controls; the caller reads them back.
+      if (cause instanceof FriendAllCommittedError) return null;
+      throw cause;
+    }
   }
   async page(uid: string, kind: FriendAllKind, cursor?: FriendCursor, expectedRevision?: number): Promise<FriendAllPage> {
     const head = await this.head(uid, kind);
