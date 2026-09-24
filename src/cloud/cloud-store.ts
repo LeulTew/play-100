@@ -53,7 +53,7 @@ export function parseHead(value: DocumentData): SyncHead {
   if (Object.keys(value).sort().join() !== fields.sort().join() || value.format !== 1 ||
     !Number.isSafeInteger(value.epoch) || value.epoch < 1 || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
     typeof value.enabled !== 'boolean' || typeof value.deleted !== 'boolean' ||
-    !(value.updatedAt instanceof Timestamp) || ('cleanupEpoch' in value && (!Number.isSafeInteger(value.cleanupEpoch) || value.cleanupEpoch < 1))) throw new Error('The online sync head has an unsupported format. Your local data has not been replaced.');
+    !(value.updatedAt instanceof Timestamp) || ('cleanupEpoch' in value && (!Number.isSafeInteger(value.cleanupEpoch) || value.cleanupEpoch < 1))) throw new Error('The online copy uses an unsupported format. Your local data has not been replaced.');
   return {
     format: 1, epoch: value.epoch, revision: value.revision, enabled: value.enabled, deleted: value.deleted,
     current: value.current === null ? null : parseManifest(value.current),
@@ -177,7 +177,7 @@ export class CloudStore {
       if (!head.exists()) throw new SyncRevoked();
       sameHead(parseHead(head.data()), expected);
       const ids: string[] = registry.exists() ? registry.data().ids : [];
-      if (!Array.isArray(ids) || ids.length >= 8) throw new Error('Eight online snapshots are still retained. Wait for cleanup or run it from Account, then retry. Local edits are safe.');
+      if (!Array.isArray(ids) || ids.length >= 8) throw new Error('Eight older saved copies are still stored online. Wait for cleanup or run it from Account, then retry. Local edits are safe.');
       tx.set(this.generationRef(manifest.generation), { private: manifest, ranking, epoch: expected.epoch, status: 'staging', createdAt: serverTimestamp() });
       tx.set(this.registryRef(), { ids: [...ids, manifest.generation], revision: registry.exists() ? registry.data().revision + 1 : 1 });
     });
@@ -238,7 +238,7 @@ export class CloudStore {
       if (current.enabled && current.epoch === expected.epoch && current.current?.digest === snapshot.manifest.digest) return current;
       sameHead(current, expected);
       guard();
-      if (!generation.exists() || generation.data().status !== 'ready') throw new Error('The complete snapshot could not be committed. Retry online saving.');
+      if (!generation.exists() || generation.data().status !== 'ready') throw new Error('The complete online copy could not be saved. Retry online saving.');
       const next = { ...current, revision: current.revision + 1, current: snapshot.manifest, previous: current.current, updatedAt: Date.now() };
       tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
       for (const view of shared) if (view.exists() && parseFriendAllHead(view.data()).status === 'ready') tx.update(view.ref, { status: 'updating', revision: parseFriendAllHead(view.data()).revision + 1, updatedAt: serverTimestamp() });

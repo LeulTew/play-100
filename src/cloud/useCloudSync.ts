@@ -94,7 +94,7 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
       if (head.revision > local.sync.baseRemoteRevision) {
         if (local.sync.dirty || hasPendingEdits()) throw new RemoteConflict(head);
         const incoming = await store.download(head);
-        if (!incoming) throw new Error('The newer online head has no library snapshot. Your local copy is retained.');
+        if (!incoming) throw new Error('The newer online copy has no saved library. Your local copy is retained.');
         if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
         local = await adoptScopedRemote(scope, incoming, head, local.state.revision, false, () => owns() && !hardBlocked(lifetime.block) && !hasPendingEdits());
       }
@@ -146,7 +146,7 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
       setRemote(confirmed);
       succeeded(acknowledged.sync.dirty ? 'pending' : 'saved');
       try { await store.cleanup(); if (owns()) setCleanupWarning(''); }
-      catch (cleanupError) { if (owns()) setCleanupWarning(`The library is saved, but old snapshot cleanup needs retry. ${onlineError(cleanupError)}`); }
+      catch (cleanupError) { if (owns()) setCleanupWarning(`The library is saved, but removing older saved copies needs a retry. ${onlineError(cleanupError)}`); }
     } catch (cause) { failed(cause); }
     finally {
       if (uploading.current === lease) uploading.current = null;
@@ -218,7 +218,7 @@ export function useCloudSync(scope: LibraryScope | null, snapshot: ScopedLibrary
     const latest = await store.head();
     if (!latest || latest.revision !== expected.revision || latest.epoch !== expected.epoch || !latest.enabled || latest.deleted) throw new Error('The online copy changed again. Review the fresh versions before choosing.');
     const state = await store.download(latest);
-    if (!state) throw new Error('There is no online snapshot to adopt.');
+    if (!state) throw new Error('There is no complete online copy to use.');
     await adoptScopedRemote(scope, state, latest, expectedLocalRevision, true, () => owns() && lifetime.block !== 'revoked' && lifetime.block !== 'terminal' && !hasPendingEdits());
     if (!owns()) return;
     lifetime.block = null; succeeded('saved');

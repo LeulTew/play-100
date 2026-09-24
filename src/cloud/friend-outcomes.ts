@@ -22,7 +22,7 @@ export function committedFriendMessage(cause: FriendCommittedError): string {
 export function friendMutationError(cause: unknown): string {
   const kind = syncFailure(cause);
   if (kind === 'transient') return 'The change could not be confirmed. Reconnect and refresh its status before trying again.';
-  if (kind === 'quota') return 'The free quota is busy. Wait, then refresh to check whether the change was saved.';
+  if (kind === 'quota') return 'The online service has reached a limit. Wait, then refresh to check whether the change was saved.';
   return onlineError(cause);
 }
 
