@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { sourceTokens } from '../../../scripts/source-contract';
+import * as ts from 'typescript';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -51,9 +53,9 @@ describe('destination loading anatomy', () => {
     const collection = readFileSync(new URL('../CollectionPage.tsx', import.meta.url), 'utf8');
     const extended = readFileSync(new URL('../catalog/ExtendedResults.tsx', import.meta.url), 'utf8');
     const card = readFileSync(new URL('../catalog/DiscoveryCard.tsx', import.meta.url), 'utf8');
-    expect(host).toContain("import CollectionPage from '../CollectionPage'");
-    expect(collection).toContain("import ExtendedResults from './catalog/ExtendedResults'");
-    expect(extended).toContain("import { DiscoveryCard } from './DiscoveryCard'");
-    expect(card).toContain("import './discover.css'");
+    expect(sourceTokens(host, ts.ScriptKind.TSX)).toContain(sourceTokens("import CollectionPage from '../CollectionPage'"));
+    expect(sourceTokens(collection, ts.ScriptKind.TSX)).toContain(sourceTokens("import ExtendedResults from './catalog/ExtendedResults'"));
+    expect(sourceTokens(extended, ts.ScriptKind.TSX)).toContain(sourceTokens("import { DiscoveryCard } from './DiscoveryCard'"));
+    expect(sourceTokens(card, ts.ScriptKind.TSX)).toContain(sourceTokens("import './discover.css'"));
   });
 });

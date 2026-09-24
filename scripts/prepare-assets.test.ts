@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { parseCollection } from '../src/lib/collection';
 import coverMetadata from '../src/generated/cover-metadata.json';
 import webAssets from '../data/web-assets.json';
+import { sourceNodes } from './source-contract';
 
 const collection = parseCollection(JSON.parse(readFileSync(new URL('../data/collection.json', import.meta.url), 'utf8')));
 const illustrated = collection.games.filter(game => game.artwork);
@@ -15,9 +17,16 @@ const assets = new Map(webAssets.map(asset => [asset.file, asset]));
 describe('native workbook cover derivatives', () => {
   it('keeps withoutEnlargement in the real preparation pipeline', () => {
     const script = readFileSync(new URL('./prepare-assets.ts', import.meta.url), 'utf8');
-    const resize = script.match(/\.resize\(\{([^}]+)\}\)/)?.[1];
-    expect(resize).toMatch(/\bwithoutEnlargement\s*:\s*true\b/);
-    expect(resize).toMatch(/\bfit\s*:\s*['"]inside['"]/);
+    const source = ts.createSourceFile('prepare-assets.ts', script, ts.ScriptTarget.Latest, true);
+    const resize = sourceNodes(source, ts.isCallExpression).find(call =>
+      ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === 'resize');
+    const options = resize?.arguments[0];
+    if (!options || !ts.isObjectLiteralExpression(options)) throw new Error('The real resize call must have literal options.');
+    const option = (name: string) => options.properties.find((property): property is ts.PropertyAssignment =>
+      ts.isPropertyAssignment(property) && property.name.getText(source) === name)?.initializer;
+    expect(option('withoutEnlargement')?.kind).toBe(ts.SyntaxKind.TrueKeyword);
+    const fit = option('fit');
+    expect(fit && ts.isStringLiteral(fit) ? fit.text : undefined).toBe('inside');
   });
 
   it('provides exactly one metadata entry and file record per mapped workbook cover', () => {

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as ts from 'typescript';
+import { sourceNodes, sourceTokens } from '../../scripts/source-contract';
 import { shellMarkup } from '../../scripts/first-paint/shell-html';
 import { AppHeader } from '../components/app/AppHeader';
 import { MobileNav } from '../components/app/MobileNav';
@@ -18,8 +20,37 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const html = read('../../index.html');
 const appSource = read('../App.tsx');
 const routeHostSource = read('../components/app/RouteHost.tsx');
+const appSyntax = ts.createSourceFile('App.tsx', appSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const VARIANTS = ['offline', 'online'] as const;
 const STILL = /<svg class="artifact-still"[\s\S]*?<\/svg>/;
+
+// Lower JSX without executing the app so React's text/space semantics, rather
+// than the source layout, remain the contract.
+function jsxCalls(source: string): ts.CallExpression[] {
+  const emitted = ts.transpileModule(source, {
+    fileName: 'contract.tsx',
+    compilerOptions: { jsx: ts.JsxEmit.React, jsxFactory: 'jsx', target: ts.ScriptTarget.ESNext },
+  }).outputText;
+  const syntax = ts.createSourceFile('contract.js', emitted, ts.ScriptTarget.Latest, true);
+  return sourceNodes(syntax, ts.isCallExpression).filter(call => ts.isIdentifier(call.expression) && call.expression.text === 'jsx');
+}
+
+function property(object: ts.Node | undefined, name: string): ts.Expression | undefined {
+  if (!object || !ts.isObjectLiteralExpression(object)) return undefined;
+  return object.properties.find((item): item is ts.PropertyAssignment => ts.isPropertyAssignment(item) &&
+    (ts.isIdentifier(item.name) || ts.isStringLiteral(item.name)) && item.name.text === name)?.initializer;
+}
+
+function stringValue(node: ts.Node | undefined): string {
+  if (!node || !ts.isStringLiteral(node)) throw new Error('Expected a literal string in the first-paint source contract.');
+  return node.text;
+}
+
+function firstBranch(node: ts.Expression | undefined, condition: string): string {
+  if (!node || !ts.isConditionalExpression(node)) throw new Error('Expected the first-paint conditional.');
+  expect(sourceTokens(node.condition.getText())).toBe(sourceTokens(condition));
+  return stringValue(node.whenTrue);
+}
 
 const pageHref = (page: AppPage) => {
   const destination = pageDestination(page, defaultFilters);
@@ -56,11 +87,32 @@ afterEach(() => {
 });
 
 describe('first-paint shell parity with React\'s first commit', () => {
+  it('ignores JSX source layout without erasing meaningful text spaces or wrapper arguments', () => {
+    const compact = 'const view = <div key={scope}>{publicContent(content, route)}</div>;';
+    const expanded = 'const view = <div\n key={scope}\n>\n {publicContent(\ncontent,\nroute,\n)}\n</div>;';
+    const calls = (source: string) => jsxCalls(source).map(call => sourceTokens(call.getText()));
+    expect(calls(expanded)).toEqual(calls(compact));
+    expect(calls(compact.replace('key={scope}', 'key={route}'))).not.toEqual(calls(compact));
+    expect(calls('const view = <a>Skip to {name}</a>;'))
+      .not.toEqual(calls('const view = <a>Skip to{name}</a>;'));
+  });
+
   it('keeps App\'s landing structure: skip link, header, main and the route wrapper', () => {
-    const target = captured(/className="skip-link" href=\{page === 'collection' \? '([^']+)'/, appSource);
-    const text = captured(/>Skip to \{page === 'collection' \? '([^']+)'/, appSource);
-    expect(appSource).toContain('<main id="page-main" ref={mainRef}>');
-    expect(routeHostSource).toContain('<div key={scope}>{publicContent(content, route)}</div>');
+    const calls = jsxCalls(appSource);
+    const skip = calls.find(call => {
+      const tag = call.arguments[0];
+      const className = property(call.arguments[1], 'className');
+      return tag && ts.isStringLiteral(tag) && tag.text === 'a' &&
+        className && sourceTokens(className.getText()) === sourceTokens("'skip-link'");
+    });
+    if (!skip) throw new Error('Missing the first-paint skip link.');
+    const target = firstBranch(property(skip.arguments[1], 'href'), "page === 'collection'");
+    expect(stringValue(skip.arguments[2])).toBe('Skip to ');
+    const text = firstBranch(skip.arguments[3], "page === 'collection'");
+    const main = calls.find(call => call.arguments[0] && ts.isStringLiteral(call.arguments[0]) && call.arguments[0].text === 'main');
+    expect(sourceTokens(`(${main?.arguments[1]?.getText() ?? ''})`)).toBe(sourceTokens('({ id: "page-main", ref: mainRef })'));
+    expect(jsxCalls(routeHostSource).map(call => sourceTokens(call.getText())))
+      .toContain(sourceTokens('jsx("div", { key: scope }, publicContent(content, route))'));
     for (const variant of VARIANTS) {
       const shell = shellMarkup(html, variant);
       expect(shell.startsWith(`<div id="root"><div class="first-paint-shell" hidden><a class="skip-link" href="${target}">Skip to ${text}</a><header `)).toBe(true);
@@ -74,7 +126,9 @@ describe('first-paint shell parity with React\'s first commit', () => {
     const react = renderToStaticMarkup(createElement(AppHeader, {
       page: 'collection', onlineAvailable: online, libraryScope: 'guest',
       // App's first commit is still opening the account whenever online tools exist.
-      libraryLabel: online ? captured(/label: onlineOpening \? '([^']+)'/, appSource) : 'Device only',
+      libraryLabel: online ? firstBranch(sourceNodes(appSyntax, ts.isPropertyAssignment).find(item =>
+        ts.isIdentifier(item.name) && item.name.text === 'label' &&
+        ts.isConditionalExpression(item.initializer) && sourceTokens(item.initializer.condition.getText()) === sourceTokens('onlineOpening'))?.initializer, 'onlineOpening') : 'Device only',
       syncStatus: 'device', headerIdentity: null, savedCount: 0, animate: false, menuOpen: false, pageHref,
       onNavigateLink: vi.fn(), onQueue: vi.fn(), onMenu: vi.fn(), onAccount: vi.fn(),
     }));

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { sourceTokenBytes } from '../../scripts/source-contract';
 import { describe, expect, it } from 'vitest';
 import { DISCOVERY_GENRE_FAMILIES, discoveryGenreFamilies, matchesDiscoveryGenre, parseDiscoveryGenreFamily } from './discovery-genres';
 import { parseDiscoveryCatalogJson } from './discovery-catalog';
@@ -42,7 +43,8 @@ describe('explicit browsing families without rewriting source genres', () => {
     expect(parseDiscoveryGenreFamily('Action RPG')).toBe('');
     expect(parseDiscoveryGenreFamily('unknown')).toBe('');
     expect(DISCOVERY_GENRE_FAMILIES.length + 1).toBeLessThanOrEqual(15);
-    expect(Buffer.byteLength(readFileSync(new URL('./discovery-genres.ts', import.meta.url), 'utf8'))).toBeLessThanOrEqual(8192);
+    // Bound the taxonomy/code payload, not its indentation or explanatory comments.
+    expect(sourceTokenBytes(readFileSync(new URL('./discovery-genres.ts', import.meta.url), 'utf8'))).toBeLessThanOrEqual(8192);
   });
 });
 

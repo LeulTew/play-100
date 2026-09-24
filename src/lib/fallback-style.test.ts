@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { sourceTokens } from '../../scripts/source-contract';
 import { describe, expect, it } from 'vitest';
 import { isPublicPwaFile } from '../pwa/worker';
 
@@ -11,6 +12,7 @@ describe('external static fallback styling', () => {
     }
     expect(readFileSync(new URL('../../public/pwa/offline.html', import.meta.url), 'utf8')).not.toMatch(/<style\b/i);
     expect(isPublicPwaFile('/pwa/fallback.css')).toBe(true);
-    expect(readFileSync(new URL('../../scripts/pwa-build.ts', import.meta.url), 'utf8')).toContain("'/pwa/fallback.css'");
+    expect(sourceTokens(readFileSync(new URL('../../scripts/pwa-build.ts', import.meta.url), 'utf8')))
+      .toContain(sourceTokens("'/pwa/fallback.css'"));
   });
 });
