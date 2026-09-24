@@ -7,7 +7,8 @@ import { recordFromGame } from './personal-types';
 import type { PersonalProgress } from './personal-types';
 import { defaultFilters, parseUrl, createSearch, createShareUrl } from './url';
 import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch } from './discovery-search';
-import { effectiveProgressFilter, matchesProgress, selectionOperation } from './game-progress';
+import { effectiveProgressFilter, matchesProgress, pickCandidates, selectionOperation } from './game-progress';
+import type { Filters } from './types';
 
 const games = parseCollection(JSON.parse(readFileSync(new URL('../../public/data/collection.json', import.meta.url), 'utf8'))).games.slice(0, 4);
 const records = games.map(recordFromGame);
@@ -77,5 +78,27 @@ describe('distinct played/completed progress', () => {
     const old = { ...state, version: 2, ranking: state.ranking.map(entry => ({ id: entry.id, score: entry.score, note: entry.note })) };
     expect(parsePersonalLibrary(old).progress[records[0]!.id]).toEqual({ played: true, completed: true, later: false });
     expect(parsePersonalLibrary(state).version).toBe(3);
+  });
+});
+
+describe('Pick for me candidates', () => {
+  const progress = Object.fromEntries(records.flatMap((record, index) => values[index] ? [[record.id, values[index]!]] : []));
+  const picked = (patch: Partial<Filters>) => {
+    const filters = { ...defaultFilters, ...patch };
+    return pickCandidates(filterGames(games, filters, progress).map(recordFromGame), progress, filters).map(record => record.id);
+  };
+  it.each([
+    ['the progress chooser', { progress: 'completed' }, [2, 3]],
+    ['the legacy Completed list', { list: 'completed' }, [2, 3]],
+    ['a queue intersected with Completed', { list: 'later', progress: 'completed' }, [3]],
+  ] as const)('picks among the completed results of %s', (_, patch, indices) => {
+    expect(picked(patch)).toEqual(indices.map(index => records[index]!.id));
+  });
+  it.each([
+    ['all progress', {}, [0, 1]],
+    ['Played, including completed', { progress: 'any-played' }, [1]],
+    ['the queue', { list: 'later' }, []],
+  ] as const)('keeps skipping completed games in %s', (_, patch, indices) => {
+    expect(picked(patch)).toEqual(indices.map(index => records[index]!.id));
   });
 });

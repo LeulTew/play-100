@@ -20,7 +20,7 @@ import { useExtendedSearch } from '../hooks/useExtendedSearch';
 import { filterUnranked, unrankedRecords } from '../lib/extended-search';
 import ExtendedResults from './catalog/ExtendedResults';
 import CollectionFilms from './CollectionFilms';
-import { effectiveProgressFilter, selectionOperation } from '../lib/game-progress';
+import { effectiveProgressFilter, pickCandidates, selectionOperation } from '../lib/game-progress';
 import { catalogActionRecord, catalogOwnership, catalogProgress } from '../lib/catalog-identity';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
@@ -108,7 +108,7 @@ export default function CollectionPage({ collection, state, filters, busy, motio
     if (await onAction(change)) setSelected(new Set());
   };
   const pick = () => {
-    const candidates = filters.list === 'completed' ? resultRecords : resultRecords.filter((record) => !progress[record.id]?.completed);
+    const candidates = pickCandidates(resultRecords, progress, filters);
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
     if (chosen && chosen.collectionRank !== null) onOpen(chosen.id);
     else if (chosen) onPreview(chosen);

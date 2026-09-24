@@ -29,6 +29,11 @@ export function matchesProgress(value: Partial<PersonalProgress> | undefined, fi
 export function matchesProgressFilters(value: Partial<PersonalProgress> | undefined, filters: Pick<Filters, 'list' | 'progress'>): boolean {
   return (filters.list !== 'later' || Boolean(value?.later)) && matchesProgress(value, effectiveProgressFilter(filters));
 }
+// A Completed view (new progress chooser or legacy list) picks among its own completed results;
+// every other view skips games that are already completed.
+export function pickCandidates<T extends { id: string }>(records: readonly T[], progress: Readonly<Record<string, Partial<PersonalProgress> | undefined>>, filters: Pick<Filters, 'list' | 'progress'>): T[] {
+  return effectiveProgressFilter(filters) === 'completed' ? [...records] : records.filter(record => !progress[record.id]?.completed);
+}
 export function progressFilterPatch(value: ProgressFilter, filters: Pick<Filters, 'list'>): Partial<Filters> {
   return { progress: value, list: filters.list === 'later' ? 'later' : 'all' };
 }
