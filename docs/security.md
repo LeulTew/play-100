@@ -489,6 +489,16 @@ Vercel installs with `npm ci`; each CI dependency install is followed by
 failures for review, not reasons to bypass integrity. This does not replace
 Dependabot, CodeQL or runtime testing.
 
+Two dev-only advisories in the Firebase emulator tree are closed with scoped
+root `overrides` in `package.json`, mirroring the ones firebase-tools declares
+(npm ignores a dependency's own overrides): gaxios 6 gets `uuid@^11.1.1`
+(GHSA-w5hq-g745-h8pq; gaxios only calls `v4()` through CommonJS `require`, which
+uuid 11 still exports) and `@google-cloud/pubsub` gets `@opentelemetry/core@^2.8.0`
+(GHSA-8988-4f7v-96qf; pubsub only constructs `W3CTraceContextPropagator`, which 2.x
+keeps). `scripts/dependency-overrides.test.ts` fails if the lock resolves a
+vulnerable version again. Remove an override once its consumer depends on the
+patched version itself.
+
 Both the main rule and the auth-helper rule send
 `Strict-Transport-Security: max-age=63072000; includeSubDomains` explicitly, so
 HSTS does not depend on a platform default. `preload` is deliberately omitted:
