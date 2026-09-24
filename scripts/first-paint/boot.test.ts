@@ -172,6 +172,11 @@ function run(environment: BootEnvironment = {}) {
     },
     runTimers: () => { for (const timer of timers.splice(0)) timer.callback(); },
     settle: (event: 'load' | 'error' = 'load') => { for (const sheet of stylesheets()) sheet.dispatch(event); },
+    /** Vite's preload helper for a lazy chunk's stylesheet: nothing if the document links it already, else a link appended to <head>. */
+    chunkStylesheet: (href: string) => {
+      if (stylesheets().some(sheet => sheet.getAttribute('href') === href)) return;
+      document.head.appendChild(new FakeElement('LINK', { rel: 'stylesheet', crossorigin: '', href }));
+    },
   };
 }
 
@@ -361,5 +366,35 @@ describe('first-paint app loader', () => {
     result.runTimers();
     expect(result.inserted()).toEqual(STARTUP);
     expect(everything(result)).toEqual([...STARTUP, ENTRY]);
+  });
+
+  it('keeps the entry stylesheet in <head> ahead of every stylesheet a lazy chunk adds, however the app starts', () => {
+    // Only code the module entry runs can import a lazy chunk, and Vite's preload helper then appends the
+    // chunk's stylesheets to <head>. So they follow the entry stylesheet as long as the loader links it in
+    // <head> before it adds the module entry, whichever way the app starts.
+    const entryStylesheet = 'link rel=stylesheet crossorigin= href=/assets/index-B.css';
+    const chunkStylesheet = 'link rel=stylesheet crossorigin= href=/assets/MyGamesPage-D.css';
+    expect(STARTUP).toContain(entryStylesheet);
+    const starts: readonly (readonly [string, BootEnvironment, (result: ReturnType<typeof run>) => void])[] = [
+      ['at the landing page\'s first contentful paint', {}, result => result.paint('first-contentful-paint')],
+      ['from the safety net', {}, result => { result.parsed(); result.runTimers(); }],
+      ['at once on another route', { url: 'https://play-100.test/my-games' }, () => undefined],
+      ['at once in a hidden document', { visibilityState: 'hidden' }, () => undefined],
+      ['at once when the boot gate throws', { measureThrows: true }, () => undefined],
+    ];
+    for (const [when, environment, begin] of starts) {
+      const result = run(environment);
+      begin(result);
+      result.settle('load');
+      result.parsed();
+      expect(result.inserted(), when).toEqual([...STARTUP, ENTRY]);
+      // A chunk imported from another lazy chunk lists the entry stylesheet among its dependencies too.
+      result.chunkStylesheet('/assets/index-B.css');
+      result.chunkStylesheet('/assets/MyGamesPage-D.css');
+      const inserted = result.inserted();
+      expect(inserted.indexOf(entryStylesheet), when).toBeLessThan(inserted.indexOf(chunkStylesheet));
+      expect(inserted.filter(tag => tag.startsWith('link rel=stylesheet')), `${when}: the entry stylesheet is linked once, first`)
+        .toEqual([entryStylesheet, chunkStylesheet]);
+    }
   });
 });

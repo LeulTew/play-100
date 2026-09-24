@@ -233,3 +233,84 @@ for (const path of ['/', '/?catalogs=off']) {
     expect(errors).toEqual([]);
   });
 }
+
+/** The document the server returns for every app route. */
+const servedDocument = async (page: Page) => (await page.request.get('/')).text();
+
+/**
+ * The stylesheets the served document starts the app with, in order: the startup template's or, in a build
+ * without the shell, those Vite links in <head>. <noscript> content never loads with scripting on.
+ */
+function startupStylesheets(html: string): string[] {
+  const paths = [...html.replace(/<noscript>[\s\S]*?<\/noscript>/g, '').matchAll(/<link\b[^>]*>/g)].map(match => match[0])
+    .filter(tag => /\srel="stylesheet"/.test(tag))
+    .map(tag => new URL(/\shref="([^"]+)"/.exec(tag)?.[1] ?? '', 'https://play-100.test').pathname);
+  expect(paths.length, 'the served document starts the app with its entry stylesheet').toBeGreaterThan(0);
+  return paths;
+}
+
+/**
+ * Every stylesheet sits in <head> after the inline style, and the first ones are exactly the startup stylesheets,
+ * each linked once. The lazy chunk stylesheets Vite appends to <head> follow them, as they followed Vite's own
+ * <head> link before the shell, so their rules keep winning the equal-specificity ties they won then.
+ */
+async function expectStartupStylesheetsFirst(page: Page, startup: readonly string[], when: string, chunks: 'some' | 'any' = 'some') {
+  const { links, inlineStyleFirst } = await page.evaluate(() => {
+    const all = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+    const style = document.head.querySelector('style');
+    const first = all[0];
+    return {
+      links: all.map(link => ({ path: new URL(link.href).pathname, head: link.parentNode === document.head })),
+      inlineStyleFirst: !style || !first || Boolean(style.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING),
+    };
+  });
+  expect(links.filter(link => !link.head).map(link => link.path), `${when}: stylesheets outside <head>`).toEqual([]);
+  expect(inlineStyleFirst, `${when}: the inline critical style precedes every stylesheet`).toBe(true);
+  expect(links.slice(0, startup.length).map(link => link.path), `${when}: the entry stylesheet precedes every lazy chunk stylesheet`).toEqual(startup);
+  const lazy = links.slice(startup.length).map(link => link.path);
+  expect(lazy.filter(path => startup.includes(path)), `${when}: a startup stylesheet linked again`).toEqual([]);
+  if (chunks === 'some') expect(lazy.length, `${when}: a lazy chunk appended its stylesheet`).toBeGreaterThan(0);
+}
+
+// Lazy routes bring their CSS with their chunk: on a first load and after navigating from the landing shell,
+// the startup stylesheets must come first, as they did when Vite linked them in <head>.
+for (const [path, heading] of [['/my-games', '#my-games-title'], ['/discover?catalogs=off', '#discover-title']] as const) {
+  test(`lazy chunk stylesheets follow the entry stylesheet on a first load of ${path}`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await emptyCatalogs(page);
+    const startup = startupStylesheets(await servedDocument(page));
+    await page.goto(path);
+    await expect(page.locator(heading)).toBeVisible();
+    await expectStartupStylesheetsFirst(page, startup, `first load of ${path}`);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('lazy chunk stylesheets follow the entry stylesheet after navigating from the landing shell', async ({ page, isMobile }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await emptyCatalogs(page);
+  const startup = startupStylesheets(await servedDocument(page));
+  await page.goto('/');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await expectStartupStylesheetsFirst(page, startup, 'the started landing page', 'any');
+  const navigation = page.getByRole('navigation', { name: isMobile ? 'Mobile navigation' : 'Main navigation', exact: true });
+  await navigation.getByRole('link', { name: 'My games', exact: true }).click();
+  await expect(page.locator('#my-games-title')).toBeVisible();
+  await expectStartupStylesheetsFirst(page, startup, 'after navigating to My games');
+  await navigation.getByRole('link', { name: 'Discover', exact: true }).click();
+  await expect(page.locator('#discover-title')).toBeVisible();
+  await expectStartupStylesheetsFirst(page, startup, 'after navigating on to Discover');
+  expect(errors).toEqual([]);
+});
+
+test('the account page\'s stylesheets follow the entry stylesheet on a first load', async ({ page }) => {
+  const html = await servedDocument(page);
+  test.skip(!html.includes('site-header-online'), 'Only builds with online tools load the account page from a lazy chunk.');
+  const startup = startupStylesheets(html);
+  await page.goto('/account');
+  // The account chunk's own content: the sign-in page, or what it shows while it restores the session.
+  await expect(page.locator('.auth-page, .page-loading').first()).toBeVisible();
+  await expectStartupStylesheetsFirst(page, startup, 'first load of /account');
+});

@@ -337,6 +337,9 @@ describe('first-paint index.html', () => {
     expect(head.match(/<template\b/g)).toHaveLength(1);
     expect(result.startup.map(tag => tag.source).join('')).toBe(TEMPLATE_CONTENT);
     expect(head.replace(template, '')).not.toMatch(/rel="(?:stylesheet|modulepreload|preload)"|<script type="module"/);
+    // Nor does <body> link one: after #root it would follow the lazy chunk stylesheets Vite appends to <head> and
+    // win their equal-specificity ties. <noscript> content never loads with scripting on.
+    expect(result.html.replace(template, '').replace(/<noscript>[\s\S]*?<\/noscript>/g, '')).not.toMatch(/rel="stylesheet"/);
     expect(head.match(/<style>/g)).toHaveLength(1);
     expect(head.indexOf('<meta charset="UTF-8" />')).toBeLessThan(head.indexOf('<style>'));
     expect(head.indexOf('<style>')).toBeLessThan(head.indexOf(template));

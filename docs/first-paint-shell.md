@@ -85,11 +85,18 @@ metric-matched fallback faces are usable. Then it sets `data-boot="landing"` and
 
 Then it starts the app by inserting the template's tags into `<head>`, once:
 the module entry as a `modulepreload`, the other modulepreloads, the entry
-stylesheet (after the inline style, so it wins cascade ties, and before any lazy
-chunk stylesheet Vite appends later) and the preloads. It adds the module entry
-itself only after every stylesheet has loaded or failed and, like the
-parser-inserted module it replaces, once the document is parsed, so React never
-commits before the complete stylesheet applies or before `#root` exists.
+stylesheet (after the inline style, so it wins cascade ties) and the preloads.
+It adds the module entry itself only after every stylesheet has loaded or
+failed and, like the parser-inserted module it replaces, once the document is
+parsed, so React never commits before the complete stylesheet applies or before
+`#root` exists.
+
+That keeps Vite's stylesheet order. Only code the module entry runs can import a
+lazy chunk, and Vite's preload helper then appends the chunk's stylesheets to
+`<head>` (skipping any the document links already), so they follow the entry
+stylesheet and keep winning the equal-specificity ties they won when Vite linked
+it in `<head>`. Keep every startup stylesheet in `<head>`: one placed after
+`#root` would follow the chunk stylesheets and win those ties instead.
 
 When it shows the shell, it waits for the `first-contentful-paint` entry, which
 Chromium reports once the shell's frame is presented; a second after the document
@@ -169,8 +176,11 @@ variant, on desktop and mobile. It holds the entry stylesheet, the module entry
 and the web fonts to compare the shell under inline CSS only, the shell under the
 full stylesheet and React's first commit, checks that the app's first requests
 start after the shell's first contentful paint, and checks that the web fonts
-swap in without layout shift. It needs the local fonts the probes measure
-(Windows or macOS Impact/Arial, or Liberation Sans/Arimo on Linux).
+swap in without layout shift. It also reads the live `<head>` on first loads of
+lazy routes and after navigating from the landing shell: every stylesheet stays
+in `<head>`, the startup stylesheets come first and only once, and the lazy
+chunk stylesheets follow them. The shell comparisons need the local fonts the
+probes measure (Windows or macOS Impact/Arial, or Liberation Sans/Arimo on Linux).
 
 ## Budgets
 
