@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createLibraryBackup, parseLibraryBackup } from '../../lib/personal-library';
+import { backupFileSizeError, exportLibraryBackup, readLibraryBackup } from '../../lib/personal-library';
 import type { PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { useLibraryMode } from '../../lib/library-mode';
@@ -23,7 +23,10 @@ export default function BackupPanel({ state, busy, persistent, onRestore }: {
     return () => { canceled = true; };
   }, []);
   const exportBackup = () => {
-    const blob = new Blob([JSON.stringify(createLibraryBackup(state), null, 2)], { type: 'application/json' });
+    setError(''); setMessage('');
+    const backup = exportLibraryBackup(state);
+    if (!backup.ok) { setError(backup.message); return; }
+    const blob = new Blob([backup.text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -35,10 +38,13 @@ export default function BackupPanel({ state, busy, persistent, onRestore }: {
   const readBackup = async (file: File | undefined) => {
     setError(''); setMessage(''); setIncoming(null);
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) { setError('This backup exceeds the 20 MB import limit. No data was changed.'); return; }
+    const tooLarge = backupFileSizeError(file.size);
+    if (tooLarge) { setError(tooLarge); if (input.current) input.current.value = ''; return; }
     setReading(true);
-    try { setIncoming(parseLibraryBackup(JSON.parse(await file.text()))); }
-    catch (cause: unknown) { setError(`This backup could not be read. No data was changed. ${cause instanceof Error ? cause.message : ''}`); }
+    try { setIncoming(readLibraryBackup(await file.text())); }
+    catch (cause: unknown) {
+      setError(cause instanceof Error && cause.name === 'PersonalLibraryBudgetError' ? cause.message : `This backup could not be read. No data was changed. ${cause instanceof Error ? cause.message : ''}`);
+    }
     finally { setReading(false); if (input.current) input.current.value = ''; }
   };
   const protectStorage = async () => {

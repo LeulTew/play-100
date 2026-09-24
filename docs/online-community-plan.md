@@ -214,7 +214,8 @@ offline outbox when IndexedDB is unavailable. Preserve export/recovery options.
 
 ### Atomic snapshots and Firestore's document limit
 
-The existing local app allows 10,000 records and imports backups up to 20 MiB.
+The existing local app allows 10,000 records and keeps each library within a
+20 MiB budget, measured as its compact backup JSON.
 Do not assume that its state fits in Firestore's 1 MiB document limit.
 
 Use a small, versioned snapshot transport with immutable bounded chunks and an

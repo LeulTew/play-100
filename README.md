@@ -538,10 +538,16 @@ private library does not remove it from the public 100. This action has no
 undo, so export a Settings backup first when needed. All my games and Completed
 use plain lists instead of showing disabled drag controls for unordered views.
 
-Settings exports a versioned JSON backup with all private data. Import validates
-the complete file, previews counts and requires explicit replacement approval;
-invalid files never partially modify the database. Imports are limited to
-20 MB, libraries to 10,000 records and notes to 2,000 characters. Browser
+Settings exports a versioned, compact JSON backup with all private data. Import
+validates the complete file, previews counts and requires explicit replacement
+approval; invalid files never partially modify the database. One 20 MB (20 MiB)
+byte budget covers the whole library: it is the exact UTF-8 size of that compact
+backup. Changes that would grow a library past it are refused with nothing
+saved, while removals, dequeues and reorders always work. Export never produces a
+larger file, and import rejects a larger library after parsing; files above
+24 MB are refused before parsing, leaving room for pretty-printed older
+backups. Libraries are also limited to 10,000 records and notes to 2,000
+characters. Browser
 eviction protection can be requested, but clearing site data can still erase
 everything. A downloaded backup is the portable recovery path.
 

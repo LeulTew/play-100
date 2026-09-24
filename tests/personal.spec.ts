@@ -193,6 +193,8 @@ test('backup export and validated replacement restore queue and private rankings
   if (!path) throw new Error('Backup download missing.');
   const bytes = await readFile(path);
   const backup = JSON.parse(bytes.toString('utf8'));
+  // The file is the compact JSON the 20 MiB library budget measures.
+  expect(bytes.toString('utf8')).toBe(JSON.stringify(backup));
   expect(backup.formatVersion).toBe(3);
   expect(backup.library.queueOrder).toEqual([first, second, third]);
   expect(backup.library.ranking[0].id).toBe(first);

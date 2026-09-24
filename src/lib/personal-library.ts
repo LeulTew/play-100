@@ -5,7 +5,10 @@ import type {
 import { parseLibrary } from './storage.js';
 import type { MotionPreference } from './types.js';
 import { orderByRating, retainManualPositions } from './ranking-order.js';
-import { MAX_LIBRARY_RECORDS as MAX_RECORDS, MAX_LIBRARY_ID_CHARACTERS, MAX_LIBRARY_TITLE_CHARACTERS } from './personal-types.js';
+import {
+  MAX_BACKUP_FILE_BYTES, MAX_LIBRARY_BACKUP_BYTES, MAX_LIBRARY_RECORDS as MAX_RECORDS, MAX_LIBRARY_ID_CHARACTERS,
+  MAX_LIBRARY_TITLE_CHARACTERS,
+} from './personal-types.js';
 
 const forbiddenKeys = new Set(['__proto__', 'constructor', 'prototype']);
 const sources: readonly GameSource[] = ['collection', 'steam', 'wikidata', 'freetogame', 'manual'];
@@ -13,6 +16,12 @@ const sources: readonly GameSource[] = ['collection', 'steam', 'wikidata', 'free
 function invalid(message: string): never {
   const error = new Error(`Your personal library could not be read: ${message}`);
   error.name = 'PersonalLibraryValidationError';
+  throw error;
+}
+
+function budgetError(message: string): never {
+  const error = new Error(message);
+  error.name = 'PersonalLibraryBudgetError';
   throw error;
 }
 
@@ -275,9 +284,51 @@ function move<T>(items: T[], id: string, overId: string, getId: (item: T) => str
   items.splice(to, 0, item);
 }
 
-// The reducer is the validation boundary for a commit: it parses the stored (or in-memory) state once into a
-// fresh copy it may mutate, so callers pass raw values and must not parse first.
+const MEASURED_EXPORT_TIME = '2000-01-01T00:00:00.000Z';
+
+/** Exact UTF-8 length of a string, as TextEncoder would encode it, without allocating the bytes. */
+export function utf8Length(value: string): number {
+  let bytes = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 0x80) bytes += 1;
+    else if (code < 0x800) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+      const next = value.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) { bytes += 4; index += 1; } else bytes += 3;
+    } else bytes += 3;
+  }
+  return bytes;
+}
+
+/**
+ * Bytes of `JSON.stringify(createLibraryBackup(state))` for an already parsed state. The export time is a
+ * fixed-width ISO string, so a stand-in measures the same as the real one; one compact stringify, O(n).
+ */
+export function libraryBackupBytes(state: PersonalLibraryState): number {
+  return utf8Length(JSON.stringify({ app: 'Play 100', formatVersion: 3, exportedAt: MEASURED_EXPORT_TIME, library: state }));
+}
+
+export function formatBackupBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.ceil(bytes / 1024))} KB`;
+  return `${(Math.ceil(bytes / (1024 * 1024) * 10) / 10).toFixed(1)} MB`;
+}
+
+/** A budget as user copy: whole mebibytes read as "20 MB"; anything else uses the rounded-up size. */
+export function formatBackupLimit(budget: number): string {
+  return budget % (1024 * 1024) === 0 ? `${budget / (1024 * 1024)} MB` : formatBackupBytes(budget);
+}
+
 export function applyPersonalAction(state: unknown, action: PersonalAction): PersonalLibraryState {
+  return applyPersonalActionWithin(state, action, MAX_LIBRARY_BACKUP_BYTES);
+}
+
+// The reducer is the validation boundary for a commit: it parses the stored (or in-memory) state once into a
+// fresh copy it may mutate, so callers pass raw values and must not parse first. It also enforces the backup
+// byte budget: a result past the budget is refused unless the action did not grow the library, so removals,
+// dequeues and reorders always succeed, even for a legacy library that is already over. Cost: one compact
+// stringify per action; a second parse and stringify of the prior state only when the result is over budget.
+export function applyPersonalActionWithin(state: unknown, action: PersonalAction, budget: number): PersonalLibraryState {
   const result = parsePersonalLibrary(state);
   const input = object(action, 'The library action');
   const queued = new Set(result.queueOrder);
@@ -390,6 +441,15 @@ export function applyPersonalAction(state: unknown, action: PersonalAction): Per
   result.queueOrder = result.queueOrder.filter((id) => queued.has(id));
   result.ranking = orderByRating(result.ranking);
   result.revision = nextRevision(result.revision);
+  const after = libraryBackupBytes(result);
+  if (after > budget) {
+    const prior = parsePersonalLibrary(state);
+    // The revision always advances; its extra digit is not growth the user can undo.
+    const revisionDigits = String(result.revision).length - String(prior.revision).length;
+    if (after - revisionDigits > libraryBackupBytes(prior)) {
+      return budgetError(`This change would take your library past its ${formatBackupLimit(budget)} backup limit. Remove games or shorten notes, then try again. Nothing was changed.`);
+    }
+  }
   return result;
 }
 
@@ -432,6 +492,36 @@ export function createLibraryBackup(state: PersonalLibraryState): LibraryBackup 
     app: 'Play 100', formatVersion: 3, exportedAt: new Date().toISOString(),
     library: parsePersonalLibrary(state),
   };
+}
+
+/** Compact backup text for download, or how far a (legacy) library is over the budget. */
+export function exportLibraryBackup(
+  state: PersonalLibraryState, budget = MAX_LIBRARY_BACKUP_BYTES,
+): { ok: true; text: string; bytes: number } | { ok: false; bytes: number; message: string } {
+  const text = JSON.stringify(createLibraryBackup(state));
+  const bytes = utf8Length(text);
+  if (bytes <= budget) return { ok: true, text, bytes };
+  const over = formatBackupBytes(bytes - budget);
+  return {
+    ok: false, bytes,
+    message: `This library is ${over} over its ${formatBackupLimit(budget)} backup limit, so no file was made. Remove games or shorten notes by at least ${over}, then export again. Nothing was changed.`,
+  };
+}
+
+/** Pre-parse size gate for a backup file; pretty-printed older exports get the extra allowance. */
+export function backupFileSizeError(size: number, budget = MAX_LIBRARY_BACKUP_BYTES): string | null {
+  const cap = budget + (MAX_BACKUP_FILE_BYTES - MAX_LIBRARY_BACKUP_BYTES);
+  return size > cap ? `This backup file exceeds the ${formatBackupLimit(cap)} import limit. No data was changed.` : null;
+}
+
+/** Parses backup text and applies the library budget to its compact size. */
+export function readLibraryBackup(text: string, budget = MAX_LIBRARY_BACKUP_BYTES): PersonalLibraryState {
+  const state = parseLibraryBackup(JSON.parse(text));
+  const bytes = libraryBackupBytes(state);
+  if (bytes > budget) {
+    return budgetError(`This backup holds a library ${formatBackupBytes(bytes - budget)} over the ${formatBackupLimit(budget)} backup limit. No data was changed.`);
+  }
+  return state;
 }
 
 export function parseLibraryBackup(value: unknown): PersonalLibraryState {

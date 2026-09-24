@@ -3,6 +3,14 @@ import type { Game, MotionPreference } from './types.js';
 export const MAX_LIBRARY_RECORDS = 10_000;
 export const MAX_LIBRARY_ID_CHARACTERS = 200;
 export const MAX_LIBRARY_TITLE_CHARACTERS = 200;
+/**
+ * One byte contract for the whole library: the exact UTF-8 length of the compact backup JSON
+ * (`JSON.stringify(createLibraryBackup(state))`). Writes that would grow past it are refused,
+ * export refuses to produce a larger file, and import rejects a larger library after parsing.
+ */
+export const MAX_LIBRARY_BACKUP_BYTES = 20 * 1024 * 1024;
+/** Pre-parse file cap: the budget plus room for pretty-printed v2/v3 backups from older exports. */
+export const MAX_BACKUP_FILE_BYTES = MAX_LIBRARY_BACKUP_BYTES + 4 * 1024 * 1024;
 
 export type GameSource = 'collection' | 'steam' | 'wikidata' | 'freetogame' | 'manual';
 

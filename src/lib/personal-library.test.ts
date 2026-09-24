@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyPersonalAction, createLibraryBackup, emptyPersonalLibrary, migrateLegacyLibrary,
-  parseLibraryBackup, parsePersonalLibrary,
+  applyPersonalAction, applyPersonalActionWithin, backupFileSizeError, createLibraryBackup, emptyPersonalLibrary,
+  exportLibraryBackup, formatBackupLimit, libraryBackupBytes, migrateLegacyLibrary, parseLibraryBackup, parsePersonalLibrary,
+  readLibraryBackup, utf8Length,
 } from './personal-library';
+import { MAX_BACKUP_FILE_BYTES, MAX_LIBRARY_BACKUP_BYTES } from './personal-types';
 import type { GameSource, LibraryRecord, PersonalAction, PersonalLibraryState } from './personal-types';
 
 function game(id: string, source: GameSource = 'collection', rank = 1): LibraryRecord {
@@ -461,5 +463,104 @@ describe('single reducer validation boundary', () => {
     let failure: unknown;
     try { applyPersonalAction({ ...raw, records: 'not a record map' }, { type: 'use-rating-order' }); } catch (cause) { failure = cause; }
     expect(failure).toMatchObject({ name: 'PersonalLibraryValidationError' });
+  });
+});
+describe('library backup byte budget', () => {
+  const encoded = (text: string) => new TextEncoder().encode(text).length;
+  const exactBytes = (state: PersonalLibraryState) => encoded(JSON.stringify(createLibraryBackup(state)));
+  const noted = (state: PersonalLibraryState, note: string) => applyPersonalAction(state, { type: 'edit-ranking', id: c.id, note });
+
+  it('is one 20 MiB contract shared by writes, export and import copy', () => {
+    expect(MAX_LIBRARY_BACKUP_BYTES).toBe(20 * 1024 * 1024);
+    expect(MAX_BACKUP_FILE_BYTES).toBe(24 * 1024 * 1024);
+    expect(formatBackupLimit(MAX_LIBRARY_BACKUP_BYTES)).toBe('20 MB');
+    expect(backupFileSizeError(MAX_BACKUP_FILE_BYTES)).toBeNull();
+    expect(backupFileSizeError(MAX_BACKUP_FILE_BYTES + 1)).toBe('This backup file exceeds the 24 MB import limit. No data was changed.');
+  });
+
+  it('measures exactly what TextEncoder counts for the compact backup, without allocating it', () => {
+    for (const sample of ['plain', 'é', '€ and ✓', '😀 astral', '\ud800 lone high', 'lone low \udc00', 'end high \ud83d', '\u0000\u001f']) {
+      expect(utf8Length(sample)).toBe(encoded(sample));
+      expect(utf8Length(JSON.stringify(sample))).toBe(encoded(JSON.stringify(sample)));
+    }
+    const state = noted(fixture(), 'Ünïcödé 😀 \u0007 note');
+    expect(libraryBackupBytes(state)).toBe(exactBytes(state));
+    const exported = exportLibraryBackup(state);
+    expect(exported.ok && exported.bytes).toBe(exactBytes(state));
+  });
+
+  it('refuses a growing change past the budget and leaves the prior state intact', () => {
+    const before = fixture();
+    const budget = libraryBackupBytes(before) + 20;
+    expect(applyPersonalActionWithin(before, { type: 'edit-ranking', id: c.id, note: 'short' }, budget).ranking[0]?.note).toBe('short');
+    const snapshot = structuredClone(before);
+    let failure: unknown;
+    try { applyPersonalActionWithin(before, { type: 'edit-ranking', id: c.id, note: 'x'.repeat(100) }, budget); } catch (cause) { failure = cause; }
+    expect(failure).toMatchObject({
+      name: 'PersonalLibraryBudgetError',
+      message: `This change would take your library past its ${formatBackupLimit(budget)} backup limit. Remove games or shorten notes, then try again. Nothing was changed.`,
+    });
+    expect(before).toEqual(snapshot);
+    expect(() => applyPersonalActionWithin(before, { type: 'add-records', records: [game('steam:1', 'steam')] }, budget)).toThrow(/backup limit/);
+  });
+
+  it('always allows removals, dequeues and reorders, even for a library already over budget', () => {
+    let over = noted(fixture(), 'n'.repeat(500));
+    over = { ...over, revision: 9 };
+    const budget = libraryBackupBytes(over) - 100;
+    // The reorder moves the revision from 9 to 10, one more digit, and must still pass.
+    const moved = applyPersonalActionWithin(over, { type: 'move-item', list: 'queue', id: a.id, overId: b.id }, budget);
+    expect(moved.revision).toBe(10);
+    expect(moved.queueOrder).toEqual([b.id, a.id]);
+    expect(applyPersonalActionWithin(over, { type: 'set-progress', records: [a], key: 'later', value: false }, budget).queueOrder).toEqual([b.id]);
+    expect(applyPersonalActionWithin(over, { type: 'remove-ranking', ids: [c.id] }, budget).ranking).toEqual([]);
+    expect(applyPersonalActionWithin(over, { type: 'remove-records', ids: [a.id] }, budget).records[a.id]).toBeUndefined();
+    expect(applyPersonalActionWithin(over, { type: 'edit-ranking', id: c.id, note: 'shorter' }, budget).ranking[0]?.note).toBe('shorter');
+    expect(() => applyPersonalActionWithin(over, { type: 'set-progress', records: [c], key: 'later', value: true }, budget)).toThrow(/backup limit/);
+  });
+
+  it('exports compact JSON, or refuses and says how much to remove', () => {
+    const state = noted(fixture(), 'A note');
+    const exported = exportLibraryBackup(state);
+    if (!exported.ok) throw new Error('expected an export');
+    expect(exported.text).not.toContain('\n');
+    expect(exported.text).toBe(JSON.stringify(JSON.parse(exported.text)));
+    expect(parseLibraryBackup(JSON.parse(exported.text))).toEqual(state);
+    const refused = exportLibraryBackup(state, exported.bytes - 1);
+    expect(refused).toEqual({
+      ok: false, bytes: exported.bytes,
+      message: `This library is 1 KB over its ${formatBackupLimit(exported.bytes - 1)} backup limit, so no file was made. Remove games or shorten notes by at least 1 KB, then export again. Nothing was changed.`,
+    });
+  });
+
+  it('covers a maximal library: anything the write path allows exports and imports at the exact boundary', () => {
+    const state = noted(fixture(), 'Ünïcödé 😀 note');
+    const budget = libraryBackupBytes(state);
+    // A library written up to the budget exports and re-imports unchanged at that same budget.
+    const exported = exportLibraryBackup(state, budget);
+    if (!exported.ok) throw new Error('boundary export refused');
+    expect(exported.bytes).toBe(budget);
+    expect(readLibraryBackup(exported.text, budget)).toEqual(state);
+    expect(() => applyPersonalActionWithin(state, { type: 'edit-ranking', id: c.id, note: 'Ünïcödé 😀 note!' }, budget)).toThrow(/backup limit/);
+    expect(exportLibraryBackup(state, budget - 1).ok).toBe(false);
+    expect(() => readLibraryBackup(exported.text, budget - 1)).toThrow(/backup limit/);
+  });
+
+  it('imports pretty-printed v2 and v3 backups by their compact size, and rejects malformed or oversized ones', () => {
+    const state = noted(fixture(), 'Pretty');
+    const pretty = JSON.stringify(createLibraryBackup(state), null, 2);
+    const compact = libraryBackupBytes(state);
+    expect(encoded(pretty)).toBeGreaterThan(compact);
+    expect(readLibraryBackup(pretty, compact)).toEqual(state);
+    const v2 = JSON.stringify({
+      app: 'Play 100', formatVersion: 2, exportedAt: '2024-05-01T10:00:00.000Z',
+      library: { ...state, version: 2, ranking: state.ranking.map(({ id, score, note }) => ({ id, score, note })) },
+    }, null, 2);
+    expect(readLibraryBackup(v2).ranking.map((entry) => entry.id)).toEqual(state.ranking.map((entry) => entry.id));
+    let failure: unknown;
+    try { readLibraryBackup(pretty, compact - 1); } catch (cause) { failure = cause; }
+    expect(failure).toMatchObject({ name: 'PersonalLibraryBudgetError', message: `This backup holds a library 1 KB over the ${formatBackupLimit(compact - 1)} backup limit. No data was changed.` });
+    expect(() => readLibraryBackup('{"formatVersion":2,"library":{"bad":true}}')).toThrow();
+    expect(() => readLibraryBackup('{not json')).toThrow(SyntaxError);
   });
 });
