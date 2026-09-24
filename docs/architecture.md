@@ -12,6 +12,9 @@ Before the first commit, a built `index.html` may show the static
 [first-paint shell](first-paint-shell.md) of the landing page in `#root`;
 `createRoot()` replaces it, and no app code reads it. The shell's inline boot
 script loads the app entry, after the shell's first paint on the landing page.
+[main.tsx](../src/main.tsx) renders the app as a transition, so React renders the
+first commit in time slices; that commit is the same, because only its effects
+apply the guest library and collection results.
 
 ## Sources of truth
 

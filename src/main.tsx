@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, startTransition } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource/barlow-condensed/latin-700.css';
 import '@fontsource/barlow-condensed/latin-800.css';
@@ -14,6 +14,12 @@ import './render-containment.css';
 const dataUsePage = /^\/data-use\/?$/.test(location.pathname);
 if (!dataUsePage) startGuestLibraryLoad();
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode><ErrorBoundary>{dataUsePage ? <DataUsePage /> : <App />}</ErrorBoundary></StrictMode>,
-);
+const root = createRoot(document.getElementById('root')!);
+// As a transition the first render yields to the browser every few milliseconds instead of holding
+// the main thread for the whole tree. Its commit is unchanged: only effects after it apply the
+// guest library and collection results.
+startTransition(() => {
+  root.render(
+    <StrictMode><ErrorBoundary>{dataUsePage ? <DataUsePage /> : <App />}</ErrorBoundary></StrictMode>,
+  );
+});
