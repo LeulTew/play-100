@@ -1,4 +1,4 @@
-title = "Play 100 staged-source secret checks"
+title = "Play 100 full-history CI secret scanning"
 
 [extend]
 useDefault = true
