@@ -191,7 +191,7 @@ test('blocked and corrupt storage remain usable, explicit and non-destructive', 
   await page.locator('.storage-banner').getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Your device list and preferences have been reset.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Your active library, queue, ranking and preferences have been reset.' })).toBeVisible();
   expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)).toBeNull();
 });
 

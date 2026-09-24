@@ -140,7 +140,7 @@ describe('route fallback host', () => {
   it.each([
     ['public-page', 'Loading My games…'],
     ['cloud-page', 'Loading My games…'],
-    ['private-library', 'Waiting for the correct guest or account scope before allowing edits.'],
+    ['private-library', 'Opening your guest or account library before allowing edits.'],
   ] as const)('retains a truthful %s status without guessing private contents', (kind, explanation) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route: 'games', kind }));
     expect(html).toContain('class="app-page route-fallback" aria-busy="true"');

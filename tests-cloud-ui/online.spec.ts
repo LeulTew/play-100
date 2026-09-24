@@ -105,7 +105,7 @@ test('remembered-account restoration never exposes an editable guest fallback wh
     const waiting = page.locator('.route-fallback:visible');
     await expect(waiting).toHaveCount(1);
     await expect(waiting.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
-    await expect(waiting.getByRole('status')).toHaveText('Waiting for the correct guest or account scope before allowing edits.');
+    await expect(waiting.getByRole('status')).toHaveText('Opening your guest or account library before allowing edits.');
     expect((await readLibrary(page)).ranking[0]?.score).toBe(5);
     release?.();
     await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true })).toHaveValue('5');
