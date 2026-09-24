@@ -79,8 +79,7 @@ test('rapid committed routes cancel only the old owned effect and same-family in
   await patchRoute(page, { family: 'discover', navigationEpoch: 1 });
   await expect.poll(async () => (await arrivalEvents(page)).length).toBe(1);
   await patchRoute(page, { family: 'friends', navigationEpoch: 2 });
-  await expect.poll(async () => (await arrivalEvents(page)).length).toBe(2);
-  expect((await arrivalEvents(page))[0]?.ended).toBe(true);
+  await expect.poll(async () => (await arrivalEvents(page)).map(event => event.ended)).toEqual([true, false]);
   expect((await arrivalEvents(page))[1]?.ended).toBe(false);
   await patchRoute(page, { family: 'friends', navigationEpoch: 3 });
   await expect.poll(async () => (await arrivalEvents(page)).every(event => event.ended)).toBe(true);
