@@ -63,6 +63,11 @@ export function CommunityPage({ social, onOpen, onPublish }: { social: SocialSto
   );
 }
 
+// A generic span cannot carry an accessible name, so the visual score is hidden and spoken as a phrase instead.
+export function PublicScore({ score }: { score: number | null }) {
+  return <span className="public-score"><span aria-hidden="true">{score ?? '—'}{score !== null && <small> / 10</small>}</span><span className="sr-only">{score === null ? 'No personal score' : `Publisher rating ${score} out of 10`}</span></span>;
+}
+
 export function PublicProfilePage({ social, handle, games, library, identity, onOpenRecord, onShare, onAccount, onFriend }: {
   social: SocialStore; handle: string; games: Game[]; library: LibraryController; identity: AccountIdentity | null;
   onOpenRecord: (record: LibraryRecord) => void; onShare: (title: string, url: string) => void; onAccount: () => void;
@@ -108,7 +113,7 @@ export function PublicProfilePage({ social, handle, games, library, identity, on
         <label className="select-control"><input type="checkbox" aria-label={`Select ${entry.title}`} checked={selected.has(entry.id)} onChange={() => setSelected((previous) => { const next = new Set(previous); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next; })} /></label>
         <span className="public-position">{String(entry.position).padStart(2, '0')}</span>
         <div className="public-game"><button className="record-title" onClick={() => { try { onOpenRecord(recordFromPublic(entry, games)); } catch (cause) { setError(onlineError(cause)); } }}>{entry.title}</button><p>{entry.year ?? 'Year not supplied'}{entry.source === 'collection' ? ' · From the original 100' : ` · ${entry.source === 'manual' ? 'Added by the publisher' : entry.source}`}</p>{entry.sourceUrl && <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Source<Icon name="up-right" width="13" height="13" /></a>}</div>
-        <span className="public-score" aria-label={entry.score === null ? 'No personal score' : `Publisher rating ${entry.score} out of 10`}>{entry.score ?? '—'}{entry.score !== null && <small> / 10</small>}</span>
+        <PublicScore score={entry.score} />
         <button className="icon-button" disabled={library.busy || Boolean(library.state.progress[entry.id]?.later)} aria-label={`${library.state.progress[entry.id]?.later ? 'Already saved' : 'Save for later'}: ${entry.title}`} onClick={() => { void save([entry]); }}><Icon name={library.state.progress[entry.id]?.later ? 'check' : 'bookmark'} width="20" height="20" /></button>
       </li>)}</ol>
       {visible < entries.length && <button className="button button-outline public-more" onClick={() => setVisible((value) => value + 30)}>Show {Math.min(30, entries.length - visible)} more games<Icon name="down" width="17" height="17" /></button>}

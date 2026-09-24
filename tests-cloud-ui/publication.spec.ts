@@ -38,7 +38,10 @@ test('an explicitly published snapshot stays frozen, keeps private fields out, a
     await preview.getByRole('checkbox', { name: 'I want this selected snapshot to be public.', exact: true }).check();
     await preview.getByRole('button', { name: 'Publish this ranking', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/u/${handle}$`));
-    await expect(page.locator('.public-score')).toContainText('8.2');
+    const score = page.locator('.public-score');
+    await expect(score.locator('[aria-hidden="true"]')).toHaveText('8.2 / 10');
+    await expect(score.locator('.sr-only')).toHaveText('Publisher rating 8.2 out of 10');
+    await expect(score).not.toHaveAttribute('aria-label');
     await expect(page.locator('.public-profile-page')).not.toContainText(email);
     await expect(page.locator('.public-profile-page')).not.toContainText('PRIVATE ONLY');
   } finally { await other.close(); }
