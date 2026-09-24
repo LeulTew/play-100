@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .build-meta/
+/budget-report.json
 .vercel/
 .env
 .env.*

@@ -239,7 +239,7 @@ grouping minor/patch updates with at most five open version-update PRs per ecosy
 | Auth and Firestore | Java 21, the lockfile-pinned Firebase CLI, and credential-free `demo-play100` emulator tests |
 | CodeQL | JavaScript/TypeScript analysis without running an application build |
 | Dependency review (pull requests) | Moderate-or-higher advisories in runtime, development and unknown dependency scopes; no PR comments |
-| Secret scan | Full checked-out Git history with redacted Gitleaks 8.30.1 findings; release checksums and the binary are SHA-256 verified before extraction |
+| Secret scan | Full checked-out Git history with redacted Gitleaks 8.30.1 findings; the pinned release checksum file and archive are SHA-256 verified before the binary is extracted |
 
 The Quality job retains `budget-report.json` as the `budget-report` artifact for
 30 days, including budget-limit failures. Its deterministic schema records the
