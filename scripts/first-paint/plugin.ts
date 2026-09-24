@@ -17,7 +17,8 @@ import type { ShellVariant } from './shell-html.ts';
  *    head script. The style holds copies of the app's latin web-font faces under names of their
  *    own, the entry-stylesheet rules beasties selects for the shell, and src/first-paint/shell.css;
  *  - moves the entry stylesheet <link> from <head> to right after #root;
- *  - fails the build unless vercel.json allows the inline script by its exact hash.
+ *  - fails the build unless vercel.json allows the inline script by its exact hash, and unless the
+ *    <meta charset> declaration fits within the document's first 1024 bytes.
  *
  * A parser-inserted stylesheet in <body> does not block painting the content before it, but it
  * still blocks deferred and module scripts (HTML "script-blocking style sheet"; Chromium also
@@ -33,6 +34,20 @@ export const FONT_COPIES: Readonly<Record<string, string>> = {
 
 /** Attributes and classes that differ between the static shell and React's first commit. */
 const SHELL_DIVERGENT_SELECTOR = /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot)\b|\.first-paint-shell\b/i;
+const CHARSET_DECLARATION = '<meta charset="UTF-8" />';
+
+/**
+ * The HTML encoding prescan reads only the first 1024 bytes, so the whole charset declaration
+ * must be serialized within them. Returns its UTF-8 byte offset.
+ */
+export function assertCharsetDeclaration(html: string): number {
+  const index = html.indexOf('<meta charset');
+  const offset = index === -1 ? -1 : Buffer.byteLength(html.slice(0, index), 'utf8');
+  if (offset === -1) throw new Error('index.html has no <meta charset> declaration.');
+  const limit = 1024 - CHARSET_DECLARATION.length;
+  if (offset >= limit) throw new Error(`index.html declares <meta charset> at byte ${offset}; it must start before byte ${limit} to fit within the first 1024 bytes.`);
+  return offset;
+}
 
 /** Same inputs as src/lib/online-availability.ts: EMULATOR_MODE, ONLINE_CONFIG_ERROR and ONLINE_AVAILABLE. */
 export function firstPaintVariant(mode: string, emulators: string | undefined, online: { readonly config: unknown; readonly error: string | null }): ShellVariant | null {
@@ -281,7 +296,12 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
       order: 'post',
       async handler(html, context) {
         // The dev server never shows the shell (it serves no boot script), so #root starts empty.
-        if (!variant || !context.bundle) return removeShell(html);
+        if (!context.bundle) return removeShell(html);
+        if (!variant) {
+          const output = removeShell(html);
+          assertCharsetDeclaration(output);
+          return output;
+        }
         const bundle = context.bundle;
         const source = (file: string) => readFileSync(path.resolve(root, file), 'utf8');
         const result = await inlineFirstPaintShell({
@@ -295,10 +315,11 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
             return typeof asset.source === 'string' ? asset.source : new TextDecoder().decode(asset.source);
           },
         });
+        const charset = assertCharsetDeclaration(result.html);
         const problems = cspProblems([{ name: 'index.html', html: result.html }], mainDocumentPolicy(JSON.parse(source('vercel.json'))));
         if (problems.length) throw new Error(`The first-paint shell does not match vercel.json:\n${problems.join('\n')}`);
         const blocks = inlineBlocks(result.html).map(block => `inline ${block.kind} ${block.bytes} B ${block.source}`);
-        logger?.info(`first-paint shell: ${variant} header; ${blocks.join('; ')}`);
+        logger?.info(`first-paint shell: ${variant} header; <meta charset> at byte ${charset}; ${blocks.join('; ')}`);
         return result.html;
       },
     },

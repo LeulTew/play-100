@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
 import {
-  assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss, firstPaintShell,
+  assertCharsetDeclaration, assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss, firstPaintShell,
   firstPaintVariant, fontFaceCopies, inlineFirstPaintShell, minifyShellCss, stripBootScript,
 } from './plugin.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
@@ -26,9 +26,14 @@ const FONT_COPIES_CSS = "@font-face{font-family:'P100 Barlow Condensed';font-dis
   "@font-face{font-family:'P100 Barlow Condensed';font-display:swap;font-weight:800;src:url(/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2)format(\"woff2\")}" +
   "@font-face{font-family:'P100 Hanken Grotesk';font-display:swap;font-weight:100 900;src:url(/assets/hanken-grotesk-latin-wght-normal-CaVRRdDk.woff2)format(\"woff2-variations\")}";
 
-/** index.html as Vite's build hands it to post hooks: entry script and stylesheet in <head>. */
+// The tags the public-metadata plugin adds with Vite's default head-prepend placement.
+const VITE_HEAD_TAGS = '\n    <meta name="author" content="Leul Tewodros Agonafer">' +
+  '\n    <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
+  '\n    <link rel="preload" href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous">\n';
+
+/** index.html as Vite's build hands it to post hooks: prepended tags, entry script and stylesheet in <head>. */
 function builtIndexHtml(): string {
-  const built = indexHtml.replace('    <script type="module" src="/src/main.tsx"></script>\n', '')
+  const built = indexHtml.replace('  <head>', `  <head>${VITE_HEAD_TAGS}`).replace('    <script type="module" src="/src/main.tsx"></script>\n', '')
     .replace('  </head>', '    <script type="module" crossorigin src="/assets/index-AAAAAAAA.js"></script>\n    <link rel="stylesheet" crossorigin href="/assets/index-BBBBBBBB.css">\n  </head>');
   expect(built).not.toContain('/src/main.tsx');
   expect(built).toContain('/assets/index-BBBBBBBB.css');
@@ -83,6 +88,24 @@ describe('inline safety', () => {
     for (const url of ['url(a.png)', 'url(../assets/a.png)', "url('./a.png')", 'url(//cdn.example/a.png)']) {
       expect(() => assertRootRelativeUrls(`a{background:${url}}`), url).toThrow('would resolve against index.html');
     }
+  });
+});
+
+describe('charset declaration', () => {
+  const at = (offset: number) => `<!--${'x'.repeat(offset - 7)}--><meta charset="UTF-8" />`;
+
+  it('passes documents whose declaration fits within the first 1024 bytes and reports its byte offset', () => {
+    expect(assertCharsetDeclaration(indexHtml)).toBe(46);
+    expect(assertCharsetDeclaration(builtIndexHtml())).toBe(359);
+    expect(assertCharsetDeclaration(at(999))).toBe(999);
+  });
+
+  it('fails the build when the declaration would end beyond the first 1024 bytes, naming its byte offset', () => {
+    expect(() => assertCharsetDeclaration(at(1000))).toThrow('at byte 1000;');
+    expect(() => assertCharsetDeclaration(at(1127))).toThrow('index.html declares <meta charset> at byte 1127; it must start before byte 1000');
+    // Bytes, not UTF-16 code units: 340 characters before the declaration are 1006 bytes.
+    expect(() => assertCharsetDeclaration(`<!--${'…'.repeat(333)}--><meta charset="UTF-8" />`)).toThrow('at byte 1006;');
+    expect(() => assertCharsetDeclaration('<!doctype html><html><head><title>Play 100</title></head></html>')).toThrow('no <meta charset>');
   });
 });
 
@@ -231,6 +254,6 @@ describe('first-paint index.html', () => {
     const html = await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
     expect(typeof html === 'string' && html.includes(`<script>${stripBootScript(bootJs)}</script>`)).toBe(true);
     expect(logged).toHaveLength(1);
-    expect(logged[0]).toMatch(/^first-paint shell: offline header; inline style \d+ B 'sha256-[\w+/=]+'; inline script \d+ B 'sha256-[\w+/=]+'$/);
+    expect(logged[0]).toMatch(/^first-paint shell: offline header; <meta charset> at byte 359; inline style \d+ B 'sha256-[\w+/=]+'; inline script \d+ B 'sha256-[\w+/=]+'$/);
   });
 });

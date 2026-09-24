@@ -26,6 +26,10 @@ tags and before the PWA `writeBundle` records `index.html`:
    only after the complete stylesheet applied.
 3. It inlines one `<style>` and one classic `<script>` before the first head
    script, after `<meta charset>` and the other metadata.
+4. It fails the build unless `<meta charset>` is serialized completely within the
+   document's first 1024 bytes, which is all the HTML encoding prescan reads; the
+   build log names its byte offset. This is why the design comment in `index.html`
+   sits after the charset declaration: head-prepended tags already come before it.
 
 The development server always serves an empty `#root` (no shell, no boot script).
 
@@ -54,7 +58,10 @@ In this order:
 - **[`src/first-paint/shell.css`](../src/first-paint/shell.css)**, minified: the
   metric-matched local fallback faces, the font stacks that add them, the rule
   that shows the shell, the artifact-caption state rules and the font probes. The
-  app never imports this file.
+  app never imports this file. `P100 DF Impact`, `P100 DF Arial` and
+  `P100 Sans Fallback` are metric-adjusted aliases of widely installed local fonts
+  (Impact, Arial and their Liberation or Arimo clones), not new typefaces; the
+  design linter reports them as fonts outside DESIGN.md, which is expected.
 
 ### The boot script
 
