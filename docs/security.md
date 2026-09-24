@@ -136,6 +136,8 @@ referrer.
 
 The new client has an explicit client-first path for live 270f rules; the
 migration cases below must be executed before relying on that compatibility.
+The step order is the runbook's
+[Promotion order](security-release-runbook.md#promotion-order).
 Publish it before tightening rules: the old client's outgoing-pending identity reads will be denied by the
 new policy, and its immediate declined retry will be rejected. The report
 transaction already reads only its own missing/existing report and needs no
@@ -425,35 +427,14 @@ The password entry accepts up to Firebase's 4096-character policy maximum.
 
 ## Ordered parent-only rollout
 
-1. Read/export the currently published rules and preserve their full SHA/source.
-   Add the correct verified owner **UID** to `_owner/config` in the console,
-   retaining its existing email field for live 270f rules. Verify the owner UID,
-   do not infer it from an email match.
-2. Run central unit/types/lint/build, the complete demo rules suite and the
-   separately configured demo UI cases. Review legacy generation inventories,
-   payload orphans (not just registry counts), reserved/orphan handles, and the
-   new-client/old-rules path before publication. Complete the read-only ledger
-   and orphan inventory in the runbook, recording zero where none exist.
-   Read back existing indexes, deploy only the additive required entries, and
-   wait for READY before client promotion; never accept an index deletion prompt.
-3. Deploy and promote the compatible client first. Verify report submission,
-   outgoing request labels, cancelled recovery, publish/rename/cleanup and
-   shared-device removal with approved accounts on production after promotion;
-   preview/candidate origins intentionally cannot perform the real online/Auth
-   smoke. This lane never deploys or runs those account actions.
-4. Only the parent publishes the reviewed rules. Read them back and hash the
-   exact bytes; record the full SHA and deployed release, not a truncated prefix.
-5. Smoke-test owner access, reporter missing/existing symmetry, incoming/outgoing
-   identity reads, declined-sender/decliner behavior, ordinary and cancelled
-   deletion, public/missing/hidden profiles, handle rename, quota cleanup and
-   shared-device dirty-copy refusal. An unauthenticated GET of a missing
-   `publicProfiles/{uid}` must be denied (it was 404 on live 270f).
-6. If a guard fails, stop promotion and prefer roll-forward. The default rollback
-   is client-only with current rules kept; the emergency option is write-frozen
-   rules. A last-resort rules rollback to the retained `971b0fe6...` artifact
-   suspends H5 bounds and requires exact operator ledger repair after new rules
-   return. Follow the runbook's order and degradation matrix, not a blind reset.
-
+The only authoritative promotion sequence is the runbook's
+[Promotion order](security-release-runbook.md#promotion-order); this section
+keeps no second numbered list. Its constraints, in brief: preserve the published
+rules and verify the owner UID first; the compatible client ships before the
+candidate rules; only the parent publishes rules and records the full SHA;
+production smoke follows promotion; and rollback prefers roll-forward or a
+client-only rollback, with the retained `971b0fe6...` rules as a last resort
+that suspends H5 bounds. The table below explains why each change is client-first.
 | Change | LIVE 270f client with new rules | Required sequence |
 | --- | --- | --- |
 | F1 report confidentiality | Own missing/existing reads remain compatible for delimiter-safe IDs; H5 now additionally denies old uncounted report writes | Counted-report client first; custom UID format support is not claimed |
