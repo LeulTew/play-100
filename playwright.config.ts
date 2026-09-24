@@ -8,6 +8,7 @@ const sourceFixtureSpecs = [
   '**/menu.spec.ts',
   '**/menu-account.spec.ts',
   '**/played-ranking.spec.ts',
+  '**/private-compare-binding.spec.ts',
   '**/progress-semantics.spec.ts',
   '**/public-browsing.spec.ts',
   '**/publication-draft.spec.ts',
