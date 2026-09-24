@@ -425,10 +425,16 @@ describe('first-paint index.html', () => {
     const hook = plugin.transformIndexHtml;
     if (!hook || typeof hook === 'function') throw new Error('The shell plugin must use an ordered transformIndexHtml hook.');
     const bundle = { 'assets/index-BBBBBBBB.css': { type: 'asset', fileName: 'assets/index-BBBBBBBB.css', source: `${FONT_FACES}.site-header{display:flex}` } };
-    const html = await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
-    expect(typeof html === 'string' && html.includes(`<script>${stripBootScript(bootJs)}</script>`)).toBe(true);
-    expect(logged).toHaveLength(1);
-    expect(logged[0]).toMatch(/^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \d+ B 'sha256-[\w+/=]+'; inline script \d+ B 'sha256-[\w+/=]+'$/);
+    // The committed strict style-src lists the real build's critical CSS, not this fixture's, so only
+    // the style hashes may be reported: the boot script hash must still match.
+    const failure = await (async () => hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never))().then(() => null, (cause: unknown) => cause);
+    expect(failure).toBeInstanceOf(Error);
+    const problems = (failure as Error).message.split('\n').slice(1);
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.every(problem => problem.includes('style'))).toBe(true);
+    expect((failure as Error).message).not.toContain('script-src');
+    expect((failure as Error).message).toMatch(/add 'sha256-[\w+/=]+' to style-src in vercel\.json/);
+    expect(logged).toHaveLength(0);
   });
 
   it('under a strict style-src requires exactly the inline styles of both shell variants', async () => {
@@ -455,7 +461,10 @@ describe('first-paint index.html', () => {
         await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
         return logged;
       };
-      expect((await build(`${styles.offline} ${styles.online}`))[0]).toContain(`; online variant inline style ${styles.online}`);
+      const logged = await build(`${styles.offline} ${styles.online}`);
+      const literal = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(logged).toHaveLength(1);
+      expect(logged[0]).toMatch(new RegExp(`^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \\d+ B ${literal(styles.offline!)}; inline script \\d+ B 'sha256-[\\w+/=]+'; online variant inline style ${literal(styles.online!)}$`));
       await expect(build(styles.offline!)).rejects.toThrow(`other shell variant's inline style ${styles.online}`);
       await expect(build(styles.online!)).rejects.toThrow(`add ${styles.offline} to style-src`);
       await expect(build(`${styles.offline} ${styles.online} ${sha256Source('old{}')}`)).rejects.toThrow(`${sha256Source('old{}')}, which matches no inline style`);

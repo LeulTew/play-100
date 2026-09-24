@@ -120,9 +120,9 @@ On `/` the `load` event may fire before the app starts; nothing depends on it
 the boot script by its exact `sha256` hash. The build fails when that hash does
 not match the stripped boot script, when a hash matches no inline script, when
 a directive mixes `'unsafe-inline'` with a hash or nonce, or when a document has
-an inline event handler. `style-src` is unchanged (`'self' 'unsafe-inline'`). A
-strict `style-src` (no `'unsafe-inline'`) must list exactly the inline style
-hashes of both shell variants, because one static `vercel.json` serves builds
+an inline event handler. `style-src` is strict: `'self'` plus the inline style
+hash of each shell variant, with no `'unsafe-inline'`. It must list exactly the
+inline style hashes of both shell variants, because one static `vercel.json` serves builds
 with and without Firebase: the build computes the other variant's style too,
 prints it, and fails on a missing or stale style hash or a `style=` attribute.
 `check:csp` sees one variant only, so it checks missing style hashes but leaves

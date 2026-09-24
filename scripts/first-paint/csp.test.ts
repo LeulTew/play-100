@@ -62,7 +62,10 @@ describe('inline blocks', () => {
 describe('main-document policy', () => {
   it('reads the single main-document CSP from vercel.json', () => {
     const csp = mainDocumentPolicy(vercel);
-    expect(directiveSources(csp, 'style-src')).toEqual(["'self'", "'unsafe-inline'"]);
+    const styles = directiveSources(csp, 'style-src') ?? [];
+    expect(styles[0]).toBe("'self'");
+    expect([1, 2]).toContain(styles.length - 1);
+    expect(styles.slice(1).every(source => /^'sha256-[A-Za-z0-9+/]{43}='$/.test(source))).toBe(true);
     expect(directiveSources(csp, 'frame-ancestors')).toEqual(["'none'"]);
     expect(directiveSources(csp, 'require-trusted-types-for')).toBeNull();
   });

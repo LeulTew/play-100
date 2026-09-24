@@ -101,10 +101,10 @@ function describeAttribute({ tag, name, value }: { tag: string; name: string; va
 /**
  * Everything in the documents a browser would refuse, or that would silently weaken, under the
  * policy: inline scripts need their exact hash in script-src, and a hash that matches no inline
- * script is stale. Inline styles rely on style-src 'unsafe-inline' until strict style-src lands;
- * after that they need their exact hashes, style attributes are refused, and an unused style hash is
- * stale too. Mixing 'unsafe-inline' with a hash or nonce is refused because browsers then ignore
- * 'unsafe-inline'. Inline event-handler attributes are never allowed.
+ * script is stale. Under the committed strict style-src, each inline style must match a listed
+ * hash, the hashes of both shell variants are required, style attributes are refused, and an unused
+ * style hash is stale too. Mixing 'unsafe-inline' with a hash or nonce is refused because browsers
+ * then ignore 'unsafe-inline'. Inline event-handler attributes are never allowed.
  */
 export interface CspCheckOptions {
   /**

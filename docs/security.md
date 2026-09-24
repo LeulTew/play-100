@@ -645,6 +645,26 @@ Whichever integration lands second must add the printed final critical-style
 hash when applying strict style and keep those exact hashes aligned; a directive
 mixing `unsafe-inline` with a hash/nonce is not an accepted intermediate policy.
 
+SECURITY-01 (branch `leultew-sec-strict-style`) is the single droppable commit: main
+`style-src 'self'` plus one `sha256` per first-paint variant, online (Firebase or
+emulators configured) `'sha256-sZ9CEo6in5N81MStay/+6i0vx6thMpY9zmHsXb/QFAs='` and
+offline `'sha256-yNMatkEIxFHj625inbs8H3k1IZESJpNsNDS241IT7/E='`, taken from the R5 chain
+build after its CSS polish. Every build recomputes both variants' inline styles and fails, naming the
+hash to add, unless `vercel.json` lists exactly those hashes, so any critical-CSS
+change must update them in the same change. React `style={{}}` props and the app's
+`el.style`/`setProperty` writes go through the CSSOM and are not governed by
+`style-src`; `style=` attributes in built HTML are refused by the build check.
+Static review of the pinned bundle (Firebase Auth/App Check/Firestore, dnd kit,
+three, React DOM, DiceBear) found no style-attribute writes or runtime `<style>`
+elements on paths the app uses; gapi's `gapi.iframes` applies Firebase's hidden
+auth-iframe style object through `iframe.style`. `tests/strict-style-csp.spec.ts`
+(every main route, dialogs, and a legacy-versus-strict layout comparison) and
+`tests-cloud-ui/strict-style-csp.spec.ts` (Account sign-in, Google redirect and
+reauthentication on the Auth emulator's development server, which injects its own
+CSS elements, so it enforces `style-src-attr 'none'` and records any other added
+`<style>` element) must record zero violations on desktop and mobile before
+adoption; otherwise drop the commit.
+
 | Remaining rollout item | LIVE 270f compatibility / owner |
 | --- | --- |
 | H8 nonce and five helper routes | SEC-01 fresh per-response nonce via `api/auth-helper.ts`, GET/HEAD only; production auth smoke required |
