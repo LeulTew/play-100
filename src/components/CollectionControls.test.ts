@@ -43,11 +43,12 @@ describe('collection result scope and accessible names', () => {
     ['Filters', 'Filters'],
     ['Filters & sort', 'Filters &amp; sort'],
     ['Filters & sort & search', 'Filters &amp; sort &amp; search'],
-  ])('keeps %s and its active count separate in the accessible name', (label, escapedLabel) => {
-    const html = renderToStaticMarkup(createElement(BrowseFilters, { label, activeCount: 0, children: 'Controls' }));
-    expect(html).toContain(`aria-label="${escapedLabel}"`);
-    const descriptionId = html.match(/aria-describedby="([^"]+)"/)?.[1];
-    expect(descriptionId).toBeDefined();
-    expect(html).toContain(`<span id="${descriptionId}">None active</span>`);
+  ])('names %s with its active count, containing the visible words in order', (label, escapedLabel) => {
+    for (const [activeCount, status] of [[0, 'None active'], [3, '3 active']] as const) {
+      const html = renderToStaticMarkup(createElement(BrowseFilters, { label, activeCount, children: 'Controls' }));
+      // Label in Name (WCAG 2.5.3): the visible label, a real space, then the status, all inside the name.
+      expect(html).toContain(`<summary aria-label="${escapedLabel}, ${status}">${escapedLabel} <span>${status}</span></summary>`);
+      expect(html).not.toContain('aria-describedby');
+    }
   });
 });

@@ -26,8 +26,9 @@ for (const width of [320, 393, 768, 1440]) {
       const summary = page.locator('.collection-filters > summary');
       if (width <= 760) {
         await expect(summary).toBeVisible();
-        await expect(summary).toHaveAccessibleName('Filters & sort');
-        await expect(summary).toHaveAccessibleDescription('1 active');
+        await expect(summary).toHaveAccessibleName('Filters & sort, 1 active');
+        await expect(summary).toHaveAccessibleDescription('');
+        await expect(summary).toHaveText('Filters & sort 1 active');
         await summary.focus();
         await summary.press('Enter');
       } else {
