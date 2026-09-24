@@ -17,7 +17,9 @@ async function write(path, data) {
   if (!response.ok) throw new Error(`Isolated emulator fixture setup failed: HTTP ${response.status}.`);
 }
 const collection = JSON.parse(await readFile(new URL('../public/data/collection.json', import.meta.url), 'utf8'));
-await write('_owner/config', { email: 'creator@play100.test' });
+// Rules pin creator authority to _owner/config.uid (3bb1e7b). Without that field, creator() errors and every
+// publication is denied; a placeholder uid that no emulator account can have keeps each fixture a non-creator.
+await write('_owner/config', { uid: 'demo-play100-no-creator', email: 'creator@play100.test' });
 await write('ownerAccess/status', { enabled: true });
 await write('catalog/author', { records: Object.fromEntries(collection.games.map((game) => [game.slug, { title: game.title, year: game.year }])) });
 console.log('Seeded only demo-play100 emulator authorization and trusted canonical metadata. No users or public profiles were created.');

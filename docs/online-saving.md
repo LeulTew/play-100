@@ -327,7 +327,10 @@ npx playwright test --config playwright.cloud.config.ts
 Its global setup first checks that 127.0.0.1:4187 serves the development server
 in `cloud-test` mode with emulators enabled, and refuses to run otherwise. It then
 runs `scripts/seed-cloud-emulators.mjs`, which writes the
-trusted `catalog/author` titles that rules require for collection entries. The
+trusted `catalog/author` titles that rules require for collection entries, and a
+non-creator `_owner/config`. Rules pin creator authority to its `uid`, so the seed
+sets a placeholder UID that no emulator account can have; without that field
+every publication is denied. The
 seed script targets only the literal localhost demo endpoints; it never
 creates production users or public sample content. Emulator tests are not proof
 of a user's real Google credentials, MFA or email delivery. Production checks
