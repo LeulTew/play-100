@@ -5,6 +5,7 @@ import type { CatalogEnrichment, EnrichmentSource, EnrichmentSourceState } from 
 import { hasKnownDiscoveryArtwork } from '../src/lib/discovery-artwork-presence.js';
 import { commonsFile, exactSteamApp, jsonObject, publicGameEntity, reviewLabelIds, steamRating, wikidataRatings } from './_lib/catalog-detail-data.js';
 import { commonsRasterPermission, fetchCommonsRaster } from './_lib/commons-raster.js';
+import { createAdmission } from './_lib/admission.js';
 import { CatalogError, upstreamJson } from './_lib/public-http.js';
 
 const WIKIDATA = 'https://www.wikidata.org/w/api.php';
@@ -12,9 +13,7 @@ const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 const JSON_OPTIONS = { maxBytes: 768 * 1024, timeoutMs: 3500, contentTypes: ['application/json'] };
 const cache = new Map<string, { expires: number; value: CatalogEnrichment }>();
 const cooldown = new Map<EnrichmentSource, number>();
-let windowStart = 0;
-let requests = 0;
-let active = 0;
+const admission = createAdmission({ maxActive: 4, maxPerWindow: 30, windowMs: 60_000 });
 
 function sourceState(source: EnrichmentSource, status: EnrichmentSourceState['status'], message: string, code: EnrichmentSourceState['code'] = null, retryAfter = 0): EnrichmentSourceState {
   return { source, status, message, code, retryAfter };
@@ -47,10 +46,8 @@ export async function getCatalogDetail(id: string, signal: AbortSignal): Promise
   if (!identity) throw new CatalogError('Choose an exact public catalog game ID, not a title, private record or URL.', 400, 'invalid');
   const cached = cache.get(id);
   if (cached && cached.expires > Date.now()) return cached.value;
-  if (Date.now() - windowStart >= 60_000) { windowStart = Date.now(); requests = 0; }
-  if (active >= 4 || requests >= 30) throw new CatalogError('Public detail lookups are busy. Please wait before retrying.', 429, 'rate-limited', 15);
-  requests += 1;
-  active += 1;
+  const release = admission.acquire();
+  if (!release) throw new CatalogError('Public detail lookups are busy. Please wait before retrying.', 429, 'rate-limited', 15);
   try {
     const fetchedAt = new Date().toISOString();
     if (identity.source === 'freetogame') {
@@ -124,7 +121,7 @@ export async function getCatalogDetail(id: string, signal: AbortSignal): Promise
       while (cache.size > 96) cache.delete(cache.keys().next().value!);
     }
     return result;
-  } finally { active -= 1; }
+  } finally { release(); }
 }
 
 export default async function handler(request: IncomingMessage, response: ServerResponse) {

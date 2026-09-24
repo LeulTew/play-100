@@ -114,4 +114,35 @@ describe('public-only catalog detail endpoint', () => {
     expect(await response.json()).toMatchObject({ artwork: null, sources: expect.arrayContaining([expect.objectContaining({ source: 'commons', status: 'ready', message: 'The existing licensed bundled artwork is used.' })]) });
     expect(upstream.mock.calls.every(([url]) => url.hostname === 'www.wikidata.org')).toBe(true);
   });
+  it('refuses the fifth concurrent uncached lookup locally and frees slots when lookups finish', async () => {
+    const held: Array<(response: Response) => void> = [];
+    const upstream = vi.fn((_url: URL, options: RequestInit) => new Promise<Response>((resolve, reject) => {
+      options.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
+      held.push(resolve);
+    }));
+    vi.stubGlobal('fetch', upstream);
+    const pending = [1, 2, 3, 4].map(index => nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ9000001${index}`));
+    await vi.waitFor(() => expect(held).toHaveLength(4));
+    const refused = await nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ90000015`);
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get('retry-after')).toBe('15');
+    expect(refused.headers.get('cache-control')).toBe('no-store');
+    expect(await refused.json()).toMatchObject({ code: 'rate-limited' });
+    expect(upstream).toHaveBeenCalledTimes(4);
+    for (const resolve of held) resolve(json({ entities: {} }));
+    for (const response of await Promise.all(pending)) expect(response.status).toBe(200);
+    upstream.mockImplementation(async () => json({ entities: {} }));
+    expect((await nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ90000015`)).status).toBe(200);
+  });
+  it('refuses the thirty-first uncached lookup in one window before any upstream request', async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal('fetch', upstream);
+    for (let index = 1; index <= 30; index += 1) {
+      expect((await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A${index}`)).status).toBe(200);
+    }
+    const refused = await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A31`);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ code: 'rate-limited' });
+    expect(upstream).not.toHaveBeenCalled();
+  });
 });

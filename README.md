@@ -628,7 +628,9 @@ has an independent retry and user-requested pagination. A failed next page
 retains existing results and retries that page, not the first page. Anonymous
 Wikidata requests ask for public 300-second caching; normalized responses use
 short CDN caching. The FreeToGame snapshot also has a bounded per-instance
-cache; this is not a durable database or a globally enforced rate limiter.
+cache, filled once for concurrent cold requests; this is not a durable database.
+Search admission is per instance (6 active, 90 upstream searches per minute) and
+the Vercel WAF rule is the global rate limit. Search upstreams must return JSON.
 Owned HTTP error bodies are cancelled rather than read without a size bound.
 If cancellation fails, bounded logging records only a fixed message and status;
 the original HTTP/rate-limit error and no-store policy still reach the caller.

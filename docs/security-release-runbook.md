@@ -394,8 +394,10 @@ These are console/platform steps; no lane or integrator session applies them.
 
 ### Vercel WAF rate limit for `/api/*`
 
-In-function limits are per instance (`api/catalog-detail.ts`: 30/min and 4
-concurrent) and cannot stop distributed abuse. Hobby allows one rate-limit
+In-function limits are per instance and cannot stop distributed abuse:
+`api/catalog-detail.ts` admits 4 concurrent and 30 uncached lookups per minute,
+and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
+(a coalesced FreeToGame fill holds one slot). This WAF rule is the global control. Hobby allows one rate-limit
 rule per project; add exactly this one under Firewall → Configure → New rule:
 
 | Field | Value |

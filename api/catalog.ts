@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { LibraryRecord } from '../src/lib/personal-types.ts';
 import type { CatalogPage, CatalogSource } from '../src/lib/catalog-types.ts';
 import { matchesCatalogQuery } from '../src/lib/catalog-query.js';
+import { createAdmission } from './_lib/admission.js';
 import { CatalogError, upstreamJson } from './_lib/public-http.js';
 export { CatalogError } from './_lib/public-http.js';
 
@@ -9,6 +10,9 @@ const WIKIDATA = 'https://www.wikidata.org/w/api.php';
 const FREE_TO_GAME = 'https://www.freetogame.com/api/games';
 const WIKI_PAGE_SIZE = 5;
 const FREE_PAGE_SIZE = 20;
+const JSON_OPTIONS = { contentTypes: ['application/json'] };
+// Per-instance: a searched Wikidata page or one cold FreeToGame fill holds a slot. The WAF rule is the global limit.
+const admission = createAdmission({ maxActive: 6, maxPerWindow: 90, windowMs: 60_000 });
 type JsonObject = Record<string, unknown>;
 
 function object(value: unknown): JsonObject | null {
@@ -83,7 +87,7 @@ async function wikidataPage(query: string, offset: number, signal: AbortSignal):
   const found = object(await upstreamJson(wikiUrl({
     action: 'query', list: 'search', srsearch: search, srnamespace: '0',
     srlimit: String(WIKI_PAGE_SIZE), sroffset: String(offset), srprop: '',
-  }), signal));
+  }), signal, JSON_OPTIONS));
   const searchResult = object(found?.query);
   const hits = searchResult?.search;
   const total = object(searchResult?.searchinfo)?.totalhits;
@@ -98,7 +102,7 @@ async function wikidataPage(query: string, offset: number, signal: AbortSignal):
   const response = object(await upstreamJson(wikiUrl({
     action: 'wbgetentities', ids: ids.join('|'), props: 'labels|claims',
     languages: 'en|mul', languagefallback: '1',
-  }), signal));
+  }), signal, JSON_OPTIONS));
   const entities = object(response?.entities);
   if (!entities) throw new CatalogError('Wikidata could not supply the matching game records.');
   const validated = ids.flatMap((id) => {
@@ -109,7 +113,7 @@ async function wikidataPage(query: string, offset: number, signal: AbortSignal):
   const related = [...new Set(validated.flatMap(({ entity }) => [...relatedIds(entity, 'P178'), ...relatedIds(entity, 'P136')]))].slice(0, 50);
   let names: JsonObject = {};
   if (related.length) {
-    const labels = object(await upstreamJson(wikiUrl({ action: 'wbgetentities', ids: related.join('|'), props: 'labels', languages: 'en|mul', languagefallback: '1' }), signal));
+    const labels = object(await upstreamJson(wikiUrl({ action: 'wbgetentities', ids: related.join('|'), props: 'labels', languages: 'en|mul', languagefallback: '1' }), signal, JSON_OPTIONS));
     const labelEntities = object(labels?.entities);
     if (!labelEntities) throw new CatalogError('Wikidata could not resolve studio and genre labels.');
     names = labelEntities;
@@ -131,31 +135,64 @@ async function wikidataPage(query: string, offset: number, signal: AbortSignal):
 }
 
 let freeCatalog: { expires: number; records: LibraryRecord[] } | null = null;
+let freeCatalogFill: Promise<LibraryRecord[]> | null = null;
+// The shared fill is not tied to any one caller; publicBytes' own timeout bounds it.
+const UNCANCELLED = new AbortController().signal;
+
+function admit(): () => void {
+  const release = admission.acquire();
+  if (!release) throw new CatalogError('Public catalog searches are busy. Please wait before retrying.', 429, 'rate-limited', 15);
+  return release;
+}
+
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    work.then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      (error: unknown) => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
+}
+
+async function fillFreeCatalog(): Promise<LibraryRecord[]> {
+  const payload = await upstreamJson(FREE_TO_GAME, UNCANCELLED, JSON_OPTIONS);
+  if (!Array.isArray(payload)) throw new CatalogError('FreeToGame returned an unexpected catalog format.');
+  const records = payload.flatMap((value): LibraryRecord[] => {
+    const item = object(value);
+    const title = text(item?.title);
+    if (!item || !Number.isSafeInteger(item.id) || Number(item.id) < 1 || !title || title.length > 200) return [];
+    const profile = text(item.freetogame_profile_url);
+    if (!profile) return [];
+    let sourceUrl: URL;
+    try { sourceUrl = new URL(profile); } catch { return []; }
+    if (sourceUrl.protocol !== 'https:' || !['www.freetogame.com', 'freetogame.com'].includes(sourceUrl.hostname) || sourceUrl.username || sourceUrl.password) return [];
+    const year = Number(/^(\d{4})-\d{2}-\d{2}$/.exec(text(item.release_date) ?? '')?.[1]);
+    return [{
+      id: `freetogame:${item.id}`, title, year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
+      studio: text(item.developer)?.slice(0, 200) ?? null, genre: text(item.genre)?.slice(0, 200) ?? null,
+      source: 'freetogame', sourceId: String(item.id), sourceUrl: sourceUrl.href, collectionRank: null,
+    }];
+  });
+  if (payload.length && !records.length) throw new CatalogError('FreeToGame did not return usable game records.');
+  freeCatalog = { expires: Date.now() + 10 * 60_000, records };
+  return records;
+}
 
 async function freeToGamePage(query: string, offset: number, signal: AbortSignal): Promise<CatalogPage> {
-  if (!freeCatalog || freeCatalog.expires < Date.now()) {
-    const payload = await upstreamJson(FREE_TO_GAME, signal);
-    if (!Array.isArray(payload)) throw new CatalogError('FreeToGame returned an unexpected catalog format.');
-    const records = payload.flatMap((value): LibraryRecord[] => {
-      const item = object(value);
-      const title = text(item?.title);
-      if (!item || !Number.isSafeInteger(item.id) || Number(item.id) < 1 || !title || title.length > 200) return [];
-      const profile = text(item.freetogame_profile_url);
-      if (!profile) return [];
-      let sourceUrl: URL;
-      try { sourceUrl = new URL(profile); } catch { return []; }
-      if (sourceUrl.protocol !== 'https:' || !['www.freetogame.com', 'freetogame.com'].includes(sourceUrl.hostname) || sourceUrl.username || sourceUrl.password) return [];
-      const year = Number(/^(\d{4})-\d{2}-\d{2}$/.exec(text(item.release_date) ?? '')?.[1]);
-      return [{
-        id: `freetogame:${item.id}`, title, year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
-        studio: text(item.developer)?.slice(0, 200) ?? null, genre: text(item.genre)?.slice(0, 200) ?? null,
-        source: 'freetogame', sourceId: String(item.id), sourceUrl: sourceUrl.href, collectionRank: null,
-      }];
-    });
-    if (payload.length && !records.length) throw new CatalogError('FreeToGame did not return usable game records.');
-    freeCatalog = { expires: Date.now() + 10 * 60_000, records };
+  signal.throwIfAborted();
+  let records = freeCatalog && freeCatalog.expires >= Date.now() ? freeCatalog.records : null;
+  if (!records) {
+    // Concurrent cold requests share one upstream fill; a caller that disconnects stops waiting without cancelling it.
+    if (!freeCatalogFill) {
+      const release = admit();
+      freeCatalogFill = fillFreeCatalog().finally(() => { release(); freeCatalogFill = null; });
+    }
+    records = await untilAborted(freeCatalogFill, signal);
   }
-  const matches = freeCatalog.records.filter((record) => matchesCatalogQuery(`${record.title} ${record.genre ?? ''} ${record.studio ?? ''}`, query)).sort((a, b) => a.title.localeCompare(b.title, 'en'));
+  const matches = records.filter((record) => matchesCatalogQuery(`${record.title} ${record.genre ?? ''} ${record.studio ?? ''}`, query)).sort((a, b) => a.title.localeCompare(b.title, 'en'));
   return {
     source: 'freetogame', query, items: matches.slice(offset, offset + FREE_PAGE_SIZE), total: matches.length,
     offset, nextOffset: offset + FREE_PAGE_SIZE < matches.length ? offset + FREE_PAGE_SIZE : null,
@@ -164,7 +201,10 @@ async function freeToGamePage(query: string, offset: number, signal: AbortSignal
 }
 
 export async function getCatalogPage(source: CatalogSource, query: string, offset: number, signal: AbortSignal): Promise<CatalogPage> {
-  return source === 'wikidata' ? wikidataPage(query, offset, signal) : freeToGamePage(query, offset, signal);
+  if (source === 'freetogame') return freeToGamePage(query, offset, signal);
+  const release = admit();
+  try { return await wikidataPage(query, offset, signal); }
+  finally { release(); }
 }
 
 export default async function handler(request: IncomingMessage, response: ServerResponse) {

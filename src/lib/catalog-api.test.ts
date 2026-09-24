@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../api/catalog';
 
 const nativeFetch = globalThis.fetch;
+const JSON_TYPE = { 'content-type': 'application/json; charset=utf-8' };
 let server: Server;
 let base = '';
 beforeEach(async () => {
@@ -36,7 +37,7 @@ describe('same-origin catalog API boundary', () => {
     expect(response.headers.get('allow')).toBe('GET');
   });
   it('echoes exact public query/source/offset, caches only success, identifies upstream and preserves literal query escaping', async () => {
-    const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify({ query: { search: [], searchinfo: { totalhits: 0 } } })));
+    const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify({ query: { search: [], searchinfo: { totalhits: 0 } } }), { headers: JSON_TYPE }));
     vi.stubGlobal('fetch', upstream);
     const q = 'KCD " OR haswbstatement:P31=Q5 \\';
     const response = await nativeFetch(`${base}/api/catalog?${new URLSearchParams({ source: 'wikidata', q, offset: '5' })}`);
@@ -88,7 +89,7 @@ describe('same-origin catalog API boundary', () => {
   });
   it.each(['wikidata', 'freetogame'] as const)('uses only the fixed %s upstream with redirect rejection', async source => {
     const body = source === 'wikidata' ? { query: { search: [], searchinfo: { totalhits: 0 } } } : [];
-    const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify(body)));
+    const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { headers: JSON_TYPE }));
     vi.stubGlobal('fetch', upstream);
     const response = await nativeFetch(`${base}/api/catalog?${new URLSearchParams({ source, q: 'https://private.invalid/' })}`);
     expect(response.status).toBe(200);
@@ -106,7 +107,7 @@ describe('same-origin catalog API boundary', () => {
     const limit = 4 * 1024 * 1024;
     const valid = JSON.stringify({ query: { search: [], searchinfo: { totalhits: 0 } } });
     const exact = valid + ' '.repeat(limit - valid.length);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(exact)));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(exact, { headers: JSON_TYPE })));
     const accepted = await nativeFetch(`${base}/api/catalog?q=ExactLimit`);
     expect(accepted.status).toBe(200);
     expect((await accepted.json()).items).toEqual([]);
@@ -115,7 +116,7 @@ describe('same-origin catalog API boundary', () => {
       start(controller) { controller.enqueue(new Uint8Array(limit + 1)); },
       cancel,
     });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(stream)));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(stream, { headers: JSON_TYPE })));
     const rejected = await nativeFetch(`${base}/api/catalog?q=OverLimit`);
     expect(rejected.status).toBe(502);
     expect(rejected.headers.get('cache-control')).toBe('no-store');

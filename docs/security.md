@@ -88,8 +88,13 @@ If adopted later, initialize App Check lazily on the online path with reCAPTCHA
 Enterprise, ship that client first, observe verified-request ratios for at least
 seven days, then enforce Firestore followed by Auth. Update CSP and Data Use
 before enabling that traffic. Roll back by un-enforcing, not by weakening rules.
-The per-instance API limiter is not global per-IP protection; Vercel WAF and
-its deployment evidence remain with the parent/integrator.
+The API limiters are per instance, not global per-IP protection. One shared
+bounded-admission helper (`api/_lib/admission.ts`) caps detail at 4 active and
+30 uncached lookups per minute and search at 6 active and 90 upstream searches
+per minute, releasing each slot in `finally` (success, failure or client abort).
+Concurrent cold FreeToGame requests share one snapshot fill, and search upstream
+responses must be `application/json`. The Vercel WAF rule in the runbook is the
+global control; it and its deployment evidence remain with the parent/integrator.
 
 ### Preview referrers and production smoke
 
