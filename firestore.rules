@@ -1023,9 +1023,13 @@ service cloud.firestore {
         && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.selection == ''))
         && (data.enabled ? fInt(data.consentSyncEpoch, 1, 9007199254740991) : data.consentSyncEpoch == null);
     }
-    function sConfigConsent(uid, data) {
+    function sSavingConsent(uid, data) {
       let sync = head(uid);
-      return !data.enabled || (sync.enabled && !sync.deleted && data.consentSyncEpoch == sync.epoch);
+      return sync.enabled && !sync.deleted && data.consentSyncEpoch == sync.epoch;
+    }
+    function sConfigConsent(uid, data) {
+      // Saving is read only for an enabled shelf, so a disabled default setup can change before any saving head exists.
+      return !data.enabled || sSavingConsent(uid, data);
     }
     function sPulseRequired(uid) {
       return !exists(/databases/$(database)/documents/friendShelfHeads/$(uid))
@@ -1187,15 +1191,19 @@ service cloud.firestore {
       return data.selection == '' && !data.deleted && policy.format == 2 && policy.uid == uid && policy.enabled && !policy.deleted
         && data.epoch == policy[kind].epoch && data.revision == policy[kind].revision;
     }
+    function aSavingConsent(uid, data, shelf) {
+      let sync = head(uid);
+      return sync.enabled && !sync.deleted && data.syncEpoch == sync.epoch && shelf.consentSyncEpoch == sync.epoch;
+    }
     function aPolicyControls(uid, data) {
       let ranking = getAfter(/databases/$(database)/documents/friendSettings/$(uid)).data;
       let shelf = getAfter(/databases/$(database)/documents/friendShelfSettings/$(uid)).data;
-      let sync = head(uid);
+      // Saving is read only for an enabled policy, so a disabled default can precede the first saving head.
       return !ranking.deleted && !shelf.deleted && ranking.enabled == data.enabled && shelf.enabled == data.enabled
         && ranking.selection == '' && shelf.selection == ''
         && data.ranking.epoch == ranking.epoch && data.ranking.revision == ranking.revision
         && data.shelf.epoch == shelf.epoch && data.shelf.revision == shelf.revision
-        && (!data.enabled || (sync.enabled && !sync.deleted && data.syncEpoch == sync.epoch && shelf.consentSyncEpoch == sync.epoch));
+        && (!data.enabled || aSavingConsent(uid, data, shelf));
     }
     function aDeleteCurrentClient(uid) {
       return !exists(/databases/$(database)/documents/friendAllPolicies/$(uid))
@@ -1204,14 +1212,17 @@ service cloud.firestore {
     match /friendAllPolicies/{uid} {
       allow get: if own(uid);
       allow list, delete: if false;
+      // A default policy is only for a setup without either legacy control. Disabled, it waits for online saving.
       allow create: if accountActive(uid) && aPolicyShape(uid, request.resource.data) && aPolicyControls(uid, request.resource.data)
         && !request.resource.data.deleted && request.resource.data.epoch == 1 && request.resource.data.revision == 1
         && (request.resource.data.origin == 'explicit'
-          || (request.resource.data.enabled
-            && !exists(/databases/$(database)/documents/friendSettings/$(uid))
+          || (!exists(/databases/$(database)/documents/friendSettings/$(uid))
             && !exists(/databases/$(database)/documents/friendShelfSettings/$(uid))));
+      // Every change is explicit, except a waiting default turning on once online saving is on.
       allow update: if own(uid) && !resource.data.deleted && aPolicyShape(uid, request.resource.data)
-        && request.resource.data.origin == 'explicit' && request.resource.data.epoch == resource.data.epoch + 1
+        && (request.resource.data.origin == 'explicit'
+          || (resource.data.origin == 'default' && !resource.data.enabled && request.resource.data.enabled))
+        && request.resource.data.epoch == resource.data.epoch + 1
         && request.resource.data.revision == resource.data.revision + 1
         && ((aPolicyControls(uid, request.resource.data) && fOwnLive(uid))
           || (request.resource.data.deleted && !request.resource.data.enabled

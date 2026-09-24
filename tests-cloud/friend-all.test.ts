@@ -47,7 +47,7 @@ afterAll(async () => { await environment.cleanup(); });
 async function seed(path: string, data: Record<string, unknown>) {
   await environment.withSecurityRulesDisabled(async context => { await context.firestore().doc(path).set(data); });
 }
-async function client() {
+async function client({ saving = true }: { saving?: boolean } = {}) {
   const app = initializeApp({ apiKey: 'demo-play100-key', projectId }, crypto.randomUUID()); apps.push(app);
   const auth = initializeAuth(app, { persistence: inMemoryPersistence }); connectAuthEmulator(auth, `http://${authAddress}`, { disableWarnings: true });
   const db = getFirestore(app); connectFirestoreEmulator(db, host, Number(port));
@@ -57,7 +57,7 @@ async function client() {
   });
   if (!response.ok) throw new Error('Could not verify isolated All-sharing account.');
   await reload(user); await getIdToken(user, true); await ensureAccountActivity(db, user.uid);
-  await seed(`syncHeads/${user.uid}`, { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
+  if (saving) await seed(`syncHeads/${user.uid}`, { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
   await seed(`publicProfiles/${user.uid}`, { uid: user.uid, published: true, hidden: false });
   await seed(`members/${user.uid}`, { uid: user.uid, displayName: 'All sharing fixture', avatar, consentVersion: 1, gameCount: 0, rankCount: 0, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
   return { uid: user.uid, db, auth, all: new FriendAllStore(db), friends: new FriendStore(db), shelf: new FriendShelfStore(db), cloud: new CloudStore(db, user.uid) };
@@ -238,6 +238,55 @@ describe('All-sharing bounded SDK transport', () => {
     await legacy.friends.initialize(legacy.uid);
     expect(await legacy.all.startDefault(legacy.uid, () => true)).toBeNull();
     expect(await legacy.all.controls(legacy.uid)).toMatchObject({ policy: null, ranking: { enabled: false } });
+  });
+  it('keeps a first friend action before online saving as a waiting default that turns on once saving starts', async () => {
+    const a = await client({ saving: false });
+    const waiting = await a.all.startDefault(a.uid, () => true);
+    expect(waiting).toMatchObject({ enabled: false, origin: 'default', epoch: 1, revision: 1, syncEpoch: 1 });
+    expect(await a.all.controls(a.uid)).toMatchObject({
+      ranking: { enabled: false, selectedIds: [], epoch: 1, revision: 1 }, shelf: { enabled: false, selectedIds: [], consentSyncEpoch: null, epoch: 1, revision: 1 },
+    });
+    expect(await a.all.startDefault(a.uid, () => true)).toEqual(waiting);
+    expect(await a.all.setPolicy(a.uid, true, 'default', await a.all.controls(a.uid), () => true)).toEqual(waiting);
+    expect(await a.friends.initialize(a.uid)).toMatchObject({ enabled: false, epoch: 1, revision: 1 });
+    await seed(`syncHeads/${a.uid}`, { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
+    expect(await a.all.setPolicy(a.uid, true, 'default', await a.all.controls(a.uid), () => true))
+      .toMatchObject({ enabled: true, origin: 'default', epoch: 2, revision: 2, syncEpoch: 1 });
+    expect(await a.all.controls(a.uid)).toMatchObject({
+      ranking: { enabled: true, epoch: 2, revision: 2 }, shelf: { enabled: true, consentSyncEpoch: 1, epoch: 2, revision: 2 },
+    });
+    await a.all.revokeForDeletion(a.uid);
+    expect(await a.all.policy(a.uid)).toMatchObject({ deleted: true, enabled: false });
+    const early = await client({ saving: false });
+    await early.all.startDefault(early.uid, () => true);
+    await early.all.revokeForDeletion(early.uid);
+    expect(await early.all.controls(early.uid)).toMatchObject({ policy: { deleted: true }, ranking: { deleted: true }, shelf: { deleted: true } });
+  });
+  it('allows the waiting default only for a setup without controls and lets only that default turn itself on', async () => {
+    const write = (actor: Client, input: { origin: 'default' | 'explicit'; enabled: boolean; epoch: number; shelfOnly?: boolean }) => {
+      const batch = writeBatch(actor.db);
+      const binding = { epoch: input.epoch, revision: input.epoch };
+      if (!input.shelfOnly) batch.set(doc(actor.db, 'friendSettings', actor.uid), { format: 1, enabled: input.enabled, deleted: false, selection: '', ...binding, updatedAt: serverTimestamp() });
+      batch.set(doc(actor.db, 'friendShelfSettings', actor.uid), { format: 1, enabled: input.enabled, deleted: false, selection: '', consentSyncEpoch: input.enabled ? 1 : null, ...binding, updatedAt: serverTimestamp() });
+      batch.set(doc(actor.db, 'friendAllPolicies', actor.uid), { format: 2, uid: actor.uid, enabled: input.enabled, deleted: false, origin: input.origin,
+        epoch: input.epoch, revision: input.epoch, syncEpoch: 1, ranking: { epoch: 1, revision: 1, ...(input.shelfOnly ? {} : binding) }, shelf: binding, updatedAt: serverTimestamp() });
+      return batch.commit();
+    };
+    const legacy = await client({ saving: false });
+    await legacy.friends.initialize(legacy.uid);
+    await assertFails(write(legacy, { origin: 'default', enabled: false, epoch: 1, shelfOnly: true }));
+    await write(legacy, { origin: 'explicit', enabled: false, epoch: 1, shelfOnly: true });
+    const stopped = await client();
+    await stopped.all.setPolicy(stopped.uid, false, 'explicit', await stopped.all.controls(stopped.uid), () => true);
+    await assertFails(write(stopped, { origin: 'default', enabled: true, epoch: 2 }));
+    await write(stopped, { origin: 'explicit', enabled: true, epoch: 2 });
+    const waiting = await client({ saving: false });
+    await waiting.all.startDefault(waiting.uid, () => true);
+    await assertFails(write(waiting, { origin: 'default', enabled: true, epoch: 2 }));
+    await seed(`syncHeads/${waiting.uid}`, { format: 1, epoch: 1, revision: 0, enabled: true, deleted: false, current: null, previous: null, updatedAt: Timestamp.now() });
+    await write(waiting, { origin: 'default', enabled: true, epoch: 2 });
+    expect(await waiting.all.policy(waiting.uid)).toMatchObject({ enabled: true, origin: 'default', epoch: 2 });
+    await assertFails(write(waiting, { origin: 'default', enabled: true, epoch: 3 }));
   });
   it('exposes all205 entries across pages and updates one score without rewriting other rows', async () => {
     const a = await client(); const b = await client(); const policy = await enable(a); await enable(b); await connect(a, b);

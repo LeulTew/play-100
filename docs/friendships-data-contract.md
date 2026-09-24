@@ -131,8 +131,15 @@ formats below retain their current bounds and selected-mode semantics.
   acceptance, via `prepareFriendIdentity`) starts that same default with
   `FriendAllStore.startDefault` before any off initialization. Both writers use
   the atomic default `setPolicy`, so whichever lands second sees the policy and
-  changes nothing. Only when the default cannot start (online saving is off)
-  does the action fall back to the earlier off `initialize`.
+  changes nothing.
+- Before online saving is on, that default is created **waiting**: a disabled
+  policy with `origin: 'default'` and both controls off (syncEpoch placeholder
+  1). Eligibility reads it as default once saving is on and as paused before
+  that, never as a recorded Stop. The Account hook's default `setPolicy` then
+  turns it on. Rules allow a disabled default only for a setup without either
+  legacy control, keep `origin: 'default'` only for that waiting-to-on update,
+  and read the saving head only for enabled controls. Under rules without the
+  waiting default, the denied write falls back to the earlier off `initialize`.
 - A v2 policy records default versus explicit origin, its epoch/revision, the
   private-saving epoch and both legacy control epoch/revision bindings. A changed
   legacy control invalidates All; it does not silently erase that legacy choice.
@@ -163,7 +170,9 @@ formats below retain their current bounds and selected-mode semantics.
 #### Concrete v2 transport and compatibility
 
 `friendAllPolicies/{uid}` is owner-only and binds both unchanged v1 control
-revisions plus private-saving consent. The `friendAllHeads/{uid}/views/{kind}`
+revisions plus private-saving consent. The consent is checked only while the
+policy is enabled, so a waiting disabled default can precede the first saving
+head. The `friendAllHeads/{uid}/views/{kind}`
 documents carry a ready/updating state, count, digest and source revision, not a
 selection array. Private `friendAllJobs/{uid}/views/{kind}` records store progress,
 the target count, total changes (at most20,000), and the last changed ID.

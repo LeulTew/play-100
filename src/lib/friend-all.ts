@@ -72,7 +72,11 @@ export function friendAllEligibility(facts: FriendAllFacts): FriendAllEligibilit
   if (!bindingMatches(policy.ranking, ranking) || !bindingMatches(policy.shelf, shelf)) {
     return { kind: 'legacy', reason: 'changed-controls', canEnable: connected };
   }
-  if (!policy.enabled) return { kind: 'off', canEnable: connected };
+  if (!policy.enabled) {
+    // A disabled default is a setup that began before online saving; it waits for saving and then becomes the default.
+    if (policy.origin === 'default') return connected ? { kind: 'default', canEnable: true } : { kind: 'paused', reason: 'saving', canEnable: false };
+    return { kind: 'off', canEnable: connected };
+  }
   if (!ranking?.enabled || !shelf?.enabled || ranking.selectedIds.length || shelf.selectedIds.length) return { kind: 'legacy', reason: 'changed-controls', canEnable: connected };
   if (!source?.enabled || source.epoch < 1) return { kind: 'paused', reason: 'saving', canEnable: false };
   if (policy.syncEpoch !== source.epoch || shelf.consentSyncEpoch !== source.epoch) return { kind: 'paused', reason: 'saving-restarted', canEnable: true };

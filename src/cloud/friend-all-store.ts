@@ -115,19 +115,23 @@ export class FriendAllStore {
         shelf: shelfSnap.exists() ? parseFriendShelfConfig(shelfSnap.data()) : null,
       };
       const sync = syncSnap.exists() ? parseHead(syncSnap.data()) : null;
-      if (old.policy?.deleted || old.ranking?.deleted || old.shelf?.deleted || enabled && sync?.deleted) throw new FriendStoreError('deleted', 'This account has been revoked. Automatic sharing cannot be enabled.');
-      if (origin === 'default' && (old.policy || old.ranking || old.shelf)) return false;
+      const saving = Boolean(sync?.enabled && !sync.deleted);
+      // A disabled default is a new setup that started before online saving; it becomes the active default once saving is on.
+      const pending = old.policy?.origin === 'default' && !old.policy.enabled && !old.policy.deleted;
+      const next = origin === 'default' ? saving : enabled;
+      if (old.policy?.deleted || old.ranking?.deleted || old.shelf?.deleted || next && sync?.deleted) throw new FriendStoreError('deleted', 'This account has been revoked. Automatic sharing cannot be enabled.');
+      if (origin === 'default' && (pending ? !saving : Boolean(old.policy || old.ranking || old.shelf))) return false;
       if (!controlsMatch(old, expected)) conflict();
-      if (enabled && (!sync?.enabled || sync.deleted)) throw new FriendStoreError('unavailable', 'Turn on account saving before sharing its games.');
-      const epoch = sync?.epoch ?? old.policy?.syncEpoch;
+      if (next && !saving) throw new FriendStoreError('unavailable', 'Turn on account saving before sharing its games.');
+      const epoch = sync?.epoch ?? old.policy?.syncEpoch ?? (origin === 'default' ? 1 : undefined);
       if (!epoch) throw new FriendStoreError('unavailable', 'This account does not have a saving consent to share.');
       const ranking = { epoch: (old.ranking?.epoch ?? 0) + 1, revision: (old.ranking?.revision ?? 0) + 1 };
       const shelf = { epoch: (old.shelf?.epoch ?? 0) + 1, revision: (old.shelf?.revision ?? 0) + 1 };
       guard();
-      tx.set(rankingRef, { format: 1, enabled, deleted: false, selection: '', ...ranking, updatedAt: serverTimestamp() });
-      tx.set(shelfRef, { format: 1, enabled, deleted: false, selection: '', consentSyncEpoch: enabled ? epoch : null, ...shelf, updatedAt: serverTimestamp() });
+      tx.set(rankingRef, { format: 1, enabled: next, deleted: false, selection: '', ...ranking, updatedAt: serverTimestamp() });
+      tx.set(shelfRef, { format: 1, enabled: next, deleted: false, selection: '', consentSyncEpoch: next ? epoch : null, ...shelf, updatedAt: serverTimestamp() });
       if (shelfHead.exists()) tx.update(shelfHead.ref, { revision: parseFriendShelfHead(shelfHead.data()).revision + 1, updatedAt: serverTimestamp() });
-      tx.set(ref, { format: 2, uid, enabled, deleted: false, origin, epoch: (old.policy?.epoch ?? 0) + 1,
+      tx.set(ref, { format: 2, uid, enabled: next, deleted: false, origin, epoch: (old.policy?.epoch ?? 0) + 1,
         revision: (old.policy?.revision ?? 0) + 1, syncEpoch: epoch, ranking, shelf, updatedAt: serverTimestamp() });
       return true;
     });
@@ -137,7 +141,8 @@ export class FriendAllStore {
   }
   /**
    * Sets up a new account's friend controls through the default policy. A first friend action (invite, request,
-   * acceptance) calls this instead of creating off controls that would read as an existing legacy choice.
+   * acceptance) calls this instead of creating off controls that would read as an existing legacy choice. Before
+   * online saving is on, the default is created disabled and waits for saving.
    */
   async startDefault(uid: string, isCurrent: () => boolean): Promise<FriendAllPolicy | null> {
     online();
@@ -147,7 +152,8 @@ export class FriendAllStore {
     if (controls.policy || controls.ranking || controls.shelf) return controls.policy;
     try { return await this.setPolicy(uid, true, 'default', controls, isCurrent); }
     catch (cause) {
-      // Without active online saving the default cannot start; the caller keeps the earlier off initialization.
+      // Rules without the waiting default deny it; the caller then keeps the earlier off initialization.
+      if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') return null;
       if (cause instanceof FriendStoreError && (cause.code === 'unavailable' || cause.code === 'deleted')) return null;
       // An acknowledged default already created both controls; the caller reads them back.
       if (cause instanceof FriendAllCommittedError) return null;

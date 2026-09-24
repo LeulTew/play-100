@@ -47,6 +47,14 @@ describe('versioned all-account sharing eligibility', () => {
     expect(friendAllEligibility(facts({ ranking, shelf, policy }))).toEqual({ kind: 'all', canEnable: false });
     expect(friendAllEligibility(facts({ ranking, shelf, policy: { ...policy, enabled: false, origin: 'explicit' } }))).toEqual({ kind: 'off', canEnable: true });
   });
+  it('treats a disabled default as a setup waiting for online saving, not as a recorded Stop', () => {
+    const waiting: Partial<FriendAllFacts> = { ranking: { ...ranking, enabled: false }, shelf: { ...shelf, enabled: false, consentSyncEpoch: null }, policy: { ...policy, enabled: false } };
+    expect(friendAllEligibility(facts(waiting))).toEqual({ kind: 'default', canEnable: true });
+    expect(friendAllEligibility(facts({ ...waiting, source: null }))).toEqual({ kind: 'paused', reason: 'saving', canEnable: false });
+    expect(friendAllEligibility(facts({ ...waiting, source: { enabled: false, deleted: false, epoch: 5 } }))).toEqual({ kind: 'paused', reason: 'saving', canEnable: false });
+    expect(friendAllEligibility(facts({ ...waiting, policy: { ...policy, enabled: false, origin: 'explicit' } }))).toEqual({ kind: 'off', canEnable: true });
+    expect(friendAllEligibility(facts({ ...waiting, ranking: { ...ranking, enabled: false, epoch: 3, revision: 3 } }))).toEqual({ kind: 'legacy', reason: 'changed-controls', canEnable: true });
+  });
   it('treats either old-client Stop or selection change as authoritative', () => {
     for (const enabled of [false, true]) {
       expect(friendAllEligibility(facts({ ranking: { ...ranking, enabled, epoch: 3, revision: 3 }, shelf, policy }))).toEqual({ kind: 'legacy', reason: 'changed-controls', canEnable: true });
