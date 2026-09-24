@@ -124,6 +124,10 @@ test('late canonical games do not bypass the persisted quota deadline', async ({
   await mount(page, { lateGames: true, quota: true });
   await page.waitForTimeout(400);
   await page.evaluate(() => window.allReview.deliverGames());
-  await expect(page.locator('#all-review-harness')).toContainText('Continuing later');
+  const surface = page.locator('#all-review-harness');
+  await expect(surface).toContainText('Continuing later');
+  await expect(surface.getByText('The online service has reached a limit. Progress is kept, and sharing resumes automatically without starting over.', { exact: true })).toHaveCount(1);
+  await expect(surface.getByRole('alert')).toHaveCount(0);
+  await expect(surface).not.toContainText('continue later');
   expect((await page.evaluate(() => window.allReview.stats())).publishes).toBe(0);
 });

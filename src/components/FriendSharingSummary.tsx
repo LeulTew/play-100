@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { FRIEND_ALL_QUOTA_MESSAGE } from '../lib/friend-all';
 
 export interface FriendSharingSummaryProps {
   mode: string;
@@ -23,6 +24,9 @@ export function FriendSharingSummary({ mode, status, canEnable, enabled, error, 
     catch (cause) { setProblem(cause instanceof Error ? cause.message : 'Sharing could not be confirmed. Refresh its status.'); }
     finally { setBusy(false); }
   };
+  const quota = status === 'quota';
+  // The quota status carries its own single explanation; only a local action failure still needs an alert then.
+  const alertText = problem || (quota ? '' : error);
   return <section className="friend-sharing-summary" aria-label="Friend sharing">
     <div className="button-row">
       <p role="status">{mode === 'checking' ? 'Checking friend sharing…' : mode === 'all' ? <>Sharing all saved games and rankings with friends. <strong>{labels[status] ?? status}</strong></> :
@@ -32,8 +36,8 @@ export function FriendSharingSummary({ mode, status, canEnable, enabled, error, 
     </div>
     <p className="section-help">Accepted friends only. Notes, email, queue and play history stay private. Public sharing is separate.</p>
     {progress}
-    {(problem || error) && <p className="inline-error" role="alert">{problem || error}</p>}
-    {(problem || error || status === 'error' || status === 'quota' || status === 'retrying') && <button className="text-button" disabled={busy} onClick={() => { void change(onRefresh); }}>Refresh sharing status</button>}
-    {status === 'quota' && <p className="section-help">The online service has reached a limit. Sharing can continue later without starting over.</p>}
+    {alertText && <p className="inline-error" role="alert">{alertText}</p>}
+    {quota && <p className="section-help">{FRIEND_ALL_QUOTA_MESSAGE}</p>}
+    {(problem || error || status === 'error' || quota || status === 'retrying') && <button className="text-button" disabled={busy} onClick={() => { void change(onRefresh); }}>Refresh sharing status</button>}
   </section>;
 }

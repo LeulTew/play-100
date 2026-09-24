@@ -3,7 +3,7 @@ import { onSnapshot, doc } from 'firebase/firestore';
 import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import { accountScope } from '../lib/cloud-types';
 import type { Game } from '../lib/types';
-import { friendAllEligibility, projectAllFriendGames, projectAllFriendRankings } from '../lib/friend-all';
+import { FRIEND_ALL_QUOTA_MESSAGE, friendAllEligibility, projectAllFriendGames, projectAllFriendRankings } from '../lib/friend-all';
 import type { FriendAllEligibility, FriendAllPolicy } from '../lib/friend-all';
 import type { FriendAllHead } from '../lib/friend-all-transport';
 import { loadScopedLibrary } from '../lib/scoped-library';
@@ -102,7 +102,7 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
       const cooldown = await readFriendAllCooldown(scope);
       if (!valid()) return;
       if (cooldown?.epoch === policy.epoch && cooldown.nextAttemptAt > Date.now()) {
-        setState(old => old?.key === key ? { ...old, status: 'quota', error: 'The online service has reached a limit. Sharing will continue later without starting over.' } : old);
+        setState(old => old?.key === key ? { ...old, status: 'quota', error: FRIEND_ALL_QUOTA_MESSAGE } : old);
         work.request(cooldown.nextAttemptAt - Date.now());
         return;
       }
@@ -137,7 +137,7 @@ export function useFriendAll(uid: string | undefined, scope: LibraryScope | null
         if (owns()) setState(old => old?.key === key ? { ...old, status: 'error', error: `The retry cooldown could not be saved. ${onlineError(storageError)}` } : old);
       });
       setState(old => old?.key === key ? { ...old, status: failure === 'quota' ? 'quota' : failure === 'transient' ? 'retrying' : 'error',
-        error: failure === 'quota' ? 'The online service has reached a limit. Sharing will continue later without starting over.'
+        error: failure === 'quota' ? FRIEND_ALL_QUOTA_MESSAGE
           : cause instanceof FriendAllCommittedError ? cause.message : onlineError(cause) } : old);
     });
     queue.current = work;

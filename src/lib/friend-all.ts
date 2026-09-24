@@ -84,6 +84,8 @@ export function friendAllEligibility(facts: FriendAllFacts): FriendAllEligibilit
 }
 
 export type FriendSharingView = 'automatic' | 'checking' | 'selected';
+/** The one explanation shown while automatic sharing waits for free quota; its status label already says "Continuing later". */
+export const FRIEND_ALL_QUOTA_MESSAGE = 'The online service has reached a limit. Progress is kept, and sharing resumes automatically without starting over.';
 /**
  * Chooses the /friends/sharing and /friends/sharing/games view. The selected-sharing editors never render for a
  * connected account while automatic sharing is still checking or setting up its default, so no legacy preview can start.

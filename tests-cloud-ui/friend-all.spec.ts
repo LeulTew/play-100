@@ -112,15 +112,22 @@ test('quota progress survives reload across both scopes without claiming all sha
       year: null, studio: null, genre: null, collectionRank: null,
     })) });
   }, uid);
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Continuing later', { timeout: 30000 });
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Saved games: 52 ready');
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Rankings: 50 / 52 changes confirmed');
-  await expect(page.locator('.friend-sharing-summary')).not.toContainText('Up to date');
+  const quotaMessage = 'The online service has reached a limit. Progress is kept, and sharing resumes automatically without starting over.';
+  const summary = page.locator('.friend-sharing-summary');
+  await expect(summary).toContainText('Continuing later', { timeout: 30000 });
+  await expect(summary).toContainText('Saved games: 52 ready');
+  await expect(summary).toContainText('Rankings: 50 / 52 changes confirmed');
+  await expect(summary).not.toContainText('Up to date');
+  await expect(summary.getByText(quotaMessage, { exact: true })).toHaveCount(1);
+  await expect(summary.getByRole('alert')).toHaveCount(0);
+  await expect(summary).not.toContainText('continue later');
   expect((await readAccount(page, uid)).sync.dirty).toBe(false);
   await page.clock.install();
   await page.reload();
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Continuing later');
-  await expect(page.locator('.friend-sharing-summary')).toContainText('Rankings: 50 / 52 changes confirmed');
+  await expect(summary).toContainText('Continuing later');
+  await expect(summary).toContainText('Rankings: 50 / 52 changes confirmed');
+  await expect(summary.getByText(quotaMessage, { exact: true })).toHaveCount(1);
+  await expect(summary.getByRole('alert')).toHaveCount(0);
   expect(await sdk(page, 'heads')).toMatchObject({ games: { status: 'ready', count: 52 }, ranking: { status: 'updating' } });
   await page.clock.fastForward(65_000);
   await expect(page.locator('.friend-sharing-summary')).toContainText('Up to date', { timeout: 30000 });
