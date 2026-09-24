@@ -96,6 +96,15 @@ export async function expectRestoredSync(page: Page) {
   await expect(page.getByRole('button', { name: /Agree & (enable|replace online)/ })).toHaveCount(0);
 }
 
+// New setups share all saved games and rankings with friends; selected-sharing flows start from an explicit Stop.
+export async function stopAutomaticSharing(page: Page) {
+  const summary = page.locator('.friend-sharing-summary');
+  await expect(summary).toContainText('Sharing all saved games and rankings with friends.');
+  await expect(summary).toContainText('Up to date', { timeout: 30000 });
+  await summary.getByRole('button', { name: 'Stop friend sharing', exact: true }).click();
+  await expect(summary).toContainText('Automatic friend sharing is off.');
+}
+
 export async function googleRedirect(page: Page, trigger: () => Promise<void>, email: string, create = false) {
   await trigger();
   await page.waitForURL(/127\.0\.0\.1:9199/);

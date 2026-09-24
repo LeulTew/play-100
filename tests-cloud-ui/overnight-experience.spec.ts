@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { APIRequestContext, Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { createAccount, emailFor, enableSync, password, readAccount, signIn, uidFor, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, password, readAccount, signIn, stopAutomaticSharing, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
 const kcd = 'wikidata:Q15408545';
@@ -31,7 +31,9 @@ async function account(page: Page, request: APIRequestContext, prefix: string, n
   await page.getByLabel('Name', { exact: true }).fill(name);
   await page.getByRole('button', { name: 'Save name', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Name saved.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Shared games: off', exact: true })).toBeVisible();
+  // The selected shelf is available once automatic sharing is explicitly off.
+  await stopAutomaticSharing(page);
+  await expect(page.getByRole('button', { name: 'Selected saved games: off', exact: true })).toBeVisible();
   return { email, uid: await uidFor(request, email) };
 }
 async function connect(owner: Page, friend: Page) {
@@ -310,7 +312,7 @@ test('an explicit unranked shelf stays independent, updates after removal, stops
     expect((await readAccount(page, owner.uid)).state.records[kcd]?.title).toBe(title);
     expect((await readAccount(page, owner.uid)).state.ranking).toEqual([]);
     await page.goto('/account');
-    await expect(page.getByRole('button', { name: 'Friends sharing: off', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Selected ranking: off', exact: true })).toBeVisible();
   } finally { await peerContext.close(); }
 });
 
@@ -335,7 +337,7 @@ test('account export and reversible/full deletion include the independent shelf 
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: 'Your online copy was deleted. The copy on this device is still here.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Shared games: off', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Selected saved games: off', exact: true })).toBeVisible();
   expect((await readAccount(page, owner.uid)).state.records[kcd]?.title).toBe(title);
   await page.locator('input[name="connection-copy"][value="cached"]').check();
   await page.getByRole('button', { name: 'Agree & enable', exact: true }).click();
@@ -345,7 +347,7 @@ test('account export and reversible/full deletion include the independent shelf 
   await signIn(page, owner.email);
   await expect(page.locator('input[name="connection-copy"][value="cached"]')).toBeVisible();
   await enableSync(page, 'cached');
-  await expect(page.getByRole('button', { name: 'Shared games: off', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Selected saved games: off', exact: true })).toBeVisible();
   await page.locator('.account-danger > summary').click();
   await page.getByRole('button', { name: 'Delete account', exact: true }).click();
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
@@ -481,8 +483,8 @@ test('initial shared-games consent stays checking or error until an enabled or a
     await returning.getByLabel('Email', { exact: true }).fill(owner.email);
     await returning.locator('.auth-panel input[name="password"]').fill(password);
     await returning.getByRole('button', { name: 'Sign in with email', exact: true }).click();
-    await expect(returning.getByRole('button', { name: 'Shared games: checking', exact: true })).toBeVisible();
-    await returning.getByRole('button', { name: 'Shared games: checking', exact: true }).click();
+    await expect(returning.getByRole('button', { name: 'Selected saved games: checking', exact: true })).toBeVisible();
+    await returning.getByRole('button', { name: 'Selected saved games: checking', exact: true }).click();
     await expect(returning.locator('.friend-shelf-heading [role="status"]')).toHaveText('checking');
     await returning.evaluate(() => { if (!window.shelfReadGate) throw new Error('Missing consent gate.'); window.shelfReadGate.fail(); });
     await expect(returning.locator('.friend-shelf-heading [role="status"]')).toHaveText('error');

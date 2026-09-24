@@ -1,18 +1,34 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { createAccount, emailFor, enableSync, verifyEmail } from './helpers';
 
 declare global {
   interface Window { inviteGate?: { calls: number; committed: boolean; identityWrites?: number; release: () => void } }
 }
-test.beforeEach(async ({ page, request }) => {
+// New setups initialize friend settings through the automatic sharing default at consent. Holding that default keeps
+// the first invite responsible for delayed settings initialization, as when it starts before the default lands.
+async function holdAutomaticSharingDefault(page: Page) {
+  await page.evaluate(async () => {
+    const sourceUrl = performance.getEntriesByType('resource').map(entry => entry.name).find(url => new URL(url).pathname === '/src/cloud/friend-all-store.ts');
+    if (!sourceUrl) throw new Error('Loaded FriendAllStore module missing.');
+    const source: typeof import('../src/cloud/friend-all-store') = await import(sourceUrl);
+    const setPolicy = source.FriendAllStore.prototype.setPolicy;
+    source.FriendAllStore.prototype.setPolicy = function(uid, enabled, origin, expected, isCurrent) {
+      return origin === 'default' ? new Promise<never>(() => {}) : setPolicy.call(this, uid, enabled, origin, expected, isCurrent);
+    };
+  });
+}
+test.beforeEach(async ({ page, request }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const email = emailFor('invite-feedback');
-  await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page, 'empty');
+  await createAccount(page, email); await verifyEmail(page, request, email);
+  if (testInfo.tags.includes('@delayed-sharing-default')) await holdAutomaticSharingDefault(page);
+  await enableSync(page, 'empty');
   await page.locator('#page-main').getByRole('button', { name: 'Friends', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Invite someone', exact: true })).toBeEnabled();
 });
 
-test('first friend identity waits for delayed lifecycle and settings initialization before writing', async ({ page }) => {
+test('first friend identity waits for delayed lifecycle and settings initialization before writing', { tag: '@delayed-sharing-default' }, async ({ page }) => {
   await page.evaluate(async () => {
     const sourceUrl = performance.getEntriesByType('resource').map(entry => entry.name).find(url => new URL(url).pathname === '/src/cloud/friend-store.ts');
     if (!sourceUrl) throw new Error('Loaded FriendStore module missing.');

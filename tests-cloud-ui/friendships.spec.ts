@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { createAccount, emailFor, enableSync, seedGuestRating, uidFor, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, seedGuestRating, stopAutomaticSharing, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
 test.beforeEach(async ({ page }) => { await page.emulateMedia({ reducedMotion: 'reduce' }); });
@@ -38,6 +38,7 @@ test('an invitation resumes after email sign-in, sharing stays opt-in, selected 
   await page.goto('/?game=red-dead-redemption-2'); await seedGuestRating(page, '8.8');
   await createAccount(page, senderEmail); await verifyEmail(page, request, senderEmail); await enableSync(page);
   await chooseName(page, 'QA Sender');
+  await stopAutomaticSharing(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); window.scrollTo({ top: 0, behavior: 'instant' }); });
   await page.screenshot({ path: testInfo.outputPath('account-visual.png'), fullPage: true });
@@ -50,6 +51,7 @@ test('an invitation resumes after email sign-in, sharing stays opt-in, selected 
     await other.goto('/?game=red-dead-redemption-2'); await seedGuestRating(other, '6.8');
     await createAccount(other, receiverEmail); await verifyEmail(other, request, receiverEmail); await enableSync(other);
     await chooseName(other, 'QA Receiver');
+    await stopAutomaticSharing(other);
     const receiver = await uidFor(request, receiverEmail);
     const receiving = await anonymousContext.newPage();
     await receiving.goto(link);
@@ -113,6 +115,7 @@ test('revoked invites show no inviter snapshot and a cancelled sharing preview d
   await page.goto('/?game=red-dead-redemption-2'); await seedGuestRating(page, '9');
   await createAccount(page, email); await verifyEmail(page, request, email); await enableSync(page);
   await chooseName(page, 'QA Invite Owner');
+  await stopAutomaticSharing(page);
   const link = await inviteFrom(page);
   await page.getByRole('button', { name: 'Invite links', exact: true }).click();
   await page.getByRole('button', { name: 'Revoke', exact: true }).click();
