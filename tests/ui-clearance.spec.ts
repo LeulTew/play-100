@@ -132,7 +132,7 @@ for (const mode of modes) {
         for (const record of originals.slice(5, 7)) {
           await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).tap();
         }
-        await expect(page.locator('.compare-tray-error')).toBeVisible();
+        await expect(page.locator('.compare-tray-dock .compare-tray-error')).toBeVisible();
       }
       const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
       await page.locator('.mobile-nav').getByRole('button', { name: 'Menu', exact: true }).tap();
@@ -152,7 +152,7 @@ for (const mode of modes) {
       const live = await page.locator('.compare-tray-action').evaluate(element => {
         const action = element.getBoundingClientRect();
         const dock = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
-        const error = document.querySelector('.compare-tray-error')?.getBoundingClientRect();
+        const error = document.querySelector('.compare-tray-dock .compare-tray-error')?.getBoundingClientRect();
         const notice = document.querySelector('.toast')!;
         const toast = notice.getBoundingClientRect();
         const dismiss = notice.querySelector('button')!;
