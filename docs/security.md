@@ -84,10 +84,15 @@ silently enabled by this batch. reCAPTCHA Auth protection is likewise not adopte
 now given enumeration protection, the password policy and rules controls; revisit
 if abuse appears.
 
-If adopted later, initialize App Check lazily on the online path with reCAPTCHA
-Enterprise, ship that client first, observe verified-request ratios for at least
-seven days, then enforce Firestore followed by Auth. Update CSP and Data Use
-before enabling that traffic. Roll back by un-enforcing, not by weakening rules.
+The authored client (`src/cloud/app-check-client.ts`) uses the **reCAPTCHA v3**
+provider (`ReCaptchaV3Provider`), which works on Spark without billing, behind
+the build flag `VITE_APP_CHECK_ENABLED` (default off; see
+`src/lib/app-check-config.ts`). reCAPTCHA Enterprise is an unimplemented
+alternative; switching would need a different provider class, key type and
+review. If adopted, follow the runbook's App Check section: ship that client
+first, observe verified-request ratios for at least seven days, then enforce
+Firestore followed by Auth. Update CSP and Data Use before enabling that
+traffic. Roll back by un-enforcing, not by weakening rules.
 The API limiters are per instance, not global per-IP protection. One shared
 bounded-admission helper (`api/_lib/admission.ts`) caps detail at 4 active and
 30 uncached lookups per minute and search at 6 active and 90 upstream searches
