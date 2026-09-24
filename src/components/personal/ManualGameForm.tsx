@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { Icon } from '../Icon';
@@ -8,6 +8,8 @@ export default function ManualGameForm({ onAdd, busy, actionLabel = 'Add game' }
   const [title, setTitle] = useState('');
   const [year, setYear] = useState('');
   const [error, setError] = useState('');
+  // Fields stay editable while a game saves; a late success clears only the draft it submitted.
+  const edits = useRef(0);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const trimmed = title.trim();
@@ -23,14 +25,22 @@ export default function ManualGameForm({ onAdd, busy, actionLabel = 'Add game' }
       source: 'manual', sourceId: id, sourceUrl: null, collectionRank: null,
     };
     setError('');
-    if (await onAdd(record)) { setTitle(''); setYear(''); }
+    const submitted = edits.current;
+    let added: boolean;
+    try { added = await onAdd(record); }
+    catch (cause) {
+      console.error('A manual game could not be added.', cause instanceof Error ? cause.message : 'Unknown storage failure.');
+      setError('The game could not be added. Your entry is unchanged; try again.');
+      return;
+    }
+    if (added && submitted === edits.current) { setTitle(''); setYear(''); }
   };
   return (
     <details className="manual-add">
       <summary><Icon name="plus" width="17" height="17" />Add a game manually</summary>
       <form onSubmit={(event) => { void submit(event); }}>
         <p>Adding a game does not mark it played or completed.</p>
-        <div className="manual-fields"><label htmlFor={`${prefix}-title`}>Game title<input id={`${prefix}-title`} value={title} maxLength={200} required onChange={(event) => setTitle(event.target.value)} /></label><label htmlFor={`${prefix}-year`}>Year <span>(optional)</span><input id={`${prefix}-year`} value={year} type="number" min="1900" max="2100" onChange={(event) => setYear(event.target.value)} /></label></div>
+        <div className="manual-fields"><label htmlFor={`${prefix}-title`}>Game title<input id={`${prefix}-title`} value={title} maxLength={200} required onChange={(event) => { edits.current += 1; setTitle(event.target.value); }} /></label><label htmlFor={`${prefix}-year`}>Year <span>(optional)</span><input id={`${prefix}-year`} value={year} type="number" min="1900" max="2100" onChange={(event) => { edits.current += 1; setYear(event.target.value); }} /></label></div>
         {error && <p className="inline-error" role="alert">{error}</p>}
         <button className="button button-dark" disabled={busy || !title.trim()} type="submit"><Icon name="plus" width="17" height="17" />{actionLabel}</button>
       </form>
