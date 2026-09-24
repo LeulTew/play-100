@@ -157,12 +157,15 @@ test('catalog played state follows the saved game into its library, detail and p
     contentType: 'application/json',
     body: JSON.stringify({ source: 'wikidata', query: '', items: [record], total: 1, offset: 0, nextOffset: null, notices: [] }),
   }));
-  await page.goto('/discover');
-  await page.getByRole('button', { name: 'Browse catalog', exact: true }).click();
-  const played = page.locator(`[data-catalog-id="${record.id}"] [data-played-id] input`);
+  await page.goto(`/discover?source=wikidata&catalogs=off&q=${encodeURIComponent(record.title)}`);
+  await page.getByRole('button', { name: 'Search online', exact: true }).click();
+  const card = page.locator(`[data-catalog-id="${record.id}"]`);
+  await expect(card.getByRole('heading', { name: record.title, exact: true })).toBeVisible();
+  await card.locator('summary').click();
+  const played = card.getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true });
   await played.click();
   await expect(played).toBeChecked();
-  await page.getByRole('button', { name: `Add ${record.title} to my ranking`, exact: true }).click();
+  await card.getByRole('button', { name: 'Add to ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);
   await page.goto('/my-rankings');
   await expect(page.getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true })).toBeChecked();
