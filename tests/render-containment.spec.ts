@@ -89,7 +89,8 @@ test('offscreen content remains findable, focusable and printable without contai
   await expect(link).toBeFocused();
   await expect(link).toBeInViewport();
   await page.evaluate(() => { scrollTo(0, 0); window.getSelection()?.removeAllRanges(); });
-  const title = await cards.nth(22).locator('h3').innerText();
+  const title = (await cards.nth(22).locator('h3').textContent())?.trim();
+  if (!title) throw new Error('The native find probe requires a nonempty offscreen game title.');
   // Chromium's native find uses auto-visible content, unlike hidden virtualization.
   expect(await page.evaluate(text => {
     if (!('find' in window) || typeof window.find !== 'function') {
