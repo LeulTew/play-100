@@ -217,7 +217,7 @@ test('played state, score ordering and manual slots survive a full browser resta
     context = await chromium.launchPersistentContext(profile, options);
     page = context.pages()[0] ?? await context.newPage();
     await page.goto('/my-rankings');
-    await expect(page.locator('.personal-row')).toHaveCount(3);
+    await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(3);
     const after = await readLibrary(page);
     expect(after.ranking).toEqual(before.ranking);
     expect(after.progress).toEqual(before.progress);
