@@ -217,10 +217,12 @@ async function openFixture(touch = false, width = 1280) {
   });
   await page.goto(`${origin}/__compare-source-test`);
   await browserExpect(page.locator('#source-title')).toBeVisible();
+  await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('aria-hidden', 'true');
+  await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('tabindex', '-1');
+  await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('title', 'Drag to tray');
+  await browserExpect(page.locator('.compare-drag-handle')).not.toHaveAttribute('aria-label');
   if (touch) {
     await browserExpect(page.locator('.compare-drag-handle')).toBeHidden();
-    await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('aria-hidden', 'true');
-    await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('tabindex', '-1');
     await browserExpect(page.locator('#source-controls > button[aria-pressed]')).toBeEnabled();
   } else {
     await browserExpect(page.locator('.compare-drag-handle')).toBeVisible();

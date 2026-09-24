@@ -16,8 +16,8 @@ test.beforeEach(async ({ page, baseURL }) => {
     return route.continue();
   });
   await installGuestLibrary(page, libraryFixture(3));
-  const handle = page.locator('.personal-row-static').first().locator('.compare-drag-handle');
-  await handle.focus();
+  const pin = page.locator('.personal-row-static').first().getByRole('button', { name: /^Pin for comparison: / }).and(page.locator('button[aria-pressed]'));
+  await pin.focus();
   await page.keyboard.press('Space');
   await expect(compare(page)).toBeVisible();
 });

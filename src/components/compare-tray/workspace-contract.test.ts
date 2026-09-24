@@ -228,10 +228,18 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('tabindex="-1"');
   });
-  it('keeps the compact icon-only handle named without repeating its instructions in a description', () => {
-    const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value }, h(CompareDragHandle, { record: alpha, compact: true })));
-    expect(html).toContain('aria-label="Pin Alpha game for comparison, or drag with a mouse"');
-    expect(html).not.toContain('title=');
+  it('keeps the compact grip pointer-only on every pointer type', () => {
+    for (const coarsePointer of [false, true]) {
+      const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value },
+        h(MotionPolicyContext.Provider, { value: { ...staticMotionPolicy, coarsePointer } },
+          h(CompareDragHandle, { record: alpha, compact: true }))));
+      expect(html).toContain('aria-hidden="true"');
+      expect(html).toContain('tabindex="-1"');
+      expect(html).toContain('title="Drag to tray"');
+      expect(html).not.toContain('aria-label=');
+      expect(html).not.toContain('or drag with a mouse');
+      expect(html).not.toContain('to the Compare tray');
+    }
   });
   it.each([true, false])('includes the visible tray label in the opener name (persistent=%s)', persistent => {
     const html = renderToStaticMarkup(h(CompareTrayContext.Provider, { value: { ...value, persistent } }, h(CompareTray, { onCompare: vi.fn() })));
