@@ -52,6 +52,11 @@ function policyMatches(policy: FriendAllPolicy, controls: FriendAllControls): bo
 function sameJob(a: FriendAllJob | null, b: FriendAllJob | null): boolean {
   return a?.token === b?.token && a?.applied === b?.applied && a?.count === b?.count;
 }
+/** What another tab on the same account advances when it wins a sharing step: the head revision and the job token and progress. */
+interface FriendAllMark { revision: number | null; token: string | null; applied: number | null }
+function markOf(head: FriendAllHead | null, job: FriendAllJob | null): FriendAllMark {
+  return { revision: head?.revision ?? null, token: job?.token ?? null, applied: job?.applied ?? null };
+}
 async function digest(entries: readonly FriendAllEntry[]): Promise<string> {
   const encoded = new TextEncoder().encode(JSON.stringify(entries.map(friendAllEntrySignature)));
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encoded)), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -71,6 +76,18 @@ export class FriendAllStore {
   }
   private async confirmed<T>(ref: DocumentReference<DocumentData>, parse: (value: unknown) => T): Promise<T | null> {
     return runTransaction(this.db, async tx => { const value = await tx.get(ref); return value.exists() ? parse(value.data()) : null; }, { maxAttempts: 3 });
+  }
+  /** The rules judge a stale write against the winning tab's documents and deny it, so a denial after the update moved is a retryable conflict. */
+  private async contended<T>(uid: string, kind: FriendAllKind, seen: () => FriendAllMark | null, write: () => Promise<T>): Promise<T> {
+    try { return await write(); }
+    catch (cause) {
+      const before = seen();
+      if (!before || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
+      const after = await Promise.all([this.head(uid, kind), this.read(this.jobRef(uid, kind), parseFriendAllJob)])
+        .then(([head, job]) => markOf(head, job), () => null);
+      if (after && (after.revision !== before.revision || after.token !== before.token || after.applied !== before.applied)) conflict('Another tab advanced the sharing update.');
+      throw cause;
+    }
   }
   private watch<T>(ref: DocumentReference<DocumentData>, parse: (value: unknown) => T, next: (value: T | null) => void, error: (cause: Error) => void) {
     return onSnapshot(ref, { includeMetadataChanges: true }, snapshot => {
@@ -307,7 +324,9 @@ export class FriendAllStore {
       const changes = planFriendAllChanges(format === 3 && initial.job?.format !== 3 ? [] : initial.entries, entries);
       return [...changes.removals.map(id => ({ id, entry: null })), ...changes.upserts.map(entry => ({ id: entry.id, entry }))];
     };
-    const begin = (format: 2 | 3) => runTransaction(this.db, async tx => {
+    let seen: FriendAllMark | null = null; let beganAt = 0;
+    const begin = (format: 2 | 3) => this.contended(uid, kind, () => seen, () => runTransaction(this.db, async tx => {
+      seen = null;
       guard();
       const [control, currentHead, currentJob, sync] = await Promise.all([tx.get(policyRef), tx.get(headRef), tx.get(jobRef), tx.get(syncRef)]);
       const latest = control.exists() ? parseFriendAllPolicy(control.data(), uid) : null;
@@ -315,18 +334,20 @@ export class FriendAllStore {
       checkSource(sync.data());
       const head = currentHead.exists() ? parseFriendAllHead(currentHead.data()) : null;
       const old = currentJob.exists() ? parseFriendAllJob(currentJob.data()) : null;
+      seen = markOf(head, old);
       if (!sameJob(old, initial.job)) conflict('Another tab advanced the sharing update.');
       const operations = operationsFor(format);
       if (head?.format === format && head.status === 'updating' && old?.format === format && old.epoch === policy.epoch && old.policyRevision === policy.revision && old.digest === targetDigest &&
-        sameShelfSource(old.source, source) && old.total - old.applied === operations.length) return old;
+        sameShelfSource(old.source, source) && old.total - old.applied === operations.length) { beganAt = head.revision; return old; }
       const revision = (head?.revision ?? 0) + 1;
       const next: FriendAllJob = { format, epoch: policy.epoch, policyRevision: policy.revision, source, token: crypto.randomUUID(),
         digest: targetDigest, targetCount: entries.length, count: format === 3 ? old?.format === 3 ? old.count : 0 : initial.entries.length,
         total: operations.length, applied: 0, last: [], headRevision: revision, updatedAt: 0 };
       tx.set(headRef, { format, epoch: policy.epoch, policyRevision: policy.revision, source, revision, status: 'updating', count: 0, digest: targetDigest, updatedAt: serverTimestamp() });
       tx.set(jobRef, { ...next, updatedAt: serverTimestamp() });
+      beganAt = revision;
       return next;
-    });
+    }));
     let job: FriendAllJob;
     try { job = await begin(3); }
     catch (cause) {
@@ -362,17 +383,21 @@ export class FriendAllStore {
       }
       const applied = job.applied + group.length; const last = group.map(operation => operation.id);
       batch.update(jobRef, { count, applied, last, updatedAt: serverTimestamp() });
-      await batch.commit();
+      const before: FriendAllMark = { revision: beganAt, token: job.token, applied: job.applied };
+      await this.contended(uid, kind, () => before, () => batch.commit());
       job = { ...job, count, applied, last };
       if (applied % 50 === 0 || applied === job.total) progress?.({ kind, applied, total: job.total, targetCount: job.targetCount, ready: false });
     }
     guard();
-    await runTransaction(this.db, async tx => {
+    let finishing: FriendAllMark | null = null;
+    await this.contended(uid, kind, () => finishing, () => runTransaction(this.db, async tx => {
+      finishing = null;
       guard();
       const [control, currentHead, currentJob, sync] = await Promise.all([tx.get(policyRef), tx.get(headRef), tx.get(jobRef), tx.get(syncRef)]);
       const latest = control.exists() ? parseFriendAllPolicy(control.data(), uid) : null;
       const head = currentHead.exists() ? parseFriendAllHead(currentHead.data()) : null;
       const complete = currentJob.exists() ? parseFriendAllJob(currentJob.data()) : null;
+      finishing = markOf(head, complete);
       checkSource(sync.data());
       if (!latest?.enabled || latest.deleted || latest.epoch !== policy.epoch || latest.revision !== policy.revision ||
         !complete || complete.token !== job.token || complete.applied !== complete.total || complete.count !== entries.length ||
@@ -380,7 +405,7 @@ export class FriendAllStore {
       if (head.status === 'ready' && head.digest === targetDigest && head.epoch === policy.epoch && sameShelfSource(head.source, source)) return;
       if (head.status !== 'updating' || head.revision !== complete.headRevision) conflict();
       tx.update(headRef, { status: 'ready', count: entries.length, revision: head.revision + 1, updatedAt: serverTimestamp() });
-    });
+    }));
     try {
       guard();
       const committed = await this.confirmed(headRef, parseFriendAllHead);

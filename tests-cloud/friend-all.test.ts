@@ -8,6 +8,7 @@ import {
   collection, connectFirestoreEmulator, disableNetwork, doc, enableNetwork, getDocFromServer, getDocsFromServer,
   deleteDoc, getFirestore, limit, onSnapshot, query, runTransaction, serverTimestamp, setDoc, setLogLevel, Timestamp, where, writeBatch,
 } from 'firebase/firestore';
+import type { Firestore, Transaction, TransactionOptions } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FriendAllStore } from '../src/cloud/friend-all-store';
 import { FriendStore } from '../src/cloud/friend-store';
@@ -444,6 +445,55 @@ describe('All-sharing bounded SDK transport', () => {
     expect((await getDocFromServer(firstRow)).data()).toEqual(unchanged);
     expect((await b.all.page(a.uid, 'ranking')).entries).toEqual(ranks(6));
   });
+  it('reports a same-account tab that loses the begin race as a retryable conflict and converges on retry', async () => {
+    const a = await client(); const b = await client(); const policy = await enable(a); await enable(b); await connect(a, b);
+    await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const tab = new FriendAllStore(a.db); const peer = new FriendAllStore(a.db);
+    let staged!: () => void; const held = new Promise<void>(resolve => { staged = resolve; });
+    let release!: () => void; const released = new Promise<void>(resolve => { release = resolve; });
+    // The tab's first transaction is its counted begin: it stages the next head revision, then commits only after the peer has published.
+    vi.mocked(runTransaction).mockImplementationOnce(async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+      actual.runTransaction(db, async tx => { const result = await operation(tx); staged(); await released; return result; }, options));
+    const losing = tab.publish(a.uid, 'games', games(2), policy, source, () => true);
+    await held;
+    await peer.publish(a.uid, 'games', games(2), policy, source, () => true);
+    release();
+    // The emulator judges the stale commit against the peer's documents and denies it; that lost race is not an authorization failure.
+    await expect(losing).rejects.toMatchObject({ code: 'conflict' });
+    const won = await a.all.head(a.uid, 'games');
+    expect(won).toMatchObject({ status: 'ready', count: 2 });
+    expect((await b.all.page(a.uid, 'games')).entries).toEqual(games(2));
+    await expect(tab.publish(a.uid, 'games', games(2), policy, source, () => true)).resolves.toMatchObject({ status: 'ready', count: 2, revision: won!.revision });
+  }, 60_000);
+  it('reports a tab whose row batch loses to a peer job as a retryable conflict without touching the peer view', async () => {
+    const a = await client(); const b = await client(); const policy = await enable(a); await enable(b); await connect(a, b);
+    await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const tab = new FriendAllStore(a.db); const peer = new FriendAllStore(a.db);
+    const jobRef = doc(a.db, 'friendAllJobs', a.uid, 'views', 'games');
+    let staged!: () => void; const held = new Promise<void>(resolve => { staged = resolve; });
+    let release!: () => void; const released = new Promise<void>(resolve => { release = resolve; });
+    // The tab begins its own job, and its first row batch commits only after a peer has replaced that job and published.
+    vi.mocked(writeBatch).mockImplementationOnce(db => {
+      const batch = actual.writeBatch(db); const commit = batch.commit.bind(batch);
+      batch.commit = async () => { staged(); await released; return commit(); };
+      return batch;
+    });
+    const losing = tab.publish(a.uid, 'games', games(2), policy, source, () => true);
+    await held;
+    const begun = (await getDocFromServer(jobRef)).data()!;
+    expect(begun).toMatchObject({ applied: 0, total: 1, count: 1 });
+    await peer.publish(a.uid, 'games', games(3), policy, source, () => true);
+    release();
+    await expect(losing).rejects.toMatchObject({ code: 'conflict' });
+    const replaced = (await getDocFromServer(jobRef)).data()!;
+    expect(replaced).toMatchObject({ applied: 2, total: 2, count: 3 });
+    expect(replaced.token).not.toBe(begun.token);
+    expect((await b.all.page(a.uid, 'games')).entries).toEqual(games(3));
+    await tab.publish(a.uid, 'games', games(2), policy, source, () => true);
+    expect((await b.all.page(a.uid, 'games')).entries).toEqual(games(2));
+  }, 60_000);
   it('atomically pulses both ready paths on a real private commit and never projects its note', async () => {
     const a = await client(); const b = await client(); const policy = await enable(a); await enable(b); await connect(a, b);
     await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
