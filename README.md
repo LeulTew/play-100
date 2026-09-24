@@ -424,6 +424,8 @@ Source updates must still contain the intended 100 author-ordered records.
 | `public` | Deployable data, optimized covers, download, social card and notices |
 | `tests` | Real-browser interaction and accessibility coverage |
 
+Runtime composition, sources of truth and cross-boundary invariants are described in [Architecture](docs/architecture.md).
+
 Public collection state is query-string based: `q`, `genre`, `year`, `tier`,
 `sort`, `direction`, `view` (grid/list/table), `catalogs` (on/off) and `game`. `list` is a device-only
 view filter and is stripped from shared URLs. Separate `/my-library`,
