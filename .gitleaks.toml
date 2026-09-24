@@ -12,3 +12,13 @@ condition = "AND"
 regexTarget = "secret"
 regexes = ['''^telegramHandle$''']
 paths = ['''(^|/)data/generate_collection\.py$''']
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "A sessionStorage key name for recorded CSP violations, not a credential."
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^p100\.csp-violations$''']
+paths = ['''(^|/)tests/csp-violation-helpers\.ts$''']
