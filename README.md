@@ -303,8 +303,8 @@ emulators enabled.
 The explicitly Chrome-based mounted, native-zoom and H.264 film tests need an
 existing Chrome installation or
 `npx playwright install chrome` (which installs at the platform's default location).
-`test:cloud` needs Java 21 and uses the existing `firebase-tools` lockfile pin
-(currently 15.30.1), not a global CLI or production project. Both data validators
+`test:cloud` needs Java 21 and uses the `firebase-tools` version resolved in
+`package-lock.json`, not a global CLI or production project. Both data validators
 read checked-in files only; no gate runs the online catalog collector.
 
 The two browser partitions are disjoint; fixtures importing live `/src` modules
