@@ -155,7 +155,7 @@ test('catalog played state follows the saved game into its library, detail and p
   const record = { id: 'wikidata:Q555', title: 'Shared catalog game', year: 2020, studio: null, genre: null, source: 'wikidata', sourceId: 'Q555', sourceUrl: 'https://www.wikidata.org/wiki/Q555', collectionRank: null };
   await page.route('**/api/catalog?**', (route) => route.fulfill({
     contentType: 'application/json',
-    body: JSON.stringify({ source: 'wikidata', query: '', items: [record], total: 1, offset: 0, nextOffset: null, notices: [] }),
+    body: JSON.stringify({ source: 'wikidata', query: record.title, items: [record], total: 1, offset: 0, nextOffset: null, notices: [] }),
   }));
   await page.goto(`/discover?source=wikidata&catalogs=off&q=${encodeURIComponent(record.title)}`);
   await page.getByRole('button', { name: 'Search online', exact: true }).click();
