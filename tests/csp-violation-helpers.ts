@@ -1,9 +1,39 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { mainDocumentPolicy } from '../scripts/first-paint/csp';
 
 /** The main-document policy exactly as vercel.json serves it. */
 export const productionPolicy = mainDocumentPolicy(JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')));
+
+/**
+ * The Firebase authDomain the served build was configured with, read from its public config in the
+ * built bundle (`dist/assets/*.js`, the directory the local preview serves); null for an offline build.
+ */
+export function builtAuthDomain(root = path.join(process.cwd(), 'dist')): string | null {
+  const assets = path.join(root, 'assets');
+  if (!existsSync(assets)) return null;
+  const found = new Set<string>();
+  for (const name of readdirSync(assets).filter(file => file.endsWith('.js'))) {
+    for (const match of readFileSync(path.join(assets, name), 'utf8').matchAll(/["']?VITE_FIREBASE_AUTH_DOMAIN["']?\s*:\s*["']([^"']+)["']/g)) found.add(match[1]!);
+  }
+  if (found.size > 1) throw new Error(`The built bundle names more than one authDomain: ${[...found].join(', ')}`);
+  return [...found][0] ?? null;
+}
+
+/**
+ * The one local-origin equivalence: production serves the app on its authDomain, so frame-src 'self'
+ * covers Firebase Auth's /__/auth/iframe. A local preview on another origin frames that same authDomain
+ * cross-origin, so frame-src also lists exactly `https://<authDomain>`. Every other directive, and the
+ * whole policy when the origin is the authDomain or the build is offline, stays the production policy.
+ */
+export function localOriginPolicy(policy: string, origin: string, authDomain = builtAuthDomain()): string {
+  const helper = authDomain === null ? null : `https://${authDomain}`;
+  if (helper === null || helper === origin) return policy;
+  const adapted = policy.replace(/(^|;\s*)frame-src ([^;]*)/, (_, lead: string, sources: string) => `${lead}frame-src ${sources.trim()} ${helper}`);
+  if (adapted === policy) throw new Error('The production policy has no frame-src to extend for the local origin.');
+  return adapted;
+}
 
 const storageKey = 'p100.csp-violations';
 

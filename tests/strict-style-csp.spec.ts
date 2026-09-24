@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
-import { productionPolicy, recordViolations } from './csp-violation-helpers';
+import { localOriginPolicy, productionPolicy, recordViolations } from './csp-violation-helpers';
 
 // SECURITY-01: every main route and its common dynamic UI render under the exact vercel.json main-document
 // policy (strict style-src) without a single securitypolicyviolation. The worker is blocked so each
@@ -20,7 +20,7 @@ test('every main route renders under the production CSP without a violation', as
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await emptyCatalogs(page);
-  const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
+  const violations = await recordViolations(page, deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin), new URL(baseURL ?? '/').origin);
   for (const route of routes) {
     await page.goto(route);
     await expect(page.locator('#root > .site-header')).toBeVisible();
@@ -58,7 +58,7 @@ test('landing dialogs, detail and the collection scene run under the production 
       configurable: true, value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
     });
   });
-  const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
+  const violations = await recordViolations(page, deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin), new URL(baseURL ?? '/').origin);
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   // Full starts WebGL on every device (Auto defers it on touch), so the scene's construction and controls run here.
@@ -94,8 +94,9 @@ test('main routes lay out identically under the legacy and strict style-src', as
   test.skip(deployed, 'Needs both policies on one build; a deployment serves only its own header.');
   test.setTimeout(120000);
   const origin = new URL(baseURL ?? '/').origin;
-  const legacyPolicy = productionPolicy.replace(/style-src [^;]*/, "style-src 'self' 'unsafe-inline'");
-  expect(legacyPolicy).not.toBe(productionPolicy);
+  const strictPolicy = localOriginPolicy(productionPolicy, origin);
+  const legacyPolicy = strictPolicy.replace(/style-src [^;]*/, "style-src 'self' 'unsafe-inline'");
+  expect(legacyPolicy).not.toBe(strictPolicy);
   // Two tabs of one device context, each serving its own policy.
   const open = async (policy: string) => {
     const page = await context.newPage();
@@ -104,7 +105,7 @@ test('main routes lay out identically under the legacy and strict style-src', as
     return { page, violations: await recordViolations(page, policy, origin) };
   };
   const legacy = await open(legacyPolicy);
-  const strict = await open(productionPolicy);
+  const strict = await open(strictPolicy);
   try {
     for (const route of ['/', '/discover?catalogs=off', '/my-games?tab=ranking', '/compare', '/account', '/data-use', '/?game=red-dead-redemption-2']) {
       const snapshots: string[][] = [];
