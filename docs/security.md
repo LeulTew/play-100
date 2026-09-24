@@ -121,6 +121,17 @@ the prior allowlist for rollback. This option does not remove the proxy
 destinations or change Auth authorized domains, and no allowlist write is made
 by this source change.
 
+**Caveat: the email action handler still needs firebaseapp.com.** Verification
+and password-reset emails link to the default action URL
+`https://play100-online-48823b32.firebaseapp.com/__/auth/action`. That page
+calls Identity Toolkit with this key from the firebaseapp.com origin, so
+removing that referrer breaks email verification and password reset unless the
+console action URL is first customized to a production-origin handler. Parent
+readback before taking the option: Firebase console → Authentication →
+Templates → (any email template) → edit → **Customize action URL**; record the
+current value. If it is empty or firebaseapp.com, keep the firebaseapp.com
+referrer.
+
 ## Stage 1 compatibility and validation
 
 The new client has an explicit client-first path for live 270f rules; the
