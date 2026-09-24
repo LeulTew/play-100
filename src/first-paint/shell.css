@@ -2,15 +2,16 @@
  * Static first-paint shell (docs/first-paint-shell.md).
  *
  * The build minifies this file and appends it to the inline <style> of index.html, after the
- * app rules beasties keeps for the shell and the renamed web-font faces
- * (scripts/first-paint/plugin.ts). The app never imports it, so the shipped app stylesheet is
- * unchanged.
+ * app rules beasties keeps for the shell (scripts/first-paint/plugin.ts). The app never imports
+ * it, so the shipped app stylesheet is unchanged.
  *
  * Metric-matched fallback faces
  * -----------------------------
- * The shell paints before any web font arrives. These faces scale widely installed local fonts
- * so that swapping to Barlow Condensed and Hanken Grotesk never changes a line break, and the
- * boot script shows the shell only after it has measured them (see the .p100-probe rules).
+ * The inline style declares no web font: until the full stylesheet brings the Barlow Condensed
+ * and Hanken Grotesk faces, the shell paints only with these faces. They scale widely installed
+ * local fonts so that swapping to the web fonts never changes a line break, and the boot script
+ * shows the shell only after it has measured them (see the .p100-probe rules). The build fails
+ * if the shell renders a character outside their ranges.
  *
  * Derivation (one-off, outside the repository): advance widths plus GPOS kerning were read
  * from the real font files (@fontsource/barlow-condensed latin 700/800 woff2,
@@ -33,8 +34,9 @@
  * 1920 found no break that differs, and no horizontal header movement of 3px or more; the
  * browser check in tests/first-paint-shell.spec.ts measures the shipped strings.
  *
- * The 800 display faces are 1.5% wider than Barlow Condensed 800 on purpose: React's h1 then
- * never paints larger than the shell's h1, so it cannot become a later LCP candidate.
+ * The 800 display faces are 1.5% wider than Barlow Condensed 800 on purpose: when the shell's h1
+ * paints in them, React's h1, painted in Barlow Condensed or in the same fallback, never paints
+ * larger and cannot become a later LCP candidate.
  * Impact is preferred (Windows, macOS); Arial Bold metric clones cover Linux and ChromeOS.
  * No font-display: local() faces load synchronously on desktop engines, and where they do not
  * (Android) the probes fail and the shell stays hidden.
@@ -53,17 +55,11 @@
  * Kept after React mounts on purpose: these stacks only add fonts between each web font and the
  * app's own fallbacks (styles.css :root), so text that renders before a web font finishes loading
  * uses the same metrics in the shell and in the app. Specificity (0,1,1) beats the app's :root.
- *
- * 'P100 Barlow Condensed' and 'P100 Hanken Grotesk' are the app's own latin faces (same files,
- * same descriptors), copied under new names by the build. Until the full stylesheet arrives the
- * original families have no @font-face, so the shell loads the copies. Afterwards the original
- * faces load the same files from the cache and, while they do, the engine skips them and keeps
- * using the loaded copies: the glyphs never change. The new names keep document.fonts.check()
- * for the real families true on routes that never use the copies.
+ * Until the full stylesheet arrives, the web families have no @font-face and the next face paints.
  */
 html[data-boot=landing] {
-  font-family: 'Hanken Grotesk Variable', 'P100 Hanken Grotesk', 'P100 Sans Fallback', 'Segoe UI', sans-serif;
-  --display: 'Barlow Condensed', 'P100 Barlow Condensed', 'P100 DF Impact', 'P100 DF Arial', Impact, 'Arial Narrow', sans-serif;
+  font-family: 'Hanken Grotesk Variable', 'P100 Sans Fallback', 'Segoe UI', sans-serif;
+  --display: 'Barlow Condensed', 'P100 DF Impact', 'P100 DF Arial', Impact, 'Arial Narrow', sans-serif;
 }
 
 /* Hidden by its hidden attribute unless the boot script accepted this document. */

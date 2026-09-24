@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { readFirebaseConfiguration } from '../../src/lib/online-config.ts';
 import {
-  assertCharsetDeclaration, assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss, firstPaintShell,
-  firstPaintVariant, fontFaceCopies, inlineFirstPaintShell, minifyShellCss, stripBootScript,
+  assertCharsetDeclaration, assertFallbackCoverage, assertInlineSafe, assertRootRelativeUrls, assertShellNeutralCss, beastiesOptions, criticalAppCss,
+  firstPaintShell, firstPaintVariant, inlineFirstPaintShell, minifyShellCss, stripBootScript,
 } from './plugin.ts';
 import { sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
@@ -26,9 +26,6 @@ const FONT_FACES = [
   '@font-face{font-family:Hanken Grotesk Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/hanken-grotesk-latin-ext-wght-normal-Dg-wlmqe.woff2)format("woff2-variations");unicode-range:U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}',
   '@font-face{font-family:Hanken Grotesk Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/hanken-grotesk-latin-wght-normal-CaVRRdDk.woff2)format("woff2-variations");unicode-range:U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}',
 ].join('');
-const FONT_COPIES_CSS = "@font-face{font-family:'P100 Barlow Condensed';font-display:swap;font-weight:700;src:url(/assets/barlow-condensed-latin-700-normal-v1xN8_Wq.woff2)format(\"woff2\")}" +
-  "@font-face{font-family:'P100 Barlow Condensed';font-display:swap;font-weight:800;src:url(/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2)format(\"woff2\")}" +
-  "@font-face{font-family:'P100 Hanken Grotesk';font-display:swap;font-weight:100 900;src:url(/assets/hanken-grotesk-latin-wght-normal-CaVRRdDk.woff2)format(\"woff2-variations\")}";
 
 // The tags the public-metadata plugin adds with Vite's default head-prepend placement.
 const VITE_HEAD_TAGS = '\n    <meta name="author" content="Leul Tewodros Agonafer">' +
@@ -174,25 +171,24 @@ describe('beasties critical CSS', () => {
   });
 });
 
-describe('first-paint font copies', () => {
-  it('copies the latin faces the shell renders under their own names, WOFF2 only', () => {
-    expect(fontFaceCopies(FONT_FACES, shellText(offlineRoot))).toBe(FONT_COPIES_CSS);
-    expect(fontFaceCopies(FONT_FACES, shellText(shellMarkup(indexHtml, 'online')))).toBe(FONT_COPIES_CSS);
+describe('first-paint fallback faces', () => {
+  it('cover every character of the shell text, including the house marks', () => {
+    for (const variant of ['offline', 'online'] as const) {
+      const text = shellText(shellMarkup(indexHtml, variant));
+      expect(text).toContain('Opening the collection…');
+      expect(text).toContain('Illustrated view · Lite mode');
+      expect([...new Set(text)].filter(char => char > '~').sort()).toEqual(['·', '…']);
+      expect(() => assertFallbackCoverage(shellCss, text)).not.toThrow();
+    }
   });
 
-  it('covers every character of the shell text, including the house marks', () => {
-    const text = shellText(offlineRoot);
-    expect(text).toContain('Opening the collection…');
-    expect(text).toContain('Illustrated view · Lite mode');
-    expect([...new Set(text)].filter(char => char > '~').sort()).toEqual(['·', '…']);
-  });
-
-  it('refuses faces it cannot copy faithfully', () => {
-    const text = shellText(offlineRoot);
-    expect(() => fontFaceCopies(FONT_FACES.replaceAll('Hanken Grotesk Variable', 'Other Sans'), text)).toThrow('no @font-face for "Hanken Grotesk Variable"');
-    expect(() => fontFaceCopies(FONT_FACES.replace('url(/assets/barlow-condensed-latin-700', 'url(barlow-condensed-latin-700'), text)).toThrow('needs a built /assets/ WOFF2 source');
-    expect(() => fontFaceCopies(FONT_FACES.replace('unicode-range:U+??,', 'unicode-range:U+20-7E,U+2DE0-2DFF,'), text)).toThrow('covers only part of the shell text');
-    expect(() => fontFaceCopies(FONT_FACES + FONT_FACES, text)).toThrow('same descriptors');
+  it('fail the build when the shell renders a character the fallback faces do not cover', () => {
+    expect(() => assertFallbackCoverage(shellCss, 'Less choosing — more playing')).toThrow(
+      "renders \"—\" (U+2014), which the fallback face 'P100 DF Impact' (unicode-range U+20-7E, U+B7, U+2026) does not cover",
+    );
+    expect(() => assertFallbackCoverage('@font-face { font-family: A; src: local("A"); unicode-range: U+41; }', 'AB')).toThrow('"B" (U+0042)');
+    expect(() => assertFallbackCoverage('@font-face { font-family: A; src: local("A"); }', 'anything — at all')).not.toThrow();
+    expect(() => assertFallbackCoverage('/* @font-face { unicode-range: U+41; } */ .a { color: red; }', 'A')).toThrow('declares no fallback faces');
   });
 });
 
@@ -204,7 +200,8 @@ describe('first-paint shell stylesheet', () => {
     expect(shell).not.toContain('/*');
     expect(shell).toContain('html[data-boot=landing] .first-paint-shell{display: contents}');
     expect(shell).toContain('.first-paint-shell > main{min-height: 100vh}');
-    expect(shell).toContain("font-family: 'Hanken Grotesk Variable','P100 Hanken Grotesk','P100 Sans Fallback','Segoe UI',sans-serif");
+    expect(shell).toContain("font-family: 'Hanken Grotesk Variable','P100 Sans Fallback','Segoe UI',sans-serif");
+    expect(shell).toContain("--display: 'Barlow Condensed','P100 DF Impact','P100 DF Arial',Impact,'Arial Narrow',sans-serif");
     expect(shell.match(/unicode-range: U\+20-7E,U\+B7,U\+2026\}/g)).toHaveLength(9);
     expect(() => assertInlineSafe('style', shell)).not.toThrow();
   });
@@ -227,7 +224,10 @@ describe('first-paint index.html', () => {
     expect(head.indexOf(`<script>${result.script}</script>`)).toBeLessThan(head.indexOf('<script type="module"'));
     expect(head.indexOf('<meta charset="UTF-8" />')).toBeLessThan(head.indexOf('<style>'));
     expect(result.script).toBe(stripBootScript(bootJs));
-    expect(result.style.startsWith(FONT_COPIES_CSS)).toBe(true);
+    // No web font face reaches the inline style; the only faces are shell.css's local fallbacks.
+    expect(result.style.slice(0, -minifyShellCss(shellCss).length)).not.toContain('@font-face');
+    expect(result.style).not.toMatch(/P100 Barlow Condensed|P100 Hanken Grotesk/);
+    expect(result.style.startsWith(':root{--ink:#20231e}')).toBe(true);
     expect(result.style).toContain('.site-header{display:flex}');
     expect(result.style).not.toContain('.game-card');
     expect(result.style.endsWith(minifyShellCss(shellCss))).toBe(true);

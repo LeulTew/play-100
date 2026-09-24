@@ -37,12 +37,6 @@ The development server always serves an empty `#root` (no shell, no boot script)
 
 In this order:
 
-- **Font copies.** The app's latin `@font-face` rules for Barlow Condensed and
-  Hanken Grotesk Variable, copied under the names `P100 Barlow Condensed` and
-  `P100 Hanken Grotesk`, WOFF2 only and without `unicode-range`. They load the
-  same built files as the app, so the shell starts the web-font downloads before
-  the full stylesheet arrives. The separate names keep `document.fonts.check()`
-  true for the real families.
 - **Critical app rules**, selected from the compiled entry stylesheet (Vite's
   emitted `assets/index-*.css`, never source CSS) by
   [beasties](https://github.com/danielroe/beasties) 0.5.4. Beasties receives the
@@ -58,7 +52,11 @@ In this order:
 - **[`src/first-paint/shell.css`](../src/first-paint/shell.css)**, minified: the
   metric-matched local fallback faces, the font stacks that add them, the rule
   that shows the shell, the artifact-caption state rules and the font probes. The
-  app never imports this file. `P100 DF Impact`, `P100 DF Arial` and
+  app never imports this file. The inline style declares no web font: the shell
+  paints only in these fallback faces, and Barlow Condensed and Hanken Grotesk
+  arrive with the full stylesheet and swap in without moving a line. The build
+  fails if the shell renders a character outside the faces' `unicode-range`.
+  `P100 DF Impact`, `P100 DF Arial` and
   `P100 Sans Fallback` are metric-adjusted aliases of widely installed local fonts
   (Impact, Arial and their Liberation or Arimo clones), not new typefaces; the
   design linter reports them as fonts outside DESIGN.md, which is expected.
@@ -109,7 +107,8 @@ error names the source to add.
   (`#root`, `body` or `html` with more than a bare type selector) are not kept.
 - Inlined CSS must use root-relative, `data:`, `https:` or fragment URLs.
 - Visible shell text follows the house marks (`…`, `·`, `—`). The fallback faces
-  cover every character the shell renders.
+  must cover every character the shell renders; the build refuses one they do not
+  (`—` is outside their ranges today, so adding it means extending them).
 
 [`tests/first-paint-shell.spec.ts`](../tests/first-paint-shell.spec.ts) checks a
 built preview in a real browser under the production CSP, for the build's header

@@ -14,8 +14,8 @@ import type { ShellVariant } from './shell-html.ts';
  * plugin runs after Vite has injected its tags and:
  *  - keeps the header variant this build renders (online tools configured or not);
  *  - inlines one <style> and the classic boot script (src/first-paint/boot.js) before the first
- *    head script. The style holds copies of the app's latin web-font faces under names of their
- *    own, the entry-stylesheet rules beasties selects for the shell, and src/first-paint/shell.css;
+ *    head script. The style holds the entry-stylesheet rules beasties selects for the shell and
+ *    src/first-paint/shell.css, whose metric-matched local faces are the only fonts it declares;
  *  - moves the entry stylesheet <link> from <head> to right after #root;
  *  - fails the build unless vercel.json allows the inline script by its exact hash (and, under a
  *    strict style-src, exactly the inline styles of both variants), and unless the <meta charset>
@@ -26,12 +26,6 @@ import type { ShellVariant } from './shell-html.ts';
  * pauses the parser on it). React therefore starts only after the complete stylesheet has
  * applied, while the shell can paint as soon as the document arrives.
  */
-
-/** The app's latin web-font faces that the shell loads under names of their own (shell.css). */
-export const FONT_COPIES: Readonly<Record<string, string>> = {
-  'Barlow Condensed': 'P100 Barlow Condensed',
-  'Hanken Grotesk Variable': 'P100 Hanken Grotesk',
-};
 
 /** Attributes and classes that differ between the static shell and React's first commit. */
 const SHELL_DIVERGENT_SELECTOR = /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot)\b|\.first-paint-shell\b/i;
@@ -93,7 +87,7 @@ export function beastiesOptions(logger: BeastiesLogger): BeastiesOptions {
   return {
     // The entry stylesheet arrives as an inline <style> of a throwaway document, so beasties never
     // touches a real <link> (no preload, onload handler or loader script for the CSP to allow),
-    // and web fonts are neither preloaded nor inlined: the shell adds its own font copies.
+    // and web fonts are neither preloaded nor inlined: they load with the full stylesheet.
     external: false,
     fonts: false,
     mergeStylesheets: true,
@@ -179,46 +173,25 @@ function unicodeRanges(value: string): Array<readonly [number, number]> {
 }
 
 /**
- * Copies of the entry stylesheet's @font-face rules for FONT_COPIES under their new names. Only
- * faces whose unicode-range covers the shell text are copied, as WOFF2 only and without the
- * range: each subset file holds just its own glyphs, so nothing that renders changes.
+ * The shell paints only in the metric-matched local faces of src/first-paint/shell.css (the web
+ * fonts arrive with the full stylesheet), so each of those faces must cover every character the
+ * shell renders: anything outside their unicode-range would paint in an unmatched system font and
+ * reflow when the web fonts swap in.
  */
-export function fontFaceCopies(appCss: string, text: string): string {
-  const codepoints = [...new Set(Array.from(text, char => char.codePointAt(0) ?? 0))];
-  const copies: string[] = [];
-  const faces = new Set<string>();
-  for (const match of appCss.matchAll(/@font-face\s*\{([^{}]*)\}/gi)) {
-    const list = declarations(match[1] ?? '');
-    const value = (name: string) => list.find(declaration => declaration.name === name)?.value;
-    const family = (value('font-family') ?? '').replace(/^(["'])(.*)\1$/, '$2');
-    const copy = Object.hasOwn(FONT_COPIES, family) ? FONT_COPIES[family] : undefined;
-    if (copy === undefined) continue;
-    const range = value('unicode-range');
-    if (range !== undefined) {
-      const ranges = unicodeRanges(range);
-      const covered = codepoints.filter(code => ranges.some(([from, to]) => code >= from && code <= to)).length;
-      if (!covered) continue;
-      if (covered !== codepoints.length) throw new Error(`@font-face "${family}" (${range}) covers only part of the shell text, so its first-paint copy cannot drop the range.`);
+export function assertFallbackCoverage(shellCss: string, text: string): void {
+  const codepoints = [...new Set(Array.from(text, char => char.codePointAt(0) ?? 0))].filter(code => code >= 0x20);
+  const faces = [...shellCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)].map(match => declarations(match[1] ?? ''));
+  if (!faces.length) throw new Error('src/first-paint/shell.css declares no fallback faces for the first-paint shell.');
+  for (const list of faces) {
+    const family = list.find(declaration => declaration.name === 'font-family')?.value ?? '(unnamed)';
+    const range = list.find(declaration => declaration.name === 'unicode-range')?.value;
+    if (range === undefined) continue;
+    const ranges = unicodeRanges(range);
+    const missing = codepoints.find(code => !ranges.some(([from, to]) => code >= from && code <= to));
+    if (missing !== undefined) {
+      throw new Error(`The first-paint shell renders "${String.fromCodePoint(missing)}" (U+${missing.toString(16).toUpperCase().padStart(4, '0')}), which the fallback face ${family} (unicode-range ${range}) does not cover; extend it in src/first-paint/shell.css.`);
     }
-    const face = [family, value('font-weight') ?? 'normal', value('font-style') ?? 'normal', value('font-stretch') ?? 'normal'].join('|');
-    if (faces.has(face)) throw new Error(`Two @font-face rules for "${family}" cover the shell text with the same descriptors.`);
-    faces.add(face);
-    const body = list.flatMap(({ name, value: declared }) => {
-      if (name === 'font-family') return [`font-family:'${copy}'`];
-      if (name === 'unicode-range' || (name === 'font-style' && declared === 'normal')) return [];
-      if (name !== 'src') return [`${name}:${declared}`];
-      const woff2 = splitTopLevel(declared).filter(source => /format\(\s*["']?woff2/i.test(source));
-      if (!woff2.length || woff2.some(source => !/^url\(\s*["']?\/assets\/[\w.-]+\.woff2["']?\s*\)/i.test(source))) {
-        throw new Error(`@font-face "${family}" needs a built /assets/ WOFF2 source for its first-paint copy: ${declared}`);
-      }
-      return [`src:${woff2.join(',')}`];
-    });
-    copies.push(`@font-face{${body.join(';')}}`);
   }
-  for (const family of Object.keys(FONT_COPIES)) {
-    if (![...faces].some(face => face.startsWith(`${family}|`))) throw new Error(`The entry stylesheet has no @font-face for "${family}" that covers the shell text.`);
-  }
-  return copies.join('');
 }
 
 export interface InlineShellInput {
@@ -260,7 +233,8 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
   html = html.replace(STYLESHEET_MARKER, links.map(({ tag }) => tag).join(''));
 
   assertShellNeutralCss(appCss);
-  const style = fontFaceCopies(appCss, shellText(root)) + await criticalAppCss(appCss, root) + minifyShellCss(input.shellCss);
+  assertFallbackCoverage(input.shellCss, shellText(root));
+  const style = await criticalAppCss(appCss, root) + minifyShellCss(input.shellCss);
   assertRootRelativeUrls(style);
   const script = stripBootScript(input.bootScript);
   assertInlineSafe('style', style);
