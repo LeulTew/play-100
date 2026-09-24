@@ -58,7 +58,7 @@ test('known no-art dense Library preview and Pin need no complete catalog reques
   await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(opener).toBeFocused();
-  await row.locator('.compare-drag-handle').click();
+  await row.getByRole('button', { name: `Pin for comparison: ${ownedTitle}`, exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Compare tray', exact: true })).toContainText(ownedTitle);
@@ -75,7 +75,7 @@ test('a validated manual Pin and preview do not request public metadata or gain 
   await singleLibrary(page, [manual]);
   const before = await readLibrary(page);
   const row = page.locator(`.personal-row-static[data-record-id="${manual.id}"]`);
-  await row.locator('.compare-drag-handle').click();
+  await row.getByRole('button', { name: `Pin for comparison: ${manual.title}`, exact: true }).click();
   await row.getByRole('button', { name: manual.title, exact: true }).click();
   await expect(page.getByRole('dialog', { name: manual.title, exact: true })).toBeVisible();
   await expect(page.locator('.catalog-detail-sleeve img')).toHaveCount(0);
@@ -91,7 +91,7 @@ for (const intent of ['preview', 'pin'] as const) {
     const row = page.locator(`.personal-row-static[data-record-id="${illustratedItem.record.id}"]`);
     if (intent === 'preview') await row.getByRole('button', { name: illustratedItem.record.title, exact: true }).click();
     else {
-      await row.locator('.compare-drag-handle').click();
+      await row.getByRole('button', { name: `Pin for comparison: ${illustratedItem.record.title}`, exact: true }).click();
       await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
     }
     const dialog = page.getByRole('dialog', { name: intent === 'preview' ? illustratedItem.record.title : 'Compare tray', exact: true });

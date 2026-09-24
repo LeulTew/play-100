@@ -16,7 +16,7 @@ test('a real emulator identity transition invalidates the guest Compare focus or
   if (typeof uid !== 'string') throw new Error('The isolated identity fixture was not created.');
   await installGuestLibrary(page, libraryFixture(3));
   const before = await readLibrary(page);
-  await page.locator('.personal-row-static').first().locator('.compare-drag-handle').click();
+  await page.locator('.personal-row-static').first().getByRole('button', { name: /^Pin for comparison: / }).and(page.locator('button[aria-pressed]')).click();
   const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
   const compare = page.getByRole('button', { name: 'Compare rankings with friends', exact: true });
   await compare.focus();
