@@ -63,8 +63,9 @@ export default defineConfig(({ mode }) => {
     assetsInlineLimit: 0,
   },
   test: {
-    // These files drive real Chromium through Playwright, so mirror Vitest's browser-mode budgets.
-    // Everything else keeps the Node defaults.
+    // Browser files each drive their own Chromium and Vite server.
+    // Run them one at a time after the parallel unit files.
+    // Their budgets mirror Vitest's browser mode.
     projects: [
       {
         test: {
@@ -77,6 +78,7 @@ export default defineConfig(({ mode }) => {
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
+          fileParallelism: false,
           testTimeout: 15_000,
           hookTimeout: 30_000,
         },
