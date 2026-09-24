@@ -440,7 +440,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     if (!user) throw new Error('Sign in before requesting verification.');
     if (user.emailVerified) {
       const next = await reconcileIdentity(user, true);
-      setMessage(next.verified ? 'Your email is verified and the sign-in token was refreshed.' : 'The signed-in session could not yet confirm verification. Use I verified my email to retry.');
+      setMessage(next.verified ? 'Your email is verified. You can continue with this account.' : 'The signed-in session could not yet confirm verification. Use I verified my email to retry.');
       return;
     }
     if (Date.now() < cooldown) throw new Error('Wait for the resend countdown before requesting another email.');
