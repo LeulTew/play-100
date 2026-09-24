@@ -1,9 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
+import { localGateOptions } from './scripts/playwright-env';
 
 export default defineConfig({
   testDir: './tests-cloud-ui',
   globalSetup: './tests-cloud-ui/global-setup.ts',
   fullyParallel: false,
+  forbidOnly: localGateOptions(process.env).forbidOnly,
   workers: 1,
   retries: 0,
   timeout: 90000,

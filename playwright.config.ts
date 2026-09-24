@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import { localGateOptions } from './scripts/playwright-env';
 
 const deployedUrl = process.env.PLAY100_BASE_URL;
 const developmentFixtures = process.env.PLAY100_TEST_BUILD === 'development';
+const gate = localGateOptions(process.env);
 // These fixtures import the app's live /src modules; a built preview cannot serve them.
 const sourceFixtureSpecs = [
   '**/library-pagination.spec.ts',
@@ -21,7 +23,7 @@ export default defineConfig({
   testMatch: developmentFixtures ? sourceFixtureSpecs : '**/*.spec.ts',
   testIgnore: developmentFixtures ? [] : sourceFixtureSpecs,
   fullyParallel: true,
-  forbidOnly: Boolean(process.env.CI),
+  forbidOnly: gate.forbidOnly,
   workers: process.env.CI ? 2 : 3,
   retries: 0,
   globalSetup: developmentFixtures ? './tests/dev-warmup.ts' : undefined,
@@ -43,7 +45,7 @@ export default defineConfig({
       ? 'npm run dev -- --port 4187 --strictPort'
       : 'npm run preview -- --port 4187 --strictPort',
     url: developmentFixtures ? 'http://127.0.0.1:4187/src/main.tsx' : 'http://127.0.0.1:4187',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: gate.reuseExistingServer,
     timeout: 120000,
   },
 });

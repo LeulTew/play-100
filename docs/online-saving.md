@@ -319,7 +319,9 @@ emulators, then run:
 npx playwright test --config playwright.cloud.config.ts
 ```
 
-Its global setup first runs `scripts/seed-cloud-emulators.mjs`, which writes the
+Its global setup first checks that 127.0.0.1:4187 serves the development server
+in `cloud-test` mode with emulators enabled, and refuses to run otherwise. It then
+runs `scripts/seed-cloud-emulators.mjs`, which writes the
 trusted `catalog/author` titles that rules require for collection entries. The
 seed script targets only the literal localhost demo endpoints; it never
 creates production users or public sample content. Emulator tests are not proof

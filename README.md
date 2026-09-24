@@ -287,6 +287,19 @@ Remove-Item Env:PLAY100_TEST_BUILD
 npm run test:cloud
 ```
 
+The Playwright configs fail closed without CI. `.only` is refused unless
+`PLAY100_ALLOW_ONLY=1`. `npm run test:e2e` starts its own preview (or
+development server) on 127.0.0.1:4187 and refuses to run when the port is
+already taken, rather than testing a stale server; stop that server yourself
+(nothing is killed) or opt in with `PLAY100_REUSE_SERVER=1` for local
+iteration only. Neither opt-in is honoured when `CI` is set, and release runs
+set neither. `PLAY100_TEST_BUILD=development` selects the source-fixture
+partition and `PLAY100_BASE_URL` targets a deployment without a local server.
+The cloud-UI suite uses the server you start (see
+[online saving](docs/online-saving.md)); its global setup refuses to run unless
+127.0.0.1:4187 is the Vite development server in `cloud-test` mode with
+emulators enabled.
+
 The explicitly Chrome-based mounted, native-zoom and H.264 film tests need an
 existing Chrome installation or
 `npx playwright install chrome` (which installs at the platform's default location).
