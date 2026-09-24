@@ -4,6 +4,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createAccount, emailFor, enableSync, password, readAccount, signIn, stopAutomaticSharing, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
+import { openBrowsingFilters } from '../tests/browsing-helpers';
 
 const kcd = 'wikidata:Q15408545';
 const title = 'Kingdom Come: Deliverance';
@@ -95,6 +96,8 @@ test('the real cold catalog is image-led, finds compact aliases without provider
   await expect(card(page).getByRole('link', { name: 'Image source', exact: true })).toHaveAttribute('href', /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
   await expect(card(page).getByRole('link', { name: 'Public domain', exact: true })).toHaveAttribute('href', 'https://creativecommons.org/publicdomain/mark/1.0/');
   await page.getByRole('button', { name: 'List view', exact: true }).click();
+  // ff2a699 collapses the browse filters at 760 px and below; desktop keeps them open, so this is a no-op there.
+  await openBrowsingFilters(page);
   await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption('wikidata');
   const original = page.url();
   await card(page).getByRole('button', { name: title, exact: true }).click();
