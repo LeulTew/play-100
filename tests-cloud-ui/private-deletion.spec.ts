@@ -214,6 +214,7 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
     const clientSource = '/src/cloud/firebase-client.ts';
     const module: typeof import('../src/cloud/cloud-store') = await import(storeSource);
     const client: typeof import('../src/cloud/firebase-client') = await import(clientSource);
+    await client.cloudAuth.authStateReady();
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic actor is not signed in.');
     const store = new module.CloudStore(client.cloudDb, uid);

@@ -118,7 +118,8 @@ test('restricted storage and a failed online fallback never hide valid seeded ma
     await expect(fresh.locator('.discovery-results-heading')).toContainText('catalog match');
     await fresh.getByLabel('Find a game', { exact: true }).fill('KCD');
     await expect(card(fresh)).toBeVisible();
-    expect(await fresh.evaluate(() => performance.getEntriesByType('resource').some(entry => /identitytoolkit|firestore\.googleapis|OnlineController-/.test(entry.name)))).toBe(false);
+    // Also match the emulator Firestore endpoint and the development-server module, not only production names.
+    expect(await fresh.evaluate(() => performance.getEntriesByType('resource').some(entry => /identitytoolkit|firestore\.googleapis|:8188\/|OnlineController(?:-[^/]+\.js|\.tsx)/.test(entry.name)))).toBe(false);
   } finally { await restricted.close(); }
   await page.route('**/api/catalog?**', route => route.fulfill({
     status: new URL(route.request().url()).searchParams.get('source') === 'wikidata' ? 429 : 503,

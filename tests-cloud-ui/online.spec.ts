@@ -91,7 +91,9 @@ test('remembered-account restoration never exposes an editable guest fallback wh
   const uid = await uidFor(request, email);
   let release: (() => void) | undefined;
   let intercepted = false;
-  await page.route('**/OnlineController-*.js', async (route) => {
+  // The cloud-UI server is the cloud-test development server; also accept a built chunk.
+  const onlineModule = /\/(?:src\/cloud\/OnlineController\.tsx|assets\/OnlineController-[^/]+\.js)(?:\?|$)/;
+  await page.route(onlineModule, async (route) => {
     intercepted = true;
     await new Promise<void>((resolve) => { release = resolve; });
     await route.continue();
@@ -110,5 +112,5 @@ test('remembered-account restoration never exposes an editable guest fallback wh
     await page.getByRole('spinbutton').fill('6.3'); await page.getByRole('spinbutton').press('Tab');
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score).toBe(6.3);
     expect((await readLibrary(page)).ranking[0]?.score).toBe(5);
-  } finally { release?.(); await page.unroute('**/OnlineController-*.js'); }
+  } finally { release?.(); await page.unroute(onlineModule); }
 });
