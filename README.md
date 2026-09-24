@@ -174,8 +174,9 @@ New public and selected-ranking publications reject source links longer than
 private library intact. The rules apply the same limit to new FreeToGame rows.
 Previously stored oversized public/selected-ranking rows remain readable;
 private-library and backup formats are unchanged. No truncation, backfill or
-data migration is required. This write-policy change requires a separately
-reviewed rules deployment before releasing the corresponding client.
+data migration is required. The rules half of this limit is already in the live
+270f rules, so it needs no separate rules release; the candidate follows the one
+[promotion order](docs/security-release-runbook.md#promotion-order).
 
 **All sharing** follows the complete account library, including future additions,
 up to its 10,000-game limit. Metadata and ranking scores use separate bounded

@@ -19,10 +19,28 @@ cloud emulator, e2e production and development, cloud-UI, `tsc`, lint, build,
 `check:csp`, `check:budgets`, and `npm audit` / `npm audit signatures` at install.
 The parent's Gitleaks full-history scan remains a pre-merge step.
 
-1. Preserve the published rules bytes/full SHA, deployment ID, current client
-   release and index readback. Add the verified owner UID to `_owner/config.uid`
-   before publishing UID-based creator rules; retain the old email field during
-   compatibility. Never infer an owner UID from an email match.
+This is the one authoritative order for the candidate: current client first,
+then candidate rules. There is no intermediate rules-only release. The
+2048-character publication source-link limit is already in the live 270f rules
+(`tests-cloud/fixtures/live-270f4c7/firestore.rules`, the same four checks as the
+candidate), so the candidate client's matching pre-write check only adds a clear
+error under either rules. New client under old rules is exercised by the
+`live-270f` runs of `tests-cloud/security-migration.test.ts`; old client under new
+rules is the [270f client matrix](#270f-client-under-current-rules) and the
+compatibility table in `security.md`. The parent executes every step in the
+Firebase and Vercel consoles; each names its readback.
+
+1. **Receipts.** Firebase console > Firestore > Rules: copy the published text to
+   a file and record its SHA-256 and the version timestamp shown in the rules
+   history. Compare the text with the archived 270f fixture (SHA-256 `971b0fe6...`,
+   below); if it differs, the live rules are not the baseline this order assumes,
+   so stop for review. Vercel > Deployments: record the current production deployment ID
+   and commit. Firestore > Indexes: record every composite index and
+   single-field exemption. Then Firestore > Data > `_owner/config`: add the string
+   field `uid` set to the verified owner UID from Authentication > Users; keep the
+   old `email` field during compatibility. Readback: reopen the document and
+   confirm both fields. Never infer an owner UID from an email match. This must
+   precede UID-based creator rules (step 6).
 2. Run the integrator's exact candidate types, lint, units, full demo rules,
    migration and UI suites. Keep failures, selector-filtered runs and source-only
    tests distinct. Record synthetic serializer size outputs; do not call them
@@ -30,14 +48,22 @@ The parent's Gitleaks full-history scan remains a pre-merge step.
 3. Inventory every ledger below and all orphan classes read-only. Record a zero
    when the result is zero. Classify legacy records explicitly and reserve their
    full schema envelopes in storage accounting. No implicit purge is authorized.
-4. Read back existing production indexes and exemptions. Deploy additive indexes
-   only, with explicit approval, and wait for **READY**. Never accept a CLI prompt
-   to remove existing indexes. Extra deployed indexes change storage accounting.
-5. Deploy and promote the current compatible client first. The old-rule window
-   intentionally pauses full deletion at the unsupported deletion-mode LIST;
-   it does not perform registry-only deletion and claim success.
-6. Publish reviewed candidate rules, then read back and hash the exact deployed
-   bytes. Record the client, rule and index versions together.
+4. **Indexes.** Compare the step 1 readback with the three query shapes below.
+   For each missing one, Firestore > Indexes > Composite > Create index, with the
+   table's collection ID, query scope **Collection** (not Collection group) and
+   exact field order. Add nothing else and delete nothing. Wait until every one
+   shows **Enabled** (READY). The STORAGE-02 single-field exemptions are not part
+   of this order unless separately accepted (next section). Never accept a CLI
+   prompt to remove existing indexes. Extra deployed indexes change storage accounting.
+5. **Client.** Vercel > Deployments: promote the reviewed production build of
+   the exact candidate commit. Readback: the production domain serves that
+   deployment ID and commit. The old-rule window intentionally pauses full
+   deletion at the unsupported deletion-mode LIST; it does not perform
+   registry-only deletion and claim success.
+6. **Rules.** Firestore > Rules: replace the editor text with the exact reviewed
+   candidate `firestore.rules` bytes and Publish. Readback: copy the published
+   text back, confirm its SHA-256 equals the candidate file, and record the new
+   version timestamp. Record the client, rule and index versions together.
 7. Run approved real Auth/online smoke on production after promotion. Preview
    and candidate origins are intentionally referrer-blocked by the web key.
    Synthetic local emulators remain the pre-promotion path, not a claim of
