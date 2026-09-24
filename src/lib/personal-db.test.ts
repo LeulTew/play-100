@@ -2,12 +2,13 @@ import { IDBFactory, IDBDatabase as FakeDatabase, IDBObjectStore as FakeObjectSt
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   closePersonalLibrary, commitPersonalAction, DB_NAME, DB_VERSION, loadPersonalLibrary,
-  resetPersonalLibrary, restorePersonalLibrary, STATE_KEY, STORE_NAME, subscribePersonalLibrary,
+  readOnlineLoadHint, resetPersonalLibrary, restorePersonalLibrary, STATE_KEY, STORE_NAME, subscribePersonalLibrary,
 } from './personal-db';
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from './personal-types';
 import { STORAGE_KEY } from './storage';
 import { motionHintKey } from './motion-hint';
+import { STORAGE_DENIED_MESSAGE } from './storage-notices';
 
 const a: LibraryRecord = {
   id: 'game-a', title: 'Game A', year: 2007, studio: null, genre: null,
@@ -554,10 +555,16 @@ describe('transactional actions and replacements', () => {
 });
 
 describe('connection lifecycle and local notifications', () => {
-  it('reports denied IndexedDB without clearing legacy data', async () => {
+  it.each(['SecurityError', 'NotAllowedError'])('reports the same %s denial for library and account hints without clearing legacy data', async name => {
     storage.setItem(STORAGE_KEY, legacy);
-    vi.spyOn(indexedDB, 'open').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError'); });
-    await expect(loadPersonalLibrary(canonical)).rejects.toThrow(/Device storage is blocked/);
+    const cause = new DOMException('Denied', name);
+    vi.spyOn(indexedDB, 'open').mockImplementation(() => { throw cause; });
+    const results = await Promise.allSettled([loadPersonalLibrary(canonical), readOnlineLoadHint('demo-play100')]);
+    for (const result of results) {
+      expect(result).toMatchObject({
+        status: 'rejected', reason: { name: 'PersonalLibraryStorageError', message: STORAGE_DENIED_MESSAGE, cause },
+      });
+    }
     expect(storage.getItem(STORAGE_KEY)).toBe(legacy);
   });
 

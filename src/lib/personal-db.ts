@@ -2,6 +2,7 @@ import { applyPersonalAction, emptyPersonalLibrary, migrateLegacyLibrary, parseP
 import type { LibraryRecord, PersonalAction, PersonalLibraryLoad, PersonalLibraryState } from './personal-types';
 import { STORAGE_KEY } from './storage';
 import { rememberMotionHint } from './motion-hint';
+import { STORAGE_DENIED_MESSAGE } from './storage-notices';
 
 export const DB_NAME = 'play100-personal';
 export const DB_VERSION = 2;
@@ -31,7 +32,7 @@ function storageError(cause: unknown): Error {
     return namedError('PersonalLibraryQuotaError', 'Device storage is full. Your changes were not saved. Free some space and try again.', cause);
   }
   if (name === 'SecurityError' || name === 'NotAllowedError') {
-    return namedError('PersonalLibraryStorageError', 'Device storage is blocked. Allow this site to use device storage and try again. Your saved library has not been overwritten.', cause);
+    return namedError('PersonalLibraryStorageError', STORAGE_DENIED_MESSAGE, cause);
   }
   if (name === 'VersionError') {
     return namedError('PersonalLibraryVersionError', 'A newer version of Play 100 is using this device library. Reload your Play 100 tabs before trying again. Your data has not been overwritten.', cause);

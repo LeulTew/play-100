@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 import { readLibrary } from './library-helpers';
+import { expectStorageDenial } from './storage-banner-helpers';
 
 const first = 'red-dead-redemption-2';
 const second = 'mass-effect-2';
@@ -253,11 +254,21 @@ test('IndexedDB denial is explicit and never claims a durable save', async ({ pa
     Object.defineProperty(window, 'indexedDB', { configurable: true, get: () => { throw new DOMException('IndexedDB denied', 'SecurityError'); } });
   });
   await page.goto('/');
-  await expect(page.locator('.storage-banner')).toContainText('this tab only');
+  const { banner, configured } = await expectStorageDenial(page);
+  await banner.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.locator('#settings-title')).toBeVisible();
+  await page.keyboard.press('Escape');
+  if (configured) {
+    await banner.getByRole('button', { name: 'Use this device only', exact: true }).click();
+    await expect(banner.getByRole('button', { name: 'Use this device only', exact: true })).toHaveCount(0);
+    await expect(banner).toHaveCount(1);
+    await expect(banner).toContainText('this tab only');
+  }
   await page.locator(`[data-game="${first}"] .save-game`).click();
   await expect(page.locator(`[data-game="${first}"] .save-game`)).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.toast')).toContainText('This tab only');
   await page.reload();
+  await expectStorageDenial(page);
   await expect(page.locator(`[data-game="${first}"] .save-game`)).toHaveAttribute('aria-pressed', 'false');
 });
 

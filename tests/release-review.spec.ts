@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readLibrary } from './library-helpers';
+import { expectStorageDenial } from './storage-banner-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -93,7 +94,12 @@ test('temporary user edits survive a later successful author-data retry', async 
   });
   await page.route('**/data/collection.json', (route) => route.fulfill({ status: 503, body: 'Temporarily unavailable' }));
   await page.goto('/discover');
-  await expect(page.locator('.storage-banner')).toContainText('this tab only');
+  const { banner, configured } = await expectStorageDenial(page);
+  if (configured) {
+    await banner.getByRole('button', { name: 'Use this device only', exact: true }).click();
+    await expect(banner.getByRole('button', { name: 'Use this device only', exact: true })).toHaveCount(0);
+    await expect(banner).toHaveCount(1);
+  }
   await page.getByText('Add a game manually', { exact: true }).click();
   await page.getByLabel('Game title', { exact: true }).fill('Temporary game to retain');
   await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
@@ -107,7 +113,10 @@ test('temporary user edits survive a later successful author-data retry', async 
   await page.locator('.saved-nav').click();
   await page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', { name: /^Library, \d+$/ }).click();
   await expect(page.getByRole('button', { name: 'Temporary game to retain', exact: true })).toBeVisible();
-  await expect(page.locator('.storage-banner')).toContainText('this tab only');
+  await expect(banner).toHaveCount(1);
+  await expect(banner).toHaveAttribute('role', 'alert');
+  await expect(banner).toContainText('this tab only');
+  expect((await banner.innerText()).match(/has not been overwritten/g)).toHaveLength(1);
 });
 
 test('visible game and navigation labels match their accessible names', async ({ page }) => {

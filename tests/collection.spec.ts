@@ -183,7 +183,8 @@ test('blocked and corrupt storage remain usable, explicit and non-destructive', 
     localStorage.setItem(storageKey, '{"this":"is not valid library data"}');
   }, key);
   await page.goto('/');
-  await expect(page.locator('.storage-banner')).toContainText('has not been overwritten');
+  await expect(page.locator('.storage-banner')).toHaveCount(1);
+  await expect(page.locator('.storage-banner')).toContainText('The original data has not been changed.');
   await page.locator(`${firstCard} .save-game`).click();
   await expect(page.locator(`${firstCard} .save-game`)).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)).toBe('{"this":"is not valid library data"}');

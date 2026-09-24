@@ -11,6 +11,7 @@ import type { DialogHostProps } from './DialogHost';
 import { TrayHost } from './TrayHost';
 import { CompareTrayContext } from '../compare-tray/compare-tray-context';
 import { discoveryFixture } from '../../lib/discovery-test-fixtures';
+import { STORAGE_DENIED_MESSAGE, temporaryLibraryWarning } from '../../lib/storage-notices';
 
 const dialogs = (): DialogHostProps => ({
   page: 'collection', game: null, catalog: null, loadingGame: false, canonicalError: null, missingGame: false,
@@ -25,6 +26,73 @@ const bannerProps = (): GlobalBannersProps => ({
 describe('app status host', () => {
   it('adds no wrapper or status when there is nothing to report', () => {
     expect(renderToStaticMarkup(createElement(GlobalBanners, bannerProps()))).toBe('');
+  });
+
+  it.each([false, true])('reports a storage denial once with every applicable action (account hint=%s)', accountHint => {
+    const props = {
+      ...bannerProps(), warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE),
+      hintError: accountHint ? STORAGE_DENIED_MESSAGE : '',
+    };
+    const html = renderToStaticMarkup(createElement(GlobalBanners, props));
+    expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
+    expect(html.match(/Device storage is blocked\./g)).toHaveLength(1);
+    expect(html.match(/Allow this site to use device storage and try again\./g)).toHaveLength(1);
+    expect(html.match(/Your saved data has not been overwritten or cleared\./g)).toHaveLength(1);
+    expect(html).not.toContain('Your existing saved data has not been overwritten.');
+    expect(html).not.toContain('Your libraries have not been cleared.');
+    expect(html.match(/Changes now work in this tab only; download a backup before closing it, or reset device data in Settings\./g)).toHaveLength(1);
+    expect(html.match(/>Settings</g)).toHaveLength(1);
+    for (const text of ['Open Account', 'Use this device only', 'Choose an account check or continue with this device explicitly.']) {
+      expect(html.split(text).length - 1).toBe(accountHint ? 1 : 0);
+    }
+    expect(props.onSettings).not.toHaveBeenCalled();
+    expect(props.onAccount).not.toHaveBeenCalled();
+    expect(props.onDeviceOnly).not.toHaveBeenCalled();
+  });
+
+  it('merges the same denial without inventing temporary mode and preserves additional fallback errors', () => {
+    for (const warning of [STORAGE_DENIED_MESSAGE, `${STORAGE_DENIED_MESSAGE} The legacy fallback also failed.`]) {
+      const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), warning, hintError: STORAGE_DENIED_MESSAGE }));
+      expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
+      expect(html).toContain(warning);
+      expect(html).not.toContain('Changes now work in this tab only');
+      expect(html).toContain('Settings');
+      expect(html).toContain('Open Account');
+      expect(html).toContain('Use this device only');
+    }
+  });
+
+  it('keeps an account-only denial actionable without repeating its reassurance', () => {
+    const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), hintError: STORAGE_DENIED_MESSAGE }));
+    expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
+    expect(html.match(/has not been overwritten/g)).toHaveLength(1);
+    expect(html).not.toContain('Your libraries have not been cleared.');
+    expect(html).toContain('Open Account');
+    expect(html).toContain('Use this device only');
+    expect(html).not.toContain('Changes now work in this tab only');
+  });
+
+  it.each([
+    { warning: 'Your saved data could not be parsed.', hintError: STORAGE_DENIED_MESSAGE },
+    { warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE), hintError: 'Device storage is blocked for a different account check.' },
+    { warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE), hintError: `${STORAGE_DENIED_MESSAGE} A separate account error also occurred.` },
+  ])('does not merge different diagnostics merely because they mention storage: %j', messages => {
+    const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), ...messages }));
+    expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(2);
+    expect(html).toContain(messages.warning);
+    expect(html).toContain(messages.hintError);
+  });
+
+  it('keeps configuration and offline conditions separate from a combined storage alert', () => {
+    const html = renderToStaticMarkup(createElement(GlobalBanners, {
+      ...bannerProps(), warning: temporaryLibraryWarning(STORAGE_DENIED_MESSAGE), hintError: STORAGE_DENIED_MESSAGE,
+      onlineConfigError: 'Configuration warning', offline: true,
+    }));
+    expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(2);
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+    expect(html.match(/Device storage is blocked\./g)).toHaveLength(1);
+    expect(html).toContain('Configuration warning');
+    expect(html).toContain('You are offline.');
   });
 
   it('preserves independent alert/status branches and their order', () => {

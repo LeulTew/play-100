@@ -6,6 +6,7 @@ import {
 import { applyPersonalAction, emptyPersonalLibrary, migrateLegacyLibrary } from '../lib/personal-library';
 import { STORAGE_KEY } from '../lib/storage';
 import { takeGuestLibraryLoad } from '../lib/guest-library-startup';
+import { temporaryLibraryWarning } from '../lib/storage-notices';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 
 interface Snapshot {
@@ -63,7 +64,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
       }
       publish({
         state: fallback, status: 'temporary', error: null,
-        warning: `${detail} Your existing saved data has not been overwritten. Changes now work in this tab only; download a backup before closing it, or reset device data in Settings.`,
+        warning: temporaryLibraryWarning(detail),
       });
     }).finally(() => {
       if (startupLoad.current === attempt) startupLoad.current = null;
