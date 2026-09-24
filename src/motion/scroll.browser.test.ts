@@ -3,6 +3,7 @@ import { chromium, expect as browserExpect } from '@playwright/test';
 import type { Browser } from '@playwright/test';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
+import { createFetchSafeViteServer } from '../lib/test-server-ports';
 
 declare global {
   interface Window {
@@ -73,7 +74,7 @@ let browser: Browser | undefined;
 let base: string;
 
 beforeAll(async () => {
-  server = await createServer({
+  server = (await createFetchSafeViteServer(() => createServer({
     configFile: false,
     root: process.cwd(),
     cacheDir: 'node_modules/.vite-motion-scroll-tests',
@@ -93,8 +94,7 @@ beforeAll(async () => {
       },
     }],
     server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
-  });
-  await server.listen();
+  }))).server;
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Motion scroll fixture did not bind a port.');
   base = `http://127.0.0.1:${address.port}`;

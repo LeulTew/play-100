@@ -4,6 +4,7 @@ import type { Browser } from '@playwright/test';
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
+import { createFetchSafeViteServer } from '../../lib/test-server-ports';
 
 declare global {
   interface Window { routeHostFixture: { routes: string[] } }
@@ -45,7 +46,7 @@ let browser: Browser | undefined;
 let origin: string;
 
 beforeAll(async () => {
-  server = await createServer({
+  server = (await createFetchSafeViteServer(() => createServer({
     configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-route-host-tests',
     logLevel: 'error', appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom', 'react-dom/client', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'] },
@@ -62,11 +63,10 @@ beforeAll(async () => {
       },
     }],
     server: { host: '127.0.0.1', port: 0, watch: null },
-  });
+  }))).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-route-host-tests$/);
   expect(server.config.server.watch).toBeNull();
-  await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Route host fixture did not bind a local port.');
   origin = `http://127.0.0.1:${address.port}`;

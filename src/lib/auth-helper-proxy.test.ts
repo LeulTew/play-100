@@ -2,6 +2,7 @@ import { ServerResponse, createServer } from 'node:http';
 import type { Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler, { AUTH_HELPER_MAX_BYTES, AUTH_HELPER_TIMEOUT_MS, AUTH_HELPER_UPSTREAM, authHelperCsp } from '../../api/auth-helper';
+import { listenOnFetchSafePort } from './test-server-ports';
 
 // Synthetic templates with the same structural markers as the captured Firebase helpers; not Google's bytes.
 const HANDLER = '<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>Synthetic handler</title>\n'
@@ -23,7 +24,7 @@ let server: Server;
 let base = '';
 beforeEach(async () => {
   server = createServer((request, response) => { void handler(request, response); });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await listenOnFetchSafePort(server);
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Missing auth helper test server address');
   base = `http://127.0.0.1:${address.port}`;
@@ -231,7 +232,7 @@ describe('fresh-nonce Firebase Auth helper function', () => {
   it('aborts the held upstream when the client disconnects and writes nothing', async () => {
     let handled: Promise<void> | undefined;
     const local = createServer((request, response) => { handled = handler(request, response); });
-    await new Promise<void>((resolve) => local.listen(0, '127.0.0.1', resolve));
+    await listenOnFetchSafePort(local);
     const address = local.address();
     if (!address || typeof address === 'string') throw new Error('Missing auth helper test server address');
     let upstreamSignal: AbortSignal | undefined;

@@ -5,6 +5,7 @@ import type { Browser, BrowserContext, BrowserServer, CDPSession, Locator, Page 
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
+import { createFetchSafeViteServer } from '../../lib/test-server-ports';
 import { COMPARE_DRAG_TYPE } from '../../lib/compare-tray';
 import type { MotionCancelReason } from '../../motion';
 
@@ -160,7 +161,7 @@ const receiptPath = process.env.PLAY100_COMPARE_FIXTURE_RECEIPT;
 beforeAll(async () => {
   const port = Number(process.env.PLAY100_COMPARE_FIXTURE_PORT ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('The Compare fixture port is invalid.');
-  server = await createServer({
+  server = (await createFetchSafeViteServer(() => createServer({
     configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-compare-tests',
     logLevel: 'error', appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
@@ -180,11 +181,10 @@ beforeAll(async () => {
       },
     ],
     server: { host: '127.0.0.1', port, strictPort: true, watch: null },
-  });
+  }))).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-compare-tests$/);
   expect(server.config.server.watch).toBeNull();
-  await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Compare fixture did not bind an owned local port.');
   origin = `http://127.0.0.1:${address.port}`;

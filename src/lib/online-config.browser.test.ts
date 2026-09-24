@@ -1,5 +1,6 @@
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
+import { createFetchSafeViteServer } from './test-server-ports';
 import { chromium } from '@playwright/test';
 import type { Browser, Page } from '@playwright/test';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -8,7 +9,7 @@ let server: ViteDevServer | undefined;
 let browser: Browser | undefined;
 
 beforeAll(async () => {
-  server = await createServer({
+  server = (await createFetchSafeViteServer(() => createServer({
     mode: 'cloud-test',
     cacheDir: 'node_modules/.vite-online-config-tests',
     server: { host: '127.0.0.1', port: 0 },
@@ -23,8 +24,7 @@ beforeAll(async () => {
       'import.meta.env.VITE_USE_FIREBASE_EMULATORS': JSON.stringify('false'),
       'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify('invalid-config-fixture'),
     },
-  });
-  await server.listen();
+  }))).server;
   browser = await chromium.launch({ headless: true });
 }, 60_000);
 

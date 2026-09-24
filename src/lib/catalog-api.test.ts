@@ -2,6 +2,7 @@ import { ServerResponse, createServer } from 'node:http';
 import type { Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../api/catalog';
+import { listenOnFetchSafePort } from './test-server-ports';
 
 const nativeFetch = globalThis.fetch;
 const JSON_TYPE = { 'content-type': 'application/json; charset=utf-8' };
@@ -9,7 +10,7 @@ let server: Server;
 let base = '';
 beforeEach(async () => {
   server = createServer((request, response) => { void handler(request, response); });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await listenOnFetchSafePort(server);
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Missing catalog test server address');
   base = `http://127.0.0.1:${address.port}`;
@@ -133,7 +134,7 @@ describe('same-origin catalog API boundary', () => {
   it('aborts the held upstream search when the client disconnects and writes nothing to the closed response', async () => {
     let handled: Promise<void> | undefined;
     const local = createServer((request, response) => { handled = handler(request, response); });
-    await new Promise<void>((resolve) => local.listen(0, '127.0.0.1', resolve));
+    await listenOnFetchSafePort(local);
     const address = local.address();
     if (!address || typeof address === 'string') throw new Error('Missing catalog test server address');
     let upstreamSignal: AbortSignal | undefined;

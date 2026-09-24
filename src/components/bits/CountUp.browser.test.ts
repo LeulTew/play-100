@@ -3,6 +3,7 @@ import { chromium, expect as browserExpect } from '@playwright/test';
 import type { Browser, BrowserContext, BrowserServer, Page } from '@playwright/test';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
+import { createFetchSafeViteServer } from '../../lib/test-server-ports';
 import react from '@vitejs/plugin-react';
 import { writeFile } from 'node:fs/promises';
 import type { MotionPreference } from '../../lib/types';
@@ -67,7 +68,7 @@ const receiptPath = process.env.PLAY100_COUNTER_FIXTURE_RECEIPT;
 const headed = process.env.PLAY100_COUNTER_HEADED === 'true';
 
 beforeAll(async () => {
-  server = await createServer({
+  server = (await createFetchSafeViteServer(() => createServer({
     configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-countup-tests',
     logLevel: 'error', appType: 'custom', optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
     plugins: [react(), {
@@ -83,11 +84,10 @@ beforeAll(async () => {
       },
     }],
     server: { host: '127.0.0.1', port: 4204, strictPort: true, watch: null },
-  });
+  }))).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-countup-tests$/);
   expect(server.config.server.watch).toBeNull();
-  await server.listen();
   origin = 'http://127.0.0.1:4204';
   browserServer = await chromium.launchServer({ channel: 'chrome', headless: !headed });
   browser = await chromium.connect(browserServer.wsEndpoint());

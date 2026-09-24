@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { listenOnFetchSafePort } from './test-server-ports';
 
 const nativeFetch = globalThis.fetch;
 let server: Server;
@@ -19,7 +20,7 @@ beforeEach(async () => {
   vi.resetModules();
   const { default: handler } = await import('../../api/catalog-detail');
   server = createServer((request, response) => { void handler(request, response); });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  await listenOnFetchSafePort(server);
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Missing test API address.');
   base = `http://127.0.0.1:${address.port}`;

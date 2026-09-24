@@ -5,6 +5,7 @@ import AxeBuilder from '@axe-core/playwright';
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
+import { createFetchSafeViteServer } from '../../lib/test-server-ports';
 import { generateAvatarDataUri } from '../../lib/avatar';
 import type { AvatarDescriptor } from '../../lib/avatar';
 
@@ -82,7 +83,7 @@ let errors: string[];
 let externalRequests: string[];
 
 beforeAll(async () => {
-  server = await createServer({
+  server = (await createFetchSafeViteServer(() => createServer({
     configFile: false,
     root: process.cwd(),
     cacheDir: 'node_modules/.vite-avatar-tests',
@@ -105,11 +106,10 @@ beforeAll(async () => {
       },
     ],
     server: { host: '127.0.0.1', port: 0, strictPort: true, watch: null },
-  });
+  }))).server;
   expect(server.config.optimizeDeps.noDiscovery).toBe(true);
   expect(server.config.cacheDir).toMatch(/[\\/]node_modules[\\/]\.vite-avatar-tests$/);
   expect(server.config.server.watch).toBeNull();
-  await server.listen();
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Avatar test server did not bind a local port.');
   origin = `http://127.0.0.1:${address.port}`;
