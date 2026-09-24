@@ -104,6 +104,10 @@ async function expectOneWrite(page: Page, revision: number) {
 test.beforeEach(async ({ context, page, baseURL }) => {
   const origin = new URL(baseURL!);
   expect(['localhost', '127.0.0.1']).toContain(origin.hostname);
+  const document = await page.request.get('/');
+  expect(document.ok()).toBe(true);
+  test.skip((await document.text()).includes('site-header-online'),
+    'Offline root-navigation characterization; configured account/scope behavior is outside this spec.');
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin.origin) return route.abort('blockedbyclient');
