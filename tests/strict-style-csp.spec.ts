@@ -79,16 +79,28 @@ test('landing dialogs, detail and the collection scene run under the production 
   expect(await violations.read()).toEqual([]);
   expect(errors).toEqual([]);
 });
-/** Every rendered element's box and resolved styles: a style a policy blocked would change one of them. */
-const layout = (page: Page) => page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('body *'))
-  .filter(element => element.getClientRects().length > 0)
-  .map(element => {
-    const box = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    const properties = ['display', 'position', 'color', 'background-color', 'background-image', 'font-family', 'font-size',
-      'font-weight', 'line-height', 'opacity', 'transform', 'visibility', 'border-top-width', 'box-shadow', 'z-index'];
-    return `${element.tagName}.${element.className} ${[box.x, box.y + scrollY, box.width, box.height].map(value => value.toFixed(1)).join(',')} ${properties.map(name => style.getPropertyValue(name)).join('|')}`;
-  }));
+/**
+ * Every rendered element's box and resolved styles: a style a policy blocked would change one of them.
+ * A `loading="lazy"` image loads whenever the network and viewport distance allow, independently in each
+ * tab, so its box is left out on both sides (its resolved styles still count). Every other image is
+ * loaded and decoded first. The lazy images are absolutely positioned in fixed aspect-ratio frames, so
+ * no other box depends on them.
+ */
+const layout = async (page: Page) => {
+  await page.evaluate(() => Promise.all(Array.from(document.images).filter(image => image.loading !== 'lazy')
+    .map(image => image.decode().catch(() => undefined))));
+  return page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('body *'))
+    .filter(element => element.getClientRects().length > 0)
+    .map(element => {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const properties = ['display', 'position', 'color', 'background-color', 'background-image', 'font-family', 'font-size',
+        'font-weight', 'line-height', 'opacity', 'transform', 'visibility', 'border-top-width', 'box-shadow', 'z-index'];
+      const geometry = element instanceof HTMLImageElement && element.loading === 'lazy' ? 'lazy image'
+        : [box.x, box.y + scrollY, box.width, box.height].map(value => value.toFixed(1)).join(',');
+      return `${element.tagName}.${element.className} ${geometry} ${properties.map(name => style.getPropertyValue(name)).join('|')}`;
+    }));
+};
 
 test('main routes lay out identically under the legacy and strict style-src', async ({ context, baseURL }, info) => {
   test.skip(deployed, 'Needs both policies on one build; a deployment serves only its own header.');
