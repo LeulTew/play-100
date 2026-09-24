@@ -46,6 +46,7 @@ import { PublishPage } from './PublishPage';
 import { CreatorPage } from './CreatorPage';
 import { useFriendSharing } from './useFriendSharing';
 import { useFriendAll } from './useFriendAll';
+import { friendSharingView } from '../lib/friend-all';
 import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { FriendComparisonPage } from './FriendComparisonPage';
 import { FriendDetailPage, FriendSharingPage, InvitationPage } from './FriendPages';
@@ -364,6 +365,8 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     return () => { alive = false; };
   }, [uid, identity?.verified, friendIdentityReady, friends.store, memberName, memberAvatar]);
   const canEnableAll = 'canEnable' in automatic.eligibility && automatic.eligibility.canEnable;
+  const sharingView = friendSharingView({ controlsAll: automatic.controlsAll, connected: Boolean(identity?.verified && account.snapshot?.sync.enabled),
+    ready: automatic.ready, eligibility: automatic.eligibility });
   const hasIdentity = Boolean(identity);
   const automaticSummary = useMemo(() => hasIdentity ? <FriendSharingSummary mode={automatic.eligibility.kind} status={automatic.status}
     canEnable={canEnableAll} enabled={Boolean(automatic.policy?.enabled)} error={automatic.error}
@@ -748,7 +751,9 @@ export default function OnlineController({ page, publicHandle, invitation, showS
           sharedGames={<FriendSharedGames key={`${uid}:${location.pathname}:${authSessionEpoch.current}`} uid={identity.uid} peer={location.pathname.split('/')[2] ?? ''} authGeneration={authSessionEpoch.current} verified={identity.verified} store={shelf.store} friends={friends.store} games={games} library={activeController} onOpen={onOpenRecord} onPin={onPinRecord} artwork={artwork} />} /> :
         (page === 'compare' || page === 'friend-sharing' || page === 'friend-shelf') && !games.length ? <div className="page-loading" role="status"><h1>Loading games…</h1><p>Retry the collection download if this does not finish.</p><button className="text-button" onClick={() => onNavigate('collection')}>Open collection</button></div> :
         page === 'compare' && friendIdentity ? <FriendComparisonPage key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`} store={friends.store} uid={identity.uid} identity={friendIdentity} ownState={activeController.state} games={games} onOpen={onOpenRecord} onFriends={() => onNavigate('friends')} /> :
-        (page === 'friend-sharing' || page === 'friend-shelf') && automatic.controlsAll ? <section className="app-page"><h1 data-page-heading tabIndex={-1}>Shared with friends</h1>{automaticSummary}<button className="text-button" onClick={() => onNavigate('friends')}>Friends</button></section> :
+        (page === 'friend-sharing' || page === 'friend-shelf') && sharingView === 'automatic' ? <section className="app-page"><h1 data-page-heading tabIndex={-1}>Shared with friends</h1>{automaticSummary}<button className="text-button" onClick={() => onNavigate('friends')}>Friends</button></section> :
+        (page === 'friend-sharing' || page === 'friend-shelf') && sharingView === 'checking' ? <section className="app-page" aria-busy="true"><h1 data-page-heading tabIndex={-1}>{page === 'friend-shelf' ? 'Shared games' : 'Friends sharing'}</h1>
+          <FriendSharingSummary mode="checking" status={automatic.status} canEnable={false} enabled={false} error={automatic.error} onEnable={automatic.enable} onStop={automatic.stopSharing} onRefresh={automatic.refresh} /></section> :
         page === 'friend-sharing' && friendIdentity ? <FriendSharingPage key={uid} store={friends.store} identity={friendIdentity} settings={friends.settings} ownState={account.snapshot?.state ?? emptyPersonalLibrary()} connected={Boolean(account.snapshot?.sync.enabled)} games={games} onSettings={friends.acceptSettings} onAccount={() => onNavigate('account')} status={friends.status} error={friends.error} /> :
         page === 'friend-shelf' && friendIdentity ? <section className="app-page shared-games-page"><div className="page-heading"><h1 data-page-heading tabIndex={-1}>Shared games</h1><button className="text-button" onClick={() => onNavigate('account')}>Account</button></div>
           <FriendShelfEditor key={`${scope}:${authSessionEpoch.current}`} state={account.snapshot?.state ?? emptyPersonalLibrary()} games={games} config={shelf.config} identity={friendIdentity}

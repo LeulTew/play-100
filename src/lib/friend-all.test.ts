@@ -3,8 +3,8 @@ import { emptyPersonalLibrary } from './personal-library';
 import type { PersonalLibraryState } from './personal-types';
 import type { FriendSettings } from './friend-types';
 import type { FriendShelfConfig } from './friend-shelf-types';
-import type { FriendAllFacts, FriendAllPolicy } from './friend-all';
-import { friendAllEligibility, parseFriendAllRankingEntry, planFriendAllChanges, projectAllFriendGames, projectAllFriendRankings } from './friend-all';
+import type { FriendAllEligibility, FriendAllFacts, FriendAllPolicy } from './friend-all';
+import { friendAllEligibility, friendSharingView, parseFriendAllRankingEntry, planFriendAllChanges, projectAllFriendGames, projectAllFriendRankings } from './friend-all';
 import { compareFriendRankings } from './friend-comparison';
 import type { ComparisonParticipant } from './friend-comparison';
 
@@ -78,6 +78,24 @@ describe('versioned all-account sharing eligibility', () => {
     expect(() => friendAllEligibility(facts({ ranking, shelf, policy: { ...policy, uid: 'account-b' } }))).toThrow('another account');
     expect(friendAllEligibility(facts({ uid: 'account-b', ranking, shelf, policy })).kind).toBe('paused');
     expect(friendAllEligibility(facts({ scope: 'account:play100-online-48823b32:account-a', ranking, shelf, policy })).kind).toBe('paused');
+  });
+});
+
+describe('friends sharing page view', () => {
+  const settled: FriendAllEligibility[] = [
+    { kind: 'legacy', reason: 'existing-choice', canEnable: true }, { kind: 'off', canEnable: true },
+    { kind: 'paused', reason: 'saving', canEnable: false }, { kind: 'revoked', canEnable: false },
+  ];
+  it('never renders the selected-sharing editors for a connected account until automatic sharing settles', () => {
+    expect(friendSharingView({ controlsAll: false, connected: true, ready: false, eligibility: { kind: 'checking' } })).toBe('checking');
+    expect(friendSharingView({ controlsAll: false, connected: true, ready: true, eligibility: { kind: 'default', canEnable: true } })).toBe('checking');
+    for (const eligibility of settled) expect(friendSharingView({ controlsAll: false, connected: true, ready: true, eligibility })).toBe('selected');
+    expect(friendSharingView({ controlsAll: true, connected: true, ready: false, eligibility: { kind: 'checking' } })).toBe('automatic');
+    expect(friendSharingView({ controlsAll: true, connected: true, ready: true, eligibility: { kind: 'all', canEnable: false } })).toBe('automatic');
+  });
+  it('keeps the non-interactive selected pages for accounts that cannot share yet', () => {
+    expect(friendSharingView({ controlsAll: false, connected: false, ready: false, eligibility: { kind: 'checking' } })).toBe('selected');
+    expect(friendSharingView({ controlsAll: false, connected: false, ready: true, eligibility: { kind: 'paused', reason: 'verification', canEnable: false } })).toBe('selected');
   });
 });
 

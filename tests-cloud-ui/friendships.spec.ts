@@ -24,6 +24,8 @@ async function inviteFrom(page: Page): Promise<string> {
 }
 async function enableSelectedSharing(page: Page) {
   await page.goto('/friends/sharing');
+  // The selected editor appears only after automatic sharing settles as off; the route and checking states share its title.
+  await expect(page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friends sharing', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Select all', exact: true }).click();
   await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Red Dead Redemption 2');
@@ -129,6 +131,7 @@ test('revoked invites show no inviter snapshot and a cancelled sharing preview d
     await expect(visitor.getByRole('heading', { name: 'QA Invite Owner', exact: true })).toHaveCount(0);
   } finally { await context.close(); }
   await page.goto('/friends/sharing');
+  await expect(page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friends sharing', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Select all', exact: true }).click();
   await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();
   await page.getByRole('button', { name: 'Keep editing', exact: true }).click();

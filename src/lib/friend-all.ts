@@ -83,6 +83,17 @@ export function friendAllEligibility(facts: FriendAllFacts): FriendAllEligibilit
   return { kind: 'all', canEnable: false };
 }
 
+export type FriendSharingView = 'automatic' | 'checking' | 'selected';
+/**
+ * Chooses the /friends/sharing and /friends/sharing/games view. The selected-sharing editors never render for a
+ * connected account while automatic sharing is still checking or setting up its default, so no legacy preview can start.
+ */
+export function friendSharingView(input: { controlsAll: boolean; connected: boolean; ready: boolean; eligibility: FriendAllEligibility }): FriendSharingView {
+  if (input.controlsAll) return 'automatic';
+  if (input.connected && (!input.ready || input.eligibility.kind === 'checking' || input.eligibility.kind === 'default')) return 'checking';
+  return 'selected';
+}
+
 export function parseFriendAllRankingEntry(value: unknown): PublicEntry {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new FriendAllValidationError('The shared ranking entry is unreadable.');
   const row = value as Record<string, unknown>;
