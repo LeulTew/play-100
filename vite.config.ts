@@ -6,6 +6,7 @@ import catalogHandler from './api/catalog.ts';
 import catalogDetailHandler from './api/catalog-detail.ts';
 import { play100Pwa } from './scripts/pwa-build.ts';
 import { publicMetadataHtml } from './scripts/public-metadata.ts';
+import { firstPaintShell, firstPaintVariant } from './scripts/first-paint/plugin.ts';
 import author from './author.json' with { type: 'json' };
 import { readFirebaseConfiguration } from './src/lib/online-config.ts';
 
@@ -56,6 +57,9 @@ export default defineConfig(({ mode }) => {
         };
       },
     },
+    // The header React's first commit renders, or no shell when that commit shows the online
+    // configuration banner (cloud-test builds only; other modes throw above).
+    firstPaintShell({ variant: firstPaintVariant(mode, environment.VITE_USE_FIREBASE_EMULATORS, online) }),
   ],
   build: {
     target: 'es2022',

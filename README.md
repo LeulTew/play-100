@@ -266,6 +266,7 @@ npm run typecheck:functions
 npm test -- --maxWorkers=1
 npm run build
 npm run check:budgets -- --json budget-report.json
+npm run check:csp
 npm run validate:data
 npm run validate:discovery
 npm run test:e2e
@@ -297,6 +298,10 @@ They may be linked only by the offline document or the app's `noscript` fallback
 not active app documents, chunk dependencies or CSS imports. Combined CSS
 totals remain visible. HTML bytes, including active inline critical CSS, are
 reported separately rather than changing the emitted-CSS baseline series.
+`check:csp` also reads the existing `dist`: every built document must work under
+the `vercel.json` main-document policy, including the
+[first-paint shell](docs/first-paint-shell.md) boot script by its exact hash, and
+`pwa-assets.json` must embed that same policy. It prints each inline block's hash.
 The PWA browser spec checks explicit preparation and
 offline local routes in isolated contexts, not OS installation or update races.
 See [the remaining manual PWA release checks](docs/pwa.md#manual-release-checks).

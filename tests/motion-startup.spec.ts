@@ -68,7 +68,9 @@ for (const scenario of [
       IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
         const request = open.apply(this, args);
         if (args[0] === name && held) {
-          window.guestReadStartedBeforeRender = !document.getElementById('root')?.hasChildNodes();
+          // index.html's static first-paint shell is not a React render; createRoot() replaces it.
+          const root = document.getElementById('root');
+          window.guestReadStartedBeforeRender = root !== null && Array.from(root.childNodes).every(node => node instanceof Element && node.classList.contains('first-paint-shell'));
           request.addEventListener('success', event => {
             if (!held) return;
             event.stopImmediatePropagation();

@@ -63,11 +63,13 @@ test('all declared fonts and page resources load without console or CSP errors',
   });
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
-  const fonts = await page.evaluate(async () => {
-    await Promise.all([...document.fonts].map((face) => face.load()));
+  // The first-paint shell's metric-matched fallbacks are local() fonts, which may be absent (Impact on Linux).
+  const fonts = await page.evaluate(async (localOnly) => {
+    const faces = [...document.fonts].filter((face) => !localOnly.includes(face.family.replace(/^["']|["']$/g, '')));
+    await Promise.all(faces.map((face) => face.load()));
     await document.fonts.ready;
-    return [...document.fonts].map((face) => ({ family: face.family, status: face.status }));
-  });
+    return faces.map((face) => ({ family: face.family, status: face.status }));
+  }, ['P100 DF Impact', 'P100 DF Arial', 'P100 Sans Fallback']);
   expect(fonts.every((font) => font.status === 'loaded')).toBe(true);
   await page.locator(`${firstCard} .game-link`).click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: firstTitle, exact: true })).toBeVisible();

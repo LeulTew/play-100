@@ -1,0 +1,97 @@
+/*
+ * Static first-paint shell (docs/first-paint-shell.md).
+ *
+ * The build minifies this file and appends it to the inline <style> of index.html, after the
+ * app rules beasties keeps for the shell and the renamed web-font faces
+ * (scripts/first-paint/plugin.ts). The app never imports it, so the shipped app stylesheet is
+ * unchanged.
+ *
+ * Metric-matched fallback faces
+ * -----------------------------
+ * The shell paints before any web font arrives. These faces scale widely installed local fonts
+ * so that swapping to Barlow Condensed and Hanken Grotesk never changes a line break, and the
+ * boot script shows the shell only after it has measured them (see the .p100-probe rules).
+ *
+ * Derivation (one-off, outside the repository): advance widths plus GPOS kerning were read
+ * from the real font files (@fontsource/barlow-condensed latin 700/800 woff2,
+ * @fontsource-variable/hanken-grotesk latin woff2 through its HVAR table at the listed wght,
+ * and Windows arial.ttf, arialbd.ttf and impact.ttf). size-adjust is the ratio of the web
+ * font's summed advance to the local font's over the strings that face renders in the shell:
+ *   800 display  "GREAT ESCAPES."                  (+1.5% on purpose, see below)
+ *   700 display  "Opening the collection…"         (fitted with three periods)
+ *   400 sans     hero copy, footnote, loading copy, artifact status
+ *   550 sans     desktop navigation labels
+ *   600 sans     "Play later", "Menu", mobile navigation labels
+ *   650 sans     "Explore all 100", "Pick for me", "Account"
+ *   700 sans     "GOOD THINGS, COLLECTED.", "Fan out"
+ * Each override is the web font's metric divided by (units per em x size-adjust), because
+ * size-adjust also scales the overrides. Web metrics (ascent/descent/line gap per 1000 units):
+ * Barlow Condensed 1000/200/0 and Hanken Grotesk 1000/303/0, so line boxes match exactly.
+ * The ranges cover the shell's characters, including the middle dot and the ellipsis (U+2026),
+ * which renders in the same scaled face rather than an unscaled system font.
+ * A greedy and text-wrap:balance line-break simulation of every shell string at widths 320 to
+ * 1920 found no break that differs, and no horizontal header movement of 3px or more; the
+ * browser check in tests/first-paint-shell.spec.ts measures the shipped strings.
+ *
+ * The 800 display faces are 1.5% wider than Barlow Condensed 800 on purpose: React's h1 then
+ * never paints larger than the shell's h1, so it cannot become a later LCP candidate.
+ * Impact is preferred (Windows, macOS); Arial Bold metric clones cover Linux and ChromeOS.
+ * No font-display: local() faces load synchronously on desktop engines, and where they do not
+ * (Android) the probes fail and the shell stays hidden.
+ */
+@font-face { font-family: 'P100 DF Impact'; src: local("Impact"); font-weight: 800; size-adjust: 98.19%; ascent-override: 101.84%; descent-override: 20.37%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 DF Impact'; src: local("Impact"); font-weight: 700; size-adjust: 88.52%; ascent-override: 112.97%; descent-override: 22.59%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 DF Arial'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 800; size-adjust: 69.58%; ascent-override: 143.72%; descent-override: 28.74%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 DF Arial'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 700; size-adjust: 74.97%; ascent-override: 133.39%; descent-override: 26.68%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Fallback'; src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo"), local("Arimo-Regular"); font-weight: 400; size-adjust: 100.46%; ascent-override: 99.54%; descent-override: 30.16%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Fallback'; src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo"), local("Arimo-Regular"); font-weight: 550; size-adjust: 99.45%; ascent-override: 100.55%; descent-override: 30.47%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Fallback'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 600; size-adjust: 95.26%; ascent-override: 104.98%; descent-override: 31.81%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Fallback'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 650; size-adjust: 95.49%; ascent-override: 104.72%; descent-override: 31.73%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Fallback'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 700; size-adjust: 92.87%; ascent-override: 107.68%; descent-override: 32.63%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+
+/*
+ * Kept after React mounts on purpose: these stacks only add fonts between each web font and the
+ * app's own fallbacks (styles.css :root), so text that renders before a web font finishes loading
+ * uses the same metrics in the shell and in the app. Specificity (0,1,1) beats the app's :root.
+ *
+ * 'P100 Barlow Condensed' and 'P100 Hanken Grotesk' are the app's own latin faces (same files,
+ * same descriptors), copied under new names by the build. Until the full stylesheet arrives the
+ * original families have no @font-face, so the shell loads the copies. Afterwards the original
+ * faces load the same files from the cache and, while they do, the engine skips them and keeps
+ * using the loaded copies: the glyphs never change. The new names keep document.fonts.check()
+ * for the real families true on routes that never use the copies.
+ */
+html[data-boot=landing] {
+  font-family: 'Hanken Grotesk Variable', 'P100 Hanken Grotesk', 'P100 Sans Fallback', 'Segoe UI', sans-serif;
+  --display: 'Barlow Condensed', 'P100 Barlow Condensed', 'P100 DF Impact', 'P100 DF Arial', Impact, 'Arial Narrow', sans-serif;
+}
+
+/* Hidden by its hidden attribute unless the boot script accepted this document. */
+html[data-boot=landing] .first-paint-shell { display: contents; }
+/* React's first commit is taller than the viewport (hero, collection, footer), so keep the shell
+   page scrollable too: a classic scrollbar appearing at the handoff would narrow the layout. */
+.first-paint-shell > main { min-height: 100vh; }
+
+/* Only the artifact copy that React's first commit will render is shown. */
+html[data-boot-art=reduced] .first-paint-shell [data-shell-art]:not([data-shell-art~=reduced]),
+html[data-boot-art=lite] .first-paint-shell [data-shell-art]:not([data-shell-art~=lite]),
+html[data-boot-art=saving] .first-paint-shell [data-shell-art]:not([data-shell-art~=saving]),
+html[data-boot-art=tap] .first-paint-shell [data-shell-art]:not([data-shell-art~=tap]),
+html[data-boot-art=ready] .first-paint-shell [data-shell-art]:not([data-shell-art~=ready]) { display: none; }
+
+/* Font probes: the boot script measures these off-screen and removes them. */
+.p100-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  letter-spacing: 0;
+  word-spacing: 0;
+  text-transform: none;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+}
+.p100-probe-display { font: 800 100px 'P100 DF Impact', 'P100 DF Arial', monospace; }
+.p100-probe-sans { font: 400 100px 'P100 Sans Fallback', monospace; }
+.p100-probe-sans-bold { font: 700 100px 'P100 Sans Fallback', monospace; }

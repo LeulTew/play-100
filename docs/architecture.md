@@ -8,6 +8,9 @@ previews and account state. It composes `MotionProvider`, `AppMotionBindings`,
 [RouteHost](../src/components/app/RouteHost.tsx) selects page content and loads
 the online controller lazily. [DialogHost](../src/components/app/DialogHost.tsx)
 renders the selected detail or utility dialog without owning its saved data.
+Before the first commit, a built `index.html` may show the static
+[first-paint shell](first-paint-shell.md) of the landing page in `#root`;
+`createRoot()` replaces it, and no app code reads it.
 
 ## Sources of truth
 
