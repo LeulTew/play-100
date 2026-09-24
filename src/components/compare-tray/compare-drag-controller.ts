@@ -62,10 +62,25 @@ const pointOf = (event: { clientX: number; clientY: number }): Point => ({ x: ev
 const selecting = () => document.getSelection()?.isCollapsed === false;
 const modalOpen = () => Boolean(document.querySelector('dialog[open]'));
 
+interface SourceVisibilityNode {
+  matches(selector: string): boolean;
+  parentElement: SourceVisibilityNode | null;
+}
+
+export function isCompareSourceHidden(node: SourceVisibilityNode): boolean {
+  // Only the pointer-only grip's own AT exclusion is compatible with dragging.
+  const ownHidden = node.matches('[data-compare-drag-grip]') ? unavailable : hiddenSource;
+  if (node.matches(ownHidden)) return true;
+  for (let ancestor = node.parentElement; ancestor; ancestor = ancestor.parentElement) {
+    if (ancestor.matches(hiddenSource)) return true;
+  }
+  return false;
+}
+
 export function compareSourceTarget(node: HTMLElement, event: Event): boolean {
   const path = event.composedPath();
   const end = path.indexOf(node);
-  if (end < 0 || node.closest(hiddenSource)) return false;
+  if (end < 0 || isCompareSourceHidden(node)) return false;
   for (const target of path.slice(0, end + 1)) {
     if (!(target instanceof Element)) continue;
     if (target.matches(`${excluded},${unavailable},:disabled,[aria-disabled="true"]`)) return false;
@@ -89,7 +104,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
   const current = (gesture: Gesture) => {
     const source = gesture.source.read();
     return inputReady() && gesture.guard.isCurrent() && !source.disabled && source.node === gesture.node &&
-      source.node.isConnected && !source.node.closest(hiddenSource) && source.record?.id === gesture.recordId;
+      source.node.isConnected && !isCompareSourceHidden(source.node) && source.record?.id === gesture.recordId;
   };
   const clearTail = () => { disposeTail(); disposeTail = () => {}; tail = null; };
   const consumeClick = (event: ClickInput): boolean => {
