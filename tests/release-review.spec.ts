@@ -10,7 +10,7 @@ async function prepareRanking(page: Page) {
   await page.goto('/my-rankings');
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
   await page.getByRole('button', { name: `Add ${title} to ranking`, exact: true }).click();
-  await expect(page.locator('.personal-row')).toHaveCount(1);
+  await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
   await page.getByRole('button', { name: 'Close game picker', exact: true }).click();
   const score = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
   await score.fill('7');
@@ -28,7 +28,7 @@ for (const field of ['score', 'note'] as const) {
     await prepareRanking(page);
     const peer = await context.newPage();
     await peer.goto('/my-rankings');
-    await expect(peer.locator('.personal-row')).toHaveCount(1);
+    await expect(peer.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
     const currentInput = field === 'score'
       ? page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })
       : page.getByRole('textbox', { name: `Your note for ${title}`, exact: true });
@@ -53,7 +53,7 @@ test('an actual dirty draft is preserved through another-tab updates and saves i
   await prepareRanking(page);
   const peer = await context.newPage();
   await peer.goto('/my-rankings');
-  await expect(peer.locator('.personal-row')).toHaveCount(1);
+  await expect(peer.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
   const current = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
   await current.fill('8.5');
   const remote = peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
