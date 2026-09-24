@@ -18,11 +18,16 @@ test('a real emulator identity transition invalidates the guest Compare focus or
   const before = await readLibrary(page);
   await page.locator('.personal-row-static').first().getByRole('button', { name: /^Pin for comparison: / }).and(page.locator('button[aria-pressed]')).click();
   const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
-  const compare = page.getByRole('button', { name: 'Compare rankings with friends', exact: true });
+  // Away from The 100 the tray is a compact chip, so Compare starts from its sheet's Choose friends action.
+  const compare = page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true });
+  await expect(page.locator('.compare-tray-action')).toBeHidden();
   await compare.focus();
   await page.keyboard.press('Enter');
+  const choose = page.getByRole('dialog', { name: 'Compare tray', exact: true }).getByRole('button', { name: 'Choose friends', exact: true });
+  await choose.focus();
+  await page.keyboard.press('Enter');
   await expect(page.locator('#account-signin-title')).toBeFocused();
-  await expect(page.locator('.account-nav')).toHaveAttribute('title', 'Device only');
+  await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await page.evaluate(async credentials => {
     const clientPath = '/src/cloud/firebase-client.ts';
     const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
