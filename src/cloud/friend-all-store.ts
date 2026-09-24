@@ -371,7 +371,12 @@ export class FriendAllStore {
       await this.releaseRows(uid, kind, rows.docs);
       return { deleted: rows.size, done: false };
     }
-    const batch = writeBatch(this.db); batch.delete(this.jobRef(uid, kind)); batch.delete(this.headRef(uid, kind)); await batch.commit();
+    // The counted-job delete rule reads the stored job, so an unpublished or already removed view must not be deleted again.
+    await runTransaction(this.db, async tx => {
+      const [job, head] = await Promise.all([tx.get(this.jobRef(uid, kind)), tx.get(this.headRef(uid, kind))]);
+      if (job.exists()) tx.delete(job.ref);
+      if (head.exists()) tx.delete(head.ref);
+    });
     this.cache.delete(`${uid}:${kind}`);
     return { deleted: 0, done: true };
   }

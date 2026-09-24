@@ -420,6 +420,20 @@ describe('All-sharing bounded SDK transport', () => {
     expect(await a.all.policy(a.uid)).toMatchObject({ deleted: true, enabled: false });
     await expect(a.all.setPolicy(a.uid, true, 'explicit', await a.all.controls(a.uid), () => true)).rejects.toMatchObject({ code: 'deleted' });
   });
+  it('finishes All cleanup when a view was never published and when an earlier attempt already removed it', async () => {
+    const a = await client(); const policy = await enable(a);
+    await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+    await a.all.setPolicy(a.uid, false, 'explicit', await a.all.controls(a.uid), () => true);
+    expect(await a.all.head(a.uid, 'ranking')).toBeNull();
+    expect(await a.all.cleanupPage(a.uid, 'ranking')).toEqual({ deleted: 0, done: true });
+    expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 1, done: false });
+    expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 0, done: true });
+    expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 0, done: true });
+    for (const kind of ['games', 'ranking'] as const) {
+      expect(await a.all.head(a.uid, kind)).toBeNull();
+      expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', kind))).exists()).toBe(false);
+    }
+  });
   it.each(['collection', 'wikidata', 'steam', 'freetogame', 'manual'] as const)('validates both worst-size %s records within the bounded write budget', async type => {
     const a = await client(); const b = await client(); const policy = await enable(a); await enable(b); await connect(a, b);
     const entries: FriendShelfEntry[] = Array.from({ length: 2 }, (_, index) => {
