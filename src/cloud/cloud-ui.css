@@ -1,3 +1,13 @@
+.catalog-query { display: flex; gap: 11px; align-items: stretch; }
+.catalog-query .search-field { flex: 1; }
+.catalog-query .button { flex-shrink: 0; }
+.catalog-loading { padding-block: 17px; color: var(--muted); font-size: 14px; }
+@media (max-width: 760px) {
+  .catalog-query { flex-wrap: wrap; }
+  .catalog-query .search-field { flex-basis: 100%; }
+  .catalog-query input { font-size: 16px; }
+  .catalog-query .button { width: 100%; }
+}
 .account-page, .community-page, .public-profile-page, .publish-page, .creator-page, .auth-page { max-width: 1440px; }
 .auth-page { max-width: 720px; }
 .auth-page > h1, .account-heading h1, .public-profile-heading h1, .publish-page h1, .creator-page h1 { font: 700 48px/1.05 var(--display); letter-spacing: -.02em; }
