@@ -298,8 +298,32 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
       const hit = document.elementFromPoint(title.left + title.width * fraction, title.bottom - 2);
       return { intendedGame: Boolean(hit && (element.contains(hit) || link?.contains(hit))), tag: hit?.tagName, className: hit?.getAttribute('class') };
     });
+    const active = document.activeElement;
+    const focused = active instanceof HTMLElement && active !== document.body && active !== document.documentElement ? active : null;
+    const bounds = focused?.getBoundingClientRect();
+    let visible = bounds ? [{
+      top: Math.max(0, bounds.top), bottom: Math.min(innerHeight, bounds.bottom),
+      left: Math.max(0, bounds.left), right: Math.min(innerWidth, bounds.right),
+    }] : [];
+    for (const obstacle of document.querySelectorAll('.site-header, .compare-tray-dock, .mobile-nav')) {
+      if (!obstacle.getClientRects().length) continue;
+      const cover = obstacle.getBoundingClientRect();
+      visible = visible.flatMap(rect => {
+        const top = Math.max(rect.top, cover.top), bottom = Math.min(rect.bottom, cover.bottom);
+        const left = Math.max(rect.left, cover.left), right = Math.min(rect.right, cover.right);
+        if (top >= bottom || left >= right) return [rect];
+        return [
+          { ...rect, bottom: top }, { ...rect, top: bottom },
+          { top, bottom, left: rect.left, right: left }, { top, bottom, left: right, right: rect.right },
+        ];
+      }).filter(rect => rect.bottom > rect.top && rect.right > rect.left);
+    }
     return {
       title: title.toJSON(),
+      focus: {
+        tag: focused?.tagName, id: focused?.id, text: focused?.textContent, bounds: bounds?.toJSON(),
+        visibleHeight: Math.max(0, ...visible.filter(rect => rect.right > rect.left).map(rect => rect.bottom - rect.top)),
+      },
       nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON(),
       dock: document.querySelector('.compare-tray-dock')?.getBoundingClientRect().toJSON() ?? null,
       header: document.querySelector('.site-header')!.getBoundingClientRect().toJSON(),
@@ -315,6 +339,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   const empty = await measure();
   expect(empty.coarse).toBe(true); expect(empty.touch).toBeGreaterThan(0);
   expect(empty.dock).toBeNull();
+  expect(empty.title.top).toBeGreaterThanOrEqual(empty.header.bottom);
   expect(empty.title.bottom).toBeLessThanOrEqual(empty.nav.top);
   expect(empty.hits.every(hit => hit.intendedGame)).toBe(true);
   await page.locator('.mobile-nav').getByRole('link', { name: 'Discover', exact: true }).click();
@@ -340,11 +365,12 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   await writeFile(info.outputPath('pinned-explore-geometry.json'), JSON.stringify({ empty, pinned, targetsBefore, pinnedGame: pinnedGame.id }, null, 2));
   await page.screenshot({ path: info.outputPath('pinned-explore-320.png'), scale: 'css' });
   expect(pinned.dock).not.toBeNull();
+  expect(pinned.title.top).toBeGreaterThanOrEqual(pinned.header.bottom);
   expect(pinned.title.bottom).toBeLessThanOrEqual(pinned.dock!.top);
   expect(pinned.hits.every(hit => hit.intendedGame)).toBe(true);
   expect(pinned.targets).toEqual(targetsBefore);
   expect(pinned.targets.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
-  expect(pinned.collection.top).toBeGreaterThanOrEqual(pinned.header.bottom);
+  expect(pinned.focus.visibleHeight).toBeGreaterThan(0);
   expect(await readLibrary(page)).toEqual(before);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map((record: { id: string }) => record.id))).toEqual([pinnedGame.id]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
