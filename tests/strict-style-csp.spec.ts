@@ -116,6 +116,14 @@ test('main routes lay out identically under the legacy and strict style-src', as
         if (route.includes('game=')) await expect(page.getByRole('dialog')).toBeVisible();
         if (route === '/data-use') await expect(page.locator('#data-use h2')).toHaveCount(9);
         if (route === '/') await expect(page.locator('.game-card')).toHaveCount(24);
+        // Lazy routes (configured builds especially) settle at different times in the two tabs, so each
+        // capture waits for the route's loaded content and for every loading placeholder to go.
+        if (route.startsWith('/discover')) {
+          await expect(page.locator('.discovery-cards > li').first()).toBeVisible();
+          await expect(page.getByRole('region', { name: 'Catalog games', exact: true })).toHaveAttribute('aria-busy', 'false');
+        }
+        if (route === '/account') await expect(page.locator('.auth-page, .account-heading, .empty-state').first()).toBeVisible();
+        await expect(page.locator('[aria-busy="true"], .page-loading, .collection-loading, .route-fallback, [class*="skeleton"]')).toHaveCount(0);
         await page.evaluate(() => document.fonts.ready.then(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
         await page.screenshot({ path: info.outputPath(`${name}${route.replace(/[^a-z0-9]+/gi, '-')}.png`), animations: 'disabled' });
         snapshots.push(await layout(page));
