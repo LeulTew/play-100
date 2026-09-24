@@ -215,9 +215,25 @@ test('an empty transient native drag does not reflow collection controls or rese
   test.skip(isMobile, 'The coarse handle intentionally Pins; desktop uses native drag.');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?catalogs=off');
-  const handle = page.locator('.game-card').first().locator('.compare-drag-handle');
+  const cards = page.locator('.game-card');
+  await expect(cards).toHaveCount(24);
+  await page.evaluate(() => document.fonts.ready);
+  const settleLayout = () => page.evaluate(() => new Promise<void>(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  // Auto-visible cards start with estimated offscreen heights. Render every row
+  // before measuring so scrolling/decoding cannot be mistaken for drag reflow.
+  for (const card of await cards.all()) {
+    await card.scrollIntoViewIfNeeded();
+    await settleLayout();
+    await card.locator('img').evaluateAll(images => Promise.all(images.map(image => {
+      if (!(image instanceof HTMLImageElement)) throw new Error('Expected a collection cover image.');
+      return image.decode();
+    })));
+  }
+  const handle = cards.first().locator('.compare-drag-handle');
   await expect(handle).toBeVisible();
   await handle.scrollIntoViewIfNeeded();
+  await settleLayout();
   const measure = () => page.evaluate(() => ({
     controls: [...document.querySelectorAll('.collection-title-line, .collection-search, .collection-utilities, .collection-extra-actions')].map(element => {
       const rect = element.getBoundingClientRect();
@@ -241,6 +257,8 @@ test('an empty transient native drag does not reflow collection controls or rese
     await page.mouse.up();
   }
   await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
+  await expect(page.locator('.compare-tray-reserve')).toHaveCount(0);
+  expect(await measure()).toEqual(before);
 });
 
 test('operational status uses the utility scale and the header fits desktop and 200 percent reflow', async ({ page, isMobile }) => {
