@@ -149,6 +149,43 @@ test('bulk Discover and main100 actions keep canonical IDs for MassEffect2 and G
   expect(Object.keys((await readLibrary(page)).records).sort()).toEqual(['grand-theft-auto-iv', 'mass-effect-2']);
 });
 
+test('Back and Forward clear a Discover selection when results change, but a detail-only URL change keeps it', async ({ page }) => {
+  const results = '/discover?q=Mass%20Effect%202&catalogs=off&include100=on';
+  await page.goto(results);
+  const me2 = cardFor(page, 'mass-effect-2');
+  const select = me2.getByRole('checkbox', { name: 'Select Mass Effect 2', exact: true });
+  const count = page.getByRole('status').filter({ hasText: /^\d+ selected$/ });
+  await expect(me2).toContainText('From The 100 · #2');
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+  await expect(page).toHaveURL(url => !new URL(url).searchParams.has('q'));
+  await page.goBack();
+  await expect(page).toHaveURL(url => new URL(url).searchParams.get('q') === 'Mass Effect 2');
+  await page.getByRole('button', { name: 'Select games', exact: true }).click();
+  await select.check();
+  await expect(count).toHaveText('1 selected');
+  // Forward to other results, then Back: neither history step goes through the page's own change().
+  await page.goForward();
+  await expect(page).toHaveURL(url => !new URL(url).searchParams.has('q'));
+  await expect(count).toHaveText('0 selected');
+  await page.goBack();
+  await expect(page).toHaveURL(url => new URL(url).searchParams.get('q') === 'Mass Effect 2');
+  await expect(count).toHaveText('0 selected');
+  await expect(select).not.toBeChecked();
+  // A detail-only transition (the ?game= parameter, as the detail uses) leaves results and selection alone.
+  await select.check();
+  await expect(count).toHaveText('1 selected');
+  await page.evaluate(() => {
+    const url = new URL(location.href); url.searchParams.set('game', 'mass-effect-2');
+    history.pushState(history.state, '', `${url.pathname}${url.search}`);
+    dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+  });
+  // The detail may make the results inert, so the selection is read once it closes.
+  await expect(page).toHaveURL(url => new URL(url).searchParams.get('game') === 'mass-effect-2');
+  await page.goBack();
+  await expect(page).toHaveURL(url => !new URL(url).searchParams.has('game') && new URL(url).searchParams.get('q') === 'Mass Effect 2');
+  await expect(count).toHaveText('1 selected');
+  await expect(select).toBeChecked();
+});
 test('a legacy-only saved copy stays Saved and owns every implicit create path, including canonical detail and bulk', async ({ page }, info) => {
   let state = applyPersonalAction(emptyPersonalLibrary(), { type: 'add-ranking', records: [provider] });
   state = applyPersonalAction(state, { type: 'edit-ranking', id: provider.id, score: 7.3, note: 'Preserve this legacy note.' });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { catalogRelevance, matchesCatalogQuery, normalizeCatalogQuery } from './catalog-query';
-import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch, patchDiscoverySearch, searchDiscoveryItems, shouldSearchOnline } from './discovery-search';
+import { createDiscoverySearch, defaultDiscoveryFilters, discoverySelectionKey, parseDiscoverySearch, patchDiscoverySearch, searchDiscoveryItems, shouldSearchOnline } from './discovery-search';
 import { artworkFixture, discoveryFixture } from './discovery-test-fixtures';
 
 describe('public seed search independent of personal state', () => {
@@ -80,5 +80,24 @@ describe('stable, public discovery URLs', () => {
     expect(parseDiscoverySearch('?q=a%00b&source=steam&view=table&year=123&catalogs=no').q).toBe('a b');
     expect(parseDiscoverySearch('?source=steam&view=table&year=123&catalogs=no')).toEqual(defaultDiscoveryFilters);
     expect(parseDiscoverySearch(`?q=${'a'.repeat(1000)}`).q).toHaveLength(80);
+  });
+});
+
+describe('Discover selection key', () => {
+  const key = (search: string) => discoverySelectionKey(parseDiscoverySearch(search));
+  it('changes with the result page and every filter, from any URL origin', () => {
+    const base = '?q=Mass%20Effect&catalogs=off&include100=on';
+    for (const next of [
+      `${base}&offset=24`, `${base}&source=wikidata`, `${base}&genre=RPG`, `${base}&genreFamily=role-playing`, `${base}&year=2010`,
+      `${base}&online=on`, `${base}&progress=completed`, '?q=Mass%20Effect&catalogs=off', '?q=Mass%20Effect&include100=on',
+    ]) expect(key(next), next).not.toBe(key(base));
+    expect(key('?q=Mass%20Effect')).not.toBe(key('?q=Mass%20Effect%202'));
+  });
+  it('ignores a detail-only transition, other parameters, parameter order and the layout', () => {
+    const base = '?q=Mass%20Effect&catalogs=off&include100=on';
+    expect(key(`${base}&game=mass-effect-2`)).toBe(key(base));
+    expect(key('?include100=on&game=mass-effect-2&catalogs=off&q=Mass%20Effect')).toBe(key(base));
+    expect(key(`${base}&view=list`)).toBe(key(base));
+    expect(key('?offset=0&source=all')).toBe(key(''));
   });
 });

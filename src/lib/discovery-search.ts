@@ -51,6 +51,13 @@ export function createDiscoverySearch(filters: DiscoveryFilters): string {
   return params.size ? `?${params}` : '';
 }
 
+/**
+ * What a Discover selection belongs to: the result page and every filter, but not the layout. Parameters
+ * outside the filters, such as an open game detail, never change it, whatever caused the URL change.
+ */
+export function discoverySelectionKey(filters: DiscoveryFilters): string {
+  return createDiscoverySearch({ ...filters, view: defaultDiscoveryFilters.view });
+}
 export function patchDiscoverySearch(search: string, patch: Partial<DiscoveryFilters>): string {
   const params = new URLSearchParams(search);
   const next = new URLSearchParams(createDiscoverySearch({ ...parseDiscoverySearch(search), ...patch }));

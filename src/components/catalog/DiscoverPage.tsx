@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
-import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE } from '../../lib/discovery-search';
+import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE, discoverySelectionKey } from '../../lib/discovery-search';
 import type { DiscoveryFilters } from '../../lib/discovery-search';
 import { DISCOVERY_GENRE_FAMILIES, parseDiscoveryGenreFamily } from '../../lib/discovery-genres';
 import { useDiscoverSearch } from '../../hooks/useDiscoverSearch';
@@ -37,6 +37,10 @@ export default function DiscoverPage({ collection, state, busy, onAction, onLibr
   const progressView = filters.progress ?? 'all';
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Any change of results clears the selection, including Back/Forward and other URL updates outside change().
+  const selectionKey = discoverySelectionKey(filters);
+  const [selectionScope, setSelectionScope] = useState(selectionKey);
+  if (selectionScope !== selectionKey) { setSelectionScope(selectionKey); setSelected(new Set()); }
   const editing = useRef(false);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const [pageRequest, setPageRequest] = useState<{ search: string; remote: boolean } | null>(null);
