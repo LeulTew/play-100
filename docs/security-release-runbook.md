@@ -167,6 +167,7 @@ retained; restoring the current client is the normal recovery.
 
 | Old-client operation | Expected limitation |
 | --- | --- |
+| Bounded list pagination (PRE-G2-H6) | Query offsets must be absent or zero; existing limits and `startAfter` cursors remain allowed. The frozen 270f query modules send no offset; existing authorization and schema limitations below still apply |
 | New public publication/rename through a new generation | Denied: no public registry enrollment |
 | Private/public/selected generation parent cleanup | Parent deletion denied without release/countdown proof; payload deletion may already have progressed, which the new client can finish |
 | Private upload beyond eight registered snapshots | Denied; old allocation cap is too high |
@@ -183,6 +184,15 @@ retained; restoring the current client is the normal recovery.
 | All-mode format2 publication/job writes | Denied. Old viewers can read an unmigrated head2 but cannot parse/manage head3 |
 | Existing sharing Stop | The unchanged compatible control write can still revoke access; it does not make old format2 writes valid |
 | Full account deletion | Counted cleanup and completion requirements prevent a full-success claim; update the client |
+
+The offset inventory is `tests/fixtures/firestore-270f`: the two `offset` uses
+in `friend-all-store.ts.txt` are array positions for write-step numbering, not
+query clauses. Its social, friend and All pagination uses `startAfter`; fixtures
+and their hashes are unchanged. The
+[list-cost bounds](security.md#cursor-only-list-cost-bounds-pre-g2-h6) apply to
+all 19 positive list grants, including owner and creator branches.
+`tests-cloud/query-offsets.test.ts` is the targeted REST/cursor gate; execution
+and the existing migration suite remain I-owned and UNRUN in the source lane.
 
 ### Why an old-rules rollback needs repair
 

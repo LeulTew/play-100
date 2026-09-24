@@ -49,6 +49,35 @@ The decliner may initiate sooner. Firestore compares the existing server-written
 `updatedAt` against `request.time`; the new timestamp must equal request.time.
 The client says only that a request cannot be sent right now, not why.
 
+## Cursor-only list-cost bounds (PRE-G2-H6)
+
+All 19 permissive list grants require an absent or zero query offset, including
+creator, owner, public-directory and accepted-friend reads. Existing visibility
+predicates and limits remain unchanged: 3 selected generations, 20 metadata rows,
+100 selected chunks, 200 public entries, and 100 owner / 25 peer All rows.
+All 20 deny-only list clauses and both deny-only read clauses stay denied;
+there are no unbounded owner-list exceptions.
+
+The [Rules Request reference][rules-query-properties] describes `request.query`
+as a map of query properties when present, including `offset`.
+The guard uses `request.query.get('offset', 0) == 0`: [Map.get][rules-map-get]
+supplies zero only when that property is absent. It does not dereference an
+absent field or treat a positive offset as a cursor. First pages and `startAfter`
+pagination remain allowed, including explicit zero-offset REST queries.
+
+[Firestore charges a read for each offset-skipped document][offset-pricing].
+This guard removes that skipped-read amplification path, not repeated-query,
+index-scan, authorization-dependent-read or project-wide Spark quota costs.
+It adds no document lookup and changes no index, schema or console setting.
+IAM-authorized server/Admin requests bypass client Security Rules as before.
+`tests-cloud/query-offsets.test.ts` covers direct REST denials, nonempty
+zero/absent-offset and cursor pages, and unchanged limit checks. It is **UNRUN
+in the source lane**; I must validate it with the existing cloud suites.
+
+[rules-query-properties]: https://firebase.google.com/docs/reference/rules/rules.firestore.Request#query
+[rules-map-get]: https://firebase.google.com/docs/reference/rules/rules.Map#get
+[offset-pricing]: https://firebase.google.com/docs/firestore/pricing#managing_large_result_sets
+
 ## Dated H14 black-box evidence and accepted risks
 
 The parent performed read-only public-API probes on **2026-09-23**, using the

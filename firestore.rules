@@ -5,6 +5,7 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email_verified == true;
     }
     function own(uid) { return verified() && request.auth.uid == uid; }
+    function cursorOnly() { return request.query.get('offset', 0) == 0; }
     function accountActive(uid) {
       return own(uid) && get(/databases/$(database)/documents/accountLifecycle/$(uid)).data.state == 'active';
     }
@@ -81,7 +82,7 @@ service cloud.firestore {
     }
     match /members/{uid} {
       allow get: if own(uid) || creator();
-      allow list: if creator() && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && creator() && request.query.limit != null && request.query.limit <= 20;
       allow create: if accountActive(uid) && member(request.resource.data, uid) && request.resource.data.createdAt == request.time
         && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted);
       allow update: if accountActive(uid) && member(request.resource.data, uid) && request.resource.data.createdAt == resource.data.createdAt
@@ -146,7 +147,7 @@ service cloud.firestore {
     }
     match /accounts/{uid}/generations/{id} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if own(uid) && request.resource.data.keys().hasOnly(['private', 'ranking', 'epoch', 'status', 'createdAt'])
         && manifest(request.resource.data.private) && rankingManifest(request.resource.data.ranking)
         && request.resource.data.private.generation == id && request.resource.data.ranking.generation == id
@@ -212,7 +213,7 @@ service cloud.firestore {
     }
     match /accounts/{uid}/chunks/{id} {
       allow get: if own(uid) && !head(uid).deleted;
-      allow list: if own(uid) && head(uid).deleted && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && head(uid).deleted && request.query.limit != null && request.query.limit <= 20;
       allow create: if chunkCreate(uid, id, 'private');
       allow update: if chunkUpdate(uid, id, 'private');
       allow delete: if chunkDelete(uid);
@@ -232,7 +233,7 @@ service cloud.firestore {
     }
     match /creatorRanks/{uid}/chunks/{id} {
       allow get: if (own(uid) || creator()) && !head(uid).deleted;
-      allow list: if own(uid) && head(uid).deleted && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && head(uid).deleted && request.query.limit != null && request.query.limit <= 20;
       allow create: if chunkCreate(uid, id, 'ranking');
       allow update: if chunkUpdate(uid, id, 'ranking');
       allow delete: if chunkDelete(uid);
@@ -309,7 +310,7 @@ service cloud.firestore {
     }
     match /publicProfiles/{uid} {
       allow get: if own(uid) || (resource != null && (creator() || (resource.data.published && !resource.data.hidden)));
-      allow list: if request.query.limit != null && request.query.limit <= 20
+      allow list: if cursorOnly() && request.query.limit != null && request.query.limit <= 20
         && (creator() || (resource.data.published && resource.data.listed && !resource.data.hidden));
       allow create, update: if own(uid) && canPublish(uid) && profileShape(request.resource.data, uid)
         && validHandle(request.resource.data.handle)
@@ -397,7 +398,7 @@ service cloud.firestore {
     }
     match /publicProfiles/{uid}/generations/{id} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if accountActive(uid) && uuid(id)
         && getAfter(publicRegistryPath(uid)).data.ids.hasAny([id])
         && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted)
@@ -431,7 +432,7 @@ service cloud.firestore {
     }
     match /publicProfiles/{uid}/generations/{generationId}/entries/{position} {
       allow get: if own(uid) || ((creator() || liveProfile(uid)) && profile(uid).generation == generationId);
-      allow list: if request.query.limit != null && request.query.limit <= 200
+      allow list: if cursorOnly() && request.query.limit != null && request.query.limit <= 200
         && (own(uid) || ((creator() || liveProfile(uid)) && profile(uid).generation == generationId));
       allow create: if canPublish(uid) && publicEntry(request.resource.data)
         && string(request.resource.data.position) == position
@@ -454,7 +455,7 @@ service cloud.firestore {
       }
       allow get: if verified() && ((resource == null && ownReportId())
         || (resource != null && (resource.data.reporterUid == request.auth.uid || creator())));
-      allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && (creator() || resource.data.reporterUid == request.auth.uid);
+      allow list: if cursorOnly() && verified() && request.query.limit != null && request.query.limit <= 20 && (creator() || resource.data.reporterUid == request.auth.uid);
       allow create: if accountActive(request.auth.uid)
         && reportUid(request.auth.uid) && reportUid(request.resource.data.targetUid)
         && (!exists(/databases/$(database)/documents/syncHeads/$(request.auth.uid)) || !head(request.auth.uid).deleted)
@@ -635,7 +636,7 @@ service cloud.firestore {
     match /friendPairs/{id} {
       allow get: if fOwnPairId(id) && (resource == null || request.auth.uid in resource.data.participants);
       // Metadata queries need only the caller's participant constraint, not 20 per-row authorization lookups.
-      allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && request.auth.uid in resource.data.participants;
+      allow list: if cursorOnly() && verified() && request.query.limit != null && request.query.limit <= 20 && request.auth.uid in resource.data.participants;
       allow create: if verified() && request.auth.uid in request.resource.data.participants
         && fPairShape(request.resource.data, id) && request.resource.data.format == 2 && request.resource.data.creatorUid == request.auth.uid
         && request.resource.data.epoch == 1 && request.resource.data.createdAt == request.time && fPairTouch(request.auth.uid, id, true)
@@ -730,7 +731,7 @@ service cloud.firestore {
     }
     match /friendBlocks/{uid}/items/{otherUid} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if fOwnLive(uid) && fUid(otherUid) && uid != otherUid
         && fKeys(request.resource.data, ['createdAt']) && request.resource.data.createdAt == request.time
         && getAfter(quotaPath(uid, 'blocks')).data.ids.hasAny([otherUid])
@@ -759,7 +760,7 @@ service cloud.firestore {
       allow get: if (resource != null && own(resource.data.ownerUid))
         || (resource != null && fInviteCurrent(resource.data, token)
           && (request.auth == null || request.auth.uid == resource.data.ownerUid || fUnblocked(resource.data.ownerUid, request.auth.uid)));
-      allow list: if verified() && request.query.limit != null && request.query.limit <= 20 && resource.data.ownerUid == request.auth.uid;
+      allow list: if cursorOnly() && verified() && request.query.limit != null && request.query.limit <= 20 && resource.data.ownerUid == request.auth.uid;
       allow create: if digest(token) && fOwnLive(request.resource.data.ownerUid) && fInviteShape(request.resource.data)
         && request.resource.data.state == 'active' && request.resource.data.createdAt == request.time
         && request.resource.data.displayName == get(/databases/$(database)/documents/friendIdentities/$(request.auth.uid)).data.displayName
@@ -779,7 +780,7 @@ service cloud.firestore {
     }
     match /friendInviteSlots/{uid}/slots/{slot} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if fOwnLive(uid) && fSlotNext(uid, slot, request.resource.data);
       allow update: if fOwnLive(uid) && fSlotNext(uid, slot, request.resource.data) && fSlotReleased(resource.data.token);
       allow delete: if own(uid) && (resource == null || fSlotReleased(resource.data.token));
@@ -882,7 +883,7 @@ service cloud.firestore {
     }
     match /friendShares/{uid}/generations/{id} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 3;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 3;
       allow create: if fUuid(id) && fGenerationShape(request.resource.data)
         && fPublish(uid, request.resource.data.epoch, request.resource.data.settingsRevision, request.resource.data.source)
         && request.resource.data.uploaded == 0 && request.resource.data.ids == [] && request.resource.data.createdAt == request.time
@@ -957,7 +958,7 @@ service cloud.firestore {
     }
     match /friendShares/{uid}/generations/{generationId}/chunks/{chunkId} {
       allow get: if fOwnLive(uid) || fShareCurrent(uid, generationId);
-      allow list: if request.query.limit != null && request.query.limit <= 100
+      allow list: if cursorOnly() && request.query.limit != null && request.query.limit <= 100
         && (fOwnLive(uid) || fShareCurrent(uid, generationId));
       allow create: if fChunkCreate(uid, generationId, chunkId, request.resource.data);
       allow update: if false;
@@ -977,7 +978,7 @@ service cloud.firestore {
     }
     match /friendGroups/{uid}/items/{id} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 20;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 20;
       allow create: if fOwnLive(uid) && fUuid(id) && fGroup(request.resource.data)
         && getAfter(quotaPath(uid, 'groups')).data.ids.hasAny([id])
         && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time;
@@ -1114,7 +1115,7 @@ service cloud.firestore {
     }
     match /friendShelves/{uid}/generations/{id} {
       allow get: if own(uid);
-      allow list: if own(uid) && request.query.limit != null && request.query.limit <= 3;
+      allow list: if cursorOnly() && own(uid) && request.query.limit != null && request.query.limit <= 3;
       allow create: if fUuid(id) && fGenerationShape(request.resource.data)
         && sPublish(uid, request.resource.data.epoch, request.resource.data.settingsRevision, request.resource.data.source)
         && request.resource.data.count == (sConfig(uid).selection == '' ? 0 : sConfig(uid).selection.split('[|]').size())
@@ -1164,7 +1165,7 @@ service cloud.firestore {
     }
     match /friendShelves/{uid}/generations/{id}/chunks/{chunkId} {
       allow get: if fOwnLive(uid) || sCurrent(uid, id);
-      allow list: if request.query.limit != null && request.query.limit <= 100 && (fOwnLive(uid) || sCurrent(uid, id));
+      allow list: if cursorOnly() && request.query.limit != null && request.query.limit <= 100 && (fOwnLive(uid) || sCurrent(uid, id));
       allow create: if sChunkCreate(uid, id, chunkId, request.resource.data);
       allow update: if false;
       allow delete: if own(uid) && ((resource == null && !exists(/databases/$(database)/documents/friendShelves/$(uid)/generations/$(id)))
@@ -1426,14 +1427,14 @@ service cloud.firestore {
     }
     match /friendAllGames/{uid}/entries/{id} {
       allow get: if own(uid) || aRowGet(uid, 'games');
-      allow list: if request.query.limit != null
+      allow list: if cursorOnly() && request.query.limit != null
         && ((own(uid) && request.query.limit <= 100) || (request.query.limit <= 25 && aRowsReadable(uid, 'games', resource.data)));
       allow create, update: if aRowWrite(uid, 'games', id, request.resource.data);
       allow delete: if own(uid) && (resource == null || resource.data.format == 2 || aRowDelete(uid, 'games', id));
     }
     match /friendAllRankings/{uid}/entries/{id} {
       allow get: if own(uid) || aRowGet(uid, 'ranking');
-      allow list: if request.query.limit != null
+      allow list: if cursorOnly() && request.query.limit != null
         && ((own(uid) && request.query.limit <= 100) || (request.query.limit <= 25 && aRowsReadable(uid, 'ranking', resource.data)));
       allow create, update: if aRowWrite(uid, 'ranking', id, request.resource.data);
       allow delete: if own(uid) && (resource == null || resource.data.format == 2 || aRowDelete(uid, 'ranking', id));
