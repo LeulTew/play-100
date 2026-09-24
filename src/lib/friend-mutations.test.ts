@@ -22,6 +22,13 @@ function client() {
   apps.push(app);
   return new FriendStore(firestore.getFirestore(app));
 }
+function mockServerReads(documents: Map<string, firestore.DocumentData | null>) {
+  return vi.mocked(firestore.getDocFromServer).mockImplementation((async (ref: firestore.DocumentReference) => {
+    const data = documents.get(ref.path);
+    if (data === undefined) throw new Error(`Unexpected server read: ${ref.path}`);
+    return { id: ref.id, ref, exists: () => data !== null, data: () => data ?? undefined };
+  }) as unknown as typeof firestore.getDocFromServer);
+}
 afterEach(async () => {
   vi.restoreAllMocks(); vi.resetAllMocks(); vi.unstubAllGlobals();
   await Promise.all(apps.splice(0).map(deleteApp));
@@ -82,12 +89,36 @@ describe('acknowledged friendship changes and independent metadata refresh', () 
   });
   it('preserves consumed invitation acknowledgement without putting the capability in its receipt', async () => {
     const store = client();
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const serverReads = mockServerReads(new Map<string, firestore.DocumentData | null>([
+      ['accountQuotas/alice/limits/pairs', null],
+      [`friendInvites/${token}`, {
+        format: 1, ownerUid: 'bob', slot: 0, displayName: 'Bob', avatar,
+        createdAt: firestore.Timestamp.now(), state: 'active', acceptedBy: null,
+      }],
+    ]));
+    const acceptance = vi.spyOn(store, 'acceptInvite');
     vi.spyOn(store, 'settings').mockResolvedValue(settings);
     vi.mocked(firestore.runTransaction).mockResolvedValueOnce({ ownerUid: 'bob', epoch: 1 }).mockRejectedValueOnce(refreshError);
-    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
     await expect(store.acceptInvite('alice', token)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'accept-invite', uid: 'alice', otherUid: 'bob', epoch: 1 }, cause: refreshError,
     });
+    const result = acceptance.mock.results[0];
+    if (!result || result.type !== 'return') throw new Error('The invitation did not return its acknowledged outcome.');
+    try {
+      await result.value;
+      throw new Error('A failed refresh must expose its committed outcome.');
+    } catch (cause) {
+      expect(cause).toBeInstanceOf(FriendCommittedError);
+      if (!(cause instanceof FriendCommittedError)) throw cause;
+      expect(cause.receipt).toEqual({ operation: 'accept-invite', uid: 'alice', otherUid: 'bob', epoch: 1 });
+      expect(JSON.stringify(cause.receipt)).not.toContain(token);
+    }
+    expect(firestore.runTransaction).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(firestore.runTransaction).mock.calls[1]?.[2]).toEqual({ maxAttempts: 3 });
+    expect(serverReads.mock.calls.map(([ref]) => ref.path)).toEqual([
+      'accountQuotas/alice/limits/pairs', `friendInvites/${token}`,
+    ]);
   });
   it('makes created invitations recoverable from the owner registry after a failed readback', async () => {
     const store = client();
@@ -115,15 +146,26 @@ describe('acknowledged friendship changes and independent metadata refresh', () 
   });
   it('distinguishes identity/group acknowledgement from failed metadata refreshes', async () => {
     const store = client();
+    const id = crypto.randomUUID();
+    const serverReads = mockServerReads(new Map<string, firestore.DocumentData | null>([
+      ['accountQuotas/alice/limits/groups', null],
+      [`friendGroups/alice/items/${id}`, null],
+    ]));
+    const listGroups = vi.spyOn(store, 'listGroups').mockResolvedValue({ items: [], cursor: undefined });
     vi.mocked(firestore.runTransaction).mockResolvedValueOnce(undefined).mockRejectedValueOnce(refreshError);
     await expect(store.saveIdentity('alice', { displayName: 'Alice', avatar }, 0)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'save-identity', uid: 'alice' },
     });
-    const id = crypto.randomUUID();
+    expect(serverReads).not.toHaveBeenCalled();
     vi.mocked(firestore.runTransaction).mockResolvedValueOnce(undefined).mockRejectedValueOnce(refreshError);
     await expect(store.saveGroup('alice', { id, name: 'Friends', participantUids: ['alice', 'bob'] }, 0)).rejects.toMatchObject({
       committed: true, receipt: { operation: 'save-group', uid: 'alice', groupId: id, revision: 1 },
     });
+    expect(listGroups).toHaveBeenCalledOnce();
+    expect(listGroups).toHaveBeenCalledWith('alice', undefined);
+    expect(serverReads.mock.calls.map(([ref]) => ref.path)).toEqual([
+      'accountQuotas/alice/limits/groups', `friendGroups/alice/items/${id}`,
+    ]);
   });
   it.each(['refresh', 'cleanup'] as const)('keeps a committed ranking distinct from a later %s failure', async (phase) => {
     const store = client();
