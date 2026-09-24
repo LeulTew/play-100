@@ -28,7 +28,7 @@ function initial(scope: LibraryScope, motion: MotionPreference = 'auto'): Scoped
 
 export function parseScopedLibrary(value: unknown, scope: LibraryScope): ScopedLibrary {
   scopeUid(scope);
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('This account cache is unreadable. It has not been overwritten.');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error("This account's copy on this device is unreadable. It has not been overwritten.");
   const row = value as Record<string, unknown>;
   if (row.version !== 1 || row.scope !== scope || !['recovery,scope,state,sync,version', 'profile,recovery,scope,state,sync,version'].includes(Object.keys(row).sort().join(',')) ||
     !row.sync || typeof row.sync !== 'object' || Array.isArray(row.sync)) throw new Error('This cache belongs to a different account or storage version. Nothing was changed.');

@@ -116,6 +116,7 @@ describe('explicit account scopes in the existing local database', () => {
     const initial = await loadScopedLibrary(alice);
     expect(() => parseScopedLibrary(initial, bob)).toThrow(/different account/);
     expect(() => parseScopedLibrary({ ...initial, sync: { ...initial.sync, dirty: 'false' } }, alice)).toThrow(/metadata/);
+    expect(() => parseScopedLibrary(null, alice)).toThrow("This account's copy on this device is unreadable. It has not been overwritten.");
     expect(() => accountScope('../someone')).toThrow(/identity/);
   });
 

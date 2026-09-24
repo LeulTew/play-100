@@ -55,7 +55,7 @@ test('corrupt account cache does not trap sign-out or prevent a network-only acc
   // Every account download is compact JSON; the account-data export is a reference file, not an importable backup.
   expect(exported).not.toContain('\n');
   expect(JSON.parse(exported)).toMatchObject({ app: 'Play 100', formatVersion: 1, deviceCacheError: expect.any(String) });
-  await expect(page.getByRole('status').filter({ hasText: 'unreadable device cache' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'The unreadable copy on this device is marked unavailable in the export' })).toBeVisible();
   const backups = page.locator('.account-backups');
   if (await backups.getAttribute('open') === null) await backups.locator('summary').click();
   const guestDownloaded = page.waitForEvent('download');

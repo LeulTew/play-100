@@ -288,7 +288,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     setProfile(nextProfile); if (nextHead !== undefined) setHeadSnapshot({ uid: user.uid, value: nextHead }); setCreatorUid(allowed ? user.uid : null);
     if (nextMember && scope && cacheReady.current && version === memberReadVersion.current) {
       try { await cacheScopedProfile(scope, nextMember, () => cloudAuth.currentUser?.uid === user.uid && version === memberReadVersion.current); }
-      catch (cause) { if (identityRef.current?.uid === user.uid) setError(`Online profile loaded, but its device cache could not update. ${onlineError(cause)}`); }
+      catch (cause) { if (identityRef.current?.uid === user.uid) setError(`Online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`); }
     }
   }, [social, sync.store, scope]);
   const accountReady = Boolean(account.snapshot || account.error);
@@ -338,7 +338,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       if (caching === fingerprint || (cached?.displayName === next.displayName && cached.avatar.version === next.avatar.version && cached.avatar.seed === next.avatar.seed && cached.avatar.palette === next.avatar.palette)) return;
       caching = fingerprint;
       void cacheScopedProfile(scope, next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
-        if (alive && cloudAuth.currentUser?.uid === uid) { caching = ''; setError(`Your online profile loaded, but its device cache could not update. ${onlineError(cause)}`); }
+        if (alive && cloudAuth.currentUser?.uid === uid) { caching = ''; setError(`Your online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`); }
       });
     }, (cause) => { if (alive && cloudAuth.currentUser?.uid === uid) reportProfileError(cause); });
     return () => { alive = false; unsubscribe(); };
@@ -387,7 +387,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     loading: restoring, identity: identity ?? null,
     controller: protectedController, scope: (active || cacheUnavailable) && scope ? scope : 'guest',
     enabled: active && Boolean(account.snapshot?.sync.enabled && identity?.verified),
-    status: cacheUnavailable ? 'error' : active ? sync.status : 'device', label: cacheUnavailable ? 'Account cache unavailable' : active ? (sync.pendingEdits ? 'Finishing local edits…' : SYNC_LABELS[sync.status]) : 'Device only',
+    status: cacheUnavailable ? 'error' : active ? sync.status : 'device', label: cacheUnavailable ? 'Device copy unavailable' : active ? (sync.pendingEdits ? 'Finishing local edits…' : SYNC_LABELS[sync.status]) : 'Device only',
     creator: isCreator,
     headerIdentity,
     friendSharing: automaticSummary,
@@ -517,7 +517,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
     const current = await store.head();
     if (current) await store.revoke(current);
     await pauseScopedLibrary(target); await account.refresh(); await refresh();
-    setMessage('Online saving is stopped. The online copy and this account cache are retained; your guest library is separate.');
+    setMessage("Online saving is stopped. The online copy and this account's copy on this device are kept; your guest library is separate.");
   });
   const downloadData = (source: 'local' | 'online' | 'guest' | 'all') => run(async () => {
     if (!await flushPendingEdits()) throw new Error('Correct the pending edit before exporting.');
@@ -551,7 +551,7 @@ export default function OnlineController({ page, publicHandle, invitation, showS
       onlineLibrary: remoteLibrary ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }) : null,
       recovery: local?.recovery ?? null, publication: publicCopy, publishedEntries: entries,
       friends: { identity: ownSocial.identity, settings: ownSocial.settings, relationships: ownSocial.relations, groups: ownSocial.groups, blocks: ownSocial.blocks, sharedGames, automaticSharing } }), 'Play-100-account-export.json');
-    if (cacheError) setMessage('Online account data was exported. The unreadable device cache is explicitly marked unavailable in the export; it was not replaced or deleted.');
+    if (cacheError) setMessage('Online account data was exported. The unreadable copy on this device is marked unavailable in the export; it was not replaced or deleted.');
   });
   const deleteOnline = (removeAccount: boolean, password: string) => {
     if (hasPendingEdits()) { setError('Finish the open edit before deleting online data.'); return Promise.resolve(false); }
