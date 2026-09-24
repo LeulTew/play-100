@@ -45,6 +45,7 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
   }, [controller, newestId, animate]);
   const hasContent = items.length > 0 || Boolean(warning) || Boolean(error);
   const hasTray = hasContent || dragging;
+  const measuredBefore = useRef(false);
   useLayoutEffect(() => {
     const node = dock.current;
     const root = document.documentElement;
@@ -61,7 +62,11 @@ function ScopedCompareTray({ onCompare, onPreview, resolveArtwork, animate = fal
         root.style.setProperty('--compare-tray-height', `${Math.ceil(bounds.bottom - top)}px`);
       }
     };
-    measure();
+    // On mount without a tray, measuring now would force the first layout of the page React has
+    // just inserted inside its commit. The ResizeObserver below reports every element it observes
+    // once laid out, before that frame paints, so the first measurement can wait for it.
+    if (measuredBefore.current || hasTray) measure();
+    measuredBefore.current = true;
     const focused = document.activeElement;
     if (error && node && focused instanceof HTMLElement && focused.closest('.game-card, .discovery-card, .ratings-table, .personal-records')) {
       const target = focused.getBoundingClientRect();
