@@ -106,6 +106,9 @@ async function withPage(work: (page: Page) => Promise<void>, view = 'ranking') {
   } finally { await context.close(); }
 }
 
+// The Library pane stays mounted (hidden) and renders the same .personal-row rows, so ranking locators are scoped.
+const rankedRow = (page: Page, id: string) => page.getByRole('list', { name: 'Your ranked games', exact: true }).locator(`.personal-row[data-record-id="${id}"]`);
+const rankingStatus = (page: Page) => page.locator('.personal-tools:has(#ranking-search) [role="status"]');
 const exits = (page: Page) => page.evaluate(() => [...window.myGamesFixture.exits]);
 const blocked = 'Your edit has not saved. Fix the highlighted field or retry before changing views.';
 const held = 'Search waits for your unsaved edit. Fix the highlighted field or retry.';
@@ -121,8 +124,8 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
   await keep();
   expect(await exits(page)).toEqual([]);
   await page.getByRole('searchbox', { name: 'Search your ranking' }).fill('Beta');
-  await browserExpect(page.locator('.personal-tools [role="status"]')).toHaveText(held);
-  await browserExpect(page.locator('.personal-row[data-record-id="alpha"]')).toHaveCount(1);
+  await browserExpect(rankingStatus(page)).toHaveText(held);
+  await browserExpect(rankedRow(page, 'alpha')).toHaveCount(1);
   await keep();
   expect(await exits(page)).toEqual([]);
 }
@@ -130,8 +133,8 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
 describe('My games exit guard', () => {
   it('keeps a failed note draft through Find games, Publish, Discover and a row-hiding search', async () => {
     await withPage(async page => {
-      await page.locator('.personal-row[data-record-id="alpha"] summary').click();
-      const note = page.locator('#note-alpha');
+      await rankedRow(page, 'alpha').locator('summary').click();
+      const note = rankedRow(page, 'alpha').locator('#note-alpha');
       await note.fill('Unsaved draft');
       await note.press('Tab');
       const failure = page.getByRole('alert').filter({ hasText: 'The note could not be saved.' });
@@ -149,8 +152,8 @@ describe('My games exit guard', () => {
       await note.press('Tab');
       await browserExpect(failure).toHaveCount(0);
       // The held search applies once the edit has saved.
-      await browserExpect(page.locator('.personal-tools [role="status"]')).toHaveText('1 ranked game in this view');
-      await browserExpect(page.locator('.personal-row[data-record-id="alpha"]')).toHaveCount(0);
+      await browserExpect(rankingStatus(page)).toHaveText('1 ranked game in this view');
+      await browserExpect(rankedRow(page, 'alpha')).toHaveCount(0);
       await page.getByRole('button', { name: 'Find games', exact: true }).click();
       await browserExpect.poll(() => exits(page)).toEqual(['discover']);
     });
@@ -158,7 +161,7 @@ describe('My games exit guard', () => {
 
   it('keeps a failed rating draft through the same exits and search', async () => {
     await withPage(async page => {
-      const rating = page.getByRole('spinbutton', { name: 'Your rating / 10 for Alpha game' });
+      const rating = rankedRow(page, 'alpha').getByRole('spinbutton', { name: 'Your rating / 10 for Alpha game' });
       await rating.fill('9');
       await rating.press('Tab');
       const failure = page.getByRole('alert').filter({ hasText: 'The rating could not be saved.' });
@@ -184,7 +187,8 @@ describe('My games Ranking pane mounting', () => {
       await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toBeVisible();
       await browserExpect(page.getByRole('button', { name: 'Ranking, 2', exact: true })).toHaveAttribute('aria-current', 'page');
       await search.fill('Alpha');
-      await browserExpect(page.locator('.personal-row[data-record-id="beta"]')).toHaveCount(0);
+      await browserExpect(rankedRow(page, 'alpha')).toHaveCount(1);
+      await browserExpect(rankedRow(page, 'beta')).toHaveCount(0);
       await page.getByRole('button', { name: 'Library, 2', exact: true }).click();
       await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toBeHidden();
       // Leaving Ranking keeps its subtree, so its search and filtered rows survive the round trip.
@@ -192,7 +196,8 @@ describe('My games Ranking pane mounting', () => {
       await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
       await browserExpect(search).toBeVisible();
       await browserExpect(search).toHaveValue('Alpha');
-      await browserExpect(page.locator('.personal-row[data-record-id="beta"]')).toHaveCount(0);
+      await browserExpect(rankedRow(page, 'alpha')).toHaveCount(1);
+      await browserExpect(rankedRow(page, 'beta')).toHaveCount(0);
       expect(await exits(page)).toEqual([]);
     }, 'library');
   });
