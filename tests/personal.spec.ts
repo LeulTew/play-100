@@ -151,6 +151,24 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([second, first, third]);
 });
 
+test('a manual draft opened from a legacy library link survives a Ranking round trip', async ({ page }) => {
+  const editor = page.locator('.my-games-editor:visible');
+  const view = (label: string) => page.getByRole('navigation', { name: 'My games views', exact: true })
+    .getByRole('button', { name: new RegExp(`^${label}\\b`) });
+  await page.goto('/my-library');
+  await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
+  await editor.locator('.manual-add > summary').click();
+  await editor.getByLabel('Game title', { exact: true }).fill('Unsubmitted manual draft');
+  await editor.getByLabel('Year (optional)', { exact: false }).fill('1999');
+  await view('Ranking').click();
+  await expect(page).toHaveURL(/\/my-games\?tab=ranking$/);
+  await view('Library').click();
+  await expect(editor.locator('.manual-add')).toHaveJSProperty('open', true);
+  await expect(editor.getByLabel('Game title', { exact: true })).toHaveValue('Unsubmitted manual draft');
+  await expect(editor.getByLabel('Year (optional)', { exact: false })).toHaveValue('1999');
+  expect(Object.values((await readLibrary(page)).records).map(record => record.title)).not.toContain('Unsubmitted manual draft');
+});
+
 test('personal rankings accept unplayed and historical games, scores and notes', async ({ page }) => {
   await page.goto('/my-rankings');
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
