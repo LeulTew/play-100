@@ -105,6 +105,12 @@ The implemented collection is an Operate surface: finding, filtering and opening
 
 Extracted from `src\styles.css`, `src\components\scene\artifact.css`, the visual contract in `index.html`, and the confirmed constraints in `PRODUCT.md`. The frontmatter is normative for extracted primitives; `.impeccable\design.json` extends it with states, motion and preview metadata.
 
+### CSS ownership and order
+
+`src\styles.css` imports the eager `src\styles\` tokens, base, layout, components and utilities partials in that order. `src\personal.css` follows with the shared personal-layout, personal-components and personal-utilities partials. These are CSS-only source imports, not additional JavaScript entry points. The sections preserve the original contiguous rule order; utilities include the trailing motion, responsive and accessibility overrides. Keep overrides in their existing position rather than regrouping selectors across sections.
+
+My games-only rules live in the existing lazy `src\components\personal\my-games.css`; cloud-only catalog form rules live in `src\cloud\cloud-ui.css`. Shared tabs, inputs, card controls, route skeletons and first-paint shell rules remain eager. Before moving another rule, check every consumer and its import path, including constructed class names and the static Collection/DiscoveryCard path.
+
 ## Colors
 
 ### Primary

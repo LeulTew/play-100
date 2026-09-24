@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 
 describe('bounded CSS motion policy', () => {
   it('never reinstates a universal off-policy or OS-reduction motion kill', async () => {
-    const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
+    const entryUrl = new URL('../styles.css', import.meta.url);
+    const entry = await readFile(entryUrl, 'utf8');
+    const imports = [...entry.matchAll(/^@import ['"]([^'"]+)['"];$/gm)];
+    const partials = await Promise.all(imports.map(([, path]) => readFile(new URL(path, entryUrl), 'utf8')));
+    const css = [entry, ...partials].join('\n');
     expect(css).not.toMatch(/\[data-motion\s*=\s*["']?off["']?\][^{]*\*/);
     const reduced = css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([^}]+)\}/)?.[1];
     expect(reduced).toBeDefined();
