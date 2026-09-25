@@ -75,7 +75,10 @@ try {
     if (!text.length) throw new Error('The social SVG has no text to verify.');
     const usages = text.map((element) => {
       const style = getComputedStyle(element);
-      const family = style.fontFamily.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '');
+      const family = style.fontFamily
+        .split(',')[0]
+        ?.trim()
+        .replace(/^['"]|['"]$/g, '');
       const weight = Number(style.fontWeight);
       if (
         (family !== 'Barlow Condensed' && family !== 'Hanken Grotesk Variable') ||
