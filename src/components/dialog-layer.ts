@@ -4,6 +4,21 @@ export const DialogLayerContext = createContext(0);
 
 const layers: { dialog: HTMLDialogElement; priority: number }[] = [];
 
+export function foregroundDialog(exclude: HTMLDialogElement): HTMLDialogElement | null {
+  let foreground: (typeof layers)[number] | undefined;
+  for (const layer of layers) {
+    if (
+      layer.dialog !== exclude &&
+      layer.dialog.isConnected &&
+      layer.dialog.open &&
+      (!foreground || layer.priority >= foreground.priority)
+    ) {
+      foreground = layer;
+    }
+  }
+  return foreground?.dialog ?? null;
+}
+
 export function registerDialogLayer(dialog: HTMLDialogElement, priority: number, previousFocus: Element | null) {
   const entry = { dialog, priority };
   const foreground = layers

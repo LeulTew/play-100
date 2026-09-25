@@ -252,6 +252,9 @@ closing or changing its scope cancels both queued work and existing requests.
 Requested utility panels stay above game details even when the game resolves
 later. Native top-layer reordering preserves the mounted panel, its draft,
 scroll position and focused control rather than remounting the utility.
+Closing a stacked dialog keeps focus inside the foreground dialog that remains:
+its valid trigger or focused editor takes precedence over a page-level return
+target, with its normal focus-in target as the fallback.
 Escape dismisses only the foreground native dialog. The global panel-intent
 cancellation handles Escape only when no native modal is open.
 

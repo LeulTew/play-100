@@ -86,6 +86,7 @@ for (const panel of panels) {
         await utility.getByRole('button', { name: 'Close dialog', exact: true }).click();
         await expect(utility).toHaveCount(0);
         await expectForeground(detail);
+        await expect(detail.locator('#game-title')).toBeFocused();
         await expect(page).toHaveURL((current) => current.searchParams.get('game') === game);
         await expect(page).not.toHaveURL(/info=/);
       } finally {
@@ -129,8 +130,12 @@ for (const panel of panels) {
     await expect(failure).toHaveCount(0);
     await expect(page.locator('dialog[open]')).toHaveCount(1);
     await expectForeground(detail);
+    await expect(detail.locator('#game-title')).toBeFocused();
     await expect(page).toHaveURL((current) => current.searchParams.get('game') === game);
     await expect(page).not.toHaveURL(/info=/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/game=/);
   });
 }
 

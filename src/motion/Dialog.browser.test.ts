@@ -546,6 +546,14 @@ describe('native Dialog motion lifecycle', () => {
       await input.evaluate((element) => {
         if (element instanceof HTMLInputElement) element.setSelectionRange(2, 6);
       });
+      const scroll = await utility.evaluate((element) => {
+        const inner = element.querySelector<HTMLElement>('.dialog-inner');
+        if (!inner) throw new Error('The utility must retain its content scrollport.');
+        inner.style.paddingBottom = '800px';
+        element.scrollTop = 20;
+        return element.scrollTop;
+      });
+      expect(scroll).toBeGreaterThan(0);
       const count = (await stats()).effects.length;
       if (order === 'utility-first') await page.evaluate(() => window.motionFixture.open('static'));
       await browserExpect(page.locator('dialog[open]')).toHaveCount(2);
@@ -557,6 +565,7 @@ describe('native Dialog motion lifecycle', () => {
           selection: element instanceof HTMLInputElement ? [element.selectionStart, element.selectionEnd] : [],
         })),
       ).toEqual({ sameNode: true, selection: [2, 6] });
+      expect(await utility.evaluate((element) => element.scrollTop)).toBe(scroll);
       expect((await stats()).effects).toHaveLength(count);
       expect(
         await input.evaluate((element) => {
@@ -570,6 +579,7 @@ describe('native Dialog motion lifecycle', () => {
       await page.keyboard.press('Escape');
       await browserExpect(utility).toHaveCount(0);
       await browserExpect(detail()).toBeVisible();
+      await browserExpect(page.locator('#detail-title')).toBeFocused();
       expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
       await page.keyboard.press('Escape');
       await browserExpect(detail()).toHaveCount(0);
@@ -577,6 +587,56 @@ describe('native Dialog motion lifecycle', () => {
       await mounted.dispose();
     },
   );
+
+  it('returns to the uncovered editor rather than a preferred page target while another modal remains', async () => {
+    await page.getByRole('button', { name: 'Open game', exact: true }).click();
+    const editor = page.locator('#private-draft');
+    await editor.fill('Keep the game draft and caret');
+    await editor.evaluate((element) => {
+      if (element instanceof HTMLInputElement) element.setSelectionRange(3, 8);
+    });
+    await page.evaluate(() => window.motionFixture.utility());
+    await browserExpect(page.locator('#utility-title')).toBeFocused();
+    await page.evaluate(() => window.motionFixture.returnToEditor());
+    await browserExpect(page.locator('#utility-title')).toHaveCount(0);
+    await browserExpect(editor).toBeFocused();
+    await browserExpect(editor).toHaveValue('Keep the game draft and caret');
+    expect(
+      await editor.evaluate((element) =>
+        element instanceof HTMLInputElement ? [element.selectionStart, element.selectionEnd] : [],
+      ),
+    ).toEqual([3, 8]);
+    await browserExpect(page.locator('#editor')).not.toBeFocused();
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+    await page.keyboard.press('Escape');
+    await browserExpect(detail()).toHaveCount(0);
+    await browserExpect(page.locator('#source-trigger')).toBeFocused();
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+  });
+
+  it('keeps a focused utility draft when a background game is removed', async () => {
+    await page.getByRole('button', { name: 'Open game', exact: true }).click();
+    await browserExpect(detail()).toBeVisible();
+    await page.evaluate(() => window.motionFixture.utility());
+    const input = page.locator('#utility-draft');
+    await input.fill('Keep this foreground draft');
+    await input.evaluate((element) => {
+      if (element instanceof HTMLInputElement) element.setSelectionRange(4, 9);
+    });
+    await page.evaluate(() => window.motionFixture.removeRecord());
+    await browserExpect(detail()).toHaveCount(0);
+    await browserExpect(input).toBeFocused();
+    await browserExpect(input).toHaveValue('Keep this foreground draft');
+    expect(
+      await input.evaluate((element) =>
+        element instanceof HTMLInputElement ? [element.selectionStart, element.selectionEnd] : [],
+      ),
+    ).toEqual([4, 9]);
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+    await page.keyboard.press('Escape');
+    await browserExpect(page.locator('#utility-title')).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+  });
 
   it.each(['scope', 'revoke', 'removeRecord', 'navigate'] as const)(
     'never paints an exit after %s',

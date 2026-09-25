@@ -5,7 +5,7 @@ import { visibleFocusTarget, visibleMenuTrigger } from '../lib/dialog-focus';
 import { useMotionController } from '../motion/useMotion';
 import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
 import { showLockedDialog } from './dialog-lifecycle';
-import { DialogLayerContext, registerDialogLayer } from './dialog-layer';
+import { DialogLayerContext, foregroundDialog, registerDialogLayer } from './dialog-layer';
 
 function runDialogMotion(work: () => void) {
   try {
@@ -70,19 +70,31 @@ export function Dialog({
     return () => {
       const ending = visual.current;
       visual.current = null;
+      const foreground = foregroundDialog(dialog);
+      const focused = document.activeElement;
       const canReturnTo = (target: HTMLElement | null): target is HTMLElement =>
-        Boolean(target && !dialog.contains(target) && visibleFocusTarget(target));
+        Boolean(
+          target &&
+          !dialog.contains(target) &&
+          (!foreground || foreground.contains(target)) &&
+          visibleFocusTarget(target),
+        );
       const preferred = returnFocus.current?.() ?? null;
       const reveal = canReturnTo(preferred);
-      const target = reveal
-        ? preferred
-        : previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus)
-          ? previousFocus
-          : ([
-              ...document.querySelectorAll<HTMLElement>(
-                '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
-              ),
-            ].find(canReturnTo) ?? visibleMenuTrigger());
+      let target: HTMLElement | null;
+      if (reveal) target = preferred;
+      else if (foreground && focused instanceof HTMLElement && canReturnTo(focused)) target = focused;
+      else if (previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus))
+        target = previousFocus;
+      else if (foreground)
+        target = [...foreground.querySelectorAll<HTMLElement>('[data-autofocus]')].find(canReturnTo) ?? foreground;
+      else
+        target =
+          [
+            ...document.querySelectorAll<HTMLElement>(
+              '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
+            ),
+          ].find(canReturnTo) ?? visibleMenuTrigger();
       releaseLayer();
       dialog.close();
       unlock();
