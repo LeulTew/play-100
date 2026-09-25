@@ -133,6 +133,22 @@ create a second auth observer, clear libraries or perform deletion on return.
 The controller invokes bootstrap and return handling at their original effect
 positions, leaving the existing navigation and pending-edit contract intact.
 
+The [account-identity](../src/cloud/account-identity.ts) lifetime owns token-read
+coalescing, verification-mismatch refresh suppression and auth-session epochs.
+Only the exact pending read may clear its slot; a foreign UID cannot publish
+identity or update the remembered-session hint. Token refresh for the same UID
+keeps its epoch, while account changes and sign-out advance it and clear the
+previous comparison scope. The controller still passes that stable epoch holder
+to sync/sharing/deletion and leaves successful-token UID gating and observer
+error lifetime gating unchanged. Member/profile snapshots and page rendering
+remain composition concerns, not state inside the token reconciler.
+
+These three units are static dependencies only of the already-lazy online graph.
+They add no eager entry import, new route root, stylesheet, storage format or
+server rule. Their new deterministic unit suites supplement the unchanged
+identity, Google redirect, private-deletion and cloud-UI regressions; the refactor
+does not claim a new runtime pass until the integrator runs them.
+
 Online page bodies are separate dynamic imports, not static dependencies of that
 identity/sync bridge. Remembering an account on The 100 may load the bridge and
 Firebase, but does not request Account, Community, public profile, publication,

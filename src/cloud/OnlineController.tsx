@@ -54,13 +54,7 @@ import {
   signInNeedsAccountPage,
   useAccountSessionState,
 } from './account-session';
-import {
-  clearComparisonView,
-  comparisonScope,
-  initialComparison,
-  rememberComparisonView,
-} from '../lib/friend-comparison-intent';
-import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
+import { comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
 import { readAccountLifecycle } from './account-lifecycle';
 import {
   createAccountDeletion,
@@ -69,8 +63,9 @@ import {
   useDeletionApprovalExpiry,
   useDeletionProbe,
 } from './account-deletion';
+import { useAccountIdentity } from './account-identity';
 import type { ConnectionChoice } from './AccountPage';
-import type { AccountIdentity, OnlineBridge } from './ui-types';
+import type { OnlineBridge } from './ui-types';
 import { useFriendSharing } from './useFriendSharing';
 import { useFriendAll } from './useFriendAll';
 import { friendSharingView } from '../lib/friend-all';
@@ -138,20 +133,6 @@ const AvatarPicker = lazy(
 
 const loadingAvatar: AvatarDescriptor = { version: 1, seed: '00000000000000000000000000000000', palette: 'moss' };
 
-function identityOf(
-  user: User,
-  verified: boolean,
-  verificationPending = !verified && user.emailVerified,
-): AccountIdentity {
-  return {
-    uid: user.uid,
-    email: user.email ?? '',
-    displayName: user.displayName ?? '',
-    verified,
-    verificationPending,
-    providers: user.providerData.map((provider) => provider.providerId),
-  };
-}
 // Every download is compact JSON; library backups also carry the Backup import's byte budget (libraryBackupText).
 function download(text: string, name: string) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -198,7 +179,15 @@ export default function OnlineController({
   onPinRecord?: (record: LibraryRecord) => boolean;
   artwork?: ReadonlyMap<string, CatalogArtwork>;
 }) {
-  const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
+  const {
+    identity,
+    setIdentity,
+    identityRef,
+    authSessionEpoch,
+    reconcileIdentity,
+    observeUser,
+    clearVerificationMismatch,
+  } = useAccountIdentity();
   const [memberSnapshot, setMember] = useState<Member | null>(null);
   const memberReadVersion = useRef(0);
   const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
@@ -233,12 +222,6 @@ export default function OnlineController({
   const [cooldown, setCooldown] = useState(0);
   const [now, setNow] = useState(Date.now());
   const running = useRef(false);
-  const identityRead = useRef<{ uid: string; promise: Promise<AccountIdentity> } | null>(null);
-  const refreshedMismatch = useRef(new Set<string>());
-  const authSessionEpoch = useRef(0);
-  const authSessionUid = useRef<string | null>(null);
-  const identityRef = useRef(identity);
-  identityRef.current = identity;
   const uid = identity?.uid;
   useEffect(() => {
     let current = true;
@@ -365,69 +348,19 @@ export default function OnlineController({
   const currentEpoch = useRef(account.snapshot?.sync.epoch ?? 0);
   currentEpoch.current = account.snapshot?.sync.epoch ?? 0;
 
-  const reconcileIdentity = useCallback((user: User, force = false): Promise<AccountIdentity> => {
-    if (identityRead.current?.uid === user.uid) return identityRead.current.promise;
-    const task = (async () => {
-      let token = await getIdTokenResult(user, force);
-      if (user.emailVerified && token.claims.email_verified !== true && !refreshedMismatch.current.has(user.uid)) {
-        refreshedMismatch.current.add(user.uid);
-        token = await getIdTokenResult(user, true);
-      }
-      const next = identityOf(user, token.claims.email_verified === true);
-      if (cloudAuth.currentUser?.uid === user.uid) {
-        setIdentity(next);
-        void rememberOnlineRequest(true);
-      }
-      return next;
-    })();
-    const entry = { uid: user.uid, promise: task };
-    identityRead.current = entry;
-    void task.then(
-      () => {
-        if (identityRead.current === entry) identityRead.current = null;
-      },
-      () => {
-        if (identityRead.current === entry) identityRead.current = null;
-      },
-    );
-    return task;
-  }, []);
   useEffect(
     () =>
       observeAccountSession({
         state: { setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError },
         onUser: (user, isCurrent, settled) => {
-          if ((user?.uid ?? null) !== authSessionUid.current) {
-            if (authSessionUid.current) {
-              clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', authSessionUid.current));
-              clearComparisonGameFilter(accountScope(authSessionUid.current, firebaseApp.options.projectId));
-            }
-            authSessionUid.current = user?.uid ?? null;
-            authSessionEpoch.current += 1;
-            if (user) setIdentity(undefined);
-          }
-          if (!user) {
-            identityRead.current = null;
-            refreshedMismatch.current.clear();
-            setIdentity(null);
-            settled();
-            return;
-          }
-          void reconcileIdentity(user)
-            .catch((cause) => {
-              if (isCurrent() && cloudAuth.currentUser?.uid === user.uid) {
-                setIdentity(identityOf(user, false, true));
-                setError(onlineError(cause));
-              }
-            })
-            .finally(settled);
+          observeUser(user, isCurrent, settled, (cause) => setError(onlineError(cause)));
         },
         onError: (cause) => {
           setIdentity(null);
           setError(onlineError(cause));
         },
       }),
-    [reconcileIdentity, setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError],
+    [observeUser, setIdentity, setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError],
   );
   useEffect(() => {
     setMember(null);
@@ -456,7 +389,16 @@ export default function OnlineController({
       setError,
       setMessage,
     });
-  }, [googleReturn, identity, account.snapshot, account.error, setDeletionApproval, handledGoogleReturn, setReturnSheet]);
+  }, [
+    googleReturn,
+    identity,
+    account.snapshot,
+    account.error,
+    setDeletionApproval,
+    handledGoogleReturn,
+    setReturnSheet,
+    authSessionEpoch,
+  ]);
   useDeletionApprovalExpiry(page, deletionApproval, setDeletionApproval);
   useEffect(() => {
     if (cooldown <= now) return;
@@ -494,7 +436,7 @@ export default function OnlineController({
         }
       }
     },
-    [social, sync.store, scope],
+    [social, sync.store, scope, identityRef],
   );
   const accountReady = Boolean(account.snapshot || account.error);
   useEffect(() => {
@@ -1318,7 +1260,7 @@ export default function OnlineController({
                   const user = cloudAuth.currentUser;
                   if (!user) return;
                   await reload(user);
-                  refreshedMismatch.current.delete(user.uid);
+                  clearVerificationMismatch(user.uid);
                   const next = await reconcileIdentity(user, true);
                   setMessage(
                     next.verified
