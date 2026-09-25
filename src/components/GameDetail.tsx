@@ -77,7 +77,7 @@ export function GameDetail({
     setRecovery(null);
   }, [busy, navigating, recovery]);
   const changeGame = async (slug: string) => {
-    if (changing.current || busy) return;
+    if (changing.current) return;
     changing.current = true;
     setNavigating(true);
     setNavigationError('');
@@ -287,7 +287,7 @@ export function GameDetail({
       <nav className="detail-pagination" aria-label="Games in the collection">
         <button
           className="text-button"
-          disabled={!previous || busy || navigating}
+          disabled={!previous || navigating}
           onClick={() => {
             if (previous) void changeGame(previous.slug);
           }}
@@ -298,7 +298,7 @@ export function GameDetail({
         <span>{game.rank} / 100</span>
         <button
           className="text-button"
-          disabled={!next || busy || navigating}
+          disabled={!next || navigating}
           onClick={() => {
             if (next) void changeGame(next.slug);
           }}
