@@ -267,3 +267,15 @@ files. A root that the build does not emit as a dynamic entry, or an import that
 the manifest cannot resolve, fails the check. A row is the cost of opening that
 root when nothing else lazy has loaded. An online page also needs the online
 bridge (`src/cloud/OnlineController.tsx`), which has its own row.
+
+### Optional prefetch
+
+Four fetches can start without an explicit request. Bytes are gzip9 per file,
+measured on the R8 configured build (these modules are unchanged since).
+
+| Prefetch | When | Fetches | Use on a guest landing | Decision |
+| --- | --- | --- | --- | --- |
+| App tools ([app-tool-preload.ts](../src/lib/app-tool-preload.ts), `App.tsx`) | After load, at idle (1.2 s timeout); only while motion is on and the page is visible, without reduced motion or a constrained device (Save-Data, 2G, ≤ 4 GB memory or ≤ 2 cores) | Was catalog details 7.6 KB, the catalog parser 2.4 KB, sign-in 1.7 KB, friend comparison 2.3 KB, About 3.3 KB and Settings 4.9 KB. Now only the first two, 10.0 KB | Search opens catalog details and uses the parser. Sign-in and comparison follow only the Account and Friends links, which only online builds show and which warm them on intent; the online bridge also imports both statically. The dialogs open only from the Menu or the footer, which warm them on intent | **Narrowed**: 12.2 KB less on every capable page load. An offline build could never use the 4.0 KB of sign-in and comparison, and the dialogs still warm on their intent |
+| Secondary dialogs ([useAppPanel.ts](../src/hooks/useAppPanel.ts)) | On intent: pointer, focus or press on a Menu button, the menu or the footer, and when the Menu opens; never while hidden or with Save-Data | About 3.3 KB and Settings 4.9 KB, plus the PWA client 3.3 KB if not loaded yet | Only after that intent | Kept |
+| PWA controls ([deferred-controller.ts](../src/pwa/deferred-controller.ts), `'essential'`) | After load, at idle, on every device class | The PWA client, 3.4 KB | An installed or offline user's page learns about updates and offline state; a first-time guest needs it only in Settings or to install | Kept: the one warm-up constrained devices need, and small. Skipping it for guests would need a service-worker registration probe before the client, which is the client's own first step |
+| 3D scene ([CollectionArtifact.tsx](../src/components/CollectionArtifact.tsx)) | At idle while the artifact is on screen, with motion allowed (Auto or Full without reduced motion; Auto also not on a constrained device); in Auto with a coarse pointer only after Fan out | The scene, 143 KB | It is the hero artifact on screen, not a guess | Kept, with its gates |

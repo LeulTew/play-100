@@ -12,11 +12,14 @@ declare global {
   }
 }
 
+// The optional tools the landing can warm (src/lib/app-tool-preload.ts): the catalog parser first, then sign-in,
+// friend comparison and catalog details.
 const roots = [
   'src/lib/discovery-catalog.ts',
   'src/lib/google-intent.ts',
   'src/lib/comparison-game-filter.ts',
   'src/lib/friend-comparison-intent.ts',
+  'src/components/personal/CatalogDetail.tsx',
 ];
 
 test('the built online bridge and app entry have no static edge to an online page body or picker', async () => {
@@ -114,10 +117,19 @@ for (const policy of [
       await expect.poll(() => page.evaluate(() => window.pendingAppToolIdle())).toBeGreaterThan(0);
     } else expect([...requested]).toEqual([]);
     await page.evaluate(() => window.flushAppToolIdle());
-    if (policy.allowed) await expect.poll(() => [...requested].sort()).toEqual([...new Set(files)].sort());
+    // The idle warm-up brings only what the page opens without navigating: catalog details and the catalog parser.
+    if (policy.allowed) await expect.poll(() => [...requested].sort()).toEqual([files[0]!, files[4]!].sort());
     else expect([...requested]).toEqual([]);
     expect(catalogRequests).toEqual([]);
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(navigation.getByRole('link', { name: 'Discover', exact: true })).toBeFocused();
+    // Sign-in and friend comparison wait for their own intent, which online builds offer: Friends and Account.
+    if (policy.allowed && (await page.locator('.site-header-online').count()) > 0) {
+      await navigation.getByRole('link', { name: 'Friends', exact: true }).focus();
+      await expect.poll(() => requested.has(files[2]!) && requested.has(files[3]!)).toBe(true);
+      expect(requested.has(files[1]!), 'sign-in waits for the Account link').toBe(false);
+      await page.locator('.account-nav').focus();
+      await expect.poll(() => requested.has(files[1]!)).toBe(true);
+    }
   });
 }
