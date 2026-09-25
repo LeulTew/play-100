@@ -29,13 +29,47 @@ const metrics = [
   'indexHtmlGzipBytes',
   'inlineStyleRawBytes',
   'inlineScriptRawBytes',
+  'largestRouteGzipBytes',
 ] as const;
 type Metric = (typeof metrics)[number];
 export type BudgetLimits = Record<Metric, number>;
+
+/**
+ * Every lazily loaded page and picker root, React.lazy() in src: the public routes, the catalog detail and data-use
+ * bodies, the online bridge and its pages. check:budgets measures what each fetches beyond the eager set.
+ */
+export const ROUTE_ROOTS = [
+  'src/components/personal/MyGamesPage.tsx',
+  'src/components/catalog/DiscoverPage.tsx',
+  'src/components/personal/CatalogDetail.tsx',
+  'src/components/DataUseContent.tsx',
+  'src/cloud/OnlineController.tsx',
+  'src/cloud/AuthPanel.tsx',
+  'src/cloud/AccountPage.tsx',
+  'src/cloud/CommunityPage.tsx',
+  'src/cloud/PublicProfilePage.tsx',
+  'src/cloud/PublishPage.tsx',
+  'src/cloud/CreatorPage.tsx',
+  'src/cloud/FriendsPage.tsx',
+  'src/cloud/FriendDetailPage.tsx',
+  'src/cloud/InvitationPage.tsx',
+  'src/cloud/FriendComparisonPage.tsx',
+  'src/cloud/FriendSharingPage.tsx',
+  'src/cloud/FriendShelfPage.tsx',
+  'src/cloud/FriendSharedGames.tsx',
+  'src/components/avatar/AvatarPicker.tsx',
+] as const;
 interface AssetSize {
   file: string;
   rawBytes: number;
   gzipBytes: number;
+}
+/** What opening a lazily loaded root fetches beyond the eager set. */
+export interface RouteCost {
+  root: string;
+  rawBytes: number;
+  gzipBytes: number;
+  files: AssetSize[];
 }
 export interface BuildMeasurement {
   values: BudgetLimits;
@@ -57,6 +91,8 @@ export interface BuildMeasurement {
     inlineStyleRawBytes: Record<ShellVariant, number>;
     inlineScriptRawBytes: number;
   };
+  /** Every route root's cost, the most expensive first. */
+  routes: RouteCost[];
 }
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -87,6 +123,7 @@ export function parseBudgetLimits(input: unknown): BudgetLimits {
     indexHtmlGzipBytes: read('indexHtmlGzipBytes'),
     inlineStyleRawBytes: read('inlineStyleRawBytes'),
     inlineScriptRawBytes: read('inlineScriptRawBytes'),
+    largestRouteGzipBytes: read('largestRouteGzipBytes'),
   };
 }
 
@@ -221,7 +258,46 @@ async function measureFirstPaint(root: string, html: string): Promise<BuildMeasu
   };
 }
 
-export async function measureBuild(root: string): Promise<BuildMeasurement> {
+/**
+ * What a lazily loaded root fetches beyond the eager set, from the retained Vite manifest: its root chunk, the chunks
+ * it statically imports, transitively, and the stylesheets they import. It fails closed on a root this build does not
+ * emit as a dynamic entry and on an import the manifest cannot resolve.
+ */
+export function routeFiles(
+  manifest: Readonly<Record<string, unknown>>,
+  root: string,
+  eagerFiles: ReadonlySet<string>,
+): string[] {
+  const entry = manifest[root];
+  if (!object(entry) || entry.isDynamicEntry !== true || typeof entry.file !== 'string')
+    throw new Error(`Route root is not a lazy entry of this build: ${root}.`);
+  const files = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (key: string) => {
+    if (visited.has(key)) return;
+    visited.add(key);
+    const chunk = manifest[key];
+    if (!object(chunk) || typeof chunk.file !== 'string')
+      throw new Error(`Unresolvable route entry: ${key}, imported by the ${root} route.`);
+    files.add(localFile(`/${chunk.file}`));
+    for (const field of ['imports', 'css'] as const) {
+      const values = chunk[field] ?? [];
+      if (!Array.isArray(values) || values.some((value) => typeof value !== 'string'))
+        throw new Error(`Invalid Vite ${field}: ${key}`);
+      for (const value of values) {
+        if (field === 'imports') visit(value);
+        else files.add(localFile(`/${value}`));
+      }
+    }
+  };
+  visit(root);
+  return [...files].filter((file) => !eagerFiles.has(file)).sort();
+}
+
+export async function measureBuild(
+  root: string,
+  routeRoots: readonly string[] = ROUTE_ROOTS,
+): Promise<BuildMeasurement> {
   await assertPublicBuildOutput(root);
   const files = new Set(await buildFiles(root));
   const sizes = new Map<string, AssetSize>();
@@ -303,6 +379,19 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
   if ([...eagerFiles].some(standalone))
     throw new Error('Standalone CSS cannot enter the JavaScript-enabled eager graph.');
   const eager = await Promise.all([...eagerFiles].sort().map(size));
+  // One route at a time, so the chunks routes share are read and compressed once.
+  const routes: RouteCost[] = [];
+  for (const route of routeRoots) {
+    const assets: AssetSize[] = [];
+    for (const file of routeFiles(manifest, route, eagerFiles)) assets.push(await size(file));
+    routes.push({
+      root: route,
+      rawBytes: assets.reduce((sum, asset) => sum + asset.rawBytes, 0),
+      gzipBytes: assets.reduce((sum, asset) => sum + asset.gzipBytes, 0),
+      files: assets,
+    });
+  }
+  routes.sort((a, b) => b.gzipBytes - a.gzipBytes || a.root.localeCompare(b.root));
   const allCss = [...files].filter((file) => file.endsWith('.css'));
   if (allCss.some((file) => !file.startsWith('assets/') && !standalone(file))) {
     throw new Error('A stylesheet is outside the declared app/standalone CSS scopes.');
@@ -357,6 +446,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
       // The larger variant: a build carries one, and one vercel.json and one budget serve both.
       inlineStyleRawBytes: Math.max(firstPaint.inlineStyleRawBytes.offline, firstPaint.inlineStyleRawBytes.online),
       inlineScriptRawBytes: firstPaint.inlineScriptRawBytes,
+      largestRouteGzipBytes: routes[0]?.gzipBytes ?? 0,
     },
     eager,
     eagerJsGzipBytes: eager
@@ -375,6 +465,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     largestLazyRaw,
     pwa: { assetFiles: coreFiles.size, assetBytes: coreBytes, metadataBytes: pwa.budget.metadataBytes, metadataFiles },
     firstPaint,
+    routes,
   };
 }
 
@@ -403,6 +494,17 @@ export async function reportBudgets(
 ): Promise<0 | 1> {
   const rows = budgetRows(measured, limits);
   console.table(rows);
+  console.log(
+    'Route costs, each lazily loaded page or picker root beyond the eager set: its chunk, static imports and their CSS, gzip level 9 per file.',
+  );
+  console.table(
+    measured.routes.map((route) => ({
+      route: route.root,
+      files: route.files.length,
+      rawBytes: route.rawBytes,
+      gzipBytes: route.gzipBytes,
+    })),
+  );
   console.log(
     `Eager JS gzip9: ${measured.eagerJsGzipBytes}; eager CSS gzip9: ${measured.eagerCssGzipBytes}. The enforced eager cap covers both.`,
   );
@@ -451,6 +553,7 @@ export async function reportBudgets(
         html: measured.html,
         activeInlineCssRawBytes: measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0),
         firstPaint: measured.firstPaint,
+        routes: measured.routes,
         pwa: measured.pwa,
         largestLazyRaw: measured.largestLazyRaw,
         largestLazyGzip: measured.largestLazy,

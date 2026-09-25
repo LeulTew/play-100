@@ -438,6 +438,9 @@ active inline critical CSS, without changing the emitted-CSS baseline series.
 The [first-paint shell](docs/first-paint-shell.md)'s inline style and boot script
 have raw caps too. The style cap applies to the larger of the two header variants:
 a build carries only one, so the build records both in `.build-meta`.
+`largestRouteGzipBytes` caps the most expensive lazily loaded page or picker
+root: its chunk, static imports and their CSS beyond the eager set; every route
+is listed ([route costs](docs/architecture.md#route-costs)).
 `check:csp` also reads the existing `dist`: every built document must work under
 the `vercel.json` main-document policy, including the
 [first-paint shell](docs/first-paint-shell.md) boot script by its exact hash, and

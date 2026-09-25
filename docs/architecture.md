@@ -252,3 +252,18 @@ historical baseline and all eager/CSS/PWA caps unchanged, and record the measure
 source/tree with the tightened caps. These formulas are an integration instruction,
 not a fabricated size receipt; lane implementation and new tests are **UNRUN**
 until the integrator executes them.
+
+### Route costs
+
+`npm run check:budgets` also measures what each lazily loaded page or picker
+root costs to open. The roots are `ROUTE_ROOTS` in
+[check-budgets.ts](../scripts/check-budgets.ts): every `React.lazy()` in `src`,
+which a unit test derives from the source. For each one it sums the gzip9 bytes,
+per file, of the root chunk, the chunks it imports statically (transitively) and
+the stylesheets those chunks import, leaving out files already in the eager set,
+from the retained Vite manifest. It prints a row per route, gates the most
+expensive as `largestRouteGzipBytes`, and `--json` lists every route with its
+files. A root that the build does not emit as a dynamic entry, or an import that
+the manifest cannot resolve, fails the check. A row is the cost of opening that
+root when nothing else lazy has loaded. An online page also needs the online
+bridge (`src/cloud/OnlineController.tsx`), which has its own row.

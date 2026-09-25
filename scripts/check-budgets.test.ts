@@ -1,9 +1,12 @@
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  ROUTE_ROOTS,
   budgetRows,
   eagerHtmlFiles,
   measureBuild,
@@ -43,6 +46,13 @@ const RECORD: FirstPaintRecord = {
   script: textDigest(BOOT_SCRIPT),
   styles: { offline: textDigest(SHELL_STYLE), online: textDigest(ONLINE_STYLE) },
 };
+// Every route root of the app: in the fixture, a lazy entry of the lazy chunk, which imports the eager shared chunk.
+const ROUTE_CHUNK = {
+  file: 'assets/lazy-12345678.js',
+  imports: ['shared'],
+  css: ['assets/lazy-12345678.css'],
+  isDynamicEntry: true,
+};
 
 async function fixture(inline = '') {
   const workspace = await mkdtemp(path.join(tmpdir(), 'play100-budget-test-'));
@@ -67,6 +77,7 @@ async function fixture(inline = '') {
       shared: { file: 'assets/shared-12345678.js', imports: ['nested'] },
       nested: { file: 'assets/nested-12345678.js', imports: ['index.html'] },
       lazy: { file: 'assets/lazy-12345678.js', css: ['assets/lazy-12345678.css'] },
+      ...Object.fromEntries(ROUTE_ROOTS.map((root) => [root, ROUTE_CHUNK])),
     }),
   );
   await writeFile(
@@ -94,6 +105,92 @@ afterEach(async () => {
   vi.unstubAllEnvs();
   for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true, maxRetries: 5 });
 });
+
+/** The fixture with more lazy roots: route-a and route-b share a feature chunk; route-c imports a missing chunk. */
+async function routeFixture() {
+  const directory = await fixture();
+  const files: Record<string, string> = {
+    'assets/route-a-12345678.js': 'import "./feature-12345678.js"; export const a = "Route A has more to say than B.";',
+    'assets/route-a-12345678.css': '.route-a { display: grid; }',
+    'assets/route-b-12345678.js': 'import "./feature-12345678.js"; export const b = 2;',
+    'assets/route-c-12345678.js': 'export const c = 3;',
+    'assets/feature-12345678.js': 'export const feature = true;',
+    'assets/feature-12345678.css': '.feature { color: teal; }',
+  };
+  for (const [file, content] of Object.entries(files))
+    await writeFile(path.join(directory, ...file.split('/')), content);
+  const manifestFile = buildManifestPath(directory);
+  const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
+  Object.assign(manifest, {
+    'route-a': {
+      file: 'assets/route-a-12345678.js',
+      imports: ['shared', 'feature'],
+      css: ['assets/route-a-12345678.css'],
+      isDynamicEntry: true,
+    },
+    'route-b': { file: 'assets/route-b-12345678.js', imports: ['feature'], isDynamicEntry: true },
+    'route-c': { file: 'assets/route-c-12345678.js', imports: ['ghost'], isDynamicEntry: true },
+    feature: { file: 'assets/feature-12345678.js', imports: ['index.html'], css: ['assets/feature-12345678.css'] },
+  });
+  await writeFile(manifestFile, JSON.stringify(manifest));
+  return { directory, files };
+}
+
+const repository = fileURLToPath(new URL('../', import.meta.url));
+const readSource = (file: string) => readFileSync(path.join(repository, file), 'utf8');
+
+/** The app's TypeScript modules under src, without tests, as repository paths. */
+function sourceFiles(directory = 'src'): string[] {
+  return readdirSync(path.join(repository, directory), { withFileTypes: true }).flatMap((entry) => {
+    const file = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) return sourceFiles(file);
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [file] : [];
+  });
+}
+
+/** The repository path of the module an import specifier of `from` names. */
+function resolveModule(from: string, specifier: string): string {
+  const base = path.posix.join(path.posix.dirname(from), specifier);
+  const file = [`${base}.tsx`, `${base}.ts`, base].find(
+    (candidate) => /\.tsx?$/.test(candidate) && existsSync(path.join(repository, candidate)),
+  );
+  if (!file) throw new Error(`Cannot resolve ${specifier} from ${from}.`);
+  return file;
+}
+
+/** The text between the parenthesis at `open` and the one that closes it. */
+function callArgument(text: string, open: number): string {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')' && --depth === 0) return text.slice(open + 1, index);
+  }
+  throw new Error('An unbalanced call.');
+}
+
+/** Every module a React.lazy() of the app loads, directly or through a loader it imports. */
+function lazyRoots(): string[] {
+  const roots = new Set<string>();
+  for (const file of sourceFiles()) {
+    const text = readSource(file);
+    for (const match of text.matchAll(/\blazy\(/g)) {
+      const argument = callArgument(text, match.index! + match[0].length - 1);
+      const direct = /import\(\s*'([^']+)'\s*\)/.exec(argument)?.[1];
+      if (direct) {
+        roots.add(resolveModule(file, direct));
+        continue;
+      }
+      const loader = /^\s*(\w+)\s*$/.exec(argument)?.[1];
+      const from = loader && new RegExp(`import \\{[^}]*\\b${loader}\\b[^}]*\\} from '([^']+)'`).exec(text)?.[1];
+      if (!loader || !from) throw new Error(`Unrecognized lazy() in ${file}: ${argument}`);
+      const loaderFile = resolveModule(file, from);
+      const target = new RegExp(`\\b${loader}\\b[^;]*import\\(\\s*'([^']+)'\\s*\\)`).exec(readSource(loaderFile))?.[1];
+      if (!target) throw new Error(`${loader} in ${loaderFile} imports no module.`);
+      roots.add(resolveModule(loaderFile, target));
+    }
+  }
+  return [...roots].sort();
+}
 
 describe('offline built-output budgets', () => {
   it.each(['.vite', 'assets/main.js.map'])(
@@ -131,6 +228,7 @@ describe('offline built-output budgets', () => {
           indexHtmlGzipBytes: 100,
           inlineStyleRawBytes: 6,
           inlineScriptRawBytes: 4,
+          largestRouteGzipBytes: 60,
         },
         eager,
         eagerJsGzipBytes: 40,
@@ -148,6 +246,14 @@ describe('offline built-output budgets', () => {
         largestLazyRaw: largestLazy,
         pwa: { assetFiles: 4, assetBytes: 400, metadataBytes: 32768, metadataFiles: 2 },
         firstPaint: { variant: 'offline', inlineStyleRawBytes: { offline: 5, online: 6 }, inlineScriptRawBytes: 4 },
+        routes: [
+          {
+            root: 'src/cloud/OnlineController.tsx',
+            rawBytes: 120,
+            gzipBytes: 60,
+            files: [largestLazy, { file: 'assets/online.css', rawBytes: 20, gzipBytes: 10 }],
+          },
+        ],
       };
     }
     async function reportPath() {
@@ -185,13 +291,14 @@ describe('offline built-output budgets', () => {
           html: measured.html,
           activeInlineCssRawBytes: 5,
           firstPaint: measured.firstPaint,
+          routes: measured.routes,
           pwa: measured.pwa,
           largestLazyRaw: measured.largestLazyRaw,
           largestLazyGzip: measured.largestLazy,
         },
         eagerFiles: measured.eager,
       });
-      expect(report.budgets).toHaveLength(13);
+      expect(report.budgets).toHaveLength(14);
       expect(first.endsWith('\n')).toBe(true);
       expect(await reportBudgets(measured, measured.values, file)).toBe(0);
       expect(await readFile(file, 'utf8')).toBe(first);
@@ -207,7 +314,7 @@ describe('offline built-output budgets', () => {
       expect(report.budgets.filter((row: { pass: boolean }) => !row.pass)).toEqual([
         { metric: 'cssGzipBytes', measured: 20, cap: 19, headroom: -1, pass: false },
       ]);
-      expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(12);
+      expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(13);
     });
 
     it('accepts only an optional --json path and rejects missing, unknown or extra arguments', () => {
@@ -458,6 +565,62 @@ describe('offline built-output budgets', () => {
     await expect(measureBuild(directory)).rejects.toThrow('Missing or unreadable first-paint build record');
     await write(RECORD);
     await expect(measureBuild(directory)).resolves.toBeDefined();
+  });
+
+  it('costs each route as its root chunk, static-import closure and their CSS beyond the eager set, gating the largest', async () => {
+    const { directory, files } = await routeFixture();
+    const measured = await measureBuild(directory, ['route-b', 'route-a']);
+    const cost = (paths: string[]) => ({
+      rawBytes: paths.reduce((sum, file) => sum + Buffer.byteLength(files[file]!), 0),
+      gzipBytes: paths.reduce((sum, file) => sum + gzipSync(files[file]!, { level: 9 }).byteLength, 0),
+    });
+    // The eager shared chunk and the entry chunk the feature imports are already loaded, so they cost nothing.
+    const routeA = [
+      'assets/feature-12345678.css',
+      'assets/feature-12345678.js',
+      'assets/route-a-12345678.css',
+      'assets/route-a-12345678.js',
+    ];
+    const routeB = ['assets/feature-12345678.css', 'assets/feature-12345678.js', 'assets/route-b-12345678.js'];
+    expect(
+      measured.routes.map((route) => ({ ...route, files: route.files.map((asset) => asset.file) })),
+      'the most expensive route first',
+    ).toEqual([
+      { root: 'route-a', ...cost(routeA), files: routeA },
+      { root: 'route-b', ...cost(routeB), files: routeB },
+    ]);
+    expect(measured.values.largestRouteGzipBytes).toBe(cost(routeA).gzipBytes);
+    const limits = parseBudgetLimits({ version: 1, limits: measured.values });
+    const failures = (largestRouteGzipBytes: number) => {
+      const rows = budgetRows(measured, { ...limits, largestRouteGzipBytes });
+      return rows.filter((row) => row.result === 'FAIL').map((row) => row.metric);
+    };
+    expect(failures(cost(routeA).gzipBytes), 'within its cap').toEqual([]);
+    expect(failures(cost(routeA).gzipBytes - 1)).toEqual(['largestRouteGzipBytes']);
+    expect(failures(0), 'the placeholder cap fails').toEqual(['largestRouteGzipBytes']);
+  });
+
+  it('fails closed on a route root the build does not emit as a lazy entry, or a chunk it cannot resolve', async () => {
+    const { directory } = await routeFixture();
+    for (const root of ['src/components/MissingPage.tsx', 'shared']) {
+      await expect(measureBuild(directory, [root])).rejects.toThrow(
+        `Route root is not a lazy entry of this build: ${root}.`,
+      );
+    }
+    await expect(measureBuild(directory, ['route-c'])).rejects.toThrow(
+      'Unresolvable route entry: ghost, imported by the route-c route.',
+    );
+    await rm(path.join(directory, 'assets', 'route-b-12345678.js'));
+    await expect(measureBuild(directory, ['route-b'])).rejects.toThrow(
+      'Missing built asset: assets/route-b-12345678.js.',
+    );
+    await expect(measureBuild(directory, ['route-a'])).resolves.toBeDefined();
+  });
+
+  it('costs every React.lazy() root of the app', async () => {
+    expect(lazyRoots()).toEqual([...ROUTE_ROOTS].sort());
+    const measured = await measureBuild(await fixture());
+    expect(measured.routes.map((route) => route.root).sort()).toEqual([...ROUTE_ROOTS].sort());
   });
 
   it('requires standalone styles to remain inside the bounded offline core', async () => {
