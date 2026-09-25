@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { PublicScore } from './CommunityPages';
+import { PublicScore } from './PublicProfilePage';
 
 const render = (score: number | null) => renderToStaticMarkup(createElement(PublicScore, { score }));
 

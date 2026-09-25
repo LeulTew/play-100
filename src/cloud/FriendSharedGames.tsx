@@ -7,42 +7,13 @@ import { recordFromFriendShelf } from '../lib/friend-shelf-types';
 import type { FriendShelfStore } from './friend-shelf-store';
 import type { FriendStore } from './friend-store';
 import { useFriendSharedView } from './useFriendSharedView';
-import { FriendShelfCards } from './FriendShelf';
-import { GameArtwork, GameArtworkCredit } from '../components/games/GameArtwork';
+import { FriendShelfCards } from './FriendShelfCards';
+import { ShelfArtworkCredits } from './ShelfArtworkCredits';
+import { GameArtwork } from '../components/games/GameArtwork';
 import { cloudAuth } from './firebase-client';
 import { accountScope } from '../lib/cloud-types';
 import { createShelfPreviewAuthority } from '../lib/preview-authority';
 import type { PreviewAuthority } from '../lib/preview-authority';
-
-export function ShelfArtworkCredits({
-  records,
-  artwork,
-}: {
-  records: readonly Pick<LibraryRecord, 'id' | 'title'>[];
-  artwork?: ReadonlyMap<string, CatalogArtwork>;
-}) {
-  const seen = new Set<string>();
-  const credits = records.flatMap((record) => {
-    const image = artwork?.get(record.id);
-    if (!image || seen.has(image.src)) return [];
-    seen.add(image.src);
-    return [{ record, image }];
-  });
-  if (!credits.length) return null;
-  return (
-    <details className="shelf-artwork-credits">
-      <summary>Artwork credits</summary>
-      <ul>
-        {credits.map(({ record, image }) => (
-          <li key={image.src}>
-            <strong>{record.title}</strong>
-            <GameArtworkCredit artwork={image} />
-          </li>
-        ))}
-      </ul>
-    </details>
-  );
-}
 
 export function FriendSharedGames({
   uid,

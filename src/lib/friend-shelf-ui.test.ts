@@ -1,7 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
-import { FriendShelfCards, FriendShelfEditor } from '../cloud/FriendShelf';
+import { FriendShelfEditor } from '../cloud/FriendShelf';
+import { FriendShelfCards } from '../cloud/FriendShelfCards';
 import { emptyPersonalLibrary } from './personal-library';
 import type { FriendShelfEntry, FriendShelfConfig } from './friend-shelf-types';
 
