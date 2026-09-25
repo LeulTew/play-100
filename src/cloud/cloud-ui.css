@@ -16,7 +16,7 @@
 .emulator-page-note { max-width: 1300px; margin: 18px var(--gutter) 0; }
 .google-signin { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; width: 100%; border: 1px solid #747775; border-radius: 4px; background: #fff; color: #1f1f1f; font-family: Arial, sans-serif; font-size: 15px; font-weight: 600; }
 .google-signin:hover { background: #f5f5f5; border-color: #20231e; }
-.google-signin img { flex-shrink: 0; }
+.google-signin svg { flex-shrink: 0; }
 .google-continuation { color: var(--muted); font-size: 14px; line-height: 1.5; margin-top: 10px; }
 .auth-email-toggle { width: 100%; margin-top: 12px; }
 .auth-intent { display: flex; border-bottom: 1px solid var(--line); gap: 24px; margin: 24px 0 16px; }

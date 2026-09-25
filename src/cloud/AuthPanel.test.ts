@@ -60,4 +60,15 @@ describe('AuthPanel purpose', () => {
     expect(html).toContain('Use email');
     expect(html).toContain('Keep using this device');
   });
+
+  it('renders the decorative Google mark inline without network images or inline styles', () => {
+    const { html } = render();
+    const button = html.match(/<button\b[^>]*class="google-signin"[^>]*>([\s\S]*?)<\/button>/)?.[1];
+    expect(button).toBeDefined();
+    expect(button).toContain('<svg width="20" height="20" viewBox="0 0 118 120" aria-hidden="true" focusable="false">');
+    expect(button?.match(/<path\b/g)).toHaveLength(5);
+    for (const color of ['#4285F4', '#34A853', '#FBBC05', '#EA4335']) expect(button).toContain(`fill="${color}"`);
+    expect(button).not.toMatch(/<img\b|<style\b|<script\b|\bstyle=|\b(?:href|src)=/);
+    expect(button?.replace(/<[^>]+>/g, '').trim()).toBe('Continue with Google');
+  });
 });

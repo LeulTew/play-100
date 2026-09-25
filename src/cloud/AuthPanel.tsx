@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { EMULATOR_MODE } from '../lib/online-availability';
 import { DataUseLink } from '../components/DataUseLink';
+import { GoogleMark } from './GoogleMark';
 
 export function AuthPanel({
   busy,
@@ -53,7 +54,7 @@ export function AuthPanel({
           void onGoogle();
         }}
       >
-        <img src="/provider/google.svg" width="20" height="20" alt="" />
+        <GoogleMark />
         Continue with Google
       </button>
       {busy && (
