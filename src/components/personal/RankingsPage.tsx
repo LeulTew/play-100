@@ -314,7 +314,7 @@ export default function RankingsPage({
       });
       return true;
     });
-  const useRatingOrder = (id?: string) => {
+  const applyRatingOrder = (id?: string) => {
     void change(async (isCurrent) => {
       const saved = await onAction(id ? { type: 'use-rating-order', id } : { type: 'use-rating-order' });
       if (isCurrent() && !saved) setError('Rating order could not be saved. Your current order is unchanged; retry.');
@@ -393,17 +393,13 @@ export default function RankingsPage({
                   Games without a fixed position follow scores, highest first. Unrated comes last, not zero. Drag or use
                   arrows to set a position when search and filters are clear. Manual positions stay fixed until you
                   choose Use rating order for a game or for all. Scores save automatically. Ranking or rating never
-                  marks a game played. Drag and keyboard sorting stay on this page; move arrows and Move to position
-                  can cross pages.
+                  marks a game played. Drag and keyboard sorting stay on this page; move arrows and Move to position can
+                  cross pages.
                 </p>
               </details>
             </div>
             {manualCount > 0 && (
-              <button
-                className="button button-outline"
-                disabled={editorBusy}
-                onClick={() => useRatingOrder()}
-              >
+              <button className="button button-outline" disabled={editorBusy} onClick={() => applyRatingOrder()}>
                 Use rating order for all
               </button>
             )}
@@ -494,7 +490,7 @@ export default function RankingsPage({
                   total={state.ranking.length}
                   canReorder={canReorder}
                   onMoveToPosition={(position) => move(record.id, position)}
-                  onUseRatingOrder={() => useRatingOrder(record.id)}
+                  onUseRatingOrder={() => applyRatingOrder(record.id)}
                   onRemove={() => setRemoval({ record, scope: mode.scope })}
                   onPin={onPin}
                   onUnpin={onUnpin}
