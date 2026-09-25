@@ -249,6 +249,8 @@ closing or changing its scope cancels both queued work and existing requests.
 Requested utility panels stay above game details even when the game resolves
 later. Native top-layer reordering preserves the mounted panel, its draft,
 scroll position and focused control rather than remounting the utility.
+Escape dismisses only the foreground native dialog. The global panel-intent
+cancellation handles Escape only when no native modal is open.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the

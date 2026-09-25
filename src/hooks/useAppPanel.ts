@@ -97,7 +97,7 @@ export function useAppPanel(scope: string, opening: boolean) {
   useEffect(() => {
     alive.current = true;
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') cancel();
+      if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('dialog[open]')) cancel();
     };
     const intent = (event: Event) => {
       const target = event.target;

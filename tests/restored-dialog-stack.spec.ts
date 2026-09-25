@@ -114,3 +114,21 @@ test('guarded Settings reload with a game link restores Settings to the foregrou
     (current) => current.searchParams.get('game') === game && current.searchParams.get('info') === 'settings',
   );
 });
+
+for (const panel of panels) {
+  test(`one Escape dismisses failed ${panel.info} without closing its underlying game`, async ({ page }) => {
+    const panelAsset = await asset(panel.root);
+    await page.route(`**${panelAsset}`, (route) => route.abort('failed'));
+    await page.goto(`/?game=${game}&info=${panel.info}&catalogs=off`);
+    const failure = page.getByRole('dialog', { name: 'Dialog unavailable', exact: true });
+    const detail = page.locator('.game-dialog[open]');
+    await expect(detail).toBeVisible();
+    await expectForeground(failure);
+    await page.keyboard.press('Escape');
+    await expect(failure).toHaveCount(0);
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await expectForeground(detail);
+    await expect(page).toHaveURL((current) => current.searchParams.get('game') === game);
+    await expect(page).not.toHaveURL(/info=/);
+  });
+}
