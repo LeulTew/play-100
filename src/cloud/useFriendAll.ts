@@ -56,6 +56,8 @@ export function useFriendAll(
   const wakeQueue = useRef<(() => void) | null>(null);
   const generation = useRef(0);
   const changing = useRef(false);
+  // Counts accepted control reads, so a read that started earlier can tell that a newer one was accepted meanwhile.
+  const accepted = useRef(0);
   const pending = usePendingEdits();
   const collectionReady = games.length > 0;
   const owns = useCallback(() => {
@@ -93,6 +95,7 @@ export function useFriendAll(
   const accept = useCallback(
     (controls: FriendAllControls) => {
       if (!owns()) return;
+      accepted.current += 1;
       setState((old) => ({
         key,
         confirmed: true,
@@ -115,6 +118,7 @@ export function useFriendAll(
     const refresh = async () => {
       const request = ++serial;
       let defaulting = false;
+      let afterWrite: number | null = null;
       try {
         const controls = await store.controls(uid);
         if (!valid() || request !== serial) return;
@@ -129,12 +133,19 @@ export function useFriendAll(
             wakeQueue.current?.();
           }
           if (!valid()) return;
-          accept(await store.controls(uid));
+          // The read after the write may replace what other reads accepted while the write ran: they read before it.
+          // Anything accepted once it starts is newer (a later read, a change or a refresh), so it drops the result.
+          afterWrite = accepted.current;
+          const next = await store.controls(uid);
+          if (!valid() || accepted.current !== afterWrite) return;
+          accept(next);
         } else accept(controls);
       } catch (cause) {
-        // Like a result, a failed read counts only for the newest read, so it can't replace what a newer read
-        // accepted. A default write is different: newer reads left it to this request, so its failure always counts.
-        if (!valid() || (request !== serial && !defaulting)) return;
+        // A failed read counts only while nothing newer replaced it: the newest first read, or the read after the
+        // default write with no accept since it started. The default write's own failure always counts, because newer
+        // reads left the default to this request.
+        const stale = afterWrite !== null ? accepted.current !== afterWrite : request !== serial && !defaulting;
+        if (!valid() || stale) return;
         setState((old) => ({
           key,
           confirmed: false,

@@ -9,6 +9,11 @@ declare global {
       allowReads: () => void;
       rejectPending: () => Promise<number>;
       rejectDefault: () => Promise<number>;
+      resolveDefault: () => Promise<number>;
+      readCaptured: () => Promise<boolean>;
+      releaseCaptured: () => Promise<boolean>;
+      stopElsewhere: () => Promise<void>;
+      kinds: () => string[];
       settle: () => Promise<void>;
       deliverGames: () => void;
       failNextStop: () => void;
@@ -74,18 +79,30 @@ async function mount(
     // Reads hang until the test rejects them, then fail until it allows them again. The hook's control watches
     // start reads of their own whenever a server snapshot arrives, so a mode that only rejected the pending
     // reads would race the watches' first delivery. 'unset' reads look like a setup that has no controls yet.
-    let reads: 'hang' | 'fail' | 'pass' | 'unset' = options.failRead ? 'hang' : options.holdDefault ? 'unset' : 'pass';
+    // 'capture' makes the next read real but holds its result until the test releases it.
+    type ReadMode = 'hang' | 'fail' | 'pass' | 'unset' | 'capture';
+    let reads: ReadMode = options.failRead ? 'hang' : options.holdDefault ? 'unset' : 'pass';
     let failStop = false;
     let publishes = 0;
     let stops = 0;
     let defaults = 0;
     let ticks = 0;
     const waiters = new Map<number, () => void>();
+    const kinds: string[] = [];
     const failures: Array<{ reject: (cause: Error) => void; read: Promise<never> }> = [];
-    const heldDefaults: Array<{ reject: (cause: Error) => void; write: Promise<never> }> = [];
     const controls = storeModule.FriendAllStore.prototype.controls;
     const policy = storeModule.FriendAllStore.prototype.setPolicy;
     const publish = storeModule.FriendAllStore.prototype.publish;
+    type Setup = Awaited<ReturnType<typeof policy>>;
+    type HeldSetup = {
+      run: () => Promise<Setup>;
+      resolve: (value: Setup) => void;
+      reject: (cause: Error) => void;
+      write: Promise<Setup>;
+    };
+    type HeldRead = { read: ReturnType<typeof controls>; held: ReturnType<typeof controls>; release: () => void };
+    const heldDefaults: HeldSetup[] = [];
+    let captured: HeldRead | null = null;
     storeModule.FriendAllStore.prototype.controls = function (owner) {
       if (reads === 'hang') {
         let reject: (cause: Error) => void = () => {};
@@ -97,6 +114,20 @@ async function mount(
       }
       if (reads === 'fail') return Promise.reject(new Error('Synthetic initial controls read failed'));
       if (reads === 'unset') return Promise.resolve({ policy: null, ranking: null, shelf: null });
+      if (reads === 'capture') {
+        reads = 'pass';
+        const read = controls.call(this, owner);
+        let release: () => void = () => {};
+        const released = new Promise<void>((done) => {
+          release = done;
+        });
+        const held = read.then(async (value) => {
+          await released;
+          return value;
+        });
+        captured = { read, held, release };
+        return held;
+      }
       return controls.call(this, owner);
     };
     storeModule.FriendAllStore.prototype.setPolicy = function (owner, enabled, origin, expected, current) {
@@ -109,11 +140,14 @@ async function mount(
       }
       if (enabled && origin === 'default' && options.holdDefault) {
         defaults += 1;
+        let resolve: (value: Setup) => void = () => {};
         let reject: (cause: Error) => void = () => {};
-        const write = new Promise<never>((_, fail) => {
+        const write = new Promise<Setup>((done, fail) => {
+          resolve = done;
           reject = fail;
         });
-        heldDefaults.push({ reject, write });
+        const run = () => policy.call(this, owner, enabled, origin, expected, current);
+        heldDefaults.push({ run, resolve, reject, write });
         return write;
       }
       return policy.call(this, owner, enabled, origin, expected, current);
@@ -131,6 +165,9 @@ async function mount(
         waiters.get(tick)?.();
         waiters.delete(tick);
       }, [tick]);
+      React.useEffect(() => {
+        kinds.push(api.eligibility.kind);
+      }, [api.eligibility.kind]);
       window.allReview = {
         rejectReads: () => {
           reads = 'fail';
@@ -154,6 +191,39 @@ async function mount(
           await Promise.allSettled(held.map(({ write }) => write));
           return held.length;
         },
+        resolveDefault: async () => {
+          const held = heldDefaults.splice(0);
+          for (const setup of held) {
+            try {
+              const value = await setup.run();
+              // The hook resumes from the write in a later microtask, so its next read is the one after the write.
+              reads = 'capture';
+              setup.resolve(value);
+            } catch (cause) {
+              setup.reject(cause instanceof Error ? cause : new Error(String(cause)));
+            }
+          }
+          await Promise.allSettled(held.map(({ write }) => write));
+          return held.length;
+        },
+        readCaptured: async () => {
+          if (!captured) return false;
+          await captured.read;
+          return true;
+        },
+        releaseCaptured: async () => {
+          if (!captured) return false;
+          captured.release();
+          // The hook awaited this read first, so its own continuation has run once it settles.
+          await Promise.allSettled([captured.held]);
+          return true;
+        },
+        // Stops sharing the way another tab would: straight through the store, not through this hook.
+        stopElsewhere: async () => {
+          const other = new storeModule.FriendAllStore(client.cloudDb);
+          await policy.call(other, uid, false, 'explicit', await controls.call(other, uid), () => true);
+        },
+        kinds: () => [...kinds],
         // Resolves after a later commit, so any update queued before it has reached the page.
         settle: () =>
           new Promise<void>((resolve) => {
@@ -291,6 +361,24 @@ test('a late default write still wakes the publication queue a newer read create
   expect(await page.evaluate(() => window.allReview.rejectDefault())).toBe(1);
   await expect(surface).toContainText('Up to date', { timeout: 30000 });
   await expect(surface).not.toContainText('Synthetic default write failed');
+});
+test('a read after the default write does not replace controls a watch accepted while that read was in flight', async ({
+  page,
+}) => {
+  await mount(page, { holdDefault: true });
+  await expect.poll(() => page.evaluate(() => window.allReview.stats().defaults)).toBe(1);
+  // The default write finishes; the hook's read of the new controls captures the enabled policy but is held.
+  expect(await page.evaluate(() => window.allReview.resolveDefault())).toBe(1);
+  expect(await page.evaluate(() => window.allReview.readCaptured())).toBe(true);
+  // Another tab stops sharing, and a control watch accepts that while the held read is still in flight.
+  await page.evaluate(() => window.allReview.stopElsewhere());
+  await expect.poll(() => page.evaluate(() => window.allReview.kinds().at(-1))).toBe('off');
+  const stopped = await page.evaluate(() => window.allReview.kinds().length);
+  expect(await page.evaluate(() => window.allReview.releaseCaptured())).toBe(true);
+  await page.evaluate(() => window.allReview.settle());
+  // The older read's enabled policy never replaces the newer Stop, not even for one render.
+  expect((await page.evaluate(() => window.allReview.kinds())).slice(stopped)).toEqual([]);
+  await expect(page.locator('#all-review-harness')).toContainText('Automatic friend sharing is off.');
 });
 test('failed Stop refreshes the same active policy and resumes work without replaying Stop; confirmed Stop stays off', async ({
   page,
