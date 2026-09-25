@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { gameDetailSearch, myGamesSearch, myGamesTab } from './my-games-navigation';
+import {
+  gameDetailSearch,
+  libraryPageSearch,
+  myGamesSearch,
+  myGamesTab,
+  parseLibraryPage,
+} from './my-games-navigation';
 import { defaultFilters, pageFromPath, parseUrl } from './url';
 import { googleReturnPath } from './google-intent';
 
@@ -36,6 +42,7 @@ describe('My games route compatibility', () => {
     for (const search of [
       '?tab=queue&q=RPG&view=list',
       '?tab=ranking&catalogs=off',
+      '?progress=any-played&page=4',
       '?q=Kingdomcome&source=wikidata',
       '?group=12345678-abcd-abcd-abcd-123456789abc',
     ]) {
@@ -44,6 +51,29 @@ describe('My games route compatibility', () => {
       expect(gameDetailSearch(opened, null)).toBe(search);
       expect(gameDetailSearch(gameDetailSearch(opened, 'red-dead-redemption-2'), null)).toBe(search);
     }
+  });
+  it.each(['', '?page=0', '?page=-2', '?page=1.5', '?page=Infinity', '?page=10000', '?page=secret'])(
+    'bounds an invalid Library page without accepting private text: %s',
+    (search) => {
+      expect(parseLibraryPage(search)).toBe(1);
+    },
+  );
+  it('stores only the numeric Library page and preserves filters and the detail route', () => {
+    const search = '?catalogs=off&progress=any-played&game=alpha';
+    const second = libraryPageSearch(search, 2);
+    expect(parseLibraryPage(second)).toBe(2);
+    expect(libraryPageSearch(second, 4)).toBe(`${search}&page=4`);
+    expect(libraryPageSearch(second, 1)).toBe(search);
+    expect(gameDetailSearch(libraryPageSearch('?catalogs=off', 4), 'alpha')).toBe('?catalogs=off&page=4&game=alpha');
+    expect(() => libraryPageSearch(search, -1)).toThrow(RangeError);
+    expect(() => libraryPageSearch(search, 1.5)).toThrow(RangeError);
+    expect(() => libraryPageSearch(search, 10000)).toThrow(RangeError);
+  });
+  it('retains the Library page through Ranking tabs but resets it for Queue or new filters', () => {
+    expect(myGamesSearch(defaultFilters, 'ranking', null, 4)).toBe('?tab=ranking&page=4');
+    expect(myGamesSearch(defaultFilters, 'library', null, 4)).toBe('?page=4');
+    expect(myGamesSearch(defaultFilters, 'queue', null, 4)).toBe('?tab=queue');
+    expect(myGamesSearch({ ...defaultFilters, progress: 'any-played' }, 'library')).toBe('?progress=any-played');
   });
   it('retains a valid My games Google return tab without forwarding private or unknown parameters', () => {
     expect(googleReturnPath('/my-games?tab=queue&catalogs=off&participants=private-peer&token=secret')).toBe(

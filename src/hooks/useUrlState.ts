@@ -1,7 +1,13 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { createSearch, PAGE_PATHS, pageFromPath, parseUrl } from '../lib/url';
 import type { AppPage, Filters } from '../lib/types';
-import { gameDetailSearch, myGamesSearch, myGamesTab } from '../lib/my-games-navigation';
+import {
+  gameDetailSearch,
+  libraryPageSearch,
+  myGamesSearch,
+  myGamesTab,
+  parseLibraryPage,
+} from '../lib/my-games-navigation';
 import type { MyGamesTab } from '../lib/my-games-navigation';
 import { pageDestination } from '../lib/page-navigation';
 
@@ -28,6 +34,7 @@ export function useUrlState() {
   const page = pageFromPath(path);
   const parsed = parseUrl(search);
   const gamesView = myGamesTab(path, search);
+  const libraryPage = parseLibraryPage(search);
   const filters =
     page === 'games' && gamesView === 'queue' && parsed.filters.list === 'all'
       ? { ...parsed.filters, list: 'later' as const }
@@ -96,7 +103,20 @@ export function useUrlState() {
   const changeGamesView = useCallback(
     (tab: MyGamesTab) => {
       const current = parseUrl(window.location.search);
-      navigate(myGamesSearch(current.filters, tab, current.game), 'push', null, PAGE_PATHS.games);
+      navigate(
+        myGamesSearch(current.filters, tab, current.game, parseLibraryPage(window.location.search)),
+        'push',
+        null,
+        PAGE_PATHS.games,
+      );
+    },
+    [navigate],
+  );
+
+  const changeLibraryPage = useCallback(
+    (nextPage: number, method: 'push' | 'replace' = 'push') => {
+      if (!['games', 'library', 'rankings'].includes(pageFromPath(window.location.pathname))) return;
+      navigate(libraryPageSearch(window.location.search, nextPage), method, window.history.state);
     },
     [navigate],
   );
@@ -116,6 +136,8 @@ export function useUrlState() {
     game,
     gamesView,
     changeGamesView,
+    libraryPage,
+    changeLibraryPage,
     publicHandle: page === 'profile' ? (path.split('/')[2] ?? '') : '',
     updateFilters,
     openGame,

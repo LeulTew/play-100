@@ -12,11 +12,26 @@ export function myGamesTab(path: string, search: string): MyGamesTab {
   return params.get('list') === 'later' ? 'queue' : 'library';
 }
 
-export function myGamesSearch(filters: Filters, tab: MyGamesTab, game: string | null = null): string {
+export function parseLibraryPage(search: string): number {
+  const value = new URLSearchParams(search).get('page') ?? '';
+  return /^[1-9]\d{0,3}$/.test(value) ? Number(value) : 1;
+}
+
+export function libraryPageSearch(search: string, page: number): string {
+  if (!Number.isInteger(page) || page < 1 || page > 9999) {
+    throw new RangeError('A Library page must be a positive integer below 10000.');
+  }
+  const params = new URLSearchParams(search);
+  if (page === 1) params.delete('page');
+  else params.set('page', String(page));
+  return params.size ? `?${params}` : '';
+}
+
+export function myGamesSearch(filters: Filters, tab: MyGamesTab, game: string | null = null, libraryPage = 1): string {
   const list = filters.list === 'later' ? 'all' : filters.list;
   const params = new URLSearchParams(createSearch({ ...filters, list }, game));
   if (tab !== 'library') params.set('tab', tab);
-  return params.size ? `?${params}` : '';
+  return libraryPageSearch(params.size ? `?${params}` : '', tab === 'queue' ? 1 : libraryPage);
 }
 
 export function gameDetailSearch(search: string, game: string | null): string {

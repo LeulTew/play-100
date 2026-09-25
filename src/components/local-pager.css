@@ -1,10 +1,13 @@
 .local-pager { margin-top: 28px; }
 .local-pager-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
-.local-pager-controls .button { min-width: 44px; padding-inline: 14px; font-size: 14px; }
+.local-pager-controls .button { min-width: 44px; padding-inline: 14px; font-size: 14px; white-space: nowrap; overflow-wrap: normal; }
 .local-pager-choice { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; color: var(--muted); }
 .local-pager-choice select { min-height: 48px; min-width: 108px; max-width: 100%; padding: 8px 10px; border: 1px solid #bbc1ac; border-radius: 4px; color: var(--ink); background: var(--paper); font: inherit; font-variant-numeric: tabular-nums; }
 .local-pager > p { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; text-align: center; font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) {
   .local-pager-choice { order: -1; width: 100%; }
-  .local-pager-controls .button { flex: 1; padding-inline: 8px; font-size: 13px; }
+  .local-pager-controls .button { flex: 1 0 auto; padding-inline: 8px; font-size: 13px; }
+}
+@media (max-width: 360px) {
+  .local-pager-controls .button { flex-basis: calc(50% - 4px); }
 }

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Filters, Game, SortOrder } from '../lib/types';
 import type { LibraryRecord, PersonalProgress } from '../lib/personal-types';
@@ -10,6 +10,11 @@ import { CompletedToggle } from './CompletedToggle';
 import { author, authorRatingText } from '../lib/author';
 import { useCompareDragSource } from './compare-tray/useCompareDragSource';
 import { ComparePinButton } from './compare-tray/ComparePinButton';
+import { useUrlState } from '../hooks/useUrlState';
+import { useNavigationScope } from '../hooks/useNavigationScope';
+import { flushPendingEdits } from '../hooks/useExitSave';
+import { useLibraryMode } from '../lib/library-mode';
+import { focusPendingEditor } from '../lib/dialog-focus';
 
 interface RatingsTableProps {
   games: Game[];
@@ -40,6 +45,40 @@ export default function RatingsTable({
   getCompareRecord,
   savedCopies,
 }: RatingsTableProps) {
+  const { goToPage } = useUrlState();
+  const { scope } = useLibraryMode();
+  const { captureFocusGuard } = useNavigationScope(scope);
+  const mounted = useRef(true);
+  const [navigationError, setNavigationError] = useState('');
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const openRanking = async () => {
+    const scopeAndNavigation = captureFocusGuard();
+    const isCurrent = () => mounted.current && scopeAndNavigation();
+    const blocked: { target: HTMLElement | null } = { target: null };
+    setNavigationError('');
+    try {
+      const saved = await flushPendingEdits((target) => {
+        blocked.target = target;
+      });
+      if (!isCurrent()) return;
+      if (saved) goToPage('rankings');
+      else {
+        setNavigationError('Your edit has not saved. Correct the highlighted rating or note before leaving.');
+        focusPendingEditor(blocked.target);
+      }
+    } catch (cause) {
+      console.error('The Ranking link could not save pending edits.', cause);
+      if (isCurrent()) {
+        setNavigationError('Your edit could not be saved. Keep this page open and retry.');
+        focusPendingEditor(blocked.target);
+      }
+    }
+  };
   const direction = sortDirection(filters);
   const sortedHeader = (label: string, sort: SortOrder, scale?: string) => {
     const active = filters.sort === sort || (sort === 'newest' && filters.sort === 'oldest');
@@ -213,9 +252,26 @@ export default function RatingsTable({
       </div>
       <p className="table-footnote">
         The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s
-        original cached ratings and source notes are preserved, not recalculated. Your editable personal ratings live on
-        My rankings and are separate from these source values.
+        original cached ratings and source notes are preserved, not recalculated. Your ratings are separate from
+        these source values. Edit them in{' '}
+        <a
+          className="text-button"
+          href="/my-games?tab=ranking"
+          onClick={(event) => {
+            if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+            event.preventDefault();
+            void openRanking();
+          }}
+        >
+          My games → Ranking
+        </a>
+        .
       </p>
+      {navigationError && (
+        <p className="inline-error" role="alert">
+          {navigationError}
+        </p>
+      )}
     </div>
   );
 }

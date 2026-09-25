@@ -20,8 +20,14 @@ apply the guest library and collection results.
 
 [useUrlState](../src/hooks/useUrlState.ts) reads pathname and search through an
 external-store subscription. History and the URL determine the page, public
-filters, My games tab and selected detail. Opening a detail records whether
-closing it should use native Back or replace a directly entered detail URL.
+filters, My games tab, numeric Library `page` and selected detail. Library
+page changes create history entries; Back, Forward and reload restore the
+bounded 25-game page. Refinements reset it and removals clamp it with replace,
+without putting the private Library search text or saved opinions in the URL.
+Opening a detail records whether closing it should use native Back or replace
+a directly entered detail URL. Detail Previous/Next and workspace view changes
+flush pending editors first; rejected edits keep their original field mounted
+and return focus to it. Scope or navigation changes cancel a pending handoff.
 
 [useLibrary](../src/hooks/useLibrary.ts) owns the guest library snapshot and
 serializes writes through the device database. Storage failure is explicit:

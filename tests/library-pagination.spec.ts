@@ -176,7 +176,9 @@ test('all 20 pages keep 25 Library rows and 3 retained Ranking editors without w
   }));
   expect(focus.top).toBeGreaterThanOrEqual(focus.headerBottom);
   expect(focus.outline).toBe('3px');
-  expect(await page.evaluate(() => ({ href: location.href, length: history.length }))).toEqual(navigation);
+  expect(new URL(page.url()).searchParams.get('page')).toBe('2');
+  expect(await page.evaluate(() => history.length)).toBeGreaterThan(navigation.length);
+  expect([...new URL(page.url()).searchParams.keys()]).toEqual(['catalogs', 'page']);
   expect(await page.evaluate(() => document.documentElement.dataset.libraryPagingWrites)).toBe('0');
   expect(await readLibrary(page)).toEqual(before);
   expect(privateRequests).toEqual([]);
@@ -375,7 +377,7 @@ test('selection survives pages and the explicit all-matching action covers all 5
     );
 });
 
-test('manual form and hidden Ranking nodes survive paging and tabs; detail Back preserves page, reload resets it', async ({
+test('manual form and hidden Ranking nodes survive paging and tabs; detail Back and reload preserve the page', async ({
   page,
 }) => {
   await installGuestLibrary(page);
@@ -418,7 +420,7 @@ test('manual form and hidden Ranking nodes survive paging and tabs; detail Back 
   await expect(title).toHaveValue('Unsubmitted Library page draft');
   expect(await readLibrary(page)).toEqual(before);
   await page.reload();
-  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(pager(page).getByRole('combobox')).toHaveValue('2');
   await expect(title).toHaveValue('');
   await page.goto('/my-library?list=later');
   await expect(tab(page, 'Queue')).toHaveAttribute('aria-current', 'page');
@@ -541,9 +543,13 @@ test('Library-Ranking-Library history A-B-A invalidates a pending page request w
   await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
   await expect(pager(page).getByRole('combobox')).toBeDisabled();
   await page.goBack();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await page.goBack();
   await expect(tab(page, 'Ranking')).toHaveAttribute('aria-current', 'page');
   await page.goForward();
   await expect(tab(page, 'Library')).toHaveAttribute('aria-current', 'page');
+  await page.goForward();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('3');
   await query(page).focus();
   await finishEditor(page);
   await releaseEditor(page);
@@ -602,6 +608,7 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
   await page.getByRole('dialog').getByRole('button', { name: 'Remove 1 game', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(pager(page)).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(results(page)).toBeFocused();
   expect(await readLibrary(page)).toEqual(applyPersonalAction(before, { type: 'remove-records', ids: [id] }));
@@ -615,8 +622,30 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
     await commitPersonalAction({ type: 'remove-records', ids: [id] });
   }, removedId);
   await expect(pager(page)).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(query(page)).toBeFocused();
+});
+
+test('detail pagination abandons an awaited save after Back closes the game, without stealing focus', async ({
+  page,
+}) => {
+  await installGuestLibrary(page, libraryFixture(3));
+  await page.goto('/?catalogs=off');
+  await page.locator('.game-card .game-link').first().click();
+  await expect(page.locator('#game-title')).toBeVisible();
+  await heldEditor(page);
+  await page.getByRole('button', { name: 'Next game', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Next game', exact: true })).toBeDisabled();
+  await page.goBack();
+  await expect(page.locator('#game-title')).toHaveCount(0);
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  await menu.focus();
+  await finishEditor(page);
+  await releaseEditor(page);
+  expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+  await expect(page.locator('#game-title')).toHaveCount(0);
+  await expect(menu).toBeFocused();
 });
 
 test('Queue remains an unpaged full list beyond 25 and retains existing arrow order', async ({ page }) => {

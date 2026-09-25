@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Game, GameProgress } from '../lib/types';
 import { criticColumns, formatAverage } from '../lib/collection';
@@ -9,6 +9,9 @@ import { PlayedToggle } from './PlayedToggle';
 import { author, authorRatingText } from '../lib/author';
 import { PersonalRatingInput } from './personal/PersonalRatingInput';
 import { useLibraryMode } from '../lib/library-mode';
+import { flushPendingEdits } from '../hooks/useExitSave';
+import { useNavigationScope } from '../hooks/useNavigationScope';
+import { focusPendingEditor } from '../lib/dialog-focus';
 import type { MotionOriginLease } from '../motion';
 
 interface GameDetailProps {
@@ -56,6 +59,48 @@ export function GameDetail({
   const topRef = useRef<HTMLDivElement>(null);
   const artworkRef = useRef<HTMLDivElement>(null);
   const lastSlug = useRef(game.slug);
+  const mounted = useRef(true);
+  const changing = useRef(false);
+  const [navigating, setNavigating] = useState(false);
+  const [navigationError, setNavigationError] = useState('');
+  const [recovery, setRecovery] = useState<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
+  const { captureFocusGuard } = useNavigationScope(mode.scope);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (busy || navigating || !recovery) return;
+    if (recovery.isCurrent()) focusPendingEditor(recovery.target);
+    setRecovery(null);
+  }, [busy, navigating, recovery]);
+  const changeGame = async (slug: string) => {
+    if (changing.current || busy) return;
+    changing.current = true;
+    setNavigating(true);
+    setNavigationError('');
+    setRecovery(null);
+    const scopeAndNavigation = captureFocusGuard();
+    const origin = `${window.location.pathname}${window.location.search}`;
+    const isCurrent = () =>
+      mounted.current && scopeAndNavigation() && origin === `${window.location.pathname}${window.location.search}`;
+    try {
+      const saved = await flushPendingEdits((target) => {
+        if (isCurrent()) setRecovery({ target, isCurrent });
+      });
+      if (!isCurrent()) return;
+      if (saved) onOpen(slug);
+      else setNavigationError('Your edit has not saved. Correct the highlighted rating or note before changing games.');
+    } catch (cause) {
+      console.error('Game details could not save pending edits before navigation.', cause);
+      if (isCurrent()) setNavigationError('Your edit could not be saved. Keep this game open and retry.');
+    } finally {
+      changing.current = false;
+      if (mounted.current) setNavigating(false);
+    }
+  };
   useEffect(() => {
     if (lastSlug.current !== game.slug) {
       topRef.current?.closest('dialog')?.scrollTo({ top: 0, behavior: 'instant' });
@@ -234,13 +279,30 @@ export function GameDetail({
           </p>
         </details>
       </section>
+      {navigationError && (
+        <p className="inline-error" role="alert">
+          {navigationError}
+        </p>
+      )}
       <nav className="detail-pagination" aria-label="Games in the collection">
-        <button className="text-button" disabled={!previous} onClick={() => previous && onOpen(previous.slug)}>
+        <button
+          className="text-button"
+          disabled={!previous || busy || navigating}
+          onClick={() => {
+            if (previous) void changeGame(previous.slug);
+          }}
+        >
           <Icon name="back" />
           Previous game
         </button>
         <span>{game.rank} / 100</span>
-        <button className="text-button" disabled={!next} onClick={() => next && onOpen(next.slug)}>
+        <button
+          className="text-button"
+          disabled={!next || busy || navigating}
+          onClick={() => {
+            if (next) void changeGame(next.slug);
+          }}
+        >
           Next game
           <Icon name="arrow" />
         </button>

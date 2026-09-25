@@ -25,8 +25,8 @@ for (const width of [320, 393, 768, 1440]) {
     expect(failedHit).toBe(true);
     const action = dock.locator('.compare-tray-action');
     await expect(action).toBeVisible();
-    await expect(action).toHaveCSS('padding-inline-start', '22px');
-    await expect(action).toHaveCSS('padding-inline-end', '22px');
+    await expect(action).toHaveCSS('padding-inline-start', width <= 360 ? '12px' : '22px');
+    await expect(action).toHaveCSS('padding-inline-end', width <= 360 ? '12px' : '22px');
     await expect(action).toHaveCSS('min-height', '48px');
     await expect(action).toHaveCSS('font-size', '15px');
     const errorBounds = await dock.evaluate((element) => {

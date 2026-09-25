@@ -23,6 +23,9 @@ import { LocalPager } from '../LocalPager';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { getLocalPage } from '../../lib/local-pagination';
 import { useCommittedCue } from '../../hooks/useCommittedCue';
+import { useUrlState } from '../../hooks/useUrlState';
+import { myGamesTab, parseLibraryPage } from '../../lib/my-games-navigation';
+import { pageFromPath } from '../../lib/url';
 import type { CommittedCue } from '../../lib/route-continuity';
 import './library-pagination.css';
 
@@ -75,7 +78,7 @@ export default function LibraryPage({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [removing, setRemoving] = useState<LibraryRecord[]>([]);
-  const [requestedPage, setRequestedPage] = useState({ definition: '', offset: 0 });
+  const { libraryPage, changeLibraryPage } = useUrlState();
   const [pageCue, setPageCue] = useState<CommittedCue | null>(null);
   const pageCueSerial = useRef(0);
   const pageCueLease = useRef(0);
@@ -114,14 +117,15 @@ export default function LibraryPage({
     );
   }, [state, tab, query, progressView]);
   const definition = JSON.stringify([tab, query, progressView]);
+  const previousQuery = useRef(query);
   const page = getLocalPage(
     records.length,
     LIBRARY_PAGE_SIZE,
-    requestedPage.definition === definition ? requestedPage.offset : 0,
+    previousQuery.current === query ? (libraryPage - 1) * LIBRARY_PAGE_SIZE : 0,
   );
-  const current = useRef({ active, definition, total: records.length, offset: page.offset });
+  const current = useRef({ active, definition, total: records.length, offset: page.offset, libraryPage });
   if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
-  current.current = { active, definition, total: records.length, offset: page.offset };
+  current.current = { active, definition, total: records.length, offset: page.offset, libraryPage };
   useCommittedCue(
     pageBoundary,
     pageCue,
@@ -137,15 +141,29 @@ export default function LibraryPage({
     setQuery('');
   }, [tab]);
   useEffect(() => {
-    setRequestedPage((prior) =>
-      prior.definition === definition && prior.offset === page.offset ? prior : { definition, offset: page.offset },
-    );
-  }, [definition, page.offset]);
+    previousQuery.current = query;
+    if (active && tab !== 'later' && libraryPage !== Math.max(1, page.page)) {
+      changeLibraryPage(Math.max(1, page.page), 'replace');
+    }
+  }, [active, tab, query, libraryPage, page.page, changeLibraryPage]);
   useEffect(() => {
     mounted.current = true;
+    const restorePage = () => {
+      const { pathname, search } = window.location;
+      if (
+        current.current.active &&
+        ['games', 'library'].includes(pageFromPath(pathname)) &&
+        myGamesTab(pathname, search) === 'library' &&
+        parseLibraryPage(search) !== current.current.libraryPage
+      ) {
+        focusAfterPage.current = true;
+      }
+    };
+    window.addEventListener('popstate', restorePage);
     return () => {
       mounted.current = false;
       generation.current += 1;
+      window.removeEventListener('popstate', restorePage);
     };
   }, []);
   useEffect(() => {
@@ -181,8 +199,8 @@ export default function LibraryPage({
       if (!mounted.current || !current.current.active || generation.current !== request) return;
       const bounded = getLocalPage(current.current.total, LIBRARY_PAGE_SIZE, offset);
       const previousOffset = current.current.offset;
-      setRequestedPage({ definition: current.current.definition, offset: bounded.offset });
       focusAfterPage.current = true;
+      changeLibraryPage(Math.max(1, bounded.page));
       if (bounded.offset !== previousOffset) {
         pageCueLease.current = request;
         setPageCue({

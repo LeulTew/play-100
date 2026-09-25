@@ -16,10 +16,10 @@ button.compare-drag-handle[hidden] { display: none; }
   button.compare-drag-handle { cursor: grab; }
   .compare-drag-handle:active { cursor: grabbing; }
 }
-.compare-tray-dock { position: fixed; z-index: 34; inset-inline-end: var(--gutter); bottom: var(--compare-tray-bottom); display: grid; grid-template-columns: minmax(0, 1fr) var(--tray-column, auto); width: var(--tray-width, auto); align-items: center; gap: 8px 16px; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 12px 8px 8px; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 8px 24px #20231e24; }
-.compare-tray-expand { display: flex; gap: 14px; min-width: 0; min-height: 54px; align-items: center; padding: 4px 8px; background: none; text-align: left; overflow-wrap: anywhere; }
-.compare-tray-expand > span:not(.compare-tray-stack) { display: flex; flex-direction: column; gap: 2px; }
-.compare-tray-expand strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.compare-tray-dock { position: fixed; z-index: 34; inset-inline-end: var(--gutter); bottom: var(--compare-tray-bottom); display: grid; grid-template-columns: max-content var(--tray-column, minmax(0, 1fr)); width: var(--tray-width, auto); align-items: center; gap: 8px 16px; max-width: calc(100% - 2 * var(--gutter)); padding: 8px 12px 8px 8px; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-radius: 4px; box-shadow: 0 8px 24px #20231e24; }
+.compare-tray-expand { display: flex; gap: 14px; min-width: max-content; min-height: 54px; align-items: center; padding: 4px 8px; background: none; text-align: left; overflow-wrap: normal; }
+.compare-tray-expand > span:not(.compare-tray-stack) { display: flex; flex: 0 0 auto; flex-direction: column; gap: 2px; }
+.compare-tray-expand strong { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .compare-tray-expand > span > span { color: var(--muted); font-size: 12px; }
 .compare-tray-stack { display: var(--tray-extra, flex); flex-shrink: 0; align-items: center; padding-inline-end: 5px; min-width: 40px; height: 44px; }
 .compare-tray-jacket { position: relative; flex: 0 0 32px; transform: rotate(-7deg); border: 1px solid var(--white); border-radius: 2px; background: var(--paper); }
@@ -32,7 +32,7 @@ button.compare-drag-handle[hidden] { display: none; }
 .compare-drag-ghost { position: fixed; z-index: 39; top: 0; left: 0; display: flex; align-items: center; gap: 12px; width: 176px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--ink); border-radius: 4px; color: var(--ink); background: var(--paper); font-family: inherit; font-size: 15px; font-weight: 650; line-height: 1.25; pointer-events: none; contain: layout paint; }
 .compare-drag-ghost::before { content: ""; flex: 0 0 14px; height: 18px; border: 1px solid currentColor; box-shadow: 3px -3px 0 -1px var(--paper), 3px -3px 0 var(--ink); }
 .compare-drag-ghost[data-native] { left: -10000px; }
-button.compare-tray-action { display: var(--tray-extra, inline-flex); }
+button.compare-tray-action { display: var(--tray-extra, inline-flex); min-width: 0; overflow-wrap: normal; word-break: normal; }
 .compare-tray-action-context { display: block; font-size: 12px; font-weight: 500; }
 .compare-tray-storage-mark { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 22px; height: 22px; background: var(--lime); border: 1px solid var(--ink); border-radius: 50%; }
 .compare-tray-error { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; max-width: 42ch; padding: 8px 0 0; border-top: 1px solid var(--line); color: var(--ink); font-size: 13px; line-height: 1.5; }
@@ -70,6 +70,11 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner { animation: none; }
   .compare-tray-sheet .dialog-inner { padding: 26px 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
   .compare-tray-sheet h2 { font-size: 34px; }
   .compare-tray-sheet-actions .button { padding-inline: 16px; font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .compare-tray-stack { display: none; }
+  button.compare-tray-action { padding: 10px 12px; }
+  .compare-tray-action > svg { display: none; }
 }
 @media (forced-colors: active) {
   .compare-tray-dock, .compare-tray-error, .compare-tray-sheet, .compare-tray-storage-mark { border-color: CanvasText; box-shadow: none; }

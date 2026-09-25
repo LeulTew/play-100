@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import { flushPendingEdits, hasPendingEdits } from '../../hooks/useExitSave';
@@ -7,6 +7,7 @@ import type { CommittedCue } from '../../lib/route-continuity';
 import { Icon } from '../Icon';
 import { ProgressFilter } from '../ProgressFilter';
 import { effectiveProgressFilter, progressFilterPatch } from '../../lib/game-progress';
+import { focusPendingEditor } from '../../lib/dialog-focus';
 import LibraryPage from './LibraryPage';
 import type { LibraryPageProps } from './LibraryPage';
 import RankingsPage from './RankingsPage';
@@ -43,6 +44,7 @@ function MyGamesWorkspace({
   const mounted = useRef(true);
   const changing = useRef<number | null>(null);
   const generation = useRef(0);
+  const [recovery, setRecovery] = useState<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
   const marker = useRef<HTMLSpanElement>(null);
   const tabHistory = useRef({ view, serial: 0 });
   const [tabCue, setTabCue] = useState<(CommittedCue & { generation: number }) | null>(null);
@@ -66,6 +68,7 @@ function MyGamesWorkspace({
       changing.current = null;
       setSwitching(false);
       setError('');
+      setRecovery(null);
     };
     window.addEventListener('popstate', invalidate);
     window.addEventListener('play100:navigate', invalidate);
@@ -95,6 +98,11 @@ function MyGamesWorkspace({
     !switching,
     () => mounted.current && isCurrent() && generation.current === tabCue?.generation,
   );
+  useLayoutEffect(() => {
+    if (props.busy || switching || !recovery) return;
+    if (recovery.isCurrent()) focusPendingEditor(recovery.target);
+    setRecovery(null);
+  }, [props.busy, switching, recovery]);
   const change = async (commit: () => void): Promise<boolean> => {
     if (changing.current !== null || !mounted.current || !isCurrent()) return false;
     const request = ++generation.current;
@@ -106,7 +114,12 @@ function MyGamesWorkspace({
       const saving = hasPendingEdits();
       if (saving) setSwitching(true);
       setError('');
-      const saved = saving ? await flushPendingEdits() : true;
+      setRecovery(null);
+      const saved = saving
+        ? await flushPendingEdits((target) => {
+            if (ownsRequest()) setRecovery({ target, isCurrent: ownsRequest });
+          })
+        : true;
       if (!ownsRequest()) return false;
       if (!saved) {
         setError('Your edit has not saved. Fix the highlighted field or retry before changing views.');

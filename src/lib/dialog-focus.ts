@@ -8,6 +8,13 @@ export function visibleFocusTarget(target: HTMLElement | null): target is HTMLEl
   );
 }
 
+export function focusPendingEditor(target: HTMLElement | null): boolean {
+  if (!visibleFocusTarget(target)) return false;
+  target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+  target.focus({ preventScroll: true });
+  return document.activeElement === target;
+}
+
 export function visibleMenuTrigger() {
   return (
     [...document.querySelectorAll<HTMLElement>('.menu-nav, .mobile-nav button[aria-haspopup="dialog"]')].find(
