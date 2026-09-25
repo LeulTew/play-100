@@ -279,3 +279,24 @@ measured on the R8 configured build (these modules are unchanged since).
 | Secondary dialogs ([useAppPanel.ts](../src/hooks/useAppPanel.ts)) | On intent: pointer, focus or press on a Menu button, the menu or the footer, and when the Menu opens; never while hidden or with Save-Data | About 3.3 KB and Settings 4.9 KB, plus the PWA client 3.3 KB if not loaded yet | Only after that intent | Kept |
 | PWA controls ([deferred-controller.ts](../src/pwa/deferred-controller.ts), `'essential'`) | After load, at idle, on every device class | The PWA client, 3.4 KB | An installed or offline user's page learns about updates and offline state; a first-time guest needs it only in Settings or to install | Kept: the one warm-up constrained devices need, and small. Skipping it for guests would need a service-worker registration probe before the client, which is the client's own first step |
 | 3D scene ([CollectionArtifact.tsx](../src/components/CollectionArtifact.tsx)) | At idle while the artifact is on screen, with motion allowed (Auto or Full without reduced motion; Auto also not on a constrained device); in Auto with a coarse pointer only after Fan out | The scene, 143 KB | It is the hero artifact on screen, not a guess | Kept, with its gates |
+
+### Feature-only eager CSS
+
+Entry-stylesheet rules that style only a lazily rendered feature could move to
+that feature's lazy stylesheet. To find them, each rule of the R8 configured
+build's entry stylesheet (83,619 raw / 16,851 gzip9 bytes) counts when every one
+of its selectors needs a class that no eager chunk and no `index.html` names.
+The saving is the entry stylesheet's gzip9 without the group.
+
+| Group | Rendered by | Rules | Raw bytes | Entry gzip9 saved | Why it stays |
+| --- | --- | ---: | ---: | ---: | --- |
+| Discover page layout: `.discovery-page`, toolbar, results heading, card grid, help, empty state, skeleton | `DiscoverPage` | 40 | 2,884 | 449 | `discover.css` is shared with the landing's `DiscoveryCard`. A Discover-only sheet would be a new lazy CSS asset: one more PWA core file against the exact 51-file cap |
+| Settings and backup: motion options, preference note, device settings, reset confirmation, storage warning, backup panel, danger button | `SettingsPanel` | 24 | 1,747 | 339 | Settings typography that ties with generic dialog rules stays eager to keep its winner ([DESIGN.md](../DESIGN.md)) |
+| My games and catalog records: tabs, record titles, manual add, unranked list, catalog results, actions and errors | `MyGamesPage`, `DiscoverPage` | 57 | 4,104 | 623 | Shared tabs and manual add stay eager: Discover and My games have no common lazy stylesheet |
+| Online pages: `.auth-purpose`, `.friend-sharing-summary` | online pages | 7 | 520 | 93 | Too small for the specificity review a move needs |
+| `.footer-bottom` | nothing | 9 | 723 | 91 | No component renders it: a cleanup, not a move |
+
+No group reaches the 2 KB gzip bar, and all five together save 1,671 bytes, so no
+rule moves and the first-paint style hashes stay unchanged. The count leaves out
+constructed class names, such as `jacket-${variant}` in `GameCover`, which eager
+code renders without naming them whole.
