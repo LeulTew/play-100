@@ -21,7 +21,8 @@ if (import.meta.env.VITE_APP_CHECK_ENABLED === 'true' && !EMULATOR_MODE) {
   const appCheck = readAppCheckConfiguration({
     VITE_APP_CHECK_ENABLED: import.meta.env.VITE_APP_CHECK_ENABLED,
     VITE_APP_CHECK_SITE_KEY: import.meta.env.VITE_APP_CHECK_SITE_KEY,
-  }).config;  if (appCheck) {
+  }).config;
+  if (appCheck) {
     void import('./app-check-client')
       .then((module) => module.startAppCheck(firebaseApp, appCheck.siteKey))
       .catch(() => console.warn('App Check could not start. Online tools continue without attestation.'));
