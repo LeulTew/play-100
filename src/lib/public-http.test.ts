@@ -55,6 +55,26 @@ describe('shared bounded public transport with S2 cleanup semantics', () => {
       expect(JSON.stringify(warning.mock.calls)).not.toContain('secret');
     },
   );
+  it('logs only the host and a safe error code when a structured source error becomes a 503', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const body = (error: unknown) => new Response(JSON.stringify({ error }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(body({ code: 'maxlag', info: 'Waiting for secret-db1: 6 seconds lagged.', lag: 6 }))
+      .mockResolvedValueOnce(body({ code: 'Bad Code <script>', info: 'secret-info' }))
+      .mockResolvedValueOnce(body({ code: 'a'.repeat(41) }))
+      .mockResolvedValueOnce(body({ info: 'secret-info' }));
+    vi.stubGlobal('fetch', fetch);
+    for (let index = 0; index < 4; index += 1)
+      await expect(upstreamJson(url, signal())).rejects.toMatchObject({ status: 503, code: 'unavailable' });
+    expect(warning).toHaveBeenCalledExactlyOnceWith('Catalog upstream returned an error object.', {
+      host: 'www.wikidata.org',
+      code: 'maxlag',
+    });
+    const logged = JSON.stringify(warning.mock.calls);
+    for (const leak of ['secret', 'Waiting', 'wbgetentities', 'Q15408545', 'script'])
+      expect(logged).not.toContain(leak);
+  });
   it('enforces exact stream bounds and cancels one byte over', async () => {
     const cancel = vi.fn(async () => undefined);
     const fetch = vi

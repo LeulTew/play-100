@@ -166,6 +166,15 @@ export async function publicBytes(
   }
 }
 
+const UPSTREAM_ERROR_CODE = /^[a-z][a-z0-9-]{0,39}$/;
+
+// Only the host and a short, lowercase error code are logged, never the body, info text or query.
+function warnUpstreamErrorCode(value: URL | string, error: object): void {
+  const code = 'code' in error ? error.code : undefined;
+  if (typeof code !== 'string' || !UPSTREAM_ERROR_CODE.test(code)) return;
+  console.warn('Catalog upstream returned an error object.', { host: new URL(value).host, code });
+}
+
 export async function upstreamJson(
   value: URL | string,
   signal: AbortSignal,
@@ -187,6 +196,7 @@ export async function upstreamJson(
     typeof payload.error === 'object' &&
     !Array.isArray(payload.error)
   ) {
+    warnUpstreamErrorCode(value, payload.error);
     throw new CatalogError(
       'The public source is temporarily busy or rejected the request. Please try again later.',
       503,
