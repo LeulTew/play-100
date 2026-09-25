@@ -19,9 +19,11 @@
 .discovery-card, .discovery-card-skeleton { min-width: 0; align-self: start; }
 .discovery-card.is-selected { outline: 3px solid #426515; outline-offset: 5px; }
 .discovery-card-art { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; background: #e4e7db; overflow: hidden; }
-.discovery-card-art:has(.discovery-no-art), .discovery-card-art:has(.art-fallback-note) { min-height: min-content; }
+.discovery-card-art:has(.discovery-no-art) { min-height: min-content; }
 .discovery-card-art > img { position: absolute; inset: 0; margin: auto; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
 .discovery-card-art > .game-cover { width: 100%; height: 100%; border-radius: 0; }
+.discovery-card-art:has(.art-fallback-note) { aspect-ratio: auto; height: auto; min-height: max-content; }
+.discovery-card-art:has(.art-fallback-note) > .game-cover { height: auto; }
 .discovery-canonical { margin-top: 4px; font-size: .8125rem; line-height: 1.5; }
 .discovery-canonical > span { display: block; color: var(--muted); }
 .discovery-canonical strong { color: var(--ink); font-weight: 650; }
