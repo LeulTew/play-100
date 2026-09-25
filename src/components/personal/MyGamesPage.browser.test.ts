@@ -15,6 +15,7 @@ declare global {
       holdEditor(): void;
       releaseEditor(): void;
       finishEditor(saved: boolean): void;
+      hasUnsubmittedForm(): boolean;
     };
     myGamesPaging: { arm(): void; settled(): Promise<PagingTurn> };
   }
@@ -44,6 +45,7 @@ import { createRoot } from 'react-dom/client';
 import MyGamesPage from '/src/components/personal/MyGamesPage.tsx';
 import { registerPendingEditor } from '/src/hooks/useExitSave.ts';
 import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
+import { hasUnsubmittedPwaForm } from '/src/lib/pwa-update-guard.ts';
 import '/src/styles.css';
 import '/src/shared-ui.css';
 const params = new URLSearchParams(location.search);
@@ -118,7 +120,10 @@ function App() {
   });
   return params.has('probe') ? h(Profiler, { id: 'my-games', onRender: () => { if (probe.armed) probe.commits += 1; } }, page) : page;
 }
-window.myGamesFixture = { exits, saves, accept: value => { accept = value; } };
+window.myGamesFixture = {
+  exits, saves, accept: value => { accept = value; },
+  hasUnsubmittedForm: () => hasUnsubmittedPwaForm(),
+};
 // A held editor: pending until released, and its save settles only when finished.
 let heldPending = false, finishHeld = () => {};
 window.myGamesFixture.holdEditor = () => {
@@ -241,10 +246,19 @@ describe('My games exit guard', () => {
       await note.press('Tab');
       const failure = page.getByRole('alert').filter({ hasText: 'The note could not be saved.' });
       await browserExpect(failure).toBeVisible();
+      await note.evaluate((element) => {
+        element.dataset.failedEditorIdentity = 'original-note';
+      });
+      await note.focus();
+      await note.press('Tab');
       await expectGuardedExits(page, async () => {
         await browserExpect(note).toHaveValue('Unsaved draft');
+        await browserExpect(note).toHaveAttribute('data-failed-editor-identity', 'original-note');
         await browserExpect(failure).toBeVisible();
         await browserExpect(note).toBeEnabled();
+        expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
+          JSON.stringify({ id: 'alpha', note: 'Unsaved draft' }),
+        ]);
       });
       // Only the draft's failed save was attempted; no guarded exit retried or discarded it.
       expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
@@ -258,6 +272,10 @@ describe('My games exit guard', () => {
       // The held search applies once the edit has saved.
       await browserExpect(rankingStatus(page)).toHaveText('1 ranked game in this view');
       await browserExpect(rankedRow(page, 'alpha')).toHaveCount(0);
+      expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
+        JSON.stringify({ id: 'alpha', note: 'Unsaved draft' }),
+        JSON.stringify({ id: 'alpha', note: 'Saved draft' }),
+      ]);
       await page.getByRole('button', { name: 'Find games', exact: true }).click();
       await browserExpect.poll(() => exits(page)).toEqual(['discover']);
     });
@@ -273,9 +291,18 @@ describe('My games exit guard', () => {
       await browserExpect(failure).toHaveText(
         'The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.',
       );
+      await rating.evaluate((element) => {
+        element.dataset.failedEditorIdentity = 'original-rating';
+      });
+      await rating.focus();
+      await rating.press('Tab');
       await expectGuardedExits(page, async () => {
         await browserExpect(rating).toHaveValue('9');
+        await browserExpect(rating).toHaveAttribute('data-failed-editor-identity', 'original-rating');
         await browserExpect(failure).toBeVisible();
+        expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
+          JSON.stringify({ id: 'alpha', score: 9 }),
+        ]);
       });
       expect(await page.evaluate(() => [...window.myGamesFixture.saves])).toEqual([
         JSON.stringify({ id: 'alpha', score: 9 }),
@@ -356,13 +383,7 @@ describe('My games Ranking pane mounting', () => {
       await page.getByRole('button', { name: 'Close game picker', exact: true }).click();
       await page.getByRole('button', { name: 'Library, 2', exact: true }).click();
       await browserExpect(page.locator('[hidden] .ranking-row-content')).toHaveCount(2);
-      expect(
-        await page.evaluate(async () => {
-          const path = '/src/lib/pwa-update-guard.ts';
-          const { hasUnsubmittedPwaForm }: typeof import('../../lib/pwa-update-guard') = await import(path);
-          return hasUnsubmittedPwaForm();
-        }),
-      ).toBe(true);
+      expect(await page.evaluate(() => window.myGamesFixture.hasUnsubmittedForm())).toBe(true);
       await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
       await page.getByRole('button', { name: 'Add games', exact: true }).click();
       await ranking.getByLabel('Game title', { exact: true }).fill('');

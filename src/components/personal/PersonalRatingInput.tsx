@@ -111,10 +111,14 @@ export function PersonalRatingInput({
             setDraft(event.target.value);
           }}
           onBlur={() => {
-            void save();
+            // Returning focus after blocked navigation must not turn the next blur into a retry.
+            if (!error) void save();
           }}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur();
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (error) void save();
+            event.currentTarget.blur();
           }}
         />
       </label>

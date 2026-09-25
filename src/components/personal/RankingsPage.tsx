@@ -732,7 +732,8 @@ function RankingRow({
             setNote(event.target.value);
           }}
           onBlur={() => {
-            void saveNote();
+            // A recovered focus followed by another navigation attempt is not an explicit retry.
+            if (!noteError) void saveNote();
           }}
           placeholder="Why this game belongs here…"
         />
