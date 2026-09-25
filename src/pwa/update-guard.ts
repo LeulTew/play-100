@@ -5,9 +5,10 @@ import { hasUnsubmittedPwaForm } from '../lib/pwa-update-guard';
 import type { PwaUpdateGuard } from './types';
 
 /** Counts every input and change event in the document, so an update can tell whether the user typed meanwhile. */
-export function useInputGeneration(): RefObject<number> {
+export function useInputGeneration(enabled = true): RefObject<number> {
   const generation = useRef(0);
   useEffect(() => {
+    if (!enabled) return;
     const edited = () => {
       generation.current += 1;
     };
@@ -17,7 +18,7 @@ export function useInputGeneration(): RefObject<number> {
       document.removeEventListener('input', edited, true);
       document.removeEventListener('change', edited, true);
     };
-  }, []);
+  }, [enabled]);
   return generation;
 }
 

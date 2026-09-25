@@ -1,3 +1,5 @@
+import type { PwaUpdateGuard } from '../pwa/types';
+
 export type ChunkIntent = 'settings' | 'credits';
 
 export class ModuleLoadFailure extends Error {
@@ -13,17 +15,26 @@ export function isModuleLoadFailure(error: unknown): error is ModuleLoadFailure 
 
 export const offlineRecoveryMessage = "You're offline. Reconnect, then try again.";
 export const unavailableRecoveryMessage = "Play 100 didn't respond. Try again in a moment.";
+export const unsavedRecoveryMessage =
+  'Finish or correct unsaved work and wait for saving to finish before reloading. Nothing was reloaded.';
 
 export async function guardedReload({
   intent,
   isCurrent = () => true,
+  guard,
 }: {
   intent?: ChunkIntent;
   isCurrent?: () => boolean;
-} = {}): Promise<'offline' | 'unavailable' | 'cancelled' | 'navigating'> {
+  guard?: PwaUpdateGuard;
+} = {}): Promise<'offline' | 'unavailable' | 'cancelled' | 'blocked' | 'navigating'> {
   const url = new URL(location.href);
   const original = url.href;
   if (!navigator.onLine) return 'offline';
+  const current = () => isCurrent() && location.href === original && (!guard || guard.isCurrent());
+  if (!current()) return 'cancelled';
+  // PWA callers already prepare their guard; component recovery supplies it here.
+  if (guard && (!(await guard.prepare()) || !guard.canReload())) return 'blocked';
+  if (!current()) return 'cancelled';
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     const abort = new AbortController();
@@ -37,7 +48,8 @@ export async function guardedReload({
     clearTimeout(timeout);
   }
   if (!navigator.onLine) return 'offline';
-  if (!isCurrent() || location.href !== original) return 'cancelled';
+  if (!current()) return 'cancelled';
+  if (guard && !guard.canReload()) return 'blocked';
   if (intent) url.searchParams.set('info', intent);
   location.replace(url.href);
   return 'navigating';

@@ -160,6 +160,10 @@ until one explicit, inline **Share all with friends** action.
   Firebase, authentication or API responses. Existing local databases/scopes
   remain separate. Updates require saved edits, a current invocation and one
   app window; no automatic reload may discard forms or switch account scope.
+- Failed-module recovery shares that update guard: valid pending edits must
+  finish, unsubmitted forms and busy writes block reload, and fresh input or a
+  scope/navigation change during the connection probe cancels it. Keep editing
+  preserves the current form instead of offering a silent discard.
 - Original and enhanced XLSX downloads, clearly distinguished from private data.
 - Two optional collection films use first-party, content-hashed media after the
   collection, never an autoplaying landing-page takeover. MP4 requests begin only

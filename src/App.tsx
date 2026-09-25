@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { useCollection } from './hooks/useCollection';
 import { useLibrary } from './hooks/useLibrary';
@@ -18,6 +18,7 @@ import { isModuleLoadFailure } from './lib/chunk-recovery';
 import { visibleMenuTrigger } from './lib/dialog-focus';
 import { usePwa } from './pwa/usePwa';
 import { createPwaUpdateGuard, useInputGeneration } from './pwa/update-guard';
+import { ReloadGuardContext } from './lib/reload-guard-context';
 import { scrollCollectionIntoView } from './components/collection-landing';
 import {
   ONLINE_AVAILABLE,
@@ -261,6 +262,15 @@ export default function App() {
   const updateState = useRef({ busy: libraryBusy, panel });
   updateState.current = { busy: libraryBusy, panel };
   const inputGeneration = useInputGeneration();
+  const captureReloadGuard = useCallback(
+    () =>
+      createPwaUpdateGuard({
+        isCurrent: captureMenuFocusGuard(),
+        busy: () => updateState.current.busy,
+        inputGeneration,
+      }),
+    [captureMenuFocusGuard, inputGeneration],
+  );
   const accountPanelOpen = useRef(panel === 'account');
   accountPanelOpen.current = panel === 'account';
   const compareSignInOrigin = useRef<{ isCurrent: () => boolean } | null>(null);
@@ -724,12 +734,15 @@ export default function App() {
       message={panelFailure === 'about' ? "Credits didn't load." : "Settings didn't load."}
       intent={panelFailure === 'about' ? 'credits' : 'settings'}
       label={panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'}
+      onKeepEditing={closePanel}
     />
   );
   const toastRecovery = !panel && !manualLink && !selectedSlug && panelRecovery;
   const signInPurpose = currentSignInPurpose(signInTicket, panel === 'account');
 
-  return (
+  return createElement(
+    ReloadGuardContext,
+    { value: captureReloadGuard },
     <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
       <AppMotionBindings
         mainRef={mainRef}
@@ -1184,6 +1197,6 @@ export default function App() {
           </CompareTrayProvider>
         )}
       </AppMotionBindings>
-    </MotionProvider>
+    </MotionProvider>,
   );
 }

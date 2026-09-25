@@ -64,7 +64,7 @@ export function DialogHost({
               <h2 id="catalog-load-error-title" data-autofocus tabIndex={-1}>
                 Game details
               </h2>
-              <ChunkRecovery message="These game details didn't load." />
+              <ChunkRecovery message="These game details didn't load." onKeepEditing={onCloseGame} />
             </Dialog>
           }
         >
@@ -78,7 +78,7 @@ export function DialogHost({
           <h2 id="catalog-parser-error-title" data-autofocus tabIndex={-1}>
             Game details
           </h2>
-          <ChunkRecovery message="The catalog tools didn't load." />
+          <ChunkRecovery message="The catalog tools didn't load." onKeepEditing={onCloseGame} />
         </Dialog>
       )}
       {loadingGame && (

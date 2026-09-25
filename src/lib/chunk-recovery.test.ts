@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { guardedReload, isModuleLoadFailure, ModuleLoadFailure } from './chunk-recovery';
+import type { PwaUpdateGuard } from '../pwa/types';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -108,5 +109,60 @@ describe('explicit module recovery', () => {
     expect(await result).toBe('offline');
     expect(replace).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('awaits the shared edit flush before starting its connectivity probe', async () => {
+    const { fetch, replace } = fixture();
+    let finish!: (saved: boolean) => void;
+    const guard: PwaUpdateGuard = {
+      prepare: () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+      isCurrent: () => true,
+      canReload: () => true,
+    };
+    const request = guardedReload({ guard });
+    expect(fetch).not.toHaveBeenCalled();
+    finish(true);
+    expect(await request).toBe('navigating');
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(replace).toHaveBeenCalledOnce();
+  });
+
+  it.each(['failed save', 'unsubmitted form', 'busy library'] as const)(
+    'does not probe or navigate over %s',
+    async (reason) => {
+      const { fetch, replace } = fixture();
+      const guard: PwaUpdateGuard = {
+        prepare: async () => {
+          if (reason === 'unsubmitted form') throw new Error('The form is not submitted.');
+          return reason !== 'failed save';
+        },
+        isCurrent: () => true,
+        canReload: () => reason !== 'busy library',
+      };
+      const request = guardedReload({ guard });
+      if (reason === 'unsubmitted form') await expect(request).rejects.toThrow('The form is not submitted.');
+      else expect(await request).toBe('blocked');
+      expect(fetch).not.toHaveBeenCalled();
+      expect(replace).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['scope', 'input', 'write'] as const)('rechecks %s after HEAD', async (reason) => {
+    const { fetch, replace } = fixture();
+    let unchanged = true;
+    const guard: PwaUpdateGuard = {
+      prepare: async () => true,
+      isCurrent: () => reason !== 'scope' || unchanged,
+      canReload: () => unchanged,
+    };
+    fetch.mockImplementationOnce(async () => {
+      unchanged = false;
+      return { ok: true };
+    });
+    expect(await guardedReload({ guard })).toBe(reason === 'scope' ? 'cancelled' : 'blocked');
+    expect(replace).not.toHaveBeenCalled();
   });
 });

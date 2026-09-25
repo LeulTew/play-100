@@ -66,3 +66,53 @@ test('catalog parser failure offers guarded reload rather than a cached-import d
   await expect(page.getByRole('button', { name: 'Reload this page', exact: true })).toBeVisible();
   expect(requests).toBe(1);
 });
+
+for (const timing of ['before reload', 'during HEAD'] as const) {
+  test(`failed Settings recovery preserves a manual draft typed ${timing}`, async ({ page, baseURL }) => {
+    expect(['127.0.0.1', 'localhost']).toContain(new URL(baseURL!).hostname);
+    const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
+    const asset = manifest['src/components/app/SettingsPanel.tsx']?.file;
+    if (!asset) throw new Error('Missing separately emitted Settings root.');
+    await page.route(`**/${asset}`, (route) => route.abort('failed'));
+    let release!: () => void;
+    let probes = 0;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/*', async (route) => {
+      if (route.request().method() !== 'HEAD') return route.fallback();
+      probes++;
+      await held;
+      return route.fulfill({ status: 200 });
+    });
+    try {
+      await page.goto('/my-games?catalogs=off');
+      await expect(page.locator('#my-games-title')).toBeVisible();
+      const form = page.locator('.manual-add:visible');
+      await expect(form).toHaveCount(1);
+      await form.locator('summary').click();
+      const title = form.getByRole('textbox', { name: 'Game title', exact: true });
+      if (timing === 'before reload') await title.fill('Unsubmitted game stays here');
+      await page.locator('.site-footer').getByRole('button', { name: /^Effects:/ }).click();
+      const recovery = page.locator('.toast .inline-error');
+      await expect(recovery.getByRole('alert')).toContainText("Settings didn't load.");
+      const document = await page.evaluateHandle(() => window.document.documentElement);
+      const original = page.url();
+      await recovery.getByRole('button', { name: 'Reload and open Settings', exact: true }).click();
+      if (timing === 'during HEAD') {
+        await expect.poll(() => probes).toBe(1);
+        await title.fill('Unsubmitted game stays here');
+        release();
+      }
+      await expect(recovery.getByRole('status')).toContainText('Nothing was reloaded.');
+      await recovery.getByRole('button', { name: 'Keep editing', exact: true }).click();
+      await expect(title).toHaveValue('Unsubmitted game stays here');
+      expect(page.url()).toBe(original);
+      expect(await document.evaluate((element) => element.isConnected)).toBe(true);
+      if (timing === 'before reload') expect(probes).toBe(0);
+      await document.dispose();
+    } finally {
+      release();
+    }
+  });
+}

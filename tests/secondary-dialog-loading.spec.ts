@@ -116,7 +116,7 @@ test('an aborted Settings chunk requires an explicit connected reload and restor
   try {
     await reload.click();
     await expect.poll(() => probes).toBe(1);
-    await expect(alert.getByRole('status')).toHaveText('Checking your connection…');
+    await expect(alert.getByRole('status')).toHaveText('Checking saved work and your connection…');
     await expect(reload).toHaveAttribute('aria-disabled', 'true');
     await expect(reload).toHaveAttribute('aria-busy', 'true');
     await expect(reload).toBeFocused();
