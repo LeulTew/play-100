@@ -408,7 +408,7 @@ test('history-hidden ranking editors retain invalid input until corrected, and n
   await row(page).getByRole('spinbutton').fill('11');
   await page.goBack();
   await expect(views(page).getByRole('button', { name: /^Library, / })).toHaveAttribute('aria-current', 'page');
-  await expect(page.locator(`[hidden] [data-record-id="${canonical.id}"] input[type="number"]`)).toHaveValue('11');
+  await expect(page.locator(`[hidden] [data-record-id="${canonical.id}"] .personal-score input`)).toHaveValue('11');
   expect(await readLibrary(page)).toEqual(before);
   await page.goForward();
   await expect(row(page).getByRole('spinbutton')).toHaveValue('11');

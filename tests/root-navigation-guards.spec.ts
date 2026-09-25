@@ -369,7 +369,7 @@ test('direct queue and detail callbacks retain the hidden invalid ranking draft 
   await rating(page).fill('11');
   await page.getByRole('button', { name: /^Play later, \d+ games?$/ }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/my-games' && url.searchParams.get('tab') === 'queue');
-  const hiddenRating = page.locator(`[hidden] [data-record-id="${first.id}"] input[type="number"]`);
+  const hiddenRating = page.locator(`[hidden] [data-record-id="${first.id}"] .personal-score input`);
   await expect(hiddenRating).toHaveValue('11');
   expect(await readLibrary(page)).toEqual(before);
   await page.goBack();

@@ -359,7 +359,7 @@ test('Return to edit never focuses a retained hidden editor and keeps its invali
   await tabs.getByRole('button', { name: /^Ranking, / }).click();
   await rating(page).fill('11');
   await page.goBack();
-  const hidden = page.locator(`[hidden] [data-record-id="${first.id}"] input[type="number"]`);
+  const hidden = page.locator(`[hidden] [data-record-id="${first.id}"] .personal-score input`);
   await expect(hidden).toHaveValue('11');
   await openMenu(page);
   await menu(page).getByRole('link', { name: 'Discover', exact: true }).click();

@@ -11,6 +11,8 @@ function fixture({
   identity = true,
   nestedLink = false,
   headingTabIndex = true,
+  viewportWidth = 1280,
+  dock = false,
 } = {}) {
   const scrollTo = vi.fn();
   const link = { focus: vi.fn() };
@@ -26,8 +28,12 @@ function fixture({
     querySelector: () => (nestedLink ? link : null),
   };
   const section = { getBoundingClientRect: () => ({ top: 600 }), querySelector: () => (identity ? title : null) };
-  const obstacle = { getBoundingClientRect: () => ({ top: obstacleTop }), getClientRects: () => (hidden ? [] : [{}]) };
-  vi.stubGlobal('window', { scrollY: 100, innerHeight: 740, scrollTo });
+  const obstacle = {
+    getBoundingClientRect: () => ({ top: obstacleTop }),
+    getClientRects: () => (hidden ? [] : [{}]),
+    matches: (selector: string) => dock && selector === '.compare-tray-dock',
+  };
+  vi.stubGlobal('window', { scrollY: 100, innerWidth: viewportWidth, innerHeight: 740, scrollTo });
   vi.stubGlobal('document', {
     documentElement: {},
     getElementById: (id: string) => (id === 'collection-title' ? heading : section),
@@ -97,6 +103,22 @@ describe('explicit collection landing', () => {
     const { scrollTo, heading, link } = fixture({ titleTop: 1070, titleBottom: 1109 });
     scrollCollectionIntoView('instant');
     expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 649.5, behavior: 'instant' });
+    expect(heading.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    expect(link.focus).not.toHaveBeenCalled();
+  });
+
+  it('lands on the first identity with a compact pinned dock even when the heading still fits', () => {
+    const { scrollTo, heading, link } = fixture({ viewportWidth: 320, dock: true, obstacleTop: 620 });
+    scrollCollectionIntoView('instant');
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 615, behavior: 'instant' });
+    expect(link.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    expect(heading.focus).not.toHaveBeenCalled();
+  });
+
+  it('keeps the ordinary heading landing when the compact dock is hidden', () => {
+    const { scrollTo, heading, link } = fixture({ viewportWidth: 320, dock: true, hidden: true });
+    scrollCollectionIntoView('instant');
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 615, behavior: 'instant' });
     expect(heading.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
     expect(link.focus).not.toHaveBeenCalled();
   });

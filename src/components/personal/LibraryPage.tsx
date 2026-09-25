@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
@@ -78,7 +78,17 @@ export default function LibraryPage({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [removing, setRemoving] = useState<LibraryRecord[]>([]);
-  const { libraryPage, changeLibraryPage } = useUrlState();
+  const { page: hostPage, libraryPage: urlPage, changeLibraryPage: changeUrlPage } = useUrlState();
+  const usesUrlPage = hostPage === 'games' || hostPage === 'library' || hostPage === 'rankings';
+  const [localPage, setLocalPage] = useState(1);
+  const libraryPage = usesUrlPage ? urlPage : localPage;
+  const changeLibraryPage = useCallback(
+    (nextPage: number, method: 'push' | 'replace' = 'push') => {
+      if (usesUrlPage) changeUrlPage(nextPage, method);
+      else setLocalPage(nextPage);
+    },
+    [usesUrlPage, changeUrlPage],
+  );
   const [pageCue, setPageCue] = useState<CommittedCue | null>(null);
   const pageCueSerial = useRef(0);
   const pageCueLease = useRef(0);
@@ -117,11 +127,14 @@ export default function LibraryPage({
     );
   }, [state, tab, query, progressView]);
   const definition = JSON.stringify([tab, query, progressView]);
+  const previousDefinition = useRef(definition);
   const previousQuery = useRef(query);
   const page = getLocalPage(
     records.length,
     LIBRARY_PAGE_SIZE,
-    previousQuery.current === query ? (libraryPage - 1) * LIBRARY_PAGE_SIZE : 0,
+    previousQuery.current === query && (usesUrlPage || previousDefinition.current === definition)
+      ? (libraryPage - 1) * LIBRARY_PAGE_SIZE
+      : 0,
   );
   const current = useRef({ active, definition, total: records.length, offset: page.offset, libraryPage });
   if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
@@ -141,11 +154,12 @@ export default function LibraryPage({
     setQuery('');
   }, [tab]);
   useEffect(() => {
+    previousDefinition.current = definition;
     previousQuery.current = query;
     if (active && tab !== 'later' && libraryPage !== Math.max(1, page.page)) {
       changeLibraryPage(Math.max(1, page.page), 'replace');
     }
-  }, [active, tab, query, libraryPage, page.page, changeLibraryPage]);
+  }, [active, tab, query, definition, libraryPage, page.page, changeLibraryPage]);
   useEffect(() => {
     mounted.current = true;
     const restorePage = () => {

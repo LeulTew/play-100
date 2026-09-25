@@ -24,6 +24,9 @@ filters, My games tab, numeric Library `page` and selected detail. Library
 page changes create history entries; Back, Forward and reload restore the
 bounded 25-game page. Refinements reset it and removals clamp it with replace,
 without putting the private Library search text or saved opinions in the URL.
+When Library is embedded outside a My games route, its bounded pager keeps
+local page state instead of rewriting the host URL; save guards, clamping,
+results focus and committed range motion use the same path.
 Opening a detail records whether closing it should use native Back or replace
 a directly entered detail URL. Detail Previous/Next and workspace view changes
 flush pending editors first; rejected edits keep their original field mounted

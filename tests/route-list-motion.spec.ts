@@ -144,13 +144,14 @@ for (const policy of [
   });
 }
 
-test('real My games tabs and range animate bounded noninteractive targets with 25+3 retained rows and no paging writes', async ({
+test('real My games tabs and range animate bounded targets with local-host paging and no hidden clean Ranking rows', async ({
   page,
   isMobile,
 }, info) => {
   await mountMotionFixture(page, true);
   const workspace = page.locator(fixture);
   const before = await readLibrary(page);
+  const locationBefore = page.url();
   const marker = workspace.locator('.my-games-tab-marker:not([hidden])');
   expect(await arrivalEvents(page)).toEqual([]);
   await workspace
@@ -166,6 +167,7 @@ test('real My games tabs and range animate bounded noninteractive targets with 2
     .getByRole('navigation', { name: 'My games views' })
     .getByRole('button', { name: 'Library, 500', exact: true })
     .click();
+  await expect(workspace.locator('.ranking-row-content')).toHaveCount(0);
   const pages = workspace.getByRole('navigation', { name: 'Library pages', exact: true });
   await pages.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(pages.getByRole('combobox')).toHaveValue('2');
@@ -174,6 +176,7 @@ test('real My games tabs and range animate bounded noninteractive targets with 2
   expect((await arrivalEvents(page, 'range'))[0]?.duration).toBe(isMobile ? 100 : 120);
   await expect(workspace.locator('ul.personal-records > .personal-row-static')).toHaveCount(25);
   expect(await readLibrary(page)).toEqual(before);
+  expect(page.url()).toBe(locationBefore);
   expect(await arrivalEvents(page, 'heading')).toEqual([]);
   expect(await arrivalEvents(page, 'other')).toEqual([]);
   await page.screenshot({ path: info.outputPath('committed-library-range.png') });

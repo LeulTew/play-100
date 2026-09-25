@@ -26,7 +26,10 @@ export function scrollCollectionIntoView(behavior: ScrollBehavior): void {
     top = Math.max(preferredTop, Math.min(clearBottom, clearTop));
     const headingBounds = heading?.getBoundingClientRect();
     const scrollDelta = Math.max(0, top) - window.scrollY;
+    // Keep Explore's compact pinned landing stable when the dock's content changes height.
+    const pinnedMobile = window.innerWidth <= 760 && obstacles.some((element) => element.matches('.compare-tray-dock'));
     if (
+      pinnedMobile ||
       !headingBounds ||
       headingBounds.top - scrollDelta < headerBottom ||
       headingBounds.bottom - scrollDelta > bottom
