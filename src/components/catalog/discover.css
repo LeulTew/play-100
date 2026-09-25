@@ -40,6 +40,10 @@
 .discovery-card-meta { color: var(--muted); font-size: .8125rem; line-height: 1.5; margin-top: 4px; overflow-wrap: anywhere; }
 .discovery-card-primary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .discovery-card-primary .button { padding: 9px 13px; min-height: 44px; gap: 6px; font-size: .875rem; }
+.discovery-cards-grid > .discovery-card { display: flex; flex-direction: column; align-self: stretch; }
+.discovery-cards-grid > .discovery-card > .discovery-card-art { flex-shrink: 0; }
+.discovery-cards-grid > .discovery-card > .discovery-card-body { display: flex; flex-direction: column; flex: 1; }
+.discovery-cards-grid > .discovery-card .discovery-card-primary { margin-top: auto; padding-top: 12px; }
 .discovery-card-details { margin-top: 2px; }
 .discovery-card-details > summary, .discovery-help > summary, .discovery-source-status summary { cursor: pointer; min-height: 44px; align-content: center; font-size: .8125rem; font-weight: 600; width: fit-content; }
 .discovery-card-details > summary:hover, .discovery-help > summary:hover { text-decoration: underline; text-underline-offset: 4px; }

@@ -88,6 +88,9 @@ correction, not a new collection or a private-library migration.
 - Cards use the existing responsive discovery grid/list and original GameCover,
   a short "From The 100" rank/rating line, and existing labelled actions.
   Unknown games retain provider artwork/credits and explicit missing-art state.
+  Grid cards share their row's height and anchor primary actions at the bottom
+  of the flexible text area. Full titles and genres wrap without truncation;
+  the ordinary list layout and native Actions & source disclosure are unchanged.
   No additional modal stack, gesture requirement or full-size art preload.
 - Existing saved provider records are never rekeyed, deleted, merged, or given
   copied scores/progress. They remain in My games/backups under their original
