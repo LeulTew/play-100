@@ -78,8 +78,11 @@ function captured(pattern: RegExp, source: string): string {
   return value;
 }
 
-/** The shell makes its static controls inert; React's first commit renders them live. */
-const withoutShellOnly = (markup: string) => markup.replace(/ inert(?=[ >])/g, '');
+/**
+ * The shell disables the controls only the app can run, with a bare `disabled`, and React's first commit renders them
+ * enabled. Pick for me, which React's first commit disables too, keeps React's own `disabled=""`.
+ */
+const withoutShellOnly = (markup: string) => markup.replace(/ disabled(?=[ >])/g, '');
 
 /** The shell's artifact markup as one boot-art state shows it. */
 function shellArtifact(state: string): string {
@@ -150,6 +153,27 @@ describe("first-paint shell parity with React's first commit", () => {
         shell.endsWith(`</section></div></main>${element(shell, '<nav class="mobile-nav"', '</nav>')}</div></div>`),
       ).toBe(true);
     }
+  });
+
+  it.each(VARIANTS)('makes every %s shell control a working link or a disabled button, never inert', (variant) => {
+    const shell = shellMarkup(html, variant);
+    expect(shell).not.toMatch(/ inert(?=[ >=])/);
+    const links = [...shell.matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag);
+    expect(links.filter((tag) => !/ href="[^"]+"/.test(tag))).toEqual([]);
+    // Nothing in the static shell can run a button, so each one shows that it waits for the app: with React's own
+    // `disabled=""` where its first commit disables it too, otherwise with the shell's bare `disabled`.
+    const buttons = [...shell.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
+    const shellOnly = buttons.filter((tag) => / disabled(?=[ >])/.test(tag));
+    expect(buttons.filter((tag) => !/ disabled(?:="")?(?=[ >])/.test(tag))).toEqual([]);
+    expect(buttons.filter((tag) => tag.includes(' disabled=""'))).toEqual([
+      '<button class="button button-quiet" disabled="">',
+    ]);
+    expect(shellOnly.map((tag) => /\bclass="([^"]+)"/.exec(tag)?.[1] ?? 'mobile Menu')).toEqual([
+      'saved-nav',
+      'menu-nav',
+      'artifact-control',
+      'mobile Menu',
+    ]);
   });
 
   it.each(VARIANTS)('renders the %s header exactly as AppHeader does', (variant) => {

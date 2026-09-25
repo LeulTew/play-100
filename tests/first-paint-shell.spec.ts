@@ -13,6 +13,9 @@ interface Box {
   width: number;
   height: number;
   style: string;
+  /** Whether the element is a disabled button, and its opacity, which is how a disabled button looks. */
+  disabled: boolean;
+  opacity: string;
 }
 
 declare global {
@@ -116,7 +119,11 @@ const frames = (page: Page) =>
 const capture = (page: Page, selectors: readonly string[]) =>
   page.evaluate((list) => window.p100Capture(list), selectors);
 
-function differences(before: Box[], after: Box[], tolerance: number): string[] {
+/**
+ * How `after` differs from `before` in layout, text and look. With `started`, a button the shell disabled may be
+ * enabled, and so lose its disabled look: the app has started it.
+ */
+function differences(before: Box[], after: Box[], tolerance: number, started = false): string[] {
   const keys = [...new Set([...before, ...after].map((box) => box.key))];
   return keys.flatMap((key) => {
     const from = before.find((box) => box.key === key);
@@ -127,6 +134,10 @@ function differences(before: Box[], after: Box[], tolerance: number): string[] {
       .map((side) => `${side} ${from[side].toFixed(2)} -> ${to[side].toFixed(2)}`);
     if (from.text !== to.text) changes.push(`text "${from.text}" -> "${to.text}"`);
     if (from.style !== to.style) changes.push(`style ${from.style} -> ${to.style}`);
+    if (!(started && from.disabled && !to.disabled)) {
+      if (from.disabled !== to.disabled) changes.push(`disabled ${from.disabled} -> ${to.disabled}`);
+      if (from.opacity !== to.opacity) changes.push(`opacity ${from.opacity} -> ${to.opacity}`);
+    }
     return changes.length ? [`${key}: ${changes.join('; ')}`] : [];
   });
 }
@@ -170,7 +181,6 @@ for (const scenario of SCENARIOS) {
           'line-height',
           'text-transform',
           'text-decoration-line',
-          'opacity',
           'visibility',
           'box-shadow',
         ];
@@ -197,6 +207,8 @@ for (const scenario of SCENARIOS) {
                     after.content,
                     after.backgroundColor,
                   ].join(' | '),
+                  disabled: element instanceof HTMLButtonElement && element.disabled,
+                  opacity: style.opacity,
                 };
               }),
           );
@@ -257,6 +269,34 @@ for (const scenario of SCENARIOS) {
         initialFooter.height,
         'every art state reserves the 44px control plus 7px footer padding',
       ).toBeGreaterThanOrEqual(51);
+      // A visible shell control either navigates or shows, with Pick for me's disabled look, that it waits for the app.
+      const controls = await page.evaluate(() => {
+        const shell = document.querySelector('.first-paint-shell');
+        if (!shell) throw new Error('The shell is missing.');
+        const shown = (element: Element) => element.getClientRects().length > 0;
+        return {
+          inert: shell.querySelectorAll('[inert]').length,
+          links: Array.from(shell.querySelectorAll('a'))
+            .filter(shown)
+            .map((link) => link.getAttribute('href')),
+          buttons: Array.from(shell.querySelectorAll('button'))
+            .filter(shown)
+            .map((button) => ({
+              name: (button.getAttribute('aria-label') ?? button.textContent ?? '').trim(),
+              disabled: button.disabled,
+              look: `${getComputedStyle(button).opacity} ${getComputedStyle(button).cursor}`,
+            })),
+        };
+      });
+      expect(controls.inert, 'the shell makes nothing inert').toBe(0);
+      expect(controls.links.filter((href) => !href), 'every shell link navigates').toEqual([]);
+      const names = controls.buttons.map((button) => button.name);
+      expect(names).toContain('Play later, 0 games');
+      expect(names).toContain('Pick for me');
+      expect(
+        controls.buttons.filter((button) => !button.disabled || button.look !== '0.45 not-allowed'),
+        'every shell button is disabled and looks it, as Pick for me does',
+      ).toEqual([]);
 
       releaseStylesheet();
       await page.waitForFunction(
@@ -285,9 +325,14 @@ for (const scenario of SCENARIOS) {
       releaseScript();
       await page.waitForFunction(() => window.p100Commit !== undefined);
       const commit = await page.evaluate(() => window.p100Commit ?? []);
-      expect(differences(shell, commit, 0.5), "React's first commit renders exactly what the shell painted").toEqual(
-        [],
-      );
+      expect(
+        differences(shell, commit, 0.5, true),
+        "React's first commit renders exactly what the shell painted",
+      ).toEqual([]);
+      expect(
+        commit.filter((box) => box.disabled).map((box) => box.text),
+        "React's first commit starts every control the shell disabled, except Pick for me",
+      ).toEqual(['Pick for me']);
 
       const requests = await page.evaluate(
         (paths) => {

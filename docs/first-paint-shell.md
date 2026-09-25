@@ -142,10 +142,16 @@ production policy and uses the page, guard against that.
   `MobileNav`, the hero and loading collection in `CollectionPage`,
   `CollectionArtifact`). [`src/first-paint/shell-parity.test.ts`](../src/first-paint/shell-parity.test.ts)
   compares both variants with their server-rendered markup.
-- Intended differences: the static buttons are `inert`, the artifact caption holds
-  every state (shell.css shows one), the artifact omits `data-scene-status`,
-  `data-activation` and the React-only decorative still (absolutely positioned),
-  and the Magnet wrapper omits its inline transition. None changes layout.
+- Intended differences:
+  - Play later, both Menus and Fan out run only in the app, so the shell disables them with a bare
+    `disabled`, and React's first commit enables them. They take the app's `button:disabled` look,
+    as Pick for me does; React's first commit disables Pick for me too, so it keeps React's
+    `disabled=""`. Every visible shell control is a working link or a disabled button, nothing is
+    `inert`, and opacity is the only style that changes at the handoff.
+  - The artifact caption holds every state (shell.css shows one), the artifact omits
+    `data-scene-status`, `data-activation` and the React-only decorative still (absolutely
+    positioned), and the Magnet wrapper omits its inline transition.
+  - None changes layout.
 - The entry stylesheet must not select what differs between the shell and React:
   `[inert]`, `[style]`, `[data-scene-status]`, `[data-activation]`,
   `[data-shell-art]`, `[data-boot…]` or `.first-paint-shell`. The build refuses them.
@@ -183,8 +189,9 @@ production policy and uses the page, guard against that.
 built preview in a real browser under the production CSP, for the build's header
 variant, on desktop and mobile. It holds the entry stylesheet, the module entry
 and the web fonts to compare the shell under inline CSS only, the shell under the
-full stylesheet and React's first commit, checks that the app's first requests
-start after the shell's first contentful paint, and checks that the web fonts
+full stylesheet and React's first commit. It checks that every shell button is
+disabled with Pick for me's look until React enables it, that the app's first
+requests start after the shell's first contentful paint, and that the web fonts
 swap in without layout shift. It also reads the live `<head>` on first loads of
 lazy routes and after navigating from the landing shell: every stylesheet stays
 in `<head>`, the startup stylesheets come first and only once, and the lazy
