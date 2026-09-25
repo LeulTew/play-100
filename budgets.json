@@ -14,7 +14,7 @@
     "indexHtmlGzipBytes": 9386,
     "inlineStyleRawBytes": 16952,
     "inlineScriptRawBytes": 4735,
-    "largestRouteGzipBytes": 0
+    "largestRouteGzipBytes": 283422
   },
   "baseline": {
     "commit": "270f4c743d3a9a89d5a64fe612e471ea045ebb47",
@@ -40,7 +40,7 @@
     "provisional": "Before R9, app CSS and largest-lazy caps used ceil(270f observed value * 1.05). Standalone CSS uses ceil(574 raw / 314 gzip9 * 1.05), separately authorized when S3 introduced that class. Combined CSS totals remain reported.",
     "r9": "Parent-configured complete R9 scratch tree 1738fcbd: lazy raw = ceil(570902 * 1.02) = 582321 (CollectionScene); lazy gzip9 = ceil(143765 * 1.02) = 146641 (friend-shelf-types). CSS gzip9 = ceil(27858 * 1.02) = 28416 uses the same 2% headroom for the required dialog, card, compare dock, pager, ranking, Discover and landing fixes, after removing the split CSS-packaging regression. Raw CSS stays capped at 135620 (measured 133089). Core files are exactly 51: 49 public files plus 2 metadata entries, including react, Icon and personal-library shared chunks introduced by the online split; zero file headroom remains deliberate.",
     "r10": "Parent-configured R10 scratch chain f84456f (R9 tip 0b4f8b09 + REL-10a + PERF-10a + UX-10a/b), configured online build: index.html raw = ceil(32888 * 1.02) = 33546, gzip9 = ceil(9201 * 1.02) = 9386; first-paint inline style = ceil(16619 * 1.02) = 16952 (online variant; offline 15834); boot script = ceil(4642 * 1.02) = 4735. The offline build's index.html measures 31543 raw / 8966 gzip9.",
-    "r10b": "PLACEHOLDER: largestRouteGzipBytes is 0, a cap no build passes, until the measured cap replaces it: ceil(measured * 1.02) from a configured build. check:budgets fails until then.",
+    "r10b": "Parent-configured R10 scratch chain c470a52 (R9 tip 25e2ab6d + R10 + R10b), configured online build: largest whole route = src/cloud/FriendComparisonPage.tsx at 277864 gzip9 (1053028 raw, 16 files), cap ceil(277864 * 1.02) = 283422. Online page rows include the online bridge closure their chunks import; offline build 277856.",
     "compression": "gzip level 9, independently per file, summed after deduplication. Fonts, JSON and the root worker are not part of the eager JS+CSS gate.",
     "lazy": "All emitted assets/*.js outside the eager set; raw and gzip maxima are measured separately. The root service worker is excluded.",
     "routes": "Whole-route cost: for each lazily loaded page or picker root (ROUTE_ROOTS in scripts/check-budgets.ts, every React.lazy() in src), the gzip9 bytes, per file, of its root chunk, its static-import closure and the CSS those chunks import, beyond the eager set, from the retained Vite manifest. The most expensive route is gated; every route is reported.",

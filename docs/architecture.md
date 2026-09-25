@@ -265,13 +265,40 @@ from the retained Vite manifest. It prints a row per route, gates the most
 expensive as `largestRouteGzipBytes`, and `--json` lists every route with its
 files. A root that the build does not emit as a dynamic entry, or an import that
 the manifest cannot resolve, fails the check. A row is the cost of opening that
-root when nothing else lazy has loaded. An online page also needs the online
-bridge (`src/cloud/OnlineController.tsx`), which has its own row.
+root when nothing else lazy has loaded. The online bridge
+(`src/cloud/OnlineController.tsx`) has its own row, and an online page's row also
+counts the part of the bridge's closure that the page's chunks import, so the two
+rows overlap rather than add up.
+
+Route costs (R10 configured build), gzip9 bytes. `budgets.json` caps the largest
+2% above it (`notes.r10b`).
+
+| Route root | Gzip9 bytes |
+| --- | ---: |
+| `FriendComparisonPage` | 277,864 |
+| `FriendsPage` | 275,165 |
+| `AccountPage` | 270,859 |
+| `FriendDetailPage` | 270,061 |
+| `PublishPage` | 269,493 |
+| `PublicProfilePage` | 269,069 |
+| `FriendShelfPage` | 268,908 |
+| `CreatorPage` | 268,730 |
+| `FriendSharingPage` | 268,328 |
+| `InvitationPage` | 267,936 |
+| `CommunityPage` | 267,913 |
+| `AvatarPicker` | 267,851 |
+| `OnlineController` | 266,291 |
+| `FriendSharedGames` | 224,086 |
+| `MyGamesPage` | 32,808 |
+| `DiscoverPage` | 8,566 |
+| `CatalogDetail` | 7,860 |
+| `DataUseContent` | 3,536 |
+| `AuthPanel` | 1,986 |
 
 ### Optional prefetch
 
-Four fetches can start without an explicit request. Bytes are gzip9 per file,
-measured on the R8 configured build (these modules are unchanged since).
+Four fetches can start without an explicit request. Bytes are gzip9 per file
+(R8 configured build).
 
 | Prefetch | When | Fetches | Use on a guest landing | Decision |
 | --- | --- | --- | --- | --- |
@@ -283,8 +310,8 @@ measured on the R8 configured build (these modules are unchanged since).
 ### Feature-only eager CSS
 
 Entry-stylesheet rules that style only a lazily rendered feature could move to
-that feature's lazy stylesheet. To find them, each rule of the R8 configured
-build's entry stylesheet (83,619 raw / 16,851 gzip9 bytes) counts when every one
+that feature's lazy stylesheet. To find them, each rule of the entry stylesheet
+(R8 configured build: 83,619 raw / 16,851 gzip9 bytes) counts when every one
 of its selectors needs a class that no eager chunk and no `index.html` names.
 The saving is the entry stylesheet's gzip9 without the group.
 
