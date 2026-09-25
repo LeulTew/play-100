@@ -67,6 +67,29 @@ Firebase and Vercel consoles; each names its readback.
    candidate `firestore.rules` bytes and Publish. Readback: copy the published
    text back, confirm its SHA-256 equals the candidate file, and record the new
    version timestamp. Record the client, rule and index versions together.
+   Then run these read-only inventories and record each count, including zeros.
+   Save aggregate counts only, as in [Orphan inventory](#orphan-inventory-and-containment):
+   - **Handles:** every `handles` document ID that matches the reserved-prefix
+     alternation in `validHandle`, including the R9 `1`/`l`/`i` and `0`/`o`
+     confusables. Existing claims stay readable so their owners can rename. Moderate
+     each one individually: ask the owner to rename, or unpublish/remove it through
+     the operator if it impersonates the creator, staff or the app. Never purge in bulk.
+   - **Display names:** members, public profiles, friend identities and active
+     invites whose `displayName` fails the R9 name rule (control/format character,
+     or leading/trailing separator). They remain valid until next edited; moderate
+     only impersonation or abuse.
+   - **Window ledgers:** re-inventory every quota ledger below. The candidate
+     client wrote under the old rules during the client-first window, so reconcile
+     any mismatch with that ledger's procedure before accepting the candidate.
+   - **Orphan payload:** the old rules let an account mark a private generation
+     `deleting`, delete it and release its registry slot while its chunks remain,
+     then reuse the freed slot (SEC-AUDIT P1). Inventory private and creator
+     summary chunks whose generation or registry entry is missing or does not list
+     them (the "Private chunks" row). Containment and any purge follow that section;
+     publishing the rules stops new residue but cannot reclaim old residue.
+   - **Deletion:** while the old rules were live, full account deletion paused at
+     the unsupported deletion-mode LIST (step 5). Record the accounts that stopped
+     there and confirm each can now resume and finish.
 7. Run approved real Auth/online smoke on production after promotion. Preview
    and candidate origins are intentionally referrer-blocked by the web key.
    Synthetic local emulators remain the pre-promotion path, not a claim of
@@ -405,24 +428,28 @@ decision and follow-up, with the separate CSP/Data Use work described in
 
 These are console/platform steps; no lane or integrator session applies them.
 
-### Vercel WAF rate limit for `/api/*`
+### Vercel WAF rate limit for `/api/*` and the auth helper
 
 In-function limits are per instance and cannot stop distributed abuse:
 `api/catalog-detail.ts` admits 4 concurrent and 30 uncached lookups per minute,
 and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
-(a coalesced FreeToGame fill holds one slot). This WAF rule is the global control. Hobby allows one rate-limit
-rule per project; add exactly this one under Firewall → Configure → New rule:
+(a coalesced FreeToGame fill holds one slot). The auth helper
+(`/__/auth/handler` and `/__/auth/iframe`) fetches the upstream Firebase helper
+on every request and is never cached, so it needs the same global bound. This
+WAF rule is the global control. Hobby allows one rate-limit rule per project, so
+one rule covers both prefixes; add exactly this one under Firewall → Configure →
+New rule:
 
 | Field | Value |
 | --- | --- |
 | Name | `api-per-ip` |
-| If | Request Path **starts with** `/api/` AND Method **equals** `GET` |
+| If | (Request Path **starts with** `/api/` OR Request Path **starts with** `/__/auth/`) AND Method **is any of** `GET`, `HEAD` |
 | Then | Rate Limit, fixed window **60 s**, **60 requests**, key **IP** |
 | Action | **Log** for 7 days, then **Too Many Requests (429)** |
 
 The app's own lookups stay far below this (debounced search, one detail call
-per opened game), and successful responses are CDN-cached (`s-maxage=300`/
-`900`), so repeats mostly never reach the function. Before switching to 429,
+per opened game, one or two auth helper loads per sign-in), and successful
+catalog responses are CDN-cached (`s-maxage=300`/`900`), so repeats mostly never reach the function. Before switching to 429,
 read the rule's Log hits: legitimate users should not appear. Non-GET requests
 already get 405 from the functions. Record the rule ID and switch time.
 

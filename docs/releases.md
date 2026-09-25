@@ -38,6 +38,23 @@ the owner's email, so they stay out of this file. Operator steps follow the
 | Auth helper | `/__/auth/handler` and `/__/auth/iframe` 200 with exactly one nonce CSP (`frame-ancestors 'self'`), a fresh nonce on each GET, XFO SAMEORIGIN and `Cache-Control: private, no-store, max-age=0`; POST 405 with `Allow: GET, HEAD` | 10/10 |
 | Catalog | FreeToGame search 200 | 1/1 |
 
+**Promotion order deviation.** The client was promoted before runbook steps 1
+(receipts and the owner UID) and 4 (indexes) because the owner's Firebase
+console was unavailable. That opened a client-first compatibility window: the
+candidate client runs under the archived 270f rules until the pending actions
+below are done. The runbook's step 6 inventories cover the writes made in that
+window.
+
+**Rules emulator receipts (test:cloud at `2f727389`).** The initial full run was
+248 passed and 1 failed in 11 files: `friend-all.test.ts` "converges a first
+friend action and the automatic default on one default policy in either order"
+was denied once. A single-file `friend-all.test.ts` rerun passed 38/38. Per-file
+results: query-offsets 27, security-hardening 15, security-migration 63,
+friendships 45, friend-shelf 28, social 16, sync 7, access 4,
+rules-access-budget 2 and lifecycle 4, all passing. Evidence file
+`rules-emulator.txt`, SHA-256
+`7B76539A2DC7351C679FEA6BC1F70A6160B2590460257515FA40970FA960517A`.
+
 **Known issue at release: R8-CAT-01.** Wikidata search returned 503
 `unavailable`. Interactive Wikidata lookups sent `maxlag=5`, and Wikidata folds
 query-service lag into maxlag, so every search and detail lookup failed while
@@ -65,8 +82,8 @@ Do these in runbook order and record each readback.
    value, then record the version timestamp. The pre-release rollback archive is
    `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
 4. **WAF.** Add the Vercel WAF rule `api-per-ip` from the
-   [runbook](security-release-runbook.md#vercel-waf-rate-limit-for-api). Run it
-   in **Log** mode for 7 days, then switch it to 429. Readback: record the rule
+   [runbook](security-release-runbook.md#vercel-waf-rate-limit-for-api-and-the-auth-helper),
+   covering both `/api/` and `/__/auth/` GET/HEAD. Run it in **Log** mode for 7 days, then switch it to 429. Readback: record the rule
    ID, the Log hits and the switch time.
 5. **Google smoke.** Run a real Google sign-in, link and reauthentication on
    production, on desktop and mobile. Readback: each flow returns to the app
