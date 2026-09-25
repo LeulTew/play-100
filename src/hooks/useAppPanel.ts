@@ -99,11 +99,12 @@ export function useAppPanel(scope: string, opening: boolean) {
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('dialog[open]')) cancel();
     };
+    // Intent to open a dialog: the Menu buttons, the menu itself, or the footer's About and Effects buttons.
     const intent = (event: Event) => {
       const target = event.target;
       if (
         target instanceof Element &&
-        target.closest('.menu-nav, .mobile-nav button[aria-haspopup="dialog"], .menu-dialog, .site-footer')
+        target.closest('.menu-nav, .mobile-nav button[aria-haspopup="dialog"], .menu-dialog, .site-footer button')
       )
         warm();
     };

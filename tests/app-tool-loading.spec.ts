@@ -133,3 +133,39 @@ for (const policy of [
     }
   });
 }
+
+test('the dialogs warm on the footer buttons that open them, not on its other links', async ({ page }) => {
+  const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
+  const dialogs = ['src/components/AboutDialog.tsx', 'src/components/app/SettingsPanel.tsx'].map((root) => {
+    const entry = manifest[root];
+    if (!entry) throw new Error(`Missing separately emitted dialog: ${root}`);
+    return `/${entry.file}`;
+  });
+  const requested = new Set<string>();
+  page.on('request', (request) => {
+    const pathname = new URL(request.url()).pathname;
+    if (dialogs.includes(pathname)) requested.add(pathname);
+  });
+  await emptyCatalogs(page);
+  // With motion off nothing warms at idle, so only intent can fetch the dialogs.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?catalogs=off');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  // The intent warm-up waits two frames and an idle turn; wait for more than that.
+  const settled = () =>
+    page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => requestIdleCallback(() => resolve()))),
+        ),
+    );
+  const footer = page.locator('.site-footer');
+  for (const name of ['GitHub', 'Enhanced spreadsheet', 'Data use (opens in a new tab)']) {
+    await footer.getByRole('link', { name, exact: true }).focus();
+    await settled();
+    await settled();
+  }
+  expect([...requested], 'the footer links open no dialog').toEqual([]);
+  await footer.getByRole('button', { name: 'About & credits', exact: true }).focus();
+  await expect.poll(() => [...requested].sort()).toEqual([...dialogs].sort());
+});
