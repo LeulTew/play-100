@@ -8,16 +8,20 @@ declare global {
       rejectReads: () => void;
       allowReads: () => void;
       rejectPending: () => Promise<number>;
+      rejectDefault: () => Promise<number>;
       settle: () => Promise<void>;
       deliverGames: () => void;
       failNextStop: () => void;
       editAndAcknowledge: () => Promise<void>;
       refresh: () => Promise<void>;
-      stats: () => { publishes: number; stops: number };
+      stats: () => { publishes: number; stops: number; defaults: number };
     };
   }
 }
-async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolean; quota?: boolean } = {}) {
+async function mount(
+  page: Page,
+  input: { failRead?: boolean; holdDefault?: boolean; lateGames?: boolean; quota?: boolean } = {},
+) {
   await page.goto('/data-use');
   await page.evaluate(async (options) => {
     const modulePath = '/src/cloud/useFriendAll.ts';
@@ -69,14 +73,16 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
     }
     // Reads hang until the test rejects them, then fail until it allows them again. The hook's control watches
     // start reads of their own whenever a server snapshot arrives, so a mode that only rejected the pending
-    // reads would race the watches' first delivery.
-    let reads: 'hang' | 'fail' | 'pass' = options.failRead ? 'hang' : 'pass';
+    // reads would race the watches' first delivery. 'unset' reads look like a setup that has no controls yet.
+    let reads: 'hang' | 'fail' | 'pass' | 'unset' = options.failRead ? 'hang' : options.holdDefault ? 'unset' : 'pass';
     let failStop = false;
     let publishes = 0;
     let stops = 0;
+    let defaults = 0;
     let ticks = 0;
     const waiters = new Map<number, () => void>();
     const failures: Array<{ reject: (cause: Error) => void; read: Promise<never> }> = [];
+    const heldDefaults: Array<{ reject: (cause: Error) => void; write: Promise<never> }> = [];
     const controls = storeModule.FriendAllStore.prototype.controls;
     const policy = storeModule.FriendAllStore.prototype.setPolicy;
     const publish = storeModule.FriendAllStore.prototype.publish;
@@ -90,6 +96,7 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
         return read;
       }
       if (reads === 'fail') return Promise.reject(new Error('Synthetic initial controls read failed'));
+      if (reads === 'unset') return Promise.resolve({ policy: null, ranking: null, shelf: null });
       return controls.call(this, owner);
     };
     storeModule.FriendAllStore.prototype.setPolicy = function (owner, enabled, origin, expected, current) {
@@ -99,6 +106,15 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
           failStop = false;
           return Promise.reject(new Error('Synthetic stop rejected before commit'));
         }
+      }
+      if (enabled && origin === 'default' && options.holdDefault) {
+        defaults += 1;
+        let reject: (cause: Error) => void = () => {};
+        const write = new Promise<never>((_, fail) => {
+          reject = fail;
+        });
+        heldDefaults.push({ reject, write });
+        return write;
       }
       return policy.call(this, owner, enabled, origin, expected, current);
     };
@@ -130,6 +146,14 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
           await Promise.allSettled(pending.map(({ read }) => read));
           return pending.length;
         },
+        rejectDefault: async () => {
+          // Reads the watches start after this never settle, so a late first snapshot can't take the default again.
+          if (reads === 'unset') reads = 'hang';
+          const held = heldDefaults.splice(0);
+          held.forEach(({ reject }) => reject(new Error('Synthetic default write failed')));
+          await Promise.allSettled(held.map(({ write }) => write));
+          return held.length;
+        },
         // Resolves after a later commit, so any update queued before it has reached the page.
         settle: () =>
           new Promise<void>((resolve) => {
@@ -141,7 +165,7 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
         failNextStop: () => {
           failStop = true;
         },
-        stats: () => ({ publishes, stops }),
+        stats: () => ({ publishes, stops, defaults }),
         refresh: api.refresh,
         editAndAcknowledge: async () => {
           const local = await scoped.commitScopedAction(scope, {
@@ -239,6 +263,34 @@ test('an older controls read that fails after a newer read was accepted leaves t
   await expect(surface).not.toContainText('Synthetic late controls read failed');
   await expect(surface).toContainText('Up to date');
   await expect(surface.getByRole('button', { name: 'Stop friend sharing', exact: true })).toBeVisible();
+});
+test('a default write that newer reads left to it still reports its failure', async ({ page }) => {
+  await mount(page, { holdDefault: true });
+  const surface = page.locator('#all-review-harness');
+  await expect.poll(() => page.evaluate(() => window.allReview.stats().defaults)).toBe(1);
+  // A newer read finds the default already being written, so it leaves the write to the first read.
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(surface).toContainText('Automatic friend sharing is off.');
+  expect(await page.evaluate(() => window.allReview.rejectDefault())).toBe(1);
+  await expect(surface).toContainText('Synthetic default write failed');
+  await expect(surface.getByRole('button', { name: 'Refresh sharing status', exact: true })).toBeVisible();
+});
+test('a late default write still wakes the publication queue a newer read created', async ({ page }) => {
+  await mount(page, { holdDefault: true });
+  const surface = page.locator('#all-review-harness');
+  await expect.poll(() => page.evaluate(() => window.allReview.stats().defaults)).toBe(1);
+  // Newer reads find the account's actual policy and start publication while the default write is still held.
+  await page.evaluate(() => {
+    window.allReview.allowReads();
+    window.dispatchEvent(new Event('online'));
+  });
+  await expect(surface).toContainText('Sharing all saved games and rankings with friends.');
+  // Refresh replaces the read that holds the write, and with it the publication queue, before the write settles.
+  await page.evaluate(() => window.allReview.refresh());
+  await page.evaluate(() => window.allReview.settle());
+  expect(await page.evaluate(() => window.allReview.rejectDefault())).toBe(1);
+  await expect(surface).toContainText('Up to date', { timeout: 30000 });
+  await expect(surface).not.toContainText('Synthetic default write failed');
 });
 test('failed Stop refreshes the same active policy and resumes work without replaying Stop; confirmed Stop stays off', async ({
   page,

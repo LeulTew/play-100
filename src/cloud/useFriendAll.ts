@@ -52,6 +52,8 @@ export function useFriendAll(
   const current = useRef({ uid, scope, snapshot, verified, games, key });
   current.current = { uid, scope, snapshot, verified, games, key };
   const queue = useRef<SyncWorkQueue | null>(null);
+  // The current publication queue's own wake, which recomputes availability for that queue's lease, not the caller's.
+  const wakeQueue = useRef<(() => void) | null>(null);
   const generation = useRef(0);
   const changing = useRef(false);
   const pending = usePendingEdits();
@@ -112,26 +114,27 @@ export function useFriendAll(
     const valid = () => alive && owns();
     const refresh = async () => {
       const request = ++serial;
+      let defaulting = false;
       try {
         const controls = await store.controls(uid);
         if (!valid() || request !== serial) return;
         const choice = eligibility(controls);
         if (choice.kind === 'default' && !changing.current) {
           changing.current = true;
+          defaulting = true;
           try {
             await store.setPolicy(uid, true, 'default', controls, valid);
           } finally {
             changing.current = false;
-            queue.current?.setAvailable(valid() && !document.hidden && navigator.onLine !== false);
-            queue.current?.wake();
+            wakeQueue.current?.();
           }
           if (!valid()) return;
           accept(await store.controls(uid));
         } else accept(controls);
       } catch (cause) {
-        // Like a result, a failure counts only for the newest read: an older read that fails late must not
-        // replace what a newer read already accepted.
-        if (!valid() || request !== serial) return;
+        // Like a result, a failed read counts only for the newest read, so it can't replace what a newer read
+        // accepted. A default write is different: newer reads left it to this request, so its failure always counts.
+        if (!valid() || (request !== serial && !defaulting)) return;
         setState((old) => ({
           key,
           confirmed: false,
@@ -323,6 +326,7 @@ export function useFriendAll(
       work.setAvailable(valid() && !document.hidden && navigator.onLine !== false);
       work.wake();
     };
+    wakeQueue.current = wake;
     wake();
     window.addEventListener('online', wake);
     window.addEventListener('offline', wake);
@@ -331,6 +335,7 @@ export function useFriendAll(
       alive = false;
       work.dispose();
       if (queue.current === work) queue.current = null;
+      if (wakeQueue.current === wake) wakeQueue.current = null;
       window.removeEventListener('online', wake);
       window.removeEventListener('offline', wake);
       document.removeEventListener('visibilitychange', wake);
@@ -390,8 +395,7 @@ export function useFriendAll(
         setRetryVersion((value) => value + 1);
       } finally {
         changing.current = false;
-        queue.current?.setAvailable(owns() && !document.hidden && navigator.onLine !== false);
-        queue.current?.wake();
+        wakeQueue.current?.();
       }
     },
     [uid, owns, suspend, store, accept],
