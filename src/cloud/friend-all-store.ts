@@ -88,6 +88,17 @@ function controlsMatch(a: FriendAllControls, b: FriendAllControls): boolean {
     a.shelf?.revision === b.shelf?.revision
   );
 }
+/**
+ * Whether a default setup leaves these controls as they are: another setup already exists, or a default that began
+ * before online saving still waits for it. A waiting (disabled) default becomes the active default once saving is on.
+ */
+function defaultSkips(controls: FriendAllControls, saving: boolean): boolean {
+  const pending = controls.policy?.origin === 'default' && !controls.policy.enabled && !controls.policy.deleted;
+  return pending ? !saving : Boolean(controls.policy || controls.ranking || controls.shelf);
+}
+function denied(cause: unknown): boolean {
+  return Boolean(cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied');
+}
 function policyMatches(policy: FriendAllPolicy, controls: FriendAllControls): boolean {
   return (
     controls.policy?.epoch === policy.epoch &&
@@ -280,12 +291,10 @@ export class FriendAllStore {
       };
       const sync = syncSnap.exists() ? parseHead(syncSnap.data()) : null;
       const saving = Boolean(sync?.enabled && !sync.deleted);
-      // A disabled default is a new setup that started before online saving; it becomes the active default once saving is on.
-      const pending = old.policy?.origin === 'default' && !old.policy.enabled && !old.policy.deleted;
       const next = origin === 'default' ? saving : enabled;
       if (old.policy?.deleted || old.ranking?.deleted || old.shelf?.deleted || (next && sync?.deleted))
         throw new FriendStoreError('deleted', 'This account has been revoked. Automatic sharing cannot be enabled.');
-      if (origin === 'default' && (pending ? !saving : Boolean(old.policy || old.ranking || old.shelf))) return false;
+      if (origin === 'default' && defaultSkips(old, saving)) return false;
       if (!controlsMatch(old, expected)) conflict();
       if (next && !saving)
         throw new FriendStoreError('unavailable', 'Turn on account saving before sharing its games.');
@@ -330,6 +339,14 @@ export class FriendAllStore {
         updatedAt: serverTimestamp(),
       });
       return true;
+    }).catch(async (cause: unknown) => {
+      // Rules judge a commit against the controls it finds when it commits, and the SDK never retries a denial, so a
+      // default setup that another one (a first friend action, another tab) committed first is denied, not retried.
+      // Settle on that setup exactly when a retried transaction would leave it as it is; other denials stay errors.
+      if (origin !== 'default' || !denied(cause)) throw cause;
+      guard();
+      if (!(await this.defaultSettled(uid).catch(() => false))) throw cause;
+      return false;
     });
     if (!changed) return this.policy(uid);
     try {
@@ -338,6 +355,15 @@ export class FriendAllStore {
     } catch (cause) {
       throw new FriendAllCommittedError(uid, 'policy', cause);
     }
+  }
+  /** After a denied default setup, reads the controls again and decides as a retried setup transaction would. */
+  private async defaultSettled(uid: string): Promise<boolean> {
+    const [controls, sync] = await Promise.all([
+      this.controls(uid),
+      this.read(doc(this.db, 'syncHeads', uid), (value) => parseHead(value as DocumentData)),
+    ]);
+    if (controls.policy?.deleted || controls.ranking?.deleted || controls.shelf?.deleted) return false;
+    return defaultSkips(controls, Boolean(sync?.enabled && !sync.deleted));
   }
   /**
    * Sets up a new account's friend controls through the default policy. A first friend action (invite, request,

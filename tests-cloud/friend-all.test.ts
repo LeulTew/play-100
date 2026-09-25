@@ -170,6 +170,37 @@ async function connect(a: Client, b: Client) {
   const request = await a.friends.sendRequest(a.uid, b.uid);
   await b.friends.respond(b.uid, a.uid, 'accept', request.epoch);
 }
+// Holds the next default setup at its read/commit boundary: the transaction has read and staged its writes, and its
+// commit waits for release. A setup transaction's body returns true exactly when it stages writes.
+async function holdNextSetup() {
+  const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+  let staged: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    staged = resolve;
+  });
+  let release: () => void = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let holding = true;
+  vi.mocked(runTransaction).mockImplementation(
+    async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+      actual.runTransaction(
+        db,
+        async (tx) => {
+          const result = await operation(tx);
+          if (holding && result === true) {
+            holding = false;
+            staged();
+            await released;
+          }
+          return result;
+        },
+        options,
+      ),
+  );
+  return { held, release: () => release() };
+}
 const games = (count: number): FriendShelfEntry[] =>
   Array.from({ length: count }, (_, index) => ({
     id: `wikidata:Q${index + 1}`,
@@ -482,6 +513,47 @@ describe('All-sharing bounded SDK transport', () => {
     expect(await legacy.all.startDefault(legacy.uid, () => true)).toBeNull();
     expect(await legacy.all.controls(legacy.uid)).toMatchObject({ policy: null, ranking: { enabled: false } });
   });
+  it('settles a default setup that another setup beat to the commit, in either order, without a denial', async () => {
+    const setUp = { enabled: true, deleted: false, origin: 'default', epoch: 1, revision: 1, syncEpoch: 1 };
+    // The automatic default reads no controls and stages its setup; a first friend action commits its own first.
+    const automaticLoses = await client();
+    const heldAutomatic = await holdNextSetup();
+    const automatic = automaticLoses.all.setPolicy(
+      automaticLoses.uid,
+      true,
+      'default',
+      await automaticLoses.all.controls(automaticLoses.uid),
+      () => true,
+    );
+    await heldAutomatic.held;
+    const friendAction = await automaticLoses.all.startDefault(automaticLoses.uid, () => true);
+    expect(friendAction).toMatchObject(setUp);
+    heldAutomatic.release();
+    // Rules deny the stale commit (a default setup needs absent controls); the store settles on the committed setup.
+    await expect(automatic).resolves.toEqual(friendAction);
+    // The reverse: a first friend action stages its setup and the automatic default commits first.
+    const friendLoses = await client();
+    const heldFriend = await holdNextSetup();
+    const started = friendLoses.all.startDefault(friendLoses.uid, () => true);
+    await heldFriend.held;
+    const automaticWins = await friendLoses.all.setPolicy(
+      friendLoses.uid,
+      true,
+      'default',
+      await friendLoses.all.controls(friendLoses.uid),
+      () => true,
+    );
+    expect(automaticWins).toMatchObject(setUp);
+    heldFriend.release();
+    await expect(started).resolves.toEqual(automaticWins);
+    for (const actor of [automaticLoses, friendLoses]) {
+      expect(await actor.all.controls(actor.uid)).toMatchObject({
+        policy: setUp,
+        ranking: { enabled: true, selectedIds: [], epoch: 1, revision: 1 },
+        shelf: { enabled: true, selectedIds: [], consentSyncEpoch: 1, epoch: 1, revision: 1 },
+      });
+    }
+  }, 60_000);
   it('keeps a first friend action before online saving as a waiting default that turns on once saving starts', async () => {
     const a = await client({ saving: false });
     const waiting = await a.all.startDefault(a.uid, () => true);
