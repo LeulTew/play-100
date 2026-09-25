@@ -3,6 +3,7 @@ import { readBuildManifest } from '../scripts/build-metadata';
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { motionHintKey } from '../src/lib/motion-hint';
+import { onlinePageRoots } from './online-module-helpers';
 
 declare global {
   interface Window {
@@ -17,6 +18,38 @@ const roots = [
   'src/lib/comparison-game-filter.ts',
   'src/lib/friend-comparison-intent.ts',
 ];
+
+test('the built online bridge and app entry have no static edge to an online page body or picker', async () => {
+  const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
+  const bridge = 'src/cloud/OnlineController.tsx';
+  const staticFiles = (root: string): Set<string> => {
+    const visited = new Set<string>();
+    const files = new Set<string>();
+    const visit = (key: string) => {
+      if (visited.has(key)) return;
+      visited.add(key);
+      const entry = manifest[key];
+      if (!entry) throw new Error(`Missing build graph entry: ${key}`);
+      files.add(entry.file);
+      for (const imported of entry.imports ?? []) visit(imported);
+    };
+    visit(root);
+    return files;
+  };
+  const entry = Object.entries(manifest).find(([key, value]) => key === 'index.html' && value.isEntry);
+  expect(entry, 'The app entry must exist in the measured build').toBeDefined();
+  const eager = staticFiles(entry![0]);
+  const online = staticFiles(bridge);
+  expect(eager.has(manifest[bridge]!.file)).toBe(false);
+  const bodyFiles = onlinePageRoots.map((root) => {
+    const body = manifest[root];
+    if (!body?.isDynamicEntry) throw new Error(`Online page must be its own dynamic entry: ${root}`);
+    expect(eager.has(body.file), `${root} must not be eager`).toBe(false);
+    expect(online.has(body.file), `${root} must not be a static bridge dependency`).toBe(false);
+    return body.file;
+  });
+  expect(new Set(bodyFiles).size).toBe(onlinePageRoots.length);
+});
 
 for (const policy of [
   { name: 'capable Full', saveData: false, effectiveType: '4g', allowed: true },

@@ -1734,7 +1734,7 @@ export default function OnlineController({
           }}
         >
           <ChunkBoundary
-            key={identityKey}
+            key={`${pageScope}:${identityKey}`}
             fallback={
               <>
                 <h2 id="account-avatar-title">Your creature</h2>

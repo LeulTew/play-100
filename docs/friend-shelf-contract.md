@@ -195,7 +195,7 @@ explicit Stop. It does not quietly resume the old scheduler.
 
 ## Main-owned component wiring
 
-`FriendShelfEditor` props:
+`FriendShelfEditor` (`src/cloud/FriendShelf.tsx`) props:
 `{ state, games, config, identity: { displayName, avatar }, connected, status,
 error, onPrepare, onSave, onStop, onRetry, renderArtwork? }`.
 
@@ -214,12 +214,16 @@ Main passes `active=false` when the surface is not active, and increments
 watches, clears in-flight/displayed entries on revocation and discards stale
 responses. It does not clear separately authorized existing friend identity.
 
-`FriendShelfCards` props:
+`FriendShelfCards` (`src/cloud/FriendShelfCards.tsx`) props:
 `{ entries, status: 'loading' | 'ready' | 'unavailable', error?, onSave, onPin,
 onOpen?, savedIds?, renderArtwork? }`.
 The callbacks receive a `FriendShelfEntry`; main calls `recordFromFriendShelf`
 before metadata-only Save/Pin/open. Key by owner/viewer scope. Existing ranking
 cards, comparison inputs and independent ranked order remain unchanged.
+The online controller loads `FriendShelfPage` only for the selected-shelf editor
+route and `FriendSharedGames` only in friend detail. Shared metadata/credit
+components do not import either page, so the friend-facing reader does not
+download the owner's editor.
 Transient shelf previews also carry a typed owner/viewer/auth-generation grant.
 App subscribes to that grant and closes an unsaved, unpinned preview when the
 source shelf is stopped or the relationship is revoked. A disappearing dialog

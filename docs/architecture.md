@@ -78,6 +78,25 @@ Sync work has a lifetime tied to account ownership, verification and consent.
 Security policy and release procedures are defined in [Security](security.md)
 and the [security release runbook](security-release-runbook.md).
 
+Online page bodies are separate dynamic imports, not static dependencies of that
+identity/sync bridge. Remembering an account on The 100 may load the bridge and
+Firebase, but does not request Account, Community, public profile, publication,
+creator, Friends, invitation, comparison or selected-sharing page code.
+The creature picker and sign-in form load only when rendered. The selected-shelf
+editor and friend-facing shelf cards are separate modules so reading a friend's
+games does not pull in the owner's editor.
+
+[OnlinePageBoundary](../src/cloud/OnlinePageBoundary.tsx) reuses
+`createRetryableModule`, `ChunkBoundary`, `Suspense`, `RouteFallback` and
+`ChunkRecovery`; it does not introduce a second import/reload protocol.
+Its identity includes the account scope, auth-session generation, page and the
+page's target (public handle, friend, comparison group or invitation). Private
+save revisions do not remount forms. A page-module failure leaves the controller
+and its `OnlineBridge` mounted; changing pages or account scope clears only the
+failed page boundary. Native sign-in and picker dialogs keep their own closeable,
+scope-bound loading/recovery states. Existing navigation flush, account-transition
+and sync lifecycles remain in their original owners.
+
 [usePwa](../src/pwa/usePwa.ts) subscribes to `createDeferredPwaController` in
 [deferred-controller](../src/pwa/deferred-controller.ts). Menu or Settings intent
 can request the client connection. [installPwaWorker](../src/pwa/worker.ts) owns
@@ -128,6 +147,7 @@ guard also checks the current Settings panel, busy state and new input events.
 | Preview authority is revocable and does not own persistence. | [Preview authority](../src/lib/preview-authority.test.ts) |
 | Late panel imports do not reopen a cancelled request. | [Panel lifecycle](../src/hooks/useAppPanel.browser.test.ts) |
 | Terminal module failures offer guarded reload rather than repeated cached imports. | [Chunk recovery](../tests/chunk-recovery.spec.ts) |
+| Remembered-session restore does not request online page bodies; route/picker failures preserve the bridge and saved libraries. | [Online page loading](../tests-cloud-ui/online-page-loading.spec.ts), [built module graph](../tests/app-tool-loading.spec.ts) |
 | Sign-in handoff preserves current focus and does not steal it after navigation. | [Compare return focus](../tests/compare-return-focus.spec.ts) |
 | Native dialog input and close remain independent of motion completion. | [Dialog lifecycle](../src/motion/Dialog.browser.test.ts) |
 | PWA connection and update work respect cleanup and currentness guards. | [Deferred controller](../src/pwa/deferred-controller.test.ts), [client lifecycle](../src/pwa/client.test.ts) |
@@ -145,3 +165,19 @@ Preserve effect order, stable ref identity, scope keys and subscription cleanup,
 including StrictMode reconnects. Keep native history and focus behavior explicit.
 Fill the relevant mounted coverage gap before extracting a lifecycle, change one
 boundary at a time, and preserve lazy imports rather than widening the eager graph.
+
+### Measuring the online split
+
+Measure the production build with `npm run check:budgets -- --json budget-report.json`
+after running the guarded-loading regressions. The largest remaining lazy chunk
+may be a shared Firebase/sync dependency rather than a page; report that filename
+and both raw and per-file gzip9 maxima, not just `OnlineController`'s own bytes.
+For R9, the integrator tightens `budgets.json` only after measuring that build:
+`largestLazyRawBytes = min(1115037, ceil(measuredLargestLazyRawBytes * 1.02))` and
+`largestLazyGzipBytes = min(286846, ceil(measuredLargestLazyGzipBytes * 1.02))`.
+Both should be strictly smaller than the prior caps; otherwise investigate the
+emitted graph instead of raising a limit or claiming the reduction. Keep the
+historical baseline and all eager/CSS/PWA caps unchanged, and record the measured
+source/tree with the tightened caps. These formulas are an integration instruction,
+not a fabricated size receipt; lane implementation and new tests are **UNRUN**
+until the integrator executes them.
