@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "typecheck:functions": "tsc -p tsconfig.functions.json --noEmit",
     "check:budgets": "tsx scripts/check-budgets.ts",
+    "release:manifest": "tsx scripts/release-manifest.ts",
     "check:csp": "tsx scripts/check-csp.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
