@@ -44,9 +44,7 @@ export function currentDeletionApproval(
   sessionEpoch: number,
   epoch: number,
 ): GoogleDeletionApproval | null {
-  return approval?.uid === uid && approval?.sessionEpoch === sessionEpoch && approval.epoch === epoch
-    ? approval
-    : null;
+  return approval?.uid === uid && approval?.sessionEpoch === sessionEpoch && approval.epoch === epoch ? approval : null;
 }
 export function deletionApprovalMatches(
   approval: GoogleDeletionApproval | null,
@@ -168,7 +166,10 @@ export interface AccountDeletionContext {
   authSessionEpoch: RefObject<number>;
   state: ReturnType<typeof useAccountDeletionState>;
   account: { snapshot: ScopedLibrary | null; waitForWrites: () => Promise<unknown>; refresh: () => Promise<void> };
-  sync: { store: Pick<CloudStore, 'head' | 'revoke' | 'cleanup' | 'markCleanupComplete'> | null; suspend: () => unknown };
+  sync: {
+    store: Pick<CloudStore, 'head' | 'revoke' | 'cleanup' | 'markCleanupComplete'> | null;
+    suspend: () => unknown;
+  };
   friends: {
     store: Pick<FriendStore, 'revokeForDeletion' | 'saveSettings' | 'cleanupSharing' | 'cleanupDeleted'>;
     stop: () => unknown;

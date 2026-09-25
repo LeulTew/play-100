@@ -144,54 +144,69 @@ describe('Google return transitions', () => {
   );
   it('preserves all sign-in destination exceptions, with ordinary public pages returning to Account', () => {
     for (const page of [
-      'publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf',
+      'publish',
+      'creator',
+      'friends',
+      'friend',
+      'invite',
+      'compare',
+      'friend-sharing',
+      'friend-shelf',
     ] as const)
       expect(signInNeedsAccountPage(page)).toBe(false);
     for (const page of [
-      'collection', 'games', 'library', 'rankings', 'discover', 'account', 'community', 'profile',
+      'collection',
+      'games',
+      'library',
+      'rankings',
+      'discover',
+      'account',
+      'community',
+      'profile',
     ] as const)
       expect(signInNeedsAccountPage(page)).toBe(true);
   });
   it.each(['sign-in', 'link', 'approved', 'changed'] as const)(
     'applies %s once and keeps its existing message and navigation',
     (kind) => {
-    const options: Parameters<typeof applyGoogleReturn>[0] = {
-      state: {
-        googleReturn:
-          kind === 'sign-in'
-            ? returned()
-            : kind === 'link'
-              ? returned({ kind: 'link', uid: 'alpha' })
-              : returned({ kind: 'reauthenticate', uid: 'alpha', target: 'account', epoch: 3 }),
-        handledGoogleReturn: { current: null },
-        setReturnSheet: vi.fn(),
-      },
-      identity,
-      cacheReady: true,
-      cacheError: null,
-      epoch: kind === 'changed' ? 4 : 3,
-      sessionEpoch: 7,
-      navigation: { current: { page: 'collection', onCloseSheet: vi.fn(), onNavigate: vi.fn() } },
-      setDeletionApproval: vi.fn(),
-      setError: vi.fn(),
-      setMessage: vi.fn(),
-    };
-    applyGoogleReturn(options);
-    applyGoogleReturn(options);
-    expect(options.state.handledGoogleReturn.current).toBe('request-a');
-    expect(options.state.setReturnSheet).toHaveBeenCalledExactlyOnceWith(false);
-    if (kind === 'sign-in') {
-      expect(options.navigation.current.onNavigate).toHaveBeenCalledExactlyOnceWith('account');
-      expect(calls.remember).toHaveBeenCalledExactlyOnceWith(true);
-    } else {
-      expect(options.navigation.current.onNavigate).not.toHaveBeenCalled();
-      expect(calls.remember).not.toHaveBeenCalled();
-    }
-    if (kind === 'link') expect(options.setMessage).toHaveBeenCalledWith('Google is linked to this existing account.');
-    if (kind === 'approved') expect(options.setDeletionApproval).toHaveBeenCalledOnce();
-    else expect(options.setDeletionApproval).not.toHaveBeenCalled();
-    if (kind === 'changed') expect(options.setError).toHaveBeenCalledOnce();
-    else expect(options.setError).not.toHaveBeenCalled();
+      const options: Parameters<typeof applyGoogleReturn>[0] = {
+        state: {
+          googleReturn:
+            kind === 'sign-in'
+              ? returned()
+              : kind === 'link'
+                ? returned({ kind: 'link', uid: 'alpha' })
+                : returned({ kind: 'reauthenticate', uid: 'alpha', target: 'account', epoch: 3 }),
+          handledGoogleReturn: { current: null },
+          setReturnSheet: vi.fn(),
+        },
+        identity,
+        cacheReady: true,
+        cacheError: null,
+        epoch: kind === 'changed' ? 4 : 3,
+        sessionEpoch: 7,
+        navigation: { current: { page: 'collection', onCloseSheet: vi.fn(), onNavigate: vi.fn() } },
+        setDeletionApproval: vi.fn(),
+        setError: vi.fn(),
+        setMessage: vi.fn(),
+      };
+      applyGoogleReturn(options);
+      applyGoogleReturn(options);
+      expect(options.state.handledGoogleReturn.current).toBe('request-a');
+      expect(options.state.setReturnSheet).toHaveBeenCalledExactlyOnceWith(false);
+      if (kind === 'sign-in') {
+        expect(options.navigation.current.onNavigate).toHaveBeenCalledExactlyOnceWith('account');
+        expect(calls.remember).toHaveBeenCalledExactlyOnceWith(true);
+      } else {
+        expect(options.navigation.current.onNavigate).not.toHaveBeenCalled();
+        expect(calls.remember).not.toHaveBeenCalled();
+      }
+      if (kind === 'link')
+        expect(options.setMessage).toHaveBeenCalledWith('Google is linked to this existing account.');
+      if (kind === 'approved') expect(options.setDeletionApproval).toHaveBeenCalledOnce();
+      else expect(options.setDeletionApproval).not.toHaveBeenCalled();
+      if (kind === 'changed') expect(options.setError).toHaveBeenCalledOnce();
+      else expect(options.setError).not.toHaveBeenCalled();
     },
   );
 });

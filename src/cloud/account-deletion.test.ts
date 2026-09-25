@@ -33,7 +33,10 @@ const calls = vi.hoisted(() => ({
 }));
 vi.mock('./firebase-client', () => ({ cloudAuth: calls.auth, cloudDb: {} }));
 vi.mock('firebase/auth', () => ({
-  EmailAuthProvider: { PROVIDER_ID: 'password', credential: (email: string, password: string) => ({ email, password }) },
+  EmailAuthProvider: {
+    PROVIDER_ID: 'password',
+    credential: (email: string, password: string) => ({ email, password }),
+  },
   deleteUser: calls.deleteUser,
   getIdTokenResult: calls.token,
   reauthenticateWithCredential: calls.reauthenticate,
@@ -183,7 +186,7 @@ function fixture() {
         return false;
       }
     }),
-    reconcileIdentity: vi.fn(async (_user: User) => identity),
+    reconcileIdentity: vi.fn<(user: User) => Promise<AccountIdentity>>(async () => identity),
     setIdentity: vi.fn(),
     setHeadSnapshot: vi.fn(),
     setError: vi.fn(),
@@ -247,15 +250,18 @@ describe('ordered account deletion orchestration', () => {
     expect(f.context.run).not.toHaveBeenCalled();
     expect(f.context.setError).toHaveBeenCalledWith('Finish the open edit before deleting online data.');
   });
-  it.each(['signed-out', 'foreign', 'offline', 'password'] as const)('refuses %s before deleting anything', async (reason) => {
-    const f = fixture();
-    if (reason === 'signed-out') calls.auth.currentUser = null;
-    if (reason === 'foreign') calls.auth.currentUser = { uid: 'beta', email: 'beta@example.test' };
-    if (reason === 'offline') vi.stubGlobal('navigator', { onLine: false });
-    expect(await f.remove(true, reason === 'password' ? '' : 'test-password')).toBe(false);
-    expect(calls.deleteUser).not.toHaveBeenCalled();
-    expect(f.context.sync.suspend).not.toHaveBeenCalled();
-  });
+  it.each(['signed-out', 'foreign', 'offline', 'password'] as const)(
+    'refuses %s before deleting anything',
+    async (reason) => {
+      const f = fixture();
+      if (reason === 'signed-out') calls.auth.currentUser = null;
+      if (reason === 'foreign') calls.auth.currentUser = { uid: 'beta', email: 'beta@example.test' };
+      if (reason === 'offline') vi.stubGlobal('navigator', { onLine: false });
+      expect(await f.remove(true, reason === 'password' ? '' : 'test-password')).toBe(false);
+      expect(calls.deleteUser).not.toHaveBeenCalled();
+      expect(f.context.sync.suspend).not.toHaveBeenCalled();
+    },
+  );
   it.each(['auth', 'identity', 'epoch'] as const)('refuses a changed %s after reauthentication', async (changed) => {
     const f = fixture();
     calls.reauthenticate.mockImplementationOnce(async () => {
@@ -377,7 +383,11 @@ describe('ordered account deletion orchestration', () => {
       const f = fixture();
       if (phase === 'shelf') f.context.shelf.store.cleanupDeleted.mockResolvedValue({ done: false, deleted: 0 });
       if (phase === 'friends')
-        f.context.friends.store.cleanupDeleted.mockResolvedValue({ done: false, deleted: 0, message: 'Cleanup refused' });
+        f.context.friends.store.cleanupDeleted.mockResolvedValue({
+          done: false,
+          deleted: 0,
+          message: 'Cleanup refused',
+        });
       if (phase === 'friend-pages')
         f.context.friends.store.cleanupDeleted.mockResolvedValue({ done: false, deleted: 0, message: undefined });
       if (phase === 'automatic-pages') {

@@ -186,7 +186,7 @@ export function applyGoogleReturn({
     setError(
       'This account changed while Google was open. Nothing was deleted. Review the account before confirming again.',
     );
-  } else {
+  } else if (transition.kind === 'approved') {
     setDeletionApproval(transition.approval);
     setMessage('Google confirmed this account. Nothing has been deleted; review and confirm the deletion below.');
   }
