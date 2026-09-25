@@ -71,8 +71,9 @@ index-scan, authorization-dependent-read or project-wide Spark quota costs.
 It adds no document lookup and changes no index, schema or console setting.
 IAM-authorized server/Admin requests bypass client Security Rules as before.
 `tests-cloud/query-offsets.test.ts` covers direct REST denials, nonempty
-zero/absent-offset and cursor pages, and unchanged limit checks. It is **UNRUN
-in the source lane**; I must validate it with the existing cloud suites.
+zero/absent-offset and cursor pages, and unchanged limit checks. Its 27 cases
+passed in `npm run test:cloud` at Release 1 (`2f727389`); receipts are in the
+[release ledger](releases.md#release-1-2026-09-25).
 
 [rules-query-properties]: https://firebase.google.com/docs/reference/rules/rules.firestore.Request#query
 [rules-map-get]: https://firebase.google.com/docs/reference/rules/rules.Map#get
@@ -184,10 +185,12 @@ ID change for delimiter-safe UIDs; the client now rejects unsupported report IDs
 before any persistence. Cancelled recovery uses the existing lifecycle own-get permission
 and deletes through Firebase Auth, not a new rule mutation.
 
-Unrun source coverage: `tests-cloud/security-hardening.test.ts`,
+Coverage: `tests-cloud/security-hardening.test.ts`,
 `src/cloud/account-lifecycle.test.ts`, `src/lib/friend-manager-feed.test.ts`,
 `tests-cloud-ui/cancelled-registration.spec.ts`, and the updated request
-transition case in `tests-cloud/friendships.test.ts`.
+transition case in `tests-cloud/friendships.test.ts`. The emulator files passed
+in `npm run test:cloud` at Release 1 (`2f727389`): security-hardening 15 and
+friendships 45; receipts are in the [release ledger](releases.md#release-1-2026-09-25).
 Use the demo-only `npm run test:cloud` and separately configured local emulator
 UI suite; never point these actors at production.
 
@@ -407,10 +410,11 @@ missing-profile denial under new rules. No SDK responses are mocked to grant
 compatibility. The Node removal case uses the existing fake IndexedDB backend
 but executes the real scoped-storage transaction; UI cases use browser storage.
 
-All these added cases are **UNRUN in the source lane**. Run `npm run test:cloud`
-and the two UI specs on the separately configured local demo app. These fixtures
-temporarily load old rules into `demo-play100` and restore candidate rules in
-teardown: run with one worker and exclusive ownership of those emulator ports,
+The 63 `tests-cloud/security-migration.test.ts` cases passed in `npm run test:cloud`
+at Release 1 (`2f727389`); receipts are in the [release ledger](releases.md#release-1-2026-09-25).
+Rerun `npm run test:cloud` and the two UI specs on the separately configured
+local demo app after rule changes. These fixtures temporarily load old rules
+into `demo-play100` and restore candidate rules in teardown: run with one worker and exclusive ownership of those emulator ports,
 never alongside another validation or against production. No case inventories
 real users or proves malformed/dangling legacy metadata recoverable. The
 12-generation case deliberately has valid manifests, payload and expired
@@ -515,7 +519,9 @@ that suspends H5 bounds. The table below explains why each change is client-firs
 | H13 password length | Old UI truncation remains | New client; no rule dependency |
 
 Stage 2 adds `social-profile.test.ts`, legacy/cap/handle/UID emulator cases,
-and scoped-cache deletion race tests. All are unrun in the source lane.
+and scoped-cache deletion race tests. The emulator cases passed in
+`npm run test:cloud` at Release 1 (`2f727389`), including security-hardening 15
+and security-migration 63; see the [release ledger](releases.md#release-1-2026-09-25).
 
 ## Headers, auth proxy and supply chain
 
