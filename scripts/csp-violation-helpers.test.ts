@@ -64,6 +64,10 @@ describe('the local authDomain frame report', () => {
     expect(isLocalAuthFrameReport(refused('https://other.example.test/'), helper)).toBe(false);
     expect(isLocalAuthFrameReport('/invite connect-src https://auth.example.test/x ', helper)).toBe(false);
     expect(isLocalAuthFrameReport('/invite style-src-attr (inline) color:red', helper)).toBe(false);
+    const chrome153 = `Framing 'https://auth.example.test/' violates the following Content Security Policy directive: "${policy}". The request has been blocked.`;
+    expect(isLocalAuthFrameReport(chrome153, helper)).toBe(true);
+    const chrome153Other = `Framing 'https://other.example.test/' violates the following Content Security Policy directive: "${policy}". The request has been blocked.`;
+    expect(isLocalAuthFrameReport(chrome153Other, helper)).toBe(false);
     const framing = `Framing 'https://auth.example.test/' violates the following Content Security Policy directive: "frame-ancestors 'self'".`;
     expect(isLocalAuthFrameReport(framing, helper)).toBe(false);
   });

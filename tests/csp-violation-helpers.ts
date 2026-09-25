@@ -35,6 +35,12 @@ export function localAuthOrigin(origin: string, authDomain = builtAuthDomain()):
 }
 
 /**
+ * Chrome's console form of a frame-src (or child-src) report: `Refused to frame '<url>' because it
+ * violates …`, or since Chrome 153 `Framing '<url>' violates …`.
+ */
+const consoleFrameReport = /^(?:Refused to frame|Framing) '([^']+)' (?:because it )?violates .*"(?:frame|child)-src/;
+
+/**
  * The single local-origin equivalence. Production serves the app on its authDomain, so frame-src 'self'
  * admits Firebase Auth's /__/auth/iframe. A local preview on another origin is served the exact same
  * policy, so it blocks that now cross-origin iframe just as production blocks any non-self frame, and
@@ -46,7 +52,7 @@ export function localAuthOrigin(origin: string, authDomain = builtAuthDomain()):
 export function isLocalAuthFrameReport(entry: string, helper: string | null): boolean {
   if (helper === null) return false;
   const recorded = /^\S+ (?:frame|child)-src (\S+) /.exec(entry)?.[1];
-  const blocked = recorded ?? /^Refused to frame '([^']+)' because it violates .*"(?:frame|child)-src/.exec(entry)?.[1];
+  const blocked = recorded ?? consoleFrameReport.exec(entry)?.[1];
   if (blocked === undefined) return false;
   try {
     return new URL(blocked).origin === helper;
