@@ -289,7 +289,10 @@ for (const scenario of SCENARIOS) {
         };
       });
       expect(controls.inert, 'the shell makes nothing inert').toBe(0);
-      expect(controls.links.filter((href) => !href), 'every shell link navigates').toEqual([]);
+      expect(
+        controls.links.filter((href) => !href),
+        'every shell link navigates',
+      ).toEqual([]);
       const names = controls.buttons.map((button) => button.name);
       expect(names).toContain('Play later, 0 games');
       expect(names).toContain('Pick for me');
