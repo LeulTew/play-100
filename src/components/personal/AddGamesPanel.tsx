@@ -1,10 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { searchText } from '../../lib/collection';
 import { catalogPickerChoices } from '../../lib/catalog-identity';
 import { Icon } from '../Icon';
 import ManualGameForm from './ManualGameForm';
+import type { ManualGameDraft } from './ManualGameForm';
+
+export interface AddGamesPanelState {
+  query: string;
+  expanded: boolean;
+  manualDraft: ManualGameDraft;
+}
 
 export default function AddGamesPanel({
   records,
@@ -14,6 +21,8 @@ export default function AddGamesPanel({
   onDiscover,
   busy,
   kind = 'ranking',
+  viewState,
+  onViewStateChange,
 }: {
   records: LibraryRecord[];
   ownedRecords: Record<string, LibraryRecord>;
@@ -22,9 +31,24 @@ export default function AddGamesPanel({
   onDiscover: () => void;
   busy: boolean;
   kind?: 'ranking' | 'library';
+  viewState?: AddGamesPanelState;
+  onViewStateChange?: (state: AddGamesPanelState) => void;
 }) {
-  const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState(false);
+  const [localView, setLocalView] = useState<AddGamesPanelState>({
+    query: '',
+    expanded: false,
+    manualDraft: { title: '', year: '' },
+  });
+  const view = viewState ?? localView;
+  const { query, expanded, manualDraft } = view;
+  const latestView = useRef(view);
+  latestView.current = view;
+  const updateView = (patch: Partial<AddGamesPanelState>) => {
+    const next = { ...latestView.current, ...patch };
+    latestView.current = next;
+    if (onViewStateChange) onViewStateChange(next);
+    else setLocalView(next);
+  };
   const candidates = useMemo(() => catalogPickerChoices(records, ownedRecords), [records, ownedRecords]);
   const choices = useMemo(() => {
     const term = searchText(query);
@@ -34,12 +58,16 @@ export default function AddGamesPanel({
   }, [candidates, query]);
   return (
     <section className="add-games-panel">
-      <button className="button button-outline" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+      <button
+        className="button button-outline"
+        aria-expanded={expanded}
+        onClick={() => updateView({ expanded: !expanded })}
+      >
         <Icon name={expanded ? 'close' : 'plus'} width="18" height="18" />
         {expanded ? 'Close game picker' : 'Add games'}
       </button>
-      {expanded && (
-        <div className="game-picker">
+      {(expanded || manualDraft.title.length > 0 || manualDraft.year.length > 0) && (
+        <div className="game-picker" hidden={!expanded}>
           <label htmlFor={`add-${kind}-search`}>Find a game from the 100 or your library</label>
           <div className="search-field">
             <Icon name="search" width="18" height="18" />
@@ -47,7 +75,7 @@ export default function AddGamesPanel({
               id={`add-${kind}-search`}
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => updateView({ query: event.target.value })}
               placeholder="Search your available games…"
               maxLength={160}
             />
@@ -87,6 +115,8 @@ export default function AddGamesPanel({
           </button>
           <ManualGameForm
             busy={busy}
+            draft={manualDraft}
+            onDraftChange={(next) => updateView({ manualDraft: next })}
             onAdd={(record) => onAdd([record])}
             actionLabel={kind === 'ranking' ? 'Add to my ranking' : 'Add to my library'}
           />

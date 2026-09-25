@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
-import { flushPendingEdits, hasPendingEdits } from '../../hooks/useExitSave';
+import { flushPendingEdits, hasPendingEdits, usePendingEdits } from '../../hooks/useExitSave';
 import { useCommittedCue } from '../../hooks/useCommittedCue';
 import type { CommittedCue } from '../../lib/route-continuity';
 import { Icon } from '../Icon';
@@ -11,7 +11,7 @@ import { focusPendingEditor } from '../../lib/dialog-focus';
 import LibraryPage from './LibraryPage';
 import type { LibraryPageProps } from './LibraryPage';
 import RankingsPage from './RankingsPage';
-import type { RankingsPageProps } from './RankingsPage';
+import type { RankingsPageProps, RankingViewState } from './RankingsPage';
 import './my-games.css';
 import './continuity.css';
 
@@ -41,6 +41,8 @@ function MyGamesWorkspace({
 }: MyGamesPageProps & { isCurrent: () => boolean }) {
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState('');
+  const [rankingView, setRankingView] = useState<RankingViewState>();
+  const pendingEdits = usePendingEdits();
   const mounted = useRef(true);
   const changing = useRef<number | null>(null);
   const generation = useRef(0);
@@ -58,9 +60,13 @@ function MyGamesWorkspace({
   const completedOnly = progressView === 'completed';
   const lastLibraryView = useRef<'library' | 'queue'>(view === 'queue' ? 'queue' : 'library');
   if (view !== 'ranking') lastLibraryView.current = view;
-  // Ranking mounts every sortable row, so it waits for its first visit and then stays mounted to keep drafts and search.
-  const rankingVisited = useRef(view === 'ranking');
-  if (view === 'ranking') rankingVisited.current = true;
+  // Browser history may change the tab without passing the save guard. Retain only that
+  // dirty, bounded editor page until saved; clean Ranking panes release every row.
+  const rankingMounted = useRef(view === 'ranking');
+  const manualDraft = rankingView?.picker?.manualDraft;
+  const hasManualDraft = Boolean(manualDraft?.title.length || manualDraft?.year.length);
+  if (view === 'ranking') rankingMounted.current = true;
+  else if (!pendingEdits && !hasManualDraft) rankingMounted.current = false;
   useEffect(() => {
     mounted.current = true;
     const invalidate = () => {
@@ -177,7 +183,9 @@ function MyGamesWorkspace({
               aria-pressed={view === value}
               disabled={switching}
               onClick={() => {
-                if (value !== view) void change(() => onViewChange(value));
+                if (value === view) return;
+                if (value === 'ranking' && rankingMounted.current) onViewChange(value);
+                else void change(() => onViewChange(value));
               }}
             >
               {titles[value]} <span>{counts[value]}</span>
@@ -217,12 +225,14 @@ function MyGamesWorkspace({
         />
       </div>
       <div hidden={view !== 'ranking'}>
-        {rankingVisited.current && (
+        {rankingMounted.current && (
           <RankingsPage
             {...props}
             busy={editorBusy}
             embedded
             active={view === 'ranking'}
+            viewState={rankingView}
+            onViewStateChange={setRankingView}
             progressFilter={progressView}
             onDiscover={onDiscover}
             onPublish={onPublish}

@@ -60,6 +60,7 @@ export type PersonalAction =
   | { type: 'rate-game'; record: LibraryRecord; score: number | null }
   | { type: 'use-rating-order'; id?: string }
   | { type: 'move-item'; list: 'queue' | 'ranking'; id: string; overId: string }
+  | { type: 'move-item'; list: 'ranking'; id: string; position: number }
   | { type: 'set-motion'; motion: MotionPreference };
 
 export interface PersonalLibraryLoad {

@@ -455,6 +455,25 @@ export function applyPersonalActionWithin(
       break;
     }
     case 'move-item': {
+      if (Object.hasOwn(input, 'position')) {
+        shape(input, ['type', 'list', 'id', 'position'], 'The absolute ranking move');
+        const id = safeId(input.id);
+        const position = input.position;
+        if (
+          input.list !== 'ranking' ||
+          typeof position !== 'number' ||
+          !Number.isInteger(position) ||
+          position < 1 ||
+          position > result.ranking.length
+        ) {
+          return invalid('a ranking position must be an integer inside the current ranking.');
+        }
+        const target = result.ranking[position - 1];
+        if (!target) return invalid('the requested ranking position no longer exists.');
+        move(result.ranking, id, target.id, (item) => item.id);
+        retainManualPositions(result.ranking, id);
+        break;
+      }
       shape(input, ['type', 'list', 'id', 'overId'], 'The reorder action');
       const id = safeId(input.id);
       const overId = safeId(input.overId);

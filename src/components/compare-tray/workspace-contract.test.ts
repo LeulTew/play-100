@@ -202,7 +202,7 @@ describe('workspace embedding contract', () => {
     expect(completed).toContain('Clear search, progress filters and selection to reorder.');
     expect(completed).toContain('disabled=""');
   });
-  it('keeps the Library tree present, mounts Ranking only once visited and hides the inactive pane without nested page headings', () => {
+  it('keeps the Library tree present and mounts only the active clean Ranking pane without nested page headings', () => {
     for (const view of ['library', 'queue', 'ranking'] as const) {
       const html = renderToStaticMarkup(h(MyGamesPage, { ...props, scope: 'guest', view, onViewChange: vi.fn() }));
       expect(html.match(/<h1\b/g)).toHaveLength(1);
@@ -216,7 +216,7 @@ describe('workspace embedding contract', () => {
       }
       expect(html).toContain('class="filter-select progress-filter"');
       expect(html).toContain('Played (not completed)');
-      // Ranking's editors (the private note, its search) mount on the first Ranking visit only.
+      // Clean inactive Ranking panes have no rows, editors or search subscriptions.
       expect(html.includes('A private note')).toBe(view === 'ranking');
       expect(html.includes('id="ranking-search"')).toBe(view === 'ranking');
       expect(html).toContain('Add a game manually');
@@ -224,6 +224,37 @@ describe('workspace embedding contract', () => {
       if (view !== 'ranking') expect(html).toContain('<div hidden=""></div>');
       expect(html).not.toContain('Personal library views');
     }
+  });
+  it.each([120, 2000])('bounds %i ranked games to 25 mounted rows with global page positions', (total) => {
+    const records = Array.from({ length: total }, (_, index) => ({
+      ...alpha,
+      id: `manual:ranking-${index}`,
+      source: 'manual' as const,
+      sourceId: `ranking-${index}`,
+      collectionRank: null,
+      title: `Synthetic ranking ${index}`,
+    }));
+    const html = renderToStaticMarkup(
+      h(RankingsPage, {
+        ...props,
+        viewState: { searchInput: '', query: '', offset: 25 },
+        state: {
+          ...emptyPersonalLibrary(),
+          records: Object.fromEntries(records.map((record) => [record.id, record])),
+          ranking: records.map((record, index) => ({
+            id: record.id,
+            score: 7,
+            note: '',
+            manualPosition: index + 1,
+          })),
+        },
+      }),
+    );
+    expect(html.match(/class="ranking-row-content"/g)).toHaveLength(25);
+    expect(html).toContain('aria-posinset="26"');
+    expect(html).toContain(`aria-setsize="${total}"`);
+    expect(html).toContain(`26–50 of ${total} ranked games`);
+    expect(html).toContain('Move Synthetic ranking 25 up in ranking');
   });
   it('embeds metadata-only pins without enabling any personal action', () => {
     const onAction = vi.fn(async () => true);

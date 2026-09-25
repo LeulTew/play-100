@@ -29,6 +29,23 @@ a directly entered detail URL. Detail Previous/Next and workspace view changes
 flush pending editors first; rejected edits keep their original field mounted
 and return focus to it. Scope or navigation changes cancel a pending handoff.
 
+Ranking also mounts at most 25 rows. Its page and search are lightweight,
+scope-local workspace state, independent of the Library URL page. Global rank
+numbers, boundary move arrows and within-page keyboard/drag sorting preserve
+the full ranking order. Explicit numeric moves use the additive in-memory
+`move-item` / `ranking` / `position` action: guest and account transactions
+resolve the slot against their current ranking, reject positions outside
+`1..ranking.length`, and fix the chosen slot (including the current position).
+Persisted record, library and cloud formats do not change.
+
+Clean Ranking panes unmount after a guarded tab exit. Rejected edits retain
+only their bounded page, including after browser Back. A non-empty manual
+title/year also retains its form and bounded Ranking subtree, even if its
+picker is collapsed, so existing module-recovery and PWA reload guards can
+still detect the mounted unsubmitted form. Paging flushes registered editors
+before replacing rows; a dirty note keeps its row mounted even when a saved
+score changes its global rank.
+
 [useLibrary](../src/hooks/useLibrary.ts) owns the guest library snapshot and
 serializes writes through the device database. Storage failure is explicit:
 temporary edits stay in the tab rather than claiming a durable save. The opened

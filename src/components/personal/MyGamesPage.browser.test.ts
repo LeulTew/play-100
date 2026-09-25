@@ -160,8 +160,8 @@ beforeAll(async () => {
             name: 'my-games-guard-fixture',
             configureServer(vite) {
               vite.middlewares.use((request, response, next) => {
-                if (request.url?.split('?')[0] !== '/__my-games-guard') return next();
-                void vite.transformIndexHtml('/__my-games-guard', fixture).then((html) => {
+                if (request.url?.split('?')[0] !== '/my-games') return next();
+                void vite.transformIndexHtml('/my-games', fixture).then((html) => {
                   response.setHeader('Content-Type', 'text/html');
                   response.end(html);
                 }, next);
@@ -198,7 +198,7 @@ async function withPage(work: (page: Page) => Promise<void>, view = 'ranking', q
     new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
   );
   try {
-    await page.goto(`${origin}/__my-games-guard?view=${view}${query}`);
+    await page.goto(`${origin}/my-games?view=${view}${query}`);
     await browserExpect(page.getByRole('heading', { name: 'My games', level: 1 })).toBeVisible();
     await work(page);
     expect(errors).toEqual([]);
@@ -235,7 +235,7 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
 describe('My games exit guard', () => {
   it('keeps a failed note draft through Find games, Publish, Discover and a row-hiding search', async () => {
     await withPage(async (page) => {
-      await rankedRow(page, 'alpha').locator('summary').click();
+      await rankedRow(page, 'alpha').locator('.ranking-note > summary').click();
       const note = rankedRow(page, 'alpha').locator('#note-alpha');
       await note.fill('Unsaved draft');
       await note.press('Tab');
@@ -319,7 +319,7 @@ describe('My games exit guard', () => {
 });
 
 describe('My games Ranking pane mounting', () => {
-  it('mounts Ranking on its first visit and keeps it mounted afterwards', async () => {
+  it('releases a clean Ranking pane but preserves its lightweight search state', async () => {
     await withPage(async (page) => {
       const search = page.getByRole('searchbox', { name: 'Search your ranking' });
       await browserExpect(page.getByRole('list', { name: 'Your games', exact: true })).toBeVisible();
@@ -336,9 +336,8 @@ describe('My games Ranking pane mounting', () => {
       await browserExpect(rankedRow(page, 'alpha')).toHaveCount(1);
       await browserExpect(rankedRow(page, 'beta')).toHaveCount(0);
       await page.getByRole('button', { name: 'Library, 2', exact: true }).click();
-      await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toBeHidden();
-      // Leaving Ranking keeps its subtree, so its search and filtered rows survive the round trip.
-      await browserExpect(page.locator('#ranking-search')).toHaveValue('Alpha');
+      await browserExpect(page.getByRole('list', { name: 'Your ranked games', exact: true })).toHaveCount(0);
+      await browserExpect(page.locator('#ranking-search')).toHaveCount(0);
       await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
       await browserExpect(search).toBeVisible();
       await browserExpect(search).toHaveValue('Alpha');
@@ -346,6 +345,30 @@ describe('My games Ranking pane mounting', () => {
       await browserExpect(rankedRow(page, 'beta')).toHaveCount(0);
       expect(await exits(page)).toEqual([]);
     }, 'library');
+  });
+
+  it('keeps a hidden manual draft visible to the existing unsubmitted-form reload guard', async () => {
+    await withPage(async (page) => {
+      await page.getByRole('button', { name: 'Add games', exact: true }).click();
+      const ranking = page.locator('.my-games-editor:visible');
+      await ranking.locator('.manual-add > summary').click();
+      await ranking.getByLabel('Game title', { exact: true }).fill('Guarded manual draft');
+      await page.getByRole('button', { name: 'Close game picker', exact: true }).click();
+      await page.getByRole('button', { name: 'Library, 2', exact: true }).click();
+      await browserExpect(page.locator('[hidden] .ranking-row-content')).toHaveCount(2);
+      expect(
+        await page.evaluate(async () => {
+          const path = '/src/lib/pwa-update-guard.ts';
+          const { hasUnsubmittedPwaForm }: typeof import('../../lib/pwa-update-guard') = await import(path);
+          return hasUnsubmittedPwaForm();
+        }),
+      ).toBe(true);
+      await page.getByRole('button', { name: 'Ranking, 2', exact: true }).click();
+      await page.getByRole('button', { name: 'Add games', exact: true }).click();
+      await ranking.getByLabel('Game title', { exact: true }).fill('');
+      await page.getByRole('button', { name: 'Library, 2', exact: true }).click();
+      await browserExpect(page.locator('.ranking-row-content')).toHaveCount(0);
+    });
   });
 });
 

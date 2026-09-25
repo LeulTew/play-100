@@ -27,15 +27,15 @@ async function selectPage(page: Page, value: number) {
 
 const rankingEditors = (page: Page) => page.locator('.ranking-row-content');
 
-// Ranking mounts on its first visit and is then retained for the workspace, so visit it once before relying on its editors.
-async function retainRanking(page: Page, count = 3) {
+// A clean Ranking visit must release its rows again when Library is shown.
+async function visitRanking(page: Page, count = 3) {
   await expect(rankingEditors(page)).toHaveCount(0);
   await tab(page, 'Ranking').click();
   await expect(tab(page, 'Ranking')).toHaveAttribute('aria-current', 'page');
   await expect(rankingEditors(page)).toHaveCount(count);
   await tab(page, 'Library').click();
   await expect(tab(page, 'Library')).toHaveAttribute('aria-current', 'page');
-  await expect(rankingEditors(page)).toHaveCount(count);
+  await expect(rankingEditors(page)).toHaveCount(0);
 }
 
 async function heldEditor(page: Page) {
@@ -122,13 +122,13 @@ test.beforeEach(async ({ page, baseURL }) => {
   });
 });
 
-test('all 20 pages keep 25 Library rows and 3 retained Ranking editors without writing the 500-record guest', async ({
+test('all 20 pages keep 25 Library rows and no hidden Ranking editors without writing the 500-record guest', async ({
   page,
 }, info) => {
   const fixture = libraryFixture();
   await installGuestLibrary(page, fixture);
   await expect(libraryRows(page)).toHaveCount(25);
-  await retainRanking(page);
+  await visitRanking(page);
   await expect(libraryRows(page)).toHaveCount(25);
   const before = await readLibrary(page);
   const sorted = Object.values(before.records).sort((a, b) => a.title.localeCompare(b.title));
@@ -156,7 +156,7 @@ test('all 20 pages keep 25 Library rows and 3 retained Ranking editors without w
     expect(
       await libraryRows(page).evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
     ).toEqual(sorted.slice((value - 1) * 25, value * 25).map((record) => record.id));
-    await expect(rankingEditors(page)).toHaveCount(3);
+    await expect(rankingEditors(page)).toHaveCount(0);
   }
   await expect(pager(page)).toContainText('476–500 of 500 matching games');
   await expect(pager(page).getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
@@ -377,12 +377,12 @@ test('selection survives pages and the explicit all-matching action covers all 5
     );
 });
 
-test('manual form and hidden Ranking nodes survive paging and tabs; detail Back and reload preserve the page', async ({
+test('Library manual drafts and saved Ranking opinions survive tab unmounts; detail Back and reload preserve the page', async ({
   page,
 }) => {
   await installGuestLibrary(page);
   const before = await readLibrary(page);
-  await retainRanking(page);
+  await visitRanking(page);
   const library = page.locator('.my-games-editor').filter({ has: page.locator('#library-search') });
   await library.locator('.manual-add > summary').click();
   const title = library.getByLabel('Game title', { exact: true });
@@ -391,21 +391,14 @@ test('manual form and hidden Ranking nodes survive paging and tabs; detail Back 
   await title.evaluate((element) => {
     element.dataset.preservedLibraryForm = 'yes';
   });
-  await page
-    .locator('.ranking-row-content input[type="number"]')
-    .first()
-    .evaluate((element) => {
-      element.dataset.preservedRankingEditor = 'yes';
-    });
+  await expect(rankingEditors(page)).toHaveCount(0);
   await selectPage(page, 2);
   await expect(title).toHaveValue('Unsubmitted Library page draft');
   await expect(title).toHaveAttribute('data-preserved-library-form', 'yes');
   await tab(page, 'Ranking').click();
-  await expect(page.locator('.ranking-row-content input[type="number"]').first()).toHaveAttribute(
-    'data-preserved-ranking-editor',
-    'yes',
-  );
+  await expect(page.locator('.ranking-row-content .personal-score input').first()).toHaveValue('8.5');
   await tab(page, 'Library').click();
+  await expect(rankingEditors(page)).toHaveCount(0);
   await expect(pager(page).getByRole('combobox')).toHaveValue('2');
   await expect(title).toHaveValue('Unsubmitted Library page draft');
   const opener = libraryRows(page).first().locator('.record-title');
@@ -657,7 +650,7 @@ test('Queue remains an unpaged full list beyond 25 and retains existing arrow or
     value: true,
   });
   await installGuestLibrary(page, fixture);
-  await retainRanking(page);
+  await visitRanking(page);
   await selectPage(page, 2);
   await tab(page, 'Queue').click();
   const queue = page.getByRole('list', { name: 'Your play order', exact: true });
@@ -673,7 +666,7 @@ test('Queue remains an unpaged full list beyond 25 and retains existing arrow or
   await tab(page, 'Library').click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await expect(libraryRows(page)).toHaveCount(25);
-  await expect(rankingEditors(page)).toHaveCount(3);
+  await expect(rankingEditors(page)).toHaveCount(0);
 });
 
 test('320px Library pager and results are keyboard reachable, 44px, contained and accessible', async ({

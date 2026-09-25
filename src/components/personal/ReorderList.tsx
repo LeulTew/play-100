@@ -27,6 +27,8 @@ interface ReorderListProps {
   busy: boolean;
   animate: boolean;
   positionFor: (id: string) => number | null;
+  neighborsFor?: (id: string) => { previous?: string; next?: string };
+  totalItems?: number;
   onMove: (id: string, overId: string) => void;
   children: (record: LibraryRecord) => ReactNode;
 }
@@ -38,6 +40,8 @@ export default function ReorderList({
   busy,
   animate,
   positionFor,
+  neighborsFor,
+  totalItems,
   onMove,
   children,
 }: ReorderListProps) {
@@ -66,8 +70,11 @@ export default function ReorderList({
         announcements: {
           onDragStart: ({ active }) =>
             `Picked up ${records.find((record) => record.id === active.id)?.title ?? 'game'}.`,
-          onDragOver: ({ over }) =>
-            over ? `Over position ${records.findIndex((record) => record.id === over.id) + 1}.` : undefined,
+          onDragOver: ({ over }) => {
+            if (!over) return undefined;
+            const position = positionFor(String(over.id)) ?? records.findIndex((record) => record.id === over.id) + 1;
+            return `Over position ${position}.`;
+          },
           onDragEnd: ({ active, over }) =>
             over && active.id !== over.id ? 'New order submitted for saving.' : 'Order unchanged.',
           onDragCancel: () => 'Move canceled. Order unchanged.',
@@ -82,11 +89,12 @@ export default function ReorderList({
               id={record.id}
               title={record.title}
               position={positionFor(record.id)}
+              totalItems={totalItems}
               disabled={!canReorder || busy}
               animate={animate}
               kind={kind}
-              previous={records[index - 1]?.id}
-              next={records[index + 1]?.id}
+              previous={neighborsFor ? neighborsFor(record.id).previous : records[index - 1]?.id}
+              next={neighborsFor ? neighborsFor(record.id).next : records[index + 1]?.id}
               onMove={onMove}
             >
               {children(record)}
@@ -110,6 +118,7 @@ function ReorderRow({
   id,
   title,
   position,
+  totalItems,
   disabled,
   animate,
   kind,
@@ -121,6 +130,7 @@ function ReorderRow({
   id: string;
   title: string;
   position: number | null;
+  totalItems?: number;
   disabled: boolean;
   animate: boolean;
   kind: 'queue' | 'ranking';
@@ -139,6 +149,8 @@ function ReorderRow({
       ref={setNodeRef}
       className={`personal-row ${isDragging ? 'is-dragging' : ''}`}
       data-record-id={id}
+      aria-posinset={totalItems ? (position ?? undefined) : undefined}
+      aria-setsize={totalItems}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.25 : 1 }}
     >
       <div className="record-order">
@@ -165,6 +177,7 @@ function ReorderRow({
           className="icon-button"
           disabled={disabled || !previous}
           aria-label={`Move ${title} up in ${kind}`}
+          data-move-direction="up"
           onClick={() => previous && onMove(id, previous)}
         >
           <Icon name="up" width="17" height="17" />
@@ -173,6 +186,7 @@ function ReorderRow({
           className="icon-button"
           disabled={disabled || !next}
           aria-label={`Move ${title} down in ${kind}`}
+          data-move-direction="down"
           onClick={() => next && onMove(id, next)}
         >
           <Icon name="down" width="17" height="17" />
