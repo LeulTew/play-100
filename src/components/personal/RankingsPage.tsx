@@ -240,8 +240,8 @@ export default function RankingsPage({
       heading.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
     }
   }, [active, busy, changing, followMove, state.revision, rankingById, page.offset, pendingEdits, updateView]);
-  const change = async (work: (isCurrent: () => boolean) => Promise<boolean> | boolean) => {
-    if (!active || busy || command.current) return false;
+  const change = async (work: (isCurrent: () => boolean) => Promise<boolean> | boolean, allowWhileBusy = false) => {
+    if (!active || (busy && !allowWhileBusy) || command.current) return false;
     const scopeAndNavigation = captureFocusGuard();
     const inputAtStart = latestView.current.searchInput;
     const searchAtStart = searchRequest.current;
@@ -275,11 +275,13 @@ export default function RankingsPage({
     }
   };
   const changePage = (offset: number) => {
+    // Blur can start saving before the pager's click. Admit that view-only intent and
+    // let the shared flush await the save instead of disabling or dropping the click.
     void change(() => {
       updateView({ offset: getLocalPage(records.length, RANKING_PAGE_SIZE, offset).offset });
       focusAfterPage.current = true;
       return true;
-    });
+    }, true);
   };
   const move = (id: string, destination: string | number) =>
     change(async (isCurrent) => {
@@ -449,7 +451,7 @@ export default function RankingsPage({
           total={records.length}
           offset={page.offset}
           pageSize={RANKING_PAGE_SIZE}
-          disabled={editorBusy}
+          disabled={!active || changing}
           onOffsetChange={changePage}
         />
         {visible.current.length ? (

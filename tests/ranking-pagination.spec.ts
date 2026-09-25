@@ -146,6 +146,7 @@ test('valid pending rating and note edits flush before their page is removed', a
     .fill('9.3');
   await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('2');
+  await expect(page.getByRole('heading', { name: 'Your ranking results', exact: true })).toBeFocused();
   expect((await readLibrary(page)).ranking[0]?.score).toBe(9.3);
   await row(page, 26).locator('.ranking-note > summary').click();
   await row(page, 26)
@@ -153,7 +154,22 @@ test('valid pending rating and note edits flush before their page is removed', a
     .fill('Saved before paging away.');
   await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('3');
+  await expect(page.getByRole('heading', { name: 'Your ranking results', exact: true })).toBeFocused();
   expect((await readLibrary(page)).ranking[25]?.note).toBe('Saved before paging away.');
+});
+
+test('a failed valid blur-save blocks the requested page and retains the focused rating', async ({ page }) => {
+  await openRanking(page);
+  await rejectWrites(page);
+  const input = row(page, 1).getByRole('spinbutton', { name: /^Your rating/ });
+  await input.fill('9.3');
+  await pager(page).getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  await expect(input).toHaveValue('9.3');
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(input).toBeFocused();
+  await expect(row(page, 1).getByRole('alert')).toContainText('The rating could not be saved.');
+  expect((await readLibrary(page)).ranking[0]?.score).toBe(7);
 });
 
 test('clean tab exits mount zero hidden Ranking rows while retaining the lightweight page', async ({ page }) => {
