@@ -35,6 +35,16 @@ Response type, byte length and SHA-256 are checked. Redirects, login pages,
 private/no-store responses, authorization-bearing requests and unexpected data
 cannot become offline public assets.
 
+Each verified asset download has one deadline covering headers, the entire body
+and verification: `min(360 seconds, 60 seconds + ceil(declared bytes / 4096) seconds)`.
+This allows a minute of startup time plus transfer at 4 KiB/s (316 seconds for
+the maximum 1 MiB file), with a six-minute ceiling; slower connections can time
+out and retry, so this is not a promise for arbitrarily slow networks. Timeout
+aborts the request and cancels its reader without waiting for cancellation to
+finish. Failed preparation removes only the incomplete new core, writes no
+ready marker, preserves the working version and clears the preparing state so
+Settings shows an error and enables retry when connected.
+
 The build also embeds an allowlisted main-document security policy and includes
 its digest in the worker version. Cached shell and offline fallback HTML retain
 CSP and isolation headers, including across header-only deployments/rollbacks.

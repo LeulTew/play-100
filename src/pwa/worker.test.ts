@@ -5,6 +5,7 @@ import {
   isPublicPwaFile,
   isPwaShellNavigation,
   pwaAppWindows,
+  pwaAssetDeadlineMs,
   PWA_BUDGET,
   PWA_CACHE_PREFIX,
   validatePwaManifest,
@@ -369,6 +370,133 @@ describe('version-bound offline security headers', () => {
 });
 
 describe('native worker install, offline and update lifetime', () => {
+  it('budgets a minute of startup plus transfer at 4 KiB/s, bounded to six minutes', () => {
+    expect(pwaAssetDeadlineMs(0)).toBe(60_000);
+    expect(pwaAssetDeadlineMs(1)).toBe(61_000);
+    expect(pwaAssetDeadlineMs(4096)).toBe(61_000);
+    expect(pwaAssetDeadlineMs(4097)).toBe(62_000);
+    expect(pwaAssetDeadlineMs(PWA_BUDGET.coreFileBytes)).toBe(316_000);
+    expect(pwaAssetDeadlineMs(10 * 1024 * 1024)).toBe(360_000);
+  });
+
+  it.each(['headers', 'body'] as const)(
+    'aborts stalled %s, discards the incomplete core and preserves the working version',
+    async (phase) => {
+      vi.useFakeTimers();
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const fixture = workerFixture(true);
+        const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
+        await old.put(`${origin}/index.html`, new Response('working old shell'));
+        await old.put(`${origin}/pwa/__ready__`, new Response('old ready marker'));
+        await fixture.caches.open('unrelated-private-cache');
+        const started = deferred();
+        const cancelled = deferred();
+        const cancel = vi.fn(() => {
+          cancelled.resolve();
+          return new Promise<void>(() => {});
+        });
+        const response = new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(fixtureBytes.slice(0, 3));
+            },
+            cancel,
+          }),
+          { headers: { 'Content-Type': 'text/html' } },
+        );
+        let releaseHeaders: (response: Response) => void = () => {};
+        const headers = new Promise<Response>((resolve) => {
+          releaseHeaders = resolve;
+        });
+        const normalFetch = fixture.fetch.getMockImplementation()!;
+        let stalledRequest: Request | undefined;
+        fixture.fetch.mockImplementation(async (input) => {
+          // Let the first asset be cached to prove that failed preparation removes partial work.
+          if (input.url !== `${origin}${assets[1]!.url}`) return normalFetch(input);
+          stalledRequest = input;
+          started.resolve();
+          return phase === 'headers' ? headers : response;
+        });
+        const outcome = expect(fixture.lifetime('install')).rejects.toThrow('Offline download took too long');
+        await started.promise;
+        const partial = fixture.stores.get(`${PWA_CACHE_PREFIX}core-${version}`)!;
+        expect(partial.entries.has(`${origin}/index.html`)).toBe(true);
+        const put = vi.spyOn(partial, 'put');
+        await vi.advanceTimersByTimeAsync(pwaAssetDeadlineMs(assets[1]!.bytes) - 1);
+        expect(stalledRequest?.signal.aborted).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await outcome;
+        expect(stalledRequest?.signal.aborted).toBe(true);
+        expect(fixture.stores.has(`${PWA_CACHE_PREFIX}core-${version}`)).toBe(false);
+        expect(await (await old.match(`${origin}/index.html`))?.text()).toBe('working old shell');
+        expect(await (await old.match(`${origin}/pwa/__ready__`))?.text()).toBe('old ready marker');
+        expect(fixture.stores.has('unrelated-private-cache')).toBe(true);
+        expect(fixture.host.skipWaiting).not.toHaveBeenCalled();
+        expect(fixture.clients[0]!.postMessage).toHaveBeenCalledWith({
+          channel: 'play100-pwa-v1',
+          version,
+          status: 'error',
+          message: 'Offline download took too long. Check your connection and retry.',
+        });
+        if (phase === 'headers') releaseHeaders(response);
+        await cancelled.promise;
+        expect(cancel).toHaveBeenCalledOnce();
+        expect(put).not.toHaveBeenCalled();
+        expect(fixture.stores.has(`${PWA_CACHE_PREFIX}core-${version}`)).toBe(false);
+        expect(vi.getTimerCount()).toBe(0);
+        fixture.fetch.mockImplementation(normalFetch);
+        await fixture.lifetime('install');
+        expect(fixture.stores.get(`${PWA_CACHE_PREFIX}core-${version}`)?.entries.has(`${origin}/pwa/__ready__`)).toBe(
+          true,
+        );
+        expect(await (await old.match(`${origin}/index.html`))?.text()).toBe('working old shell');
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        error.mockRestore();
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it('accepts slow steady headers and body within one deadline and clears its timer', async () => {
+    vi.useFakeTimers();
+    try {
+      const fixture = workerFixture();
+      const started = deferred();
+      const cancel = vi.fn();
+      fixture.fetch.mockImplementationOnce(async () => {
+        started.resolve();
+        await new Promise<void>((resolve) => setTimeout(resolve, 10_000));
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              setTimeout(() => controller.enqueue(fixtureBytes.slice(0, 3)), 10_000);
+              setTimeout(() => controller.enqueue(fixtureBytes.slice(3)), 30_000);
+              setTimeout(() => controller.close(), 40_000);
+            },
+            cancel,
+          }),
+          { headers: { 'Content-Type': 'text/html' } },
+        );
+      });
+      const install = fixture.lifetime('install');
+      await started.promise;
+      await vi.advanceTimersByTimeAsync(50_000);
+      await install;
+      const core = fixture.stores.get(`${PWA_CACHE_PREFIX}core-${version}`)!;
+      expect(core.entries.has(`${origin}/pwa/__ready__`)).toBe(true);
+      const html = await core.match(`${origin}/index.html`);
+      expect(await html?.text()).toBe(new TextDecoder().decode(fixtureBytes));
+      expect(html?.headers.get('content-security-policy')).toBe(policy.headers[0]!.value);
+      expect(cancel).not.toHaveBeenCalled();
+      expect(fixture.fetch.mock.calls.every(([input]) => !input.signal.aborted)).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('installs a complete version atomically without claiming an uncontrolled page of unknown version', async () => {
     const fixture = workerFixture();
     await fixture.lifetime('install');

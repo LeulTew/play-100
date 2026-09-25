@@ -204,6 +204,7 @@ export function createPwaController(): PwaController {
         if (worker.state === 'redundant') {
           publish({
             offlineState: 'error',
+            message: '',
             error: 'Offline preparation failed. The current version was not replaced. Retry when connected.',
           });
         } else if (worker.state === 'installed') {
@@ -290,6 +291,7 @@ export function createPwaController(): PwaController {
         if (data.status === 'error')
           publish({
             offlineState: 'error',
+            message: '',
             error: 'Offline preparation or storage failed. Reconnect, free storage if needed, and retry.',
           });
         if (data.status === 'warning')

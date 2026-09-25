@@ -71,7 +71,7 @@ class FakeWorker extends EventTarget {
 
 class FakeRegistration extends EventTarget {
   scope = `${origin}/`;
-  active = new FakeWorker();
+  active: FakeWorker | null = new FakeWorker();
   waiting: FakeWorker | null = new FakeWorker();
   installing: FakeWorker | null = null;
   update = vi.fn(async () => {});
@@ -79,7 +79,7 @@ class FakeRegistration extends EventTarget {
 
 function fixture(pathname = '/') {
   const registration = new FakeRegistration();
-  registration.active.version = oldVersion;
+  registration.active!.version = oldVersion;
   const serviceWorker = Object.assign(new EventTarget(), {
     controller: registration.active,
     getRegistration: vi.fn(async () => registration),
@@ -120,6 +120,56 @@ afterEach(() => {
 });
 
 describe('truthful installation and page startup', () => {
+  it.each(['message', 'redundant'] as const)(
+    'leaves preparing after a worker %s failure and lets the user retry',
+    async (failure) => {
+      const current = fixture();
+      try {
+        await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+        const installing = new FakeWorker();
+        installing.state = 'installing';
+        current.registration.installing = installing;
+        const active = current.registration.active;
+        current.registration.active = null;
+        expect(await current.controller.prepareOffline()).toBe(true);
+        expect(current.controller.getSnapshot().offlineState).toBe('preparing');
+        if (failure === 'message') {
+          const event = Object.assign(new Event('message'), {
+            source: installing,
+            data: {
+              channel: 'play100-pwa-v1',
+              version: newVersion,
+              status: 'error',
+              message: 'Offline download took too long. Check your connection and retry.',
+            },
+          });
+          current.serviceWorker.dispatchEvent(event);
+        } else {
+          installing.state = 'redundant';
+          installing.dispatchEvent(new Event('statechange'));
+        }
+        expect(current.controller.getSnapshot()).toMatchObject({
+          offlineState: 'error',
+          message: '',
+          error: expect.stringMatching(/retry/i),
+        });
+        current.registration.active = active;
+        const retry = current.controller.prepareOffline();
+        expect(current.controller.getSnapshot()).toMatchObject({
+          offlineState: 'preparing',
+          error: '',
+          message: 'Preparing offline app files…',
+        });
+        expect(await retry).toBe(true);
+        expect(current.serviceWorker.register).toHaveBeenCalledTimes(2);
+        expect(current.controller.getSnapshot().offlineState).toBe('ready');
+        expect(current.controller.getSnapshot().error).toBe('');
+      } finally {
+        current.stop();
+      }
+    },
+  );
+
   it('announces preparation without claiming that offline files are already ready', async () => {
     const current = fixture();
     try {
@@ -381,8 +431,8 @@ describe('explicit update preserves edits and other tabs', () => {
   it('gives a retained document its guarded reload before applying another waiting version', async () => {
     const current = fixture();
     try {
-      current.registration.active.clientVersion = oldVersion;
-      current.registration.active.version = newVersion;
+      current.registration.active!.clientVersion = oldVersion;
+      current.registration.active!.version = newVersion;
       current.waiting.version = 'c'.repeat(64);
       await current.controller.checkForUpdate();
       await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('reload-required'));

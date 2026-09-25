@@ -12,6 +12,17 @@ export const PWA_BUDGET = {
   clients: 16,
 } as const;
 const channel = 'play100-pwa-v1';
+
+export function pwaAssetDeadlineMs(bytes: number): number {
+  return Math.min(360_000, 60_000 + Math.ceil(bytes / 4096) * 1000);
+}
+
+class PwaAssetTimeoutError extends Error {
+  constructor() {
+    super('Offline download took too long. Check your connection and retry.');
+  }
+}
+
 export const PWA_DOCUMENT_HEADERS = [
   'content-security-policy',
   'cross-origin-opener-policy',
@@ -203,6 +214,7 @@ export async function verifiedPwaResponse(
   expectedUrl: string,
   crypto: PwaWorkerHost['crypto'],
   documentPolicy: PwaDocumentPolicy,
+  signal?: AbortSignal,
 ): Promise<Response> {
   if (
     response.status !== 200 ||
@@ -216,11 +228,21 @@ export async function verifiedPwaResponse(
     throw new Error('An offline asset was not a public, non-redirected response of the expected type.');
   }
   const reader = response.body.getReader();
+  const cancel = () => {
+    // Do not let an uncooperative stream's cancellation delay the deadline.
+    void reader.cancel(signal?.reason).catch((cause: unknown) => {
+      console.warn('Offline asset reader could not be cancelled.', cause instanceof Error ? cause.message : '');
+    });
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
   const bytes = new Uint8Array(asset.bytes);
   let offset = 0;
   try {
+    if (signal?.aborted) cancel();
+    signal?.throwIfAborted();
     for (;;) {
       const part = await reader.read();
+      signal?.throwIfAborted();
       if (part.done) break;
       if (offset + part.value.byteLength > asset.bytes) {
         await reader.cancel();
@@ -230,11 +252,13 @@ export async function verifiedPwaResponse(
       offset += part.value.byteLength;
     }
   } finally {
+    signal?.removeEventListener('abort', cancel);
     reader.releaseLock();
   }
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('');
+  signal?.throwIfAborted();
   if (offset !== asset.bytes || hash !== asset.sha256) throw new Error('An offline asset did not match this release.');
   const headers = new Headers({
     'Content-Type': response.headers.get('content-type') ?? '',
@@ -283,8 +307,26 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
     }
   };
   const fetchAsset = async (asset: PwaAsset) => {
-    const input = request(asset.url);
-    return verifiedPwaResponse(await scope.fetch(input), asset, input.url, scope.crypto, manifest.documentPolicy);
+    const controller = new AbortController();
+    const input = new Request(request(asset.url), { signal: controller.signal });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        const cause = new PwaAssetTimeoutError();
+        controller.abort(cause);
+        reject(cause);
+      }, pwaAssetDeadlineMs(asset.bytes));
+    });
+    try {
+      const fetched = scope.fetch(input);
+      const download = fetched.then((response) =>
+        verifiedPwaResponse(response, asset, input.url, scope.crypto, manifest.documentPolicy, controller.signal),
+      );
+      // Race as well as abort: a stalled fetch/stream must not hold installation open.
+      return await Promise.race([download, deadline]);
+    } finally {
+      clearTimeout(timer);
+    }
   };
   const verifyPolicy = async (policy: PwaDocumentPolicy) => {
     const bytes = new TextEncoder().encode(JSON.stringify(policy.headers));
@@ -465,7 +507,12 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
             'Offline preparation failed; the previous version remains available.',
             cause instanceof Error ? cause.message : 'Cache failure.',
           );
-          await tell('error', 'Offline preparation failed. Check the connection or available storage, then retry.');
+          await tell(
+            'error',
+            cause instanceof PwaAssetTimeoutError
+              ? cause.message
+              : 'Offline preparation failed. Check the connection or available storage, then retry.',
+          );
           throw cause;
         }
       })(),
