@@ -1,11 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
-  deleteUser,
-  EmailAuthProvider,
   getIdTokenResult,
   onIdTokenChanged,
-  reauthenticateWithCredential,
   reload,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -45,8 +42,8 @@ import { ChunkRecovery } from '../components/ChunkRecovery';
 import { createRetryableModule } from '../lib/retryable-module';
 import { OnlinePageBoundary } from './OnlinePageBoundary';
 import { cloudAuth, cloudDb, firebaseApp, initialAuthUser } from './firebase-client';
-import { creatorAccess, deleteOwnMember } from './cloud-store';
-import type { CloudStore, DeletionCopyState } from './cloud-store';
+import { creatorAccess } from './cloud-store';
+import type { CloudStore } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
 import { onlineError, popupCancelled } from './errors';
@@ -61,15 +58,16 @@ import {
   rememberComparisonView,
 } from '../lib/friend-comparison-intent';
 import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
+import { readAccountLifecycle } from './account-lifecycle';
 import {
-  cancelUnusedRegistration,
-  ensureAccountActivity,
-  readAccountLifecycle,
-  removeCancelledRegistration,
-} from './account-lifecycle';
+  createAccountDeletion,
+  currentDeletionApproval,
+  useAccountDeletionState,
+  useDeletionApprovalExpiry,
+  useDeletionProbe,
+} from './account-deletion';
 import type { ConnectionChoice } from './AccountPage';
 import type { AccountIdentity, OnlineBridge } from './ui-types';
-import { hasProvider } from './account-providers';
 import { useFriendSharing } from './useFriendSharing';
 import { useFriendAll } from './useFriendAll';
 import { friendSharingView } from '../lib/friend-all';
@@ -135,15 +133,6 @@ const AvatarPicker = lazy(
   ).load,
 );
 
-interface GoogleDeletionApproval {
-  requestId: string;
-  uid: string;
-  target: 'copy' | 'account';
-  epoch: number;
-  sessionEpoch: number;
-  startedAt: number;
-  expiresAt: number;
-}
 const loadingAvatar: AvatarDescriptor = { version: 1, seed: '00000000000000000000000000000000', palette: 'moss' };
 
 function identityOf(
@@ -224,9 +213,8 @@ export default function OnlineController({
   const [googleReturn, setGoogleReturn] = useState<GoogleReturn | null>(null);
   const [returnSheet, setReturnSheet] = useState(false);
   const [startupError, setStartupError] = useState('');
-  const [deletionApproval, setDeletionApproval] = useState<GoogleDeletionApproval | null>(null);
-  const [deletionNotice, setDeletionNotice] = useState<{ key: string; state: DeletionCopyState } | null>(null);
-  const deletionProbe = useRef<{ key: string; result: Promise<DeletionCopyState> } | null>(null);
+  const deletion = useAccountDeletionState();
+  const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
   const handledGoogleReturn = useRef<string | null>(null);
   const navigation = useRef({ page, onCloseSheet, onNavigate });
   navigation.current = { page, onCloseSheet, onNavigate };
@@ -472,7 +460,7 @@ export default function OnlineController({
     setMessage('');
     setAvatarOpen(false);
     setDeletionApproval(null);
-  }, [identity?.uid]);
+  }, [identity?.uid, setDeletionApproval]);
   useLayoutEffect(() => {
     defaultAvatarUid.current = uid ?? null;
     setDefaultAvatar(createAvatarDescriptor());
@@ -518,21 +506,8 @@ export default function OnlineController({
       });
       setMessage('Google confirmed this account. Nothing has been deleted; review and confirm the deletion below.');
     }
-  }, [googleReturn, identity, account.snapshot, account.error]);
-  useEffect(() => {
-    if (page !== 'account') setDeletionApproval(null);
-  }, [page]);
-  useEffect(() => {
-    if (!deletionApproval) return;
-    const requestId = deletionApproval.requestId;
-    const timeout = window.setTimeout(
-      () => {
-        setDeletionApproval((current) => (current?.requestId === requestId ? null : current));
-      },
-      Math.max(0, deletionApproval.expiresAt - Date.now()),
-    );
-    return () => window.clearTimeout(timeout);
-  }, [deletionApproval]);
+  }, [googleReturn, identity, account.snapshot, account.error, setDeletionApproval]);
+  useDeletionApprovalExpiry(page, deletionApproval, setDeletionApproval);
   useEffect(() => {
     if (cooldown <= now) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -596,34 +571,15 @@ export default function OnlineController({
   useEffect(() => {
     if (sync.remote && uid) setHeadSnapshot({ uid, value: sync.remote });
   }, [sync.remote, uid]);
-  const deletionKey =
-    page === 'account' && identity?.verified && head?.deleted
-      ? `${identity.uid}:${authSessionEpoch.current}:${head.epoch}:${head.revision}`
-      : null;
-  const deletionState =
-    head?.deleted && head.cleanupEpoch === head.epoch
-      ? 'complete'
-      : deletionNotice && deletionNotice.key === deletionKey
-        ? deletionNotice.state
-        : 'checking';
-  useEffect(() => {
-    if (!deletionKey) {
-      deletionProbe.current = null;
-      setDeletionNotice(null);
-      return;
-    }
-    if (busy || !sync.store || (head?.deleted && head.cleanupEpoch === head.epoch)) return;
-    let alive = true;
-    const cached = deletionProbe.current;
-    const probe = cached?.key === deletionKey ? cached : { key: deletionKey, result: sync.store.probeDeletedCopy() };
-    deletionProbe.current = probe;
-    void probe.result.then((state) => {
-      if (alive && deletionProbe.current === probe) setDeletionNotice({ key: deletionKey, state });
-    });
-    return () => {
-      alive = false;
-    };
-  }, [deletionKey, busy, sync.store, head?.cleanupEpoch, head?.epoch, head?.deleted]);
+  const deletionState = useDeletionProbe({
+    page,
+    identity,
+    sessionEpoch: authSessionEpoch.current,
+    head,
+    busy,
+    store: sync.store,
+    state: deletion,
+  });
   useEffect(() => {
     if (!uid || !scope || !identity?.verified || !sync.profileAvailable) return;
     let alive = true;
@@ -1073,234 +1029,29 @@ export default function OnlineController({
           'Online account data was exported. The unreadable copy on this device is marked unavailable in the export; it was not replaced or deleted.',
         );
     });
-  const deleteOnline = (removeAccount: boolean, password: string) => {
-    if (hasPendingEdits()) {
-      setError('Finish the open edit before deleting online data.');
-      return Promise.resolve(false);
-    }
-    let deletionStarted: string | null = null;
-    let deletionMarked = false;
-    return run(async () => {
-      const signedIn = cloudAuth.currentUser;
-      if (!signedIn || signedIn.uid !== identityRef.current?.uid || !scope)
-        throw new Error('Sign in to the account you want to delete.');
-      deletionProbe.current = null;
-      setDeletionNotice(null);
-      const session = authSessionEpoch.current;
-      const targetKind = removeAccount ? 'account' : 'copy';
-      if (!navigator.onLine) throw new Error('Connect to the internet before deleting online data.');
-      if (hasProvider(identity, EmailAuthProvider.PROVIDER_ID)) {
-        if (!password) throw new Error('Confirm your password before deleting.');
-        await reauthenticateWithCredential(signedIn, EmailAuthProvider.credential(signedIn.email ?? '', password));
-      } else {
-        const approval = deletionApproval;
-        if (
-          !approval ||
-          approval.uid !== signedIn.uid ||
-          approval.target !== targetKind ||
-          approval.sessionEpoch !== session ||
-          approval.epoch !== currentEpoch.current ||
-          approval.expiresAt <= Date.now()
-        ) {
-          setDeletionApproval(null);
-          await startGoogleRedirect(cloudAuth, {
-            kind: 'reauthenticate',
-            uid: signedIn.uid,
-            target: targetKind,
-            epoch: currentEpoch.current,
-          });
-          return;
-        }
-        setDeletionApproval(null);
-        const token = await getIdTokenResult(signedIn);
-        if (typeof token.claims.auth_time !== 'number' || token.claims.auth_time * 1000 < approval.startedAt - 5000)
-          throw new Error('Google confirmation is no longer current. Review the account and confirm again.');
-      }
-      if (
-        cloudAuth.currentUser?.uid !== signedIn.uid ||
-        identityRef.current?.uid !== signedIn.uid ||
-        authSessionEpoch.current !== session
-      )
-        throw new Error('The signed-in account changed. Return to the same account before continuing.');
-      sync.suspend();
-      if (removeAccount) {
-        friends.stop();
-        shelf.stop();
-        automatic.suspend();
-        await account.waitForWrites();
-        const current = () =>
-          cloudAuth.currentUser?.uid === signedIn.uid &&
-          identityRef.current?.uid === signedIn.uid &&
-          authSessionEpoch.current === session;
-        if (await removeCancelledRegistration(cloudDb, signedIn, scope, current)) {
-          await rememberOnlineRequest(false);
-          setIdentity(null);
-          onCloseSheet();
-          onNavigate('collection');
-          return;
-        }
-      }
-      if (removeAccount && !identityRef.current.verified) {
-        const token = await getIdTokenResult(signedIn, true);
-        if (token.claims.email_verified === true) {
-          await reconcileIdentity(signedIn, true);
-          throw new Error('This account is now verified. Review its online data before using full account deletion.');
-        }
-        await cancelUnusedRegistration(cloudDb, signedIn.uid);
-        await deleteUser(signedIn);
-        await deleteScopedLibrary(scope);
-        await rememberOnlineRequest(false);
-        setIdentity(null);
-        onNavigate('collection');
-        return;
-      }
-      if (!identityRef.current?.verified || !sync.store)
-        throw new Error('Verify this account before deleting existing online data.');
-      const user = signedIn;
-      const target = scope;
-      const store = sync.store;
-      friends.stop();
-      shelf.stop();
-      automatic.suspend();
-      if (removeAccount) {
-        await automatic.store.revokeForDeletion(user.uid);
-        await friends.store.revokeForDeletion(user.uid);
-        await shelf.store.revokeForDeletion(user.uid);
-      } else {
-        const allControls = await automatic.store.controls(user.uid);
-        if (allControls.policy && !allControls.policy.deleted) {
-          await automatic.store.setPolicy(
-            user.uid,
-            false,
-            'explicit',
-            allControls,
-            () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session,
-          );
-        } else {
-          const settings = allControls.ranking;
-          if (settings && !settings.deleted) {
-            const stopped = await friends.store.saveSettings(user.uid, { enabled: false, selectedIds: [] }, settings);
-            friends.acceptSettings(stopped);
-          }
-          const config = allControls.shelf;
-          if (config && !config.deleted) {
-            const stopped = await shelf.store.saveConfig(
-              user.uid,
-              { enabled: false, selectedIds: [], consentSyncEpoch: null },
-              config,
-              () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session,
-            );
-            await shelf.acceptConfig(stopped);
-          }
-        }
-      }
-      await account.waitForWrites();
-      if (
-        cloudAuth.currentUser?.uid !== user.uid ||
-        identityRef.current?.uid !== user.uid ||
-        authSessionEpoch.current !== session
-      )
-        throw new Error('The signed-in account changed. Return to the same account before continuing.');
-      if (account.snapshot) await pauseScopedLibrary(target);
-      await ensureAccountActivity(cloudDb, user.uid);
-      await social.unpublish(user.uid, await social.control(user.uid), true);
-      const deleting = await store.revoke(await store.head(), true);
-      deletionStarted = `${user.uid}:${session}:${deleting.epoch}:${deleting.revision}`;
-      setHeadSnapshot({ uid: user.uid, value: deleting });
-      const ownsDeletion = () =>
-        cloudAuth.currentUser?.uid === user.uid &&
-        identityRef.current?.uid === user.uid &&
-        authSessionEpoch.current === session;
-      setMessage('Deleting your online library…');
-      await store.cleanup(true, {
-        expectedDeletionEpoch: deleting.epoch,
-        isCurrent: ownsDeletion,
-        onProgress: ({ kind }) => {
-          if (!ownsDeletion())
-            throw new Error('The signed-in account changed. Return to the same account before continuing.');
-          setMessage(kind === 'private' ? 'Deleting your online library…' : 'Deleting your ranking summary…');
-        },
-      });
-      setMessage('Deleting shared and public copies…');
-      if (!removeAccount) {
-        await friends.store.cleanupSharing(user.uid);
-        await shelf.store.cleanupSharing(user.uid);
-      }
-      await social.deleteProfile(user.uid);
-      await deleteOwnMember(cloudDb, user.uid);
-      if (await automatic.store.policy(user.uid))
-        for (const kind of ['games', 'ranking'] as const) {
-          for (let index = 0; index < 250; index += 1) {
-            if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session)
-              throw new Error('The signed-in account changed. Return to the same account before continuing.');
-            const result = await automatic.store.cleanupPage(user.uid, kind);
-            if (result.done) break;
-            setMessage('Deleting shared and public copies…');
-            if (index === 249)
-              throw new Error('Some shared copies are still stored. Choose Finish deleting to continue.');
-          }
-        }
-      if (removeAccount) {
-        const shelfCleanup = await shelf.store.cleanupDeleted(user.uid);
-        if (!shelfCleanup.done)
-          throw new Error('Some shared games are still stored. Choose Delete account to continue.');
-        for (let index = 0; index < 100; index += 1) {
-          const cleaned = await friends.store.cleanupDeleted(user.uid);
-          if (cleaned.message) throw new Error(cleaned.message);
-          if (cleaned.done) break;
-          if (index === 99) throw new Error('Some connections are still stored. Choose Delete account to continue.');
-        }
-        const marked = await store.markCleanupComplete(deleting.epoch, ownsDeletion);
-        deletionMarked = true;
-        setHeadSnapshot({ uid: user.uid, value: marked });
-        const finalHead = await store.head();
-        if (
-          !ownsDeletion() ||
-          !finalHead?.deleted ||
-          finalHead.epoch !== deleting.epoch ||
-          finalHead.cleanupEpoch !== deleting.epoch
-        )
-          throw new Error(
-            'The account or online saving state changed. Refresh the page before continuing; your sign-in remains.',
-          );
-        try {
-          await deleteUser(user);
-        } catch (cause) {
-          if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'auth/requires-recent-login') {
-            setDeletionApproval(null);
-            throw new Error(
-              hasProvider(identityRef.current, EmailAuthProvider.PROVIDER_ID)
-                ? 'Your online data is deleted. To delete your sign-in, confirm your password again.'
-                : 'Your online data is deleted. Confirm with Google again to delete your sign-in.',
-              { cause },
-            );
-          }
-          throw cause;
-        }
-        await deleteScopedLibrary(target);
-        await rememberOnlineRequest(false);
-        setIdentity(null);
-        onNavigate('collection');
-      } else {
-        const marked = await store.markCleanupComplete(deleting.epoch, ownsDeletion);
-        deletionMarked = true;
-        setHeadSnapshot({ uid: user.uid, value: marked });
-        await account.refresh();
-        await refresh();
-        const key = `${user.uid}:${session}:${deleting.epoch}:${deleting.revision}`;
-        deletionProbe.current = { key, result: Promise.resolve('complete') };
-        setDeletionNotice({ key, state: 'complete' });
-        setMessage('Your online copy was deleted. The copy on this device is still here.');
-      }
-    }, removeAccount).then((success) => {
-      if (!success && deletionStarted && !deletionMarked) {
-        const key = deletionStarted;
-        deletionProbe.current = { key, result: Promise.resolve('incomplete') };
-        setDeletionNotice({ key, state: 'incomplete' });
-      }
-      return success;
-    });
-  };
+  const deleteOnline = createAccountDeletion({
+    identity,
+    identityRef,
+    scope,
+    currentEpoch,
+    authSessionEpoch,
+    state: deletion,
+    account,
+    sync,
+    friends,
+    shelf,
+    automatic,
+    social,
+    run,
+    reconcileIdentity,
+    setIdentity,
+    setHeadSnapshot,
+    setError,
+    setMessage,
+    refresh,
+    onCloseSheet,
+    onNavigate,
+  });
 
   const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
   const pageScope = `${scope ?? 'guest'}:${authSessionEpoch.current}`;
@@ -1316,12 +1067,12 @@ export default function OnlineController({
             : '';
   const visibleError = error || googleReturn?.error || '';
   const visibleMessage = message || googleReturn?.message || '';
-  const currentDeletionApproval =
-    deletionApproval?.uid === identity?.uid &&
-    deletionApproval?.sessionEpoch === authSessionEpoch.current &&
-    deletionApproval.epoch === currentEpoch.current
-      ? deletionApproval
-      : null;
+  const visibleDeletionApproval = currentDeletionApproval(
+    deletionApproval,
+    identity?.uid,
+    authSessionEpoch.current,
+    currentEpoch.current,
+  );
   const closeSignin = () => {
     setReturnSheet(false);
     onCloseSheet();
@@ -1662,7 +1413,7 @@ export default function OnlineController({
                   await sync.useLocal(reviewed, revision);
                 })
               }
-              googleDeletion={currentDeletionApproval}
+              googleDeletion={visibleDeletionApproval}
               onDismissDeletion={() => setDeletionApproval(null)}
               onFriends={() => onNavigate('friends')}
               onCompare={() => onNavigate('compare')}

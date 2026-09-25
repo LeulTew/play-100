@@ -114,6 +114,15 @@ Sync work has a lifetime tied to account ownership, verification and consent.
 Security policy and release procedures are defined in [Security](security.md)
 and the [security release runbook](security-release-runbook.md).
 
+The internal [account-deletion](../src/cloud/account-deletion.ts) unit owns
+deletion approval expiry, scope-qualified cleanup probes and the ordered
+reauthentication/reservation/cleanup/Auth-deletion operation. Its pure selectors
+keep approval ownership, saving epochs, auth-session generations and completed
+cleanup receipts distinct. The controller passes its existing stores and callbacks;
+approval-expiry and probe hooks stay at their original positions relative to
+identity reset, Google-return handling and member subscriptions. No page body,
+UI text or backend authorization policy is owned by this unit.
+
 Online page bodies are separate dynamic imports, not static dependencies of that
 identity/sync bridge. Remembering an account on The 100 may load the bridge and
 Firebase, but does not request Account, Community, public profile, publication,
