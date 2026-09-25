@@ -453,6 +453,17 @@ catalog responses are CDN-cached (`s-maxage=300`/`900`), so repeats mostly never
 read the rule's Log hits: legitimate users should not appear. Non-GET requests
 already get 405 from the functions. Record the rule ID and switch time.
 
+**Status (2026-09-25).** The rule exists as `rule_api_per_ip_xpgBNf`
+("api-per-ip"), created through the Vercel API (config updated 09:49:22Z) and
+active in **Log** mode since then (parent ruling WAF-01). Its conditions are
+(path starts with `/api/` AND method GET) OR (path starts with `/__/auth/` AND
+method GET or HEAD), fixed window 60 s, 60 requests, key IP. Creating the
+project's first firewall config also enabled Vercel's default OWASP rule set
+(gen, rce, xss, sqli) in **log mode only**; it is kept as monitoring and cannot
+block (ruling WAF-01-CRS). Remaining step: review the Log hits, then switch
+`api-per-ip` to 429 no earlier than 2026-10-02 and record the switch time in
+[releases.md](releases.md).
+
 ### App Check, monitor first
 
 Spark-compatible with the reCAPTCHA v3 provider (no Firebase billing).

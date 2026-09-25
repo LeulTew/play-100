@@ -736,9 +736,9 @@ mixing `unsafe-inline` with a hash/nonce is not an accepted intermediate policy.
 
 SECURITY-01 (branch `leultew-sec-strict-style`) is the single droppable commit: main
 `style-src 'self'` plus one `sha256` per first-paint variant, online (Firebase or
-emulators configured) `'sha256-sZ9CEo6in5N81MStay/+6i0vx6thMpY9zmHsXb/QFAs='` and
-offline `'sha256-yNMatkEIxFHj625inbs8H3k1IZESJpNsNDS241IT7/E='`, taken from the R5 chain
-build after its CSS polish. Every build recomputes both variants' inline styles and fails, naming the
+emulators configured) `'sha256-NGUjOxY76/cGN3gmM/YONiEbuC6rhQrQEr9XDkz0oxs='` and
+offline `'sha256-yoYUnUqLaGmW5eJpbrdR7YmLQEZzKihnuFrDIgUKkdw='`, recomputed from the R9 chain
+build (the values each release shipped are in [releases.md](releases.md)). Every build recomputes both variants' inline styles and fails, naming the
 hash to add, unless `vercel.json` lists exactly those hashes, so any critical-CSS
 change must update them in the same change. React `style={{}}` props and the app's
 `el.style`/`setProperty` writes go through the CSSOM and are not governed by
