@@ -113,7 +113,10 @@ old version to other windows during activation. A newcomer arriving after the
 last census has no inferred version and receives an unavailable response rather
 than someone else's old metadata. Other tabs are never
 reloaded. The initiating page verifies the new controller's
-version and the guard again before reloading.
+version and the guard again before reloading. Forms that mirror saved values,
+such as the account name, declare their state with `data-unsaved`, so an
+unedited saved value is never an unsubmitted form; any other form counts a
+non-empty text field.
 
 An activation acknowledgement can time out without canceling the worker's
 accepted operation. Existing-controller status checks, controller changes and

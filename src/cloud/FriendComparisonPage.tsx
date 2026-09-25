@@ -617,6 +617,7 @@ export function FriendComparisonPage({
       <section className="account-section">
         <h2>Private groups</h2>
         <form
+          data-unsaved={groupName !== (group?.name ?? '') ? 'true' : 'false'}
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {

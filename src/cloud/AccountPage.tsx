@@ -539,6 +539,7 @@ export function AccountPage(props: AccountPageProps) {
             <h2>Profile</h2>
             <form
               className="account-name-form"
+              data-unsaved={nameEdited ? 'true' : 'false'}
               onSubmit={(event) => {
                 event.preventDefault();
                 if (validName())

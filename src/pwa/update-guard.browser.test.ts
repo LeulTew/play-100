@@ -82,6 +82,8 @@ window.recoveryGuardFixture = {
 function RecoveryHarness() {
   const inputGeneration = useInputGeneration();
   const [draft, setDraft] = useState('');
+  const [savedName, setSavedName] = useState('Player');
+  const [savedEdited, setSavedEdited] = useState(false);
   const capture = () => {
     const start = scope;
     return createPwaUpdateGuard({ isCurrent: () => start === scope, busy: () => busy, inputGeneration });
@@ -89,6 +91,8 @@ function RecoveryHarness() {
   return h(ReloadGuardContext.Provider, { value: capture }, h('main', null,
     h('form', { onSubmit: event => event.preventDefault() },
       h('input', { 'aria-label': 'Manual title', value: draft, onChange: event => setDraft(event.target.value) })),
+    h('form', { 'data-unsaved': savedEdited ? 'true' : 'false', onSubmit: event => event.preventDefault() },
+      h('input', { 'aria-label': 'Saved name', value: savedName, onChange: event => { setSavedName(event.target.value); setSavedEdited(true); } })),
     h('input', { type: 'number', 'aria-label': 'Pending rating', onChange: () => { pendingRating = true; } }),
     h('input', { 'aria-label': 'Search games' }),
     h(ChunkRecovery, { message: 'Fixture module failed.' })
@@ -186,7 +190,7 @@ describe('mounted PWA update input guard', () => {
   });
 
   describe('chunk recovery through the shared mounted update guard', () => {
-    it.each(['manual form', 'failed save'] as const)('blocks %s without a HEAD', async (reason) => {
+    it.each(['manual form', 'saved-value edit', 'failed save'] as const)('blocks %s without a HEAD', async (reason) => {
       const page = await browser.newPage();
       let probes = 0;
       await page.route('**/*', (route) => {
@@ -197,8 +201,11 @@ describe('mounted PWA update input guard', () => {
       try {
         await page.goto(`${base}/chunk-recovery-guard-fixture`);
         const instance = await page.evaluate(() => window.pageInstance);
-        const field = page.getByLabel(reason === 'manual form' ? 'Manual title' : 'Pending rating');
-        const draft = reason === 'manual form' ? 'Unsaved fixture value' : '8.5';
+        const field = page.getByLabel(
+          reason === 'manual form' ? 'Manual title' : reason === 'saved-value edit' ? 'Saved name' : 'Pending rating',
+        );
+        const draft =
+          reason === 'manual form' ? 'Unsaved fixture value' : reason === 'saved-value edit' ? 'Edited name' : '8.5';
         if (reason === 'failed save') await page.evaluate(() => window.recoveryGuardFixture.failSave());
         await field.fill(draft);
         await page.getByRole('button', { name: 'Reload this page', exact: true }).click();
@@ -256,6 +263,8 @@ describe('mounted PWA update input guard', () => {
       try {
         await page.goto(`${base}/chunk-recovery-guard-fixture`);
         const instance = await page.evaluate(() => window.pageInstance);
+        // A form that declares its prefilled saved value clean, like the account name, does not block.
+        await browserExpect(page.getByLabel('Saved name')).toHaveValue('Player');
         await Promise.all([
           page.waitForEvent('load'),
           page.getByRole('button', { name: 'Reload this page', exact: true }).click(),
