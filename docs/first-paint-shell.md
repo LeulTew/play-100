@@ -61,8 +61,12 @@ In this order:
   emitted `assets/index-*.css`, never source CSS) by
   [beasties](https://github.com/danielroe/beasties) 0.5.4. Beasties receives the
   stylesheet as an inline `<style>` of a throwaway document whose body is `#root`
-  with `data-beasties-container` on the shell wrapper and on the failure notice, so
-  only rules that match inside them are kept. Options: `external: false` and `fonts: false`
+  with `data-beasties-container` on the shell wrapper and on a wrapper around the
+  failure notice, so only rules that match inside them are kept. The notice's
+  wrapper exists only in that document: beasties matches a selector with a
+  combinator only below its container (css-select reads `.app-error a` as
+  `:scope .app-error a`), and the notice's rules start at the notice itself.
+  Options: `external: false` and `fonts: false`
   (beasties never touches a real `<link>`: no preload, `onload` handler or loader
   script for the CSP to allow), `allowRules: [/^:/]` (selectors starting with a
   pseudo-class, such as `:root`, `:where()` and `::selection`, cannot be matched
@@ -144,9 +148,12 @@ A failed stylesheet, font or data preload is not a failed start: the app starts
 anyway. A failure before the parser reaches `#root` shows the notice once the
 document is parsed. The notice works without the app: the boot script adds the
 Reload listener (`location.reload()`), the workbook is a plain link, and the
-inline style keeps the entry-stylesheet rules that lay the notice out, so it keeps
-its 44 px targets when the entry stylesheet fails as well. The build refuses a
-`#root` whose last child is not this notice.
+inline style keeps every entry-stylesheet rule the notice wears (the
+`.app-error` page, heading, paragraph and link, and the dark button). On `/` the
+notice usually appears before the entry stylesheet has arrived, so it looks the
+same and keeps its 48 px button and 44 px link at every viewport with the entry
+stylesheet, before it and without it. The build refuses a `#root` whose last
+child is not this notice.
 
 ## Content Security Policy
 
@@ -240,9 +247,11 @@ probes measure (Windows or macOS Impact/Arial, or Liberation Sans/Arimo on Linux
 
 [`tests/entry-recovery.spec.ts`](../tests/entry-recovery.spec.ts) loads `/` and
 `/?catalogs=off` under the production CSP. With the module entry refused, and once
-the entry stylesheet too, the failure notice replaces the shell with targets of at
-least 44 px, and its Reload starts the app once the entry loads again. A normal
-start never shows the notice, and React's first commit removes it.
+the entry stylesheet too, the failure notice replaces the shell. It wears the error
+page's rules, with targets of at least 44 px, as it appears, once the entry
+stylesheet applies, and from the inline style alone when that stylesheet was
+refused. Its Reload starts the app once the entry loads again. A normal start
+never shows the notice, and React's first commit removes it.
 
 ## Budgets
 

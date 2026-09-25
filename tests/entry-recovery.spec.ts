@@ -30,6 +30,40 @@ async function startupAssets(page: Page): Promise<{ entry: string; stylesheet: s
   return { entry, stylesheet };
 }
 
+/** Whether the entry stylesheet has loaded and applies. */
+async function stylesheetApplied(page: Page, href: string): Promise<boolean> {
+  return page.evaluate((path) => Array.from(document.styleSheets).some((sheet) => sheet.href?.endsWith(path)), href);
+}
+
+/**
+ * The notice wears ErrorBoundary's page style, and its Reload button and workbook link are normal targets at every
+ * viewport, whether its rules come from the entry stylesheet or, when that failed too, from the inline style alone.
+ */
+async function expectNoticeStyled(page: Page, when: string): Promise<void> {
+  const notice = page.locator('#p100-boot-error');
+  const look = await notice.evaluate((main) => {
+    const style = (selector: string) => getComputedStyle(main.querySelector(selector)!);
+    return {
+      page: getComputedStyle(main).maxWidth,
+      heading: style('h1').fontSize,
+      paragraph: style('p').marginTop,
+      link: `${style('a').display} ${style('a').minHeight}`,
+      button: style('button').minHeight,
+    };
+  });
+  expect(look, `${when}: the error page's rules apply`).toEqual({
+    page: '650px',
+    heading: '56px',
+    paragraph: '24px',
+    link: 'block 44px',
+    button: '48px',
+  });
+  for (const target of [notice.getByRole('button'), notice.getByRole('link')]) {
+    const box = await target.boundingBox();
+    expect(box?.height ?? 0, `${when}: a normal target`).toBeGreaterThanOrEqual(44);
+  }
+}
+
 for (const path of ['/', '/?catalogs=off']) {
   test(`a normal start never shows the failure notice: ${path}`, async ({ page, baseURL }) => {
     const errors: string[] = [];
@@ -91,9 +125,13 @@ for (const { path, stylesheet } of [
     await expect(workbook).toHaveAttribute('download', '');
     const reload = notice.getByRole('button', { name: 'Reload the collection', exact: true });
     await expect(reload).toBeEnabled();
-    for (const control of [reload, workbook]) {
-      const box = await control.boundingBox();
-      expect(box?.height ?? 0, 'a normal target, from the inline style alone if need be').toBeGreaterThanOrEqual(44);
+    // On / the notice usually appears before the entry stylesheet has arrived, so its rules are inline as well.
+    await expectNoticeStyled(page, 'as the notice appears');
+    if (stylesheet) {
+      expect(await stylesheetApplied(page, assets.stylesheet), 'the entry stylesheet failed').toBe(false);
+    } else {
+      await expect.poll(() => stylesheetApplied(page, assets.stylesheet)).toBe(true);
+      await expectNoticeStyled(page, 'with the entry stylesheet');
     }
     blocked = false;
     await Promise.all([page.waitForEvent('framenavigated', (frame) => frame === page.mainFrame()), reload.click()]);

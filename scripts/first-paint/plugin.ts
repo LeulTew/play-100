@@ -6,7 +6,6 @@ import { Parser } from 'htmlparser2';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { allowsInlineStyles, cspProblems, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
 import {
-  NOTICE_OPEN,
   ROOT_OPEN,
   SHELL_OPEN,
   STYLESHEET_MARKER,
@@ -308,11 +307,14 @@ export async function criticalAppCss(appCss: string, root: string): Promise<stri
     throw new Error(`The shell markup must start with ${ROOT_OPEN}${SHELL_OPEN}.`);
   // Matching stays inside the shell and the failure notice: after pseudo-classes are stripped,
   // selectors such as html:has(.toast-visible) would otherwise match the throwaway document itself.
-  // Bare html, body and :root rules are always kept. The notice's own rules keep its layout and
-  // targets when the entry stylesheet fails to load as well.
+  // Bare html, body and :root rules are always kept. beasties matches a selector with a combinator
+  // only below its container (css-select reads .app-error a as :scope .app-error a), and the
+  // notice's rules start at the notice itself, so its container is a wrapper that exists only in
+  // this document. They keep the notice's layout and targets when the entry stylesheet fails too.
+  const notice = bootNotice(root);
   const contain = (open: string) => open.replace(/>$/, ' data-beasties-container>');
   const marked = root.replace(ROOT_OPEN + SHELL_OPEN, ROOT_OPEN + contain(SHELL_OPEN));
-  const container = marked.replace(NOTICE_OPEN, contain(NOTICE_OPEN));
+  const container = marked.replace(notice, () => `<div data-beasties-container>${notice}</div>`);
   const problems: string[] = [];
   const logger: BeastiesLogger = {
     warn: (message) => {

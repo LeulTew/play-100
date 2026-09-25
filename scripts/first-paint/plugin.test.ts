@@ -247,6 +247,26 @@ describe('beasties critical CSS', () => {
     expect(critical).not.toContain('.app-error-detail');
   });
 
+  it("keeps each app rule the failure notice wears: the error page's heading, paragraph and link, and its button", async () => {
+    // As the build emits them: the ErrorBoundary page style the notice reuses, and the app's dark button.
+    const compress = (rule: string) => rule.replace(/\s*([{};:,])\s*/g, '$1').replace(/;\}/g, '}');
+    const sourceRules = (file: string, pattern: RegExp) => (read(file).match(pattern) ?? []).map(compress);
+    const noticeRules = [
+      ...sourceRules('src/styles/components.css', /^\.app-error\b[^{]*\{[^}]*\}/gm),
+      ...sourceRules('src/styles/base.css', /^\.button(?:-dark)? \{[^}]*\}/gm),
+    ];
+    expect(noticeRules.map((rule) => rule.slice(0, rule.indexOf('{')))).toEqual([
+      '.app-error',
+      '.app-error h1',
+      '.app-error p',
+      '.app-error a',
+      '.button',
+      '.button-dark',
+    ]);
+    const critical = await criticalAppCss(noticeRules.join(''), offlineRoot);
+    for (const rule of noticeRules) expect(critical).toContain(rule);
+  });
+
   it('fails the build on a CSS syntax error instead of repairing it', async () => {
     await expect(criticalAppCss('.hero{color:red', offlineRoot)).rejects.toThrow('Unclosed block');
   });
