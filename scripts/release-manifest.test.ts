@@ -337,13 +337,13 @@ describe('release manifest collection', () => {
     expect(() => parseDecisions({ carryForward: [{ check: 'x', reason: 'y' }], waivers: [] })).toThrow();
   });
 
-  it.each([
-    [],
-    ['out.json'],
-    ['out.json', '--vitest', 'v.json'],
-    ['out.json', '--typo', 'v.json'],
-    ['out.json', '--vitest'],
-    ['out.json', '--vitest', 'v.json', '--playwright', 'p.json', '--mode', '../bad'],
+  it.each<[string[]]>([
+    [[]],
+    [['out.json']],
+    [['out.json', '--vitest', 'v.json']],
+    [['out.json', '--typo', 'v.json']],
+    [['out.json', '--vitest']],
+    [['out.json', '--vitest', 'v.json', '--playwright', 'p.json', '--mode', '../bad']],
   ])('rejects invalid CLI arguments %#', (args) => {
     expect(() => parseManifestArguments(args)).toThrow();
   });
