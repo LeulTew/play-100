@@ -509,6 +509,25 @@ only drops Google telemetry, but it logs a connect-src violation. The
 auth-helper policy is unchanged: the helper's handler.js and iframe.js bundle
 their own iframes code with no gen204 logger, and the ping only runs where the
 apis.google.com module opens a child iframe, which is the main document.
+
+**CSP least privilege (R9).** Main connect-src no longer lists
+`https://firebaseinstallations.googleapis.com`: `src` imports only
+`firebase/app`, `firebase/app-check`, `firebase/auth` and `firebase/firestore`,
+none of which calls Firebase Installations, and the optional App Check path
+needs only the sources in `APP_CHECK_CSP_SOURCES` (added when it is enabled).
+Two sources stay on purpose:
+- `frame-src https://accounts.google.com`: Google sign-in, linking and
+  reauthentication return through it, and that return flow cannot be verified
+  until a real production Google sign-in. Remove it only after that smoke shows
+  no frame of that origin.
+- The offline-variant style hash: one vercel.json policy serves both the online
+  and the offline build, and `check:csp` requires the other variant's inline
+  style hash, so dropping it would break an offline deployment.
+
+Trusted Types (`require-trusted-types-for 'script'`) was considered and
+rejected: the Firebase Auth helper path loads gapi by assigning a script `src`
+URL, which needs a policy we don't control, so enforcing it would break sign-in.
+
 CORP `cross-origin` overrides apply only to `/social-card.png`,
 `/social-card.svg`, `/favicon.svg`, `/pwa/icon-192.png`, `/pwa/icon-512.png`,
 `/pwa/icon-maskable-192.png`, `/pwa/icon-maskable-512.png` and
