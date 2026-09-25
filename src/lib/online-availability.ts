@@ -5,7 +5,15 @@ import { readOnlineLoadHint, saveOnlineLoadHint } from './personal-db';
 export const ONLINE_HINT = 'play100.online-requested.v1';
 export const EMULATOR_MODE =
   import.meta.env.MODE === 'cloud-test' && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
-const configured = readFirebaseConfiguration(import.meta.env);
+// Named keys only: passing `import.meta.env` itself makes the build inline every VITE_* variable
+// (including the host's system variables) as one object literal; scripts/client-env-guard.ts fails such a build.
+const configured = readFirebaseConfiguration({
+  VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
+  VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
+  VITE_FIREBASE_CONFIG: import.meta.env.VITE_FIREBASE_CONFIG,
+});
 export const ONLINE_CONFIG_ERROR = EMULATOR_MODE ? null : configured.error;
 
 export function firebaseConfiguration(): {

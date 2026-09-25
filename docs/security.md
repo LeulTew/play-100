@@ -516,6 +516,13 @@ CORP `cross-origin` overrides apply only to `/social-card.png`,
 or API resources. The integrator must verify actual header override behavior,
 scraper image access and redirect sign-in on the intended origin.
 
+**Client env exposure (R8-ENV-01).** Only the named public Firebase fields
+(`VITE_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_APP_ID`, the legacy
+`VITE_FIREBASE_CONFIG` check) and the App Check flag and site key are compiled
+into the client; `scripts/client-env-guard.ts` fails the build if any emitted
+chunk inlines the whole `import.meta.env` object (a `BASE_URL` property or a
+`VITE_VERCEL_*` system variable).
+
 **SEC-01: fresh per-response nonce on the auth helper documents.** The two HTML
 helpers, `/__/auth/handler` and `/__/auth/iframe`, rewrite to
 `api/auth-helper.ts` with a fixed `page`. The function GETs the fixed upstream

@@ -18,8 +18,10 @@ if (!config) throw new Error('Online saving is not configured on this deployment
 export const firebaseApp = initializeApp(config, 'play100-online');
 // The literal build-time flag lets the bundler drop this branch and its chunk from default builds.
 if (import.meta.env.VITE_APP_CHECK_ENABLED === 'true' && !EMULATOR_MODE) {
-  const appCheck = readAppCheckConfiguration(import.meta.env).config;
-  if (appCheck) {
+  const appCheck = readAppCheckConfiguration({
+    VITE_APP_CHECK_ENABLED: import.meta.env.VITE_APP_CHECK_ENABLED,
+    VITE_APP_CHECK_SITE_KEY: import.meta.env.VITE_APP_CHECK_SITE_KEY,
+  }).config;  if (appCheck) {
     void import('./app-check-client')
       .then((module) => module.startAppCheck(firebaseApp, appCheck.siteKey))
       .catch(() => console.warn('App Check could not start. Online tools continue without attestation.'));

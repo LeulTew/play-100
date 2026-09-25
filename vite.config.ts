@@ -8,6 +8,7 @@ import { play100Pwa } from './scripts/pwa-build.ts';
 import { publicMetadataHtml } from './scripts/public-metadata.ts';
 import { landingFontFiles } from './scripts/landing-fonts.ts';
 import { firstPaintShell, firstPaintVariant } from './scripts/first-paint/plugin.ts';
+import { clientEnvGuard } from './scripts/client-env-guard.ts';
 import author from './author.json' with { type: 'json' };
 import deployment from './vercel.json' with { type: 'json' };
 import { appCheckCspProblems, readAppCheckConfiguration } from './src/lib/app-check-config.ts';
@@ -48,6 +49,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       play100Pwa(),
+      clientEnvGuard(),
       {
         name: 'play100-local-catalog',
         configureServer(server) {
