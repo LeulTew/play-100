@@ -122,6 +122,7 @@ describe('inline safety', () => {
       '.collection-artifact[data-scene-status=ready]{}',
       '[data-shell-art]{}',
       'html[data-boot-art=lite] a{}',
+      'html[data-app-started] .hero{}',
       '.first-paint-shell{}',
     ]) {
       expect(() => assertShellNeutralCss(css), css).toThrow('differs between the first-paint shell');
@@ -234,6 +235,16 @@ describe('beasties critical CSS', () => {
     }
     for (const dropped of ['.game-card', '#root .wordmark', '.games-grid', '@keyframes unused', '@font-face'])
       expect(critical).not.toContain(dropped);
+  });
+
+  it('keeps the rules of the failure notice as well, which lay it out when the entry stylesheet fails too', async () => {
+    const critical = await criticalAppCss(
+      '.app-error{max-width:650px}.app-error a{min-height:44px}.app-error-detail{color:red}.button-dark{color:#fff}',
+      offlineRoot,
+    );
+    for (const kept of ['.app-error{max-width:650px}', '.app-error a{min-height:44px}', '.button-dark{color:#fff}'])
+      expect(critical).toContain(kept);
+    expect(critical).not.toContain('.app-error-detail');
   });
 
   it('fails the build on a CSS syntax error instead of repairing it', async () => {
@@ -574,6 +585,21 @@ describe('first-paint index.html', () => {
         ),
       }),
     ).rejects.toThrow('not 2 and 1.');
+  });
+
+  it("needs the boot script's failure notice as the last child of #root", async () => {
+    const input = {
+      variant: 'offline' as const,
+      shellCss,
+      bootScript: bootJs,
+      readStylesheet: () => ':root{--ink:#20231e}',
+    };
+    for (const html of [
+      builtIndexHtml().replace(' id="p100-boot-error"', ''),
+      builtIndexHtml().replace('</main></div>', '</main><p>Later</p></div>'),
+    ]) {
+      await expect(inlineFirstPaintShell({ ...input, html })).rejects.toThrow('#root must end with one failure notice');
+    }
   });
 
   it('serves an empty #root in development and in builds without a shell', async () => {

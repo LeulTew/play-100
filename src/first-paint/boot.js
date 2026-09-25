@@ -1,12 +1,13 @@
 /* global window, document */
-// Boot gate and app loader for the static first-paint shell (docs/first-paint-shell.md). The build
-// strips the comments and inlines this classic script at the end of <head>, right after the
+// Boot gate, app loader and failure notice for the static first-paint shell (docs/first-paint-shell.md).
+// The build strips the comments and inlines this classic script at the end of <head>, right after the
 // <template id="p100-deferred"> that holds the app's startup tags (scripts/first-paint/plugin.ts);
 // vercel.json allows it by hash only. It must stay small and self-contained: it writes no storage,
 // and the only requests it causes are those of the startup tags. It accepts the document only when
 // React's first commit will render the same landing header and hero, and leaves the shell hidden
 // whenever anything is uncertain. Then it starts the app: after the first contentful paint when it
-// shows the shell, at once otherwise.
+// shows the shell, at once otherwise. When the app cannot start, it shows the failure notice that
+// index.html keeps hidden in #root instead.
 (function () {
   var accept = function () {
     var root = document.documentElement;
@@ -63,6 +64,32 @@
     return true;
   };
 
+  // The failure notice follows the shell in #root, so React's first commit replaces both, and
+  // src/main.tsx marks <html> with data-app-started as its last statement, before that commit. Until
+  // then the notice replaces the shell when the app cannot start: when the module entry or one of its
+  // modulepreloads does not load, when the entry has run without that mark (it threw), or when the app
+  // has not started a minute after the loader began. That is about twice what the eager scripts and
+  // stylesheet (175 kB compressed) take at 50 kbit/s, and a start that is slower still ends in the
+  // app, whose first commit removes the notice. A failed stylesheet or preload does not stop the app.
+  var watchdog;
+  var reveal = function () {
+    var notice = document.getElementById('p100-boot-error');
+    if (!notice || !notice.hidden || document.documentElement.hasAttribute('data-app-started')) return;
+    var shell = document.querySelector('.first-paint-shell');
+    if (shell) shell.parentNode.removeChild(shell);
+    notice.hidden = false;
+    notice.querySelector('button').addEventListener('click', function () { window.location.reload(); });
+  };
+  // A modulepreload can fail before the parser has reached #root.
+  var fail = function () {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', reveal);
+    else reveal();
+  };
+  var loaded = function () {
+    if (document.documentElement.hasAttribute('data-app-started')) window.clearTimeout(watchdog);
+    else fail();
+  };
+
   // The template holds Vite's module entry, its modulepreloads, the entry stylesheet and the head
   // preloads, in that order, and starts none of them. start() inserts them once, the entry as a
   // modulepreload. The entry itself runs only after every stylesheet has loaded or failed, so React
@@ -72,6 +99,7 @@
   var start = function () {
     if (started) return;
     started = true;
+    watchdog = window.setTimeout(fail, 60000);
     var head = document.head;
     var tags = document.getElementById('p100-deferred').content.children;
     var entry;
@@ -81,6 +109,8 @@
       node.setAttribute(name === 'script' ? 'type' : 'rel', type);
       if (entry.hasAttribute('crossorigin')) node.setAttribute('crossorigin', entry.getAttribute('crossorigin'));
       node.setAttribute(attribute, entry.getAttribute('src'));
+      node.addEventListener('error', fail);
+      if (name === 'script') node.addEventListener('load', loaded);
       head.appendChild(node);
     };
     var settle = function () {
@@ -94,7 +124,9 @@
         add('link', 'modulepreload', 'href');
       } else {
         var link = head.appendChild(document.importNode(tag, true));
-        if (link.getAttribute('rel') === 'stylesheet') {
+        var rel = link.getAttribute('rel');
+        if (rel === 'modulepreload') link.addEventListener('error', fail);
+        if (rel === 'stylesheet') {
           pending += 1;
           link.addEventListener('load', settle);
           link.addEventListener('error', settle);

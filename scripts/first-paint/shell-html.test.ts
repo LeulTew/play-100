@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  NOTICE_OPEN,
   ROOT_OPEN,
+  SHELL_OPEN,
   STYLESHEET_MARKER,
+  bootNotice,
   normalizeShellWhitespace,
   selectShellVariant,
   shellMarkup,
@@ -51,5 +54,25 @@ describe('shell text', () => {
   it('drops each tag from < to the next >, keeping text and a trailing unclosed <', () => {
     expect(shellText('<A HREF="/x" title=\'y\'>Go</A> <svg><path d="M0 0"/></svg>&amp; 1 < 2')).toBe('Go & 1 < 2');
     expect(shellText('<b>x</b\t\n>y')).toBe('xy');
+  });
+});
+
+describe('failure notice', () => {
+  it('is the last child of #root, once, after the shell', () => {
+    for (const variant of ['online', 'offline'] as const) {
+      const markup = shellMarkup(indexHtml, variant);
+      expect(markup.endsWith(`</div>${bootNotice(markup)}</div>`)).toBe(true);
+    }
+    const shell = `${ROOT_OPEN}${SHELL_OPEN}<p>Shell</p></div>`;
+    const notice = `${NOTICE_OPEN}<p>Notice</p></main>`;
+    expect(bootNotice(`${shell}${notice}</div>`)).toBe(notice);
+    for (const markup of [
+      `${shell}</div>`,
+      `${shell}${notice}<p>Later</p></div>`,
+      `${shell}${notice}${notice}</div>`,
+      `${ROOT_OPEN}${notice}${SHELL_OPEN}</div></div>`,
+    ]) {
+      expect(() => bootNotice(markup), markup).toThrow('#root must end with one failure notice');
+    }
   });
 });

@@ -25,3 +25,7 @@ startTransition(() => {
     </StrictMode>,
   );
 });
+// Last, so it marks only an entry that ran to its end: until this mark the first-paint boot script
+// (src/first-paint/boot.js) may replace the shell with its failure notice. React's first commit then
+// replaces #root, and the shell or the notice with it.
+document.documentElement.setAttribute('data-app-started', '');

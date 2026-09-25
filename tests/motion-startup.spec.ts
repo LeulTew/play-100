@@ -98,12 +98,12 @@ for (const scenario of [
         IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
           const request = open.apply(this, args);
           if (args[0] === name && held) {
-            // index.html's static first-paint shell is not a React render; createRoot() replaces it.
+            // The static first-paint shell and failure notice are not a React render; createRoot() replaces them.
             const root = document.getElementById('root');
             window.guestReadStartedBeforeRender =
               root !== null &&
               Array.from(root.childNodes).every(
-                (node) => node instanceof Element && node.classList.contains('first-paint-shell'),
+                (node) => node instanceof Element && node.matches('.first-paint-shell, #p100-boot-error'),
               );
             request.addEventListener(
               'success',

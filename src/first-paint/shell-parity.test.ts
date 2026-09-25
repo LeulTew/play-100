@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as ts from 'typescript';
 import { sourceNodes, sourceTokens } from '../../scripts/source-contract';
-import { shellMarkup } from '../../scripts/first-paint/shell-html';
+import { NOTICE_OPEN, bootNotice, shellMarkup } from '../../scripts/first-paint/shell-html';
 import { AppHeader } from '../components/app/AppHeader';
 import { MobileNav } from '../components/app/MobileNav';
 import CollectionArtifact from '../components/CollectionArtifact';
@@ -149,14 +149,19 @@ describe("first-paint shell parity with React's first commit", () => {
         ),
       ).toBe(true);
       expect(shell).toContain('</header><main id="page-main"><div><section class="hero"');
+      // The boot script's failure notice follows the shell, and React's first commit replaces both.
       expect(
-        shell.endsWith(`</section></div></main>${element(shell, '<nav class="mobile-nav"', '</nav>')}</div></div>`),
+        shell.endsWith(
+          `</section></div></main>${element(shell, '<nav class="mobile-nav"', '</nav>')}</div>${bootNotice(shell)}</div>`,
+        ),
       ).toBe(true);
     }
   });
 
   it.each(VARIANTS)('makes every %s shell control a working link or a disabled button, never inert', (variant) => {
-    const shell = shellMarkup(html, variant);
+    const markup = shellMarkup(html, variant);
+    // Only the shell: the failure notice after it is hidden unless the app cannot start, and then works without it.
+    const shell = markup.slice(0, markup.indexOf(NOTICE_OPEN));
     expect(shell).not.toMatch(/ inert(?=[ >=])/);
     const links = [...shell.matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag);
     expect(links.filter((tag) => !/ href="[^"]+"/.test(tag))).toEqual([]);

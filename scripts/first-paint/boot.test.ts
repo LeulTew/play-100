@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { stripBootScript } from './plugin.ts';
+import { NOTICE_OPEN, bootNotice, shellMarkup } from './shell-html.ts';
 
-const bootScript = stripBootScript(readFileSync(new URL('../../src/first-paint/boot.js', import.meta.url), 'utf8'));
+const read = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const bootScript = stripBootScript(read('src/first-paint/boot.js'));
+const indexHtml = read('index.html');
 const HINT_KEY = 'play100.motion-hint.v1:guest';
+/** The failure notice's watchdog, from the loader's start. */
+const WATCHDOG = 60000;
 const ACCEPTED_PROBES: Readonly<Record<string, { width: number; height: number }>> = {
   'p100-probe-display': { width: 609, height: 120 },
   'p100-probe-sans': { width: 932, height: 130 },
@@ -50,6 +55,8 @@ interface BootEnvironment {
   visibilityState?: 'visible' | 'hidden';
   prerendering?: boolean;
   observer?: 'supported' | 'missing' | 'constructor throws' | 'observe throws';
+  /** Whether #root holds the failure notice, as the shipped index.html does until React's first commit. */
+  notice?: boolean;
 }
 
 interface FakeSpan {
@@ -81,7 +88,7 @@ class FakeElement {
   addEventListener(type: string, listener: () => void) {
     this.listeners.push({ type, listener });
   }
-  dispatch(type: 'load' | 'error') {
+  dispatch(type: 'load' | 'error' | 'click') {
     for (const entry of this.listeners.filter((item) => item.type === type)) entry.listener();
   }
   describe() {
@@ -101,7 +108,9 @@ function run(environment: BootEnvironment = {}) {
   const probes = environment.probes ?? ACCEPTED_PROBES;
   const children: unknown[] = [];
   const appended: FakeElement[] = [];
-  const timers: { callback: () => void; delay: number }[] = [];
+  const timers: { id: number; callback: () => void; delay: number }[] = [];
+  const cleared: number[] = [];
+  let lastTimer = 0;
   const observers: FakeObserver[] = [];
   const listeners: { type: string; listener: () => void }[] = [];
   const template = (environment.template ?? TEMPLATE).map(([tagName, values]) => new FakeElement(tagName, values));
@@ -109,12 +118,26 @@ function run(environment: BootEnvironment = {}) {
     setAttribute: (name: string, value: string) => {
       attributes[name] = value;
     },
+    hasAttribute: (name: string) => Object.hasOwn(attributes, name),
     appendChild: (child: unknown) => {
       children.push(child);
       return child;
     },
     removeChild: (child: unknown) => {
       children.splice(children.indexOf(child), 1);
+    },
+  };
+  // #root holds the shell, then the failure notice with its Reload button (index.html).
+  const reload = new FakeElement('BUTTON', { type: 'button' });
+  const notice = { hidden: true, querySelector: (selector: string) => (selector === 'button' ? reload : null) };
+  let shellRemoved = false;
+  let reloads = 0;
+  const shell = {
+    parentNode: {
+      removeChild: (child: unknown) => {
+        expect(child, 'the loader removes the shell from #root').toBe(shell);
+        shellRemoved = true;
+      },
     },
   };
   const document = {
@@ -132,7 +155,14 @@ function run(environment: BootEnvironment = {}) {
     addEventListener: (type: string, listener: () => void) => {
       listeners.push({ type, listener });
     },
-    getElementById: (id: string) => (id === 'p100-deferred' ? { content: { children: template } } : null),
+    getElementById: (id: string): unknown => {
+      if (id === 'p100-deferred') return { content: { children: template } };
+      // The parser reaches #root, and the notice in it, only after <head>, where the loader starts.
+      return id === 'p100-boot-error' && environment.notice !== false && document.readyState !== 'loading'
+        ? notice
+        : null;
+    },
+    querySelector: (selector: string) => (selector === '.first-paint-shell' && !shellRemoved ? shell : null),
     importNode: (node: FakeElement, deep: boolean) => {
       expect(deep).toBe(true);
       return new FakeElement(node.tagName, Object.fromEntries(node.attributes));
@@ -174,7 +204,11 @@ function run(environment: BootEnvironment = {}) {
     }
   }
   const window = {
-    location: new URL(environment.url ?? 'https://play-100.test/'),
+    location: Object.assign(new URL(environment.url ?? 'https://play-100.test/'), {
+      reload: () => {
+        reloads += 1;
+      },
+    }),
     URLSearchParams,
     navigator: environment.navigator ?? {},
     localStorage: {
@@ -190,8 +224,14 @@ function run(environment: BootEnvironment = {}) {
     }),
     PerformanceObserver: mode === 'missing' ? undefined : PerformanceObserver,
     setTimeout: (callback: () => void, delay: number) => {
-      timers.push({ callback, delay });
-      return timers.length;
+      lastTimer += 1;
+      timers.push({ id: lastTimer, callback, delay });
+      return lastTimer;
+    },
+    clearTimeout: (id: number) => {
+      cleared.push(id);
+      const index = timers.findIndex((timer) => timer.id === id);
+      if (index !== -1) timers.splice(index, 1);
     },
   };
   new Function('window', 'document', bootScript)(window, document);
@@ -203,6 +243,19 @@ function run(environment: BootEnvironment = {}) {
     appended,
     observers,
     timers,
+    cleared,
+    notice,
+    reload,
+    reloads: () => reloads,
+    shellRemoved: () => shellRemoved,
+    /** src/main.tsx ran to its end, which marks <html> before React's first commit. */
+    appStarted: () => {
+      attributes['data-app-started'] = '';
+    },
+    /** The module entry, which the loader adds once the stylesheets settled and the document is parsed. */
+    entry: () => appended.find((node) => node.tagName === 'SCRIPT'),
+    modulepreload: (href: string) =>
+      appended.find((node) => node.getAttribute('rel') === 'modulepreload' && node.getAttribute('href') === href),
     inserted: () => appended.map((node) => node.describe()),
     paint: (...names: string[]) => {
       for (const observer of observers) observer.deliver(...names);
@@ -325,8 +378,8 @@ describe('first-paint app loader', () => {
     expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
     expect(
       result.timers.map((timer) => timer.delay),
-      'a safety net starts the app a second after parsing',
-    ).toEqual([1000]);
+      "the failure notice's watchdog runs from the start, and a safety net starts the app a second after parsing",
+    ).toEqual([WATCHDOG, 1000]);
     result.runTimers();
     result.paint('first-contentful-paint');
     result.settle('error');
@@ -352,7 +405,7 @@ describe('first-paint app loader', () => {
       expect(result.inserted(), `${url}: #root may not exist before the document is parsed`).toEqual(STARTUP);
       result.parsed();
       expect(result.inserted(), `${url}: a failed stylesheet still starts the app`).toEqual([...STARTUP, ENTRY]);
-      expect(result.timers, url).toEqual([]);
+      expect(result.timers.map((timer) => timer.delay), `${url}: the watchdog`).toEqual([WATCHDOG]);
     }
   });
 
@@ -476,5 +529,138 @@ describe('first-paint app loader', () => {
         `${when}: the entry stylesheet is linked once, first`,
       ).toEqual([entryStylesheet, chunkStylesheet]);
     }
+  });
+});
+
+describe('first-paint failure notice', () => {
+  const OTHER_ROUTE = 'https://play-100.test/discover';
+
+  /** Runs the boot script until the loader adds the module entry: the stylesheet loaded, the document parsed. */
+  function entered(environment: BootEnvironment = { url: OTHER_ROUTE }) {
+    const result = run(environment);
+    result.paint('first-contentful-paint');
+    result.settle('load');
+    result.parsed();
+    expect(result.entry(), 'the loader added the module entry').toBeDefined();
+    return result;
+  }
+
+  it.each([
+    ['the landing page', {}],
+    ['another route', { url: OTHER_ROUTE }],
+  ] as const)('stays hidden through a normal start on %s, which clears its watchdog', (_, environment) => {
+    const result = entered(environment);
+    const watchdog = result.timers.find((timer) => timer.delay === WATCHDOG);
+    expect(watchdog, 'the watchdog runs from the start').toBeDefined();
+    result.appStarted();
+    result.entry()?.dispatch('load');
+    expect(result.cleared).toEqual([watchdog?.id]);
+    result.runTimers();
+    expect(result.notice.hidden).toBe(true);
+    expect(result.shellRemoved()).toBe(false);
+    expect(result.reload.listeners, 'the loader wires Reload only when it shows the notice').toEqual([]);
+  });
+
+  it('replaces the landing shell when the module entry does not load, and its Reload reloads the page', () => {
+    const result = entered({});
+    expect(result.notice.hidden).toBe(true);
+    result.entry()?.dispatch('error');
+    expect(result.notice.hidden).toBe(false);
+    expect(result.shellRemoved()).toBe(true);
+    expect(result.attributes['data-boot'], 'the shell font stacks stay').toBe('landing');
+    expect(result.reloads()).toBe(0);
+    result.reload.dispatch('click');
+    expect(result.reloads()).toBe(1);
+  });
+
+  it.each(['/assets/index-A.js', '/assets/vendor-C.js'])('shows when the modulepreload of %s fails', (href) => {
+    const result = run({ url: OTHER_ROUTE });
+    const preload = result.modulepreload(href);
+    expect(preload).toBeDefined();
+    preload?.dispatch('error');
+    expect(result.notice.hidden, 'the parser has not reached #root yet').toBe(true);
+    result.parsed();
+    expect(result.notice.hidden).toBe(false);
+    expect(result.shellRemoved()).toBe(true);
+  });
+
+  it('shows when the module entry has run without the mark src/main.tsx sets last, because it threw', () => {
+    const result = entered();
+    result.entry()?.dispatch('load');
+    expect(result.notice.hidden).toBe(false);
+    expect(result.shellRemoved()).toBe(true);
+  });
+
+  it('shows from the watchdog only while the app has not started', () => {
+    // The stylesheet never settles, so the module entry never runs.
+    const stalled = run({ url: OTHER_ROUTE });
+    stalled.parsed();
+    expect(stalled.timers.map((timer) => timer.delay)).toEqual([WATCHDOG]);
+    stalled.runTimers();
+    expect(stalled.notice.hidden).toBe(false);
+    // Due before the parser has reached the notice, it shows the notice once the document is parsed.
+    const early = run({ url: OTHER_ROUTE });
+    early.runTimers();
+    expect(early.notice.hidden).toBe(true);
+    early.parsed();
+    expect(early.notice.hidden).toBe(false);
+    // Once src/main.tsx has run, React's first commit follows, however late the start.
+    const slow = entered();
+    slow.appStarted();
+    slow.runTimers();
+    expect(slow.notice.hidden).toBe(true);
+    expect(slow.shellRemoved()).toBe(false);
+  });
+
+  it('shows once, with one Reload listener, however many failures follow', () => {
+    const result = entered();
+    result.modulepreload('/assets/index-A.js')?.dispatch('error');
+    result.modulepreload('/assets/vendor-C.js')?.dispatch('error');
+    result.entry()?.dispatch('error');
+    result.entry()?.dispatch('load');
+    result.runTimers();
+    expect(result.notice.hidden).toBe(false);
+    expect(result.reload.listeners.map((listener) => listener.type)).toEqual(['click']);
+    result.reload.dispatch('click');
+    expect(result.reloads()).toBe(1);
+  });
+
+  it('stays hidden when only a stylesheet or a preload fails, which does not stop the app', () => {
+    const result = run({ url: OTHER_ROUTE });
+    for (const node of result.appended.filter((tag) => tag.getAttribute('rel') !== 'modulepreload'))
+      node.dispatch('error');
+    result.parsed();
+    expect(result.inserted(), 'the app starts').toEqual([...STARTUP, ENTRY]);
+    expect(result.notice.hidden).toBe(true);
+  });
+
+  it('leaves #root alone once it no longer holds the notice', () => {
+    const result = entered({ url: OTHER_ROUTE, notice: false });
+    result.entry()?.dispatch('error');
+    result.runTimers();
+    expect(result.shellRemoved()).toBe(false);
+  });
+
+  it.each(['offline', 'online'] as const)('waits hidden after the %s shell in #root', (variant) => {
+    const notice = bootNotice(shellMarkup(indexHtml, variant));
+    expect(NOTICE_OPEN).toContain(' id="p100-boot-error" hidden>');
+    expect(bootScript).toContain("document.getElementById('p100-boot-error')");
+    expect(bootScript).toContain("document.querySelector('.first-paint-shell')");
+    expect(notice).toContain(`<div role="alert"><h1>The collection couldn't finish loading.</h1><p>`);
+    // One Reload button for the loader to wire, and the workbook link, which needs no script.
+    expect([...notice.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag)).toEqual([
+      '<button type="button" class="button button-dark">',
+    ]);
+    expect([...notice.matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag)).toEqual([
+      '<a href="/downloads/Play-100-Collection.xlsx" download="">',
+    ]);
+    // The production policy refuses inline event handlers and style attributes.
+    expect(notice).not.toMatch(/\s(?:on[a-z]+|style)=/i);
+  });
+
+  it('is kept hidden by src/main.tsx, whose last statement marks the app started', () => {
+    const mark = "document.documentElement.setAttribute('data-app-started', '');";
+    expect(read('src/main.tsx').trimEnd().endsWith(`\n${mark}`)).toBe(true);
+    expect(bootScript.split("hasAttribute('data-app-started')")).toHaveLength(3);
   });
 });

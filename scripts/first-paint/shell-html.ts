@@ -10,6 +10,8 @@ export type ShellVariant = 'online' | 'offline';
 
 export const ROOT_OPEN = '<div id="root">';
 export const SHELL_OPEN = `<div class="${SHELL_CLASS}" hidden>`;
+/** Opens the failure notice the boot script shows in place of the shell when the app cannot start. */
+export const NOTICE_OPEN = '<main class="app-error" id="p100-boot-error" hidden>';
 const VARIANT_BLOCK = /<!--shell:(online|offline)-->([\s\S]*?)<!--\/shell:\1-->/g;
 const NAMED_ENTITIES: Readonly<Record<string, string>> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
@@ -70,6 +72,19 @@ export function shellMarkup(html: string, variant: ShellVariant): string {
   const markup = normalized.slice(start, end);
   if (!markup.startsWith(ROOT_OPEN + SHELL_OPEN)) throw new Error(`#root must start with ${SHELL_OPEN}.`);
   return markup;
+}
+
+/**
+ * The failure notice in the #root markup of one variant. It is the last child of #root, after the shell, so it can
+ * show on every route, and React's first commit replaces the shell and the notice with the app.
+ */
+export function bootNotice(markup: string): string {
+  const start = markup.indexOf(NOTICE_OPEN);
+  const end = start === -1 ? -1 : markup.indexOf('</main>', start);
+  const notice = end === -1 ? '' : markup.slice(start, end + '</main>'.length);
+  if (!notice || markup.includes(NOTICE_OPEN, start + 1) || !markup.endsWith(`</div>${notice}</div>`))
+    throw new Error(`#root must end with one failure notice, ${NOTICE_OPEN}…</main>, after the shell.`);
+  return notice;
 }
 
 /** index.html without the shell, for development and for builds whose first commit differs. */

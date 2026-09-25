@@ -6,9 +6,11 @@ import { Parser } from 'htmlparser2';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { allowsInlineStyles, cspProblems, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
 import {
+  NOTICE_OPEN,
   ROOT_OPEN,
   SHELL_OPEN,
   STYLESHEET_MARKER,
+  bootNotice,
   normalizeShellWhitespace,
   removeShell,
   selectShellVariant,
@@ -28,8 +30,8 @@ import type { ShellVariant } from './shell-html.ts';
  *    preloads. Template content starts no request (Chromium's preload scanner skips it as well);
  *  - inlines one <style>, that template and the classic boot script (src/first-paint/boot.js) at
  *    the end of <head>. The style holds the entry-stylesheet rules beasties selects for the shell
- *    and src/first-paint/shell.css, whose metric-matched local faces are the only fonts it
- *    declares;
+ *    and for the failure notice that follows it in #root, and src/first-paint/shell.css, whose
+ *    metric-matched local faces are the only fonts it declares;
  *  - fails the build unless vercel.json allows the inline script by its exact hash (and, under a
  *    strict style-src, exactly the inline styles of both variants), unless the <meta charset>
  *    declaration fits within the document's first 1024 bytes, unless each emitted entry
@@ -39,15 +41,18 @@ import type { ShellVariant } from './shell-html.ts';
  * The boot script inserts the startup tags after the shell's first contentful paint when it shows
  * the shell, and at once otherwise. It runs the module entry only after the entry stylesheet has
  * loaded or failed and the document is parsed, so React never commits before the complete
- * stylesheet applies.
+ * stylesheet applies. When the app cannot start, it replaces the shell with the failure notice.
  */
 
 /** The inert <template> that holds the startup tags until the boot script inserts them. */
 export const DEFERRED_TEMPLATE_ID = 'p100-deferred';
 
-/** Attributes and classes that differ between the static shell and React's first commit. */
+/**
+ * Attributes and classes that differ between the static shell and React's first commit; src/main.tsx sets
+ * data-app-started on <html> just before that commit.
+ */
 const SHELL_DIVERGENT_SELECTOR =
-  /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot)\b|\.first-paint-shell\b/i;
+  /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot|data-app-started)\b|\.first-paint-shell\b/i;
 const CHARSET_DECLARATION = '<meta charset="UTF-8" />';
 
 /**
@@ -296,15 +301,18 @@ export function beastiesOptions(logger: BeastiesLogger): BeastiesOptions {
   };
 }
 
-/** The entry-stylesheet rules that can apply inside the shell, as selected by beasties. */
+/** The entry-stylesheet rules that can apply inside the shell or the failure notice, as selected by beasties. */
 export async function criticalAppCss(appCss: string, root: string): Promise<string> {
   assertInlineSafe('style', appCss);
   if (!root.startsWith(ROOT_OPEN + SHELL_OPEN))
     throw new Error(`The shell markup must start with ${ROOT_OPEN}${SHELL_OPEN}.`);
-  // Matching stays inside the shell: after pseudo-classes are stripped, selectors such as
-  // html:has(.toast-visible) would otherwise match the throwaway document itself. Bare html, body
-  // and :root rules are always kept.
-  const container = `${ROOT_OPEN}${SHELL_OPEN.replace(/>$/, ' data-beasties-container>')}${root.slice(ROOT_OPEN.length + SHELL_OPEN.length)}`;
+  // Matching stays inside the shell and the failure notice: after pseudo-classes are stripped,
+  // selectors such as html:has(.toast-visible) would otherwise match the throwaway document itself.
+  // Bare html, body and :root rules are always kept. The notice's own rules keep its layout and
+  // targets when the entry stylesheet fails to load as well.
+  const contain = (open: string) => open.replace(/>$/, ' data-beasties-container>');
+  const marked = root.replace(ROOT_OPEN + SHELL_OPEN, ROOT_OPEN + contain(SHELL_OPEN));
+  const container = marked.replace(NOTICE_OPEN, contain(NOTICE_OPEN));
   const problems: string[] = [];
   const logger: BeastiesLogger = {
     warn: (message) => {
@@ -559,6 +567,8 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
   let html = normalizeShellWhitespace(selectShellVariant(input.html, input.variant));
   const region = shellRegion(html);
   const root = html.slice(region.start, region.end);
+  // The boot script shows it when the app cannot start (src/first-paint/boot.js).
+  bootNotice(root);
   // The marker only delimits the shell markup.
   html = html.slice(0, region.end) + html.slice(region.end + STYLESHEET_MARKER.length);
   const tags = startupTags(html);

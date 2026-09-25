@@ -16,7 +16,10 @@ moves it on screen.
 The boot script also starts the app. When it shows the shell, the app requests
 nothing before the shell's first contentful paint, so the shell paints as soon as
 the document arrives, in browsers and in Lighthouse's simulated load alike.
-Everywhere else the app starts at once.
+Everywhere else the app starts at once. If the app cannot start, the boot script
+replaces the shell with a [failure notice](#the-failure-notice) that `index.html`
+keeps hidden in `#root`: a Reload button and the workbook link, which need no app
+code.
 
 ## Build pipeline
 
@@ -57,9 +60,9 @@ In this order:
 - **Critical app rules**, selected from the compiled entry stylesheet (Vite's
   emitted `assets/index-*.css`, never source CSS) by
   [beasties](https://github.com/danielroe/beasties) 0.5.4. Beasties receives the
-  stylesheet as an inline `<style>` of a throwaway document whose body is the
-  shell with `data-beasties-container` on the wrapper, so only rules that match
-  inside the shell are kept. Options: `external: false` and `fonts: false`
+  stylesheet as an inline `<style>` of a throwaway document whose body is `#root`
+  with `data-beasties-container` on the shell wrapper and on the failure notice, so
+  only rules that match inside them are kept. Options: `external: false` and `fonts: false`
   (beasties never touches a real `<link>`: no preload, `onload` handler or loader
   script for the CSP to allow), `allowRules: [/^:/]` (selectors starting with a
   pseudo-class, such as `:root`, `:where()` and `::selection`, cannot be matched
@@ -118,6 +121,33 @@ the stylesheet has loaded.
 On `/` the `load` event may fire before the app starts; nothing depends on it
 (idle prefetching checks `document.readyState` first).
 
+### The failure notice
+
+`#root` ends with a hidden `<main class="app-error" id="p100-boot-error">` after
+the shell: "The collection couldn't finish loading.", a **Reload the collection**
+button and the **Or download the workbook** link, in the app's own error-page
+style (`ErrorBoundary`). React's first commit replaces it together with the shell,
+and `src/main.tsx` marks `<html>` with `data-app-started` as its last statement,
+before that commit. Until then the boot script removes the shell and shows the
+notice when:
+
+- the module entry, or a modulepreload of its static imports, fires `error`: a
+  network, HTTP or MIME failure. The browser keeps a failed module fetch for the
+  document, so the entry cannot run after it;
+- the module entry has run (`load`) without the mark, which means it threw;
+- the app has not started a minute after the loader began. That watchdog is about
+  twice what the eager scripts and stylesheet (175 kB compressed) take at
+  50 kbit/s, and a start that is slower still ends in the app, whose first commit
+  replaces the notice. A start clears the watchdog.
+
+A failed stylesheet, font or data preload is not a failed start: the app starts
+anyway. A failure before the parser reaches `#root` shows the notice once the
+document is parsed. The notice works without the app: the boot script adds the
+Reload listener (`location.reload()`), the workbook is a plain link, and the
+inline style keeps the entry-stylesheet rules that lay the notice out, so it keeps
+its 44 px targets when the entry stylesheet fails as well. The build refuses a
+`#root` whose last child is not this notice.
+
 ## Content Security Policy
 
 `vercel.json` is the only policy source. Its main-document `script-src` allows
@@ -138,7 +168,9 @@ Changing `boot.js` therefore means updating the hash in `vercel.json`; the build
 error names the source to add. Because the boot script starts the app, a policy
 that blocked it would leave every route without React: the build hash sync,
 `check:csp` and the browser spec, which loads `/` and `/?catalogs=off` under the
-production policy and uses the page, guard against that.
+production policy and uses the page, guard against that. The failure notice needs
+no exception either: it has no inline handler and shows by its `hidden` attribute,
+not a `style=`.
 
 ## Keeping the shell exact
 
@@ -158,7 +190,11 @@ production policy and uses the page, guard against that.
   - None changes layout.
 - The entry stylesheet must not select what differs between the shell and React:
   `[inert]`, `[style]`, `[data-scene-status]`, `[data-activation]`,
-  `[data-shell-art]`, `[data-boot…]` or `.first-paint-shell`. The build refuses them.
+  `[data-shell-art]`, `[data-boot…]`, `[data-app-started]` (which `src/main.tsx`
+  sets on `<html>` just before React's first commit) or `.first-paint-shell`. The
+  build refuses them.
+- The failure notice after the shell is not part of the comparisons: it stays
+  hidden unless the app cannot start, and React's first commit replaces it.
 - Rules that reach shell elements only through an ancestor outside the shell
   (`#root`, `body` or `html` with more than a bare type selector) are not kept.
 - Inlined CSS must use root-relative, `data:`, `https:` or fragment URLs.
@@ -202,10 +238,16 @@ in `<head>`, the startup stylesheets come first and only once, and the lazy
 chunk stylesheets follow them. The shell comparisons need the local fonts the
 probes measure (Windows or macOS Impact/Arial, or Liberation Sans/Arimo on Linux).
 
+[`tests/entry-recovery.spec.ts`](../tests/entry-recovery.spec.ts) loads `/` and
+`/?catalogs=off` under the production CSP. With the module entry refused, and once
+the entry stylesheet too, the failure notice replaces the shell with targets of at
+least 44 px, and its Reload starts the app once the entry loads again. A normal
+start never shows the notice, and React's first commit removes it.
+
 ## Budgets
 
 The shell adds no file: no CSS asset, no script asset and no PWA core entry.
 App CSS and the eager JS+CSS gate are unchanged: the budget check reads the
 template's tags like any other, so they still count as eager. `index.html` grows
-by the shell markup and the inline blocks; that is reported in the HTML totals
-and counts toward the PWA core bytes.
+by the shell markup, the failure notice and the inline blocks; that is reported
+in the HTML totals and counts toward the PWA core bytes.
