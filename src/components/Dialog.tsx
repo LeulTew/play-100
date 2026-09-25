@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
 import { visibleFocusTarget, visibleMenuTrigger } from '../lib/dialog-focus';
 import { useMotionController } from '../motion/useMotion';
 import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
 import { showLockedDialog } from './dialog-lifecycle';
+import { DialogLayerContext, registerDialogLayer } from './dialog-layer';
 
 function runDialogMotion(work: () => void) {
   try {
@@ -40,6 +41,7 @@ export function Dialog({
   const slot = useRef<HTMLDivElement>(null);
   const visual = useRef<DialogMotionHandle | null>(null);
   const controller = useMotionController();
+  const layer = useContext(DialogLayerContext);
   const latestMotion = useRef(motion);
   latestMotion.current = motion;
   const motionDisabled = motion === false;
@@ -60,6 +62,7 @@ export function Dialog({
     const previousFocus = document.activeElement;
     const focusTarget = dialog.querySelector<HTMLElement>('[data-autofocus]');
     const unlock = showLockedDialog(dialog, focusTarget);
+    const releaseLayer = registerDialogLayer(dialog, layer, previousFocus);
     runDialogMotion(() => {
       if (inner.current)
         visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
@@ -80,6 +83,7 @@ export function Dialog({
                 '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
               ),
             ].find(canReturnTo) ?? visibleMenuTrigger());
+      releaseLayer();
       dialog.close();
       unlock();
       if (reveal) target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
@@ -87,7 +91,7 @@ export function Dialog({
       controller.forgetDialog(dialog);
       runDialogMotion(() => ending?.closed());
     };
-  }, [open, controller]);
+  }, [open, controller, layer]);
   return (
     <dialog
       ref={ref}

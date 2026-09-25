@@ -4,6 +4,7 @@ import type { AppPage } from '../../lib/types';
 import { loadCatalogDetail } from '../../lib/catalog-detail-preload';
 import type { AboutDialog } from '../AboutDialog';
 import { Dialog } from '../Dialog';
+import { DialogLayerContext } from '../dialog-layer';
 import { GameDetail } from '../GameDetail';
 import { Icon } from '../Icon';
 import { MenuDialog } from '../MenuDialog';
@@ -51,8 +52,6 @@ export function DialogHost({
 }: DialogHostProps) {
   const About = aboutDialogModule.peek()?.AboutDialog;
   const Settings = settingsDialogModule.peek()?.SettingsPanel;
-  // Reopen a URL-intent notice above any newly mounted native game dialog.
-  const noticeKey = `${game?.key ?? catalog?.key ?? ''}:${loadingGame}:${missingGame}:${Boolean(canonicalError)}:${Boolean(metadataFailure)}`;
   if ((about && !About) || (settings && !Settings)) throw new Error('The dialog must finish loading before it opens.');
   return (
     <>
@@ -117,43 +116,45 @@ export function DialogHost({
           </button>
         </Dialog>
       )}
-      {menu && <MenuDialog key={menu.key} {...menu.props} />}
-      {about && About && <About {...about} />}
-      {settings && Settings && <Settings key={settings.key} settings={settings.props} offline={offlineSettings} />}
-      {panelNotice && (
-        <Dialog key={noticeKey} open titleId="panel-notice-title" onClose={panelNotice.onClose} className="info-dialog">
-          <h2 id="panel-notice-title" data-autofocus tabIndex={-1}>
-            {panelNotice.title}
-          </h2>
-          {panelNotice.content}
-        </Dialog>
-      )}
-      {manualShare && (
-        <Dialog open titleId="share-title" onClose={manualShare.onClose} className="info-dialog share-dialog">
-          <h2 id="share-title" data-autofocus tabIndex={-1}>
-            Good games are better shared.
-          </h2>
-          <p>
-            This browser couldn't share or copy automatically. Select this public link and copy it to send to a friend.
-            Your private progress isn't included.
-          </p>
-          <label htmlFor="share-link">Shareable link</label>
-          <input id="share-link" value={manualShare.link} readOnly onFocus={(event) => event.target.select()} />
-          <button
-            className="button button-dark"
-            onClick={() => {
-              const input = document.getElementById('share-link');
-              if (input instanceof HTMLInputElement) {
-                input.focus();
-                input.select();
-              }
-            }}
-          >
-            <Icon name="copy" width="18" height="18" />
-            Select link to copy
-          </button>
-        </Dialog>
-      )}
+      <DialogLayerContext value={1}>
+        {menu && <MenuDialog key={menu.key} {...menu.props} />}
+        {about && About && <About {...about} />}
+        {settings && Settings && <Settings key={settings.key} settings={settings.props} offline={offlineSettings} />}
+        {panelNotice && (
+          <Dialog open titleId="panel-notice-title" onClose={panelNotice.onClose} className="info-dialog">
+            <h2 id="panel-notice-title" data-autofocus tabIndex={-1}>
+              {panelNotice.title}
+            </h2>
+            {panelNotice.content}
+          </Dialog>
+        )}
+        {manualShare && (
+          <Dialog open titleId="share-title" onClose={manualShare.onClose} className="info-dialog share-dialog">
+            <h2 id="share-title" data-autofocus tabIndex={-1}>
+              Good games are better shared.
+            </h2>
+            <p>
+              This browser couldn't share or copy automatically. Select this public link and copy it to send to a
+              friend. Your private progress isn't included.
+            </p>
+            <label htmlFor="share-link">Shareable link</label>
+            <input id="share-link" value={manualShare.link} readOnly onFocus={(event) => event.target.select()} />
+            <button
+              className="button button-dark"
+              onClick={() => {
+                const input = document.getElementById('share-link');
+                if (input instanceof HTMLInputElement) {
+                  input.focus();
+                  input.select();
+                }
+              }}
+            >
+              <Icon name="copy" width="18" height="18" />
+              Select link to copy
+            </button>
+          </Dialog>
+        )}
+      </DialogLayerContext>
     </>
   );
 }

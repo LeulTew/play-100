@@ -246,6 +246,10 @@ cache, offline, disabled, cooldown or loading snapshot immediately. Network work
 starts in a cancellable task after a frame, not in the shell's opening effect;
 closing or changing its scope cancels both queued work and existing requests.
 
+Requested utility panels stay above game details even when the game resolves
+later. Native top-layer reordering preserves the mounted panel, its draft,
+scroll position and focused control rather than remounting the utility.
+
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the
 same width bounds as the actual select, not on the combined label/control

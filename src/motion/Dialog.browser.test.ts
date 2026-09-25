@@ -64,6 +64,7 @@ const fixture = `<!doctype html><html lang="en" data-motion="on"><head>
 import { createElement as h, StrictMode, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Dialog } from '/src/components/Dialog.tsx';
+import { DialogLayerContext } from '/src/components/dialog-layer.ts';
 import { MotionProvider, useMotionRuntime } from '/src/motion/index.ts';
 import { createMotionRuntime } from '/src/motion/runtime.ts';
 import '/src/styles.css';
@@ -150,12 +151,12 @@ function Bindings() {
         h('h2', { id: 'nested-title' }, 'Confirm fixture'),
         h('button', { 'data-autofocus': true, onClick: () => { nested = false; render(); } }, 'Keep fixture')),
     ),
-    utility && h(Dialog, {
+    utility && h(DialogLayerContext.Provider, { value: 1 }, h(Dialog, {
       open: true, titleId: 'utility-title', className: 'info-dialog',
       onClose: closeUtility, motion: { preset: 'dialog', enterMs: 180 },
       getReturnFocus: () => preferred ? document.getElementById('editor') : null,
     }, h('h2', { id: 'utility-title', tabIndex: -1, 'data-autofocus': true }, 'Fixture menu'),
-      h('label', null, 'Utility draft', h('input', { id: 'utility-draft', defaultValue: '' }))),
+      h('label', null, 'Utility draft', h('input', { id: 'utility-draft', defaultValue: '' })))),
   );
 }
 function render() {
@@ -527,6 +528,55 @@ describe('native Dialog motion lifecycle', () => {
     await browserExpect(page.locator('#editor')).toBeFocused();
     await browserExpect(activeVisuals()).toHaveCount(0);
   });
+
+  it.each(['utility-first', 'game-first'] as const)(
+    'keeps the same utility form in front without replaying its entry when %s',
+    async (order) => {
+      if (order === 'game-first') {
+        await page.evaluate(() => window.motionFixture.open('static'));
+        await browserExpect(detail()).toBeVisible();
+      }
+      await page.evaluate(() => window.motionFixture.utility());
+      const utility = page.getByRole('dialog', { name: 'Fixture menu', exact: true });
+      const input = page.locator('#utility-draft');
+      await browserExpect(input).toBeVisible();
+      await input.fill('Keep this mounted draft');
+      const mounted = await input.elementHandle();
+      if (!mounted) throw new Error('The utility editor must exist before the other dialog loads.');
+      await input.evaluate((element) => {
+        if (element instanceof HTMLInputElement) element.setSelectionRange(2, 6);
+      });
+      const count = (await stats()).effects.length;
+      if (order === 'utility-first') await page.evaluate(() => window.motionFixture.open('static'));
+      await browserExpect(page.locator('dialog[open]')).toHaveCount(2);
+      await browserExpect(input).toBeFocused();
+      await browserExpect(input).toHaveValue('Keep this mounted draft');
+      expect(
+        await mounted.evaluate((element) => ({
+          sameNode: element === document.querySelector('#utility-draft'),
+          selection: element instanceof HTMLInputElement ? [element.selectionStart, element.selectionEnd] : [],
+        })),
+      ).toEqual({ sameNode: true, selection: [2, 6] });
+      expect((await stats()).effects).toHaveLength(count);
+      expect(
+        await input.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return document
+            .elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+            ?.closest('dialog')
+            ?.getAttribute('aria-labelledby');
+        }),
+      ).toBe('utility-title');
+      await page.keyboard.press('Escape');
+      await browserExpect(utility).toHaveCount(0);
+      await browserExpect(detail()).toBeVisible();
+      expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+      await page.keyboard.press('Escape');
+      await browserExpect(detail()).toHaveCount(0);
+      expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+      await mounted.dispose();
+    },
+  );
 
   it.each(['scope', 'revoke', 'removeRecord', 'navigate'] as const)(
     'never paints an exit after %s',
