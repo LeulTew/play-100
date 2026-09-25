@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
@@ -81,6 +81,7 @@ export default function LibraryPage({
   const pageCueLease = useRef(0);
   const pageBoundary = useRef<HTMLDivElement>(null);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
+  const focusAfterPage = useRef(false);
   const removalTrigger = useRef<HTMLElement | null>(null);
   const removalFocus = useRef<{ trigger: HTMLElement | null; generation: number } | null>(null);
   const generation = useRef(0);
@@ -157,6 +158,13 @@ export default function LibraryPage({
     resultsHeading.current?.focus({ preventScroll: true });
     resultsHeading.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
   };
+  // A page change takes focus once the requested page has rendered, so the one layout it forces
+  // already holds the new rows, and the frame, focus, scroll and page cue all reuse it.
+  useLayoutEffect(() => {
+    if (!focusAfterPage.current) return;
+    focusAfterPage.current = false;
+    if (mounted.current && current.current.active) focusResults();
+  });
   useEffect(() => {
     if (removing.length) return;
     const requested = removalFocus.current;
@@ -174,7 +182,7 @@ export default function LibraryPage({
       const bounded = getLocalPage(current.current.total, LIBRARY_PAGE_SIZE, offset);
       const previousOffset = current.current.offset;
       setRequestedPage({ definition: current.current.definition, offset: bounded.offset });
-      focusResults();
+      focusAfterPage.current = true;
       if (bounded.offset !== previousOffset) {
         pageCueLease.current = request;
         setPageCue({

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
-import { flushPendingEdits } from '../../hooks/useExitSave';
+import { flushPendingEdits, hasPendingEdits } from '../../hooks/useExitSave';
 import { useCommittedCue } from '../../hooks/useCommittedCue';
 import type { CommittedCue } from '../../lib/route-continuity';
 import { Icon } from '../Icon';
@@ -100,10 +100,13 @@ function MyGamesWorkspace({
     const request = ++generation.current;
     changing.current = request;
     const ownsRequest = () => mounted.current && isCurrent() && generation.current === request;
-    setSwitching(true);
-    setError('');
     try {
-      const saved = await flushPendingEdits();
+      // With no edit to save, the change commits within this event: disabling every control for a save
+      // that ends before the next paint would cost an extra render of the whole editor per change.
+      const saving = hasPendingEdits();
+      if (saving) setSwitching(true);
+      setError('');
+      const saved = saving ? await flushPendingEdits() : true;
       if (!ownsRequest()) return false;
       if (!saved) {
         setError('Your edit has not saved. Fix the highlighted field or retry before changing views.');

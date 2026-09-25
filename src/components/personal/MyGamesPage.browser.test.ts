@@ -8,34 +8,100 @@ import { createFetchSafeViteServer } from '../../lib/test-server-ports';
 
 declare global {
   interface Window {
-    myGamesFixture: { exits: string[]; saves: string[]; accept(value: boolean): void };
+    myGamesFixture: {
+      exits: string[];
+      saves: string[];
+      accept(value: boolean): void;
+      holdEditor(): void;
+      releaseEditor(): void;
+      finishEditor(saved: boolean): void;
+    };
+    myGamesPaging: { arm(): void; settled(): Promise<PagingTurn> };
   }
+}
+
+/** A layout-reading call during a page turn: its receiver's text, pending DOM writes, and the first row. */
+interface PagingRead {
+  api: string;
+  target: string | null;
+  dirty: boolean;
+  row: string | null;
+}
+interface PagingTurn {
+  commits: number;
+  reads: PagingRead[];
+  mutationsAfterReads: number;
+  row: string | null;
+  focused: string | null;
 }
 
 const fixture = `<!doctype html><html lang="en" data-motion="off"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My games exit guard fixture</title><link rel="icon" href="/favicon.svg">
 </head><body><div id="mount"></div><script type="module">
-import { createElement as h, useState } from 'react';
+import { createElement as h, Profiler, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import MyGamesPage from '/src/components/personal/MyGamesPage.tsx';
+import { registerPendingEditor } from '/src/hooks/useExitSave.ts';
 import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
 import '/src/styles.css';
 import '/src/shared-ui.css';
+const params = new URLSearchParams(location.search);
 const record = (id, title, collectionRank) => ({ id, source: 'collection', sourceId: id, title, year: 2020, collectionRank, sourceUrl: null, studio: null, genre: null });
 const alpha = record('alpha', 'Alpha game', 1);
 const beta = record('beta', 'Beta game', 2);
+// ?records=N adds N games added by the user; their titles sort after the two collection games.
+const added = Object.fromEntries(Array.from({ length: Number(params.get('records') ?? 0) }, (_, index) => {
+  const number = String(index + 1).padStart(3, '0');
+  return ['manual:' + number, { id: 'manual:' + number, source: 'manual', sourceId: number, title: 'Game ' + number, year: 2020, collectionRank: null, sourceUrl: null, studio: null, genre: null }];
+}));
 const initial = {
-  ...emptyPersonalLibrary(), records: { alpha, beta },
+  ...emptyPersonalLibrary(), records: { alpha, beta, ...added },
   ranking: [{ id: 'alpha', note: 'Saved note', score: 7, manualPosition: null }, { id: 'beta', note: '', score: 5, manualPosition: null }],
 };
 const filters = { q: '', genre: 'all', year: 'all', tier: 'all', list: 'all', sort: 'rank', view: 'grid', direction: 'auto', catalogs: 'on' };
 const exits = [], saves = [];
 let accept = false;
+// ?probe counts render commits and records every layout-reading call between arm() and the frame after the next click.
+const probe = { armed: false, commits: 0, reads: [], done: null };
+const firstRow = () => document.querySelector('ul[aria-label="Your games"] > .personal-row-static')?.getAttribute('data-record-id') ?? null;
+if (params.has('probe')) {
+  // DOM writes since the last read: delivered records are counted too, since delivery empties takeRecords().
+  let written = 0;
+  const writes = new MutationObserver(records => { written += records.length; });
+  writes.observe(document.getElementById('mount'), { subtree: true, childList: true, attributes: true, characterData: true });
+  const pending = () => {
+    const count = written + writes.takeRecords().length;
+    written = 0;
+    return count;
+  };
+  const note = (api, target) => {
+    if (probe.armed) probe.reads.push({ api, target: target instanceof Element ? target.textContent.trim().slice(0, 40) : null, dirty: pending() > 0, row: firstRow() });
+  };
+  for (const [owner, name] of [[HTMLElement.prototype, 'focus'], [Element.prototype, 'scrollIntoView'], [Element.prototype, 'getBoundingClientRect'], [Element.prototype, 'getClientRects']]) {
+    const original = owner[name];
+    owner[name] = function (...args) { note(name, this); return original.apply(this, args); };
+  }
+  const computedStyle = window.getComputedStyle;
+  window.getComputedStyle = function (...args) { note('getComputedStyle', args[0]); return computedStyle.apply(this, args); };
+  window.myGamesPaging = {
+    arm() {
+      pending();
+      Object.assign(probe, { armed: true, commits: 0, reads: [] });
+      // The frame after the click runs once its task, React's commit and the effects it flushes are done.
+      probe.done = new Promise(resolve => document.addEventListener('click', () => requestAnimationFrame(() => {
+        probe.armed = false;
+        resolve({ commits: probe.commits, reads: probe.reads, mutationsAfterReads: pending(),
+          row: firstRow(), focused: document.activeElement?.textContent?.trim() ?? null });
+      }), { capture: true, once: true }));
+    },
+    settled: () => probe.done,
+  };
+}
 function App() {
   const [state, setState] = useState(initial);
-  const [view, setView] = useState(new URLSearchParams(location.search).get('view') ?? 'ranking');
-  return h(MyGamesPage, {
+  const [view, setView] = useState(params.get('view') ?? 'ranking');
+  const page = h(MyGamesPage, {
     scope: 'guest', view, onViewChange: setView, state, filters, busy: false, animate: false, persistent: true,
     availableRecords: [alpha, beta], onOpen() {},
     onFilters: () => exits.push('filters'), onDiscover: () => exits.push('discover'),
@@ -50,8 +116,17 @@ function App() {
       return true;
     },
   });
+  return params.has('probe') ? h(Profiler, { id: 'my-games', onRender: () => { if (probe.armed) probe.commits += 1; } }, page) : page;
 }
 window.myGamesFixture = { exits, saves, accept: value => { accept = value; } };
+// A held editor: pending until released, and its save settles only when finished.
+let heldPending = false, finishHeld = () => {};
+window.myGamesFixture.holdEditor = () => {
+  heldPending = true;
+  registerPendingEditor({ pending: () => heldPending, flush: () => new Promise(resolve => { finishHeld = resolve; }) });
+};
+window.myGamesFixture.releaseEditor = () => { heldPending = false; };
+window.myGamesFixture.finishEditor = saved => finishHeld(saved);
 createRoot(document.getElementById('mount')).render(h(App));
 </script></body></html>`;
 
@@ -113,7 +188,7 @@ afterAll(async () => {
   await server?.close();
 }, 60_000);
 
-async function withPage(work: (page: Page) => Promise<void>, view = 'ranking') {
+async function withPage(work: (page: Page) => Promise<void>, view = 'ranking', query = '') {
   if (!browser) throw new Error('My games fixture browser unavailable.');
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
@@ -123,7 +198,7 @@ async function withPage(work: (page: Page) => Promise<void>, view = 'ranking') {
     new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
   );
   try {
-    await page.goto(`${origin}/__my-games-guard?view=${view}`);
+    await page.goto(`${origin}/__my-games-guard?view=${view}${query}`);
     await browserExpect(page.getByRole('heading', { name: 'My games', level: 1 })).toBeVisible();
     await work(page);
     expect(errors).toEqual([]);
@@ -271,5 +346,72 @@ describe('My games Ranking pane mounting', () => {
       await browserExpect(rankedRow(page, 'beta')).toHaveCount(0);
       expect(await exits(page)).toEqual([]);
     }, 'library');
+  });
+});
+
+describe('My games Library paging', () => {
+  // Two collection games and 53 added by the user make three Library pages; Next stays enabled on page 2.
+  it('turns a page with nothing to save in one commit and one forced layout, after the new rows', async () => {
+    await withPage(
+      async (page) => {
+        const pager = page.getByRole('navigation', { name: 'Library pages', exact: true });
+        await browserExpect(pager.locator('p')).toHaveText('1–25 of 55 matching games');
+        // The collection thumbnails 404 here; once they fall back, only the page turn writes the DOM.
+        await browserExpect(page.locator('.record-thumb img')).toHaveCount(0);
+        await page.evaluate(() => window.myGamesPaging.arm());
+        await pager.getByRole('button', { name: 'Next', exact: true }).click();
+        const turn = await page.evaluate(() => window.myGamesPaging.settled());
+        expect(turn.row).toBe('manual:024');
+        // One render commit: no disabled-then-enabled pass around a save with nothing to save.
+        expect(turn.commits).toBe(1);
+        // The only read that finds DOM writes pending, and so forces style and layout, is the results focus,
+        // and it already sees the new rows. The scroll reuses that layout, and nothing writes the DOM after it.
+        const results = 'Your library results';
+        expect(turn.reads.filter((read) => read.dirty)).toEqual([
+          { api: 'focus', target: results, dirty: true, row: 'manual:024' },
+        ]);
+        expect(turn.reads.filter((read) => read.api === 'scrollIntoView')).toEqual([
+          { api: 'scrollIntoView', target: results, dirty: false, row: 'manual:024' },
+        ]);
+        expect(turn.mutationsAfterReads).toBe(0);
+        expect(turn.focused).toBe(results);
+        await browserExpect(pager.locator('p')).toHaveText('26–50 of 55 matching games');
+        await browserExpect(pager.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
+        expect(await exits(page)).toEqual([]);
+      },
+      'library',
+      '&records=53&probe',
+    );
+  });
+
+  it('leaves the workspace enabled when a pending save is superseded by a turn with nothing to save', async () => {
+    await withPage(
+      async (page) => {
+        const pager = page.getByRole('navigation', { name: 'Library pages', exact: true });
+        const next = pager.getByRole('button', { name: 'Next', exact: true });
+        const ranking = page.getByRole('button', { name: 'Ranking, 2', exact: true });
+        await browserExpect(pager.locator('p')).toHaveText('1–25 of 55 matching games');
+        await page.evaluate(() => window.myGamesFixture.holdEditor());
+        await next.click();
+        // The first request waits for the held save with the workspace controls disabled.
+        await browserExpect(next).toBeDisabled();
+        await browserExpect(ranking).toBeDisabled();
+        // A history change supersedes it, and the edit stops being pending before its save settles.
+        await page.evaluate(() => window.dispatchEvent(new PopStateEvent('popstate')));
+        await browserExpect(next).toBeEnabled();
+        await page.evaluate(() => window.myGamesFixture.releaseEditor());
+        await next.click();
+        await browserExpect(pager.locator('p')).toHaveText('26–50 of 55 matching games');
+        await page.evaluate(() => window.myGamesFixture.finishEditor(true));
+        // The superseded request settles without turning the page again or leaving anything disabled.
+        await browserExpect(pager.locator('p')).toHaveText('26–50 of 55 matching games');
+        await browserExpect(next).toBeEnabled();
+        await browserExpect(ranking).toBeEnabled();
+        await browserExpect(page.getByRole('alert')).toHaveCount(0);
+        expect(await exits(page)).toEqual([]);
+      },
+      'library',
+      '&records=53',
+    );
   });
 });

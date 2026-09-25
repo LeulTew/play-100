@@ -71,10 +71,12 @@ their result count. A genuinely empty, unfiltered Library leads with add/browse
 choices rather than unavailable search or selection; filtered-empty recovery
 and mounted manual-entry drafts remain available.
 
-Library paging waits for pending edits before changing rows. Invalid or failed
-edits keep the current page and draft; stale navigation/account transitions
-cannot finish an old page request. A successful page change focuses **Your
-library results**. Page/query/form state survives an in-place game detail and
+Library paging waits for pending edits before changing rows. With nothing
+pending, the rows change within the same tap, without first disabling the
+workspace controls. Invalid or failed edits keep the current page and draft;
+stale navigation/account transitions cannot finish an old page request. A
+successful page change focuses **Your library results** once the new rows have
+rendered. Page/query/form state survives an in-place game detail and
 Library/Ranking tab switches. The page is transient React state, not a private
 URL or saved preference: Back keeps its route/tab/dialog meaning, while leaving
 and remounting the workspace or reloading starts page 1. Entering Queue or changing
