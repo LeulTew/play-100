@@ -4,6 +4,8 @@ One entry per production promotion: what was promoted, how it was read back,
 the post-promotion checks, known issues, and the owner actions still pending.
 Record deployment **IDs** only. Deployment URLs embed a team slug derived from
 the owner's email, so they stay out of this file. Operator steps follow the
+[local release operations](release-operations.md), including verification,
+rollback and readback, and the
 [security release runbook](security-release-runbook.md#promotion-order).
 
 ## Release 2: 2026-09-25

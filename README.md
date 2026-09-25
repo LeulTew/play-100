@@ -231,6 +231,9 @@ replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
 ## Quality checks
 
+For the ordered operator procedure, candidate verification, promotion and
+rollback/readback, use [Local release operations](docs/release-operations.md).
+
 `npm run lint` runs `npm run format:check` first, then
 `eslint . --max-warnings 0`. Formatting is part of the gate, not an opt-in
 check; `npm run format` applies the committed source-only Prettier policy.
