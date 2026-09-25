@@ -154,6 +154,10 @@ html[data-motion="off"] :where(button, a, .game-cover img, .game-copy h3 > svg, 
   .game-dialog { width: 100%; height: 100dvh; max-height: 100dvh; }
   .game-dialog .dialog-inner { padding: max(24px, env(safe-area-inset-top)) 23px calc(23px + env(safe-area-inset-bottom, 0px)); }
   .game-dialog .dialog-close { top: max(15px, env(safe-area-inset-top)); right: 15px; }
+  .dialog:not(.menu-dialog) { --dialog-close-safe-top: max(8px, env(safe-area-inset-top, 0px)); scroll-padding-top: calc(var(--dialog-close-safe-top) + 60px); }
+  .dialog[open]:not(.menu-dialog) > .dialog-inner { padding-top: 0; }
+  .dialog:not(.menu-dialog) > .dialog-inner > .dialog-close-rail { display: flex; justify-content: flex-end; position: sticky; top: 0; z-index: 5; padding-block: var(--dialog-close-safe-top) 8px; margin-bottom: 8px; background: var(--paper); }
+  .dialog:not(.menu-dialog) > .dialog-inner > .dialog-close-rail > .dialog-close { position: static; flex-shrink: 0; }
   .detail-place { font-size: 12px; gap: 8px; margin-block: 5px 24px; }
   .detail-place > span:last-child { font-size: 12px; }
   .game-dialog h2 { font-size: 46px; }

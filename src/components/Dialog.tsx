@@ -105,9 +105,11 @@ export function Dialog({
       }}
     >
       <div className="dialog-inner" ref={inner}>
-        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
-          <Icon name="close" />
-        </button>
+        <div className="dialog-close-rail">
+          <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
+            <Icon name="close" />
+          </button>
+        </div>
         {children}
       </div>
       {motion && <div ref={slot} className="dialog-motion-slot" data-motion-host="dialog" aria-hidden="true" inert />}
