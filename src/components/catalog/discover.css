@@ -58,6 +58,7 @@
 .discovery-cards-list :is(.discovery-card, .discovery-card-skeleton) { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .discovery-cards-list .discovery-card-body { padding: 0; }
 .discovery-cards-list .discovery-card-art { align-self: start; }
+.discovery-cards-list .game-cover.original-jacket:has(> .art-fallback-note) { aspect-ratio: auto; padding-top: 0; }
 .discovery-cards-list .discovery-card h3 button { min-height: 44px; }
 .discovery-cards-list .discovery-card-primary { margin-top: 8px; }
 .discovery-cards-list .discovery-no-art { padding: 10px; }
