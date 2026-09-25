@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { getIdTokenResult } from 'firebase/auth';
 import type { IdTokenResult, User } from 'firebase/auth';
 import { accountScope } from '../lib/cloud-types';
@@ -108,19 +108,18 @@ export function useAccountIdentity() {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
   const identityRef = useRef(identity);
   identityRef.current = identity;
-  const lifetime = useMemo(
-    () =>
-      createAccountIdentity<User>({
-        currentUid: () => cloudAuth.currentUser?.uid,
-        readToken: getIdTokenResult,
-        publish: setIdentity,
-        remember: () => rememberOnlineRequest(true),
-        clearPrevious: (uid) => {
-          clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', uid));
-          clearComparisonGameFilter(accountScope(uid, firebaseApp.options.projectId));
-        },
-      }),
-    [],
+  // State, not a memo: React may discard a memo (as Fast Refresh does), and this lifetime must survive re-renders.
+  const [lifetime] = useState(() =>
+    createAccountIdentity<User>({
+      currentUid: () => cloudAuth.currentUser?.uid,
+      readToken: getIdTokenResult,
+      publish: setIdentity,
+      remember: () => rememberOnlineRequest(true),
+      clearPrevious: (uid) => {
+        clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', uid));
+        clearComparisonGameFilter(accountScope(uid, firebaseApp.options.projectId));
+      },
+    }),
   );
   return { identity, identityRef, setIdentity, ...lifetime };
 }
