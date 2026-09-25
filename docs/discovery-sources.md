@@ -183,6 +183,9 @@ coverage are not evidence of current, complete or independent review quality.
   Closing, changing ID/scope, disabling lookup and unmount abort work and reject
   late results. No response can reopen a dialog, alter a private opinion or
   substitute a record. A source-specific failure retains other available data.
+  With no ratings returned, a Wikidata or Steam error means coverage is
+  incomplete, not that no scores exist. The detail keeps the source alert and
+  Retry action; a Commons-only artwork error does not change rating coverage.
 - Response shape: `schemaVersion`, `id`, `fetchedAt`, separate `ratings`,
   `artwork | null`, and per-source `status`, `code`, `message`, `retryAfter`.
   Score dates, reference retrieval dates and current fetch time are distinct.

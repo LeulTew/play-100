@@ -47,6 +47,9 @@ export function CatalogEnrichment({
   if (!lookup) return null;
   const { data, status, error, cached, connected, retry } = enrichment;
   const canRetry = lookup.online && connected && status !== 'loading';
+  const ratingSourceFailed = data?.sources.some(
+    (source) => (source.source === 'wikidata' || source.source === 'steam') && source.status === 'error',
+  );
   return (
     <section className="catalog-enrichment" aria-labelledby="catalog-enrichment-title">
       <h3 id="catalog-enrichment-title">Ratings from other sites</h3>
@@ -135,7 +138,10 @@ export function CatalogEnrichment({
           ) : (
             status !== 'loading' && (
               <p className="catalog-enrichment-note">
-                No supported external ratings are available for this exact game. Missing scores are not zero.
+                {ratingSourceFailed
+                  ? "We couldn't check every rating source. Retry to check for scores."
+                  : 'No supported external ratings are available for this exact game.'}{' '}
+                Missing scores are not zero.
               </p>
             )
           )}

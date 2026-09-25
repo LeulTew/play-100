@@ -50,6 +50,56 @@ describe('separate public review provenance', () => {
     expect(html).toContain('Cached public details');
     expect(lookup.onEnableOnline).not.toHaveBeenCalled();
   });
+  it('reports a complete empty lookup without implying that missing scores are zero', () => {
+    const enrichment = state();
+    enrichment.data.ratings = [];
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    expect(html).toContain(
+      'No supported external ratings are available for this exact game. Missing scores are not zero.',
+    );
+    expect(html).not.toContain('check every rating source');
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain('Retry public details');
+  });
+  it.each(['wikidata', 'steam'] as const)(
+    'describes an empty lookup with a failed %s rating source as incomplete',
+    (source) => {
+      const enrichment = state();
+      enrichment.data.ratings = [];
+      const message = 'The public source is temporarily busy or rejected the request. Please try again later.';
+      enrichment.data.sources[source === 'wikidata' ? 0 : 1] = {
+        source,
+        status: 'error',
+        code: 'unavailable',
+        retryAfter: 0,
+        message,
+      };
+      const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+      expect(html).toContain('We couldn&#x27;t check every rating source. Retry to check for scores.');
+      expect(html).toContain('Missing scores are not zero.');
+      expect(html).not.toContain('No supported external ratings are available');
+      expect(html).toContain(`role="alert">${source === 'wikidata' ? 'Review source' : 'Steam'}: ${message}</p>`);
+      expect(html).toContain('Retry public details');
+    },
+  );
+  it('does not describe successful empty rating coverage as incomplete for a Commons-only failure', () => {
+    const enrichment = state();
+    enrichment.data.ratings = [];
+    enrichment.data.sources[2] = {
+      source: 'commons',
+      status: 'error',
+      code: 'timeout',
+      retryAfter: 0,
+      message: 'Artwork took too long to load.',
+    };
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    expect(html).toContain(
+      'No supported external ratings are available for this exact game. Missing scores are not zero.',
+    );
+    expect(html).not.toContain('check every rating source');
+    expect(html).toContain('role="alert">Artwork: Artwork took too long to load.</p>');
+    expect(html).toContain('Retry public details');
+  });
   it('surfaces partial source failures outside the disclosure without deleting successful ratings', () => {
     const enrichment = state();
     enrichment.data.sources[1] = {
@@ -61,6 +111,8 @@ describe('separate public review provenance', () => {
     };
     const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
     expect(html).toContain('83/100');
+    expect(html).not.toContain('No supported external ratings are available');
+    expect(html).not.toContain('check every rating source');
     expect(html).toContain('role="alert">Steam: Steam took too long.');
     expect(html).toContain('Retry public details');
   });
