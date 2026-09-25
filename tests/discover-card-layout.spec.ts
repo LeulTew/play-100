@@ -9,7 +9,10 @@ const items = [
     genre: 'action-adventure game / role-playing video game / historical video game / open-world action RPG',
   },
   { title: 'C another game', genre: 'real-time strategy / historical video game' },
-  { title: 'D final layout fixture', genre: 'social deduction video game / party video game / science fiction video game' },
+  {
+    title: 'D final layout fixture',
+    genre: 'social deduction video game / party video game / science fiction video game',
+  },
 ].map(({ title, genre }, index) => ({
   ...discoveryFixture,
   record: { ...catalogRecord('wikidata', `Q9100000${index + 1}`, title), genre },
@@ -54,7 +57,8 @@ test('Discover grid action rows align at 1024 and 393 without truncating text', 
         titleHeight: title.getBoundingClientRect().height,
         genreHeight: genre.getBoundingClientRect().height,
         textFits: [title, genre].every(
-          (element) => element.scrollHeight <= element.clientHeight + 1 && element.scrollWidth <= element.clientWidth + 1,
+          (element) =>
+            element.scrollHeight <= element.clientHeight + 1 && element.scrollWidth <= element.clientWidth + 1,
         ),
         targetHeights: [add, pin, summary].map((element) => element.getBoundingClientRect().height),
       };
