@@ -111,9 +111,18 @@ test('landing dialogs, detail and the collection scene run under the production 
  * A `loading="lazy"` image loads whenever the network and viewport distance allow, independently in each
  * tab, so its box is left out on both sides (its resolved styles still count). Every other image is
  * loaded and decoded first. The lazy images are absolutely positioned in fixed aspect-ratio frames, so
- * no other box depends on them.
+ * no other box depends on them. `content-visibility: auto` sections (the footer, below-fold cards) are
+ * forced visible on both sides first: a skipped section takes its remembered or intrinsic placeholder
+ * size, which depends on whether that tab ever rendered it, not on the policy. The override goes
+ * through the CSSOM, which the strict policy allows.
  */
 const layout = async (page: Page) => {
+  await page.evaluate(async () => {
+    for (const element of document.querySelectorAll<HTMLElement>('body *'))
+      if (getComputedStyle(element).getPropertyValue('content-visibility') === 'auto')
+        element.style.setProperty('content-visibility', 'visible');
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
   await page.evaluate(() =>
     Promise.all(
       Array.from(document.images)
@@ -153,19 +162,31 @@ const layout = async (page: Page) => {
   );
 };
 
-test('main routes lay out identically under the legacy and strict style-src', async ({ context, baseURL }, info) => {
+test('main routes lay out identically under the legacy and strict style-src', async ({ browser, baseURL }, info) => {
   test.skip(deployed, 'Needs both policies on one build; a deployment serves only its own header.');
   test.setTimeout(120000);
   const origin = new URL(baseURL ?? '/').origin;
   const strictPolicy = productionPolicy;
   const legacyPolicy = strictPolicy.replace(/style-src [^;]*/, "style-src 'self' 'unsafe-inline'");
   expect(legacyPolicy).not.toBe(strictPolicy);
-  // Two tabs of one device context, each serving its own policy.
+  // Each policy gets its own fresh context with this project's device options (and this file's blocked
+  // worker), so neither capture sees storage or app-window state the other created.
+  const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent, locale } = info.project.use;
   const open = async (policy: string) => {
+    const context = await browser.newContext({
+      baseURL,
+      viewport,
+      deviceScaleFactor,
+      isMobile,
+      hasTouch,
+      userAgent,
+      locale,
+      serviceWorkers: 'block',
+      reducedMotion: 'reduce',
+    });
     const page = await context.newPage();
-    await page.emulateMedia({ reducedMotion: 'reduce' });
     await emptyCatalogs(page);
-    return { page, violations: await recordViolations(page, policy, origin) };
+    return { context, page, violations: await recordViolations(page, policy, origin) };
   };
   const legacy = await open(legacyPolicy);
   const strict = await open(strictPolicy);
@@ -221,7 +242,7 @@ test('main routes lay out identically under the legacy and strict style-src', as
     expect(await strict.violations.read()).toEqual([]);
     expect(legacy.violations.authDomainContacts() + strict.violations.authDomainContacts()).toBe(0);
   } finally {
-    await legacy.page.close();
-    await strict.page.close();
+    await legacy.context.close();
+    await strict.context.close();
   }
 });
