@@ -129,7 +129,9 @@ export function useFriendAll(
           accept(await store.controls(uid));
         } else accept(controls);
       } catch (cause) {
-        if (!valid()) return;
+        // Like a result, a failure counts only for the newest read: an older read that fails late must not
+        // replace what a newer read already accepted.
+        if (!valid() || request !== serial) return;
         setState((old) => ({
           key,
           confirmed: false,
@@ -289,7 +291,7 @@ export function useFriendAll(
             nextAttemptAt: work.nextAttemptAt ?? Date.now() + 60_000,
           }).catch((storageError) => {
             work.failed('blocked');
-            if (owns())
+            if (alive && owns())
               setState((old) =>
                 old?.key === key
                   ? {

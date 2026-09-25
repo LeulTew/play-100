@@ -7,6 +7,8 @@ declare global {
     allReview: {
       rejectReads: () => void;
       allowReads: () => void;
+      rejectPending: () => Promise<number>;
+      settle: () => Promise<void>;
       deliverGames: () => void;
       failNextStop: () => void;
       editAndAcknowledge: () => Promise<void>;
@@ -72,12 +74,21 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
     let failStop = false;
     let publishes = 0;
     let stops = 0;
-    const failures: Array<(cause: Error) => void> = [];
+    let ticks = 0;
+    const waiters = new Map<number, () => void>();
+    const failures: Array<{ reject: (cause: Error) => void; read: Promise<never> }> = [];
     const controls = storeModule.FriendAllStore.prototype.controls;
     const policy = storeModule.FriendAllStore.prototype.setPolicy;
     const publish = storeModule.FriendAllStore.prototype.publish;
     storeModule.FriendAllStore.prototype.controls = function (owner) {
-      if (reads === 'hang') return new Promise((_, reject) => failures.push(reject));
+      if (reads === 'hang') {
+        let reject: (cause: Error) => void = () => {};
+        const read = new Promise<never>((_, fail) => {
+          reject = fail;
+        });
+        failures.push({ reject, read });
+        return read;
+      }
       if (reads === 'fail') return Promise.reject(new Error('Synthetic initial controls read failed'));
       return controls.call(this, owner);
     };
@@ -99,14 +110,33 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
       const [availableGames, setGames] = React.useState(options.lateGames ? [] : games);
       const [snapshot, setSnapshot] = React.useState(initial);
       const api = hook.useFriendAll(uid, scope, snapshot, true, availableGames, 1);
+      const [tick, setTick] = React.useState(0);
+      React.useEffect(() => {
+        waiters.get(tick)?.();
+        waiters.delete(tick);
+      }, [tick]);
       window.allReview = {
         rejectReads: () => {
           reads = 'fail';
-          failures.splice(0).forEach((reject) => reject(new Error('Synthetic initial controls read failed')));
+          failures.splice(0).forEach(({ reject }) => reject(new Error('Synthetic initial controls read failed')));
         },
         allowReads: () => {
           reads = 'pass';
         },
+        rejectPending: async () => {
+          const pending = failures.splice(0);
+          pending.forEach(({ reject }) => reject(new Error('Synthetic late controls read failed')));
+          // The hook awaited each read first, so its own handler has run once these settle.
+          await Promise.allSettled(pending.map(({ read }) => read));
+          return pending.length;
+        },
+        // Resolves after a later commit, so any update queued before it has reached the page.
+        settle: () =>
+          new Promise<void>((resolve) => {
+            const next = ++ticks;
+            waiters.set(next, resolve);
+            setTick(next);
+          }),
         deliverGames: () => setGames(games),
         failNextStop: () => {
           failStop = true;
@@ -191,6 +221,24 @@ test('failed initial All controls recover without Refresh once a control watch c
   });
   await expect(surface).toContainText('Up to date', { timeout: 30000 });
   await expect(surface).not.toContainText('Synthetic initial controls read failed');
+});
+test('an older controls read that fails after a newer read was accepted leaves the accepted policy', async ({
+  page,
+}) => {
+  await mount(page, { failRead: true });
+  const surface = page.locator('#all-review-harness');
+  await expect(surface).toContainText('Checking friend sharing…');
+  // The first read stays pending while a newer read, started by reconnection, succeeds and is accepted.
+  await page.evaluate(() => {
+    window.allReview.allowReads();
+    window.dispatchEvent(new Event('online'));
+  });
+  await expect(surface).toContainText('Up to date', { timeout: 30000 });
+  expect(await page.evaluate(() => window.allReview.rejectPending())).toBeGreaterThan(0);
+  await page.evaluate(() => window.allReview.settle());
+  await expect(surface).not.toContainText('Synthetic late controls read failed');
+  await expect(surface).toContainText('Up to date');
+  await expect(surface.getByRole('button', { name: 'Stop friend sharing', exact: true })).toBeVisible();
 });
 test('failed Stop refreshes the same active policy and resumes work without replaying Stop; confirmed Stop stays off', async ({
   page,
