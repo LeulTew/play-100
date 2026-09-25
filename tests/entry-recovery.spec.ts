@@ -30,9 +30,24 @@ async function startupAssets(page: Page): Promise<{ entry: string; stylesheet: s
   return { entry, stylesheet };
 }
 
-/** Whether the entry stylesheet has loaded and applies. */
+/**
+ * Whether the entry stylesheet has loaded and applies. Chromium also lists a stylesheet whose load failed, as an empty
+ * sheet, so only a sheet with rules counts. One whose rules cannot be read counts as not loaded either: the entry
+ * stylesheet is same-origin, so once loaded its rules are readable.
+ */
 async function stylesheetApplied(page: Page, href: string): Promise<boolean> {
-  return page.evaluate((path) => Array.from(document.styleSheets).some((sheet) => sheet.href?.endsWith(path)), href);
+  return page.evaluate(
+    (path) =>
+      Array.from(document.styleSheets).some((sheet) => {
+        if (!sheet.href?.endsWith(path)) return false;
+        try {
+          return sheet.cssRules.length > 0;
+        } catch {
+          return false;
+        }
+      }),
+    href,
+  );
 }
 
 /**
