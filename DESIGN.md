@@ -241,10 +241,11 @@ Return-target visibility is resolved before close/unlock writes; native focus
 and required editor scrolling do not wait for visual completion. Optional motion
 measures destinations in a cancellable animation frame, while modal registration
 remains immediate. Dialogs and their motion hosts retain their existing containment
-and containing blocks. On mobile, long dialogs keep their single 44px Close
-control in a sticky chalk rail with top safe-area clearance and matching scroll
-padding. Menu retains its non-scrolling heading and close area; desktop close
-placement is unchanged. Public catalog enrichment renders its locally resolved
+and containing blocks. At widths up to 760px or heights up to 520px, long dialogs
+keep their single 44px Close control in a sticky chalk rail with top safe-area
+clearance and matching scroll padding. This includes short phone-landscape
+windows. Menu retains its non-scrolling heading and close area; normal desktop
+close placement is unchanged. Public catalog enrichment renders its locally resolved
 cache, offline, disabled, cooldown or loading snapshot immediately. Network work
 starts in a cancellable task after a frame, not in the shell's opening effect;
 closing or changing its scope cancels both queued work and existing requests.

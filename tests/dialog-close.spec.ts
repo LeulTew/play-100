@@ -216,6 +216,7 @@ test('desktop original detail preserves the existing absolute Close offsets and 
   isMobile,
 }) => {
   test.skip(isMobile, 'Desktop geometry remains unchanged by the mobile close rail.');
+  await page.setViewportSize({ width: 1440, height: 900 });
   await prepare(page);
   const opener = page.locator('.game-card[data-game="red-dead-redemption-2"] .game-link');
   await opener.focus();
@@ -252,3 +253,53 @@ test('desktop original detail preserves the existing absolute Close offsets and 
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();
 });
+
+for (const mode of ['full', 'lite', 'reduced'] as const) {
+  test(`short landscape keeps game, Menu and Settings Close reachable in ${mode}`, async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'Rotated-phone viewport; normal desktop offsets are checked separately.');
+    await page.setViewportSize({ width: 851, height: 393 });
+    await prepare(page, mode);
+    expect(
+      await page.evaluate(() => ({
+        width: innerWidth,
+        height: innerHeight,
+        coarse: matchMedia('(pointer: coarse)').matches,
+      })),
+    ).toEqual({ width: 851, height: 393, coarse: true });
+
+    const gameLink = page.locator('.game-card[data-game="red-dead-redemption-2"] .game-link');
+    await gameLink.focus();
+    await gameLink.press('Enter');
+    const detail = page.locator('.game-dialog[open]');
+    await expect(detail.locator('#game-title')).toBeFocused();
+    await expect(detail.locator('.dialog-close-rail')).toHaveCSS('position', 'sticky');
+    await closeFromEnd(page, detail, gameLink);
+
+    const menuOpener = page.getByRole('button', { name: 'Menu', exact: true });
+    await openMenu(page);
+    const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
+    const close = await expectReachableClose(menu);
+    const before = await close.boundingBox();
+    if (!before) throw new Error('Landscape Menu Close must be laid out.');
+    const scroller = menu.locator('.menu-scroll');
+    await scroller.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: 'instant' }));
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expectReachableClose(menu);
+    expect(await close.boundingBox()).toEqual(before);
+    await expect(menu.locator('.dialog-close-rail')).toHaveCSS('display', 'contents');
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(menuOpener).toBeFocused();
+
+    await openMenu(page);
+    await page
+      .getByRole('dialog', { name: 'Menu', exact: true })
+      .getByRole('button', { name: 'Settings & backups', exact: true })
+      .click();
+    const settings = page.locator('.settings-dialog[open]');
+    await expect(settings.locator('#settings-title')).toBeFocused();
+    await expect(settings.getByRole('heading', { name: 'Backups', exact: true })).toBeVisible();
+    await expect(settings.locator('.dialog-close-rail')).toHaveCSS('position', 'sticky');
+    await closeFromEnd(page, settings, menuOpener);
+  });
+}
