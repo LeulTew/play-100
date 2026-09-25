@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
-import { localOriginPolicy, productionPolicy, recordViolations } from './csp-violation-helpers';
+import { productionPolicy, recordViolations } from './csp-violation-helpers';
 
 // SECURITY-01: every main route and its common dynamic UI render under the exact vercel.json main-document
 // policy (strict style-src) without a single securitypolicyviolation. The worker is blocked so each
 // navigation is a network document carrying that header; pwa-offline.spec covers the worker's copy.
+// A local preview gets the exact policy too, so it blocks the built authDomain's auth iframe (production's
+// 'self'); recordViolations ignores only that report and counts any request reaching the authDomain.
 test.use({ serviceWorkers: 'block' });
 
 const deployed = Boolean(process.env.PLAY100_BASE_URL);
@@ -35,11 +37,7 @@ test('every main route renders under the production CSP without a violation', as
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await emptyCatalogs(page);
-  const violations = await recordViolations(
-    page,
-    deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin),
-    new URL(baseURL ?? '/').origin,
-  );
+  const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
   for (const route of routes) {
     await page.goto(route);
     await expect(page.locator('#root > .site-header')).toBeVisible();
@@ -52,6 +50,7 @@ test('every main route renders under the production CSP without a violation', as
     );
   }
   expect(await violations.read()).toEqual([]);
+  expect(violations.authDomainContacts()).toBe(0);
   expect(errors).toEqual([]);
 });
 
@@ -83,11 +82,7 @@ test('landing dialogs, detail and the collection scene run under the production 
       value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
     });
   });
-  const violations = await recordViolations(
-    page,
-    deployed ? null : localOriginPolicy(productionPolicy, new URL(baseURL ?? '/').origin),
-    new URL(baseURL ?? '/').origin,
-  );
+  const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
   await page.goto('/');
   await expect(page.locator('.game-card')).toHaveCount(24);
   // Full starts WebGL on every device (Auto defers it on touch), so the scene's construction and controls run here.
@@ -108,6 +103,7 @@ test('landing dialogs, detail and the collection scene run under the production 
   await page.goto('/?game=red-dead-redemption-2');
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await violations.read()).toEqual([]);
+  expect(violations.authDomainContacts()).toBe(0);
   expect(errors).toEqual([]);
 });
 /**
@@ -161,7 +157,7 @@ test('main routes lay out identically under the legacy and strict style-src', as
   test.skip(deployed, 'Needs both policies on one build; a deployment serves only its own header.');
   test.setTimeout(120000);
   const origin = new URL(baseURL ?? '/').origin;
-  const strictPolicy = localOriginPolicy(productionPolicy, origin);
+  const strictPolicy = productionPolicy;
   const legacyPolicy = strictPolicy.replace(/style-src [^;]*/, "style-src 'self' 'unsafe-inline'");
   expect(legacyPolicy).not.toBe(strictPolicy);
   // Two tabs of one device context, each serving its own policy.
@@ -223,6 +219,7 @@ test('main routes lay out identically under the legacy and strict style-src', as
       expect(snapshots[1], `${route} under the strict style-src`).toEqual(snapshots[0]);
     }
     expect(await strict.violations.read()).toEqual([]);
+    expect(legacy.violations.authDomainContacts() + strict.violations.authDomainContacts()).toBe(0);
   } finally {
     await legacy.page.close();
     await strict.page.close();

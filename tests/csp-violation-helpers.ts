@@ -28,21 +28,31 @@ export function builtAuthDomain(root = path.join(process.cwd(), 'dist')): string
   return [...found][0] ?? null;
 }
 
-/**
- * The one local-origin equivalence: production serves the app on its authDomain, so frame-src 'self'
- * covers Firebase Auth's /__/auth/iframe. A local preview on another origin frames that same authDomain
- * cross-origin, so frame-src also lists exactly `https://<authDomain>`. Every other directive, and the
- * whole policy when the origin is the authDomain or the build is offline, stays the production policy.
- */
-export function localOriginPolicy(policy: string, origin: string, authDomain = builtAuthDomain()): string {
+/** The built authDomain's origin when the test runs on another origin; null offline or on the authDomain. */
+export function localAuthOrigin(origin: string, authDomain = builtAuthDomain()): string | null {
   const helper = authDomain === null ? null : `https://${authDomain}`;
-  if (helper === null || helper === origin) return policy;
-  const adapted = policy.replace(
-    /(^|;\s*)frame-src ([^;]*)/,
-    (_, lead: string, sources: string) => `${lead}frame-src ${sources.trim()} ${helper}`,
-  );
-  if (adapted === policy) throw new Error('The production policy has no frame-src to extend for the local origin.');
-  return adapted;
+  return helper === origin ? null : helper;
+}
+
+/**
+ * The single local-origin equivalence. Production serves the app on its authDomain, so frame-src 'self'
+ * admits Firebase Auth's /__/auth/iframe. A local preview on another origin is served the exact same
+ * policy, so it blocks that now cross-origin iframe just as production blocks any non-self frame, and
+ * nothing is fetched from the production deployment. The resulting report is the only one ignored: a
+ * frame-src (or its child-src fallback) report, from the securitypolicyviolation recorder or the console,
+ * whose blocked URL is on `helper` (from localAuthOrigin). With no helper (an offline build, or a run on
+ * the authDomain itself) nothing is ignored.
+ */
+export function isLocalAuthFrameReport(entry: string, helper: string | null): boolean {
+  if (helper === null) return false;
+  const recorded = /^\S+ (?:frame|child)-src (\S+) /.exec(entry)?.[1];
+  const blocked = recorded ?? /^Refused to frame '([^']+)' because it violates .*"(?:frame|child)-src/.exec(entry)?.[1];
+  if (blocked === undefined) return false;
+  try {
+    return new URL(blocked).origin === helper;
+  } catch {
+    return false;
+  }
 }
 
 const storageKey = 'p100.csp-violations';
@@ -111,8 +121,10 @@ async function replaceDocumentPolicy(page: Page, policy: string, origin: string)
  * Serves every same-origin document with `policy` (the local preview sends no CSP; pass null against a
  * deployment, which sends its real headers) and records each securitypolicyviolation from before any
  * page script runs. Reports persist in sessionStorage, so documents left by navigation or an auth
- * redirect still count; console CSP reports are collected too. `network: 'continue'` edits the real
- * document responses over CDP rather than fulfilling them; use it wherever the page loads loopback
+ * redirect still count; console CSP reports are collected too. read() leaves out only the local-origin
+ * authDomain frame report (isLocalAuthFrameReport); authDomainContacts() counts requests that reached
+ * the authDomain from another origin, which the exact policy keeps at 0. `network: 'continue'` edits
+ * the real document responses over CDP rather than fulfilling them; use it wherever the page loads loopback
  * cross-origin resources (the emulator suites).
  */
 export async function recordViolations(
@@ -120,11 +132,23 @@ export async function recordViolations(
   policy: string | null,
   origin: string,
   { network = 'fulfill' }: { network?: 'fulfill' | 'continue' } = {},
-): Promise<{ read: () => Promise<string[]> }> {
+): Promise<{ read: () => Promise<string[]>; authDomainContacts: () => number }> {
   const reports: string[] = [];
+  const helper = localAuthOrigin(origin);
+  let authDomainContacts = 0;
   page.on('console', (message) => {
     if (/Content Security Policy|violates the following/i.test(message.text()))
       reports.push(message.text().slice(0, 300));
+  });
+  // A request to the authDomain counts once it reaches the network: finished, or failed for any reason
+  // but the policy blocking it.
+  const onAuthDomain = (url: string) => helper !== null && new URL(url).origin === helper;
+  page.on('requestfinished', (request) => {
+    if (onAuthDomain(request.url())) authDomainContacts += 1;
+  });
+  page.on('requestfailed', (request) => {
+    if (onAuthDomain(request.url()) && !/ERR_BLOCKED_BY_CSP/.test(request.failure()?.errorText ?? ''))
+      authDomainContacts += 1;
   });
   await page.addInitScript((key) => {
     document.addEventListener('securitypolicyviolation', (event) => {
@@ -155,13 +179,12 @@ export async function recordViolations(
       },
     );
   }
-  return {
-    read: async () => [
-      ...reports,
-      ...(await page.evaluate((key) => {
-        const fallback = document.documentElement.dataset.cspViolation;
-        return [...(JSON.parse(sessionStorage.getItem(key) ?? '[]') as string[]), ...(fallback ? [fallback] : [])];
-      }, storageKey)),
-    ],
+  const read = async () => {
+    const recorded = await page.evaluate((key) => {
+      const fallback = document.documentElement.dataset.cspViolation;
+      return [...(JSON.parse(sessionStorage.getItem(key) ?? '[]') as string[]), ...(fallback ? [fallback] : [])];
+    }, storageKey);
+    return [...reports, ...recorded].filter((entry) => !isLocalAuthFrameReport(entry, helper));
   };
+  return { read, authDomainContacts: () => authDomainContacts };
 }
