@@ -1,12 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
-import { closeDialog, expectReadableSurface, openMenu, textSpacingCSS } from './readability-helpers';
+import {
+  closeDialog,
+  expectReadableSurface,
+  openMenu,
+  stubClipboardShare,
+  textSpacingCSS,
+} from './readability-helpers';
 
 for (const mode of ['full', 'lite', 'reduced'] as const) {
   for (const width of [320, 393]) {
     test(`text spacing keeps live toast, dock and native focus clear at ${width}px ${mode}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 852 });
       await page.emulateMedia({ reducedMotion: mode === 'reduced' ? 'reduce' : 'no-preference' });
+      await stubClipboardShare(page);
       const fixture = libraryFixture(3);
       fixture.motion = mode === 'lite' ? 'full' : 'lite';
       await installGuestLibrary(page, fixture);
@@ -38,9 +45,13 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       await preference.click();
       await expect(preference).toBeChecked();
       await expect(page.locator('html')).toHaveAttribute('data-motion', mode === 'full' ? 'on' : 'off');
-      await expect(page.locator('.toast-visible')).toContainText('Visual preference saved.');
-      const started = Date.now();
+      // Settings announces its own saves inside the modal; the page toast comes from sharing this view.
+      await expect(settings.getByRole('status').filter({ hasText: 'Visual preference saved.' })).toBeVisible();
+      await expect(page.locator('.toast-visible')).toHaveCount(0);
       await closeDialog(page);
+      await page.getByRole('button', { name: 'Share this view', exact: true }).click();
+      await expect(page.locator('.toast-visible')).toContainText('Link copied.');
+      const started = Date.now();
       const live = await page.evaluate(() => {
         const dock = document.querySelector('.compare-tray-dock')!;
         const action = dock.querySelector('.compare-tray-action')!;

@@ -7,6 +7,7 @@ import { emptyPersonalLibrary } from '../src/lib/personal-library';
 import type { MotionPreference } from '../src/lib/types';
 import { installGuestLibrary, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
+import { stubClipboardShare } from './readability-helpers';
 
 const originals = libraryRecords.slice(0, 100);
 const catalog = parseDiscoveryCatalog(
@@ -154,6 +155,7 @@ for (const mode of modes) {
       test.skip(!isMobile, 'Native touch reproduction of Settings feedback over the dock.');
       await page.setViewportSize({ width, height: width === 320 ? 740 : 852 });
       await page.emulateMedia({ reducedMotion: mode.reducedMotion });
+      await stubClipboardShare(page);
       await prepare(page, 117, mode.preference === 'lite' ? 'full' : 'lite');
       const account = page.locator('.account-nav');
       if (await account.count()) {
@@ -183,11 +185,14 @@ for (const mode of modes) {
       await preference.tap();
       await expect(preference).toBeChecked();
       await expect(page.locator('html')).toHaveAttribute('data-motion', mode.name === 'full' ? 'on' : 'off');
-      const toast = page.locator('.toast-visible');
-      await expect(toast).toContainText('Visual preference saved.');
-      const began = Date.now();
+      // Settings announces its own saves inside the modal; the page toast comes from sharing this view.
+      await expect(settings.getByRole('status').filter({ hasText: 'Visual preference saved.' })).toBeVisible();
+      await expect(page.locator('.toast-visible')).toHaveCount(0);
       await settings.getByRole('button', { name: 'Close dialog', exact: true }).tap();
       await expect(settings).toHaveCount(0);
+      await page.getByRole('button', { name: 'Share this view', exact: true }).tap();
+      await expect(page.locator('.toast-visible')).toContainText('Link copied.');
+      const began = Date.now();
       // Measure before attempting Compare: locator auto-wait must not hide a 6.5s obstruction.
       const live = await page.locator('.compare-tray-action').evaluate((element) => {
         const action = element.getBoundingClientRect();
@@ -216,7 +221,7 @@ for (const mode of modes) {
       });
       expect(Date.now() - began).toBeLessThan(4000);
       expect(live.visible).toBe(true);
-      expect(live.text).toContain('Visual preference saved.');
+      expect(live.text).toContain('Link copied.');
       expect(live.toastBottom).toBeLessThanOrEqual(live.dockTop - 8);
       expect(live.actionHit).toBe(true);
       expect(live.dismissHit).toBe(true);

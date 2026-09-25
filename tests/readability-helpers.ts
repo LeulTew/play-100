@@ -171,3 +171,11 @@ export async function closeDialog(page: Page) {
   await page.locator('dialog[open]').getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 }
+
+/** Makes Share this view copy through a stub clipboard, so it raises its page toast without a native share sheet. */
+export async function stubClipboardShare(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } });
+  });
+}
