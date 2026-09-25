@@ -208,7 +208,9 @@ for (const mobile of [false, true]) {
         await restore.click();
         await browserExpect(restore).toBeDisabled();
         await page.evaluate(() => window.settingsRadioFixture.finishRestore(false));
-        await browserExpect(panel.getByRole('alert')).toHaveText('Restore failed. Your existing library was not replaced.');
+        await browserExpect(panel.getByRole('alert')).toHaveText(
+          'Restore failed. Your existing library was not replaced.',
+        );
         await browserExpect(panel.locator('.restore-preview')).toBeVisible();
         await browserExpect(page.getByRole('dialog')).toBeVisible();
         await restore.click();
