@@ -93,7 +93,10 @@ for (const timing of ['before reload', 'during HEAD'] as const) {
       await form.locator('summary').click();
       const title = form.getByRole('textbox', { name: 'Game title', exact: true });
       if (timing === 'before reload') await title.fill('Unsubmitted game stays here');
-      await page.locator('.site-footer').getByRole('button', { name: /^Effects:/ }).click();
+      await page
+        .locator('.site-footer')
+        .getByRole('button', { name: /^Effects:/ })
+        .click();
       const recovery = page.locator('.toast .inline-error');
       await expect(recovery.getByRole('alert')).toContainText("Settings didn't load.");
       const document = await page.evaluateHandle(() => window.document.documentElement);
