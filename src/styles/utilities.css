@@ -49,8 +49,6 @@ html[data-motion="off"] :where(button, a, .game-cover img, .game-copy h3 > svg, 
   .workbook-sheet { height: 240px; padding-inline: 16px; }
   .sheet-row { grid-template-columns: 17px 1fr; font-size: 11px; gap: 5px; }
   .sheet-row > span:last-child { display: none; }
-  .footer-bottom { align-items: flex-start; }
-  .footer-bottom > div { flex-direction: column; align-items: flex-start; gap: 0; }
 }
 @media (max-width: 760px) {
   :root { --gutter: 22px; }
@@ -135,9 +133,6 @@ html[data-motion="off"] :where(button, a, .game-cover img, .game-copy h3 > svg, 
   .workbook-copy .button { font-size: 13px; padding-inline: 17px; width: 100%; justify-content: space-between; gap: 8px; }
   .download-note { font-size: 12px; line-height: 1.5; max-width: 32ch; }
   .site-footer { padding-block: 31px 24px; }
-  .footer-bottom { flex-direction: column; gap: 10px; font-size: 12px; }
-  .footer-bottom > div { flex-direction: row; flex-wrap: wrap; gap: 0 22px; }
-  .footer-bottom button { font-size: 12px; }
   .mobile-nav { display: flex; align-items: stretch; justify-content: space-around; position: fixed; bottom: 0; left: 0; right: 0; z-index: 35; min-height: 66px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--paper); border-top: 1px solid #bec6af; box-shadow: 0 -3px 16px #29331709; }
   .mobile-nav > a, .mobile-nav > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 51px; min-width: 48px; background: transparent; font-size: 12px; font-weight: 600; color: var(--muted); border-radius: 4px; }
   .mobile-nav > a[aria-current="page"], .mobile-nav > button[aria-expanded="true"] { color: var(--ink); background: #e5ecd9; }

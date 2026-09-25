@@ -294,7 +294,7 @@ The saving is the entry stylesheet's gzip9 without the group.
 | Settings and backup: motion options, preference note, device settings, reset confirmation, storage warning, backup panel, danger button | `SettingsPanel` | 24 | 1,747 | 339 | Settings typography that ties with generic dialog rules stays eager to keep its winner ([DESIGN.md](../DESIGN.md)) |
 | My games and catalog records: tabs, record titles, manual add, unranked list, catalog results, actions and errors | `MyGamesPage`, `DiscoverPage` | 57 | 4,104 | 623 | Shared tabs and manual add stay eager: Discover and My games have no common lazy stylesheet |
 | Online pages: `.auth-purpose`, `.friend-sharing-summary` | online pages | 7 | 520 | 93 | Too small for the specificity review a move needs |
-| `.footer-bottom` | nothing | 9 | 723 | 91 | No component renders it: a cleanup, not a move |
+| `.footer-bottom` | nothing | 9 | 723 | 91 | Nothing rendered it, so it was removed rather than moved |
 
 No group reaches the 2 KB gzip bar, and all five together save 1,671 bytes, so no
 rule moves and the first-paint style hashes stay unchanged. The count leaves out

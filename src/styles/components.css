@@ -90,10 +90,6 @@
 .sheet-lines { height: 40px; margin-top: 4px; background: repeating-linear-gradient(transparent 0 12px, var(--line) 12px 13px); }
 .sheet-footer { display: block; margin-top: 14px; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
 .site-footer { padding: 47px var(--gutter) 24px; }
-.footer-bottom { border-top: 1px solid var(--line); padding-top: 14px; display: flex; gap: 15px; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
-.footer-bottom > div { display: flex; gap: 25px; align-items: center; }
-.footer-bottom button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; background: transparent; font-size: 12px; text-transform: none; }
-.footer-bottom button:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 .mobile-nav { display: none; }
 
 .dialog { position: fixed; border: 0; padding: 0; color: var(--ink); background: var(--paper); width: min(100% - 36px, 620px); max-width: none; max-height: calc(100dvh - 48px); border-radius: 7px; overscroll-behavior: contain; scroll-padding-block: 16px; overflow-wrap: anywhere; box-shadow: 0 16px 80px #14190f30; }
