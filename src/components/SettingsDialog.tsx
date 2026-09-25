@@ -57,7 +57,7 @@ export function SettingsDialog({
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [pendingMotion, setPendingMotion] = useState<MotionPreference | null>(null);
-  const [motionFailed, setMotionFailed] = useState(false);
+  const [motionFeedback, setMotionFeedback] = useState<'saved' | 'failed' | null>(null);
   const savingMotion = useRef(false);
   const queued = useRef<MotionPreference | null>(null);
   const saving = pendingMotion !== null;
@@ -72,21 +72,24 @@ export function SettingsDialog({
     savingMotion.current = true;
     queued.current = value;
     setPendingMotion(value);
-    setMotionFailed(false);
+    setMotionFeedback(null);
     try {
       let next = value;
       while (true) {
         if (!(await onMotion(next))) {
-          setMotionFailed(true);
+          setMotionFeedback('failed');
           break;
         }
         const latest = queued.current;
-        if (latest === null || latest === next) break;
+        if (latest === null || latest === next) {
+          setMotionFeedback('saved');
+          break;
+        }
         next = latest;
       }
     } catch (error: unknown) {
       console.error('The visual experience preference could not be saved.', error);
-      setMotionFailed(true);
+      setMotionFeedback('failed');
     } finally {
       queued.current = null;
       savingMotion.current = false;
@@ -111,9 +114,11 @@ export function SettingsDialog({
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
       <div role="status">
         {status && !recovery && <p className={status && statusError ? 'inline-error' : undefined}>{status}</p>}
-        {motionFailed && (
-          <p className="inline-error">
-            Your visual experience could not be saved. The saved preference is still selected. Please try again.
+        {motionFeedback && (
+          <p className={motionFeedback === 'failed' ? 'inline-error' : undefined}>
+            {motionFeedback === 'failed'
+              ? 'Your visual experience could not be saved. The saved preference is still selected. Please try again.'
+              : `Visual preference saved.${persistent ? '' : ' This tab only: export a backup to keep it.'}`}
           </p>
         )}
       </div>

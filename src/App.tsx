@@ -363,13 +363,13 @@ export default function App() {
   }, []);
 
   const perform = useCallback(
-    async (action: PersonalAction) => {
+    async (action: PersonalAction, announce = true) => {
       if (onlineOpening) {
         notify('Wait for the account library to finish opening before changing saved data.');
         return false;
       }
       const success = await saveAction(action);
-      if (success && activeScope.current === libraryScope)
+      if (success && activeScope.current === libraryScope && announce)
         notify(
           `${actionMessage(action)}${storageStatus === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`,
         );
@@ -1098,7 +1098,7 @@ export default function App() {
                                 saved: savedCount,
                                 completed: completedCount,
                                 warning,
-                                onMotion: (motion) => perform({ type: 'set-motion', motion }),
+                                onMotion: (motion) => perform({ type: 'set-motion', motion }, false),
                                 onReset: library.reset,
                                 onRestore: library.restore,
                                 state: library.state,

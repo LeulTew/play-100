@@ -21,6 +21,7 @@ declare global {
       saved(): string;
       inFlight(): number;
       maxInFlight(): number;
+      temporary(): void;
       finish(result: boolean | 'reject'): void;
       externalBusy(value: boolean): void;
     };
@@ -37,16 +38,18 @@ import { SettingsDialog } from '/src/components/SettingsDialog.tsx';
 import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
 import '/src/styles.css';
 import '/src/shared-ui.css';
-let finish, setExternalBusy;
+let finish, setExternalBusy, setPersistent;
 let saved = 'auto', inFlight = 0, maxInFlight = 0, frameGeneration = 0;
 const calls = [], frames = [];
 function App() {
   const [motion, setMotion] = useState('auto');
   const [busy, setBusy] = useState(false);
+  const [persistent, updatePersistent] = useState(true);
+  setPersistent = updatePersistent;
   setExternalBusy = setBusy;
   return h(SettingsDialog, {
     motion, busy, reducedMotion: false, constrained: false, saved: 0, completed: 0,
-    warning: null, state: { ...emptyPersonalLibrary(), motion }, persistent: true,
+    warning: null, state: { ...emptyPersonalLibrary(), motion }, persistent,
     status: 'Existing Settings status.',
     onMotion(value) {
       calls.push(value);
@@ -85,6 +88,7 @@ document.addEventListener('change', event => {
 window.settingsRadioFixture = {
   calls, frames, finish: result => finish(result), externalBusy: value => setExternalBusy(value),
   saved: () => saved, inFlight: () => inFlight, maxInFlight: () => maxInFlight,
+  temporary: () => setPersistent(false),
 };
 createRoot(document.getElementById('mount')).render(h(App));
 </script></body></html>`;
@@ -233,6 +237,32 @@ for (const mobile of [false, true]) {
       });
     });
 
+    it.each([true, false])(
+      'announces only the completed latest choice inside Settings (persistent=%s)',
+      async (persistent) => {
+        await withPage(async (page) => {
+          if (!persistent) await page.evaluate(() => window.settingsRadioFixture.temporary());
+          const status = page.locator('.settings-dialog .dialog-inner > [role="status"]');
+          await radio(page, 'full').click();
+          await radio(page, 'lite').click();
+          await browserExpect(status).not.toContainText('Visual preference saved.');
+          await page.evaluate(() => window.settingsRadioFixture.finish(true));
+          await browserExpect
+            .poll(() => page.evaluate(() => window.settingsRadioFixture.calls))
+            .toEqual(['full', 'lite']);
+          await browserExpect(status).not.toContainText('Visual preference saved.');
+          await page.evaluate(() => window.settingsRadioFixture.finish(true));
+          await browserExpect(status).toContainText(
+            `Visual preference saved.${persistent ? '' : ' This tab only: export a backup to keep it.'}`,
+          );
+          await browserExpect(status).toContainText('Existing Settings status.');
+          await browserExpect(radio(page, 'lite')).toBeChecked();
+          await browserExpect(radio(page, 'lite')).toBeFocused();
+          await browserExpect(page.getByRole('status').filter({ hasText: 'Visual preference saved.' })).toHaveCount(1);
+        });
+      },
+    );
+
     it.each([
       ['ArrowDown', 'lite'],
       ['ArrowUp', 'auto'],
@@ -306,6 +336,7 @@ for (const mobile of [false, true]) {
           await browserExpect(status).toHaveCount(1);
           await browserExpect(status).toContainText('Existing Settings status.');
           await browserExpect(status).toContainText('Your visual experience could not be saved.');
+          await browserExpect(status).not.toContainText('Visual preference saved.');
           await radio(page, 'lite').click();
           await browserExpect(status).not.toContainText('Your visual experience could not be saved.');
           await page.evaluate(() => window.settingsRadioFixture.finish(true));

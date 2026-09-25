@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator } from '@playwright/test';
 import { readBuildManifest } from '../scripts/build-metadata';
 import { emptyCatalogs } from './catalog-helpers';
+import { readLibrary } from './library-helpers';
 
 const game = 'red-dead-redemption-2';
 const panels = [
@@ -132,3 +133,22 @@ for (const panel of panels) {
     await expect(page).not.toHaveURL(/info=/);
   });
 }
+
+test('Settings announces completed preference saves inside the modal without a duplicate toast', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings & backups', exact: true }).click();
+  const settings = page.locator('.settings-dialog[open]');
+  await expectForeground(settings);
+  for (const choice of ['Full', 'Lite'] as const) {
+    const radio = settings.getByRole('radio', { name: choice, exact: true });
+    await radio.click();
+    await expect.poll(async () => (await readLibrary(page)).motion).toBe(choice.toLowerCase());
+    const confirmation = settings.getByRole('status').filter({ hasText: 'Visual preference saved.' });
+    await expect(confirmation).toHaveCount(1);
+    await expect(confirmation).toBeVisible();
+    await expect(page.locator('.toast')).not.toContainText('Visual preference saved.');
+    await expect(radio).toBeChecked();
+    await expect(radio).toBeFocused();
+  }
+});

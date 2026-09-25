@@ -175,6 +175,9 @@ The real Three.js canvas is a lazy enhancement with the original SVG still as it
 Settings shows a motion choice immediately while saving it, without disabling
 the focused radio during that save. The latest choice made while saving is saved next.
 A failed save restores the saved choice and announces the failure in Settings.
+Successful preference saves are announced inside Settings only after the latest
+queued choice finishes; temporary storage is labelled, without a duplicate
+page-level toast.
 
 On touch/coarse-pointer devices, **Auto** starts the real 3D scene only when the
 visitor requests the fan interaction; **Full** still starts it automatically.
