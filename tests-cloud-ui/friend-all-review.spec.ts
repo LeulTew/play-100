@@ -6,6 +6,7 @@ declare global {
   interface Window {
     allReview: {
       rejectReads: () => void;
+      allowReads: () => void;
       deliverGames: () => void;
       failNextStop: () => void;
       editAndAcknowledge: () => Promise<void>;
@@ -64,7 +65,10 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
         nextAttemptAt: Date.now() + 60_000,
       });
     }
-    let blocking = Boolean(options.failRead);
+    // Reads hang until the test rejects them, then fail until it allows them again. The hook's control watches
+    // start reads of their own whenever a server snapshot arrives, so a mode that only rejected the pending
+    // reads would race the watches' first delivery.
+    let reads: 'hang' | 'fail' | 'pass' = options.failRead ? 'hang' : 'pass';
     let failStop = false;
     let publishes = 0;
     let stops = 0;
@@ -73,7 +77,9 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
     const policy = storeModule.FriendAllStore.prototype.setPolicy;
     const publish = storeModule.FriendAllStore.prototype.publish;
     storeModule.FriendAllStore.prototype.controls = function (owner) {
-      return blocking ? new Promise((_, reject) => failures.push(reject)) : controls.call(this, owner);
+      if (reads === 'hang') return new Promise((_, reject) => failures.push(reject));
+      if (reads === 'fail') return Promise.reject(new Error('Synthetic initial controls read failed'));
+      return controls.call(this, owner);
     };
     storeModule.FriendAllStore.prototype.setPolicy = function (owner, enabled, origin, expected, current) {
       if (!enabled) {
@@ -95,8 +101,11 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
       const api = hook.useFriendAll(uid, scope, snapshot, true, availableGames, 1);
       window.allReview = {
         rejectReads: () => {
-          blocking = false;
+          reads = 'fail';
           failures.splice(0).forEach((reject) => reject(new Error('Synthetic initial controls read failed')));
+        },
+        allowReads: () => {
+          reads = 'pass';
         },
         deliverGames: () => setGames(games),
         failNextStop: () => {
@@ -136,7 +145,11 @@ async function mount(page: Page, input: { failRead?: boolean; lateGames?: boolea
         enabled: Boolean(api.policy?.enabled),
         onEnable: api.enable,
         onStop: api.stopSharing,
-        onRefresh: api.refresh,
+        // The user's Refresh is the retry that finds the service answering again, never an earlier watch delivery.
+        onRefresh: () => {
+          if (reads === 'fail') reads = 'pass';
+          return api.refresh();
+        },
       });
     }
     const container = document.createElement('div');
@@ -164,6 +177,20 @@ test('failed initial All controls remain unknown and recover to the actual enabl
   await expect(surface.getByRole('button', { name: 'Share all with friends', exact: true })).toHaveCount(0);
   await surface.getByRole('button', { name: 'Refresh sharing status', exact: true }).click();
   await expect(surface).toContainText('Up to date', { timeout: 30000 });
+});
+test('failed initial All controls recover without Refresh once a control watch can read them', async ({ page }) => {
+  await mount(page, { failRead: true });
+  const surface = page.locator('#all-review-harness');
+  await page.evaluate(() => window.allReview.rejectReads());
+  await expect(surface).toContainText('Synthetic initial controls read failed');
+  await expect(surface.getByRole('button', { name: 'Share all with friends', exact: true })).toHaveCount(0);
+  // The controls watch re-reads on reconnection, like on a server snapshot; neither waits for the user.
+  await page.evaluate(() => {
+    window.allReview.allowReads();
+    window.dispatchEvent(new Event('online'));
+  });
+  await expect(surface).toContainText('Up to date', { timeout: 30000 });
+  await expect(surface).not.toContainText('Synthetic initial controls read failed');
 });
 test('failed Stop refreshes the same active policy and resumes work without replaying Stop; confirmed Stop stays off', async ({
   page,
