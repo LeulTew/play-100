@@ -7,7 +7,11 @@ hidden by default. A small inline boot script shows it only when React's first
 commit will match it, and `createRoot()` replaces it in that commit, so the first
 paint and the hydrated page never differ. The page below the loading collection
 (films, workbook, footer) is React-only; the shell's `main` keeps the page as tall
-as the viewport so no scrollbar appears at the handoff.
+as the viewport so no scrollbar appears at the handoff. The collection section is
+at least a viewport tall in every state, in the shell and in React alike, so that
+page starts below the fold at any window size while the collection loads, and
+neither the taller grid nor a shorter result that replaces the loading collection
+moves it on screen.
 
 The boot script also starts the app. When it shows the shell, the app requests
 nothing before the shell's first contentful paint, so the shell paints as soon as

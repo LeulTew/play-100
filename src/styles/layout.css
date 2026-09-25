@@ -24,7 +24,9 @@
 .collection-dot { height: 7px; width: 7px; display: inline-block; border-radius: 50%; background: #7d913c; }
 .hero-art { min-width: 0; width: 100%; }
 
-.collection-section { padding: 22px var(--gutter) 54px; scroll-margin-top: 80px; }
+/* At least a viewport tall in every state, so what follows it starts below the fold while the collection loads, and
+   neither the taller grid nor a shorter result moves it on screen. */
+.collection-section { min-height: 100vh; padding: 22px var(--gutter) 54px; scroll-margin-top: 80px; }
 .collection-title-line { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-top: 20px; border-top: 1px solid var(--ink); }
 .collection-title-line h2, .collection-loading h2 { font-family: var(--display); font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
 .collection-title-line h2 > span { vertical-align: top; display: inline-block; margin: 3px 0 0 11px; font-family: 'Hanken Grotesk Variable', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.7; }
