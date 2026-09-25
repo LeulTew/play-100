@@ -102,6 +102,8 @@ describe('public-only catalog detail endpoint', () => {
     expect(upstream).toHaveBeenCalledTimes(2);
     for (const [url, options] of upstream.mock.calls) {
       expect(url.origin).toBe('https://www.wikidata.org');
+      // An interactive lookup omits maxlag (MediaWiki Manual:Maxlag_parameter).
+      expect(url.searchParams.has('maxlag')).toBe(false);
       expect(options).toMatchObject({ redirect: 'error', credentials: 'omit' });
     }
     expect(response.headers.get('cache-control')).toContain('s-maxage=900');

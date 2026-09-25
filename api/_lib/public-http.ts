@@ -187,7 +187,10 @@ export async function upstreamJson(
     typeof payload.error === 'object' &&
     !Array.isArray(payload.error)
   ) {
-    throw new CatalogError('Wikidata is temporarily busy or rejected the request. Please try again later.', 503);
+    throw new CatalogError(
+      'The public source is temporarily busy or rejected the request. Please try again later.',
+      503,
+    );
   }
   return payload;
 }

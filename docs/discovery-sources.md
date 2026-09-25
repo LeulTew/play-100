@@ -191,6 +191,11 @@ coverage are not evidence of current, complete or independent review quality.
   Upstream 429, timeout, invalid media and unsupported rights remain explicit.
   Partial source errors have `no-store`; only public complete/known-unavailable
   responses may use the short shared cache.
+- Interactive search (`/api/catalog`) and detail (`/api/catalog-detail`)
+  requests to Wikidata and Commons omit `maxlag`, as MediaWiki's
+  Manual:Maxlag_parameter advises for tasks where a user waits for the result;
+  otherwise query-service lag fails every lookup. The non-interactive batch
+  collector keeps `maxlag=5` with its bounded backoff.
 
 ### Bounds and image execution gate
 

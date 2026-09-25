@@ -25,7 +25,7 @@ function text(value: unknown): string | null {
 
 function wikiUrl(parameters: Record<string, string>): URL {
   const url = new URL(WIKIDATA);
-  const params = { format: 'json', maxlag: '5', maxage: '300', smaxage: '300', ...parameters };
+  const params = { format: 'json', maxage: '300', smaxage: '300', ...parameters };
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   return url;
 }

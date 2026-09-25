@@ -39,7 +39,7 @@ function sourceState(
 }
 function wikiUrl(base: string, parameters: Record<string, string>): URL {
   const url = new URL(base);
-  url.search = new URLSearchParams({ format: 'json', maxlag: '5', ...parameters }).toString();
+  url.search = new URLSearchParams({ format: 'json', ...parameters }).toString();
   return url;
 }
 async function provider<T>(

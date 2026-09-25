@@ -41,6 +41,10 @@ describe('typed, bounded public catalog lookup', () => {
     expect(request.searchParams.get('srsearch')).toBe('"A \\"quoted\\" title" haswbstatement:P31=Q7889');
     expect(request.searchParams.get('srlimit')).toBe('5');
     expect(request.searchParams.get('smaxage')).toBe('300');
+    // Interactive lookups omit maxlag (MediaWiki Manual:Maxlag_parameter); only the batch collector sends it.
+    const entities = new URL(fetcher.mock.calls[1]![0]);
+    expect(entities.searchParams.get('action')).toBe('wbgetentities');
+    for (const url of [request, entities]) expect(url.searchParams.has('maxlag')).toBe(false);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
       id: 'wikidata:Q1',
