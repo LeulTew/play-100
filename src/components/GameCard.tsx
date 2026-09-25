@@ -49,13 +49,12 @@ export function GameCard({
   savedCopies,
 }: GameCardProps) {
   const motion = useMotionRuntime();
-  const sourceRef = useRef<HTMLElement>(null);
+  const sourceRef = useRef<HTMLLIElement>(null);
   const compareDrag = useCompareDragSource({ record: compareRecord, sourceRef });
   return (
-    <article
+    <li
       ref={sourceRef}
       {...compareDrag.surfaceProps}
-      role="listitem"
       className={`game-card ${state?.completed ? 'is-completed' : ''} ${selected ? 'card-selected' : ''}`}
       data-game={game.slug}
     >
@@ -154,6 +153,6 @@ export function GameCard({
       >
         <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />
       </button>
-    </article>
+    </li>
   );
 }

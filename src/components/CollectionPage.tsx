@@ -294,7 +294,7 @@ export default function CollectionPage({
                     )}
                   />
                 ) : (
-                  <div
+                  <ul
                     className={`games ${filters.view === 'list' ? 'games-list' : 'games-grid'}`}
                     role="list"
                     aria-label="Games in this view"
@@ -351,7 +351,7 @@ export default function CollectionPage({
                         />
                       );
                     })}
-                  </div>
+                  </ul>
                 )}
                 <div className="collection-end">
                   <p>
