@@ -10,6 +10,7 @@ import {
 import { connectFirestoreEmulator, initializeFirestore, memoryLocalCache } from 'firebase/firestore';
 import { EMULATOR_MODE, firebaseConfiguration } from '../lib/online-availability';
 import { readAppCheckConfiguration } from '../lib/app-check-config';
+import { redirectOnlyResolver } from './redirect-resolver';
 
 const config = firebaseConfiguration();
 if (!config) throw new Error('Online saving is not configured on this deployment. Device-only browsing still works.');
@@ -30,7 +31,7 @@ export const cloudDb = initializeFirestore(firebaseApp, {
 });
 export const cloudAuth = initializeAuth(firebaseApp, {
   persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence],
-  popupRedirectResolver: browserPopupRedirectResolver,
+  popupRedirectResolver: redirectOnlyResolver(browserPopupRedirectResolver),
 });
 if (EMULATOR_MODE) {
   if (!['127.0.0.1', 'localhost'].includes(location.hostname))

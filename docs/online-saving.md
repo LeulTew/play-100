@@ -181,6 +181,13 @@ loading GAPI before calling `window.open`; a synchronous click handler does not
 prevent that failure. No popup is required by the new flow, including after a
 slow network start. Browser privacy protections remain enabled.
 
+Firebase's hidden auth iframe and Google's gapi script load only when a redirect
+result is pending. Firebase otherwise preloads both while Auth starts on mobile
+browsers and Safari, so that a popup could open in time, and Auth is not ready
+until they settle. This app never opens a popup, so `src/cloud/redirect-resolver.ts`
+turns that preload off: a signed-out Account opens without contacting Google or
+the auth helper (`tests-cloud-ui/account-ready.spec.ts`).
+
 The deployment implements [Firebase redirect option 3](https://firebase.google.com/docs/auth/web/redirect-best-practices#proxy-requests).
 Five fixed `/__/auth/` helper paths are served from the dedicated project's
 `firebaseapp.com` origin. They are not 302 redirects or an arbitrary-host proxy.
