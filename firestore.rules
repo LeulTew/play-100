@@ -59,9 +59,15 @@ service cloud.firestore {
     }
     // 1-60 characters, no Unicode control or format character (C0/C1, bidi controls, zero-width, BOM) and no
     // leading or trailing whitespace. An update may keep an unchanged legacy name until it is next edited.
+    // The explicit code points repeat every Unicode 17.0 format (Cf) character (a unit test pins the list) so an
+    // engine with older Unicode tables still refuses them: the Firestore emulator's RE2J does not treat the
+    // U+2066-U+2069 bidi isolates as Cf.
     function cleanName(value) {
+      let invisible = '\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}'
+        + '\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}'
+        + '\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}';
       return value is string && value.size() >= 1 && value.size() <= 60
-        && value.matches('^[^\\p{Cc}\\p{Cf}\\p{Z}]([^\\p{Cc}\\p{Cf}]*[^\\p{Cc}\\p{Cf}\\p{Z}])?$');
+        && value.matches('^[^' + invisible + '\\p{Z}]([^' + invisible + ']*[^' + invisible + '\\p{Z}])?$');
     }
     function displayNameOk(value) {
       return cleanName(value) || (resource != null && value is string && value.size() >= 1 && value.size() <= 60

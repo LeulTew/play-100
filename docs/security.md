@@ -447,7 +447,11 @@ test pins them together.
 names must be 1-60 characters with no Unicode control or format character
 (`\p{Cc}`/`\p{Cf}`: C0/C1 controls, bidi embeddings, overrides and isolates,
 zero-width characters, U+FEFF) and no leading or trailing separator (`\p{Z}`).
-Rules check this with RE2 `matches()`; the client applies the same rule after
+Rules check this with RE2 `matches()`, listing every Unicode 17.0 format
+character explicitly as well as `\p{Cf}` (a unit test keeps the list equal to
+the JavaScript engine's `\p{Cf}`), because an engine with older Unicode tables
+misses newer ones (the Firestore emulator accepted the U+2066-U+2069 isolates
+through `\p{Cf}` alone); the client applies the same rule after
 trimming and shows plain error text. An update may keep an unchanged legacy name
 (for example an icon-only change, invite consumption or unpublish), but any new
 or changed name must be clean, and creating an invite requires a clean identity

@@ -398,6 +398,7 @@ describe('display-name hygiene', () => {
   const badNames = [
     'Bad\u202Ename',
     'Bad\u2066name',
+    'Alm\u061Cmark',
     'Zero\u200Bwidth',
     'Bom\uFEFF',
     'Bell\u0007',

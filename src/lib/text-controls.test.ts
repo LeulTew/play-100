@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { cleanDisplayName, displayNameProblem, hasAsciiControl } from './text-controls';
 
@@ -55,4 +56,25 @@ it('accepts ordinary Unicode names and trims surrounding whitespace to the 1-60 
     expect(cleanDisplayName(` ${name}\u3000`)).toBe(name);
   }
   for (const name of ['', '   ', '\u00a0', 'x'.repeat(61)]) expect(displayNameProblem(name)).toMatch(/1 to 60/);
+});
+
+it('keeps the rules backstop list equal to every format character this engine classes as \\p{Cf}', () => {
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const list = /let invisible = ([^;]+);/.exec(rules)?.[1] ?? '';
+  const listed = [...list.matchAll(/\\\\x\{([0-9a-f]+)\}(?:-\\\\x\{([0-9a-f]+)\})?/g)].map((match) => [
+    parseInt(match[1]!, 16),
+    parseInt(match[2] ?? match[1]!, 16),
+  ]);
+  const expected: number[][] = [];
+  let start = -1;
+  for (let code = 0; code <= 0x110000; code += 1) {
+    const format = code < 0x110000 && /\p{Cf}/u.test(String.fromCodePoint(code));
+    if (format && start < 0) start = code;
+    if (!format && start >= 0) {
+      expected.push([start, code - 1]);
+      start = -1;
+    }
+  }
+  expect(listed.length).toBeGreaterThan(0);
+  expect(listed).toEqual(expected);
 });
