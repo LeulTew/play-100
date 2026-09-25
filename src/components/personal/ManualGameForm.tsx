@@ -80,6 +80,9 @@ export default function ManualGameForm({
       if (mounted.current) setError('The game could not be added. Your entry is unchanged; try again.');
       return;
     }
+    if (mounted.current && !added) {
+      setError('The game could not be added. Your entry is unchanged; try again.');
+    }
     if (
       mounted.current &&
       added &&

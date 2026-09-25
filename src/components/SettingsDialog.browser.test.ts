@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../lib/test-server-ports';
+import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-library';
 
 interface RadioFrame {
   checked: string | undefined;
@@ -24,6 +25,8 @@ declare global {
       temporary(): void;
       finish(result: boolean | 'reject'): void;
       externalBusy(value: boolean): void;
+      restoreCalls: number;
+      finishRestore(result: boolean): void;
     };
   }
 }
@@ -38,7 +41,7 @@ import { SettingsDialog } from '/src/components/SettingsDialog.tsx';
 import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
 import '/src/styles.css';
 import '/src/shared-ui.css';
-let finish, setExternalBusy, setPersistent;
+let finish, finishRestore, setExternalBusy, setPersistent;
 let saved = 'auto', inFlight = 0, maxInFlight = 0, frameGeneration = 0;
 const calls = [], frames = [];
 function App() {
@@ -66,7 +69,15 @@ function App() {
         };
       });
     },
-    onReset: async () => true, onRestore: async () => true, onAbout() {}, onClose() {},
+    onReset: async () => true,
+    onRestore() {
+      window.settingsRadioFixture.restoreCalls += 1;
+      setBusy(true);
+      return new Promise(resolve => {
+        finishRestore = result => { setBusy(false); resolve(result); };
+      });
+    },
+    onAbout() {}, onClose() {},
   });
 }
 document.addEventListener('change', event => {
@@ -89,6 +100,7 @@ window.settingsRadioFixture = {
   calls, frames, finish: result => finish(result), externalBusy: value => setExternalBusy(value),
   saved: () => saved, inFlight: () => inFlight, maxInFlight: () => maxInFlight,
   temporary: () => setPersistent(false),
+  restoreCalls: 0, finishRestore: result => finishRestore(result),
 };
 createRoot(document.getElementById('mount')).render(h(App));
 </script></body></html>`;
@@ -181,6 +193,32 @@ for (const mobile of [false, true]) {
           await browserExpect(option).toHaveAccessibleDescription(description);
           await browserExpect(option).not.toHaveAttribute('aria-label');
         }
+      });
+    });
+
+    it('retains a refused backup preview and clears its failure alert after a successful retry', async () => {
+      await withPage(async (page) => {
+        const panel = page.locator('.backup-panel');
+        await panel.getByLabel('Import personal library backup file').setInputFiles({
+          name: 'synthetic-empty-backup.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+        });
+        const restore = panel.getByRole('button', { name: 'Replace with this backup', exact: true });
+        await restore.click();
+        await browserExpect(restore).toBeDisabled();
+        await page.evaluate(() => window.settingsRadioFixture.finishRestore(false));
+        await browserExpect(panel.getByRole('alert')).toHaveText('Restore failed. Your existing library was not replaced.');
+        await browserExpect(panel.locator('.restore-preview')).toBeVisible();
+        await browserExpect(page.getByRole('dialog')).toBeVisible();
+        await restore.click();
+        await browserExpect(panel.getByRole('alert')).toHaveCount(0);
+        await page.evaluate(() => window.settingsRadioFixture.finishRestore(true));
+        await browserExpect(panel.getByRole('status')).toHaveText('Your backup was restored and saved on this device.');
+        await browserExpect(panel.getByRole('alert')).toHaveCount(0);
+        await browserExpect(panel.locator('.restore-preview')).toHaveCount(0);
+        await browserExpect(page.getByRole('dialog')).toBeVisible();
+        expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(2);
       });
     });
 

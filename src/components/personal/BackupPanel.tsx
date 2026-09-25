@@ -149,6 +149,8 @@ export default function BackupPanel({
               className="button button-dark"
               disabled={busy}
               onClick={() => {
+                setError('');
+                setMessage('');
                 void onRestore(incoming).then((success) => {
                   if (success) {
                     setIncoming(null);

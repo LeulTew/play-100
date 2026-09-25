@@ -71,6 +71,39 @@ owns a separate scoped pin store backed by localStorage, not the library queue.
 Panel state belongs to [useAppPanel](../src/hooks/useAppPanel.ts); notification,
 manual-share and offline-settings state are separate from the selected URL detail.
 
+## Storage failures
+
+Guest library writes and backup replacement commit atomically in IndexedDB.
+A quota-refused transaction does not publish a successful library mutation:
+the previous records, progress, ranking, notes and revision remain readable
+after reload. The storage warning is
+“Device storage is full. Your changes were not saved. Free some space and try again.”
+This does not promise that unsaved tab state survives a user-requested reload,
+site-data clearing or browser eviction; downloaded backups remain independent
+recovery copies.
+
+A failed import keeps its pending preview and Settings dialog open, with
+“Restore failed. Your existing library was not replaced.” Retrying that preview
+after freeing space can commit it, clear the failure and report
+“Your backup was restored and saved on this device.” Reloading before retry
+requires selecting the backup file again; it must not replace the old library.
+
+Manual entry is an inline native `details` form, not a dialog. A refused or
+rejected Save reports “The game could not be added. Your entry is unchanged;
+try again.” It keeps the open disclosure, title and optional year, without
+reloading or treating the attempted game as saved. Successful retry clears
+only the submitted draft and persists the new record.
+
+The Chromium production-partition campaign
+[`tests/storage-quota.spec.ts`](../tests/storage-quota.spec.ts) measures
+`navigator.storage.estimate().usage`, applies an origin-specific CDP
+`Storage.overrideQuotaForOrigin` limit, and exercises real IndexedDB and
+CacheStorage failures rather than mocking their write methods. It runs only
+in fresh loopback profiles and always lifts the override and detaches CDP in
+`finally`. The [PWA storage contract](pwa.md#storage-failures) covers the
+independent offline cache. Test source is not evidence that a particular
+release ran the campaign.
+
 ## Boundaries
 
 [OnlineController](../src/cloud/OnlineController.tsx) combines account state and

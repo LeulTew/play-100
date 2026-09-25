@@ -142,6 +142,10 @@ describe('manual game form', () => {
       await submit(page, 'Game A', '2001');
       await finish(page, false);
       await browserExpect.poll(() => page.evaluate(() => window.manualFormFixture.pending())).toBe(0);
+      await browserExpect(page.getByRole('alert')).toHaveText(
+        'The game could not be added. Your entry is unchanged; try again.',
+      );
+      await browserExpect(page.locator('.manual-add')).toHaveAttribute('open', '');
       await browserExpect(title(page)).toHaveValue('Game A');
       await browserExpect(year(page)).toHaveValue('2001');
       await page.getByRole('button', { name: 'Add to my library' }).click();
@@ -152,6 +156,13 @@ describe('manual game form', () => {
       );
       await browserExpect(title(page)).toHaveValue('Game A');
       await browserExpect(year(page)).toHaveValue('2001');
+      await page.getByRole('button', { name: 'Add to my library' }).click();
+      await browserExpect.poll(() => page.evaluate(() => window.manualFormFixture.pending())).toBe(1);
+      await finish(page, true);
+      await browserExpect(page.getByRole('alert')).toHaveCount(0);
+      await browserExpect(title(page)).toHaveValue('');
+      await browserExpect(year(page)).toHaveValue('');
+      await browserExpect(page.locator('.manual-add')).toHaveAttribute('open', '');
     });
   });
 });

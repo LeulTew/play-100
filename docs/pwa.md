@@ -166,6 +166,55 @@ still absent; a confirmed closed document can be reclaimed immediately. There
 is no polling or unbounded reservation table. If the hard cap is reached, the
 new navigation fails explicitly without displacing an in-flight document.
 
+## Storage failures
+
+Offline readiness is committed only after every verified core file and the
+final ready marker have been stored. A quota failure must not advertise
+“Offline files ready” or leave a staging cache with a ready marker. A previous
+complete version is kept; first-time preparation failure leaves the current
+online page usable. Neither cache cleanup nor retry clears the private
+IndexedDB library, its records or unsaved forms.
+
+The client reports one of these exact source messages, depending on whether
+the storage failure is delivered as a worker error, a redundant installation,
+or a registration rejection:
+
+- “Offline preparation or storage failed. Reconnect, free storage if needed, and retry.”
+- “Offline preparation failed. The current version was not replaced. Retry when connected.”
+- “Offline preparation could not start. Check the connection or available storage, then retry.”
+
+After freeing storage, choose **Enable offline access** again. Only a complete
+retry reaches **Offline files ready**. As with any first installation, reopen
+a public page to use the worker offline; readiness does not reload the current
+page automatically. Storage exhaustion is distinct from initial storage
+permission denial, browser eviction or manually clearing site data.
+
+[`tests/storage-quota.spec.ts`](../tests/storage-quota.spec.ts) is the focused,
+Chromium-only production campaign on both configured desktop and mobile
+projects. It uses a fresh synthetic guest profile on the integrator-owned
+loopback preview, measures `navigator.storage.estimate()`, and applies actual
+CDP `Storage.overrideQuotaForOrigin` quotas. The three cases cover a large
+2,000-game backup import, an unsaved manual-game form, and preparation with
+less space than the generated offline core. They assert failure feedback,
+unchanged committed state, preserved open work, lifted-quota retries and
+offline navigation after readiness. Exact quota/usage and cleanup receipts
+are attached; overrides are always lifted in `finally`. No user profile,
+deployed origin, real disk filler or private account is used.
+
+With the matching production build already prepared by the integrator:
+
+```powershell
+$env:PLAY100_TEST_BUILD = 'production'
+npm run test:e2e -- tests/storage-quota.spec.ts --project=desktop --project=mobile --workers=1
+```
+
+Keep the existing local-preview safety defaults and retain the result,
+attachments and trace with the release receipt. This authored campaign is
+**UNRUN until the parent/integrator records its execution**. It demonstrates
+Chromium quota refusal, not physical full-disk or Safari behavior. The
+[library storage contract](architecture.md#storage-failures) distinguishes
+persisted snapshots from unsaved tab-only drafts.
+
 ## Build and integration
 
 `play100Pwa()` from `scripts/pwa-build.ts` enables Vite's build manifest and
