@@ -123,6 +123,16 @@ approval-expiry and probe hooks stay at their original positions relative to
 identity reset, Google-return handling and member subscriptions. No page body,
 UI text or backend authorization policy is owned by this unit.
 
+The [account-session](../src/cloud/account-session.ts) unit owns the Google-return
+and initial-session handshake, the restoration deadline and persisted-page
+listener, and once-only return consumption. Pure return transitions distinguish
+an incomplete or foreign return, cache-waiting reauthentication, changed saving
+epochs, successful sign-in/link and a fresh deletion approval. The bootstrap
+observer delegates identity reconciliation to its supplied owner; it does not
+create a second auth observer, clear libraries or perform deletion on return.
+The controller invokes bootstrap and return handling at their original effect
+positions, leaving the existing navigation and pending-edit contract intact.
+
 Online page bodies are separate dynamic imports, not static dependencies of that
 identity/sync bridge. Remembering an account on The 100 may load the bridge and
 Firebase, but does not request Account, Community, public profile, publication,

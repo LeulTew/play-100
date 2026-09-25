@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import {
   createUserWithEmailAndPassword,
   getIdTokenResult,
-  onIdTokenChanged,
   reload,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -41,16 +40,20 @@ import { ChunkBoundary } from '../components/ChunkBoundary';
 import { ChunkRecovery } from '../components/ChunkRecovery';
 import { createRetryableModule } from '../lib/retryable-module';
 import { OnlinePageBoundary } from './OnlinePageBoundary';
-import { cloudAuth, cloudDb, firebaseApp, initialAuthUser } from './firebase-client';
+import { cloudAuth, cloudDb, firebaseApp } from './firebase-client';
 import { creatorAccess } from './cloud-store';
 import type { CloudStore } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
 import { onlineError, popupCancelled } from './errors';
 import { syncFailure } from '../lib/sync-retry';
-import { finishGoogleRedirect, startGoogleRedirect } from './google-auth';
-import type { GoogleReturn } from './google-auth';
-import { readGoogleIntent } from '../lib/google-intent';
+import { startGoogleRedirect } from './google-auth';
+import {
+  applyGoogleReturn,
+  observeAccountSession,
+  signInNeedsAccountPage,
+  useAccountSessionState,
+} from './account-session';
 import {
   clearComparisonView,
   comparisonScope,
@@ -209,13 +212,19 @@ export default function OnlineController({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [sessionUnconfirmed, setSessionUnconfirmed] = useState(false);
-  const [googleReturn, setGoogleReturn] = useState<GoogleReturn | null>(null);
-  const [returnSheet, setReturnSheet] = useState(false);
-  const [startupError, setStartupError] = useState('');
+  const {
+    sessionUnconfirmed,
+    setSessionUnconfirmed,
+    googleReturn,
+    setGoogleReturn,
+    returnSheet,
+    setReturnSheet,
+    startupError,
+    setStartupError,
+    handledGoogleReturn,
+  } = useAccountSessionState();
   const deletion = useAccountDeletionState();
   const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
-  const handledGoogleReturn = useRef<string | null>(null);
   const navigation = useRef({ page, onCloseSheet, onNavigate });
   navigation.current = { page, onCloseSheet, onNavigate };
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -383,74 +392,43 @@ export default function OnlineController({
     );
     return task;
   }, []);
-  useEffect(() => {
-    let alive = true;
-    let unsubscribe = () => {};
-    const timeout = window.setTimeout(() => {
-      if (alive)
-        setStartupError('Account restoration timed out. Reload when connected, or keep using the device library.');
-    }, 45000);
-    const settled = () => window.clearTimeout(timeout);
-    void Promise.all([finishGoogleRedirect(cloudAuth), initialAuthUser])
-      .then(([outcome, restoredUid]) => {
-        if (!alive) return;
-        setSessionUnconfirmed(!restoredUid || outcome.completed);
-        if (outcome.attempted) {
-          setGoogleReturn(outcome);
-          setReturnSheet(!outcome.completed);
-        }
-        unsubscribe = onIdTokenChanged(
-          cloudAuth,
-          (user) => {
-            if ((user?.uid ?? null) !== authSessionUid.current) {
-              if (authSessionUid.current) {
-                clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', authSessionUid.current));
-                clearComparisonGameFilter(accountScope(authSessionUid.current, firebaseApp.options.projectId));
-              }
-              authSessionUid.current = user?.uid ?? null;
-              authSessionEpoch.current += 1;
-              if (user) setIdentity(undefined);
+  useEffect(
+    () =>
+      observeAccountSession({
+        state: { setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError },
+        onUser: (user, isCurrent, settled) => {
+          if ((user?.uid ?? null) !== authSessionUid.current) {
+            if (authSessionUid.current) {
+              clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', authSessionUid.current));
+              clearComparisonGameFilter(accountScope(authSessionUid.current, firebaseApp.options.projectId));
             }
-            if (!user) {
-              identityRead.current = null;
-              refreshedMismatch.current.clear();
-              setIdentity(null);
-              settled();
-              return;
-            }
-            void reconcileIdentity(user)
-              .catch((cause) => {
-                if (alive && cloudAuth.currentUser?.uid === user.uid) {
-                  setIdentity(identityOf(user, false, true));
-                  setError(onlineError(cause));
-                }
-              })
-              .finally(settled);
-          },
-          (cause) => {
+            authSessionUid.current = user?.uid ?? null;
+            authSessionEpoch.current += 1;
+            if (user) setIdentity(undefined);
+          }
+          if (!user) {
+            identityRead.current = null;
+            refreshedMismatch.current.clear();
             setIdentity(null);
-            setError(onlineError(cause));
             settled();
-          },
-        );
-      })
-      .catch((cause) => {
-        if (alive) {
-          setStartupError(onlineError(cause));
-          settled();
-        }
-      });
-    const restorePage = (event: PageTransitionEvent) => {
-      if (event.persisted && readGoogleIntent().raw !== null) location.reload();
-    };
-    window.addEventListener('pageshow', restorePage);
-    return () => {
-      alive = false;
-      settled();
-      unsubscribe();
-      window.removeEventListener('pageshow', restorePage);
-    };
-  }, [reconcileIdentity]);
+            return;
+          }
+          void reconcileIdentity(user)
+            .catch((cause) => {
+              if (isCurrent() && cloudAuth.currentUser?.uid === user.uid) {
+                setIdentity(identityOf(user, false, true));
+                setError(onlineError(cause));
+              }
+            })
+            .finally(settled);
+        },
+        onError: (cause) => {
+          setIdentity(null);
+          setError(onlineError(cause));
+        },
+      }),
+    [reconcileIdentity, setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError],
+  );
   useEffect(() => {
     setMember(null);
     setProfile(null);
@@ -466,47 +444,19 @@ export default function OnlineController({
     setDefaultAvatar(createAvatarDescriptor());
   }, [uid]);
   useEffect(() => {
-    const returned = googleReturn;
-    if (
-      !returned?.completed ||
-      !returned.intent ||
-      !identity ||
-      identity.uid !== returned.uid ||
-      cloudAuth.currentUser?.uid !== returned.uid
-    )
-      return;
-    const intent = returned.intent;
-    if (handledGoogleReturn.current === intent.requestId) return;
-    if (intent.kind === 'reauthenticate' && !account.snapshot && !account.error) return;
-    handledGoogleReturn.current = intent.requestId;
-    setReturnSheet(false);
-    if (intent.kind === 'sign-in') {
-      rememberOnlineRequest(true);
-      navigation.current.onCloseSheet();
-      if (
-        !['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(
-          navigation.current.page,
-        )
-      )
-        navigation.current.onNavigate('account');
-    } else if (intent.kind === 'link') setMessage('Google is linked to this existing account.');
-    else if (intent.epoch !== (account.snapshot?.sync.epoch ?? 0)) {
-      setError(
-        'This account changed while Google was open. Nothing was deleted. Review the account before confirming again.',
-      );
-    } else {
-      setDeletionApproval({
-        requestId: intent.requestId,
-        uid: identity.uid,
-        target: intent.target,
-        epoch: intent.epoch,
-        sessionEpoch: authSessionEpoch.current,
-        startedAt: intent.createdAt,
-        expiresAt: Date.now() + 5 * 60 * 1000,
-      });
-      setMessage('Google confirmed this account. Nothing has been deleted; review and confirm the deletion below.');
-    }
-  }, [googleReturn, identity, account.snapshot, account.error, setDeletionApproval]);
+    applyGoogleReturn({
+      state: { googleReturn, handledGoogleReturn, setReturnSheet },
+      identity,
+      cacheReady: Boolean(account.snapshot),
+      cacheError: account.error,
+      epoch: account.snapshot?.sync.epoch ?? 0,
+      sessionEpoch: authSessionEpoch.current,
+      navigation,
+      setDeletionApproval,
+      setError,
+      setMessage,
+    });
+  }, [googleReturn, identity, account.snapshot, account.error, setDeletionApproval, handledGoogleReturn, setReturnSheet]);
   useDeletionApprovalExpiry(page, deletionApproval, setDeletionApproval);
   useEffect(() => {
     if (cooldown <= now) return;
@@ -784,10 +734,7 @@ export default function OnlineController({
     if (cloudAuth.currentUser?.uid !== user.uid) return;
     rememberOnlineRequest(true);
     onCloseSheet();
-    if (
-      !['publish', 'creator', 'friends', 'friend', 'invite', 'compare', 'friend-sharing', 'friend-shelf'].includes(page)
-    )
-      onNavigate('account');
+    if (signInNeedsAccountPage(page)) onNavigate('account');
   };
   const google = () =>
     run(async () => {
