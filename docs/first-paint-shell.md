@@ -258,5 +258,18 @@ never shows the notice, and React's first commit removes it.
 The shell adds no file: no CSS asset, no script asset and no PWA core entry.
 App CSS and the eager JS+CSS gate are unchanged: the budget check reads the
 template's tags like any other, so they still count as eager. `index.html` grows
-by the shell markup, the failure notice and the inline blocks; that is reported
-in the HTML totals and counts toward the PWA core bytes.
+by the shell markup, the failure notice and the inline blocks, which count toward
+the PWA core bytes. `check:budgets` gates them:
+
+- `indexHtmlRawBytes` and `indexHtmlGzipBytes`: the built `index.html`, markup and
+  inline blocks included.
+- `inlineStyleRawBytes`: the inline style of the larger header variant. A build
+  carries one variant, so the plugin records both styles, which it computes for
+  the CSP anyway, in `.build-meta/dist/first-paint.json` beside the retained Vite
+  manifest, once Vite has written `index.html`.
+- `inlineScriptRawBytes`: the boot script, which both variants share.
+
+The check fails closed without that record or without either variant in it. It
+also fails unless the record names the digest of this exact `index.html` and the
+style and script in it, so a record left by another build never counts. The
+online variant is the larger, so the caps come from a configured build.

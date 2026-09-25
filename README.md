@@ -430,8 +430,11 @@ headless proof. Profile-specific desktop/mobile skips retain their intent.
 `pwa` stylesheets have a separate measured cap and must be in the PWA core.
 They may be linked only by the offline document or the app's `noscript` fallback,
 not active app documents, chunk dependencies or CSS imports. Combined CSS
-totals remain visible. HTML bytes, including active inline critical CSS, are
-reported separately rather than changing the emitted-CSS baseline series.
+totals remain visible. `index.html` has raw and gzip9 caps, which include its
+active inline critical CSS, without changing the emitted-CSS baseline series.
+The [first-paint shell](docs/first-paint-shell.md)'s inline style and boot script
+have raw caps too. The style cap applies to the larger of the two header variants:
+a build carries only one, so the build records both in `.build-meta`.
 `check:csp` also reads the existing `dist`: every built document must work under
 the `vercel.json` main-document policy, including the
 [first-paint shell](docs/first-paint-shell.md) boot script by its exact hash, and

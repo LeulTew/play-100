@@ -26,6 +26,7 @@ import {
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
+import { readFirstPaintRecord, textDigest } from '../build-metadata.ts';
 import { eagerHtmlFiles } from '../check-budgets.ts';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -642,7 +643,11 @@ describe('first-paint index.html', () => {
     if (typeof plugin.configResolved !== 'function') throw new Error('The shell plugin must read the resolved root.');
     await plugin.configResolved.call(
       {} as never,
-      { root: repository, logger: { info: (message: string) => logged.push(message) } } as never,
+      {
+        root: repository,
+        build: { outDir: 'dist' },
+        logger: { info: (message: string) => logged.push(message) },
+      } as never,
     );
     const hook = plugin.transformIndexHtml;
     if (!hook || typeof hook === 'function')
@@ -713,7 +718,7 @@ describe('first-paint index.html', () => {
           throw new Error('The shell plugin must read the resolved root.');
         await plugin.configResolved.call(
           {} as never,
-          { root, logger: { info: (message: string) => logged.push(message) } } as never,
+          { root, build: { outDir: 'dist' }, logger: { info: (message: string) => logged.push(message) } } as never,
         );
         const hook = plugin.transformIndexHtml;
         if (!hook || typeof hook === 'function')
@@ -721,10 +726,17 @@ describe('first-paint index.html', () => {
         const bundle = {
           'assets/index-BBBBBBBB.css': { type: 'asset', fileName: 'assets/index-BBBBBBBB.css', source: appCss },
         };
-        await hook.handler.call({} as never, builtIndexHtml(), { path: '/', filename: 'index.html', bundle } as never);
-        return logged;
+        const context = { path: '/', filename: 'index.html', bundle } as never;
+        const html = await hook.handler.call({} as never, builtIndexHtml(), context);
+        // As Vite does: write the document, then run writeBundle, which records it.
+        if (typeof html !== 'string' || typeof plugin.writeBundle !== 'function')
+          throw new Error('The shell plugin must return the document and record it once it is written.');
+        await mkdir(path.join(root, 'dist'), { recursive: true });
+        await writeFile(path.join(root, 'dist', 'index.html'), html);
+        await plugin.writeBundle.call({} as never, {} as never, {} as never);
+        return { logged, html };
       };
-      const logged = await build(`${styles.offline} ${styles.online}`);
+      const { logged, html } = await build(`${styles.offline} ${styles.online}`);
       const literal = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       expect(logged).toHaveLength(1);
       expect(logged[0]).toMatch(
@@ -732,6 +744,20 @@ describe('first-paint index.html', () => {
           `^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \\d+ B ${literal(styles.offline!)}; inline script \\d+ B 'sha256-[\\w+/=]+'; online variant inline style ${literal(styles.online!)}$`,
         ),
       );
+      // check:budgets gates both variants' inline style and the boot script from the record the build retains.
+      const script = stripBootScript(bootJs);
+      const record = await readFirstPaintRecord(path.join(root, 'dist'));
+      expect(record).toEqual({
+        format: 1,
+        indexHtml: textDigest(html),
+        variant: 'offline',
+        script: textDigest(script),
+        styles: {
+          offline: { bytes: expect.any(Number), source: styles.offline },
+          online: { bytes: expect.any(Number), source: styles.online },
+        },
+      });
+      expect(record.styles.online.bytes, 'with its online-only rule').toBeGreaterThan(record.styles.offline.bytes);
       await expect(build(styles.offline!)).rejects.toThrow(`other shell variant's inline style ${styles.online}`);
       await expect(build(styles.online!)).rejects.toThrow(`add ${styles.offline} to style-src`);
       await expect(build(`${styles.offline} ${styles.online} ${sha256Source('old{}')}`)).rejects.toThrow(

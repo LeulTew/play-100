@@ -178,9 +178,10 @@ existing assets are re-encoded.
 
 Vite's module manifest is build-only metadata. After consuming it, the PWA build
 moves it from `dist/.vite/manifest.json` to the gitignored
-`.build-meta/dist/vite-manifest.json` outside the deploy directory. Budget checks
-and chunk-loading tests read that retained copy through `scripts/build-metadata.ts`;
-keep it with the matching build when running those checks, but never publish it.
+`.build-meta/dist/vite-manifest.json` outside the deploy directory. The first-paint
+build writes its record, `first-paint.json`, beside it. Budget checks
+and chunk-loading tests read those retained copies through `scripts/build-metadata.ts`;
+keep them with the matching build when running those checks, but never publish them.
 The build and budget checks reject any remaining `.vite` directory or `*.map`
 file in the deploy output, and reject metadata paths in the generated precache.
 Worker, asset hashes and public precache contents do not include the retained manifest.

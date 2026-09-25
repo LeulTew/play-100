@@ -3,7 +3,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { Parser } from 'htmlparser2';
-import { assertPublicBuildOutput, assertPublicPrecachePaths, readBuildManifest } from './build-metadata';
+import {
+  assertPublicBuildOutput,
+  assertPublicPrecachePaths,
+  readBuildManifest,
+  readFirstPaintRecord,
+  textDigest,
+} from './build-metadata';
+import type { TextDigest } from './build-metadata';
+import { inlineBlocks } from './first-paint/csp';
+import type { ShellVariant } from './first-paint/shell-html';
 export { assertDeferredBundleModules } from './eager-module-guard';
 
 const metrics = [
@@ -16,6 +25,10 @@ const metrics = [
   'pwaCoreFiles',
   'largestLazyRawBytes',
   'largestLazyGzipBytes',
+  'indexHtmlRawBytes',
+  'indexHtmlGzipBytes',
+  'inlineStyleRawBytes',
+  'inlineScriptRawBytes',
 ] as const;
 type Metric = (typeof metrics)[number];
 export type BudgetLimits = Record<Metric, number>;
@@ -38,6 +51,12 @@ export interface BuildMeasurement {
   largestLazy: AssetSize | null;
   largestLazyRaw: AssetSize | null;
   pwa: { assetFiles: number; assetBytes: number; metadataBytes: number; metadataFiles: number };
+  /** The first-paint shell of index.html: the built header variant, both variants' inline style, the boot script. */
+  firstPaint: {
+    variant: ShellVariant;
+    inlineStyleRawBytes: Record<ShellVariant, number>;
+    inlineScriptRawBytes: number;
+  };
 }
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -49,7 +68,8 @@ export function parseBudgetLimits(input: unknown): BudgetLimits {
   const values = input.limits;
   const read = (key: Metric) => {
     const value = values[key];
-    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)
+    // 0 is a cap no build passes, so a placeholder for a gate that is not measured yet fails closed.
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)
       throw new Error(`Invalid budget: ${key}.`);
     return value;
   };
@@ -63,6 +83,10 @@ export function parseBudgetLimits(input: unknown): BudgetLimits {
     pwaCoreFiles: read('pwaCoreFiles'),
     largestLazyRawBytes: read('largestLazyRawBytes'),
     largestLazyGzipBytes: read('largestLazyGzipBytes'),
+    indexHtmlRawBytes: read('indexHtmlRawBytes'),
+    indexHtmlGzipBytes: read('indexHtmlGzipBytes'),
+    inlineStyleRawBytes: read('inlineStyleRawBytes'),
+    inlineScriptRawBytes: read('inlineScriptRawBytes'),
   };
 }
 
@@ -169,6 +193,34 @@ async function buildFiles(root: string, relative = ''): Promise<string[]> {
   return files.sort();
 }
 
+/**
+ * The first-paint shell of the built index.html (docs/first-paint-shell.md), from the record its build retains beside
+ * the Vite manifest: one build ships one header variant, and the build computes the other variant's inline style too.
+ * It fails closed without the record or either variant, and unless the record names this exact index.html and the
+ * inline style and boot script it carries.
+ */
+async function measureFirstPaint(root: string, html: string): Promise<BuildMeasurement['firstPaint']> {
+  const record = await readFirstPaintRecord(root);
+  const same = (a: TextDigest, b: TextDigest) => a.bytes === b.bytes && a.source === b.source;
+  const blocks = inlineBlocks(html);
+  const carries = (kind: 'script' | 'style', digest: TextDigest) =>
+    blocks.some((block) => block.kind === kind && same(block, digest));
+  if (
+    !same(record.indexHtml, textDigest(html)) ||
+    !carries('style', record.styles[record.variant]) ||
+    !carries('script', record.script)
+  ) {
+    throw new Error(
+      'The first-paint build record belongs to another build of dist/index.html. Build before checking budgets.',
+    );
+  }
+  return {
+    variant: record.variant,
+    inlineStyleRawBytes: { offline: record.styles.offline.bytes, online: record.styles.online.bytes },
+    inlineScriptRawBytes: record.script.bytes,
+  };
+}
+
 export async function measureBuild(root: string): Promise<BuildMeasurement> {
   await assertPublicBuildOutput(root);
   const files = new Set(await buildFiles(root));
@@ -217,6 +269,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
       }
     }
   }
+  const firstPaint = await measureFirstPaint(root, html);
   const manifest: unknown = await readBuildManifest(root);
   if (!object(manifest)) throw new Error('Invalid Vite build manifest.');
   for (const [key, chunk] of Object.entries(manifest)) {
@@ -299,6 +352,11 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
       pwaCoreFiles: coreFiles.size + metadataFiles,
       largestLazyRawBytes: largestLazyRaw?.rawBytes ?? 0,
       largestLazyGzipBytes: lazy[0]?.gzipBytes ?? 0,
+      indexHtmlRawBytes: Buffer.byteLength(html),
+      indexHtmlGzipBytes: gzipSync(html, { level: 9 }).byteLength,
+      // The larger variant: a build carries one, and one vercel.json and one budget serve both.
+      inlineStyleRawBytes: Math.max(firstPaint.inlineStyleRawBytes.offline, firstPaint.inlineStyleRawBytes.online),
+      inlineScriptRawBytes: firstPaint.inlineScriptRawBytes,
     },
     eager,
     eagerJsGzipBytes: eager
@@ -316,6 +374,7 @@ export async function measureBuild(root: string): Promise<BuildMeasurement> {
     largestLazy: lazy[0] ?? null,
     largestLazyRaw,
     pwa: { assetFiles: coreFiles.size, assetBytes: coreBytes, metadataBytes: pwa.budget.metadataBytes, metadataFiles },
+    firstPaint,
   };
 }
 
@@ -358,6 +417,9 @@ export async function reportBudgets(
     `HTML (including inline styles): ${measured.html.map((asset) => `${asset.file}: ${asset.rawBytes} raw / ${asset.gzipBytes} gzip9`).join('; ')}`,
   );
   console.log(
+    `First-paint shell of this ${measured.firstPaint.variant} build: inline style ${measured.firstPaint.inlineStyleRawBytes.offline} raw bytes offline / ${measured.firstPaint.inlineStyleRawBytes.online} online, gated at the larger; boot script ${measured.firstPaint.inlineScriptRawBytes} raw bytes. index.html is gated as built.`,
+  );
+  console.log(
     `Active inline CSS: ${measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0)} raw bytes, already included in the HTML totals; fragment gzip values are not added to transfer totals.`,
   );
   console.log(
@@ -388,6 +450,7 @@ export async function reportBudgets(
         combinedCssGzipBytes: measured.combinedCssGzipBytes,
         html: measured.html,
         activeInlineCssRawBytes: measured.inlineCss.reduce((sum, asset) => sum + asset.rawBytes, 0),
+        firstPaint: measured.firstPaint,
         pwa: measured.pwa,
         largestLazyRaw: measured.largestLazyRaw,
         largestLazyGzip: measured.largestLazy,

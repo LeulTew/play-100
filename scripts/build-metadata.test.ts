@@ -6,8 +6,11 @@ import {
   assertPublicBuildOutput,
   assertPublicPrecachePaths,
   buildManifestPath,
+  firstPaintRecordPath,
   readBuildManifest,
+  readFirstPaintRecord,
   retainBuildManifest,
+  writeFirstPaintRecord,
 } from './build-metadata';
 
 const folders: string[] = [];
@@ -57,6 +60,22 @@ describe('private build metadata', () => {
     await mkdir(path.dirname(buildManifestPath(output)), { recursive: true });
     await writeFile(buildManifestPath(output), '{}');
     await expect(retainBuildManifest(output)).rejects.toThrow();
+  });
+
+  it('retains the first-paint record beside the Vite manifest, outside the deploy output, and reads it back', async () => {
+    const { root, output } = await fixture();
+    const inline = { bytes: 7, source: `'sha256-${'A'.repeat(43)}='` };
+    const record = {
+      format: 1,
+      indexHtml: inline,
+      variant: 'online',
+      script: inline,
+      styles: { offline: inline, online: inline },
+    } as const;
+    await writeFirstPaintRecord(output, record);
+    expect(firstPaintRecordPath(output)).toBe(path.join(root, '.build-meta', 'dist', 'first-paint.json'));
+    await expect(readFirstPaintRecord(output)).resolves.toEqual(record);
+    await expect(assertPublicBuildOutput(output)).resolves.toBeUndefined();
   });
 
   it('refuses to recursively discard unexpected staging files', async () => {

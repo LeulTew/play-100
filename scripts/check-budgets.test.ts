@@ -12,12 +12,19 @@ import {
   reportBudgets,
 } from './check-budgets';
 import type { BuildMeasurement } from './check-budgets';
-import { buildManifestPath } from './build-metadata';
+import { buildManifestPath, firstPaintRecordPath, textDigest } from './build-metadata';
+import type { FirstPaintRecord } from './build-metadata';
 
+// The first-paint inline style and boot script the fixture's index.html carries, and the online header variant's
+// larger style, which only the build's record names.
+const SHELL_STYLE = '.first-paint-shell{display:contents}';
+const ONLINE_STYLE = '.first-paint-shell{display:contents}.site-header-online{gap:8px}';
+const BOOT_SCRIPT = 'boot();';
 const folders: string[] = [];
 const source: Record<string, string> = {
   'index.html':
-    '<script type="module" src="/assets/main-12345678.js"></script><link rel="modulepreload" href="/assets/shared-12345678.js"><link rel="stylesheet" href="/assets/main-12345678.css"><noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>',
+    '<script type="module" src="/assets/main-12345678.js"></script><link rel="modulepreload" href="/assets/shared-12345678.js"><link rel="stylesheet" href="/assets/main-12345678.css"><noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>' +
+    `<style>${SHELL_STYLE}</style><script>${BOOT_SCRIPT}</script>`,
   'assets/main-12345678.js': 'import "./shared-12345678.js"; export const value = 1;',
   'assets/shared-12345678.js': 'export const shared = 2;',
   'assets/nested-12345678.js': 'export const nested = 3;',
@@ -27,6 +34,14 @@ const source: Record<string, string> = {
   'data/collection.json': '{"games":[]}',
   'pwa/offline.html': '<link rel="stylesheet" href="/pwa/fallback.css"><h1>Offline</h1>',
   'pwa/fallback.css': '.fallback { color: black; }',
+};
+// What the build records for the fixture's index.html; fixture() binds it to the document it writes.
+const RECORD: FirstPaintRecord = {
+  format: 1,
+  indexHtml: textDigest(source['index.html']!),
+  variant: 'offline',
+  script: textDigest(BOOT_SCRIPT),
+  styles: { offline: textDigest(SHELL_STYLE), online: textDigest(ONLINE_STYLE) },
 };
 
 async function fixture(inline = '') {
@@ -53,6 +68,10 @@ async function fixture(inline = '') {
       nested: { file: 'assets/nested-12345678.js', imports: ['index.html'] },
       lazy: { file: 'assets/lazy-12345678.js', css: ['assets/lazy-12345678.css'] },
     }),
+  );
+  await writeFile(
+    firstPaintRecordPath(directory),
+    JSON.stringify({ ...RECORD, indexHtml: textDigest(contents['index.html']!) }),
   );
   const core = ['index.html', 'data/collection.json', 'pwa/offline.html', 'pwa/fallback.css'].map((file) => ({
     url: `/${file}`,
@@ -108,6 +127,10 @@ describe('offline built-output budgets', () => {
           pwaCoreFiles: 6,
           largestLazyRawBytes: 100,
           largestLazyGzipBytes: 50,
+          indexHtmlRawBytes: 300,
+          indexHtmlGzipBytes: 100,
+          inlineStyleRawBytes: 6,
+          inlineScriptRawBytes: 4,
         },
         eager,
         eagerJsGzipBytes: 40,
@@ -124,6 +147,7 @@ describe('offline built-output budgets', () => {
         largestLazy,
         largestLazyRaw: largestLazy,
         pwa: { assetFiles: 4, assetBytes: 400, metadataBytes: 32768, metadataFiles: 2 },
+        firstPaint: { variant: 'offline', inlineStyleRawBytes: { offline: 5, online: 6 }, inlineScriptRawBytes: 4 },
       };
     }
     async function reportPath() {
@@ -160,13 +184,14 @@ describe('offline built-output budgets', () => {
           combinedCssGzipBytes: 28,
           html: measured.html,
           activeInlineCssRawBytes: 5,
+          firstPaint: measured.firstPaint,
           pwa: measured.pwa,
           largestLazyRaw: measured.largestLazyRaw,
           largestLazyGzip: measured.largestLazy,
         },
         eagerFiles: measured.eager,
       });
-      expect(report.budgets).toHaveLength(9);
+      expect(report.budgets).toHaveLength(13);
       expect(first.endsWith('\n')).toBe(true);
       expect(await reportBudgets(measured, measured.values, file)).toBe(0);
       expect(await readFile(file, 'utf8')).toBe(first);
@@ -182,7 +207,7 @@ describe('offline built-output budgets', () => {
       expect(report.budgets.filter((row: { pass: boolean }) => !row.pass)).toEqual([
         { metric: 'cssGzipBytes', measured: 20, cap: 19, headroom: -1, pass: false },
       ]);
-      expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(8);
+      expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(12);
     });
 
     it('accepts only an optional --json path and rejects missing, unknown or extra arguments', () => {
@@ -263,7 +288,10 @@ describe('offline built-output budgets', () => {
       `<!-- <style>.commented{}</style> --><STYLE media="all">${css}</style\n><noscript><style>.fallback{}</style></noscript>` +
       '<script>document.write("<style>.in-script{}</style>")</script>';
     const measured = await measureBuild(await fixture(markup));
-    expect(measured.inlineCss.map((asset) => asset.rawBytes)).toEqual([Buffer.byteLength(css)]);
+    expect(measured.inlineCss.map((asset) => asset.rawBytes)).toEqual([
+      Buffer.byteLength(SHELL_STYLE),
+      Buffer.byteLength(css),
+    ]);
   });
 
   it('refuses missing entries and nonlocal assets rather than omitting their cost', () => {
@@ -339,8 +367,10 @@ describe('offline built-output budgets', () => {
     const css = '.critical { display: block; }';
     const before = await measureBuild(await fixture());
     const after = await measureBuild(await fixture(`<style>${css}</style>`));
-    expect(after.inlineCss).toHaveLength(1);
-    expect(after.inlineCss[0]?.rawBytes).toBe(Buffer.byteLength(css));
+    expect(after.inlineCss.map((asset) => asset.rawBytes)).toEqual([
+      Buffer.byteLength(SHELL_STYLE),
+      Buffer.byteLength(css),
+    ]);
     expect(after.values.cssRawBytes).toBe(before.values.cssRawBytes);
     expect(after.values.cssGzipBytes).toBe(before.values.cssGzipBytes);
     expect(after.values.eagerCombinedGzipBytes).toBe(before.values.eagerCombinedGzipBytes);
@@ -350,6 +380,84 @@ describe('offline built-output budgets', () => {
       rawBytes: Buffer.byteLength(expected),
       gzipBytes: gzipSync(expected, { level: 9 }).byteLength,
     });
+    // Another inline style counts in the index.html caps; the first-paint style's cap covers the shell's alone.
+    expect(after.values.indexHtmlRawBytes).toBe(Buffer.byteLength(expected));
+    expect(after.values.indexHtmlGzipBytes).toBe(gzipSync(expected, { level: 9 }).byteLength);
+    expect(after.values.inlineStyleRawBytes).toBe(before.values.inlineStyleRawBytes);
+  });
+
+  it('gates index.html and the first-paint inline blocks, the style at the larger header variant', async () => {
+    const measured = await measureBuild(await fixture());
+    expect(measured.firstPaint).toEqual({
+      variant: 'offline',
+      inlineStyleRawBytes: { offline: Buffer.byteLength(SHELL_STYLE), online: Buffer.byteLength(ONLINE_STYLE) },
+      inlineScriptRawBytes: Buffer.byteLength(BOOT_SCRIPT),
+    });
+    expect(measured.values).toMatchObject({
+      indexHtmlRawBytes: Buffer.byteLength(source['index.html']!),
+      indexHtmlGzipBytes: gzipSync(source['index.html']!, { level: 9 }).byteLength,
+      inlineStyleRawBytes: Buffer.byteLength(ONLINE_STYLE),
+      inlineScriptRawBytes: Buffer.byteLength(BOOT_SCRIPT),
+    });
+    const limits = parseBudgetLimits({ version: 1, limits: measured.values });
+    const failures = (caps: Partial<typeof limits>) => {
+      const rows = budgetRows(measured, { ...limits, ...caps });
+      return rows.filter((row) => row.result === 'FAIL').map((row) => row.metric);
+    };
+    expect(failures({}), 'within every cap').toEqual([]);
+    // The offline index.html is within its caps, but the online variant's style is not.
+    const onlineOver = { inlineStyleRawBytes: Buffer.byteLength(ONLINE_STYLE) - 1 };
+    expect(failures(onlineOver), 'the online style is over its cap').toEqual(['inlineStyleRawBytes']);
+    expect(failures({ indexHtmlGzipBytes: limits.indexHtmlGzipBytes - 1 })).toEqual(['indexHtmlGzipBytes']);
+    expect(failures({ inlineScriptRawBytes: limits.inlineScriptRawBytes - 1 })).toEqual(['inlineScriptRawBytes']);
+    // Placeholders: 0 is a valid cap that no build passes.
+    const placeholders = {
+      indexHtmlRawBytes: 0,
+      indexHtmlGzipBytes: 0,
+      inlineStyleRawBytes: 0,
+      inlineScriptRawBytes: 0,
+    };
+    expect(parseBudgetLimits({ version: 1, limits: { ...limits, ...placeholders } })).toMatchObject(placeholders);
+    expect(failures(placeholders), 'a placeholder cap fails').toEqual(Object.keys(placeholders));
+    expect(() => parseBudgetLimits({ version: 1, limits: { ...limits, inlineScriptRawBytes: -1 } })).toThrow(
+      'Invalid budget: inlineScriptRawBytes.',
+    );
+  });
+
+  it('fails closed without the first-paint record or either header variant, or with the record of another build', async () => {
+    const directory = await fixture();
+    const file = firstPaintRecordPath(directory);
+    const write = (record: unknown) => writeFile(file, JSON.stringify(record));
+    for (const invalid of [
+      { ...RECORD, styles: { offline: RECORD.styles.offline } },
+      { ...RECORD, styles: { online: RECORD.styles.online } },
+      { ...RECORD, indexHtml: null },
+      { ...RECORD, variant: 'both' },
+      { ...RECORD, format: 2 },
+      { ...RECORD, script: { bytes: 0, source: RECORD.script.source } },
+      { ...RECORD, styles: { ...RECORD.styles, online: { bytes: 1, source: 'sha256-unquoted' } } },
+    ]) {
+      await write(invalid);
+      await expect(measureBuild(directory), JSON.stringify(invalid)).rejects.toThrow('Invalid first-paint build');
+    }
+    // A record names the index.html its build wrote and the style and script in it, so any other build's record fails,
+    // with its other variant's style too.
+    for (const stale of [
+      {
+        ...RECORD,
+        indexHtml: textDigest('<p>Another build</p>'),
+        styles: { ...RECORD.styles, online: textDigest('a{}') },
+      },
+      { ...RECORD, variant: 'online' },
+      { ...RECORD, script: textDigest('otherBoot();') },
+    ]) {
+      await write(stale);
+      await expect(measureBuild(directory), JSON.stringify(stale)).rejects.toThrow('belongs to another build');
+    }
+    await rm(file);
+    await expect(measureBuild(directory)).rejects.toThrow('Missing or unreadable first-paint build record');
+    await write(RECORD);
+    await expect(measureBuild(directory)).resolves.toBeDefined();
   });
 
   it('requires standalone styles to remain inside the bounded offline core', async () => {

@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import Beasties from 'beasties';
 import type { Logger as BeastiesLogger, Options as BeastiesOptions } from 'beasties';
 import { Parser } from 'htmlparser2';
 import type { Plugin, ResolvedConfig } from 'vite';
+import { textDigest, writeFirstPaintRecord } from '../build-metadata.ts';
+import type { FirstPaintRecord } from '../build-metadata.ts';
 import { allowsInlineStyles, cspProblems, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
 import {
   ROOT_OPEN,
@@ -35,7 +38,10 @@ import type { ShellVariant } from './shell-html.ts';
  *    strict style-src, exactly the inline styles of both variants), unless the <meta charset>
  *    declaration fits within the document's first 1024 bytes, unless each emitted entry
  *    stylesheet is free of @import and leaves the root font stacks to shell.css, and unless each
- *    font preload makes exactly the request an @font-face of the entry stylesheet makes.
+ *    font preload makes exactly the request an @font-face of the entry stylesheet makes;
+ *  - records the inline style of both variants and the boot script beside the retained Vite
+ *    manifest (.build-meta) once index.html is written, with that document's digest, and
+ *    check:budgets gates their bytes.
  *
  * The boot script inserts the startup tags after the shell's first contentful paint when it shows
  * the shell, and at once otherwise. It runs the module entry only after the entry stylesheet has
@@ -623,11 +629,15 @@ export interface FirstPaintShellOptions {
 
 export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
   let root = process.cwd();
+  let outDir = path.resolve('dist');
   let logger: ResolvedConfig['logger'] | undefined;
+  // This build's inline blocks, recorded once Vite has written index.html.
+  let inlined: Omit<FirstPaintRecord, 'indexHtml'> | undefined;
   return {
     name: 'play100-first-paint-shell',
     configResolved(config) {
       root = config.root;
+      outDir = path.resolve(config.root, config.build.outDir);
       logger = config.logger;
     },
     transformIndexHtml: {
@@ -656,11 +666,10 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
         const charset = assertCharsetDeclaration(result.html);
         const policy = mainDocumentPolicy(JSON.parse(source('vercel.json')));
         // A strict style-src must list the other variant's inline style too (vercel.json serves both
-        // kinds of build), and nothing else.
+        // kinds of build), and nothing else. check:budgets gates both variants' style as well.
         const other = variant === 'online' ? 'offline' : 'online';
-        const otherVariantStyles = allowsInlineStyles(policy)
-          ? []
-          : [sha256Source((await inlineFirstPaintShell({ ...input, variant: other })).style)];
+        const otherStyle = (await inlineFirstPaintShell({ ...input, variant: other })).style;
+        const otherVariantStyles = allowsInlineStyles(policy) ? [] : [sha256Source(otherStyle)];
         const problems = cspProblems([{ name: 'index.html', html: result.html }], policy, { otherVariantStyles });
         if (problems.length)
           throw new Error(`The first-paint shell does not match vercel.json:\n${problems.join('\n')}`);
@@ -674,8 +683,22 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
         logger?.info(
           `first-paint shell: ${variant} header; <meta charset> at byte ${charset}; deferred ${deferred}; ${blocks.join('; ')}${others}`,
         );
+        const style = (name: ShellVariant) => textDigest(name === variant ? result.style : otherStyle);
+        inlined = {
+          format: 1,
+          variant,
+          script: textDigest(result.script),
+          styles: { offline: style('offline'), online: style('online') },
+        };
         return result.html;
       },
+    },
+    // check:budgets gates both variants' inline style and the boot script from this record, which the digest of the
+    // written index.html binds to this build.
+    async writeBundle() {
+      if (!inlined) return;
+      const indexHtml = textDigest(await readFile(path.join(outDir, 'index.html'), 'utf8'));
+      await writeFirstPaintRecord(outDir, { ...inlined, indexHtml });
     },
   };
 }

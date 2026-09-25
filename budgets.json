@@ -9,7 +9,11 @@
     "pwaCoreBytes": 2097152,
     "pwaCoreFiles": 51,
     "largestLazyRawBytes": 582321,
-    "largestLazyGzipBytes": 146641
+    "largestLazyGzipBytes": 146641,
+    "indexHtmlRawBytes": 0,
+    "indexHtmlGzipBytes": 0,
+    "inlineStyleRawBytes": 0,
+    "inlineScriptRawBytes": 0
   },
   "baseline": {
     "commit": "270f4c743d3a9a89d5a64fe612e471ea045ebb47",
@@ -31,11 +35,12 @@
     "introducedBy": "S3 retained standalone-document security headers"
   },
   "notes": {
-    "fixed": "The enforced eager cap includes JS-enabled entry/static-import JS and eager stylesheets. Noscript-only standalone CSS is excluded there, but included in its own gate and the PWA core. HTML, including active inline CSS, is reported separately. Existing PWA metadata reservations are unchanged.",
+    "fixed": "The enforced eager cap includes JS-enabled entry/static-import JS and eager stylesheets. Noscript-only standalone CSS is excluded there, but included in its own gate and the PWA core. index.html has its own raw and gzip9 caps, which include its active inline CSS and the first-paint boot script; the first-paint inline style (the larger of the two header variants) and boot script have raw caps too, read from the record the build retains in .build-meta. Existing PWA metadata reservations are unchanged.",
     "provisional": "Before R9, app CSS and largest-lazy caps used ceil(270f observed value * 1.05). Standalone CSS uses ceil(574 raw / 314 gzip9 * 1.05), separately authorized when S3 introduced that class. Combined CSS totals remain reported.",
     "r9": "Parent-configured complete R9 scratch tree 1738fcbd: lazy raw = ceil(570902 * 1.02) = 582321 (CollectionScene); lazy gzip9 = ceil(143765 * 1.02) = 146641 (friend-shelf-types). CSS gzip9 = ceil(27858 * 1.02) = 28416 uses the same 2% headroom for the required dialog, card, compare dock, pager, ranking, Discover and landing fixes, after removing the split CSS-packaging regression. Raw CSS stays capped at 135620 (measured 133089). Core files are exactly 51: 49 public files plus 2 metadata entries, including react, Icon and personal-library shared chunks introduced by the online split; zero file headroom remains deliberate.",
+    "r10": "PLACEHOLDERS: indexHtmlRawBytes, indexHtmlGzipBytes, inlineStyleRawBytes and inlineScriptRawBytes are 0, a cap no build passes, until the measured caps replace them: ceil(measured * 1.02) from a configured build, whose online header variant has the larger index.html and inline style. check:budgets fails until then.",
     "compression": "gzip level 9, independently per file, summed after deduplication. Fonts, JSON and the root worker are not part of the eager JS+CSS gate.",
     "lazy": "All emitted assets/*.js outside the eager set; raw and gzip maxima are measured separately. The root service worker is excluded.",
-    "cssScopes": "App CSS is Vite-emitted assets/*.css. Standalone pwa/*.css may only be linked from pwa/offline.html or index.html noscript, never an app chunk or CSS import, and must be in the bounded PWA core. Active inline styles are reported in the full HTML raw/gzip measurements rather than silently added to or removed from the emitted-CSS baseline series."
+    "cssScopes": "App CSS is Vite-emitted assets/*.css. Standalone pwa/*.css may only be linked from pwa/offline.html or index.html noscript, never an app chunk or CSS import, and must be in the bounded PWA core. Active inline styles count in the gated index.html raw/gzip measurements, and the first-paint style in its own cap, rather than being silently added to or removed from the emitted-CSS baseline series."
   }
 }
