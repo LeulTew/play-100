@@ -231,8 +231,28 @@ replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
 ## Quality checks
 
-`npm run format:check` becomes part of lint after the mechanical formatting
-commit; until then it is a separate, opt-in check.
+`npm run lint` runs `npm run format:check` first, then
+`eslint . --max-warnings 0`. Formatting is part of the gate, not an opt-in
+check; `npm run format` applies the committed source-only Prettier policy.
+
+The supported release runtime is **Node 24.x**, matching the Vercel build and
+Functions runtime and `package.json` engines. `.nvmrc` selects major 24 for
+compatible version managers. A local gate on a newer Node is a documented
+coverage expansion, not a replacement: at least the complete unit/browser
+gate must pass on Node 24 before release. Record both runs separately.
+If Node 24 is not already selected, npm's documented
+[`exec --package` syntax](https://docs.npmjs.com/cli/v11/commands/npm-exec)
+can put the `node@24` executable on the command PATH:
+
+```powershell
+npm exec --yes --package=node@24 -- node --version
+npm exec --yes --package=node@24 -- node node_modules/vitest/vitest.mjs run --maxWorkers=1
+```
+
+This explicitly invokes Vitest with Node 24 rather than relying on which Node
+an existing npm launcher uses. It may download Node into the npm cache; it
+does not add a project dependency. Keep the version output and runner exit
+code. Use an active Node 24 installation for the rest of the release gate.
 
 The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in
 `.github/workflows` but are **disabled by the owner**; nothing runs on pull
@@ -312,6 +332,91 @@ existing Chrome installation or
 `test:cloud` needs Java 21 and uses the `firebase-tools` version resolved in
 `package-lock.json`, not a global CLI or production project. Both data validators
 read checked-in files only; no gate runs the online catalog collector.
+
+### Portable local release evidence
+
+`npm run release:manifest -- OUTPUT --vitest FILE --playwright FILE`
+collects a JSON receipt from the **current** checkout and `dist`. Both reporter
+kinds are required; repeat either flag for additional reports. `--mode MODE`
+defaults to `production`; use the same Vite mode and environment as the build.
+The output must be a new file in an existing directory. Keep evidence outside
+the checkout and deployment output, and retain the raw reports beside it.
+Unset `DEBUG`: collection refuses debug logging because Vite's environment
+debugger can print raw configuration values.
+
+The receipt records the Git SHA/tree/dirty state, lockfile hash, actual
+collector Node/V8 and installed npm/Vite/Vitest/Playwright versions, OS,
+effective `VITE_*` names and SHA-256 value fingerprints (including Vite's
+mode-specific `.env` files and shell overrides), and hashes of `dist/index.html`,
+`sw.js`, `pwa-assets.json`, `manifest.webmanifest` and its referenced entry chunk.
+It never writes configuration values or raw test diagnostics. Fingerprints
+are for **non-secret** build configuration, not secret storage.
+Each native report has a portable relative path, SHA-256 and counts for files,
+passed, failed, skipped and flaky tests. Vitest files are not describe-suite
+counts; todo tests join skipped, and flaky is `null` because its native JSON
+does not expose retries. Playwright flaky outcomes are separate from passes;
+files are unique across projects within each report.
+
+Generate a separate packet **on each candidate, runtime and build partition**,
+immediately after its gate, without changing source, dependencies, environment
+or `dist`. For example, with Node 24 active and an external `$evidence` directory:
+
+```powershell
+Remove-Item Env:PLAY100_BASE_URL, Env:PLAY100_REUSE_SERVER, Env:PLAY100_ALLOW_ONLY -ErrorAction SilentlyContinue
+npm test -- --maxWorkers=1 --reporter=default --reporter=json --outputFile="$evidence\unit-browser.json"
+if ($LASTEXITCODE -ne 0) { throw 'Unit/browser gate failed' }
+npm run build
+if ($LASTEXITCODE -ne 0) { throw 'Production build failed' }
+$env:PLAY100_TEST_BUILD = 'production'
+$env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-production.json"
+npm run test:e2e -- --reporter=list,json
+if ($LASTEXITCODE -ne 0) { throw 'Production e2e gate failed' }
+npm run release:manifest -- "$evidence\manifest.json" --vitest "$evidence\unit-browser.json" --playwright "$evidence\e2e-production.json"
+if ($LASTEXITCODE -ne 0) { throw 'Release manifest failed' }
+Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_TEST_BUILD
+```
+
+This example is the unit/browser plus production-e2e partition, **not the whole
+release gate** listed above. Retain the exact commands, exit codes and receipts
+for types, lint, budgets, CSP, validators, audits, cloud, development and
+cloud-UI partitions too. For additional native reporters, use Vitest's
+`--reporter=json --outputFile=...` and Playwright's `--reporter=json` with
+`PLAYWRIGHT_JSON_OUTPUT_NAME`; never overwrite a different partition's report.
+Hashing an existing report does **not** prove its execution SHA/runtime or that
+it tested these artifact bytes. The recorded runtime is the collector's, not
+a retrospective measurement of each test process. Preserve runner logs and
+exit codes: native JSON can omit runner-level failures. The manifest is an
+evidence inventory, not automatic certification of complete gate coverage.
+
+`--decisions FILE` accepts explicit `carryForward` and `waivers` arrays:
+
+```json
+{
+  "carryForward": [
+    {
+      "check": "Ancestor production e2e",
+      "reason": "Explain why the reviewed unchanged surface permits reuse",
+      "sourceCommit": "0123456789abcdef0123456789abcdef01234567",
+      "evidence": "ancestor/e2e-production.json"
+    }
+  ],
+  "waivers": [
+    { "check": "Omitted partition", "reason": "Record the release owner's decision and remaining risk" }
+  ]
+}
+```
+
+Without that input both lists are empty. Keep carried evidence separate from
+current-candidate `--vitest`/`--playwright` inputs; reasons disclose reuse or
+omissions but do not approve them. The decisions file is hashed too. Missing,
+malformed or unreadable inputs, inconsistent counts, failing tests/suites,
+expected failures, unfinished runs and empty/all-skipped reports fail closed.
+Playwright retries that pass remain visible as flaky rather than disappearing.
+A dirty tree also fails unless `--allow-dirty` is explicitly supplied and
+recorded; that exception is diagnostic, not a clean release approval.
+No waiver overrides failures, and an existing receipt is never overwritten.
+
+### Coverage and limitations
 
 The two browser partitions are disjoint; fixtures importing live `/src` modules
 run in development rather than being skipped or changing their assertions.

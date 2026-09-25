@@ -193,15 +193,34 @@ Focused source tests cover the build graph, icon pixels, cache budgets and
 allow-deny rules, failed installs, old chunks, trusted updates, multi-tab refusal,
 install availability and retained drafts.
 
-`tests/pwa-offline.spec.ts` runs in the production-preview CI partition on both
+`tests/pwa-offline.spec.ts` is defined in the local production-preview partition on both
 Chromium profiles with an isolated, worker-enabled context. It exercises the
 real Settings control, no pre-intent worker download, first-install no-claim/
 no-reload behavior, offline fresh Library/Queue/Ranking/Discover navigation,
 genre/include filters, Settings, preserved UI-created guest data, denied
-API/auth cache paths and online recovery. Run it after building with
-`npm run test:e2e -- tests/pwa-offline.spec.ts`.
-Its existence is not evidence a particular release ran it; retain the actual
-CI results. ServiceWorker-blocked timing tests are not offline evidence.
+API/auth cache paths and online recovery. With Node 24 active, use an external
+evidence directory and the local production preview (not a development or
+remote server):
+
+```powershell
+Remove-Item Env:PLAY100_BASE_URL, Env:PLAY100_REUSE_SERVER, Env:PLAY100_ALLOW_ONLY -ErrorAction SilentlyContinue
+npm run build
+if ($LASTEXITCODE -ne 0) { throw 'Production build failed' }
+$env:PLAY100_TEST_BUILD = 'production'
+$env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\pwa-offline.json"
+npm run test:e2e -- tests/pwa-offline.spec.ts --project=desktop --project=mobile --reporter=list,json
+if ($LASTEXITCODE -ne 0) { throw 'PWA offline gate failed' }
+Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_TEST_BUILD
+```
+
+The config starts its own strict preview at `127.0.0.1:4187`. Retain the native
+JSON, command/exit receipt and traces, and include the report as a repeated
+`--playwright` input in the candidate's
+[local release manifest](../README.md#portable-local-release-evidence).
+This is a focused PWA receipt, not a claim that the complete e2e suite ran.
+The test's existence is not evidence a particular release executed it; an
+ancestor run must be labelled carry-forward with a reason. Hosted CI is
+disabled. ServiceWorker-blocked timing tests are not offline evidence.
 
 ### Manual release checks
 
