@@ -646,6 +646,28 @@ keeps). `scripts/dependency-overrides.test.ts` fails if the lock resolves a
 vulnerable version again. Remove an override once its consumer depends on the
 patched version itself.
 
+**Install scripts (R9).** npm 12 blocks dependency lifecycle scripts unless
+`package.json` `allowScripts` approves them. Four packages in the lock have one,
+and each is approved at its exact locked version:
+- `esbuild@0.28.2` (dev, Vite's bundler): its postinstall checks that the
+  platform-specific esbuild binary package was installed and works.
+- `protobufjs@7.6.6` (through Firestore's gRPC loader, used by the Node SDK path):
+  its postinstall only reads the parent `package.json` and warns if a dependent
+  pins an incompatible version scheme; it writes and downloads nothing.
+- `re2@1.26.1` (dev, optional, in the Firebase emulator tree): its install step
+  fetches a prebuilt native RE2 binding from the project's GitHub releases, or
+  builds it with node-gyp. It is not part of the client or API bundle.
+- `@firebase/util@1.15.3` (runtime): its postinstall does nothing unless
+  `FIREBASE_WEBAPP_CONFIG` is set (Firebase App Hosting auto-init); then it may
+  fetch that app's web config and write it into the package as build-time
+  defaults. The app never sets that variable and configures Firebase explicitly
+  from the named `VITE_FIREBASE_*` fields.
+
+Pinned approvals keep today's install behaviour and make npm refuse any new or
+changed script. A version bump of any of these packages, or a new package with
+an install script, needs a fresh review of its script before its entry is
+updated; never approve with a wildcard.
+
 Both the main rule and the auth-helper rule send
 `Strict-Transport-Security: max-age=63072000; includeSubDomains` explicitly, so
 HSTS does not depend on a platform default. `preload` is deliberately omitted:
