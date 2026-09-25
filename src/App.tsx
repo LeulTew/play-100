@@ -7,6 +7,7 @@ import { useCapabilities } from './hooks/useCapabilities';
 import { useShare } from './hooks/useShare';
 import { createShareUrl } from './lib/url';
 import { pageDestination } from './lib/page-navigation';
+import { appDocumentTitle } from './lib/document-title';
 import type { AppPage, Filters } from './lib/types';
 import type { LibraryRecord, PersonalAction } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
@@ -66,24 +67,6 @@ import { TrayHost } from './components/app/TrayHost';
 import { RouteHost } from './components/app/RouteHost';
 import { DialogHost } from './components/app/DialogHost';
 
-const PAGE_TITLES: Record<AppPage, string> = {
-  collection: 'Find your next game',
-  games: 'My games',
-  library: 'My games · Library',
-  rankings: 'My games · Ranking',
-  discover: 'Discover more games',
-  account: 'Account',
-  community: 'Community',
-  publish: 'Publish ranking',
-  profile: 'A shared ranking',
-  creator: 'Creator desk',
-  friends: 'Friends',
-  friend: 'Friend',
-  invite: 'Invitation',
-  compare: 'Compare rankings',
-  'friend-sharing': 'Friends sharing',
-  'friend-shelf': 'Shared games',
-};
 const noPreviewSubscription = () => () => {};
 interface PreviewedRecord {
   record: LibraryRecord;
@@ -462,12 +445,8 @@ export default function App() {
     setNotice('');
   }, [libraryScope]);
   useEffect(() => {
-    document.title = selectedGame
-      ? `${selectedGame.title} · #${selectedGame.rank} | Play 100`
-      : selectedRecord
-        ? `${selectedRecord.title} | Play 100`
-        : `${PAGE_TITLES[page]} | Play 100`;
-  }, [selectedGame, selectedRecord, page]);
+    document.title = appDocumentTitle(page, selectedGame, selectedRecord, panel);
+  }, [selectedGame, selectedRecord, page, panel]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]'))

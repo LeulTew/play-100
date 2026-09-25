@@ -258,6 +258,9 @@ its valid trigger or focused editor takes precedence over a page-level return
 target, with its normal focus-in target as the fallback.
 Escape dismisses only the foreground native dialog. The global panel-intent
 cancellation handles Escape only when no native modal is open.
+Committed Settings and About dialogs use their own tab titles; pending/error
+states, Menu, Compare tray and sign-in retain the underlying route or game title.
+Closing the titled dialog restores that title; URL and history behavior are unchanged.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the
