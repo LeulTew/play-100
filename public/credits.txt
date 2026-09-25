@@ -60,6 +60,10 @@ Pinned source revision: 9045b759b70e9d19b8cf007d69d988893d845a1e
 Only the app, authentication and Firestore SDKs are used. No Firebase Analytics,
 Performance, Messaging, AI, paid Functions or Storage feature is initialized.
 
+idb - ISC
+Bundled through the Firebase JavaScript SDK.
+https://github.com/jakearchibald/idb - /licenses/idb.txt
+
 DiceBear core 10.7.0 - MIT; Critters from styles 10.6.0 - CC0 1.0
 https://www.dicebear.com/styles/critters/
 /licenses/dicebear.txt
@@ -74,6 +78,7 @@ Local source: https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg
 dnd kit - Copyright (c) 2021 Clauderic Demers - MIT
 https://dndkit.com
 /licenses/dnd-kit-core.txt
+/licenses/dnd-kit-accessibility.txt
 /licenses/dnd-kit-sortable.txt
 /licenses/dnd-kit-utilities.txt
 

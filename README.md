@@ -421,6 +421,7 @@ python -m venv .venv-data
 npm run import:data -- "C:\path\to\canonical-output"
 Copy-Item "C:\path\to\original.xlsx" "public\downloads\AAA_games_u_have_to_play_list_top_100.xlsx"
 npm run prepare:assets
+npm run assets:social-card
 npm run validate:data
 npm test
 npm run build
@@ -429,8 +430,12 @@ npm run build
 Use a separate generator output directory, not the project root. Import copies
 only the canonical files, original `assets` and generator/test material; it never
 copies virtual environments, previews or caches. `prepare:assets` regenerates
-native-size WebP thumbnails, actual image dimensions, the original social card
-and public licenses. It does not fetch external artwork or modify game records.
+native-size WebP thumbnails, actual image dimensions and public licenses. It
+does not fetch external artwork or modify game records. `assets:social-card`
+separately renders the 1200x630 social image using the installed Playwright
+Chromium and embedded Barlow Condensed / Hanken Grotesk WOFF2 files. It refuses
+missing or unloaded fonts instead of using system-font fallbacks. Keep the
+existing social metadata URLs, alt text and dimensions unchanged when rendering.
 Source updates must still contain the intended 100 author-ordered records.
 
 ## Implementation map

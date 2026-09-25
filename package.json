@@ -19,6 +19,7 @@
     "validate:data": "tsx scripts/validate-data.ts",
     "import:data": "tsx scripts/import-data.ts",
     "prepare:assets": "tsx scripts/prepare-assets.ts",
+    "assets:social-card": "tsx scripts/render-social-card.ts",
     "collect:discovery": "tsx scripts/collect-discovery-catalog.ts",
     "validate:discovery": "tsx scripts/collect-discovery-catalog.ts --verify"
   },

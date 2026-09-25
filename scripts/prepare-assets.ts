@@ -27,9 +27,6 @@ await writeFile(
   path.join(project, 'src', 'generated', 'cover-metadata.json'),
   `${JSON.stringify(metadata, null, 2)}\n`,
 );
-await sharp(path.join(project, 'public', 'social-card.svg'))
-  .png()
-  .toFile(path.join(project, 'public', 'social-card.png'));
 const notices = path.join(project, 'public', 'licenses');
 await mkdir(notices, { recursive: true });
 for (const [source, target] of [
@@ -40,6 +37,8 @@ for (const [source, target] of [
   ['node_modules/@fontsource-variable/hanken-grotesk/LICENSE', 'hanken-grotesk.txt'],
   ['node_modules/react/LICENSE', 'react.txt'],
   ['node_modules/three/LICENSE', 'three.txt'],
+  ['node_modules/idb/LICENSE', 'idb.txt'],
+  ['node_modules/@dnd-kit/accessibility/LICENSE', 'dnd-kit-accessibility.txt'],
   ['node_modules/@dnd-kit/core/LICENSE', 'dnd-kit-core.txt'],
   ['node_modules/@dnd-kit/sortable/LICENSE', 'dnd-kit-sortable.txt'],
   ['node_modules/@dnd-kit/utilities/LICENSE', 'dnd-kit-utilities.txt'],
@@ -48,5 +47,6 @@ for (const [source, target] of [
   await copyFile(path.join(project, source), path.join(notices, target));
 }
 console.log(
-  `Prepared ${assets.length} native-size WebP thumbnails, social image and public third-party licenses. No source image enlarged.`,
+  `Prepared ${assets.length} native-size WebP thumbnails and public third-party licenses. No source image enlarged.`,
 );
+console.log('Render the font-verified social image separately with npm run assets:social-card.');
