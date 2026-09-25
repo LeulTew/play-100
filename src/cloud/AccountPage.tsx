@@ -6,6 +6,7 @@ import { hasProvider } from './account-providers';
 import type { ScopedLibrary, SyncHead, SyncStatus } from '../lib/cloud-types';
 import { SYNC_LABELS } from '../lib/cloud-types';
 import type { Member } from '../lib/community';
+import { displayNameProblem } from '../lib/text-controls';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import { Dialog } from '../components/Dialog';
 import { Icon } from '../components/Icon';
@@ -151,11 +152,12 @@ export function AccountPage(props: AccountPageProps) {
     }
   }, [googleDeletion]);
   const validName = () => {
-    if (name.trim().length >= 1 && name.trim().length <= 60) {
+    const problem = displayNameProblem(name);
+    if (!problem) {
       setNameError('');
       return true;
     }
-    setNameError('Enter a name from 1 to 60 characters.');
+    setNameError(problem);
     nameInput.current?.focus();
     return false;
   };

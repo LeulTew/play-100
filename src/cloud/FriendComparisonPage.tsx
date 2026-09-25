@@ -317,7 +317,7 @@ export function FriendComparisonPage({
             {datasets.map((person, index) => (
               <span key={person.id}>
                 {index > 0 && ', '}
-                {person.id === uid ? `You (${identity.displayName})` : person.displayName}
+                {person.id === uid ? `You (${identity.displayName})` : <bdi>{person.displayName}</bdi>}
               </span>
             ))}
           </p>
@@ -362,7 +362,11 @@ export function FriendComparisonPage({
                     <Avatar descriptor={identities[id].avatar} size={32} />
                   ) : null}
                   <span>
-                    {id === uid ? 'You (private device copy)' : (identities[id]?.displayName ?? 'Unavailable player')}
+                    {id === uid ? (
+                      'You (private device copy)'
+                    ) : (
+                      <bdi>{identities[id]?.displayName ?? 'Unavailable player'}</bdi>
+                    )}
                   </span>
                 </label>
               ))}
@@ -451,7 +455,9 @@ export function FriendComparisonPage({
           <ul>
             {unavailable.map((person) => (
               <li key={person.id}>
-                <strong>{person.displayName}:</strong>{' '}
+                <strong>
+                  <bdi>{person.displayName}</bdi>:
+                </strong>{' '}
                 {person.availability === 'error' ? 'Rankings could not load.' : 'Rankings are unavailable.'}
               </li>
             ))}
@@ -523,7 +529,9 @@ export function FriendComparisonPage({
                           ) : profile && person.availability === 'ready' ? (
                             <Avatar descriptor={profile.avatar} size={32} />
                           ) : null}
-                          <span>{person.displayName}</span>
+                          <span>
+                            <bdi>{person.displayName}</bdi>
+                          </span>
                         </span>
                       </th>
                     );

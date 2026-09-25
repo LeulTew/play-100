@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { hasAsciiControl } from './text-controls';
+import { cleanDisplayName, displayNameProblem, hasAsciiControl } from './text-controls';
 
 it('rejects exactly C0 and DEL across every UTF-16 code unit', () => {
   const rejected: number[] = [];
@@ -33,4 +33,26 @@ it('does not mistake non-ASCII code points or low bytes for ASCII controls', () 
     expect(hasAsciiControl(`${value}\u0000`)).toBe(true);
     expect(hasAsciiControl(`\u007f${value}`)).toBe(true);
   }
+});
+
+it('rejects bidi, zero-width, BOM and other control or format characters anywhere in a display name', () => {
+  const rejected = [0x0000, 0x0009, 0x000a, 0x007f, 0x0085, 0x00ad, 0x061c, 0x180e, 0x2060, 0xfeff, 0xe0041];
+  for (let code = 0x200b; code <= 0x200f; code += 1) rejected.push(code);
+  for (let code = 0x202a; code <= 0x202e; code += 1) rejected.push(code);
+  for (let code = 0x2066; code <= 0x2069; code += 1) rejected.push(code);
+  for (const code of rejected) {
+    const character = String.fromCodePoint(code);
+    for (const name of [`Player${character}name`, `${character}Player`, `Player${character}`]) {
+      expect(displayNameProblem(name)).toMatch(/invisible, control or text-direction/);
+      expect(() => cleanDisplayName(name)).toThrow(/invisible, control or text-direction/);
+    }
+  }
+});
+
+it('accepts ordinary Unicode names and trims surrounding whitespace to the 1-60 character rule', () => {
+  for (const name of ['Zoë', 'Łukasz', 'سارة', '田中', "O'Brien", 'A\u00a0B', 'Gamer 🎮', 'x'.repeat(60)]) {
+    expect(displayNameProblem(name)).toBeNull();
+    expect(cleanDisplayName(` ${name}\u3000`)).toBe(name);
+  }
+  for (const name of ['', '   ', '\u00a0', 'x'.repeat(61)]) expect(displayNameProblem(name)).toMatch(/1 to 60/);
 });

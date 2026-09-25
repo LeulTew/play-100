@@ -772,7 +772,9 @@ export function FriendsPage({
                       </span>
                     )}
                     <div>
-                      <strong>{name}</strong>
+                      <strong>
+                        <bdi>{name}</bdi>
+                      </strong>
                       {pair.state === 'pending' && pair.from === uid && person && <small>Published profile</small>}
                       {(!profile || profile.status === 'loading') && <small role="status">Loading profile…</small>}
                       {profile?.status === 'unavailable' && <small>Profile unavailable</small>}
@@ -994,9 +996,13 @@ export function FriendsPage({
           }}
         >
           <h2 id="friend-change-title">
-            {confirmation.action === 'revoke'
-              ? 'Revoke this invitation?'
-              : `${confirmation.action === 'block' ? 'Block' : 'Remove'} ${confirmation.name}?`}
+            {confirmation.action === 'revoke' ? (
+              'Revoke this invitation?'
+            ) : (
+              <>
+                {confirmation.action === 'block' ? 'Block' : 'Remove'} <bdi>{confirmation.name}</bdi>?
+              </>
+            )}
           </h2>
           {confirmation.action === 'revoke' ? (
             <p>

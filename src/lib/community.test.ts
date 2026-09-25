@@ -8,6 +8,7 @@ import {
   recordFromPublic,
   reportDocumentId,
   RESERVED_HANDLES,
+  reservedHandlePattern,
 } from './community';
 import { parseCollection } from './collection';
 import { applyPersonalAction, emptyPersonalLibrary } from './personal-library';
@@ -112,6 +113,21 @@ describe('explicit public projection and safe imports', () => {
       'leul_tew',
       'play100_official',
       'support_team',
+      'p1ay100',
+      'p1ay1oo_fan',
+      'adm1n',
+      'admln_x',
+      'creat0r',
+      'ieul',
+      '1eul',
+      'supp0rt',
+      'm0derat0r',
+      'f1rebase',
+      'acc0unt',
+      'c0mmun1ty',
+      'sett1ngs',
+      '0fficial',
+      'offic1al',
       '_name',
       'two words',
       'xx',
@@ -123,7 +139,13 @@ describe('explicit public projection and safe imports', () => {
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     const prefixes = /!handle\.matches\('\^\(([^)]+)\)\.\*'\)/.exec(rules)?.[1]?.split('|');
     expect(prefixes).toBeDefined();
-    expect(prefixes?.sort()).toEqual([...RESERVED_HANDLES].sort());
+    expect(prefixes?.sort()).toEqual(RESERVED_HANDLES.map(reservedHandlePattern).sort());
+    expect(reservedHandlePattern('play100')).toBe('p[il1]ay[il1][o0][o0]');
+    expect(reservedHandlePattern('system')).toBe('system');
+  });
+  it('still accepts ordinary handles that merely resemble a reserved word later in the name', () => {
+    for (const handle of ['my_admin', 'the_official', 'pilot_games', 'sysadmin', 'leu_games', 'playlist'])
+      expect(normalizeHandle(handle)).toBe(handle);
   });
   it('uses exactly one report separator for provider-shaped and hyphenated demo UIDs', () => {
     const target = 'A'.repeat(28);

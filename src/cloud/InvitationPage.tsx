@@ -140,7 +140,9 @@ export function InvitationPage({
           <div className="friend-identity">
             <Avatar descriptor={preview.avatar} size={80} />
             <div>
-              <h2>{preview.displayName}</h2>
+              <h2>
+                <bdi>{preview.displayName}</bdi>
+              </h2>
               <p>Invites you to connect.</p>
             </div>
           </div>

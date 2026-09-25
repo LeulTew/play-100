@@ -90,7 +90,7 @@ export function FriendComparisonLoader({
   ]);
   return (
     <li>
-      {person?.displayName ?? 'Player'}:{' '}
+      <bdi>{person?.displayName ?? 'Player'}</bdi>:{' '}
       {view.status === 'ready'
         ? view.exactIds
           ? `${view.exactIds.length} chosen ${view.exactIds.length === 1 ? 'game' : 'games'} checked`
@@ -104,14 +104,14 @@ export function FriendComparisonLoader({
             void view.loadMore();
           }}
         >
-          Load next 25 for {person?.displayName ?? 'player'}
+          Load next 25 for <bdi>{person?.displayName ?? 'player'}</bdi>
         </button>
       )}
       {view.error && (
         <>
           <span className="inline-error">{view.error}</span>
           <button className="text-button" onClick={view.retry}>
-            Refresh {person?.displayName ?? 'player'}
+            Refresh <bdi>{person?.displayName ?? 'player'}</bdi>
           </button>
         </>
       )}

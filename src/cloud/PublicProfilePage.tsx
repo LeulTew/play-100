@@ -128,7 +128,7 @@ export function PublicProfilePage({
         <Avatar descriptor={profile.avatar} size={80} />
         <div>
           <p>
-            {profile.displayName} <span>@{profile.handle}</span>
+            <bdi>{profile.displayName}</bdi> <span>@{profile.handle}</span>
             {profile.creator && <strong className="creator-badge">Collection creator</strong>}
           </p>
           <h1 id="public-ranking-title" data-page-heading tabIndex={-1}>

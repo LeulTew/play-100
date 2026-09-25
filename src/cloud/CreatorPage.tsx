@@ -173,7 +173,9 @@ export function CreatorPage({
               <li key={member.uid}>
                 <Avatar descriptor={member.avatar} size={48} />
                 <div>
-                  <h2>{member.displayName}</h2>
+                  <h2>
+                    <bdi>{member.displayName}</bdi>
+                  </h2>
                   <p>
                     {member.rankCount} synced ranks · Updated{' '}
                     {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(member.updatedAt)}
@@ -292,7 +294,7 @@ export function CreatorPage({
             {selected.avatar && <Avatar descriptor={selected.avatar} size={64} />}
             <div>
               <h2 id="member-ranking-title" data-autofocus tabIndex={-1}>
-                {selected.displayName}
+                <bdi>{selected.displayName}</bdi>
               </h2>
               <p>
                 {selected.publicOnly ? 'Published ranking snapshot.' : 'Private ranking summary.'} No notes or play

@@ -147,7 +147,9 @@ export function CommunityPage({
                     }
                   }}
                 >
-                  <h2>{profile.displayName}</h2>
+                  <h2>
+                    <bdi>{profile.displayName}</bdi>
+                  </h2>
                   <span>
                     @{profile.handle}
                     {profile.creator ? ' · Collection creator' : ''}

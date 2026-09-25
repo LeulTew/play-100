@@ -173,7 +173,7 @@ export function FriendDetailPage({
         Friends
       </button>
       <h1 data-page-heading tabIndex={-1}>
-        {person?.displayName ?? 'Player'}
+        <bdi>{person?.displayName ?? 'Player'}</bdi>
       </h1>
       {person && <Avatar descriptor={person.avatar} size={80} />}
       {busy && <p role="status">Loading…</p>}
@@ -284,7 +284,9 @@ export function FriendDetailPage({
             if (!busy) setConfirmRequest(false);
           }}
         >
-          <h2 id="friend-request-title">Connect with {person.displayName}?</h2>
+          <h2 id="friend-request-title">
+            Connect with <bdi>{person.displayName}</bdi>?
+          </h2>
           <div className="friend-identity">
             <Avatar descriptor={identity.avatar} size={48} />
             <span>They'll see {identity.displayName}.</span>

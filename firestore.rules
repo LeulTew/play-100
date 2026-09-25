@@ -57,10 +57,20 @@ service cloud.firestore {
         && value.seed is string && value.seed.matches('^[a-f0-9]{32}$')
         && value.palette in ['lime', 'moss', 'clay', 'sky', 'lilac'];
     }
+    // 1-60 characters, no Unicode control or format character (C0/C1, bidi controls, zero-width, BOM) and no
+    // leading or trailing whitespace. An update may keep an unchanged legacy name until it is next edited.
+    function cleanName(value) {
+      return value is string && value.size() >= 1 && value.size() <= 60
+        && value.matches('^[^\\p{Cc}\\p{Cf}\\p{Z}]([^\\p{Cc}\\p{Cf}]*[^\\p{Cc}\\p{Cf}\\p{Z}])?$');
+    }
+    function displayNameOk(value) {
+      return cleanName(value) || (resource != null && value is string && value.size() >= 1 && value.size() <= 60
+        && value == resource.data.displayName);
+    }
     function member(data, uid) {
       return data.keys().hasOnly(['uid', 'displayName', 'avatar', 'createdAt', 'updatedAt', 'consentVersion', 'rankCount', 'gameCount'])
         && data.keys().hasAll(['uid', 'displayName', 'avatar', 'createdAt', 'updatedAt', 'consentVersion', 'rankCount', 'gameCount'])
-        && data.uid == uid && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.uid == uid && displayNameOk(data.displayName)
         && avatar(data.avatar) && data.consentVersion == 1
         && data.createdAt is timestamp && data.updatedAt == request.time
         && data.rankCount is int && data.rankCount >= 0 && data.rankCount <= 10000
@@ -254,7 +264,7 @@ service cloud.firestore {
     }
     function validHandle(handle) {
       return handle is string && handle.matches('^[a-z][a-z0-9_]{2,23}$')
-        && !handle.matches('^(admin|creator|leul|play100|support|system|moderator|firebase|account|community|settings|official).*');
+        && !handle.matches('^(adm[il1]n|creat[o0]r|[il1]eu[il1]|p[il1]ay[il1][o0][o0]|supp[o0]rt|system|m[o0]derat[o0]r|f[il1]rebase|acc[o0]unt|c[o0]mmun[il1]ty|sett[il1]ngs|[o0]ff[il1]c[il1]a[il1]).*');
     }
     function publicGeneration(uid, id) {
       return get(/databases/$(database)/documents/publicProfiles/$(uid)/generations/$(id)).data;
@@ -285,7 +295,7 @@ service cloud.firestore {
       return data.keys().hasOnly(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.keys().hasAll(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.uid == uid && data.handle is string && data.handle.matches('^[a-z][a-z0-9_]{2,23}$') && avatar(data.avatar)
-        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && displayNameOk(data.displayName)
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
         && data.count is int && data.count >= 1 && data.count <= 200
         && data.preview is list && data.preview.size() >= 1 && data.preview.size() <= 3
@@ -556,8 +566,7 @@ service cloud.firestore {
     }
     function fIdentityShape(data, uid) {
       return fKeys(data, ['format', 'uid', 'displayName', 'avatar', 'revision', 'updatedAt'])
-        && data.format == 1 && data.uid == uid && data.displayName is string
-        && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.format == 1 && data.uid == uid && displayNameOk(data.displayName)
         && avatar(data.avatar) && fInt(data.revision, 1, 9007199254740991) && data.updatedAt == request.time;
     }
     match /friendIdentities/{uid} {
@@ -744,7 +753,7 @@ service cloud.firestore {
     function fInviteShape(data) {
       return fKeys(data, ['format', 'ownerUid', 'slot', 'displayName', 'avatar', 'createdAt', 'state', 'acceptedBy'])
         && data.format == 1 && fUid(data.ownerUid) && fInt(data.slot, 0, 19)
-        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && displayNameOk(data.displayName)
         && avatar(data.avatar) && data.createdAt is timestamp && data.state in ['active', 'consumed', 'revoked']
         && (data.state == 'consumed' ? fUid(data.acceptedBy) && data.acceptedBy != data.ownerUid : data.acceptedBy == null);
     }

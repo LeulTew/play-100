@@ -27,6 +27,7 @@ import {
   PUBLIC_LIMIT,
 } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
+import { displayNameProblem } from '../lib/text-controls';
 import { ensureAccountActivity } from './account-lifecycle';
 import { releaseIndexedPayload } from './generation-cleanup';
 import { ACCOUNT_LIMITS, AccountQuotaFull, quotaRef, quotaSupported, requireVisibleCapacity } from './account-quota';
@@ -180,6 +181,9 @@ export class SocialStore {
     const displayName = name.trim();
     if (!displayName || displayName.length > 60)
       throw new Error('Choose a name between 1 and 60 characters. A nickname is welcome.');
+    // An avatar-only update keeps the stored name, so rules accept an unchanged legacy name there.
+    const nameProblem = displayNameProblem(name);
+    if (nameProblem && field !== 'avatar') throw new Error(nameProblem);
     parseAvatar(avatar);
     await ensureAccountActivity(this.db, uid);
     await runTransaction(this.db, async (tx) => {
@@ -189,7 +193,8 @@ export class SocialStore {
         parseMember(previous.data());
         if (field === 'name') tx.update(ref, { displayName, updatedAt: serverTimestamp() });
         if (field === 'avatar') tx.update(ref, { avatar, updatedAt: serverTimestamp() });
-      } else
+      } else {
+        if (nameProblem) throw new Error(nameProblem);
         tx.set(ref, {
           uid,
           displayName,
@@ -200,6 +205,7 @@ export class SocialStore {
           rankCount: 0,
           gameCount: 0,
         });
+      }
     });
   }
   async control(uid: string): Promise<PublicControl> {
@@ -285,6 +291,8 @@ export class SocialStore {
     const title = input.title.trim();
     if (!displayName || displayName.length > 60 || !title || title.length > 80)
       throw new Error('Use a name up to 60 characters and a ranking title up to 80.');
+    const nameProblem = displayNameProblem(input.displayName);
+    if (nameProblem) throw new Error(nameProblem);
     if (!input.entries.length || input.entries.length > PUBLIC_LIMIT)
       throw new Error('Choose 1-200 games; no entries are automatically omitted.');
     const entries = input.entries.map(parsePublicationEntry);

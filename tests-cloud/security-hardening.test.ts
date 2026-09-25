@@ -354,4 +354,132 @@ describe('S3 report and friendship boundaries', () => {
     await assertFails(db.doc('handles/hoarded_games').get());
     await assertSucceeds(db.doc('handles/new_games').get());
   });
+
+  it('rejects confusable reserved handle prefixes and keeps ordinary handles', async () => {
+    const id = crypto.randomUUID();
+    const profile = {
+      uid: 'Alice',
+      handle: 'previous_games',
+      displayName: 'Alice',
+      avatar,
+      title: 'Games',
+      count: 1,
+      preview: ['Game'],
+      generation: id,
+      epoch: 1,
+      published: true,
+      listed: false,
+      hidden: false,
+      creator: false,
+      updatedAt: Timestamp.now(),
+    };
+    await seed({
+      'publicProfiles/Alice': profile,
+      'handles/previous_games': { uid: 'Alice' },
+      'publicControls/Alice': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Alice/generations/${id}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+    });
+    const db = user('Alice');
+    const change = (handle: string) => {
+      const batch = db.batch();
+      batch.set(db.doc('publicProfiles/Alice'), { ...profile, handle, epoch: 2, updatedAt: serverTimestamp() });
+      batch.update(db.doc('publicControls/Alice'), { epoch: 2 });
+      batch.set(db.doc(`handles/${handle}`), { uid: 'Alice' });
+      batch.delete(db.doc('handles/previous_games'));
+      return batch.commit();
+    };
+    for (const handle of ['p1ay100_fan', 'adm1n_x', '0fficial', 'creat0r_hub', 'ieu1_games', 'c0mmun1ty', 'm0derat0r'])
+      await assertFails(change(handle));
+    await assertSucceeds(change('my_admin'));
+  });
+});
+
+describe('display-name hygiene', () => {
+  const badNames = [
+    'Bad\u202Ename',
+    'Bad\u2066name',
+    'Zero\u200Bwidth',
+    'Bom\uFEFF',
+    'Bell\u0007',
+    ' Leading',
+    'Trailing ',
+    '\u00A0Nbsp',
+  ];
+  const memberDoc = (displayName: string) => ({
+    uid: 'Alice',
+    displayName,
+    avatar,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    consentVersion: 1,
+    rankCount: 0,
+    gameCount: 0,
+  });
+
+  it('requires a clean name when a member profile is created', async () => {
+    const db = user('Alice');
+    for (const name of badNames) await assertFails(db.doc('members/Alice').set(memberDoc(name)));
+    await assertSucceeds(db.doc('members/Alice').set(memberDoc('Zoë Ab')));
+  });
+
+  it('keeps an unchanged legacy member name but rejects a new unclean name', async () => {
+    await seed({
+      'members/Alice': { ...memberDoc('Bad\u202Ename'), createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    });
+    const db = user('Alice');
+    await assertSucceeds(
+      db.doc('members/Alice').update({ avatar: { ...avatar, palette: 'sky' }, updatedAt: serverTimestamp() }),
+    );
+    for (const name of badNames.slice(1))
+      await assertFails(db.doc('members/Alice').update({ displayName: name, updatedAt: serverTimestamp() }));
+    await assertSucceeds(db.doc('members/Alice').update({ displayName: 'Alice', updatedAt: serverTimestamp() }));
+  });
+
+  it('applies the same rule to friend-facing identities', async () => {
+    const db = user('Alice');
+    const rename = (displayName: string) =>
+      db.doc('friendIdentities/Alice').update({ displayName, revision: 2, updatedAt: serverTimestamp() });
+    for (const name of badNames) await assertFails(rename(name));
+    await seed({ 'friendIdentities/Alice': { ...identity('Alice'), displayName: 'Old\u200Bname' } });
+    const avatarOnly = { avatar: { ...avatar, palette: 'moss' }, revision: 2, updatedAt: serverTimestamp() };
+    await assertSucceeds(db.doc('friendIdentities/Alice').update(avatarOnly));
+    await assertSucceeds(
+      db.doc('friendIdentities/Alice').update({ displayName: 'Alice', revision: 3, updatedAt: serverTimestamp() }),
+    );
+  });
+
+  it('applies the same rule to published profile names', async () => {
+    const id = crypto.randomUUID();
+    const profile = {
+      uid: 'Alice',
+      handle: 'alice_games',
+      displayName: 'Legacy\u202Ename',
+      avatar,
+      title: 'Games',
+      count: 1,
+      preview: ['Game'],
+      generation: id,
+      epoch: 1,
+      published: true,
+      listed: false,
+      hidden: false,
+      creator: false,
+      updatedAt: Timestamp.now(),
+    };
+    await seed({
+      'publicProfiles/Alice': profile,
+      'handles/alice_games': { uid: 'Alice' },
+      'publicControls/Alice': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Alice/generations/${id}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+    });
+    const db = user('Alice');
+    const publish = (displayName: string) => {
+      const batch = db.batch();
+      batch.set(db.doc('publicProfiles/Alice'), { ...profile, displayName, epoch: 2, updatedAt: serverTimestamp() });
+      batch.update(db.doc('publicControls/Alice'), { epoch: 2 });
+      return batch.commit();
+    };
+    for (const name of badNames) await assertFails(publish(name));
+    await assertSucceeds(publish('Legacy\u202Ename'));
+  });
 });

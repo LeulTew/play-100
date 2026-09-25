@@ -424,6 +424,22 @@ readable so an owner can rename/unpublish; new publication requires a compliant
 handle, and the publication UI shows the reserved reason before preview.
 Prefix blocking deliberately also rejects benign names beginning `account`,
 `system` or `creator`; that over-blocking is an anti-impersonation choice.
+Since R9 the reserved prefixes also match their `1`/`l`/`i` and `0`/`o`
+confusables (for example `p1ay100_fan`, `adm1n_x` and `0fficial`); the rules
+alternation and `normalizeHandle` derive from the same word list, and a unit
+test pins them together.
+
+**Display names (R9).** Member, public-profile, friend-identity and invite
+names must be 1-60 characters with no Unicode control or format character
+(`\p{Cc}`/`\p{Cf}`: C0/C1 controls, bidi embeddings, overrides and isolates,
+zero-width characters, U+FEFF) and no leading or trailing separator (`\p{Z}`).
+Rules check this with RE2 `matches()`; the client applies the same rule after
+trimming and shows plain error text. An update may keep an unchanged legacy name
+(for example an icon-only change, invite consumption or unpublish), but any new
+or changed name must be clean, and creating an invite requires a clean identity
+name. Format characters include ZWJ and emoji tag characters, so some emoji
+sequences are refused; that over-block is accepted. Other users' names render in
+`<bdi>` so a right-to-left name cannot reorder the surrounding text.
 The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion on both rename and profile deletion.
 Deleting/recreating a profile cannot leave a new hoarded claim behind. Full

@@ -26,6 +26,7 @@ import type {
 } from 'firebase/firestore';
 import { parseAvatar } from '../lib/community';
 import type { AvatarValue, PublicEntry } from '../lib/community';
+import { displayNameProblem } from '../lib/text-controls';
 import {
   FRIEND_CHUNK_LIMIT,
   FRIEND_CHUNK_SIZE,
@@ -333,6 +334,9 @@ export class FriendStore {
         conflict('Your friend profile changed. Reload before saving its name or icon.');
       if (current && current.displayName === displayName && JSON.stringify(current.avatar) === JSON.stringify(avatar))
         return;
+      // Rules accept an unchanged legacy name; a new or changed name must pass the display-name rule.
+      const nameProblem = current?.displayName === displayName ? null : displayNameProblem(displayName);
+      if (nameProblem) throw new FriendStoreError('invalid', nameProblem);
       tx.set(ref, {
         format: 1,
         uid,
@@ -639,6 +643,11 @@ export class FriendStore {
         if (!identity.exists())
           throw new FriendStoreError('unavailable', 'Save your friend-facing name and icon before creating a link.');
         const chosen = parseFriendIdentity(identity.data());
+        if (displayNameProblem(chosen.displayName))
+          throw new FriendStoreError(
+            'invalid',
+            'Your friend-facing name has invisible, control or text-direction characters. Change your name before creating a link.',
+          );
         const tokens = slots.map((slot) => (slot.exists() ? parseFriendSlot(slot.data()) : null));
         let index = tokens.indexOf(null);
         let prior: DocumentSnapshot<DocumentData> | null = null;

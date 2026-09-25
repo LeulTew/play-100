@@ -21,6 +21,11 @@ export const RESERVED_HANDLES = [
   'settings',
   'official',
 ];
+/** A reserved word as a prefix pattern that also matches its 1/l/i and 0/o confusables (rules validHandle). */
+export function reservedHandlePattern(word: string): string {
+  return word.replace(/[il1]/g, '[il1]').replace(/[o0]/g, '[o0]');
+}
+const RESERVED_HANDLE_PREFIX = new RegExp(`^(${RESERVED_HANDLES.map(reservedHandlePattern).join('|')})`);
 export type AvatarValue = AvatarDescriptor;
 export interface Member {
   uid: string;
@@ -82,7 +87,7 @@ export function reportDocumentId(targetUid: string, reporterUid: string): string
 
 export function normalizeHandle(value: string): string {
   const handle = parseHandle(value);
-  if (RESERVED_HANDLES.some((reserved) => handle.startsWith(reserved)))
+  if (RESERVED_HANDLE_PREFIX.test(handle))
     throw new Error('System and creator handle prefixes are reserved. Choose another handle.');
   return handle;
 }
