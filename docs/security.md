@@ -113,6 +113,16 @@ silently enabled by this batch. reCAPTCHA Auth protection is likewise not adopte
 now given enumeration protection, the password policy and rules controls; revisit
 if abuse appears.
 
+**Sign-up enumeration (accepted risk, R9).** Creating an account with an email
+that is already registered fails with `auth/email-already-in-use`, which
+`src/cloud/errors.ts` maps to its own message and `OnlineController`'s email
+sign-up (`createUserWithEmailAndPassword`) shows, so the sign-up form reveals whether an email is registered. Firebase
+email enumeration protection covers sign-in and `createAuthUri`, not account
+creation, so it does not hide this. The copy is deliberately unchanged: a
+generic message would leave real users unable to tell they should sign in
+instead. The mitigation is reCAPTCHA Auth protection or App Check enforcement to
+rate-limit automated probing; adopting either is an owner decision.
+
 The authored client (`src/cloud/app-check-client.ts`) uses the **reCAPTCHA v3**
 provider (`ReCaptchaV3Provider`), which works on Spark without billing, behind
 the build flag `VITE_APP_CHECK_ENABLED` (default off; see
