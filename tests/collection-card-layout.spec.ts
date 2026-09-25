@@ -102,6 +102,7 @@ for (const width of [320, 393]) {
     await page.getByRole('button', { name: 'Exit selection mode', exact: true }).click();
     await page.getByRole('button', { name: 'List view', exact: true }).click();
     const row = page.locator(`.games-list > .game-card[data-game="${first.id}"]`);
+    await expect(row.locator('.game-cover')).toHaveCSS('aspect-ratio', 'auto');
     await expectClearFallback(row.locator('.game-cover'), '01');
     await row.locator('.game-link').click();
     await expect(page.getByRole('dialog').getByRole('heading', { name: first.title, exact: true })).toBeVisible();
@@ -140,6 +141,11 @@ for (const width of [320, 393]) {
     await expect(detailCover.locator('.jacket-year')).toBeHidden();
     await expect(detail.locator('.detail-byline')).toContainText(first.year);
     await expect(detailCover.locator('.cover-rank')).toHaveText('01');
+    await detail.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await page.getByRole('button', { name: 'List view', exact: true }).click();
+    const listCover = page.locator(`.games-list > .game-card[data-game="${first.id}"] .game-cover`);
+    await expectNativeCover(listCover, 80 / 74);
+    await expect(listCover).toHaveCSS('height', '74px');
   });
 }
 

@@ -340,6 +340,8 @@ title and genre heights so dividers and action rows align. A failed cover's
 grow to keep the full message clear of the badge and overlaid controls. At narrow
 widths, redundant decorative series/year print is hidden, while the real metadata,
 rank, successful sleeve aspect ratio and native-size image limit are unchanged.
+Failed list thumbnails use content-driven height without a preferred aspect ratio
+or overlaid-control headroom; their unchanged full caption and rank set the height.
 
 ### Ratings tables and personal-library pages
 

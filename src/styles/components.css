@@ -45,6 +45,7 @@
 .games-list .game-card { border-bottom: 1px solid var(--line); }
 .games-list .game-link { display: flex; gap: 23px; align-items: center; padding: 16px 62px 16px 0; }
 .games-list .game-cover { width: 127px; height: 84px; flex-shrink: 0; }
+.games-list .game-cover.original-jacket:has(> .art-fallback-note) { aspect-ratio: auto; padding-top: 0; }
 .games-list .cover-rank { min-width: 32px; height: 32px; font-size: 25px; padding-inline: 5px; }
 .games-list .jacket-year { display: none; }
 .games-list .jacket-series { top: 8px; left: 9px; font-size: 11px; }
