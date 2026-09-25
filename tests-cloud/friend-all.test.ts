@@ -55,6 +55,7 @@ vi.mock('firebase/firestore', async (original) => {
     runTransaction: vi.fn(actual.runTransaction),
     writeBatch: vi.fn(actual.writeBatch),
     getDocsFromServer: vi.fn(actual.getDocsFromServer),
+    getDocFromServer: vi.fn(actual.getDocFromServer),
   };
 });
 const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
@@ -82,6 +83,7 @@ beforeEach(async () => {
   vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
   vi.mocked(writeBatch).mockReset().mockImplementation(actual.writeBatch);
   vi.mocked(getDocsFromServer).mockReset().mockImplementation(actual.getDocsFromServer);
+  vi.mocked(getDocFromServer).mockReset().mockImplementation(actual.getDocFromServer);
   await environment.clearFirestore();
 });
 afterEach(async () => {
@@ -512,6 +514,38 @@ describe('All-sharing bounded SDK transport', () => {
     await legacy.friends.initialize(legacy.uid);
     expect(await legacy.all.startDefault(legacy.uid, () => true)).toBeNull();
     expect(await legacy.all.controls(legacy.uid)).toMatchObject({ policy: null, ranking: { enabled: false } });
+  });
+  it('reports the default that commits between the separate control reads of a first friend action', async () => {
+    const actor = await client();
+    const controls = await actor.all.controls(actor.uid);
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    let phase: 'policy' | 'settings' | 'done' = 'policy';
+    let policyRead: Promise<unknown> = Promise.resolve();
+    let automatic: Promise<FriendAllPolicy | null> | undefined;
+    // The friend action reads no policy; the automatic default then commits all three documents before the action
+    // reads its ranking settings, so those separate reads observe the settings without the policy.
+    vi.mocked(getDocFromServer).mockImplementation(async (ref) => {
+      if (phase === 'policy' && ref.path === `friendAllPolicies/${actor.uid}`) {
+        phase = 'settings';
+        policyRead = actual.getDocFromServer(ref);
+        return policyRead as ReturnType<typeof actual.getDocFromServer>;
+      }
+      if (phase === 'settings' && ref.path === `friendSettings/${actor.uid}`) {
+        phase = 'done';
+        await policyRead;
+        automatic = actor.all.setPolicy(actor.uid, true, 'default', controls, () => true);
+        await automatic;
+      }
+      return actual.getDocFromServer(ref);
+    });
+    const action = await actor.all.startDefault(actor.uid, () => true);
+    expect(phase).toBe('done');
+    expect(action).toEqual(await automatic);
+    expect(action).toMatchObject({ enabled: true, origin: 'default', epoch: 1, revision: 1 });
+    vi.mocked(getDocFromServer).mockImplementation(actual.getDocFromServer);
+    const legacy = await client();
+    await legacy.friends.initialize(legacy.uid);
+    expect(await legacy.all.startDefault(legacy.uid, () => true)).toBeNull();
   });
   it('settles a default setup that another setup beat to the commit, in either order, without a denial', async () => {
     const setUp = { enabled: true, deleted: false, origin: 'default', epoch: 1, revision: 1, syncEpoch: 1 };

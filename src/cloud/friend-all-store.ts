@@ -375,7 +375,10 @@ export class FriendAllStore {
     await ensureAccountActivity(this.db, uid);
     if (!isCurrent()) conflict();
     const controls = await this.controls(uid);
-    if (controls.policy || controls.ranking || controls.shelf) return controls.policy;
+    // controls() reads its three documents separately, and setPolicy writes all three together, so a default that
+    // commits between those reads can show its settings without its policy. Read the policy again before reporting
+    // a setup that has none (a legacy choice).
+    if (controls.policy || controls.ranking || controls.shelf) return controls.policy ?? this.policy(uid);
     try {
       return await this.setPolicy(uid, true, 'default', controls, isCurrent);
     } catch (cause) {
