@@ -405,7 +405,10 @@ describe('first-paint app loader', () => {
       expect(result.inserted(), `${url}: #root may not exist before the document is parsed`).toEqual(STARTUP);
       result.parsed();
       expect(result.inserted(), `${url}: a failed stylesheet still starts the app`).toEqual([...STARTUP, ENTRY]);
-      expect(result.timers.map((timer) => timer.delay), `${url}: the watchdog`).toEqual([WATCHDOG]);
+      expect(
+        result.timers.map((timer) => timer.delay),
+        `${url}: the watchdog`,
+      ).toEqual([WATCHDOG]);
     }
   });
 
