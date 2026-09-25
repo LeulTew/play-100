@@ -252,8 +252,8 @@ export default function RatingsTable({
       </div>
       <p className="table-footnote">
         The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s
-        original cached ratings and source notes are preserved, not recalculated. Your ratings are separate from
-        these source values. Edit them in{' '}
+        original cached ratings and source notes are preserved, not recalculated. Your ratings are separate from these
+        source values. Edit them in{' '}
         <a
           className="text-button"
           href="/my-games?tab=ranking"

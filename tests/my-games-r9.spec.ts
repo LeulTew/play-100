@@ -16,9 +16,7 @@ async function expectEditorInView(input: Locator) {
       top: box.top,
       bottom: box.bottom,
       ceiling: inDialog ? 0 : (document.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0),
-      floor: inDialog
-        ? innerHeight
-        : (document.querySelector('.mobile-nav')?.getBoundingClientRect().top || innerHeight),
+      floor: inDialog ? innerHeight : document.querySelector('.mobile-nav')?.getBoundingClientRect().top || innerHeight,
     };
   });
   expect(bounds.top).toBeGreaterThanOrEqual(bounds.ceiling);
@@ -112,13 +110,17 @@ test('a blocked mobile Ranking tab change returns focus and viewport to the reje
     manualPosition: index + 1,
   }));
   await installGuestLibrary(page, fixture);
-  await views(page).getByRole('button', { name: /^Ranking,/ }).click();
+  await views(page)
+    .getByRole('button', { name: /^Ranking,/ })
+    .click();
   const game = libraryRecords[19]!;
   const input = page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true });
   await input.fill('11');
   await input.press('Tab');
   await expect(input).toHaveAttribute('aria-invalid', 'true');
-  await views(page).getByRole('button', { name: /^Library,/ }).click();
+  await views(page)
+    .getByRole('button', { name: /^Library,/ })
+    .click();
   await expect(views(page).getByRole('button', { name: /^Ranking,/ })).toHaveAttribute('aria-current', 'page');
   await expect(input).toHaveValue('11');
   await expectEditorInView(input);
