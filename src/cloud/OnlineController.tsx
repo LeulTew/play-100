@@ -1309,9 +1309,9 @@ export default function OnlineController({
       : page === 'friend'
         ? location.pathname
         : page === 'compare'
-          ? new URLSearchParams(location.search).get('group') ?? ''
+          ? (new URLSearchParams(location.search).get('group') ?? '')
           : page === 'invite'
-            ? invitation.capability ?? ''
+            ? (invitation.capability ?? '')
             : '';
   const visibleError = error || googleReturn?.error || '';
   const visibleMessage = message || googleReturn?.message || '';
@@ -1645,9 +1645,7 @@ export default function OnlineController({
                   await store.cleanup();
                   await social.cleanup(user.uid);
                   await shelf.store.prune(user.uid);
-                  setMessage(
-                    'Eligible old snapshots were cleaned. Current and previous private copies remain intact.',
-                  );
+                  setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.');
                 })
               }
               onPause={pause}
@@ -1716,10 +1714,7 @@ export default function OnlineController({
           <h2 id="account-signin-title" data-autofocus tabIndex={-1}>
             Sign in
           </h2>
-          <ChunkBoundary
-            key={`${pageScope}:sign-in`}
-            fallback={<ChunkRecovery message="Sign-in tools didn't load." />}
-          >
+          <ChunkBoundary key={`${pageScope}:sign-in`} fallback={<ChunkRecovery message="Sign-in tools didn't load." />}>
             <Suspense fallback={<p role="status">Loading sign-in…</p>}>{renderAuthPanel(purposes.sheet)}</Suspense>
           </ChunkBoundary>
         </Dialog>
