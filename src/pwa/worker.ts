@@ -2,7 +2,7 @@ import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy, PwaWorkerClient, Pw
 
 export const PWA_CACHE_PREFIX = 'play100-pwa-v1-';
 export const PWA_BUDGET = {
-  coreFiles: 48,
+  coreFiles: 51,
   coreBytes: 2 * 1024 * 1024,
   coreFileBytes: 1024 * 1024,
   imageFiles: 48,

@@ -879,8 +879,9 @@ build is measured separately. Moving optional update execution/detail parsing
 out of the eager graph is not a claim that total code or first-use downloads
 became smaller.
 
-The offline core remains limited to 2 MiB/48 files, with an independent
-4 MiB/48-entry runtime artwork cache. Historical cold, timing, noise-envelope
+The offline core remains limited to 2 MiB/51 files, including the online split's
+shared chunks, with an independent 4 MiB/48-entry runtime artwork cache.
+Historical cold, timing, noise-envelope
 and incomplete paired results remain unchanged; no new FPS or zero-lag
 certification follows from the feature allowance.
 

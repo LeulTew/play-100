@@ -26,8 +26,9 @@ through the existing pending-edit guard, not another import or offline preparati
 The manifest, brand icons,
 offline explanation and local collection/Discover metadata complete the core.
 
-The core has hard build/install limits of 48 entries, 2 MiB decoded total and
-1 MiB per file. Two entries and 32 KiB of that total are reserved for bounded
+The core has hard build/install limits of 51 entries, including the online split's
+shared chunks, 2 MiB decoded total and 1 MiB per file. Two entries and 32 KiB of
+that total are reserved for bounded
 readiness and page-version metadata. Public game images are requested only when used, with a generated
 path/hash allowlist, at most 48 stored images, 4 MiB total and 192 KiB each.
 Response type, byte length and SHA-256 are checked. Redirects, login pages,
