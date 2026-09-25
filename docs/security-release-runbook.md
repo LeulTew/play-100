@@ -17,7 +17,9 @@ repository but are disabled by the owner; no hosted check gates a release. The
 gate is the local suites plus review (README "Quality checks"): unit/browser,
 cloud emulator, e2e production and development, cloud-UI, `tsc`, lint, build,
 `check:csp`, `check:budgets`, and `npm audit` / `npm audit signatures` at install.
-The parent's Gitleaks full-history scan remains a pre-merge step.
+The parent's Gitleaks full-history scan remains a pre-merge step. Each promotion's
+readback, checks and pending owner actions are recorded in the
+[release ledger](releases.md).
 
 This is the one authoritative order for the candidate: current client first,
 then candidate rules. There is no intermediate rules-only release. The
