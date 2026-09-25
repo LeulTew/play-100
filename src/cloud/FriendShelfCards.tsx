@@ -4,7 +4,6 @@ import type { FriendShelfEntry } from '../lib/friend-shelf-types';
 import { FriendShelfCommittedError } from '../lib/friend-shelf-types';
 import { onlineError } from './errors';
 import { ShelfMetadata } from './ShelfMetadata';
-import './friend-shelf.css';
 
 function shelfError(cause: unknown): string {
   return cause instanceof FriendShelfCommittedError ? cause.message : onlineError(cause);

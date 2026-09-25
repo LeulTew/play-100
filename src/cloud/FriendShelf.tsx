@@ -10,7 +10,6 @@ import { DataUseLink } from '../components/DataUseLink';
 import { Dialog } from '../components/Dialog';
 import { onlineError } from './errors';
 import { ShelfMetadata } from './ShelfMetadata';
-import './friend-shelf.css';
 
 type Artwork = (entry: FriendShelfEntry) => ReactNode;
 function shelfError(cause: unknown): string {

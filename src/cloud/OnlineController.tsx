@@ -82,6 +82,7 @@ import { signOutTransition } from './sign-out-transition';
 import { libraryBackupText } from './backup-download';
 import './cloud-ui.css';
 import './friends-ui.css';
+import './friend-shelf.css';
 
 const AuthPanel = lazy(
   createRetryableModule(() => import('./AuthPanel').then((module) => ({ default: module.AuthPanel }))).load,
