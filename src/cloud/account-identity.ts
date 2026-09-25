@@ -1,11 +1,8 @@
 import { useRef, useState } from 'react';
 import { getIdTokenResult } from 'firebase/auth';
 import type { IdTokenResult, User } from 'firebase/auth';
-import { accountScope } from '../lib/cloud-types';
 import { rememberOnlineRequest } from '../lib/online-availability';
-import { clearComparisonView, comparisonScope } from '../lib/friend-comparison-intent';
-import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
-import { cloudAuth, firebaseApp } from './firebase-client';
+import { cloudAuth } from './firebase-client';
 import type { AccountIdentity } from './ui-types';
 
 export type IdentityUser = Pick<User, 'uid' | 'email' | 'displayName' | 'emailVerified' | 'providerData'>;
@@ -104,7 +101,11 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
     },
   };
 }
-export function useAccountIdentity() {
+/**
+ * The account identity lifetime. clearPrevious clears the previous account's device-held views. OnlineController
+ * supplies it and imports those comparison modules itself, which keeps them in the separate chunks the offline core lists.
+ */
+export function useAccountIdentity(clearPrevious: (uid: string) => void) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
   const identityRef = useRef(identity);
   identityRef.current = identity;
@@ -115,10 +116,7 @@ export function useAccountIdentity() {
       readToken: getIdTokenResult,
       publish: setIdentity,
       remember: () => rememberOnlineRequest(true),
-      clearPrevious: (uid) => {
-        clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', uid));
-        clearComparisonGameFilter(accountScope(uid, firebaseApp.options.projectId));
-      },
+      clearPrevious,
     }),
   );
   return { identity, identityRef, setIdentity, ...lifetime };

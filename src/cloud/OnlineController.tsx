@@ -54,7 +54,14 @@ import {
   signInNeedsAccountPage,
   useAccountSessionState,
 } from './account-session';
-import { comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
+import {
+  clearComparisonView,
+  comparisonScope,
+  initialComparison,
+  rememberComparisonView,
+} from '../lib/friend-comparison-intent';
+import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
+import { readGoogleIntent } from '../lib/google-intent';
 import { readAccountLifecycle } from './account-lifecycle';
 import {
   createAccountDeletion,
@@ -187,7 +194,10 @@ export default function OnlineController({
     reconcileIdentity,
     observeUser,
     clearVerificationMismatch,
-  } = useAccountIdentity();
+  } = useAccountIdentity((previousUid) => {
+    clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', previousUid));
+    clearComparisonGameFilter(accountScope(previousUid, firebaseApp.options.projectId));
+  });
   const [memberSnapshot, setMember] = useState<Member | null>(null);
   const memberReadVersion = useRef(0);
   const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
@@ -359,6 +369,7 @@ export default function OnlineController({
           setIdentity(null);
           setError(onlineError(cause));
         },
+        hasGoogleIntent: () => readGoogleIntent().raw !== null,
       }),
     [observeUser, setIdentity, setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError],
   );

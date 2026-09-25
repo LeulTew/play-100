@@ -24,7 +24,6 @@ const calls = vi.hoisted(() => ({
 vi.mock('./firebase-client', () => ({ cloudAuth: calls.auth, initialAuthUser: Promise.resolve('alpha') }));
 vi.mock('firebase/auth', () => ({ onIdTokenChanged: calls.listen }));
 vi.mock('./google-auth', () => ({ finishGoogleRedirect: calls.finish }));
-vi.mock('../lib/google-intent', () => ({ readGoogleIntent: calls.intent }));
 vi.mock('../lib/online-availability', () => ({ rememberOnlineRequest: calls.remember }));
 const identity: AccountIdentity = {
   uid: 'alpha',
@@ -221,6 +220,7 @@ describe('session bootstrap ownership', () => {
       },
       onUser: vi.fn<Parameters<typeof observeAccountSession>[0]['onUser']>(),
       onError: vi.fn(),
+      hasGoogleIntent: () => calls.intent().raw !== null,
     };
   }
   it('subscribes after redirect and persistence settle and clears the deadline only when identity settles', async () => {

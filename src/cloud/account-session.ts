@@ -4,7 +4,6 @@ import { onIdTokenChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import type { AppPage } from '../lib/types';
 import { rememberOnlineRequest } from '../lib/online-availability';
-import { readGoogleIntent } from '../lib/google-intent';
 import { cloudAuth, initialAuthUser } from './firebase-client';
 import { finishGoogleRedirect } from './google-auth';
 import type { GoogleReturn } from './google-auth';
@@ -94,10 +93,13 @@ export function observeAccountSession({
   state,
   onUser,
   onError,
+  hasGoogleIntent,
 }: {
   state: Pick<SessionState, 'setSessionUnconfirmed' | 'setGoogleReturn' | 'setReturnSheet' | 'setStartupError'>;
   onUser: (user: User | null, isCurrent: () => boolean, settled: () => void) => void;
   onError: (cause: Error) => void;
+  /** Whether a Google redirect is still pending, which makes a restored back/forward page reload. */
+  hasGoogleIntent: () => boolean;
 }): () => void {
   let alive = true;
   let unsubscribe = () => {};
@@ -130,7 +132,7 @@ export function observeAccountSession({
       }
     });
   const restorePage = (event: PageTransitionEvent) => {
-    if (event.persisted && readGoogleIntent().raw !== null) location.reload();
+    if (event.persisted && hasGoogleIntent()) location.reload();
   };
   window.addEventListener('pageshow', restorePage);
   return () => {
