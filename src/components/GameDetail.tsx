@@ -205,7 +205,7 @@ export function GameDetail({
                 onChange={onPlayed}
               />
             )}
-            <button className="text-button" disabled={busy} onClick={onRank}>
+            <button className="text-button" disabled={busy && !rankingPosition} onClick={onRank}>
               <Icon name="rank" width="18" height="18" />
               {rankingPosition ? `Your rank: #${rankingPosition}` : 'Add to my ranking'}
             </button>

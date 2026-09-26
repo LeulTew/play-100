@@ -204,6 +204,11 @@ Guarded link navigation, account entry and comparison launch flush registered
 edits through [useExitSave](../src/hooks/useExitSave.ts), then recheck currentness
 before committing their transition. [useNavigationScope](../src/hooks/useNavigationScope.ts)
 tracks scope and navigation generations; selected flows also compare the actual URL.
+Header Play later and the already-ranked game-detail shortcut share the primary
+links' pending-edit guard. Invalid or refused edits keep their original field
+and return focus to it once enabled; a changed scope or navigation cancels the
+old destination. Navigation-only shortcuts remain available during a blur save
+so the guard can await it. Native dialog Close, Escape and Back are unchanged.
 Account entry retains a failed field as its focus target instead of opening sign-in.
 PWA update preparation flushes edits and rejects unsubmitted forms. Its reload
 guard also checks the current Settings panel, busy state and new input events.

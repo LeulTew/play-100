@@ -361,19 +361,17 @@ test('same-page mobile Browse scrolls and focuses the collection without changin
   expect(await readLibrary(page)).toEqual(before);
 });
 
-test('direct queue and detail callbacks retain the hidden invalid ranking draft and detail history', async ({
+test('the queue shortcut blocks an invalid ranking draft and native detail history still retains it', async ({
   page,
 }) => {
   await prepareRanking(page);
   const before = await readLibrary(page);
   await rating(page).fill('11');
   await page.getByRole('button', { name: /^Play later, \d+ games?$/ }).click();
-  await expect(page).toHaveURL((url) => url.pathname === '/my-games' && url.searchParams.get('tab') === 'queue');
-  const hiddenRating = page.locator(`[hidden] [data-record-id="${first.id}"] .personal-score input`);
-  await expect(hiddenRating).toHaveValue('11');
-  expect(await readLibrary(page)).toEqual(before);
-  await page.goBack();
+  await expect(page).toHaveURL((url) => url.pathname === '/my-games' && url.searchParams.get('tab') === 'ranking');
   await expect(rating(page)).toHaveValue('11');
+  await expect(rating(page)).toBeFocused();
+  expect(await readLibrary(page)).toEqual(before);
   const url = page.url();
   await rankedList(page).getByRole('button', { name: first.title, exact: true }).click();
   await expect(page.getByRole('dialog', { name: first.title, exact: true })).toBeVisible();

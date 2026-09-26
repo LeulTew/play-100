@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { useCollection } from './hooks/useCollection';
 import { useLibrary } from './hooks/useLibrary';
@@ -16,7 +16,7 @@ import { SiteFooter } from './components/SiteFooter';
 import { useAppPanel } from './hooks/useAppPanel';
 import { ChunkRecovery } from './components/ChunkRecovery';
 import { isModuleLoadFailure } from './lib/chunk-recovery';
-import { visibleMenuTrigger } from './lib/dialog-focus';
+import { focusPendingEditor, visibleMenuTrigger } from './lib/dialog-focus';
 import { usePwa } from './pwa/usePwa';
 import { createPwaUpdateGuard, useInputGeneration } from './pwa/update-guard';
 import { ReloadGuardContext } from './lib/reload-guard-context';
@@ -283,6 +283,23 @@ export default function App() {
     records: new Map(),
   });
   const [notice, setNotice] = useState('');
+  const [navigationRecovery, setNavigationRecovery] = useState<{
+    target: HTMLElement | null;
+    isCurrent: () => boolean;
+  } | null>(null);
+  const navigationIntent = useRef(0);
+  const navigationMounted = useRef(true);
+  useLayoutEffect(() => {
+    navigationMounted.current = true;
+    return () => {
+      navigationMounted.current = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (libraryBusy || !navigationRecovery) return;
+    if (navigationRecovery.isCurrent()) focusPendingEditor(navigationRecovery.target);
+    setNavigationRecovery(null);
+  }, [libraryBusy, navigationRecovery]);
   const [toolFailure, setToolFailure] = useState<{ scope: string; page: AppPage } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = useCallback((message: string) => {
@@ -520,7 +537,36 @@ export default function App() {
     const destination = pageDestination(next, filters, patch);
     return `${destination.path}${destination.search}`;
   };
-  const navigateLink = async (
+  const guardedNavigation = async (commit: () => void) => {
+    const intent = ++navigationIntent.current;
+    const scopeAndNavigation = captureMenuFocusGuard();
+    const origin = `${window.location.pathname}${window.location.search}`;
+    const isCurrent = () =>
+      navigationMounted.current &&
+      intent === navigationIntent.current &&
+      scopeAndNavigation() &&
+      origin === `${window.location.pathname}${window.location.search}`;
+    const blocked: { target: HTMLElement | null } = { target: null };
+    setNavigationRecovery(null);
+    try {
+      const saved = await flushPendingEdits((target) => {
+        blocked.target = target;
+      });
+      if (!isCurrent()) return;
+      if (saved) commit();
+      else {
+        notify('Finish or correct the open rating or note before leaving this page.');
+        setNavigationRecovery({ target: blocked.target, isCurrent });
+      }
+    } catch (cause) {
+      console.error('Navigation could not save pending edits.', cause);
+      if (isCurrent()) {
+        notify('Your edit could not be saved. Keep this page open and retry.');
+        setNavigationRecovery({ target: blocked.target, isCurrent });
+      }
+    }
+  };
+  const navigateLink = (
     event: MouseEvent<HTMLAnchorElement>,
     next: AppPage,
     patch: Partial<Filters> = {},
@@ -528,18 +574,7 @@ export default function App() {
   ) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
     event.preventDefault();
-    const startedScope = scopeGeneration.current;
-    const startedNavigation = navigationGeneration.current;
-    try {
-      const saved = await flushPendingEdits();
-      if (scopeGeneration.current !== startedScope || navigationGeneration.current !== startedNavigation) return;
-      if (saved) commit();
-      else notify('Finish or correct the open rating or note before leaving this page.');
-    } catch (cause) {
-      console.error('Navigation could not save pending edits.', cause);
-      if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation)
-        notify('Your edit could not be saved. Keep this page open and retry.');
-    }
+    return guardedNavigation(commit);
   };
   const browse = () => {
     if (page !== 'collection') navigate('collection');
@@ -563,7 +598,7 @@ export default function App() {
   };
   const rankSelected = () => {
     if (!selectedPersonalRecord) return;
-    if (rankingPosition) navigate('rankings');
+    if (rankingPosition) void guardedNavigation(() => navigate('rankings'));
     else void perform({ type: 'add-ranking', records: [selectedPersonalRecord] });
   };
   const compareGames = async (records: LibraryRecord[]) => {
@@ -770,7 +805,9 @@ export default function App() {
                         onNavigateLink={(event, next) => {
                           void navigateLink(event, next);
                         }}
-                        onQueue={() => navigate('library', { list: 'later' })}
+                        onQueue={() => {
+                          void guardedNavigation(() => navigate('library', { list: 'later' }));
+                        }}
                         onMenu={() => setPanel('menu')}
                         onAccount={() => {
                           void accountEntry();
