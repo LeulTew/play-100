@@ -94,7 +94,7 @@ button.compare-drag-handle[hidden] {
     780px,
     calc(
       100dvh - max(104px, calc(var(--site-header-height, 80px) + 16px)) - var(--mobile-nav-height, 0px) -
-        var(--compare-tray-height, 88px) - 28px
+        var(--compare-tray-height, 88px) - 28px - var(--inline-toast-clearance, 0px)
     )
   );
 }
@@ -339,6 +339,10 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
   }
   html:has(.toast-visible) {
     scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--toast-height, 64px) + 16px);
+  }
+  body:has(.toast-visible) .ratings-mode:has(.compare-tray-dock[data-layout='inline']) {
+    /* The dismiss target supplies the first-frame minimum before the toast's height observer runs. */
+    --inline-toast-clearance: calc(max(44px, var(--toast-height, 64px)) + 28px);
   }
   body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true']) .collection-title-line {
     padding-top: 8px;

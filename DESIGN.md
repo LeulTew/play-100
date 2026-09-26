@@ -226,6 +226,9 @@ Table view places the Compare tray in its own strip below the table scrollport,
 not over the cells. With pins present, the table and strip fit the usable window;
 the first pin reveals both the tray and the next row action. Other views keep
 the existing dock, and an active drag still exposes the fixed drop target.
+On narrow windows, a visible toast reserves its measured height and entrance
+clearance in the table's height limit, keeping the inline strip clear without
+changing the desktop layout or moving it into the table scrollport.
 Collection Grid, List and Table share the same inline comparison toggle:
 Pin for comparison becomes Unpin from comparison while selected.
 Result counts use a singular label for one match without a redundant range;
