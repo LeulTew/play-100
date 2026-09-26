@@ -495,8 +495,21 @@ name. Format characters include ZWJ and emoji tag characters, so some emoji
 sequences are refused; that over-block is accepted. Other users' names render in
 `<bdi>` so a right-to-left name cannot reorder the surrounding text.
 
-**Public and shared ranking titles (R12).** The same control and format
-characters (the shared `invisibleCharacters()` list, C0/C1 through `\p{Cc}`)
+**Blank-looking names (R12).** A new or changed name also cannot contain the
+Hangul fillers U+115F, U+1160, U+3164 and U+FFA0 or the blank Braille pattern
+U+2800 anywhere: they are letters and symbols that render as nothing, so no
+separator or format rule caught them. It must also contain at least one
+character that is not a combining mark or space, so a name made only of marks
+such as U+034F cannot look empty either. The rules list those five code points
+explicitly and a unit test keeps the client's list equal; the client shows
+plain text. Rejecting U+2800 anywhere also refuses the word space in a
+Braille-pattern name, an accepted over-block. Unchanged legacy names stay valid
+until edited: an icon change, and publication's re-save of an existing member
+name (which writes nothing), keep them without a refusal.
+
+**Public and shared ranking titles (R12).** The control and format characters
+that names refuse (the shared `invisibleCharacters()` list, with C0/C1 through
+`\p{Cc}`, but not the blank fillers above)
 are refused anywhere in a new public entry title, public profile title and
 preview title, and in a selected-ranking chunk title. As for names, an update
 may keep an unchanged legacy profile title or preview, so a legacy profile can
@@ -573,6 +586,7 @@ that suspends H5 bounds. The table below explains why each change is client-firs
 | H6 reserved/atomic handle | Old transaction already releases its old handle; old reserved claims are denied | New validation/read compatibility client first |
 | S1 handle existence | Old publish reads the proposed handle before claiming it, so a new handle's read is denied and it cannot claim one; republishing an unchanged handle still works | Write-claim client first, then rules |
 | R12 title characters | An older publish or selected share of a title with a control or format character is denied with the generic authorization message; other titles are unaffected | Client with the plain-text refusal first, then rules |
+| R12 blank-looking names | An older client saving a new name with a Hangul filler, U+2800 or only marks gets the generic authorization message; other names are unaffected | Client with the plain-text refusal first, then rules |
 | H7 creator UID | Old client asks the same ownerAccess endpoint | Console UID addition before rules |
 | H11 device removal | Old Sign out still retains its cache | New optional client action; no rule dependency |
 | H13 password length | Old UI truncation remains | New client; no rule dependency |

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import {
+  BLANK_CHARACTERS,
   cleanDisplayName,
   displayNameProblem,
   hasAsciiControl,
@@ -62,6 +63,26 @@ it('accepts ordinary Unicode names and trims surrounding whitespace to the 1-60 
     expect(cleanDisplayName(` ${name}\u3000`)).toBe(name);
   }
   for (const name of ['', '   ', '\u00a0', 'x'.repeat(61)]) expect(displayNameProblem(name)).toMatch(/1 to 60/);
+});
+
+it('refuses blank filler characters anywhere and names without a visible character', () => {
+  for (const code of BLANK_CHARACTERS) {
+    const character = String.fromCodePoint(code);
+    for (const name of [character, `${character}${character}`, `Player${character}name`, `${character}Player`]) {
+      expect(displayNameProblem(name)).toMatch(/visible letter, number or symbol/);
+      expect(() => cleanDisplayName(name)).toThrow(/visible letter, number or symbol/);
+    }
+  }
+  for (const name of ['\u034f', '\u0301\u0301', '\ufe0f', '\u034f \u034f'])
+    expect(displayNameProblem(name)).toMatch(/visible letter, number or symbol/);
+  for (const name of ['김민준', 'ㄱ', '⠓⠊', '❤️', 'e\u0301', '0']) expect(displayNameProblem(name)).toBeNull();
+});
+
+it('keeps the client blank filler list equal to the rules cleanName list', () => {
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const list = /let blank = '([^']+)';/.exec(rules)?.[1] ?? '';
+  const listed = [...list.matchAll(/\\\\x\{([0-9a-f]+)\}/g)].map((match) => parseInt(match[1]!, 16));
+  expect(listed).toEqual([...BLANK_CHARACTERS]);
 });
 
 it('refuses control and format characters anywhere in a ranking title and keeps ordinary titles', () => {

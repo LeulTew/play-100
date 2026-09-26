@@ -477,6 +477,20 @@ describe('consented public snapshots, handle claims and moderation', () => {
     expect((await owner.social.member(owner.uid))?.avatar).toEqual(newer);
   });
 
+  it('keeps an unchanged legacy blank-looking member name through publication and icon changes, not renames', async () => {
+    const owner = await client();
+    await owner.social.saveMember(owner.uid, 'My chosen nickname', avatar);
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`members/${owner.uid}`).update({ displayName: '\u3164' });
+    });
+    // Publishing re-saves the stored member name; it writes nothing for an existing member, so it must not refuse.
+    await expect(owner.social.saveMember(owner.uid, '\u3164', avatar)).resolves.toBeUndefined();
+    const newer = { ...avatar, palette: 'sky' as const };
+    await owner.social.saveMemberAvatar(owner.uid, newer, '\u3164');
+    await expect(owner.social.saveMemberName(owner.uid, '\u2800', avatar)).rejects.toThrow(/visible letter/);
+    expect(await owner.social.member(owner.uid)).toMatchObject({ displayName: '\u3164', avatar: newer });
+  });
+
   it('marks public generations non-publishable before deleting the first batch of entries', async () => {
     const owner = await client();
     const rows = Array.from({ length: 30 }, (_, index) => ({

@@ -66,12 +66,16 @@ service cloud.firestore {
         + '\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}'
         + '\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}';
     }
-    // 1-60 characters, no invisible character and no leading or trailing whitespace. An update may keep an unchanged
-    // legacy name until it is next edited.
+    // 1-60 characters with no invisible or blank filler character anywhere, no leading or trailing whitespace, and at
+    // least one character that is not a combining mark or space, so a name cannot look empty. The Hangul fillers and
+    // the blank Braille pattern are letters and symbols that render as nothing (a unit test keeps the client's list
+    // equal). An update may keep an unchanged legacy name until it is next edited.
     function cleanName(value) {
-      let invisible = invisibleCharacters();
+      let blank = '\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}';
+      let invisible = invisibleCharacters() + blank;
       return value is string && value.size() >= 1 && value.size() <= 60
-        && value.matches('^[^' + invisible + '\\p{Z}]([^' + invisible + ']*[^' + invisible + '\\p{Z}])?$');
+        && value.matches('^[^' + invisible + '\\p{Z}]([^' + invisible + ']*[^' + invisible + '\\p{Z}])?$')
+        && !value.matches('^[\\p{M}\\p{Z}]+$');
     }
     // A public or shared ranking title with no invisible character; its caller checks the type and length.
     function cleanTitle(value) {

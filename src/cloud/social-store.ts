@@ -182,9 +182,10 @@ export class SocialStore {
     const displayName = name.trim();
     if (!displayName || displayName.length > 60)
       throw new Error('Choose a name between 1 and 60 characters. A nickname is welcome.');
-    // An avatar-only update keeps the stored name, so rules accept an unchanged legacy name there.
+    // Only a written name must be clean: an avatar-only update, or a publication's check of an existing member,
+    // keeps the stored name, which rules accept as an unchanged legacy name. A new member document still needs one.
     const nameProblem = displayNameProblem(name);
-    if (nameProblem && field !== 'avatar') throw new Error(nameProblem);
+    if (nameProblem && field === 'name') throw new Error(nameProblem);
     parseAvatar(avatar);
     await ensureAccountActivity(this.db, uid);
     await runTransaction(this.db, async (tx) => {

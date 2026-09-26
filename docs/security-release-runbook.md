@@ -78,8 +78,9 @@ Firebase and Vercel consoles; each names its readback.
      the operator if it impersonates the creator, staff or the app. Never purge in bulk.
    - **Display names:** members, public profiles, friend identities and active
      invites whose `displayName` fails the R9 name rule (control/format character,
-     or leading/trailing separator). They remain valid until next edited; moderate
-     only impersonation or abuse.
+     or leading/trailing separator) or its R12 addition (a blank filler character,
+     or no character other than marks and spaces). They remain valid until next
+     edited; moderate only impersonation or abuse.
    - **Titles (R12):** public profiles whose title or preview, and public entries
      and selected-ranking chunks whose title, contain a control or format
      character. They stay readable, and a legacy profile can still be unpublished;

@@ -23,16 +23,23 @@ export function stripControlOrFormat(value: string): string {
   return value.replace(CONTROL_OR_FORMAT_ALL, '');
 }
 
+/** Letters and symbols that render as nothing: the Hangul fillers and the blank Braille pattern (rules cleanName). */
+export const BLANK_CHARACTERS = [0x115f, 0x1160, 0x2800, 0x3164, 0xffa0] as const;
+const BLANK = new RegExp(`[${BLANK_CHARACTERS.map((code) => `\\u{${code.toString(16)}}`).join('')}]`, 'u');
+const NOTHING_VISIBLE = /^[\p{M}\p{Z}]+$/u;
+
 /**
  * The display-name rule firestore.rules `cleanName` enforces: no Unicode control or format character (C0/C1
- * controls, bidi controls, zero-width characters, BOM) anywhere, and 1-60 characters once trimmed.
- * Returns plain error text, or null for a valid name.
+ * controls, bidi controls, zero-width characters, BOM) or blank filler anywhere, at least one character that is not
+ * a combining mark or space, and 1-60 characters once trimmed. Returns plain error text, or null for a valid name.
  */
 export function displayNameProblem(value: string, max = DISPLAY_NAME_MAX): string | null {
   const name = value.trim();
   if (!name || name.length > max) return `Enter a name from 1 to ${max} characters.`;
   if (hasControlOrFormat(value))
     return 'Names cannot contain invisible, control or text-direction characters. Remove them and try again.';
+  if (BLANK.test(name) || NOTHING_VISIBLE.test(name))
+    return 'Names need a visible letter, number or symbol and cannot contain blank filler characters.';
   return null;
 }
 

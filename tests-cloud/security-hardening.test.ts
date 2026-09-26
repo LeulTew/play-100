@@ -428,6 +428,12 @@ describe('display-name hygiene', () => {
     ' Leading',
     'Trailing ',
     '\u00A0Nbsp',
+    '\u3164',
+    'Filler\u3164name',
+    '\u115F\u1160',
+    '\uFFA0',
+    '\u2800',
+    '\u034F',
   ];
   const memberDoc = (displayName: string) => ({
     uid: 'Alice',
@@ -444,6 +450,11 @@ describe('display-name hygiene', () => {
     const db = user('Alice');
     for (const name of badNames) await assertFails(db.doc('members/Alice').set(memberDoc(name)));
     await assertSucceeds(db.doc('members/Alice').set(memberDoc('Zoë Ab')));
+    await assertSucceeds(
+      user('Bob')
+        .doc('members/Bob')
+        .set({ ...memberDoc('김민준 ⠓⠊ ❤️'), uid: 'Bob' }),
+    );
   });
 
   it('keeps an unchanged legacy member name but rejects a new unclean name', async () => {
