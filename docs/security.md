@@ -63,6 +63,22 @@ pair `removed`, which has no hold, because a hold there would also delay every
 re-request after an unfriend. Each such cycle needs a block and an unblock, and
 the recipient's own block stops all requests from that sender.
 
+**Accepted residual: block status is inferable (R12).** A block is private, but
+its effect shows to the blocked person. Their request to someone whose profile
+is published and live fails only on the block check (`fUnblocked` in the pair
+quota's `pairQuotaAuthority`), while their requests to other people succeed;
+the client shows only the generic authorization message. A signed-in read of
+the blocker's current invitation is denied ("This invite is no longer
+available."), while the same link read signed out succeeds (the invitation
+rule's `fUnblocked`, which applies only to signed-in readers). Either comparison
+tells the blocked person that the other person blocked them. This is accepted:
+hiding it would need a request that looks sent but is never delivered and
+signed-in invitation reads that look like signed-out ones, which is a lifecycle
+redesign with extra reads. The block's protections do not depend on secrecy:
+no request, pair, identity read, invitation acceptance or shared data gets
+through, and the invitation's name and icon are what anyone holding the link
+sees signed out anyway.
+
 ## Cursor-only list-cost bounds (PRE-G2-H6)
 
 All 19 permissive list grants require an absent or zero query offset, including
