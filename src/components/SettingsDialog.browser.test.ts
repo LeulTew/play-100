@@ -173,7 +173,11 @@ for (const mobile of [false, true]) {
       );
       try {
         await page.goto(`${origin}/__settings-radio`);
-        await browserExpect(page.locator('#settings-title')).toBeFocused();
+        await browserExpect(
+          page
+            .getByRole('dialog', { name: 'Settings & backups', exact: true })
+            .getByRole('heading', { name: 'Settings & backups', level: 2, exact: true }),
+        ).toBeFocused();
         await work(page);
         expect(errors).toEqual([]);
       } finally {

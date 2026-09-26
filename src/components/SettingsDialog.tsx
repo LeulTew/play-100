@@ -107,9 +107,7 @@ export function SettingsDialog({
       motion={{ preset: 'dialog', enterMs: 160 }}
     >
       <h2 id="settings-title" data-autofocus tabIndex={-1}>
-        Make it
-        <br />
-        your speed.
+        Settings &amp; backups
       </h2>
       <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
       <div role="status">

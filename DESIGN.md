@@ -229,7 +229,8 @@ The secondary **Menu** is an Operate navigation surface, not an application
 command menu or dashboard. A labelled desktop control replaces the Settings
 icon; mobile replaces only the fifth Settings slot. Direct primary navigation
 and the Account/status entry remain. Settings & backups stays a real dialog
-action inside Menu.
+action inside Menu. Its heading and accessible name are Settings & backups,
+matching the document title.
 
 Use the existing native Dialog with a quiet, ruled, two-column directory on
 desktop and one scrollable column on mobile. Browse, My games, People & sharing,

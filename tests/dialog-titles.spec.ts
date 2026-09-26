@@ -16,7 +16,7 @@ test('committed Settings and About own the title, and Close restores the route t
   await emptyCatalogs(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?info=settings&catalogs=off');
-  const settings = page.locator('.settings-dialog[open]');
+  const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
   await expect(settings.locator('#settings-title')).toBeFocused();
   await expect(page).toHaveTitle('Settings & backups | Play 100');
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click();
