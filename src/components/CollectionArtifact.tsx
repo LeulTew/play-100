@@ -42,6 +42,7 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
   const rootRef = useRef<HTMLElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLElement>(null);
   const sceneRef = useRef<CollectionSceneHandle | null>(null);
   const [fanned, setFanned] = useState(false);
   const fannedRef = useRef(false);
@@ -84,6 +85,7 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
     const root = rootRef.current;
     const host = hostRef.current;
     const stage = stageRef.current;
+    const footer = footerRef.current;
     if (!root || !host || !stage) return;
     root.dataset.frameCount = '0';
     setState({ ready: false, status: canRender ? 'waiting' : 'static', reason: null });
@@ -99,6 +101,7 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
     let idleId: number | null = null;
     let timerId: number | null = null;
     let observer: IntersectionObserver | null = null;
+    let heldWidth: number | null = null;
 
     const isActive = () => visible && document.visibilityState !== 'hidden';
 
@@ -109,9 +112,26 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
       timerId = null;
     }
 
+    // Removing Fan out and changing the caption must not move the page, so the footer keeps its
+    // pre-fallback height until the viewport width changes.
+    function holdFooterHeight() {
+      if (!footer) return;
+      footer.style.minHeight = `${footer.getBoundingClientRect().height}px`;
+      heldWidth = window.innerWidth;
+      window.addEventListener('resize', releaseFooterHeight);
+    }
+
+    function releaseFooterHeight() {
+      if (!cancelled && heldWidth === window.innerWidth) return;
+      heldWidth = null;
+      window.removeEventListener('resize', releaseFooterHeight);
+      if (footer) footer.style.minHeight = '';
+    }
+
     function fallback(reason: string) {
       if (cancelled || failed) return;
       failed = true;
+      holdFooterHeight();
       cancelScheduledLoad();
       scene?.dispose();
       scene = null;
@@ -150,7 +170,7 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
         });
         sceneRef.current = scene;
       } catch {
-        fallback('3D is unavailable here. The illustrated view is ready.');
+        fallback('Illustrated view · 3D unavailable');
       } finally {
         loading = false;
         if (!scene) reconcile();
@@ -221,6 +241,7 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
 
     return () => {
       cancelled = true;
+      releaseFooterHeight();
       requestSceneRef.current = null;
       cancelScheduledLoad();
       observer?.disconnect();
@@ -263,7 +284,7 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
         <ArtifactStill fanned={canInteract && fanned} />
         <div ref={hostRef} className="artifact-canvas" />
       </div>
-      <figcaption className="artifact-footer">
+      <figcaption ref={footerRef} className="artifact-footer">
         <div id={captionId} className="artifact-caption">
           <span className="artifact-caption-title">Good things, collected.</span>
           <span className="artifact-status" role="status" aria-live="polite">

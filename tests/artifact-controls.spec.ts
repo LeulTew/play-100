@@ -156,9 +156,32 @@ test('WebGL failure leaves readable static art rather than a no-op Fan out butto
   await selectQuality(page, 'Full');
   const artifact = page.locator('.collection-artifact');
   await expect(artifact).toHaveAttribute('data-scene-status', 'fallback', { timeout: 0 });
-  await expect(artifact).toContainText('3D is unavailable here. The illustrated view is ready.');
+  await expect(artifact).toContainText('Illustrated view · 3D unavailable');
   await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
   await expect(artifact.locator('.artifact-still')).toBeVisible();
+});
+
+test('a lost WebGL context swaps to the illustration without moving the collection', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  await selectQuality(page, 'Full');
+  const artifact = page.locator('.collection-artifact');
+  await expect(artifact).toHaveAttribute('data-render-mode', 'webgl', { timeout: 0 });
+  const geometry = () =>
+    page.evaluate(() => ({
+      footer: document.querySelector('.artifact-footer')!.getBoundingClientRect().height,
+      collection: document.querySelector('#collection')!.getBoundingClientRect().top + scrollY,
+    }));
+  const before = await geometry();
+  await artifact.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+    const context = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    context?.getExtension('WEBGL_lose_context')?.loseContext();
+  });
+  await expect(artifact).toHaveAttribute('data-scene-status', 'fallback');
+  await expect(artifact.locator('.artifact-status')).toHaveText('Illustrated view · 3D interrupted');
+  await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
+  const after = await geometry();
+  expect(after.footer).toBeCloseTo(before.footer, 1);
+  expect(after.collection).toBeCloseTo(before.collection, 1);
 });
 
 test('scaled decorative sleeves contain no DOM microtext or contrast incompletes', async ({ page }) => {

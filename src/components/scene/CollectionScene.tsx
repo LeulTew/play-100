@@ -295,7 +295,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
 
   function onContextLost(event: Event) {
     event.preventDefault();
-    fallback('The 3D view was interrupted. The illustrated view is ready.');
+    fallback('Illustrated view · 3D interrupted');
   }
 
   try {
@@ -521,7 +521,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         engine.render(scene, camera);
         const renderMs = performance.now() - start;
         if (engine.getContext().isContextLost()) {
-          fallback('The 3D view was interrupted. The illustrated view is ready.');
+          fallback('Illustrated view · 3D interrupted');
           return;
         }
         frameCount += 1;
@@ -530,7 +530,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         // Only consecutive animated frames count: idle time is not a slow frame.
         const action = wasAnimating ? budget.sample(delta, renderMs, currentDpr) : 'keep';
         if (action === 'fallback') {
-          fallback('Showing the illustrated view to keep things responsive.');
+          fallback('Illustrated view · 3D was too slow');
           return;
         }
         if (action === 'reduce') {
@@ -538,7 +538,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
           resize();
         }
       } catch {
-        fallback('The 3D view could not be drawn. The illustrated view is ready.');
+        fallback('Illustrated view · 3D unavailable');
         return;
       }
       if (transition) requestFrame();
