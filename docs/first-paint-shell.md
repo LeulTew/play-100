@@ -103,6 +103,9 @@ metric-matched fallback faces are usable. Then it sets `data-boot="landing"` and
 Then it starts the app by inserting the template's tags into `<head>`, once:
 the module entry as a `modulepreload`, the other modulepreloads, the entry
 stylesheet (after the inline style, so it wins cascade ties) and the preloads.
+The Data use page (`/data-use`) reads no collection data, and a prepared
+service worker refuses versioned data to that network-only document, so there
+the boot script leaves out the `fetch` preloads (`collection.json`).
 It adds the module entry itself only after every stylesheet has loaded or
 failed and, like the parser-inserted module it replaces, once the document is
 parsed, so React never commits before the complete stylesheet applies or before

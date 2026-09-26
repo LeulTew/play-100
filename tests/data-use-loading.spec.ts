@@ -94,9 +94,7 @@ test('landing does not request the disclosure body; direct data-use keeps its sh
     expect(shift).toBe(0);
     await expect(page.getByRole('heading', { name: 'Services and essential storage', exact: true })).toBeAttached();
     expect(modules).toHaveLength(1);
-    const publicCollectionPreload = new URL('/data/collection.json', page.url()).href;
-    expect(dataRequests.filter((url) => url !== publicCollectionPreload)).toEqual([]);
-    expect(dataRequests.length).toBeLessThanOrEqual(1);
+    expect(dataRequests, 'the disclosure reads no collection data, so it starts no collection preload').toEqual([]);
     expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
     expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then((items) => items.length))).toBe(0);
   } finally {
@@ -135,9 +133,38 @@ test('failed disclosure code keeps its public shell and restores all details onl
   expect(modules).toBe(2);
   expect(await page.evaluate(() => window.dataUseDatabaseOpens)).toEqual([]);
   expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then((items) => items.length))).toBe(0);
-  const publicCollectionPreload = new URL('/data/collection.json', page.url()).href;
-  expect(dataRequests.filter((url) => url !== publicCollectionPreload)).toEqual([]);
-  expect(dataRequests.length).toBeLessThanOrEqual(2);
+  expect(dataRequests).toEqual([]);
+});
+
+test('a prepared worker opens the disclosure without a collection preload or a refused request', async ({
+  page,
+  baseURL,
+}) => {
+  test.setTimeout(90000);
+  await page.goto('/?catalogs=off');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Menu', exact: true })
+    .getByRole('button', { name: 'Install & offline access', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Enable offline access', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Offline files ready', exact: true })).toBeVisible({ timeout: 60000 });
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  const origin = new URL(baseURL!).origin;
+  const dataRequests: string[] = [];
+  const refused: string[] = [];
+  page.on('request', (request) => {
+    if (/\/data\//.test(request.url())) dataRequests.push(request.url());
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 400 && new URL(response.url()).origin === origin)
+      refused.push(`${response.status()} ${response.url()}`);
+  });
+  await page.goto('/data-use');
+  await expect(page.locator('#data-use h2')).toHaveCount(9);
+  expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+  expect(dataRequests).toEqual([]);
+  expect(refused).toEqual([]);
 });
 
 test('explicit offline preparation retains the unvisited disclosure body in the public core', async ({

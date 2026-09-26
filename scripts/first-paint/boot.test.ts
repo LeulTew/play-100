@@ -412,6 +412,20 @@ describe('first-paint app loader', () => {
     }
   });
 
+  it('leaves the collection preload out of the Data use page, which reads no collection data', () => {
+    const withoutData = STARTUP.filter((tag) => !tag.includes('as=fetch'));
+    expect(withoutData).toHaveLength(STARTUP.length - 1);
+    for (const url of ['https://play-100.test/data-use', 'https://play-100.test/data-use/']) {
+      const result = run({ url });
+      expect(result.attributes, url).toEqual({});
+      expect(result.inserted(), url).toEqual(withoutData);
+      result.settle('load');
+      result.parsed();
+      expect(result.inserted(), `${url}: the app still starts`).toEqual([...withoutData, ENTRY]);
+    }
+    expect(run({ url: 'https://play-100.test/data-use-later' }).inserted()).toEqual(STARTUP);
+  });
+
   it('runs the module entry only after both the stylesheet and the parsed document, whichever comes last', () => {
     const parsedLast = run({ url: 'https://play-100.test/discover' });
     parsedLast.settle('load');
