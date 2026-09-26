@@ -140,13 +140,17 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
   await page.goto('/my-library?list=later');
   await expect(page.locator('.personal-row')).toHaveCount(3);
   const handle = page.getByRole('button', { name: 'Drag Red Dead Redemption 2 to reorder your queue', exact: true });
+  await page.evaluate(() => document.fonts.ready);
   await handle.scrollIntoViewIfNeeded();
   const start = await handle.boundingBox();
+  const source = await page.locator(`[data-record-id="${first}"]`).boundingBox();
   const target = await page.locator(`[data-record-id="${second}"]`).boundingBox();
-  if (!start || !target) throw new Error('Queue drag targets are missing.');
+  if (!start || !source || !target) throw new Error('Queue drag targets are missing.');
   const x = start.x + start.width / 2;
   const y = start.y + start.height / 2;
-  const endY = target.y + target.height / 2;
+  // Carry the dragged row's centre onto the next row's centre. Aiming the handle itself at that centre
+  // overshot by the handle's offset and left tall mobile rows only a few pixels before the row after it.
+  const endY = y + target.y + target.height / 2 - (source.y + source.height / 2);
   if (isMobile) {
     const cdp = await context.newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
