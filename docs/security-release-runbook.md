@@ -498,10 +498,19 @@ Spark-compatible with the reCAPTCHA v3 provider (no Firebase billing).
 
 Google Cloud console → APIs & Services → Credentials → the browser key used by
 `VITE_FIREBASE_API_KEY`. Record that **API restrictions** list exactly Identity
-Toolkit, Token Service and Cloud Firestore (plus Firebase App Check once
-enabled), and that **Application restrictions** are HTTP referrers covering the
-production origin (and any intentionally tested preview origin). Record the
-readback time; do not paste the key into receipts.
+Toolkit API, Token Service API and Cloud Firestore API (plus Firebase App Check
+API once App Check is enabled), the one list `security.md` and `online-saving.md`
+also state, and that **Application restrictions** are HTTP referrers covering
+the production origin (and any intentionally tested preview origin). Record any
+other API the console lists as found; the client calls none, and removing one is
+a separate owner decision. Record the readback time; do not paste the key into
+receipts.
+
+This console readback is the only proof of the allowlist. Black-box probes
+answer narrower questions: `SERVICE_DISABLED` shows only that a service is off
+in the project, and `API_KEY_SERVICE_BLOCKED` from one unlisted API shows only
+that the key refuses that API. A discriminating black-box probe needs an API
+that is enabled in the project but absent from the list.
 
 ### Auth helper fresh-nonce smoke (SEC-01)
 

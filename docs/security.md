@@ -91,8 +91,9 @@ signed out; no credentials were entered and no writes were made. This is
 - Referrer restriction: empty/foreign Referer returned
   `403 API_KEY_HTTP_REFERRER_BLOCKED`; the app origin returned 200. A Referer
   header is client-asserted, so this is browser-abuse friction, not authentication.
-- API restriction: Books returned `403 API_KEY_SERVICE_BLOCKED`; Generative
-  Language is disabled in the project.
+- API restriction: Books returned `403 API_KEY_SERVICE_BLOCKED`, so on that
+  date the key refused at least that one API. Generative Language is disabled
+  in the project, which says nothing about the key.
 - Enumeration protection: createAuthUri returned only kind/sessionId, without
   registered/provider enumeration fields.
 - Password policy: ENFORCE, minimum 12 and maximum 4096, no character classes.
@@ -105,6 +106,19 @@ signed out; no credentials were entered and no writes were made. This is
   token reached ordinary rule evaluation. This is not an App Check assurance.
 - An unauthenticated missing publicProfiles get returned 404 under live 270f,
   independently confirming the H4 existence distinction.
+
+**2026-09-26 re-probe (G4 readback).** The same nine probes ran again
+(operator-held receipt `firebase-settings-readback.json`, SHA-256
+`f6ce9c3fae74f7f9e3f6ee7c4630296046e56cb7e9d760b812f734baa9fbc445`). With the
+production origin as Referer, Books and Generative Language both returned
+`403 SERVICE_DISABLED`: those services are disabled in the project. That neither
+renews nor contradicts the 2026-09-23 result, and a black-box `SERVICE_DISABLED`
+is not evidence of the key's API allowlist. The intended allowlist is Identity
+Toolkit API, Token Service API and Cloud Firestore API, plus Firebase App Check
+API once App Check is enabled; the client calls no other API with the key and
+does not use Firebase Installations. Only the owner's console readback
+([runbook](security-release-runbook.md#firebase-browser-key-readback)) establishes
+the configured list, and none is recorded yet.
 
 App Check remains an **accepted risk with a plan**: Spark quotas bound cost,
 while auth/ownership rules and the proposed caps constrain permitted writes.

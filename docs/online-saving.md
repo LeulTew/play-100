@@ -251,8 +251,14 @@ without private notes or queues. A project database operator can technically
 access stored data; the privacy copy does not promise otherwise.
 
 The Firebase browser key is public routing configuration, not an authorization
-secret. Its API restrictions are limited to Identity Toolkit, Secure Token,
-Firestore and Firebase Installations, with approved production/helper origins.
+secret. Its intended API restrictions are Identity Toolkit API, Token Service
+API and Cloud Firestore API (plus Firebase App Check API once App Check is
+enabled); the client calls no other API with it and does not use Firebase
+Installations. Only the owner's console readback establishes the configured
+list; a black-box `SERVICE_DISABLED` answer shows only that a service is off in
+the project ([dated evidence](security.md#dated-h14-black-box-evidence-and-accepted-risks)).
+Its application restriction is an HTTP-referrer list for the approved
+production and helper origins.
 Google refresh tokens, administrative credentials and Vercel credentials never
 belong in source, browser bundles or public configuration.
 
