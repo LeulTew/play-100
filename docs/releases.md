@@ -8,6 +8,139 @@ the owner's email, so they stay out of this file. Operator steps follow the
 rollback and readback, and the
 [security release runbook](security-release-runbook.md#promotion-order).
 
+## Release 5: 2026-09-26
+
+| Field | Value |
+| --- | --- |
+| Commit | `228493e8222483ac3aa50f95784ff30486fe21c5` (tree `e79b3c5d1dd2795a58f3668005a4c67b9cdbdc55`) |
+| Merge | PR #8 (`leultew-r11-integration`) into `main`, a plain fast-forward of 33 commits from `c877a04b`, merged 2026-09-26 15:18:21Z |
+| Build | Remote Vercel build from a clean export, Vercel CLI 59.16 |
+| Production deployment | `dpl_5qytNVicHAZc9eo2KEqmEkSw29Me` |
+| Promoted | 2026-09-26 15:20:58Z with `vercel promote` (CLI 59.16.0), started 15:20:44Z |
+| Rollback target | `dpl_sUKWmFGu6PR8zLtxyk2pCbqpLP7Y` (Release 4) |
+| Strict inline hashes | style-src unchanged: online `sha256-NGUjOxY76/cGN3gmM/YONiEbuC6rhQrQEr9XDkz0oxs=`, offline `sha256-yoYUnUqLaGmW5eJpbrdR7YmLQEZzKihnuFrDIgUKkdw=`. script-src boot script **changed** to `sha256-4Wv/e6hEDgM3I5UMpDdRqcY2V6b9Vkh/EO/11lmGUMw=` (4,760 B; budget 4,856) |
+| Release manifest | SHA-256 `210e14801cd920f1cfa308053e968126347e7deaaead848e4ab1474be6f4061f`, with 7 bound reports, 6 recorded carry-forwards, 1 decision and no waivers |
+
+**What shipped.** The G3 review findings that need no console step; PR #8 has
+the details.
+- Offline and reliability: the offline shell accepts one bounded Library
+  `page`. Header and detail shortcuts share one navigation guard. The deletion
+  screen names the service update it needs instead of a time. Cold detail
+  lookups of one game share a single upstream run. The Data use page no
+  longer preloads collection data, which a prepared worker refused with a 503.
+- Security: handle reads deny missing handles, and claims happen by create
+  write. `Permissions-Policy` also denies payment, USB, serial, HID,
+  Bluetooth and display capture.
+- UX and copy: keyboard browsing continues into appended games. In Table
+  view the Compare tray sits after the table. Update checks report their
+  outcome, and pins toggle alike in every view. Counts of one are singular.
+  The Settings heading names its destination, and offline limits are
+  explained in plain words.
+- Accessibility: saving Played keeps keyboard focus on the checkbox.
+- Visual: the mobile Compare sheet spans the viewport. Artwork credits are
+  prose with separate Source image and license links. A WebGL fallback no
+  longer moves the page.
+- Code and release: authored CSS is under the Prettier gate. The gate is
+  pinned to Node 24.21.0, and the cloud-UI recipe requires the compare
+  fixture.
+
+**Readback.**
+- Alias `play-100-collection.vercel.app` resolves to
+  `dpl_5qytNVicHAZc9eo2KEqmEkSw29Me`, confirmed by both the Vercel API and
+  `vercel inspect`.
+- Before the readback, five consecutive public `/` responses matched the
+  candidate's index, with no stale response (15:21:16Z to 15:21:21Z).
+- Production `/` index.html SHA-256:
+  `8363abde7d238f03f2e160acc951a07dd71a3d7ac1ff72c149e230641a8f31a1`, the
+  candidate's and the local configured build's. Entry
+  `/assets/index-D-8B5VOL.js`.
+- CSP header SHA-256:
+  `332badf23629566d859bcf36e78d494f7c0706f56d4c96a792a1ab1ccb16982f`. It
+  changed with the boot-script hash.
+- `/sw.js` SHA-256
+  `1987b6f0efa45b3d8c72bfad65b5e309a6cfac4ea458a324faad55fd22db7ebd`.
+  `/pwa-assets.json` SHA-256
+  `7263af72caea02ab75d641f6dd05bfd2aeb643b19ee88b11b40deb54235667b6`, PWA
+  version `8ea0c046f28c917c575e78661327069da8b1b79deba6a4e3e681e32ebb556f7b`.
+
+**Post-promotion production checks.** `npm run release:verify` passed 43/43
+on Node 24.21.0. The integrator's cross-check passed 49/49: the Release 4 set
+plus `Permissions-Policy` and the boot-script hash, both checked against
+`vercel.json`. They agree on the index, the worker, the PWA assets and the
+version. No rollback rule triggered.
+
+**Service-worker update probe: passed, no findings.** One pass on the public
+alias with no bypass, in headless Chromium with a persistent profile, across
+the promotion:
+
+1. Armed on Release 4: offline files ready in 10.1 s, with the controller on
+   Release 4's PWA version `b9727629…`, and no CSP violations.
+2. After promotion, the waiting Release 5 worker was applied through the app
+   with exactly one reload. The controller moved to `8ea0c046…`, Release 5's
+   `/pwa-assets.json` version.
+3. Cold offline launch: `/` and `/my-games` loaded from the worker on Release
+   5's entry.
+4. Under the updated worker, `/data-use` loaded readable, with no
+   `/data/collection.json` request and no 4xx or 5xx response.
+5. No CSP violations on any probed page.
+
+**Pre-promotion evidence.** The release manifest binds each report or records
+its carry-forward.
+- Gate on `ca1d447c` (Node 24.21.0): unit 169 files / 2,507 tests; browser 13
+  files, 149 passed, 1 skipped. On the final code: unit 170 / 2,511, and the
+  restore-preview browser test 30/30.
+- Firestore emulator suite: 258/258, plus the handle-claim race case 5/5, on
+  rules `6c8ebcb2…`.
+- Configured build: `check:csp` clean, budgets 14/14.
+- Production partition, full, 808 on `51a85354`: 807 green; the one failure
+  is below. Development partition, full, 186 on `228493e8`: 184 green; the two
+  failures are below. Cloud-UI, full, on `ca1d447c`: desktop 114/114; mobile
+  113, plus the opt-in skip. The compare fixture was allocated and required.
+- Targeted re-runs on the final tip: `personal.spec.ts` 36/36,
+  `mobile-nav-readability.spec.ts` 3/3 (plus its 3 skips by design),
+  `played-ranking.spec.ts` 14/14, and the progress-sync cloud-UI test 2/2.
+- Candidate verification: 43/43 and 49/49.
+- Gitleaks 8.30.1 over `c877a04b..228493e8` (33 commits): 0 findings.
+
+**Validation stops.** Each was root-caused, and none was a product defect.
+- The queue touch-drag test aimed its handle at the next row's centre, so on
+  tall mobile rows the drop landed one row late under host load. It now aims
+  by row centres.
+- The native-zoom navigation test ran out of time closing its own second
+  Chrome on a busy host, after every check had passed. It now allows 90 s.
+- The browser-restart test hung closing its persistent profile while the host
+  was at 100% CPU. It passed on a one-worker re-run and is unchanged.
+- The cross-check still expected Release 4's 47 rows after two were added.
+  The count was raised to 49 and the check re-run.
+- The push script ran under Windows PowerShell 5.1, which stopped on git's
+  `remote:` output after the branch push had succeeded. The integrator
+  confirmed the push with `ls-remote` and continued steps 2–3 under
+  PowerShell 7 without pushing again.
+
+**Receipts,** kept outside the repository:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Promotion receipt (binds every step's receipt) | `9c4097898cc8b297195d470f95ee83d758d382e53953254367fb33def4903d70` |
+| Push and PR | `c15b6314d01c055b452cc8e0b5310be4b68924459e5e9df4d0a26cd97977dcf1` |
+| Push harness defect record | `9ced3779a9609f7f4a86caeeee8c61ceb3755976c06a30fdb9f50304a271d516` |
+| Promotion and public checks | `c817929bcc0bf3f5c888ce3ce14848427eb72d16b0a9020fe1aca4cc607601dc` |
+| Production `release:verify` JSON | `7c708f6a5ab182ed61dabc946fe0c02bf3c0d384f254f888cf6e6ea741532f72` |
+| Service-worker arm | `c44a449c0a844849aae0323b621aa3f467acb489bdb7845c2b63a15afdace7ba` |
+| Service-worker probe | `8a1f167243887707ecfd31493cc0cbd04f9ec8cffc090e642451021406958e4e` |
+
+**Rules.** Changed: handle claims now use a create write. The pending publish
+is now `firestore.rules` SHA-256
+`6c8ebcb2e8147753b8976eb8fedf739057c0469d6fda1f351e1c0fd887f3440d`
+(pending action 3). Release 4 clients can't claim a new handle under these
+rules, so publish them only while Release 5 or later is serving.
+
+**Waivers.** As for Release 4: no physical-device, iOS Safari, screen-reader
+or OS install and launch runs; the release coordinator waived them. The real
+Google smoke is still pending action 5.
+
+**Known issues at release.** None known.
+
 ## Release 4: 2026-09-26
 
 | Field | Value |
@@ -420,13 +553,13 @@ Do these in runbook order and record each readback.
    - `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`
 
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
-3. **Rules.** Publish `firestore.rules` from `f8ba8549` (Release 3). Its
-   SHA-256 is
-   `9458021a4accb75c5cb8e218a93246d93eeca672d3c867adcf40ba8b18e15f46`
-   (105,057 bytes). It supersedes the unpublished Release 1 rules
-   (`37e55c79…`). Readback: copy the published text back and confirm its
-   SHA-256 equals that value, then record the version timestamp. The
-   pre-release rollback archive is
+3. **Rules.** Publish `firestore.rules` from `228493e8` (Release 5), and only
+   while Release 5 or later is serving. Its SHA-256 is
+   `6c8ebcb2e8147753b8976eb8fedf739057c0469d6fda1f351e1c0fd887f3440d`
+   (105,291 bytes). It supersedes the unpublished Release 3 rules
+   (`9458021a…`) and Release 1 rules (`37e55c79…`). Readback: copy the
+   published text back and confirm its SHA-256 equals that value, then record
+   the version timestamp. The pre-release rollback archive is
    `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
 4. **WAF.** Switch `api-per-ip` (`rule_api_per_ip_xpgBNf`, in **Log** mode since
    2026-09-25 09:49:22Z; see
