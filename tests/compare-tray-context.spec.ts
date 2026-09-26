@@ -68,6 +68,10 @@ for (const width of [320, 393, 768, 1440]) {
       '/?q=NoMatchContextFixture&catalogs=off',
     ]) {
       await page.goto(route);
+      // Measure the rendered page, not the lazy route's loading shell, which has its own heading and height.
+      await expect(
+        page.locator(route.startsWith('/my-games') ? '#my-games-title' : '.empty-state, .curated-empty'),
+      ).toBeVisible();
       await expect(page.locator('.compare-tray-expand')).toBeVisible();
       await expect(page.locator('.compare-tray-action')).toBeHidden();
       await expect(page.locator('.compare-tray-stack')).toBeHidden();
