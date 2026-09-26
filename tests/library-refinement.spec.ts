@@ -151,9 +151,11 @@ test('library removal requires confirmation, deletes all selected private state 
   const remove = page.getByRole('button', { name: `Remove ${a.title} from my library`, exact: true });
   await remove.click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('button', { name: 'Keep games', exact: true })).toBeFocused();
-  await expect(dialog).toContainText('personal ratings and notes');
-  await dialog.getByRole('button', { name: 'Keep games', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Keep game', exact: true })).toBeFocused();
+  await expect(dialog).toContainText(
+    'its saved entry, queue position, played/completed marks, personal rating and note',
+  );
+  await dialog.getByRole('button', { name: 'Keep game', exact: true }).click();
   expect(await readLibrary(page)).toEqual(before);
   await expect(remove).toBeFocused();
   await remove.click();
@@ -194,6 +196,10 @@ test('bulk removal handles mixed imported and original games without deleting an
   await page.getByRole('button', { name: 'Remove from my library', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.locator('.removal-games li')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: 'Keep games', exact: true })).toBeFocused();
+  await expect(dialog).toContainText(
+    'their saved entries, queue positions, played/completed marks, personal ratings and notes',
+  );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
     true,
   );

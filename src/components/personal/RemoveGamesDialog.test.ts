@@ -1,0 +1,71 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
+import type { LibraryRecord } from '../../lib/personal-types';
+import { emptyPersonalLibrary } from '../../lib/personal-library';
+import { RemoveGamesDialog } from './RemoveGamesDialog';
+
+const records: LibraryRecord[] = ['alpha', 'beta'].map((sourceId) => ({
+  id: `manual:${sourceId}`,
+  source: 'manual',
+  sourceId,
+  title: `Synthetic ${sourceId}`,
+  year: null,
+  studio: null,
+  genre: null,
+  collectionRank: null,
+  sourceUrl: null,
+}));
+
+function render(selected: LibraryRecord[], remaining = selected) {
+  return renderToStaticMarkup(
+    createElement(RemoveGamesDialog, {
+      records: selected,
+      state: {
+        ...emptyPersonalLibrary(),
+        records: Object.fromEntries(remaining.map((record) => [record.id, record])),
+      },
+      busy: false,
+      onClose: vi.fn(),
+      onRemove: vi.fn(async () => true),
+    }),
+  );
+}
+
+describe('private library removal copy', () => {
+  it('uses singular consequences and cancellation for one remaining game', () => {
+    const html = render(records.slice(0, 1));
+    expect(html).toContain('Remove this game?</h2>');
+    expect(html).toContain('its saved entry, queue position, played/completed marks, personal rating and note');
+    expect(html).toContain('Keep game</button>');
+    expect(html).not.toContain('Keep games');
+    expect(html).toContain('Remove 1 game</button>');
+    expect(html).toContain('This cannot be undone.');
+  });
+
+  it('preserves plural consequences and cancellation for multiple games', () => {
+    const html = render(records);
+    expect(html).toContain('Remove 2 games?</h2>');
+    expect(html).toContain('their saved entries, queue positions, played/completed marks, personal ratings and notes');
+    expect(html).toContain('Keep games</button>');
+    expect(html).toContain('Remove 2 games</button>');
+  });
+
+  it('uses the remaining count when another client removed one selected game', () => {
+    const html = render(records, records.slice(0, 1));
+    expect(html).toContain('Remove this game?</h2>');
+    expect(html).toContain('its saved entry');
+    expect(html).toContain('Keep game</button>');
+    expect(html).not.toContain('Synthetic beta');
+  });
+
+  it('preserves the already-removed state without a destructive action', () => {
+    const html = render(records, []);
+    expect(html).toContain('Already removed.</h2>');
+    expect(html).toContain('These games are no longer in your private library. No other games will be removed.');
+    expect(html).toContain('Close</button>');
+    expect(html).not.toContain('Keep game');
+    expect(html).not.toContain('button-danger');
+    expect(html).not.toContain('This cannot be undone.');
+  });
+});
