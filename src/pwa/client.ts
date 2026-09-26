@@ -113,6 +113,7 @@ export const initialPwaState: PwaState = {
   installState: 'unavailable',
   offlineState: 'idle',
   updateState: 'none',
+  checkingUpdate: false,
   online: true,
   message: '',
   error: '',
@@ -128,6 +129,7 @@ export function createPwaController(): PwaController {
   let stopConnection = () => {};
   let preparing: Promise<boolean> | null = null;
   let applying = false;
+  let checking: object | null = null;
   let requestedVersion: string | null = null;
   let refreshRequest = 0;
   const listeners = new Set<() => void>();
@@ -238,6 +240,7 @@ export function createPwaController(): PwaController {
       if (attached || !availablePage()) return () => {};
       attached = true;
       const start = ++generation;
+      publish({ checkingUpdate: false });
       const media = window.matchMedia('(display-mode: standalone)');
       const ios =
         /iPhone|iPad|iPod/.test(navigator.userAgent) ||
@@ -321,6 +324,7 @@ export function createPwaController(): PwaController {
         if (!current(start)) return;
         attached = false;
         generation += 1;
+        checking = null;
         deferred = null;
         removeRegistrationListeners();
         window.removeEventListener('beforeinstallprompt', prompt);
@@ -393,16 +397,38 @@ export function createPwaController(): PwaController {
       return task;
     },
     async checkForUpdate() {
+      if (checking || applying) return;
+      const request = {};
+      const start = generation;
+      const target = registration;
+      checking = request;
       try {
         ensureAvailable();
-        if (!registration) {
+        if (!target) {
           publish({ message: 'Enable offline access before checking its updates.' });
           return;
         }
-        await registration.update();
-        await refresh(generation);
+        publish({ checkingUpdate: true, message: 'Checking for an update…', error: '' });
+        await target.update();
+        if (!current(start) || registration !== target) return;
+        await refresh(start);
+        if (!current(start) || registration !== target || checking !== request) return;
+        if (state.error || state.offlineState === 'error') throw new Error('Offline readiness could not be confirmed.');
+        if (!target.waiting && state.updateState === 'none' && !applying) {
+          publish({
+            message: target.installing ? 'An update is downloading. This page will stay open.' : "You're up to date.",
+          });
+        }
       } catch (cause) {
-        report('An update could not be checked. Your current page remains available.', cause);
+        if (current(start)) {
+          publish({ message: '' });
+          report('An update could not be checked. Your current page remains available.', cause);
+        }
+      } finally {
+        if (checking === request) {
+          checking = null;
+          if (current(start)) publish({ checkingUpdate: false });
+        }
       }
     },
     async applyUpdate(guard: PwaUpdateGuard) {

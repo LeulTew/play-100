@@ -26,6 +26,7 @@ export interface PwaState {
   readonly installState: PwaInstallState;
   readonly offlineState: PwaOfflineState;
   readonly updateState: PwaUpdateState;
+  readonly checkingUpdate?: boolean;
   readonly online: boolean;
   readonly message: string;
   readonly error: string;

@@ -15,7 +15,7 @@ export default function PwaControls({
   const [confirm, setConfirm] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [recovering, setRecovering] = useState(false);
-  const pending = pwa.offlineState === 'preparing' || pwa.updateState === 'applying';
+  const pending = pwa.offlineState === 'preparing' || pwa.updateState === 'applying' || pwa.checkingUpdate === true;
   return (
     <details className="device-settings pwa-settings" open={open}>
       <summary>Install &amp; offline access</summary>
@@ -58,11 +58,12 @@ export default function PwaControls({
           <button
             className="text-button"
             disabled={!pwa.online || pending}
+            aria-busy={pwa.checkingUpdate === true}
             onClick={() => {
               void pwa.checkForUpdate();
             }}
           >
-            Check for an app update
+            {pwa.checkingUpdate ? 'Checking for an update…' : 'Check for an app update'}
           </button>
         )}
       </div>

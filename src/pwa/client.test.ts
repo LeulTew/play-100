@@ -120,6 +120,109 @@ afterEach(() => {
 });
 
 describe('truthful installation and page startup', () => {
+  it('announces an explicit check and its up-to-date result without reloading', async () => {
+    const current = fixture();
+    let finish!: () => void;
+    try {
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      current.registration.waiting = null;
+      current.registration.update.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const check = current.controller.checkForUpdate();
+      expect(current.controller.getSnapshot()).toMatchObject({
+        checkingUpdate: true,
+        message: 'Checking for an update…',
+        error: '',
+      });
+      await current.controller.checkForUpdate();
+      expect(current.registration.update).toHaveBeenCalledOnce();
+      finish();
+      await check;
+      expect(current.controller.getSnapshot()).toMatchObject({
+        checkingUpdate: false,
+        updateState: 'none',
+        message: "You're up to date.",
+        error: '',
+      });
+      expect(current.location.reload).not.toHaveBeenCalled();
+    } finally {
+      finish?.();
+      current.stop();
+    }
+  });
+
+  it('clears the checking message on failure and allows a later successful check', async () => {
+    const current = fixture();
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      current.registration.waiting = null;
+      current.registration.update.mockRejectedValueOnce(new Error('Synthetic update check failure'));
+      await current.controller.checkForUpdate();
+      expect(current.controller.getSnapshot()).toMatchObject({
+        checkingUpdate: false,
+        message: '',
+        error: 'An update could not be checked. Your current page remains available.',
+      });
+      expect(report).toHaveBeenCalled();
+      await current.controller.checkForUpdate();
+      expect(current.controller.getSnapshot()).toMatchObject({
+        checkingUpdate: false,
+        message: "You're up to date.",
+        error: '',
+      });
+    } finally {
+      report.mockRestore();
+      current.stop();
+    }
+  });
+
+  it.each(['installing', 'waiting'] as const)('does not claim up to date with an %s update', async (phase) => {
+    const current = fixture();
+    try {
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      if (phase === 'installing') {
+        current.registration.waiting = null;
+        current.registration.installing = new FakeWorker();
+        current.registration.installing.state = 'installing';
+      }
+      await current.controller.checkForUpdate();
+      const state = current.controller.getSnapshot();
+      expect(state.checkingUpdate).toBe(false);
+      expect(state.message).toBe(
+        phase === 'installing'
+          ? 'An update is downloading. This page will stay open.'
+          : 'An update is ready. Your current page stays open until you choose to update.',
+      );
+      expect(current.location.reload).not.toHaveBeenCalled();
+    } finally {
+      current.stop();
+    }
+  });
+
+  it('does not publish a late check result after its connection closes', async () => {
+    const current = fixture();
+    let finish!: () => void;
+    await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+    current.registration.update.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const check = current.controller.checkForUpdate();
+    current.stop();
+    const stopped = current.controller.getSnapshot();
+    finish();
+    await check;
+    expect(current.controller.getSnapshot()).toBe(stopped);
+    expect(current.location.reload).not.toHaveBeenCalled();
+  });
+
   it.each(['message', 'redundant'] as const)(
     'leaves preparing after a worker %s failure and lets the user retry',
     async (failure) => {

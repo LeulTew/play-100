@@ -113,6 +113,10 @@ first fills a separate bounded cache and writes its ready marker last. A failed
 install preserves the working version. Quota or offline failures remain
 explicit and retryable.
 
+An explicit update check shows its busy state and then a result in Settings:
+up to date, downloading, ready to review, or a check failure. It never applies
+an update or reloads the page by itself.
+
 First installation does not claim an already open, uncontrolled page of unknown
 version. Ready means the files are complete; reopen the public page or installed
 app to use that worker offline. There is no automatic reload or unconditional
