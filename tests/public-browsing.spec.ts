@@ -336,9 +336,13 @@ test('the tray preserves complete art provenance behind a labelled disclosure an
   await disclosure.locator('summary').press('Enter');
   await expect(disclosure.locator('.game-artwork-credit')).toBeVisible();
   expect(await disclosure.locator('.game-artwork-credit').textContent()).toBe(
-    `Art: ${credited.artwork!.credit} / ${credited.artwork!.license}`,
+    `Art: ${credited.artwork!.credit} Source image / ${credited.artwork!.license}`,
   );
-  await expect(disclosure.locator('a').first()).toHaveAttribute('href', credited.artwork!.sourceUrl);
+  await expect(disclosure.getByRole('link', { name: 'Source image', exact: true })).toHaveAttribute(
+    'href',
+    credited.artwork!.sourceUrl,
+  );
+  await expect(disclosure.locator('a')).toHaveCount(2);
   await expect(disclosure.locator('a').last()).toHaveAttribute('href', credited.artwork!.licenseUrl);
   expect((await readLibrary(page)).ranking).toEqual([]);
   expect((await readLibrary(page)).records).toEqual({});

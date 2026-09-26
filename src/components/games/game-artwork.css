@@ -27,6 +27,10 @@
   font-size: 12px;
   line-height: 1.4;
 }
+.game-artwork-credit-text {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
 .game-artwork-credit a {
   display: inline-flex;
   align-items: center;

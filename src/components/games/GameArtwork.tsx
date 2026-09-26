@@ -73,15 +73,15 @@ export function GameArtworkCredit({
   };
   const credit = (
     <span className="game-artwork-credit">
-      Art:{' '}
-      {safeLink(artwork.sourceUrl) ? (
-        <a href={artwork.sourceUrl} target="_blank" rel="noreferrer">
-          {artwork.credit}
-        </a>
-      ) : (
-        artwork.credit
+      <span className="game-artwork-credit-text">Art: {artwork.credit}</span>{' '}
+      {safeLink(artwork.sourceUrl) && (
+        <>
+          <a href={artwork.sourceUrl} target="_blank" rel="noreferrer">
+            Source image
+          </a>
+          {' / '}
+        </>
       )}
-      {' / '}
       {safeLink(artwork.licenseUrl) ? (
         <a href={artwork.licenseUrl} target="_blank" rel="noreferrer">
           {artwork.license}

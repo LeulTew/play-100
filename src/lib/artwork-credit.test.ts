@@ -21,6 +21,13 @@ describe('contextual artwork-credit disclosure', () => {
     expect(html).toContain(artwork.license);
     expect(html).not.toContain('open=""');
   });
+  it('keeps the credit as unlinked prose beside separately labelled source and license links', () => {
+    const html = renderToStaticMarkup(createElement(GameArtworkCredit, { artwork }));
+    expect(html).toContain(`<span class="game-artwork-credit-text">Art: ${artwork.credit}</span>`);
+    expect(html).toContain(`<a href="${artwork.sourceUrl}" target="_blank" rel="noreferrer">Source image</a>`);
+    expect(html).toContain(`<a href="${artwork.licenseUrl}" target="_blank" rel="noreferrer">${artwork.license}</a>`);
+    expect(html.match(/<a /g)).toHaveLength(2);
+  });
   it('does not collapse unrelated surfaces or invent missing attribution', () => {
     expect(renderToStaticMarkup(createElement(GameArtworkCredit, { artwork }))).not.toContain('<details');
     expect(
