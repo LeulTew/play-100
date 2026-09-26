@@ -8,6 +8,131 @@ the owner's email, so they stay out of this file. Operator steps follow the
 rollback and readback, and the
 [security release runbook](security-release-runbook.md#promotion-order).
 
+## Release 4: 2026-09-26
+
+| Field | Value |
+| --- | --- |
+| Commit | `c877a04b65788fabf2e9ec947053f20b463d6462` (tree `0f1276bc4b2e7ba8a9314e0974d9b320e91f6d70`) |
+| Merge | PR #7 (`leultew-r10-integration`) into `main`, a plain fast-forward of 26 commits from `f8ba8549`, merged 2026-09-26 05:29:24Z |
+| Build | Remote Vercel build from a clean export (1153 files), Vercel CLI 59.16 |
+| Production deployment | `dpl_sUKWmFGu6PR8zLtxyk2pCbqpLP7Y` |
+| Promoted | 2026-09-26 05:34:29Z with `vercel promote` (CLI 59.16.0), started 05:34:21Z |
+| Rollback target | `dpl_BnyHdn9pZrbyqRDWtviezBUQZRsE` (Release 3) |
+| Strict inline hashes | Unchanged from Release 3: style-src online `sha256-NGUjOxY76/cGN3gmM/YONiEbuC6rhQrQEr9XDkz0oxs=`, offline `sha256-yoYUnUqLaGmW5eJpbrdR7YmLQEZzKihnuFrDIgUKkdw=`; script-src boot script `sha256-lnIuzuWpXjWnhP9WtHbq+pqsr31w1FLaZQt7yvTYivQ=` |
+| Release manifest | SHA-256 `ce99aa089fbaf01633a606cf6a03fd81efbde0d4277335044e6ee65b001ba561`, with 6 recorded decisions and no waivers |
+
+**What shipped.** The remaining 10/10 requirements from the G2 review; PR #7
+has the details. This closes Release 3's four known issues.
+- Offline: every verified offline download has a deadline, and a stalled
+  response aborts while the working copy stays, with a retry in Settings.
+- Budgets: `check:budgets` also gates index.html, the first-paint inline
+  blocks and the largest whole route. The idle warm-up fetches only what a
+  page opens without navigating, and dead footer CSS is gone.
+- Dialogs: the sticky Close rail also covers short landscape windows, and
+  Settings and About set the page title.
+- Release operations: `npm run release:verify`, the
+  [local release operations](release-operations.md) runbook and the Release 3
+  entry below.
+- Storage: a refused manual save shows an error, and a retried restore clears
+  the old one. Quota campaigns cover large imports, unsaved manual games and
+  offline preparation.
+- Account lifecycle: deletion, the Google return and session, and identity are
+  narrowly owned, unit-tested modules, with no behavior change.
+
+**Readback.**
+- Alias `play-100-collection.vercel.app` resolves to
+  `dpl_sUKWmFGu6PR8zLtxyk2pCbqpLP7Y`, confirmed by both the Vercel API and
+  `vercel inspect`.
+- Before the readback, five consecutive public `/` responses matched the
+  candidate's index, with no stale response (05:34:37Z to 05:34:42Z).
+- Production `/` index.html SHA-256:
+  `061415fe7e4484a4d0aa0b403d5d05911b9eac56f4075db02d308d4bd504bd06`, the
+  candidate's and the local configured build's. Entry
+  `/assets/index-C97IdQ8R.js`, SHA-256
+  `eeae373a1fc36761b2be926d33314da9c7457c21ec09ca9f7d9c4941d85d5a46`.
+- CSP header SHA-256:
+  `418cd3ad834ca07094c130525d1afbc7bf222fc39be77e68273d584aea0dc3a2`,
+  unchanged from Release 3.
+- `/sw.js` SHA-256
+  `19c9b7d5f3e67111668962cd381feb4739640b74a2918a80ec90c830c5347bf2`.
+  `/pwa-assets.json` SHA-256
+  `3762423f2041716601d5d1726ac60d34d867be66de306efdc55f61116707d0e2`, PWA
+  version `b972762946f9c768ec01bbd37c90ed5dd3ee622978adf937629b6bd728e077e6`.
+
+**Post-promotion production checks.** `npm run release:verify` passed 43/43,
+and the integrator's cross-check passed 47/47 (the Release 3 set). They agree
+on the index, the worker, the PWA assets and the version. No rollback rule
+triggered.
+
+**Service-worker update probe: passed, no findings.** One pass on the public
+alias with no bypass, in headless Chromium with a persistent profile, across
+the promotion:
+
+1. Armed on Release 3: offline files ready in 7.1 s, with the controller, the
+   active worker and the page on Release 3's PWA version `f7355aa7…`, and no
+   CSP violations.
+2. After promotion, the waiting Release 4 worker was applied through the app
+   with exactly one reload. The controller and the page moved to `b9727629…`,
+   Release 4's `/pwa-assets.json` version.
+3. Cold offline launch: `/` and `/my-games` loaded from the worker on Release
+   4's entry.
+4. No `securitypolicyviolation` events or CSP console messages on the updated
+   page or either offline page.
+
+The multi-window and unsaved-form refusals were probed for Release 3 and not
+repeated.
+
+**Pre-promotion evidence.** The release manifest binds each report or records
+its decision.
+- Gate: 182 files, 2,605 passed, 1 skipped. Development partition: 186 in 11
+  (181 passed, 5 skipped).
+- The full production partition (760 on `92033f6f`: 672 passed, 87 skipped,
+  1 failed) and the full cloud-UI run (228 on `720082df`: 215 passed, 12
+  skipped, 1 failed) are recorded as superseded. Each failure was a test race,
+  and its fixed spec then passed whole: `compare-tray-context.spec.ts` 12/12
+  and `friend-all.spec.ts` 14/14. The 12 skips are the opt-in
+  `compare-orientation.spec.ts`, which needs an allocated fixture.
+- The Node 24 gate and the Firestore emulator suite (256) are carried
+  forward: R10 changes no dependency, rules or rules-emulator test.
+- The last three commits change only those spec files, and a fresh configured
+  build of `c877a04b` matched the earlier dist file for file.
+- Candidate verification: 43/43 and 47/47. The first candidate,
+  `dpl_FQWRzCpyXNm2rNfRQohV9gSSrv9o` (built from `720082df`), was superseded
+  and never promoted.
+- Gitleaks 8.30.1 over `f8ba8549..c877a04b` (26 commits): 0 findings. An
+  independent review of the runtime commits found no issues.
+
+**Validation stops.** Each was root-caused, and none was a product defect.
+- The configured-build harness read the budget rows through a field the report
+  doesn't have, so it stopped on a passing report. The condition was corrected
+  and the report re-read without a rebuild.
+- `compare-tray-context.spec.ts` measured page-end geometry before the lazy My
+  games page rendered. It now waits for the page's own heading.
+- A cloud-UI helper navigated 2 ms after Sign out, before the asynchronous
+  sign-out finished. Two specs now wait for the home page first.
+
+**Receipts,** kept outside the repository:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Promotion receipt (binds 9 evidence files, including these) | `3717ca7b028ff7e56be339b3d3c0f0b0c0f56f9f2f35407c3d00ec7e4999de0e` |
+| Push and PR | `156b704e46840eda43bbfe02678e0e874daa020f6efe489da88171e8de874fee` |
+| Promotion and public checks | `a243219e3ce70c39b1cbb975b1961232c5d2982510bd120b814327b30aeb2f66` |
+| Production `release:verify` JSON | `b7d86e5879a3411caa00ab97d6f2115d98fd1941e0eb5484e8faf0cc331f8b4b` |
+| Service-worker arm | `17bba2cbf6ac7b6632387de1984d5bfee3e528ebdebed05a5e49444fa68247a0` |
+| Service-worker probe | `e9041906772e9521df358a81afafeae88970f174bc5918ae3c8213d36c19700f` |
+
+**Rules.** Unchanged from Release 3, so the pending publish is still
+`firestore.rules` SHA-256
+`9458021a4accb75c5cb8e218a93246d93eeca672d3c867adcf40ba8b18e15f46`
+(pending action 3), and the client-first window continues.
+
+**Waivers.** As for Release 3: no physical-device, iOS Safari, screen-reader
+or OS install and launch runs; the release coordinator waived them. The real
+Google smoke is still pending action 5.
+
+**Known issues at release.** None known.
+
 ## Release 3: 2026-09-26
 
 | Field | Value |
