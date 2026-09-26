@@ -3,6 +3,7 @@ import type { GameSource, LibraryRecord, PersonalLibraryState } from './personal
 import { recordFromGame } from './personal-types';
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { AvatarDescriptor } from './avatar';
+import { hasControlOrFormat, stripControlOrFormat } from './text-controls';
 export { parseAvatarDescriptor as parseAvatar } from './avatar';
 
 export const PUBLIC_LIMIT = 200;
@@ -219,6 +220,13 @@ export function parsePublicationEntry(value: unknown): PublicEntry {
   if (entry.sourceUrl && entry.sourceUrl.length > PUBLIC_SOURCE_URL_LIMIT) {
     throw new Error(
       'A selected game has a source link longer than 2048 characters. Correct its link or leave it out before publishing or sharing. Your private library is unchanged.',
+    );
+  }
+  if (hasControlOrFormat(entry.title)) {
+    const shown = stripControlOrFormat(entry.title).trim();
+    const game = shown ? `The title of "${shown}"` : 'A selected game title';
+    throw new Error(
+      `${game} has invisible, control or text-direction characters, so it cannot be published or shared. Leave that game out of your selection. Your private library is unchanged.`,
     );
   }
   return entry;

@@ -27,7 +27,7 @@ import {
   PUBLIC_LIMIT,
 } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
-import { displayNameProblem } from '../lib/text-controls';
+import { displayNameProblem, rankingTitleProblem } from '../lib/text-controls';
 import { ensureAccountActivity } from './account-lifecycle';
 import { creatorAccess } from './cloud-store';
 import { releaseIndexedPayload } from './generation-cleanup';
@@ -294,6 +294,8 @@ export class SocialStore {
       throw new Error('Use a name up to 60 characters and a ranking title up to 80.');
     const nameProblem = displayNameProblem(input.displayName);
     if (nameProblem) throw new Error(nameProblem);
+    const titleProblem = rankingTitleProblem(title);
+    if (titleProblem) throw new Error(titleProblem);
     if (!input.entries.length || input.entries.length > PUBLIC_LIMIT)
       throw new Error('Choose 1-200 games; no entries are automatically omitted.');
     const entries = input.entries.map(parsePublicationEntry);

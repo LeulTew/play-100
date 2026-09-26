@@ -66,3 +66,25 @@ describe('new-publication source URL boundaries without private or historical mi
     },
   );
 });
+
+describe('new-publication title characters without private or historical migration', () => {
+  it.each(['\u0000', '\u0085', '\u202e', '\u2066'])(
+    'refuses a newly published or shared title containing %j by name, keeping historical entries readable',
+    (character) => {
+      const title = `Publication${character} boundary fixture`;
+      const state = applyPersonalAction(emptyPersonalLibrary(), {
+        type: 'rate-game',
+        record: { ...record(2048), title },
+        score: 7,
+      });
+      const entry = { ...published(2048), title };
+      const refusal = /"Publication boundary fixture" has invisible, control or text-direction.*private library/;
+      expect(() => projectPublicRanking(state, new Set(['freetogame:10']), [])).toThrow(refusal);
+      expect(() => projectFriendRanking(state, ['freetogame:10'], [])).toThrow(refusal);
+      expect(() => validateFriendEntries([entry], ['freetogame:10'])).toThrow(refusal);
+      expect(projectOwnRanking(state, [])).toEqual([entry]);
+      expect(parsePublicEntry(entry)).toEqual(entry);
+      expect(parseFriendChunk({ index: 0, entries: [entry], ids: [entry.id] }, 0, 1)).toEqual([entry]);
+    },
+  );
+});

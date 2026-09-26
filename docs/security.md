@@ -494,6 +494,23 @@ or changed name must be clean, and creating an invite requires a clean identity
 name. Format characters include ZWJ and emoji tag characters, so some emoji
 sequences are refused; that over-block is accepted. Other users' names render in
 `<bdi>` so a right-to-left name cannot reorder the surrounding text.
+
+**Public and shared ranking titles (R12).** The same control and format
+characters (the shared `invisibleCharacters()` list, C0/C1 through `\p{Cc}`)
+are refused anywhere in a new public entry title, public profile title and
+preview title, and in a selected-ranking chunk title. As for names, an update
+may keep an unchanged legacy profile title or preview, so a legacy profile can
+still be republished unchanged, unpublished or moderated; new entries and
+chunks are create-only and must be clean. The client refuses these titles
+first with plain text: the publish form and `SocialStore.publish` for the
+profile title, and `parsePublicationEntry` for every published or shared entry,
+naming the game by its visible title. Reading historical entries is unchanged.
+No title in the shipped collection or discovery catalog contains one of these
+characters, so the refusal reaches only manual, imported or provider titles
+that do. Friend-only shelf and All rows keep their C0/DEL rule: they mirror the
+whole library automatically, so a stricter rule would stop all automatic
+sharing for a library holding one such title.
+
 The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion on both rename and profile deletion.
 Deleting/recreating a profile cannot leave a new hoarded claim behind. Full
@@ -555,6 +572,7 @@ that suspends H5 bounds. The table below explains why each change is client-firs
 | Ranking 16 MiB allocation | Normal old generator output fits; new oversized raw allocations are denied, old 20 MiB reads/cleanup remain | Cap is separately droppable; private remains 20 MiB |
 | H6 reserved/atomic handle | Old transaction already releases its old handle; old reserved claims are denied | New validation/read compatibility client first |
 | S1 handle existence | Old publish reads the proposed handle before claiming it, so a new handle's read is denied and it cannot claim one; republishing an unchanged handle still works | Write-claim client first, then rules |
+| R12 title characters | An older publish or selected share of a title with a control or format character is denied with the generic authorization message; other titles are unaffected | Client with the plain-text refusal first, then rules |
 | H7 creator UID | Old client asks the same ownerAccess endpoint | Console UID addition before rules |
 | H11 device removal | Old Sign out still retains its cache | New optional client action; no rule dependency |
 | H13 password length | Old UI truncation remains | New client; no rule dependency |

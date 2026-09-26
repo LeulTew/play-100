@@ -80,6 +80,10 @@ Firebase and Vercel consoles; each names its readback.
      invites whose `displayName` fails the R9 name rule (control/format character,
      or leading/trailing separator). They remain valid until next edited; moderate
      only impersonation or abuse.
+   - **Titles (R12):** public profiles whose title or preview, and public entries
+     and selected-ranking chunks whose title, contain a control or format
+     character. They stay readable, and a legacy profile can still be unpublished;
+     moderate only abuse.
    - **Window ledgers:** re-inventory every quota ledger below. The candidate
      client wrote under the old rules during the client-first window, so reconcile
      any mismatch with that ledger's procedure before accepting the candidate.

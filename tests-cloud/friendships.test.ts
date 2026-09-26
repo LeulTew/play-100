@@ -1109,6 +1109,41 @@ describe('bounded strict friends-only ranking generations', () => {
       expect((await getDocFromServer(ref)).data()?.uploaded).toBe(1);
     },
   );
+  it('refuses control and format characters in a selected-ranking title through direct SDK writes', async () => {
+    const owner = await client();
+    const control = await owner.store.saveSettings(
+      owner.uid,
+      { enabled: true, selectedIds: [entry.id] },
+      await settings(owner),
+    );
+    const generation = crypto.randomUUID(),
+      ref = doc(owner.db, 'friendShares', owner.uid, 'generations', generation);
+    const stage = writeBatch(owner.db);
+    stage.set(doc(owner.db, 'friendShareRegistry', owner.uid), { ids: [generation], revision: 1 });
+    stage.set(ref, {
+      epoch: control.epoch,
+      settingsRevision: control.revision,
+      source,
+      count: 1,
+      digest: 'a'.repeat(64),
+      uploaded: 0,
+      ids: [],
+      status: 'staging',
+      createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(stage.commit());
+    const put = (title: string) => {
+      const batch = writeBatch(owner.db);
+      batch.set(doc(ref, 'chunks', '0'), { index: 0, entries: [{ ...entry, title }], ids: [entry.id] });
+      batch.update(ref, { uploaded: 1, ids: [entry.id], status: 'ready' });
+      return batch.commit();
+    };
+    for (const character of ['\u0000', '\u0085', '\u202E', '\u2066'])
+      await assertFails(put(`Shared${character}example`));
+    expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
+    await assertSucceeds(put('Shared example'));
+    expect((await getDocFromServer(ref)).data()?.uploaded).toBe(1);
+  });
   it('keeps historical oversized selected-ranking links readable by an accepted friend without allowing republishing', async () => {
     const owner = await client(),
       friend = await client();

@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
-import { cleanDisplayName, displayNameProblem, hasAsciiControl } from './text-controls';
+import {
+  cleanDisplayName,
+  displayNameProblem,
+  hasAsciiControl,
+  rankingTitleProblem,
+  stripControlOrFormat,
+} from './text-controls';
 
 it('rejects exactly C0 and DEL across every UTF-16 code unit', () => {
   const rejected: number[] = [];
@@ -58,9 +64,19 @@ it('accepts ordinary Unicode names and trims surrounding whitespace to the 1-60 
   for (const name of ['', '   ', '\u00a0', 'x'.repeat(61)]) expect(displayNameProblem(name)).toMatch(/1 to 60/);
 });
 
+it('refuses control and format characters anywhere in a ranking title and keeps ordinary titles', () => {
+  for (const character of ['\u0000', '\u0085', '\u00ad', '\u200b', '\u202e', '\u2066', '\ufeff', '\u{e0041}']) {
+    for (const title of [`My${character}favorites`, `${character}My favorites`, `My favorites${character}`])
+      expect(rankingTitleProblem(title)).toMatch(/Ranking titles cannot contain invisible, control or text-direction/);
+    expect(stripControlOrFormat(`My${character} favorites`)).toBe('My favorites');
+  }
+  for (const title of ['My favorites', 'Zoë’s top 10', 'ألعابي المفضلة', '好きなゲーム', 'Games 🎮', 'A\u00a0B'])
+    expect(rankingTitleProblem(title)).toBeNull();
+});
+
 it('keeps the rules backstop list equal to every format character this engine classes as \\p{Cf}', () => {
   const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
-  const list = /let invisible = ([^;]+);/.exec(rules)?.[1] ?? '';
+  const list = /function invisibleCharacters\(\) \{\s*return ([^;]+);/.exec(rules)?.[1] ?? '';
   const listed = [...list.matchAll(/\\\\x\{([0-9a-f]+)\}(?:-\\\\x\{([0-9a-f]+)\})?/g)].map((match) => [
     parseInt(match[1]!, 16),
     parseInt(match[2] ?? match[1]!, 16),

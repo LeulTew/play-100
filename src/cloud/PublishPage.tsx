@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { Member, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { normalizeHandle, projectPublicRanking, PUBLIC_LIMIT } from '../lib/community';
-import { displayNameProblem } from '../lib/text-controls';
+import { displayNameProblem, rankingTitleProblem } from '../lib/text-controls';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import type { AvatarDescriptor } from '../lib/avatar';
 import type { AccountIdentity } from './ui-types';
@@ -115,6 +115,8 @@ function PublishDraft({
         throw new Error('Choose a public name up to 60 characters and a ranking title up to 80 characters.');
       const nameProblem = displayNameProblem(name);
       if (nameProblem) throw new Error(nameProblem);
+      const titleProblem = rankingTitleProblem(title.trim());
+      if (titleProblem) throw new Error(titleProblem);
       setPreview({
         displayName: name.trim(),
         handle: normalizeHandle(handle),

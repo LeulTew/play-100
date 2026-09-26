@@ -507,3 +507,101 @@ describe('display-name hygiene', () => {
     await assertSucceeds(publish('Legacy\u202Ename'));
   });
 });
+
+describe('public ranking titles', () => {
+  const invisible = ['\u0000', '\u0085', '\u202E', '\u2066'];
+  const entry = {
+    position: 1,
+    id: 'wikidata:Q123',
+    title: 'Game title',
+    year: 2020,
+    source: 'wikidata',
+    sourceId: 'Q123',
+    sourceUrl: 'https://www.wikidata.org/wiki/Q123',
+    score: 9.5,
+  };
+  const published = (title: string, preview: string[], generation: string) => ({
+    uid: 'Alice',
+    handle: 'title_games',
+    displayName: 'Alice',
+    avatar,
+    title,
+    count: 1,
+    preview,
+    generation,
+    epoch: 1,
+    published: true,
+    listed: false,
+    hidden: false,
+    creator: false,
+    updatedAt: Timestamp.now(),
+  });
+  const publisher = (profile: ReturnType<typeof published>) => {
+    const db = user('Alice');
+    return (title: string, preview: string[], epoch: number) => {
+      const batch = db.batch();
+      batch.set(db.doc('publicProfiles/Alice'), { ...profile, title, preview, epoch, updatedAt: serverTimestamp() });
+      batch.update(db.doc('publicControls/Alice'), { epoch });
+      return batch.commit();
+    };
+  };
+
+  it('refuses control and format characters in new public entry, profile and preview titles', async () => {
+    const ready = crypto.randomUUID();
+    const staging = crypto.randomUUID();
+    const profile = published('Games', ['Game'], ready);
+    await seed({
+      'publicProfiles/Alice': profile,
+      'handles/title_games': { uid: 'Alice' },
+      'publicControls/Alice': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Alice/generations/${ready}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+      [`publicProfiles/Alice/generations/${staging}`]: {
+        status: 'staging',
+        epoch: 1,
+        count: 1,
+        uploaded: 0,
+        createdAt: Timestamp.now(),
+      },
+    });
+    const db = user('Alice');
+    const upload = (title: string) => {
+      const batch = db.batch();
+      batch.set(db.doc(`publicProfiles/Alice/generations/${staging}/entries/1`), { ...entry, title });
+      batch.update(db.doc(`publicProfiles/Alice/generations/${staging}`), { uploaded: 1, status: 'ready' });
+      return batch.commit();
+    };
+    const publish = publisher(profile);
+    for (const character of invisible) {
+      await assertFails(upload(`Game${character}title`));
+      await assertFails(publish(`My${character}games`, ['Game'], 2));
+      await assertFails(publish('My games', ['Game', `Second${character}game`], 2));
+    }
+    await assertSucceeds(upload('Game title'));
+    await assertSucceeds(publish('My games', ['Game', 'Second game'], 2));
+  });
+
+  it('keeps an unchanged legacy title and preview through republication and unpublishing', async () => {
+    const ready = crypto.randomUUID();
+    const profile = published('Legacy\u202Etitle', ['Legacy\u0085game'], ready);
+    await seed({
+      'publicProfiles/Alice': profile,
+      'handles/title_games': { uid: 'Alice' },
+      'publicControls/Alice': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Alice/generations/${ready}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+    });
+    const publish = publisher(profile);
+    await assertFails(publish('New\u2066title', profile.preview, 2));
+    await assertFails(publish(profile.title, ['New\u0000game'], 2));
+    await assertSucceeds(publish(profile.title, profile.preview, 2));
+    const db = user('Alice');
+    const unpublish = db.batch();
+    unpublish.update(db.doc('publicProfiles/Alice'), {
+      published: false,
+      listed: false,
+      epoch: 3,
+      updatedAt: serverTimestamp(),
+    });
+    unpublish.update(db.doc('publicControls/Alice'), { epoch: 3 });
+    await assertSucceeds(unpublish.commit());
+  });
+});

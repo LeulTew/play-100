@@ -57,17 +57,25 @@ service cloud.firestore {
         && value.seed is string && value.seed.matches('^[a-f0-9]{32}$')
         && value.palette in ['lime', 'moss', 'clay', 'sky', 'lilac'];
     }
-    // 1-60 characters, no Unicode control or format character (C0/C1, bidi controls, zero-width, BOM) and no
-    // leading or trailing whitespace. An update may keep an unchanged legacy name until it is next edited.
-    // The explicit code points repeat every Unicode 17.0 format (Cf) character (a unit test pins the list) so an
+    // Every Unicode control (C0/C1) and format (Cf) character: bidi controls, zero-width characters, the BOM and tag
+    // characters. The explicit code points repeat every Unicode 17.0 Cf character (a unit test pins the list) so an
     // engine with older Unicode tables still refuses them: the Firestore emulator's RE2J does not treat the
     // U+2066-U+2069 bidi isolates as Cf.
-    function cleanName(value) {
-      let invisible = '\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}'
+    function invisibleCharacters() {
+      return '\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}'
         + '\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}'
         + '\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}';
+    }
+    // 1-60 characters, no invisible character and no leading or trailing whitespace. An update may keep an unchanged
+    // legacy name until it is next edited.
+    function cleanName(value) {
+      let invisible = invisibleCharacters();
       return value is string && value.size() >= 1 && value.size() <= 60
         && value.matches('^[^' + invisible + '\\p{Z}]([^' + invisible + ']*[^' + invisible + '\\p{Z}])?$');
+    }
+    // A public or shared ranking title with no invisible character; its caller checks the type and length.
+    function cleanTitle(value) {
+      return value.matches('^[^' + invisibleCharacters() + ']*$');
     }
     function displayNameOk(value) {
       return cleanName(value) || (resource != null && value is string && value.size() >= 1 && value.size() <= 60
@@ -291,23 +299,30 @@ service cloud.firestore {
         && data.keys().hasAll(['position', 'id', 'title', 'year', 'source', 'sourceId', 'sourceUrl', 'score'])
         && data.position is int && data.position >= 1 && data.position <= 200
         && data.id is string && data.id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
-        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200 && cleanTitle(data.title)
         && (data.year == null || (data.year is int && data.year >= 1900 && data.year <= 2100))
         && data.source is string && data.sourceId is string && data.sourceId.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
         && (data.score == null || (data.score is number && data.score >= 0 && data.score <= 10))
         && safeSource(data);
     }
+    function cleanPreview(preview) {
+      return cleanTitle(preview[0]) && (preview.size() < 2 || cleanTitle(preview[1]))
+        && (preview.size() < 3 || cleanTitle(preview[2]));
+    }
+    // An update may keep an unchanged legacy title or preview, as for names; any new or changed one must be clean.
     function profileShape(data, uid) {
       return data.keys().hasOnly(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.keys().hasAll(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.uid == uid && data.handle is string && data.handle.matches('^[a-z][a-z0-9_]{2,23}$') && avatar(data.avatar)
         && displayNameOk(data.displayName)
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
+        && (cleanTitle(data.title) || (resource != null && data.title == resource.data.title))
         && data.count is int && data.count >= 1 && data.count <= 200
         && data.preview is list && data.preview.size() >= 1 && data.preview.size() <= 3
         && data.preview[0] is string && data.preview[0].size() <= 200
         && (data.preview.size() < 2 || (data.preview[1] is string && data.preview[1].size() <= 200))
         && (data.preview.size() < 3 || (data.preview[2] is string && data.preview[2].size() <= 200))
+        && (cleanPreview(data.preview) || (resource != null && data.preview == resource.data.preview))
         && uuid(data.generation) && data.epoch is int && data.epoch >= 1
         && data.published is bool && data.listed is bool && data.hidden is bool && data.creator is bool
         && data.updatedAt == request.time;
@@ -957,7 +972,8 @@ service cloud.firestore {
         && fPackedSource(source, sourceId, id, url, title, year);
     }
     function fChunkEntry(data, offset) {
-      return offset >= data.entries.size() || fPackedEntry(data.entries[offset], data.ids[offset], data.index * 2 + offset + 1);
+      return offset >= data.entries.size() || (fPackedEntry(data.entries[offset], data.ids[offset], data.index * 2 + offset + 1)
+        && cleanTitle(data.entries[offset].title));
     }
     function fChunkShape(data, size) {
       return fKeys(data, ['index', 'entries', 'ids']) && fInt(data.index, 0, 99)
