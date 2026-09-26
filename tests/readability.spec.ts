@@ -164,6 +164,24 @@ test('forced colors preserves native focus, selected navigation and comparison c
   await surfaces(page, true);
 });
 
+test('forced colors draws the select chevrons in the field text colour, not the fixed ink', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/discover?catalogs=off');
+  // Mobile keeps the filters in a closed disclosure; computed colour doesn't depend on visibility.
+  const chevrons = page.locator('.select-chevron');
+  await expect(chevrons.first()).toBeAttached();
+  const colours = await chevrons.evaluateAll((elements) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'FieldText';
+    document.body.append(probe);
+    const fieldText = getComputedStyle(probe).color;
+    probe.remove();
+    return { fieldText, chevrons: elements.map((element) => getComputedStyle(element).color) };
+  });
+  expect(colours.chevrons.length).toBeGreaterThan(0);
+  expect(new Set(colours.chevrons)).toEqual(new Set([colours.fieldText]));
+});
+
 test('empty and failed local views retain readable recovery at 320px with text spacing', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 852 });
   await installGuestLibrary(page, libraryFixture(0));

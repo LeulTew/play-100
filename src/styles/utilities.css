@@ -830,6 +830,10 @@ html[data-motion='off']
   .compare-tray-dock svg {
     color: currentColor;
   }
+  /* The chevron sets its own ink colour, which forced colours preserve on SVG; follow the field instead. */
+  .select-chevron {
+    color: FieldText;
+  }
   button:disabled,
   :where(.game-card, .discovery-card) button[aria-disabled='true'] {
     color: GrayText;
