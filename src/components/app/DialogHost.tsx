@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import type { AppPage } from '../../lib/types';
 import { loadCatalogDetail } from '../../lib/catalog-detail-preload';
@@ -16,6 +16,26 @@ import { ChunkRecovery } from '../ChunkRecovery';
 
 const CatalogDetail = lazy(loadCatalogDetail);
 type KeyedProps<T> = { key: string; props: T };
+// React.lazy suspends for at least one commit even when the module is ready. A native dialog opened in that commit
+// would take the card-to-detail motion, so the loading dialog appears only once a load is actually slow.
+const PENDING_DETAIL_DELAY_MS = 300;
+
+function PendingCatalogDialog({ onClose }: { onClose: () => void }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), PENDING_DETAIL_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  if (!slow) return null;
+  return (
+    <Dialog open titleId="loading-catalog-title" onClose={onClose} className="info-dialog">
+      <h2 id="loading-catalog-title" data-autofocus tabIndex={-1}>
+        Opening game…
+      </h2>
+      <p role="status">Loading its details.</p>
+    </Dialog>
+  );
+}
 
 export interface DialogHostProps {
   page: AppPage;
@@ -68,16 +88,7 @@ export function DialogHost({
             </Dialog>
           }
         >
-          <Suspense
-            fallback={
-              <Dialog open titleId="loading-catalog-title" onClose={onCloseGame} className="info-dialog">
-                <h2 id="loading-catalog-title" data-autofocus tabIndex={-1}>
-                  Opening game…
-                </h2>
-                <p role="status">Loading its details.</p>
-              </Dialog>
-            }
-          >
+          <Suspense fallback={<PendingCatalogDialog onClose={onCloseGame} />}>
             <CatalogDetail key={catalog.key} {...catalog.props} />
           </Suspense>
         </ChunkBoundary>
