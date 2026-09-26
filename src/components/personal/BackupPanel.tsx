@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { backupFileSizeError, exportLibraryBackup, readLibraryBackup } from '../../lib/personal-library';
+import {
+  backupFileSizeError,
+  describeLibraryBackup,
+  exportLibraryBackup,
+  readLibraryBackup,
+} from '../../lib/personal-library';
 import type { PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { useLibraryMode } from '../../lib/library-mode';
@@ -133,10 +138,7 @@ export default function BackupPanel({
       {incoming && (
         <div className="restore-preview">
           <p>
-            <strong>
-              {Object.keys(incoming.records).length} games, {incoming.queueOrder.length} queued,{' '}
-              {incoming.ranking.length} ranked.
-            </strong>
+            <strong>{describeLibraryBackup(incoming)}</strong>
           </p>
           <p>
             Restoring replaces the active library and device preferences.{' '}

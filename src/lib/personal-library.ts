@@ -600,6 +600,12 @@ export function readLibraryBackup(text: string, budget = MAX_LIBRARY_BACKUP_BYTE
   return state;
 }
 
+/** The restore preview's counts, with one saved game in the singular. */
+export function describeLibraryBackup(state: Pick<PersonalLibraryState, 'records' | 'queueOrder' | 'ranking'>): string {
+  const games = Object.keys(state.records).length;
+  return `${games} ${games === 1 ? 'game' : 'games'}, ${state.queueOrder.length} queued, ${state.ranking.length} ranked.`;
+}
+
 export function parseLibraryBackup(value: unknown): PersonalLibraryState {
   const input = shape(value, ['app', 'formatVersion', 'exportedAt', 'library'], 'The backup');
   if (input.app !== 'Play 100' || (input.formatVersion !== 2 && input.formatVersion !== 3)) {
