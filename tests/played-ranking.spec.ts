@@ -264,6 +264,9 @@ test('played state, score ordering and manual slots survive a full browser resta
   isMobile,
   viewport,
 }, testInfo) => {
+  // Two persistent Chrome launches and closes that flush the profile to disk take most of this test's time, and far
+  // more on a busy host.
+  test.setTimeout(90000);
   const profile = testInfo.outputPath('persistent-library-profile');
   const options = {
     headless: true,

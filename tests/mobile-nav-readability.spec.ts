@@ -148,7 +148,7 @@ test('desktop stays unchanged and native 200 percent browser zoom keeps the five
 }, info) => {
   test.skip(isMobile, 'One owned desktop Chrome profile checks native200% zoom.');
   // A second, persistent Chrome and its settings page take most of this test's time, and more on a busy host.
-  test.setTimeout(90000);
+  test.setTimeout(120000);
   const context = await chromium.launchPersistentContext('', {
     channel: 'chrome',
     headless: true,
