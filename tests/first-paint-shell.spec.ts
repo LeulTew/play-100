@@ -460,7 +460,10 @@ test('the startup artifact caption names Lite mode only when the visitor chose i
   const fresh = await captions();
   expect(fresh, 'the shell').toContain('shell: Illustrated view');
   expect(fresh, "React's first commit").toContain('app: Illustrated view');
-  expect(fresh.filter((entry) => entry.includes('Lite mode')), 'a caption naming a mode nobody chose').toEqual([]);
+  expect(
+    fresh.filter((entry) => entry.includes('Lite mode')),
+    'a caption naming a mode nobody chose',
+  ).toEqual([]);
   if (isMobile) expect(fresh.at(-1)).toBe('app: Auto · tap Fan out to start 3D');
 
   // Choosing Lite saves it in the library and its startup hint, so the next visit's first frames name it.

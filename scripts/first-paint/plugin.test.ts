@@ -334,7 +334,10 @@ describe('first-paint shell stylesheet', () => {
     const rule = /html\[data-boot-art=(\w+)\] \.first-paint-shell \[data-shell-art\]:not\(\[data-shell-art~=(\w+)\]\)/g;
     const rules = [...shell.matchAll(rule)];
     expect(rules.map(([, state]) => state)).toEqual(states);
-    expect(rules.every(([, state, visible]) => state === visible), 'each state shows its own caption').toBe(true);
+    expect(
+      rules.every(([, state, visible]) => state === visible),
+      'each state shows its own caption',
+    ).toBe(true);
     const script = stripBootScript(bootJs);
     for (const state of states) expect(script, `the boot script sets ${state}`).toContain(`'${state}'`);
     for (const variant of ['offline', 'online'] as const) {
