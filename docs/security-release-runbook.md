@@ -431,7 +431,8 @@ These are console/platform steps; no lane or integrator session applies them.
 ### Vercel WAF rate limit for `/api/*` and the auth helper
 
 In-function limits are per instance and cannot stop distributed abuse:
-`api/catalog-detail.ts` admits 4 concurrent and 30 uncached lookups per minute,
+`api/catalog-detail.ts` admits 4 concurrent and 30 uncached lookups per minute
+(concurrent lookups of one ID share one run and one slot),
 and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
 (a coalesced FreeToGame fill holds one slot). The auth helper
 (`/__/auth/handler` and `/__/auth/iframe`) fetches the upstream Firebase helper

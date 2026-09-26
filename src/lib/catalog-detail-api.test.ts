@@ -201,3 +201,83 @@ describe('public-only catalog detail endpoint', () => {
     expect(upstream).not.toHaveBeenCalled();
   });
 });
+
+describe('shared cold detail lookups', () => {
+  const hold = () => {
+    const held: Array<{ resolve: (response: Response) => void; signal: AbortSignal }> = [];
+    const upstream = vi.fn(
+      (_url: URL, options: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const signal = options.signal!;
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          held.push({ resolve, signal });
+        }),
+    );
+    vi.stubGlobal('fetch', upstream);
+    return { held, upstream };
+  };
+  it('runs one upstream pipeline for simultaneous requests of the same ID', async () => {
+    const { getCatalogDetail } = await import('../../api/catalog-detail');
+    const { held, upstream } = hold();
+    const id = 'wikidata:Q90000021';
+    const first = getCatalogDetail(id, new AbortController().signal);
+    const second = getCatalogDetail(id, new AbortController().signal);
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    held[0]!.resolve(json({ entities: {} }));
+    const [a, b] = await Promise.all([first, second]);
+    expect(b).toBe(a);
+    expect(upstream).toHaveBeenCalledOnce();
+  });
+  it('lets one waiter cancel without aborting the shared run for another', async () => {
+    const { getCatalogDetail } = await import('../../api/catalog-detail');
+    const { held, upstream } = hold();
+    const id = 'wikidata:Q90000022';
+    const leaving = new AbortController();
+    const first = getCatalogDetail(id, leaving.signal);
+    const second = getCatalogDetail(id, new AbortController().signal);
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    const gone = new Error('caller left');
+    leaving.abort(gone);
+    await expect(first).rejects.toBe(gone);
+    expect(held[0]!.signal.aborted).toBe(false);
+    held[0]!.resolve(json({ entities: {} }));
+    expect((await second).id).toBe(id);
+    expect(upstream).toHaveBeenCalledOnce();
+  });
+  it('cleans up a rejected or failed shared run so the next request retries upstream', async () => {
+    const { getCatalogDetail } = await import('../../api/catalog-detail');
+    const { held, upstream } = hold();
+    const id = 'wikidata:Q90000023';
+    const only = new AbortController();
+    const abandoned = getCatalogDetail(id, only.signal);
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    only.abort(new Error('last waiter left'));
+    await expect(abandoned).rejects.toThrow('last waiter left');
+    await vi.waitFor(() => expect(held[0]!.signal.aborted).toBe(true));
+    const retry = getCatalogDetail(id, new AbortController().signal);
+    await vi.waitFor(() => expect(held).toHaveLength(2));
+    held[1]!.resolve(json({ entities: {} }));
+    expect((await retry).sources[0]).toMatchObject({ source: 'wikidata', status: 'error' });
+    const again = getCatalogDetail(id, new AbortController().signal);
+    await vi.waitFor(() => expect(held).toHaveLength(3));
+    held[2]!.resolve(json({ entities: {} }));
+    await again;
+    expect(upstream).toHaveBeenCalledTimes(3);
+  });
+  it('admits distinct IDs separately while a same-ID joiner takes no admission slot', async () => {
+    const { getCatalogDetail } = await import('../../api/catalog-detail');
+    const { held, upstream } = hold();
+    const signal = new AbortController().signal;
+    const pending = [1, 2, 3, 4].map((index) => getCatalogDetail(`wikidata:Q9000003${index}`, signal));
+    await vi.waitFor(() => expect(held).toHaveLength(4));
+    await expect(getCatalogDetail('wikidata:Q90000035', signal)).rejects.toMatchObject({
+      status: 429,
+      code: 'rate-limited',
+    });
+    const joiner = getCatalogDetail('wikidata:Q90000031', signal);
+    expect(upstream).toHaveBeenCalledTimes(4);
+    for (const { resolve } of held) resolve(json({ entities: {} }));
+    await Promise.all([...pending, joiner]);
+    expect(upstream).toHaveBeenCalledTimes(4);
+  });
+});
