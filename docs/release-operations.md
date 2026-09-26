@@ -315,6 +315,7 @@ or exit 1
 
 Record that inspect shows the candidate ID. A timeout may leave promotion
 running: read `promote status` and the alias before deciding what to do.
+Let the edge settle as described in [§9](#9-rollback-readback-and-undo).
 Then in PowerShell, without a bypass on the public alias:
 
 ```powershell
@@ -336,10 +337,10 @@ work/multiple windows, and guarded update after saving and closing the other
 window; check offline reload afterward. Do not clear storage to manufacture a
 pass. Follow [manual PWA checks](pwa.md#manual-release-checks).
 
-**Pending procedure/evidence:** the detailed Release 3 two-version probe and its
-receipt have not yet been recorded in this base. Link the exact procedure from
-the Release 3 ledger once the parent supplies it. Until then this is an explicit
-manual hold/waiver, not a claimed executed or reproducible automated campaign.
+**Release 3 record:** the executed steps, exact refusal messages, versions and
+receipt are in the [Release 3 ledger entry](releases.md#release-3-2026-09-26).
+That run used headless Chromium with a persistent profile. It is not
+physical-device evidence, so record devices or an explicit waiver.
 
 ## 9. Rollback, readback and undo
 
@@ -357,6 +358,13 @@ or exit 1
 npx --yes vercel@59.16.0 inspect play-100-collection.vercel.app --scope $team
 or exit 1
 ```
+
+Let the edge settle before each readback that follows `rollback` or `promote`.
+Propagation is not instant: in the Release 3 drill, `/` still returned the
+previous index 4.3 s after the first new response. Poll `/` about once a second
+until five consecutive responses match the expected index, then read back and
+verify. A stale response before those five matches is propagation, not a failed
+mutation.
 
 In PowerShell, confirm the previous ID and rerun the verifier from that release's
 preserved clean checkout (so its `vercel.json` matches), using its index:
@@ -402,5 +410,6 @@ See Vercel's [rollback](https://vercel.com/docs/cli/rollback) and
 Only after execution, add a ledger entry with commit/tree, PR/main readback,
 deployment ID, previous deployment ID, UTC promotion time, index/CSP/worker
 hashes, PWA version, gate and verifier counts, failures, manual receipts and
-explicit waivers. Record rollback/undo if performed. This runbook intentionally
-does **not** add Release 3 facts or mark any pending owner action complete.
+explicit waivers. Record rollback/undo if performed. Release facts belong in
+the ledger, not in this runbook, and a pending owner action is complete only
+with the owner's readback.

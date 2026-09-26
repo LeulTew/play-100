@@ -8,6 +8,170 @@ the owner's email, so they stay out of this file. Operator steps follow the
 rollback and readback, and the
 [security release runbook](security-release-runbook.md#promotion-order).
 
+## Release 3: 2026-09-26
+
+| Field | Value |
+| --- | --- |
+| Commit | `f8ba85491225bf0ca7625af291de8b9bc2247e8c` (tree `475430a0ec60ef2c31dea9dd1ec112d7f88422a6`) |
+| Merge | PR #6 (`leultew-r9-integration`) into `main`, a plain fast-forward of 59 commits from `80df63f9`, merged 2026-09-26 02:16:09Z |
+| Build | Remote Vercel build from a clean export (1139 files), Vercel CLI 59.16 |
+| Production deployment | `dpl_BnyHdn9pZrbyqRDWtviezBUQZRsE` |
+| Promoted | 2026-09-26 02:47:42Z with `vercel promote` (CLI 59.16.0), started 02:47:34Z |
+| Rollback target | `dpl_CJLQPhvsibvtH2UsZGdhX4hpyFY8` (Release 2) |
+| Strict inline hashes | style-src online `sha256-NGUjOxY76/cGN3gmM/YONiEbuC6rhQrQEr9XDkz0oxs=`, offline `sha256-yoYUnUqLaGmW5eJpbrdR7YmLQEZzKihnuFrDIgUKkdw=`; script-src boot script `sha256-lnIuzuWpXjWnhP9WtHbq+pqsr31w1FLaZQt7yvTYivQ=` (all three changed from Release 2) |
+| Release manifest | SHA-256 `59eec478fff04c9fb02e10a531a5dc750f7e40fd154cd87d7d0d6d755ba456f0`, with 11 recorded carry-forwards and no waivers |
+
+**What shipped.** Fixes for the independent G2 review of production; PR #6 has
+the details.
+- Dialogs: a sticky 44 px Close rail on long mobile dialogs; stacked dialogs
+  keep the right one in front and return focus to it; one Escape closes only
+  the top dialog; Settings announces saves inside the modal; recovery reloads
+  never discard unsaved work.
+- My games: rejected edits stay focused through Previous/Next and view
+  changes; the Library page is restorable through `?page=`; the narrow compare
+  dock and pager no longer break inside a word; the Ranking mounts 25 rows per
+  page with a "Move to position" control.
+- Cards and Discover: failed-cover captions stay clear of the rank; card
+  actions share a baseline; the collection is a list; Discover no longer
+  claims "no ratings" when a rating source failed.
+- First paint: shell-only buttons are disabled until the app starts; the
+  collection reserves its viewport (desktop CLS 0.021 to 0); a notice appears
+  if the app script can't load.
+- Online loading: 14 page and picker roots load on demand, so the largest lazy
+  chunk drops from 282 KB to 144 KB gzip; the Google mark is inline.
+- Reliability: a raced default friend setup settles on the setup that won
+  instead of failing, and a stale read can't overwrite newer controls.
+- Security: display names reject control and format characters, confusable
+  reserved handles are refused, other users' names render isolated, the unused
+  Firebase Installations origin is gone from connect-src, and reviewed install
+  scripts are pinned.
+- Readiness: the share card uses the brand fonts, the missing licence notices
+  are added, and `npm run release:manifest` records each release's evidence.
+
+**Readback.**
+- Alias `play-100-collection.vercel.app` resolves to
+  `dpl_BnyHdn9pZrbyqRDWtviezBUQZRsE`, confirmed by both the Vercel API and
+  `vercel inspect`.
+- Production `/` index.html SHA-256:
+  `542311b8ce1ca17c2be12be6652a70e63721060197846030b32b9e9464c2661d`, the
+  candidate's. Entry `/assets/index-qeqF93gg.js`, SHA-256
+  `dfa4ec0ce42fc68895c8ef8513c013f2f60444f04dffb43dccd0a2b02acf4584`.
+- CSP header SHA-256:
+  `418cd3ad834ca07094c130525d1afbc7bf222fc39be77e68273d584aea0dc3a2`,
+  byte-identical to the release tree's `vercel.json`. It carries the three
+  hashes above and no `firebaseinstallations` origin.
+- `/sw.js` SHA-256
+  `7793a31f3fcf4e624967472dc5a66041ffad64924783042e31553b7bd8d647ff`.
+  `/pwa-assets.json` SHA-256
+  `ee13a8ad05a866098dc29f353763ed8868dec0757be65778c80ad4bcd174b096`, PWA
+  version `f7355aa722c439e7480931f8485d463d4af95c4ce471b964b41e34ff4a5635e6`.
+
+**Post-promotion production checks: 47/47 passed** in one public pass with no
+bypass: the 42 Release 2 checks, 2 CSP checks (script-src and style-src carry
+the three hashes; connect-src has no `firebaseinstallations`), and 3 first-paint
+checks (`/provider/google.svg` 404; the five shell buttons are `disabled` and
+none is `inert`; `#p100-boot-error` stays hidden on a normal desktop and mobile
+load).
+
+**Two-version service-worker probe: passed, no findings.** One pass on the
+public alias with no bypass, in headless Chromium with a persistent profile,
+across the promotion
+([procedure](release-operations.md#8-two-version-service-worker-probe)):
+
+1. Armed on Release 2: offline files ready in 7.2 s, with the controller, the
+   active worker and the page on Release 2's PWA version
+   `f145694333f3d1e36c6f3d95363a3698f016b607b978e1269fe9a27f7d81f7a8`, and no
+   CSP violations.
+2. After promotion, Release 3's worker (`f7355aa7…`) was waiting within 12 s,
+   without a manual update check.
+3. Two tabs open, Update pressed in one: refused with "Close other Play 100
+   tabs or windows before updating. No tab was reloaded." Neither tab
+   reloaded.
+4. One tab with an unsaved manual-game title: refused with "Finish or clear
+   unsubmitted forms, or return to The 100 before updating. Nothing was
+   reloaded." The draft stayed.
+5. After saving the game: accepted with exactly one reload. The controller and
+   the page moved to `f7355aa7…`, and the saved game is shown.
+6. Cold offline launch, with the network off from the start: `/` and
+   `/my-games` loaded from the worker on Release 3's entry, with the saved game
+   on My games.
+7. No `securitypolicyviolation` events or CSP console messages on the updated
+   page or either offline page.
+
+The probe used no account; its test game exists only in the probe's own
+browser profile.
+
+**Rollback drill: completed, with one readback miss.** Practised once after the
+probe. The release coordinator approved it in the Release 3 GO, acting under
+the owner's standing delegation; the owner did not approve it individually.
+
+| UTC | Step | Result |
+| --- | --- | --- |
+| 02:49:54–02:50:03Z | `vercel rollback dpl_CJLQPhvsibvtH2UsZGdhX4hpyFY8` | exit 0 |
+| 02:50:03–02:50:08Z | `vercel rollback status` | exit 0 |
+| 02:50:11–02:50:15Z | Alias API, `vercel inspect` and `/` | Release 2, index `39d15973…` |
+| 02:50:15–02:50:24Z | `vercel promote dpl_BnyHdn9pZrbyqRDWtviezBUQZRsE` | exit 0 |
+| 02:50:26–02:50:31Z | Alias API, `vercel inspect` and `/` | The candidate, but `/` still served Release 2 (the miss) |
+| 02:50:31–02:51:00Z | The 47 public checks | 47/47, index `542311b8…` |
+
+Release 2 served production for 24.7 s as seen by a 1 s poller (first Release 2
+response 02:50:02.247Z, first Release 3 response 02:50:26.932Z; bounds 13.5 to
+32.1 s).
+
+**The miss.** The single `/` readback after the re-promote, at 02:50:31.222Z,
+still returned Release 2's index, 4.3 s after the poller first saw Release 3.
+The next request and every one since returned Release 3, including 30 of 30
+samples from 02:52:55Z to 02:54:25Z, with the alias on Release 3 before and
+after. The coordinator ruled it edge propagation, not a failed promotion.
+[Release operations §9](release-operations.md#9-rollback-readback-and-undo)
+now waits for consecutive matching responses before that readback.
+
+**Pre-promotion evidence.** The release manifest records each report or
+carry-forward.
+- Gate: 176 files, 2,478 passed, 1 skipped. Firestore emulator suite: 256
+  passed in 11 files.
+- End-to-end production partition: 744 in 57 files (660 passed, 84 skipped by
+  project). Development partition: 186 in 11 (181 passed, 5 skipped).
+- Cloud UI: 228 in 27 files, 225 passed on `764275cb`. After a test-only fix,
+  the page-loading file passed whole on `f8ba8549` (36/36), and
+  `review-repairs:36` passed its one re-run (an unreproduced desktop
+  intermittent). `friend-all-review` three times: 54/54.
+- Ranking with 2,000 games: opens in 82 ms with 25 rows mounted.
+- Candidate verification: 47/47. Gitleaks 8.30.1 over `80df63f9..f8ba8549`
+  (59 commits): 0 findings.
+
+**Receipts,** kept outside the repository:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Promotion receipt (binds 14 evidence files, including these) | `06685d70d0c5ff0e165ec5734a3f37ebeb9fee8aca7eeaba27da2e79f6652454` |
+| Promotion and public checks | `fb3051dffe815f462f1c46b01d577585df90a0b6549aeb16777c6847822de0c6` |
+| Service-worker probe | `8fc61cd438865465667b9e6fdc8e2e4f5a509fa0cc745cc55362e0da06ccd7fe` |
+| Rollback drill | `5c26a79d8f09857972c69abcc2527e85010602ae7fe58f37b404a27ad432b885` |
+| Post-drill stability | `6a0a3cfc9fd03b4b88b0223afff25b8cbe06bf8b107cdafd80d8c7e67b6d39cf` |
+
+**Rules.** This release ships `firestore.rules` SHA-256
+`9458021a4accb75c5cb8e218a93246d93eeca672d3c867adcf40ba8b18e15f46`
+(105,057 bytes). They are not published yet, so production still runs the
+archived 270f rules and the client-first window from Release 1 continues. As
+PR #6 records, the client works with the published rules. Pending action 3 now
+names these rules.
+
+**Waivers.** No physical-device, iOS Safari, screen-reader or OS install and
+launch runs were made for this release; the release coordinator waived them.
+The probe above ran in headless Chromium, which is not physical-device
+evidence. The real Google smoke is still pending action 5.
+
+**Known issues at release.** Each is fixed in the next release:
+- Offline preparation had no per-asset deadline, so a stalled response could
+  keep it from finishing.
+- In short landscape windows, a long dialog's Close could scroll out of reach.
+- With Settings or About open, the page title still named the page or game
+  underneath.
+- A manual game that storage refused (for example, when the quota is full)
+  showed no error, and a restore error stayed on screen when the restore was
+  retried.
+
 ## Release 2: 2026-09-25
 
 | Field | Value |
@@ -131,10 +295,13 @@ Do these in runbook order and record each readback.
    - `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`
 
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
-3. **Rules.** Publish `firestore.rules` from `2f727389`. Its SHA-256 is
-   `37e55c7945cc35faa12e4279a58acda1a0d71ec977af25017321bdaa40b4f81b`.
-   Readback: copy the published text back and confirm its SHA-256 equals that
-   value, then record the version timestamp. The pre-release rollback archive is
+3. **Rules.** Publish `firestore.rules` from `f8ba8549` (Release 3). Its
+   SHA-256 is
+   `9458021a4accb75c5cb8e218a93246d93eeca672d3c867adcf40ba8b18e15f46`
+   (105,057 bytes). It supersedes the unpublished Release 1 rules
+   (`37e55c79…`). Readback: copy the published text back and confirm its
+   SHA-256 equals that value, then record the version timestamp. The
+   pre-release rollback archive is
    `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
 4. **WAF.** Switch `api-per-ip` (`rule_api_per_ip_xpgBNf`, in **Log** mode since
    2026-09-25 09:49:22Z; see
