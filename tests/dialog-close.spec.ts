@@ -177,9 +177,13 @@ test('mobile Compare tray keeps both close and sheet actions reachable in a shor
   await expect(dialog.locator('[data-autofocus]')).toBeFocused();
   await scrollToEnd(dialog);
   const close = await expectReachableClose(dialog);
+  const sheet = await dialog.boundingBox();
   const actions = await dialog.locator('.compare-tray-sheet-actions').boundingBox();
   const rail = await dialog.locator('.dialog-close-rail').boundingBox();
-  if (!actions || !rail) throw new Error('Both tray rails must be laid out.');
+  if (!sheet || !actions || !rail) throw new Error('The sheet and both tray rails must be laid out.');
+  expect(sheet.x).toBeCloseTo(0, 1);
+  expect(sheet.width).toBeCloseTo(393, 1);
+  expect(sheet.y + sheet.height).toBeCloseTo(640, 1);
   expect(actions.y).toBeGreaterThanOrEqual(rail.y + rail.height);
   await close.click();
   await expect(dialog).toHaveCount(0);
