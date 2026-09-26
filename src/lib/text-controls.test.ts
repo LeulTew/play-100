@@ -9,6 +9,15 @@ import {
   stripControlOrFormat,
 } from './text-controls';
 
+// The rules write each name and title pattern as one string literal; these read back their character classes.
+const TITLE_PATTERN = /matches\('\^\[\^([^\]]+)\]\*\$'\)/;
+const NAME_PATTERN = /matches\('\^\[\^(.+?)\\\\p\{Z\}\]\(\[\^(.+?)\]\*\[\^(.+?)\\\\p\{Z\}\]\)\?\$'\)/;
+function rulesFunction(name: string): string {
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const start = rules.indexOf(`function ${name}(value) {`);
+  return start < 0 ? '' : rules.slice(start, rules.indexOf('\n    }\n', start));
+}
+
 it('rejects exactly C0 and DEL across every UTF-16 code unit', () => {
   const rejected: number[] = [];
   for (let code = 0; code <= 0xffff; code += 1) {
@@ -79,10 +88,12 @@ it('refuses blank filler characters anywhere and names without a visible charact
 });
 
 it('keeps the client blank filler list equal to the rules cleanName list', () => {
-  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
-  const list = /let blank = '([^']+)';/.exec(rules)?.[1] ?? '';
-  const listed = [...list.matchAll(/\\\\x\{([0-9a-f]+)\}/g)].map((match) => parseInt(match[1]!, 16));
-  expect(listed).toEqual([...BLANK_CHARACTERS]);
+  // cleanName's single-literal pattern repeats cleanTitle's class, followed by the blank fillers, in all three places.
+  const title = TITLE_PATTERN.exec(rulesFunction('cleanTitle'))?.[1] ?? '';
+  const name = NAME_PATTERN.exec(rulesFunction('cleanName'))?.slice(1) ?? [];
+  const blank = BLANK_CHARACTERS.map((code) => `\\\\x{${code.toString(16)}}`).join('');
+  expect(title).not.toBe('');
+  expect(name).toEqual([title + blank, title + blank, title + blank]);
 });
 
 it('refuses control and format characters anywhere in a ranking title and keeps ordinary titles', () => {
@@ -96,8 +107,8 @@ it('refuses control and format characters anywhere in a ranking title and keeps 
 });
 
 it('keeps the rules backstop list equal to every format character this engine classes as \\p{Cf}', () => {
-  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
-  const list = /function invisibleCharacters\(\) \{\s*return ([^;]+);/.exec(rules)?.[1] ?? '';
+  const list = TITLE_PATTERN.exec(rulesFunction('cleanTitle'))?.[1] ?? '';
+  expect(list.startsWith('\\\\p{Cc}\\\\p{Cf}')).toBe(true);
   const listed = [...list.matchAll(/\\\\x\{([0-9a-f]+)\}(?:-\\\\x\{([0-9a-f]+)\})?/g)].map((match) => [
     parseInt(match[1]!, 16),
     parseInt(match[2] ?? match[1]!, 16),

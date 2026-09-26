@@ -539,8 +539,8 @@ until edited: an icon change, and publication's re-save of an existing member
 name (which writes nothing), keep them without a refusal.
 
 **Public and shared ranking titles (R12).** The control and format characters
-that names refuse (the shared `invisibleCharacters()` list, with C0/C1 through
-`\p{Cc}`, but not the blank fillers above)
+that names refuse (`cleanTitle`'s class, with C0/C1 through `\p{Cc}`, but not
+the blank fillers above)
 are refused anywhere in a new public entry title, public profile title and
 preview title, and in a selected-ranking chunk title. As for names, an update
 may keep an unchanged legacy profile title or preview, so a legacy profile can
@@ -554,6 +554,19 @@ characters, so the refusal reaches only manual, imported or provider titles
 that do. Friend-only shelf and All rows keep their C0/DEL rule: they mirror the
 whole library automatically, so a stricter rule would stop all automatic
 sharing for a library holding one such title.
+
+**Rules evaluation limit (R12).** Firestore stops evaluating a request after
+1,000 expressions, counted across every `allow` statement it tries, and then
+denies it. The first R12 rules crossed that on profile unpublish, where both
+`publicProfiles` update statements evaluated the whole profile shape. So each
+statement now tests its cheap discriminators first (a publication fails the
+unpublish statement at once and an unpublish or moderation step fails the
+publication statement at once), the profile shape compares an unchanged name,
+title or preview before running its pattern, and the name and title patterns
+are single string literals, since each concatenation also counts. The accepted
+and refused sets are unchanged. Unit tests keep the pattern copies equal, and
+emulator tests cover the heaviest writes: a 200-entry publication, a rename
+that runs every pattern, unpublishing and moderation with a saved online copy.
 
 The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion on both rename and profile deletion.

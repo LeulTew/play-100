@@ -562,8 +562,8 @@ Do these in runbook order and record each readback.
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
 3. **Rules.** Publish `firestore.rules` from the Release 6 tree (R12), and only
    while Release 6 or later is serving. Its SHA-256 is
-   `4f18213789aefc45b1834ac02d61903d1fe360c0e68f14f8128ccd30f8420a3f`
-   (107,103 bytes). It supersedes the unpublished Release 5 rules
+   `8e645497aaec7898e2e11f41d9985b7608fedf82c77305ac5b24b0fbf7bedb10`
+   (108,749 bytes). It supersedes the unpublished Release 5 rules
    (`6c8ebcb2…`), Release 3 rules (`9458021a…`) and Release 1 rules
    (`37e55c79…`). Under it a Release 5 client gets the generic authorization
    message in three cases only: publishing or selected-sharing a title with a

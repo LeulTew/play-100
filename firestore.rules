@@ -57,33 +57,30 @@ service cloud.firestore {
         && value.seed is string && value.seed.matches('^[a-f0-9]{32}$')
         && value.palette in ['lime', 'moss', 'clay', 'sky', 'lilac'];
     }
-    // Every Unicode control (C0/C1) and format (Cf) character: bidi controls, zero-width characters, the BOM and tag
-    // characters. The explicit code points repeat every Unicode 17.0 Cf character (a unit test pins the list) so an
+    // cleanTitle's class holds every Unicode control (C0/C1) and format (Cf) character: bidi controls, zero-width
+    // characters, the BOM and tag characters. Its explicit code points repeat every Unicode 17.0 Cf character so an
     // engine with older Unicode tables still refuses them: the Firestore emulator's RE2J does not treat the
-    // U+2066-U+2069 bidi isolates as Cf.
-    function invisibleCharacters() {
-      return '\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}'
-        + '\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}'
-        + '\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}';
+    // U+2066-U+2069 bidi isolates as Cf. Each pattern is one string literal because Firestore counts every evaluated
+    // expression, string concatenation included, toward its limit of 1,000 per request; a unit test keeps the copies
+    // of the class equal and pins it to the Unicode Cf set.
+    // A public or shared ranking title with no control or format character; its caller checks the type and length.
+    function cleanTitle(value) {
+      return value.matches('^[^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}]*$');
     }
-    // 1-60 characters with no invisible or blank filler character anywhere, no leading or trailing whitespace, and at
-    // least one character that is not a combining mark or space, so a name cannot look empty. The Hangul fillers and
-    // the blank Braille pattern are letters and symbols that render as nothing (a unit test keeps the client's list
-    // equal). An update may keep an unchanged legacy name until it is next edited.
+    // 1-60 characters with no control, format or blank filler character anywhere (cleanTitle's class plus the Hangul
+    // fillers and the blank Braille pattern, letters and symbols that render as nothing; a unit test keeps the client's
+    // list equal), no leading or trailing whitespace, and at least one character that is not a combining mark or space,
+    // so a name cannot look empty.
     function cleanName(value) {
-      let blank = '\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}';
-      let invisible = invisibleCharacters() + blank;
       return value is string && value.size() >= 1 && value.size() <= 60
-        && value.matches('^[^' + invisible + '\\p{Z}]([^' + invisible + ']*[^' + invisible + '\\p{Z}])?$')
+        && value.matches('^[^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}\\p{Z}]([^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}]*[^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}\\p{Z}])?$')
         && !value.matches('^[\\p{M}\\p{Z}]+$');
     }
-    // A public or shared ranking title with no invisible character; its caller checks the type and length.
-    function cleanTitle(value) {
-      return value.matches('^[^' + invisibleCharacters() + ']*$');
-    }
+    // An update may keep an unchanged legacy name until it is next edited. The unchanged name is compared first, so it
+    // skips the patterns.
     function displayNameOk(value) {
-      return cleanName(value) || (resource != null && value is string && value.size() >= 1 && value.size() <= 60
-        && value == resource.data.displayName);
+      return (resource != null && value == resource.data.displayName && value is string && value.size() >= 1
+          && value.size() <= 60) || cleanName(value);
     }
     function member(data, uid) {
       return data.keys().hasOnly(['uid', 'displayName', 'avatar', 'createdAt', 'updatedAt', 'consentVersion', 'rankCount', 'gameCount'])
@@ -313,20 +310,22 @@ service cloud.firestore {
       return cleanTitle(preview[0]) && (preview.size() < 2 || cleanTitle(preview[1]))
         && (preview.size() < 3 || cleanTitle(preview[2]));
     }
-    // An update may keep an unchanged legacy title or preview, as for names; any new or changed one must be clean.
+    // An update may keep an unchanged legacy title or preview, as for names; any new or changed one must be clean. The
+    // unchanged value is compared first, so an unpublish, a moderation step or an unchanged republication skips the
+    // patterns.
     function profileShape(data, uid) {
       return data.keys().hasOnly(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.keys().hasAll(['uid', 'handle', 'displayName', 'avatar', 'title', 'count', 'preview', 'generation', 'epoch', 'published', 'listed', 'hidden', 'creator', 'updatedAt'])
         && data.uid == uid && data.handle is string && data.handle.matches('^[a-z][a-z0-9_]{2,23}$') && avatar(data.avatar)
         && displayNameOk(data.displayName)
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
-        && (cleanTitle(data.title) || (resource != null && data.title == resource.data.title))
+        && ((resource != null && data.title == resource.data.title) || cleanTitle(data.title))
         && data.count is int && data.count >= 1 && data.count <= 200
         && data.preview is list && data.preview.size() >= 1 && data.preview.size() <= 3
         && data.preview[0] is string && data.preview[0].size() <= 200
         && (data.preview.size() < 2 || (data.preview[1] is string && data.preview[1].size() <= 200))
         && (data.preview.size() < 3 || (data.preview[2] is string && data.preview[2].size() <= 200))
-        && (cleanPreview(data.preview) || (resource != null && data.preview == resource.data.preview))
+        && ((resource != null && data.preview == resource.data.preview) || cleanPreview(data.preview))
         && uuid(data.generation) && data.epoch is int && data.epoch >= 1
         && data.published is bool && data.listed is bool && data.hidden is bool && data.creator is bool
         && data.updatedAt == request.time;
@@ -349,21 +348,24 @@ service cloud.firestore {
       allow get: if own(uid) || (resource != null && (creator() || (resource.data.published && !resource.data.hidden)));
       allow list: if cursorOnly() && request.query.limit != null && request.query.limit <= 20
         && (creator() || (resource.data.published && resource.data.listed && !resource.data.hidden));
-      allow create, update: if own(uid) && canPublish(uid) && profileShape(request.resource.data, uid)
+      // Each update statement tests its cheap discriminators first. An unpublish or moderation step (published false)
+      // fails the first statement at once and a publication fails the second at once, so a request evaluates
+      // profileShape only once: Firestore counts the expressions of every statement it tries toward one limit of 1,000.
+      allow create, update: if request.resource.data.published && !request.resource.data.hidden
+        && request.resource.data.creator == creator() && own(uid) && canPublish(uid)
+        && profileShape(request.resource.data, uid)
         && validHandle(request.resource.data.handle)
         && (resource == null || resource.data.handle == request.resource.data.handle
           || !existsAfter(/databases/$(database)/documents/handles/$(resource.data.handle)))
-        && request.resource.data.published && !request.resource.data.hidden
-        && request.resource.data.creator == creator()
         && request.resource.data.epoch == publicControl(uid).epoch + 1
         && getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch == request.resource.data.epoch
         && getAfter(/databases/$(database)/documents/handles/$(request.resource.data.handle)).data.uid == uid
         && publicGeneration(uid, request.resource.data.generation).epoch == publicControl(uid).epoch
         && publicGeneration(uid, request.resource.data.generation).status == 'ready'
         && publicGeneration(uid, request.resource.data.generation).uploaded == request.resource.data.count;
-      allow update: if (own(uid) || creator()) && profileShape(request.resource.data, uid)
+      allow update: if !request.resource.data.published && !request.resource.data.listed
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published', 'listed', 'hidden', 'epoch', 'updatedAt'])
-        && !request.resource.data.published && !request.resource.data.listed
+        && (own(uid) || creator()) && profileShape(request.resource.data, uid)
         && request.resource.data.hidden == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.hidden
         && request.resource.data.epoch == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch
         && request.resource.data.epoch == resource.data.epoch + 1;

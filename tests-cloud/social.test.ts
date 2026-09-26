@@ -374,6 +374,44 @@ describe('consented public snapshots, handle claims and moderation', () => {
       (await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).data()?.ids,
     ).toEqual([]);
   }, 60000);
+  it('keeps the heaviest publication, rename, unpublish and moderation writes within the rules evaluation limit', async () => {
+    const owner = await client();
+    const moderator = await client();
+    // A saved online copy makes every publication check read the account's sync head too.
+    await owner.social.saveMember(owner.uid, 'Budget fixture', avatar);
+    await new CloudStore(owner.db, owner.uid).enable(null);
+    const rows = [1, 2, 3].map((position) => ({
+      ...entry,
+      position,
+      id: `wikidata:Q${position}`,
+      title: `Budget game ${position}`,
+      sourceId: `Q${position}`,
+      sourceUrl: `https://www.wikidata.org/wiki/Q${position}`,
+    }));
+    await owner.social.publish(owner.uid, publication('budget_first', true, rows), control);
+    // A rename that also changes the name, the title and all three previews runs every pattern on the update path.
+    const reversed = [...rows].reverse().map((row, index) => ({ ...row, position: index + 1 }));
+    const renamed = {
+      ...publication('budget_second', true, reversed),
+      displayName: 'Another nickname',
+      title: 'Renamed favorites',
+    };
+    await owner.social.publish(owner.uid, renamed, await owner.social.control(owner.uid));
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid));
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
+    });
+    await moderator.social.moderate(owner.uid, true);
+    await moderator.social.moderate(owner.uid, false);
+    expect(await owner.social.ownProfile(owner.uid)).toMatchObject({
+      handle: 'budget_second',
+      displayName: 'Another nickname',
+      title: 'Renamed favorites',
+      preview: ['Budget game 3', 'Budget game 2', 'Budget game 1'],
+      published: false,
+      hidden: false,
+    });
+  }, 60000);
   it('protects moderation markers from publisher deletion/recreation and limits reports to the reporter/creator', async () => {
     const owner = await client();
     const reporter = await client();
