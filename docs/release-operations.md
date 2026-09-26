@@ -203,6 +203,66 @@ cloud-test mode. Stop the servers using Ctrl+C in their own terminals. Record
 both projects' outcomes, including skips. Never point the emulator suite at
 production.
 
+### Offline guest-navigation characterization
+
+Run `tests/root-navigation-guards.spec.ts` as a required, separate offline
+characterization partition. It characterizes guest navigation guards on the
+offline header: configured builds contain `site-header-online` and skip the
+spec, and the development partition does not select it. Expect **36 tests
+across desktop and mobile**, all passed, with no skips; retain failures and
+investigate any count change rather than accepting an all-skipped report.
+This is a gate definition, not a claim that these commands have been executed.
+
+Use a **new PowerShell terminal**, the pinned Node 24.21.0 installation and its
+bundled npm, and a separate clean worktree of the **same candidate SHA**.
+Stop other test servers before using port 4187. Set `$checkout` to the
+configured checkout from §1 and `$release` to that same full reviewed SHA.
+Choose new paths below. Here `$evidence` deliberately names the offline
+evidence directory, not the configured candidate's directory.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$offlineCheckout = 'C:\release\play100-offline-UNIQUE-RELEASE'
+$evidence = 'C:\release\evidence-UNIQUE-RELEASE-offline'
+git -C $checkout worktree add --detach $offlineCheckout $release
+if ($LASTEXITCODE -ne 0) { throw 'Offline worktree creation failed' }
+Set-Location $offlineCheckout
+if ((git rev-parse HEAD) -ne $release) { throw 'Wrong offline source commit' }
+if (git status --porcelain) { throw 'Dirty offline checkout' }
+New-Item -ItemType Directory $evidence -ErrorAction Stop | Out-Null
+if ((node -p "process.version") -ne 'v24.21.0') { throw 'Use Node 24.21.0 and its bundled npm' }
+npm --version
+Get-ChildItem Env:VITE_FIREBASE_* | Remove-Item
+Remove-Item Env:VITE_FIREBASE_REQUIRED, Env:VITE_USE_FIREBASE_EMULATORS, Env:DEBUG, Env:PLAY100_BASE_URL, Env:PLAY100_ALLOW_ONLY, Env:PLAY100_REUSE_SERVER, Env:PLAY100_TEST_BUILD, Env:PLAYWRIGHT_JSON_OUTPUT_NAME -ErrorAction SilentlyContinue
+foreach ($file in '.env', '.env.local', '.env.production', '.env.production.local') {
+  if (Test-Path $file) { throw 'Offline worktree must not load environment files; do not copy configured env files' }
+}
+npm ci
+if ($LASTEXITCODE -ne 0) { throw 'Offline install failed' }
+npm run build
+if ($LASTEXITCODE -ne 0) { throw 'Offline build failed' }
+$env:PLAY100_TEST_BUILD = 'production'
+$env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-offline-root-navigation.json"
+npx playwright test tests/root-navigation-guards.spec.ts --reporter=list,json
+if ($LASTEXITCODE -ne 0) { throw 'Offline root-navigation characterization failed' }
+Remove-Item Env:PLAY100_TEST_BUILD, Env:PLAYWRIGHT_JSON_OUTPUT_NAME
+npm test -- --maxWorkers=1 --reporter=default --reporter=json --outputFile="$evidence\unit-browser-offline.json"
+if ($LASTEXITCODE -ne 0) { throw 'Offline unit/browser evidence failed' }
+npm run release:manifest -- "$evidence\manifest-offline.json" --vitest "$evidence\unit-browser-offline.json" --playwright "$evidence\e2e-offline-root-navigation.json"
+if ($LASTEXITCODE -ne 0) { throw 'Offline manifest failed' }
+```
+
+Keep all `VITE_FIREBASE_*` variables, including `VITE_FIREBASE_REQUIRED`, absent
+for this build and its manifest; the emulator flag must also be absent. Do not
+copy or modify the configured `dist`. The additional unit/browser run supplies
+the fresh Vitest report required alongside Playwright by `release:manifest`.
+Retain the offline manifest, native reports, actual runtime and command exits
+as a separately labelled evidence packet. The source SHA is the candidate's,
+but the offline configuration and artifact hashes identify a different build.
+Do not add this report to the configured manifest's report list or claim it
+tested the configured candidate. Return to the original configured shell and
+its unchanged environment, checkout, `dist` and `$evidence` for §4.
+
 ## 4. Manifest and complete evidence packet
 
 Back in the configured-build shell, ensure the same public Production
