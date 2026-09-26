@@ -10,12 +10,22 @@ team identifier). Publish deployment IDs and redacted evidence in the
 
 ## Prerequisites and unresolved manual gates
 
-Use Node **24.x** (`.nvmrc`), npm from that installation, Java 21 for the
+Use Node **24.21.0** (`.nvmrc`) and its bundled npm, Java 21 for the
 emulators, Git, and the installed Playwright browsers (including Chrome for
 the Chrome-only suites). Pin Vercel to **59.16.0**, as Release 2 records.
 The authorized deployment shell is Ubuntu-24.04 WSL with fish and the existing
 Vercel login; local gate examples use PowerShell 7. Do not install a different
 CLI version or change project protection to make a check pass.
+
+Run the release gate, build, release tooling and manifest collection on that
+exact Node installation with its bundled npm, not a separately upgraded npm or
+a newer Node. `release:manifest` records the executing Node version in
+`versions.node` (`process.versions.node`, the version without the `v` prefix)
+and the invoking npm package version in `versions.npm`. Retain those actual
+versions with the command receipts. The gate must execute on this runtime for
+the candidate: an older Node 24 receipt cannot be carried forward when release
+tooling changed, including `release:verify`, `check:budgets` or the first-paint
+plugin. Collecting a new manifest alone does not rerun or certify older tests.
 
 Use project ID `prj_Mp6j1moxlfNXGV8nCcAC1tTDiCP7`, alias
 `play-100-collection.vercel.app`, and the existing approved
@@ -68,7 +78,7 @@ if (git status --porcelain) { throw 'Dirty checkout' }
 New-Item -ItemType Directory $evidence -ErrorAction Stop | Out-Null
 node --version
 npm --version
-if ((node -p "process.versions.node.split('.')[0]") -ne '24') { throw 'Use Node 24' }
+if ((node -p "process.version") -ne 'v24.21.0') { throw 'Use Node 24.21.0 and its bundled npm' }
 npm ci
 if ($LASTEXITCODE -ne 0) { throw 'Install failed' }
 npm audit
