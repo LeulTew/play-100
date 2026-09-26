@@ -514,8 +514,11 @@ Production only, after promotion; preview origins are referrer-blocked.
    returns 405 with `Allow: GET, HEAD`. `curl -I` on both documents returns 200
    with the headers above.
 4. Any failure, or a Vercel function log `Auth helper upstream refused.` with
-   `reason: drift`: use **Instant Rollback** to the previous deployment (plain
-   rewrites with the static nonce). Then record the logged counts and re-capture
+   `reason: drift`: use **Instant Rollback** to the previous release's
+   deployment. Every Release 1 or later deployment also serves the fresh-nonce
+   helper, so this undoes the release's other changes but not the helper; only
+   the pre-Release-1 `270f` deployment had the static-nonce rewrites, and it is
+   not a supported rollback target. Then record the logged counts and re-capture
    the upstream templates read-only before any fix.
 ### Exposure check after redeploy
 

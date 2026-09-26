@@ -628,8 +628,11 @@ either the fresh-nonce policy or the stricter main policy, which blocks the scri
 
 The application uses password reset/verification, not email-link sign-in:
 `sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent, and the unused
-`/__/auth/links` paths stay removed. Rollback is Vercel Instant Rollback to the
-previous deployment, which restores the plain rewrites.
+`/__/auth/links` paths stay removed. Every release since Release 1 ships
+`api/auth-helper.ts`, so a Vercel Instant Rollback to any Release 1 or later
+deployment keeps the fresh-nonce helper. Only the pre-Release-1 `270f`
+deployment served the plain rewrites with a static nonce; rolling back past
+Release 1 is not a supported target.
 
 Vercel installs with `npm ci`. The GitHub workflows (CI, CodeQL, Dependency
 review, Secret scan) remain in the repository but are disabled by the owner, so
