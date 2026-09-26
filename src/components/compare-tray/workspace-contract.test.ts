@@ -208,6 +208,16 @@ describe('workspace embedding contract', () => {
     expect(completed).toContain('Clear search, progress filters and selection to reorder.');
     expect(completed).toContain('disabled=""');
   });
+  it('names the Queue trash action as queue-only while Library retains its full-removal action', () => {
+    const queue = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue' }));
+    const library = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'library' }));
+    expect(queue).toContain('aria-label="Remove from queue: Alpha game" title="Remove from queue"');
+    expect(queue).not.toContain('aria-label="Remove Alpha game from my library"');
+    expect(queue).not.toContain('aria-label="Play later: Alpha game"');
+    expect(library).toContain('aria-label="Remove Alpha game from my library"');
+    expect(library).toContain('aria-label="Play later: Alpha game"');
+    expect(library).not.toContain('aria-label="Remove from queue: Alpha game"');
+  });
   it('keeps the Library tree present and mounts only the active clean Ranking pane without nested page headings', () => {
     for (const view of ['library', 'queue', 'ranking'] as const) {
       const html = renderToStaticMarkup(h(MyGamesPage, { ...props, scope: 'guest', view, onViewChange: vi.fn() }));

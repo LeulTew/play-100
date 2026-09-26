@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyPersonalLibrary, parsePersonalLibrary } from '../src/lib/personal-library';
+import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from '../src/lib/personal-library';
 import { MAX_LIBRARY_RECORDS } from '../src/lib/personal-types';
 import type { LibraryRecord } from '../src/lib/personal-types';
 import { installGuestLibrary } from './library-pagination-helpers';
@@ -259,7 +259,7 @@ test('removing the last Queue page clamps its view without removing the stored g
   await pager(page).getByRole('button', { name: 'Last', exact: true }).click();
   await expect(queue(page).locator('.personal-row')).toHaveCount(1);
   await row(page, 26)
-    .getByRole('button', { name: /^Play later:/ })
+    .getByRole('button', { name: /^Remove from queue:/ })
     .click();
   await expect(queue(page).locator('.personal-row')).toHaveCount(25);
   await expect(pager(page)).toHaveCount(0);
@@ -267,4 +267,46 @@ test('removing the last Queue page clamps its view without removing the stored g
   expect(saved.queueOrder).toHaveLength(25);
   expect(saved.records[recordId(26)]).toBeDefined();
   expect(Object.keys(saved.records)).toHaveLength(26);
+});
+
+test('Queue removal preserves every non-queue field, while Library removal still confirms full deletion', async ({
+  page,
+}) => {
+  const fixture = queueFixture(3);
+  const id = recordId(2);
+  const record = fixture.records[id]!;
+  fixture.ranking = [{ id, manualPosition: 1, score: 8.5, note: 'Keep this private opinion and fixed position.' }];
+  await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
+  const before = await readLibrary(page);
+  const remove = row(page, 2).getByRole('button', { name: `Remove from queue: ${record.title}`, exact: true });
+  await expect(remove).toHaveAttribute('title', 'Remove from queue');
+  await expect(row(page, 2).getByRole('button', { name: /^Play later:/ })).toHaveCount(0);
+  await expect(row(page, 2).getByRole('button', { name: /from my library$/ })).toHaveCount(0);
+  const bounds = await remove.boundingBox();
+  expect(bounds?.width).toBeGreaterThanOrEqual(44);
+  expect(bounds?.height).toBeGreaterThanOrEqual(44);
+  await remove.click();
+  const expected = applyPersonalAction(before, { type: 'set-progress', records: [record], key: 'later', value: false });
+  await expect.poll(() => readLibrary(page)).toEqual(expected);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(row(page, 2)).toHaveCount(0);
+  await expect(page.locator('.toast')).toContainText('1 game updated in your play queue.');
+  const removedFromQueue = await readLibrary(page);
+  expect(removedFromQueue.records).toEqual(before.records);
+  expect(removedFromQueue.ranking).toEqual(before.ranking);
+  expect(removedFromQueue.progress[id]).toEqual({ ...before.progress[id], later: false });
+
+  await views(page)
+    .getByRole('button', { name: /^Library,/ })
+    .click();
+  const libraryRow = page.locator(`.my-games-editor:visible [data-record-id="${id}"]`);
+  await libraryRow.getByRole('button', { name: `Remove ${record.title} from my library`, exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Remove this game?', exact: true });
+  await expect(confirmation).toBeVisible();
+  expect(await readLibrary(page)).toEqual(removedFromQueue);
+  await confirmation.getByRole('button', { name: 'Remove 1 game', exact: true }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect
+    .poll(() => readLibrary(page))
+    .toEqual(applyPersonalAction(removedFromQueue, { type: 'remove-records', ids: [id] }));
 });

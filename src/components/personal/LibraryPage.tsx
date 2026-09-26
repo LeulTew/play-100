@@ -398,23 +398,25 @@ export default function LibraryPage({
                 void onAction({ type: 'set-progress', records: [record], key: 'completed', value });
               }}
             />
-            <button
-              className="icon-button"
-              disabled={busy}
-              aria-pressed={Boolean(state.progress[record.id]?.later)}
-              aria-label={`Play later: ${record.title}`}
-              title="Play later"
-              onClick={() => {
-                void onAction({ type: 'toggle-progress', record, key: 'later' });
-              }}
-            >
-              <Icon
-                name="bookmark"
-                width="19"
-                height="19"
-                fill={state.progress[record.id]?.later ? 'currentColor' : 'none'}
-              />
-            </button>
+            {tab !== 'later' && (
+              <button
+                className="icon-button"
+                disabled={busy}
+                aria-pressed={Boolean(state.progress[record.id]?.later)}
+                aria-label={`Play later: ${record.title}`}
+                title="Play later"
+                onClick={() => {
+                  void onAction({ type: 'toggle-progress', record, key: 'later' });
+                }}
+              >
+                <Icon
+                  name="bookmark"
+                  width="19"
+                  height="19"
+                  fill={state.progress[record.id]?.later ? 'currentColor' : 'none'}
+                />
+              </button>
+            )}
             <button
               className="icon-button"
               disabled={busy || rankedIds.has(record.id)}
@@ -428,8 +430,15 @@ export default function LibraryPage({
             <button
               className="icon-button remove-library-action"
               disabled={busy}
-              aria-label={`Remove ${record.title} from my library`}
-              onClick={(event) => requestRemoval([record], event.currentTarget)}
+              aria-label={
+                tab === 'later' ? `Remove from queue: ${record.title}` : `Remove ${record.title} from my library`
+              }
+              title={tab === 'later' ? 'Remove from queue' : undefined}
+              onClick={(event) => {
+                if (tab === 'later') {
+                  void onAction({ type: 'set-progress', records: [record], key: 'later', value: false });
+                } else requestRemoval([record], event.currentTarget);
+              }}
             >
               <Icon name="trash" width="19" height="19" />
             </button>

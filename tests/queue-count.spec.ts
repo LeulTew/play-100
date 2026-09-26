@@ -35,7 +35,7 @@ test('queue badge stays exact and its header action never waits for the visual c
   );
   expect((await readLibrary(page)).queueOrder).toEqual(['red-dead-redemption-2']);
   await expect(visual).toHaveText('1');
-  await queue.getByRole('button', { name: 'Play later: Red Dead Redemption 2', exact: true }).click();
+  await queue.getByRole('button', { name: 'Remove from queue: Red Dead Redemption 2', exact: true }).click();
   await expect(accessible).toHaveText('0');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
