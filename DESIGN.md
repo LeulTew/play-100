@@ -213,6 +213,9 @@ Dark, lime, outline, quiet and destructive variants use the extracted assignment
 
 Keep search, original-data filters, sorting and device-list controls legible and directly operable. Do not imply that changing the view changes authored ranks. Desktop navigation is direct; mobile prioritizes reachable controls rather than decorative navigation chrome.
 
+Keyboard Show more continues at the first appended game's title in Grid, List
+and Table; pointer activation keeps its existing focus behavior.
+
 The secondary **Menu** is an Operate navigation surface, not an application
 command menu or dashboard. A labelled desktop control replaces the Settings
 icon; mobile replaces only the fifth Settings slot. Direct primary navigation

@@ -76,6 +76,8 @@ export default function CollectionPage({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [browseRequest, setBrowseRequest] = useState(0);
   const handledBrowseRequest = useRef(0);
+  const collectionRef = useRef<HTMLElement>(null);
+  const appendedFocus = useRef<{ id: string; signature: string; trigger: HTMLButtonElement } | null>(null);
   const games = collection.data?.games;
   const ownership = useMemo(() => catalogOwnership(state.records), [state.records]);
   const progress = useMemo(() => catalogProgress(state, ownership), [state, ownership]);
@@ -106,6 +108,22 @@ export default function CollectionPage({
     setVisibleCount(PAGE_SIZE);
     setSelected(new Set());
   }, [signature]);
+  useLayoutEffect(() => {
+    const requested = appendedFocus.current;
+    if (!requested) return;
+    appendedFocus.current = null;
+    if (
+      requested.signature !== signature ||
+      (document.activeElement !== requested.trigger && document.activeElement !== document.body)
+    )
+      return;
+    const title = collectionRef.current?.querySelector<HTMLAnchorElement>(
+      `[data-game="${CSS.escape(requested.id)}"] ${filters.view === 'table' ? '.table-game a' : '.game-link'}`,
+    );
+    if (!title) return;
+    title.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    title.focus({ preventScroll: true });
+  }, [visibleCount, signature, filters.view]);
   useEffect(() => {
     if (collection.status === 'loading' || location.hash !== '#collection-films') return;
     const frame = requestAnimationFrame(() => {
@@ -213,6 +231,7 @@ export default function CollectionPage({
         </section>
       )}
       <section
+        ref={collectionRef}
         className="collection-section"
         id="collection"
         aria-labelledby="collection-title"
@@ -360,7 +379,14 @@ export default function CollectionPage({
                   {visibleCount < results.length ? (
                     <button
                       className="button button-outline"
-                      onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                      onClick={(event) => {
+                        const next = results[visibleCount];
+                        appendedFocus.current =
+                          event.detail === 0 && next
+                            ? { id: next.slug, signature, trigger: event.currentTarget }
+                            : null;
+                        setVisibleCount((count) => count + PAGE_SIZE);
+                      }}
                     >
                       Show {Math.min(PAGE_SIZE, results.length - visibleCount)} more
                       <Icon name="down" width="18" height="18" />
