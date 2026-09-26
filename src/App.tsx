@@ -58,7 +58,7 @@ import type { MotionBoundary, MotionLocation } from './motion';
 import './motion/motion.css';
 import { loadAppTools, loadComparisonTools, prefetchAppTools } from './lib/app-tool-preload';
 import { scheduleIdlePrefetch } from './lib/idle-prefetch';
-import { effectiveMotionPreference, readMotionHint } from './lib/motion-hint';
+import { effectiveMotionPreference, motionPreferencePending, readMotionHint } from './lib/motion-hint';
 import { GlobalBanners } from './components/app/GlobalBanners';
 import { useNavigationScope } from './hooks/useNavigationScope';
 import { AppHeader } from './components/app/AppHeader';
@@ -232,6 +232,7 @@ export default function App() {
   );
   const motionHint = useMemo(() => readMotionHint(libraryScope), [libraryScope]);
   const effectiveMotion = effectiveMotionPreference(library.status, library.state.motion, motionHint);
+  const motionPending = motionPreferencePending(library.status, motionHint);
   const capabilities = useCapabilities(effectiveMotion);
   useEffect(() => {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
@@ -951,6 +952,7 @@ export default function App() {
                                           filters,
                                           busy: libraryBusy,
                                           motion: effectiveMotion,
+                                          motionPending,
                                           animate: capabilities.animate,
                                           reducedMotion: capabilities.reducedMotion,
                                           coarsePointer: capabilities.coarsePointer,

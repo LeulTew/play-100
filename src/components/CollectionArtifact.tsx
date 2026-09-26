@@ -9,6 +9,11 @@ const REQUESTED_SCENE_IDLE_TIMEOUT_MS = 150;
 
 export interface CollectionArtifactProps {
   quality: 'auto' | 'full' | 'lite';
+  /**
+   * No visual preference is known yet: before the library opens, without a stored hint, quality is a provisional
+   * 'lite' (src/lib/motion-hint.ts). It behaves as Lite, but its caption names no mode.
+   */
+  pending?: boolean;
   reducedMotion: boolean;
   constrained: boolean;
 }
@@ -37,7 +42,12 @@ function hasCoarsePointer() {
   );
 }
 
-export default function CollectionArtifact({ quality, reducedMotion, constrained }: CollectionArtifactProps) {
+export default function CollectionArtifact({
+  quality,
+  pending = false,
+  reducedMotion,
+  constrained,
+}: CollectionArtifactProps) {
   const captionId = useId();
   const rootRef = useRef<HTMLElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -258,7 +268,9 @@ export default function CollectionArtifact({ quality, reducedMotion, constrained
   const explanation = motionReduced
     ? 'Illustrated view · reduced motion'
     : quality === 'lite'
-      ? 'Illustrated view · Lite mode'
+      ? pending
+        ? 'Illustrated view'
+        : 'Illustrated view · Lite mode'
       : quality === 'auto' && constrained
         ? 'Illustrated view · saving resources'
         : needsInteraction

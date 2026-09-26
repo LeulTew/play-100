@@ -20,20 +20,21 @@
     if ((url.pathname.replace(/\/+$/, '') || '/') !== '/') return false;
     if (params.get('view') === 'table' || params.get('game') || params.get('catalogs') === 'off') return false;
 
-    // The artifact caption React renders before the library opens (CollectionArtifact.tsx):
-    // the stored guest hint or 'lite' (src/lib/motion-hint.ts) and the device hints
-    // (src/hooks/useCapabilities.ts, src/lib/device-capabilities.ts).
+    // The artifact caption React renders before the library opens (CollectionArtifact.tsx): the
+    // stored guest hint (src/lib/motion-hint.ts), 'pending' while none is stored, as React's
+    // provisional 'lite' names no mode, and the device hints (src/hooks/useCapabilities.ts,
+    // src/lib/device-capabilities.ts).
     var matches = function (query) { return window.matchMedia(query).matches; };
     var hint;
     try { hint = window.localStorage.getItem('play100.motion-hint.v1:guest'); } catch { hint = null; }
-    var quality = hint === 'auto' || hint === 'full' ? hint : 'lite';
+    var quality = hint === 'auto' || hint === 'full' || hint === 'lite' ? hint : 'pending';
     var nav = window.navigator;
     var connection = nav.connection || {};
     var constrained = Boolean(connection.saveData) || connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g'
       || (nav.deviceMemory !== undefined && nav.deviceMemory <= 4)
       || (nav.hardwareConcurrency !== undefined && nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 2);
     var art = matches('(prefers-reduced-motion: reduce)') ? 'reduced'
-      : quality === 'lite' ? 'lite'
+      : quality === 'lite' || quality === 'pending' ? quality
         : quality === 'auto' && constrained ? 'saving'
           : quality === 'auto' && matches('(pointer: coarse)') ? 'tap'
             : 'ready';

@@ -15,6 +15,7 @@ import {
   effectiveMotionPreference,
   MOTION_HINT_KEY,
   motionHintKey,
+  motionPreferencePending,
   parseMotionHint,
   readMotionHint,
   rememberMotionHint,
@@ -111,6 +112,15 @@ describe('optional scoped enum-only motion hints', () => {
       expect(effectiveMotionPreference('temporary', motion, motion === 'lite' ? 'full' : 'lite')).toBe(motion);
     },
   );
+
+  it("marks the provisional 'lite' as no known preference only while the library opens without a hint", () => {
+    expect(motionPreferencePending('loading', null)).toBe(true);
+    for (const hint of ['auto', 'full', 'lite'] as const) expect(motionPreferencePending('loading', hint)).toBe(false);
+    for (const status of ['ready', 'temporary'] as const) {
+      expect(motionPreferencePending(status, null)).toBe(false);
+      expect(motionPreferencePending(status, 'lite')).toBe(false);
+    }
+  });
 
   it('writes guest default/load/save/restore/reset only after successful transactions', async () => {
     await loadPersonalLibrary([]);

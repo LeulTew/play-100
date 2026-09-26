@@ -42,3 +42,14 @@ export function effectiveMotionPreference(
 ): MotionPreference {
   return status === 'loading' ? (hint ?? 'lite') : authoritative;
 }
+
+/**
+ * Whether effectiveMotionPreference() returns its provisional 'lite': the library is still opening and no hint is
+ * stored, so the visitor has chosen no visual preference that the app knows of yet.
+ */
+export function motionPreferencePending(
+  status: 'loading' | 'ready' | 'temporary',
+  hint: MotionPreference | null,
+): boolean {
+  return status === 'loading' && hint === null;
+}

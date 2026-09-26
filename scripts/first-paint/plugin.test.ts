@@ -327,6 +327,23 @@ describe('first-paint shell stylesheet', () => {
     expect(shell.match(/unicode-range: U\+20-7E,U\+B7,U\+2026\}/g)).toHaveLength(9);
     expect(() => assertInlineSafe('style', shell)).not.toThrow();
   });
+
+  it('shows exactly one artifact caption for every art state the boot script can set', () => {
+    const states = ['reduced', 'lite', 'pending', 'saving', 'tap', 'ready'];
+    const shell = minifyShellCss(shellCss);
+    const rule = /html\[data-boot-art=(\w+)\] \.first-paint-shell \[data-shell-art\]:not\(\[data-shell-art~=(\w+)\]\)/g;
+    const rules = [...shell.matchAll(rule)];
+    expect(rules.map(([, state]) => state)).toEqual(states);
+    expect(rules.every(([, state, visible]) => state === visible), 'each state shows its own caption').toBe(true);
+    const script = stripBootScript(bootJs);
+    for (const state of states) expect(script, `the boot script sets ${state}`).toContain(`'${state}'`);
+    for (const variant of ['offline', 'online'] as const) {
+      const captions = [...shellMarkup(indexHtml, variant).matchAll(/<span data-shell-art="(\w+)">([^<]*)<\/span>/g)];
+      expect(captions.map(([, state]) => state).sort(), `one ${variant} caption per state`).toEqual([...states].sort());
+      // Until a visitor's preference is known, the caption names no mode.
+      expect(captions.find(([, state]) => state === 'pending')?.[2]).toBe('Illustrated view');
+    }
+  });
 });
 
 describe('emitted entry stylesheets', () => {

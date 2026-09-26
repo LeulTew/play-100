@@ -69,9 +69,11 @@ html[data-boot=landing] .first-paint-shell { display: contents; }
    page scrollable too: a classic scrollbar appearing at the handoff would narrow the layout. */
 .first-paint-shell > main { min-height: 100vh; }
 
-/* Only the artifact copy that React's first commit will render is shown. */
+/* Only the artifact copy that React's first commit will render is shown. Without a stored hint, the
+   app has no visual preference yet, and 'pending' names none. */
 html[data-boot-art=reduced] .first-paint-shell [data-shell-art]:not([data-shell-art~=reduced]),
 html[data-boot-art=lite] .first-paint-shell [data-shell-art]:not([data-shell-art~=lite]),
+html[data-boot-art=pending] .first-paint-shell [data-shell-art]:not([data-shell-art~=pending]),
 html[data-boot-art=saving] .first-paint-shell [data-shell-art]:not([data-shell-art~=saving]),
 html[data-boot-art=tap] .first-paint-shell [data-shell-art]:not([data-shell-art~=tap]),
 html[data-boot-art=ready] .first-paint-shell [data-shell-art]:not([data-shell-art~=ready]) { display: none; }

@@ -242,6 +242,7 @@ describe("first-paint shell parity with React's first commit", () => {
         filters: defaultFilters,
         busy: true,
         motion: 'lite',
+        motionPending: true,
         animate: false,
         reducedMotion: false,
         coarsePointer: false,
@@ -267,6 +268,8 @@ describe("first-paint shell parity with React's first commit", () => {
   it.each([
     ['reduced', { quality: 'full', reducedMotion: true, constrained: false }, false],
     ['lite', { quality: 'lite', reducedMotion: false, constrained: false }, false],
+    // No stored hint: the provisional 'lite' before the library opens names no mode.
+    ['pending', { quality: 'lite', pending: true, reducedMotion: false, constrained: false }, false],
     ['saving', { quality: 'auto', reducedMotion: false, constrained: true }, false],
     ['tap', { quality: 'auto', reducedMotion: false, constrained: false }, true],
     ['ready', { quality: 'full', reducedMotion: false, constrained: false }, false],

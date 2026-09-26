@@ -24,6 +24,7 @@ declare global {
     p100Commit?: Box[];
     p100CspViolations: string[];
     p100TakeLayoutShift?: () => number;
+    p100Captions: string[];
   }
 }
 
@@ -76,7 +77,8 @@ const FONT_SWAP = [
   '.mobile-nav > *',
 ];
 const SCENARIOS: readonly Scenario[] = [
-  { name: 'no saved hint', hint: null, art: () => 'lite' },
+  // Without a stored hint, the first commit knows no visual preference yet, and its caption names none.
+  { name: 'no saved hint', hint: null, art: () => 'pending' },
   { name: 'saved Auto', hint: 'auto', art: (mobile) => (mobile ? 'tap' : 'ready') },
   { name: 'saved Full', hint: 'full', art: () => 'ready' },
   { name: 'Save-Data', hint: 'auto', saveData: true, art: () => 'saving' },
@@ -358,7 +360,7 @@ for (const scenario of SCENARIOS) {
         if (scenario.hint === null) {
           expect(
             critical.some((box) => box.key === '.artifact-control #0'),
-            'the initial Lite shell has no fan control',
+            'the initial shell, with no preference yet, has no fan control',
           ).toBe(false);
         }
         releaseFonts();
@@ -417,6 +419,65 @@ for (const scenario of SCENARIOS) {
     expect(errors).toEqual([]);
   });
 }
+
+// Before the library opens, the artifact caption names a visual mode only if the visitor chose one (G4-UI MOT-001).
+test('the startup artifact caption names Lite mode only when the visitor chose it', async ({ page, isMobile }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await emptyCatalogs(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true,
+      value: Object.assign(new EventTarget(), { saveData: false, effectiveType: '4g' }),
+    });
+    // Every caption a visitor could see, from the parsed shell on, with what rendered it: the shell or the app.
+    window.p100Captions = [];
+    const record = () => {
+      const status = document.querySelector<HTMLElement>('.artifact-status');
+      const caption = status?.getClientRects().length ? status.innerText.replace(/\s+/g, ' ').trim() : '';
+      const entry = `${document.querySelector('.first-paint-shell') ? 'shell' : 'app'}: ${caption}`;
+      if (caption && window.p100Captions.at(-1) !== entry) window.p100Captions.push(entry);
+    };
+    new MutationObserver(record).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+    });
+  });
+  const captions = () => page.evaluate(() => window.p100Captions);
+  const bootArt = () => page.evaluate(() => document.documentElement.dataset.bootArt);
+
+  // A fresh guest has stored nothing: no preference is known until the library opens with Auto.
+  await page.goto('/');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  expect(await bootArt()).toBe('pending');
+  // Wait for the caption Auto resolves to once the library opens.
+  await expect.poll(async () => (await captions()).at(-1)).not.toBe('app: Illustrated view');
+  const fresh = await captions();
+  expect(fresh, 'the shell').toContain('shell: Illustrated view');
+  expect(fresh, "React's first commit").toContain('app: Illustrated view');
+  expect(fresh.filter((entry) => entry.includes('Lite mode')), 'a caption naming a mode nobody chose').toEqual([]);
+  if (isMobile) expect(fresh.at(-1)).toBe('app: Auto · tap Fan out to start 3D');
+
+  // Choosing Lite saves it in the library and its startup hint, so the next visit's first frames name it.
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings & backups', exact: true }).click();
+  await page.getByRole('radio', { name: /^Lite/ }).click();
+  await expect(page.getByRole('radio', { name: /^Lite/ })).toBeChecked();
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), motionHintKey('guest'))).toBe('lite');
+  await page.reload();
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  expect(await bootArt()).toBe('lite');
+  const lite = await captions();
+  expect(lite, 'the shell').toContain('shell: Illustrated view · Lite mode');
+  expect(lite, "React's first commit").toContain('app: Illustrated view · Lite mode');
+  expect(errors).toEqual([]);
+});
 
 // The boot script starts the app, so a policy that blocked it would leave the page without React.
 for (const path of ['/', '/?catalogs=off']) {

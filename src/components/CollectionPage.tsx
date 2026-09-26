@@ -36,6 +36,8 @@ interface CollectionPageProps {
   filters: Filters;
   busy: boolean;
   motion: MotionPreference;
+  /** motion is the provisional 'lite' of a visitor with no known visual preference yet (motionPreferencePending). */
+  motionPending: boolean;
   animate: boolean;
   reducedMotion: boolean;
   coarsePointer: boolean;
@@ -59,6 +61,7 @@ export default function CollectionPage({
   filters,
   busy,
   motion,
+  motionPending,
   animate,
   reducedMotion,
   coarsePointer,
@@ -230,7 +233,12 @@ export default function CollectionPage({
             </p>
           </div>
           <div className="hero-art">
-            <CollectionArtifact quality={motion} reducedMotion={reducedMotion} constrained={constrained} />
+            <CollectionArtifact
+              quality={motion}
+              pending={motionPending}
+              reducedMotion={reducedMotion}
+              constrained={constrained}
+            />
           </div>
         </section>
       )}

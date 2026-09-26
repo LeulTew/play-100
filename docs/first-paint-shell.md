@@ -99,6 +99,10 @@ renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
 metric-matched fallback faces are usable. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.
+Without a valid stored hint, the app knows no visual preference until the
+library opens: it behaves as Lite (no scene, no Fan out), but its caption names
+no mode, "Illustrated view", which the `pending` state shows. Only a stored
+`lite` hint says "Illustrated view · Lite mode".
 
 Then it starts the app by inserting the template's tags into `<head>`, once:
 the module entry as a `modulepreload`, the other modulepreloads, the entry
@@ -195,7 +199,8 @@ not a `style=`.
     as Pick for me does; React's first commit disables Pick for me too, so it keeps React's
     `disabled=""`. Every visible shell control is a working link or a disabled button, nothing is
     `inert`, and opacity is the only style that changes at the handoff.
-  - The artifact caption holds every state (shell.css shows one), the artifact omits
+  - The artifact caption holds every state, `reduced`, `lite`, `pending`, `saving`, `tap` and
+    `ready`, and shell.css shows the one `data-boot-art` names. The artifact omits
     `data-scene-status`, `data-activation` and the React-only decorative still (absolutely
     positioned), and the Magnet wrapper omits its inline transition.
   - None changes layout.
@@ -243,11 +248,14 @@ and the web fonts to compare the shell under inline CSS only, the shell under th
 full stylesheet and React's first commit. It checks that every shell button is
 disabled with Pick for me's look until React enables it, that the app's first
 requests start after the shell's first contentful paint, and that the web fonts
-swap in without layout shift. It also reads the live `<head>` on first loads of
-lazy routes and after navigating from the landing shell: every stylesheet stays
-in `<head>`, the startup stylesheets come first and only once, and the lazy
-chunk stylesheets follow them. The shell comparisons need the local fonts the
-probes measure (Windows or macOS Impact/Arial, or Liberation Sans/Arimo on Linux).
+swap in without layout shift. It records every artifact caption from the parsed
+shell on: a fresh guest's captions never name Lite mode, and once the visitor
+chooses Lite, the next visit's shell and first commit do. It also reads the
+live `<head>` on first loads of lazy routes and after navigating from the
+landing shell: every stylesheet stays in `<head>`, the startup stylesheets come
+first and only once, and the lazy chunk stylesheets follow them. The shell
+comparisons need the local fonts the probes measure (Windows or macOS
+Impact/Arial, or Liberation Sans/Arimo on Linux).
 
 [`tests/entry-recovery.spec.ts`](../tests/entry-recovery.spec.ts) loads `/` and
 `/?catalogs=off` under the production CSP. With the module entry refused, and once

@@ -298,7 +298,7 @@ function everything(result: ReturnType<typeof run>): string[] {
 
 describe('first-paint boot gate', () => {
   it('accepts the landing page and names the artifact caption of the first commit', () => {
-    expect(boot()).toEqual({ 'data-boot-art': 'lite', 'data-boot': 'landing' });
+    expect(boot()).toEqual({ 'data-boot-art': 'pending', 'data-boot': 'landing' });
   });
 
   it.each([
@@ -322,10 +322,15 @@ describe('first-paint boot gate', () => {
   });
 
   it.each([
-    [{}, 'lite'],
+    // Without a valid stored hint, React's first commit has no visual preference to name (its provisional 'lite').
+    [{}, 'pending'],
+    [{ hint: '"full"' }, 'pending'],
+    [{ hint: 'LITE' }, 'pending'],
+    [{ hint: 'full', storageThrows: true }, 'pending'],
+    [{ coarsePointer: true, navigator: { deviceMemory: 2 } }, 'pending'],
+    [{ reducedMotion: true }, 'reduced'],
     [{ hint: 'lite' }, 'lite'],
-    [{ hint: '"full"' }, 'lite'],
-    [{ hint: 'full', storageThrows: true }, 'lite'],
+    [{ hint: 'lite', coarsePointer: true }, 'lite'],
     [{ hint: 'full' }, 'ready'],
     [{ hint: 'full', coarsePointer: true }, 'ready'],
     [{ hint: 'auto' }, 'ready'],
@@ -480,16 +485,16 @@ describe('first-paint app loader', () => {
 
   it.each([
     ['the boot gate throws', { measureThrows: true }, {}],
-    ['PerformanceObserver is missing', { observer: 'missing' }, { 'data-boot-art': 'lite', 'data-boot': 'landing' }],
+    ['PerformanceObserver is missing', { observer: 'missing' }, { 'data-boot-art': 'pending', 'data-boot': 'landing' }],
     [
       'the paint observer cannot be created',
       { observer: 'constructor throws' },
-      { 'data-boot-art': 'lite', 'data-boot': 'landing' },
+      { 'data-boot-art': 'pending', 'data-boot': 'landing' },
     ],
     [
       'the paint observer refuses the paint type',
       { observer: 'observe throws' },
-      { 'data-boot-art': 'lite', 'data-boot': 'landing' },
+      { 'data-boot-art': 'pending', 'data-boot': 'landing' },
     ],
   ] as const)('starts at once, exactly once, when %s', (_, environment, attributes) => {
     const result = run(environment);
