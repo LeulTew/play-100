@@ -216,6 +216,11 @@ Keep search, original-data filters, sorting and device-list controls legible and
 Keyboard Show more continues at the first appended game's title in Grid, List
 and Table; pointer activation keeps its existing focus behavior.
 
+Table view places the Compare tray in its own strip below the table scrollport,
+not over the cells. With pins present, the table and strip fit the usable window;
+the first pin reveals both the tray and the next row action. Other views keep
+the existing dock, and an active drag still exposes the fixed drop target.
+
 The secondary **Menu** is an Operate navigation surface, not an application
 command menu or dashboard. A labelled desktop control replaces the Settings
 icon; mobile replaces only the fifth Settings slot. Direct primary navigation

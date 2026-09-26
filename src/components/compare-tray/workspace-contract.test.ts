@@ -394,6 +394,20 @@ describe('tray and image rendering contract', () => {
       expect(html).not.toContain('compare-tray-reserve');
     }
   });
+  it('uses one inline table surface without the fixed-dock end reserve', () => {
+    const html = renderToStaticMarkup(
+      h(
+        CompareTrayContext.Provider,
+        { value },
+        h(CompareTray, { page: 'collection', layout: 'inline', onCompare: vi.fn() }),
+      ),
+    );
+    expect(html.match(/<aside\b/g)).toHaveLength(1);
+    expect(html).toContain('data-layout="inline"');
+    expect(html).not.toContain('compare-tray-reserve');
+    expect(html).toContain('Compare rankings');
+    expect(html).toContain('aria-haspopup="dialog"');
+  });
   it('offers an optional semantic handle and a drop target even before the first pin', () => {
     const html = renderToStaticMarkup(
       h(

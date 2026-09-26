@@ -1,13 +1,13 @@
 :root {
   --compare-tray-bottom: 20px;
 }
-html:has(.compare-tray-dock) {
+html:has(.compare-tray-dock[data-layout='dock']) {
   scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 12px);
 }
 html:has(.toast-visible) {
   scroll-padding-bottom: calc(25px + var(--toast-height, 64px) + 16px);
 }
-html:has(.compare-tray-dock):has(.toast-visible) {
+html:has(.compare-tray-dock[data-layout='dock']):has(.toast-visible) {
   scroll-padding-bottom: calc(
     var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px + var(--toast-height, 64px) + 16px
   );
@@ -19,7 +19,7 @@ body:has(.compare-tray-reserve) {
   padding-bottom: 0;
 }
 /* Also clear the toast's existing 15px entrance translation. */
-body:has(.compare-tray-dock) .toast {
+body:has(.compare-tray-dock[data-layout='dock']) .toast {
   bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px);
 }
 button.compare-drag-handle {
@@ -77,6 +77,26 @@ button.compare-drag-handle[hidden] {
   border: 1px solid var(--ink);
   border-radius: 4px;
   box-shadow: 0 8px 24px #20231e24;
+}
+.compare-tray-dock[data-layout='inline']:not([data-dragging='true']) {
+  position: relative;
+  inset: auto;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: 12px;
+}
+.ratings-tray-strip:has(.compare-tray-dock[data-has-content='true']) {
+  min-height: calc(var(--compare-tray-height, 88px) + 24px);
+}
+.ratings-mode:has(.compare-tray-dock[data-layout='inline']) > .ratings-scroll {
+  max-height: min(
+    75vh,
+    780px,
+    calc(
+      100dvh - max(104px, calc(var(--site-header-height, 80px) + 16px)) - var(--mobile-nav-height, 0px) -
+        var(--compare-tray-height, 88px) - 28px
+    )
+  );
 }
 .compare-tray-expand {
   display: flex;
@@ -320,13 +340,14 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
   html:has(.toast-visible) {
     scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--toast-height, 64px) + 16px);
   }
-  body:has(.compare-tray-dock[data-has-content='true']) .collection-title-line {
+  body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true']) .collection-title-line {
     padding-top: 8px;
   }
-  body:has(.compare-tray-dock[data-has-content='true']) .collection-search {
+  body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true']) .collection-search {
     margin-top: 8px;
   }
-  body:has(.compare-tray-dock[data-has-content='true']) :is(.collection-utilities, .collection-extra-actions) {
+  body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true'])
+    :is(.collection-utilities, .collection-extra-actions) {
     margin-bottom: 8px;
   }
   .compare-tray-dock {

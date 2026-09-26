@@ -48,6 +48,7 @@ interface CollectionPageProps {
   onPin?: (record: LibraryRecord) => void;
   pinnedIds?: ReadonlySet<string>;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
+  comparisonTray?: ReactNode;
 }
 
 export default function CollectionPage({
@@ -70,6 +71,7 @@ export default function CollectionPage({
   onPin,
   pinnedIds,
   renderDragHandle,
+  comparisonTray,
 }: CollectionPageProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selecting, setSelecting] = useState(false);
@@ -301,6 +303,7 @@ export default function CollectionPage({
                     onOpen={onOpen}
                     onToggle={toggle}
                     onSort={onFilters}
+                    comparisonTray={comparisonTray}
                     getCompareRecord={
                       onPin ? (game) => catalogActionRecord(recordFromGame(game), ownership) : undefined
                     }
@@ -429,6 +432,7 @@ export default function CollectionPage({
                 </button>
               </div>
             )}
+            {!results.length && comparisonTray}
             {showExtended && (
               <ExtendedResults
                 records={extraResults}

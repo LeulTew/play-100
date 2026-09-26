@@ -786,6 +786,22 @@ export default function App() {
                   };
                   const dragHandle = (record: LibraryRecord) =>
                     !onlineOpening && <CompareDragHandle record={record} compact />;
+                  const inlineTray = page === 'collection' && filters.view === 'table' && collection.status === 'ready';
+                  const comparisonTray = (
+                    <TrayHost
+                      page={page}
+                      tray={{
+                        layout: inlineTray ? 'inline' : 'dock',
+                        onCompare: (records) => {
+                          void compareGames(records);
+                        },
+                        onPreview: preview,
+                        resolveArtwork: (record) => artwork.get(record.id),
+                        animate: capabilities.animate,
+                        hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink),
+                      }}
+                    />
+                  );
                   return (
                     <LibraryModeContext.Provider value={libraryMode}>
                       <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>
@@ -955,6 +971,7 @@ export default function App() {
                                           onPin: pin,
                                           pinnedIds,
                                           renderDragHandle: dragHandle,
+                                          comparisonTray: inlineTray ? comparisonTray : undefined,
                                         },
                                       }
                           }
@@ -981,18 +998,7 @@ export default function App() {
                         onMenu={() => setPanel('menu')}
                         onIntent={prefetchAppTools}
                       />
-                      <TrayHost
-                        page={page}
-                        tray={{
-                          onCompare: (records) => {
-                            void compareGames(records);
-                          },
-                          onPreview: preview,
-                          resolveArtwork: (record) => artwork.get(record.id),
-                          animate: capabilities.animate,
-                          hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink),
-                        }}
-                      />
+                      {!inlineTray && comparisonTray}
                       <DialogHost
                         page={page}
                         game={

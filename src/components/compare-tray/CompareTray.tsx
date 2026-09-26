@@ -18,6 +18,7 @@ export interface CompareTrayProps {
   animate?: boolean;
   hidden?: boolean;
   page?: AppPage;
+  layout?: 'dock' | 'inline';
 }
 
 export function CompareTray(props: CompareTrayProps) {
@@ -32,6 +33,7 @@ function ScopedCompareTray({
   animate = false,
   hidden = false,
   page,
+  layout = 'dock',
 }: CompareTrayProps) {
   const compact = page !== undefined && page !== 'collection';
   const { items, unpin, clear, dismissError, warning, error, persistent, dragging } = useCompareTray();
@@ -43,6 +45,7 @@ function ScopedCompareTray({
   const sheetTitle = useRef<HTMLHeadingElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const dock = useRef<HTMLElement | null>(null);
+  const inlineRevealed = useRef(false);
   const newestId = items.at(-1)?.id;
   const dockRef = useCallback(
     (node: HTMLElement | null) => {
@@ -77,6 +80,17 @@ function ScopedCompareTray({
     // rest of the page. The reads come before the writes, so it forces that layout once.
     measure();
     const focused = document.activeElement;
+    if (!hasContent || layout !== 'inline') inlineRevealed.current = false;
+    if (layout === 'inline' && hasContent && !hidden && !dragging && node && !inlineRevealed.current) {
+      inlineRevealed.current = true;
+      const table = node.closest('.ratings-mode')?.querySelector('.ratings-scroll');
+      const next =
+        focused instanceof HTMLElement && table?.contains(focused)
+          ? focused.closest('tr')?.nextElementSibling?.querySelector<HTMLElement>('.table-progress > button:last-child')
+          : null;
+      table?.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+      next?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    }
     if (
       error &&
       node &&
@@ -103,7 +117,7 @@ function ScopedCompareTray({
       .forEach((element) => observer.observe(element));
     // The heights stay set while the effect re-runs, so the next measurement writes only what moved.
     return () => observer.disconnect();
-  }, [hasTray, hidden, compact, error, warning]);
+  }, [hasTray, hasContent, hidden, compact, error, warning, layout, dragging]);
   useLayoutEffect(
     () => () => {
       for (const property of TRAY_METRIC_PROPERTIES) document.documentElement.style.removeProperty(property);
@@ -130,7 +144,9 @@ function ScopedCompareTray({
   };
   return (
     <>
-      {hasContent && !hidden && <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />}
+      {layout === 'dock' && hasContent && !hidden && (
+        <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />
+      )}
       {hasTray && !hidden && (
         <aside
           ref={dockRef}
@@ -140,6 +156,7 @@ function ScopedCompareTray({
           data-animate={animate && documentVisible ? 'true' : 'false'}
           data-dragging={dragging}
           data-has-content={hasContent}
+          data-layout={layout}
           onDragOver={(event) => controller?.nativeOver(event.nativeEvent)}
           onDrop={(event) => controller?.nativeDrop(event.nativeEvent)}
         >

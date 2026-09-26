@@ -29,6 +29,7 @@ interface RatingsTableProps {
   onSort: (patch: Partial<Filters>) => void;
   getCompareRecord?: (game: Game) => LibraryRecord;
   savedCopies?: (game: Game) => ReactNode;
+  comparisonTray?: ReactNode;
 }
 
 export default function RatingsTable({
@@ -44,6 +45,7 @@ export default function RatingsTable({
   onSort,
   getCompareRecord,
   savedCopies,
+  comparisonTray,
 }: RatingsTableProps) {
   const { goToPage } = useUrlState();
   const { scope } = useLibraryMode();
@@ -250,6 +252,7 @@ export default function RatingsTable({
           </tbody>
         </table>
       </div>
+      {comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
       <p className="table-footnote">
         The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s
         original cached ratings and source notes are preserved, not recalculated. Your ratings are separate from these
