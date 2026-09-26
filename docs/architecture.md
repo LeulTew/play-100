@@ -31,9 +31,10 @@ When Library is embedded outside a My games route, its bounded pager keeps
 local page state instead of rewriting the host URL; save guards, clamping,
 results focus and committed range motion use the same path.
 Opening a detail records whether closing it should use native Back or replace
-a directly entered detail URL. Detail Previous/Next and workspace view changes
-flush pending editors first; rejected edits keep their original field mounted
-and return focus to it. Scope or navigation changes cancel a pending handoff.
+a directly entered detail URL. Detail Previous/Next, the Your rank shortcuts in
+both detail families and workspace view changes flush pending editors first;
+rejected edits keep their original field mounted and return focus to it.
+Scope or navigation changes cancel a pending handoff.
 
 Ranking also mounts at most 25 rows. Its page and search are lightweight,
 scope-local workspace state, independent of the Library URL page. Global rank

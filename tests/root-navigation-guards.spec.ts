@@ -123,6 +123,19 @@ async function publicDetail(page: Page) {
   return dialog;
 }
 
+async function rankedPublicDetail(page: Page) {
+  const dialog = await publicDetail(page);
+  const input = dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${provider.title}`, exact: true });
+  await input.fill('5');
+  await input.press('Tab');
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === provider.id)?.score)
+    .toBe(5);
+  await expect(input).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Your rank: #1', exact: true })).toBeVisible();
+  return dialog;
+}
+
 async function expectOneWrite(page: Page, revision: number) {
   await expect(page.locator('html')).toHaveAttribute('data-root-save-writes', '1');
   expect((await readLibrary(page)).revision).toBe(revision + 1);
@@ -431,6 +444,105 @@ test('the catalog-detail ranking callback opens the saved ranking without anothe
   ).toHaveValue('7.25');
   expect(await readLibrary(page)).toEqual(before);
 });
+
+test('the catalog-detail Your rank shortcut keeps an invalid rating focused without writing', async ({ page }) => {
+  const dialog = await rankedPublicDetail(page);
+  const input = dialog.getByRole('spinbutton');
+  const before = await readLibrary(page);
+  const original = page.url();
+  await holdNextSave(page);
+  await input.fill('11');
+  await dialog.getByRole('button', { name: 'Your rank: #1', exact: true }).click();
+  await expect(page).toHaveURL(original);
+  await expect(dialog).toBeVisible();
+  await expect(input).toHaveValue('11');
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(input).toBeFocused();
+  await expect(dialog.getByRole('alert')).toContainText('Use a rating from 0 to 10');
+  await expect(page.locator('html')).toHaveAttribute('data-root-save-writes', '0');
+  expect(await readLibrary(page)).toEqual(before);
+});
+
+test('the catalog-detail Your rank shortcut waits for exactly one successful save', async ({ page }) => {
+  const dialog = await rankedPublicDetail(page);
+  const input = dialog.getByRole('spinbutton');
+  const before = await readLibrary(page);
+  const original = page.url();
+  await holdNextSave(page);
+  await input.fill('7.25');
+  await dialog.getByRole('button', { name: 'Your rank: #1', exact: true }).click();
+  await held(page);
+  await expect(page).toHaveURL(original);
+  await expect(dialog).toBeVisible();
+  await expect(input).toBeDisabled();
+  await expect(input).toHaveValue('7.25');
+  await releaseSave(page);
+  await expect(page).toHaveURL((url) => url.pathname === '/my-games' && url.searchParams.get('tab') === 'ranking');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    rankedList(page).getByRole('spinbutton', { name: `Your rating / 10 for ${provider.title}`, exact: true }),
+  ).toHaveValue('7.25');
+  await expectOneWrite(page, before.revision);
+  const after = await readLibrary(page);
+  expect(after.ranking.find((entry) => entry.id === provider.id)?.score).toBe(7.25);
+  expect(after.progress).toEqual(before.progress);
+  expect(after.queueOrder).toEqual(before.queueOrder);
+});
+
+test('the catalog-detail Your rank shortcut retains a rejected rating and its save error', async ({ page }) => {
+  const dialog = await rankedPublicDetail(page);
+  const input = dialog.getByRole('spinbutton');
+  const before = await readLibrary(page);
+  const original = page.url();
+  await rejectWrites(page);
+  await input.fill('7.5');
+  await dialog.getByRole('button', { name: 'Your rank: #1', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('The rating could not be saved');
+  await expect(input).toBeEnabled();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('7.5');
+  await expect(page).toHaveURL(original);
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-root-rejected-writes', '1');
+  expect(await readLibrary(page)).toEqual(before);
+});
+
+for (const roundtrip of [false, true]) {
+  test(`the catalog-detail Your rank intent cannot survive native ${roundtrip ? 'Back/Forward A-B-A' : 'Back'} during its save`, async ({
+    page,
+  }) => {
+    const dialog = await rankedPublicDetail(page);
+    const original = page.url();
+    const before = await readLibrary(page);
+    await holdNextSave(page);
+    await dialog.getByRole('spinbutton').fill('8');
+    await dialog.getByRole('button', { name: 'Your rank: #1', exact: true }).click();
+    await held(page);
+    await expect(page).toHaveURL(original);
+    await expect(dialog.getByRole('spinbutton')).toBeDisabled();
+    await page.goBack();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    if (roundtrip) {
+      await page.goForward();
+      await expect(page).toHaveURL(original);
+      await expect(dialog).toBeVisible();
+    }
+    const retained = page.url();
+    await releaseSave(page);
+    await expect(page).toHaveURL(retained);
+    if (!roundtrip) {
+      await page
+        .locator(`[data-catalog-id="${provider.id}"]`)
+        .getByRole('button', { name: provider.title, exact: true })
+        .click();
+    }
+    await expect(dialog.getByRole('spinbutton')).toBeEnabled();
+    await expect(dialog.getByRole('spinbutton')).toHaveValue('8');
+    await expect(page).toHaveURL(original);
+    await expectOneWrite(page, before.revision);
+    expect((await readLibrary(page)).ranking.find((entry) => entry.id === provider.id)?.score).toBe(8);
+  });
+}
 
 test('public enable blocks invalid edits, then awaits persistence and preserves detail/query/history', async ({
   page,

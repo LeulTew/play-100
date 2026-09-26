@@ -1055,7 +1055,7 @@ export default function App() {
                                   busy: libraryBusy,
                                   onClose: closeGame,
                                   onAction: performDetailAction,
-                                  onRankings: () => navigate('rankings'),
+                                  onRankings: () => void guardedNavigation(() => navigate('rankings')),
                                 },
                               }
                             : null
