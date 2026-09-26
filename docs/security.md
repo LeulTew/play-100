@@ -650,9 +650,12 @@ keeps). `scripts/dependency-overrides.test.ts` fails if the lock resolves a
 vulnerable version again. Remove an override once its consumer depends on the
 patched version itself.
 
-**Install scripts (R9).** npm 12 blocks dependency lifecycle scripts unless
-`package.json` `allowScripts` approves them. Four packages in the lock have one,
-and each is approved at its exact locked version:
+**Install scripts (R9).** `package.json` `allowScripts` records the reviewed
+dependency lifecycle scripts at their exact locked versions. Only npm 12 and
+later enforce it by blocking scripts that are not approved. The recorded
+installs used npm 11 (11.16.0), which only warns, and npm is not pinned locally
+or on Vercel, so on npm 11 the list is advisory documentation, not a control.
+Five packages in the lock have an install script; the first four are approved:
 - `esbuild@0.28.2` (dev, Vite's bundler): its postinstall checks that the
   platform-specific esbuild binary package was installed and works.
 - `protobufjs@7.6.6` (through Firestore's gRPC loader, used by the Node SDK path):
@@ -666,9 +669,14 @@ and each is approved at its exact locked version:
   fetch that app's web config and write it into the package as build-time
   defaults. The app never sets that variable and configures Firebase explicitly
   from the named `VITE_FIREBASE_*` fields.
+- `fsevents@2.3.3` (dev, optional, `os: darwin`, through chokidar, tsx and
+  Vite's file watcher): the native macOS file-watching binding. npm skips it on
+  the Windows and Linux builds, including Vercel's, so no recorded install ran
+  its script and it has no `allowScripts` entry. A macOS install under npm 12
+  would block it until its script is reviewed and approved.
 
-Pinned approvals keep today's install behaviour and make npm refuse any new or
-changed script. A version bump of any of these packages, or a new package with
+On npm 12 and later, pinned approvals keep today's install behaviour and make
+npm refuse any new or changed script. A version bump of any of these packages, or a new package with
 an install script, needs a fresh review of its script before its entry is
 updated; never approve with a wildcard.
 
