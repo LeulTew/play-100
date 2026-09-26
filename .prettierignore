@@ -6,6 +6,8 @@
 !/src/**/*.js
 !/src/**/*.mjs
 !/src/**/*.cjs
+# Authored stylesheets are runtime source too. The build minifies them before they ship.
+!/src/**/*.css
 !/api/**/*.ts
 !/api/**/*.tsx
 !/api/**/*.js
@@ -35,13 +37,17 @@
 
 # Immutable boot bytes, frozen sources and generated metadata.
 /src/first-paint/boot.js
+# The first-paint shell stylesheet reaches the inline style with only its comments and whitespace removed
+# (scripts/first-paint/plugin.ts), and vercel.json pins that style by hash. Prettier would requote its strings and
+# attribute values, so it keeps its bytes as written.
+/src/first-paint/shell.css
 /tests/fixtures/
 /tests-cloud/fixtures/live-270f4c7/
 /src/generated/
 /src/lib/discovery-artwork-ids.json
 
-# Non-source formats and output/vendor trees never enter the allowlist.
-*.css
+# Non-source formats and output/vendor trees never enter the allowlist. public/ is served byte for byte: its
+# pwa/fallback.css has a raw-byte budget (standaloneCssRawBytes in budgets.json).
 *.html
 *.md
 *.json

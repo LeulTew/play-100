@@ -239,7 +239,9 @@ rollback/readback, use [Local release operations](docs/release-operations.md).
 
 `npm run lint` runs `npm run format:check` first, then
 `eslint . --max-warnings 0`. Formatting is part of the gate, not an opt-in
-check; `npm run format` applies the committed source-only Prettier policy.
+check; `npm run format` applies the committed source-only Prettier policy: the
+TypeScript and JavaScript sources, and the authored stylesheets under `src/`,
+apart from the frozen files `.prettierignore` names with their reasons.
 
 The supported release runtime is **Node 24.x**, matching the Vercel build and
 Functions runtime and `package.json` engines. `.nvmrc` selects major 24 for
