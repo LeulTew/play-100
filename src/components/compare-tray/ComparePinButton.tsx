@@ -14,21 +14,22 @@ export function ComparePinButton({
 }) {
   const { items, pin, unpin } = useCompareTray();
   const pinned = items.some((item) => canonicalCatalogId(item.id) === canonicalCatalogId(record.id));
+  const label = pinned ? 'Unpin from comparison' : 'Pin for comparison';
   return (
     <button
       type="button"
       className={compact ? 'icon-button' : 'button button-outline'}
       disabled={disabled}
       aria-pressed={pinned}
-      aria-label={`Pin for comparison: ${record.title}`}
-      title={compact ? 'Pin for comparison' : undefined}
+      aria-label={`${label}: ${record.title}`}
+      title={compact ? label : undefined}
       onClick={() => {
         if (pinned) unpin(record.id);
         else pin(record);
       }}
     >
       <Icon name="stack" width="19" height="19" fill={pinned ? 'currentColor' : 'none'} />
-      {!compact && 'Pin for comparison'}
+      {!compact && label}
     </button>
   );
 }

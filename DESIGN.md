@@ -220,6 +220,8 @@ Table view places the Compare tray in its own strip below the table scrollport,
 not over the cells. With pins present, the table and strip fit the usable window;
 the first pin reveals both the tray and the next row action. Other views keep
 the existing dock, and an active drag still exposes the fixed drop target.
+Collection Grid, List and Table share the same inline comparison toggle:
+Pin for comparison becomes Unpin from comparison while selected.
 
 The secondary **Menu** is an Operate navigation surface, not an application
 command menu or dashboard. A labelled desktop control replaces the Settings

@@ -15,8 +15,8 @@ for (const viewport of [
     const rows = page.locator('.ratings-table tbody > tr');
     await expect(rows).toHaveCount(24);
     await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
-    const first = rows.nth(0).getByRole('button', { name: /^Pin for comparison:/ });
-    const second = rows.nth(1).getByRole('button', { name: /^Pin for comparison:/ });
+    const first = rows.nth(0).getByRole('button', { name: /^(Pin for|Unpin from) comparison:/ });
+    const second = rows.nth(1).getByRole('button', { name: /^(Pin for|Unpin from) comparison:/ });
     await first.click();
     await expect(first).toHaveAttribute('aria-pressed', 'true');
     const tray = page.locator('.ratings-tray-strip .compare-tray-dock');

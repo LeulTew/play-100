@@ -336,7 +336,7 @@ describe('tray and image rendering contract', () => {
     cancelDrag: vi.fn(),
     dropGame: vi.fn(() => true),
   };
-  it.each([false, true])('keeps full and compact pin names stable with pressed=%s', (pinned) => {
+  it.each([false, true])('names full and compact comparison toggles with pressed=%s', (pinned) => {
     for (const compact of [false, true]) {
       const html = renderToStaticMarkup(
         h(
@@ -345,11 +345,12 @@ describe('tray and image rendering contract', () => {
           h(ComparePinButton, { record: alpha, compact }),
         ),
       );
-      expect(html).toContain(`aria-pressed="${pinned}" aria-label="Pin for comparison: Alpha game"`);
-      if (compact) expect(html).toContain('title="Pin for comparison"');
+      const label = pinned ? 'Unpin from comparison' : 'Pin for comparison';
+      expect(html).toContain(`aria-pressed="${pinned}" aria-label="${label}: Alpha game"`);
+      if (compact) expect(html).toContain(`title="${label}"`);
       else expect(html).not.toContain('title=');
       expect(html).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
-      if (!compact) expect(html).toContain('</svg>Pin for comparison</button>');
+      if (!compact) expect(html).toContain(`</svg>${label}</button>`);
     }
   });
 
@@ -373,7 +374,7 @@ describe('tray and image rendering contract', () => {
       ),
     );
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('aria-pressed="true" aria-label="Pin for comparison: Alpha game"');
+    expect(html).toContain('aria-pressed="true" aria-label="Unpin from comparison: Alpha game"');
     expect(html).toContain('compare-tray-reserve');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('Choose friends');

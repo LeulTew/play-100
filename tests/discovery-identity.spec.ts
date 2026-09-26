@@ -59,16 +59,10 @@ async function rate(scope: Page | Locator, value: string) {
 }
 
 for (const surface of ['Discover', 'Collection'] as const) {
-  test(`${surface} add-only Pin keeps keyboard focus and ignores a second Enter`, async ({ page }) => {
+  test(`${surface} comparison action keeps focus and its declared pin behavior`, async ({ page }) => {
     await page.goto(surface === 'Discover' ? '/discover?q=RDR2&catalogs=off&include100=on' : '/?q=RDR2&catalogs=off');
     const card = surface === 'Discover' ? cardFor(page) : page.locator(`[data-game="${rdr.slug}"]`);
-    const pin = card
-      .locator(
-        surface === 'Discover'
-          ? '.discovery-card-primary > button[aria-label]'
-          : '.card-compare-actions > button[aria-label]',
-      )
-      .last();
+    const pin = card.locator(`button[aria-label$="comparison: ${rdr.title}"]`);
     await expect(pin).toHaveAccessibleName(`Pin for comparison: ${rdr.title}`);
     await expect(pin).toBeEnabled();
     await pin.focus();
@@ -77,15 +71,26 @@ for (const surface of ['Discover', 'Collection'] as const) {
     await page.keyboard.press('Enter');
     await expect(pin).toBeFocused();
     expect(await original.evaluate((node) => node.isConnected && node === document.activeElement)).toBe(true);
-    await expect(pin).toHaveAccessibleName(`Pinned for comparison: ${rdr.title}`);
-    await expect(pin).toHaveAttribute('aria-disabled', 'true');
+    await expect(pin).toHaveAccessibleName(
+      `${surface === 'Collection' ? 'Unpin from' : 'Pinned for'} comparison: ${rdr.title}`,
+    );
+    if (surface === 'Collection') {
+      await expect(pin).toHaveAttribute('aria-pressed', 'true');
+      await expect(pin).not.toHaveAttribute('aria-disabled');
+    } else {
+      await expect(pin).toHaveAttribute('aria-disabled', 'true');
+      await expect(pin).not.toHaveAttribute('aria-pressed');
+    }
     await expect(pin).not.toHaveAttribute('disabled');
-    await expect(pin).not.toHaveAttribute('aria-pressed');
     const tray = page.locator('.compare-tray-expand');
     await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
     await page.keyboard.press('Enter');
     await expect(pin).toBeFocused();
-    await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
+    if (surface === 'Collection') {
+      await expect(pin).toHaveAttribute('aria-pressed', 'false');
+      await expect(pin).toHaveAccessibleName(`Pin for comparison: ${rdr.title}`);
+      await expect(tray).toHaveCount(0);
+    } else await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
     await page.keyboard.press('Tab');
     const next =
       surface === 'Discover'
@@ -148,7 +153,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(page.locator('[data-game="red-dead-redemption-2"]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(0);
   await expect(page.locator('.result-summary strong')).toHaveText('1');
-  await expect(page.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: `Unpin from comparison: ${rdr.title}`, exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/discover?q=Red%20Dead&catalogs=off&include100=on');

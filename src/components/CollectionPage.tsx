@@ -25,6 +25,7 @@ import { catalogActionRecord, catalogOwnership, catalogProgress } from '../lib/c
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
 import { scrollCollectionIntoView } from './collection-landing';
+import { ComparePinButton } from './compare-tray/ComparePinButton';
 
 const PAGE_SIZE = 24;
 
@@ -349,23 +350,7 @@ export default function CollectionPage({
                           compareActions={
                             onPin && (
                               <>
-                                <button
-                                  className="icon-button"
-                                  disabled={busy}
-                                  aria-disabled={pinnedIds?.has(game.slug) || undefined}
-                                  aria-label={`${pinnedIds?.has(game.slug) ? 'Pinned' : 'Pin'} for comparison: ${game.title}`}
-                                  title={pinnedIds?.has(game.slug) ? 'Pinned for comparison' : 'Pin for comparison'}
-                                  onClick={() => {
-                                    if (!pinnedIds?.has(game.slug)) onPin(actionRecord);
-                                  }}
-                                >
-                                  <Icon
-                                    name="stack"
-                                    width="18"
-                                    height="18"
-                                    fill={pinnedIds?.has(game.slug) ? 'currentColor' : 'none'}
-                                  />
-                                </button>
+                                <ComparePinButton record={actionRecord} compact disabled={busy} />
                                 {renderDragHandle?.(actionRecord)}
                               </>
                             )
