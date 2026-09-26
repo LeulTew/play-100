@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, readAccount, uidFor, verifyEmail } from './helpers';
+import { createAccount, emailFor, firestoreOrigin, readAccount, uidFor, verifyEmail } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 import { onlineModuleRequest, onlinePageRoots } from '../tests/online-module-helpers';
 
@@ -203,6 +203,16 @@ test('the optional picker can fail and close natively, then load after a guarded
   const email = emailFor('online-split-picker');
   await createAccount(page, email);
   await verifyEmail(page, request, email);
+  const uid = await uidFor(request, email);
+  // A saved icon lives on the member document; an account without one shows a fresh random default on each load.
+  const savedIcon = async () => {
+    const response = await request.get(
+      `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/members/${uid}`,
+      { headers: { Authorization: 'Bearer owner' } },
+    );
+    return response.ok() ? JSON.stringify((await response.json()).fields?.avatar ?? null) : response.status();
+  };
+  const iconBefore = await savedIcon();
   let requests = 0;
   await page.route(pickerModule, (route) => (++requests === 1 ? route.abort('failed') : route.continue()));
   const avatarBefore = await page.locator('.account-avatar img').getAttribute('src');
@@ -226,10 +236,12 @@ test('the optional picker can fail and close natively, then load after a guarded
   await expect(page.locator('.account-page')).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   expect(requests).toBe(1);
+  const shownAfterReload = await page.locator('.account-avatar img').getAttribute('src');
   await page.getByRole('button', { name: 'Change icon', exact: true }).click();
   await expect(page.locator('.avatar-picker')).toBeVisible();
   expect(requests).toBe(2);
-  expect(await page.locator('.account-avatar img').getAttribute('src')).toBe(avatarBefore);
+  expect(await page.locator('.account-avatar img').getAttribute('src')).toBe(shownAfterReload);
+  expect(await savedIcon()).toEqual(iconBefore);
 });
 
 test('a cancelled cold sign-in sheet never reopens when its AuthPanel module arrives', async ({ page }) => {
