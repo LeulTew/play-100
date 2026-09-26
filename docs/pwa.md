@@ -55,6 +55,12 @@ No cookies or arbitrary/private response headers enter the embedded policy.
 
 The worker never stores APIs (including enrichment), auth helpers, Firebase,
 Google, account responses, user queries, private game state, passwords or forms.
+Personal-workspace shell navigation accepts the Library's numeric `page`
+parameter alongside `tab`: one integer from 1 through 9999, matching the URL
+writer. Invalid, repeated or oversized page values, private keys and unknown
+keys stay excluded. The cached shell remains `/index.html`, never a copy keyed
+by the visitor's page query. Prepared offline Library reloads retain page 2
+and later pages without persisting private state in the worker.
 It never requests push permission or adds background sync/another IndexedDB
 engine. Existing guest/account libraries, save validation, backups and consent
 remain independent of CacheStorage. Signing in offline is not promised.

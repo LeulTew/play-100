@@ -1,5 +1,7 @@
 import { createHash, webcrypto } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
+import { libraryPageSearch, myGamesSearch, parseLibraryPage } from '../lib/my-games-navigation';
+import { defaultFilters } from '../lib/url';
 import {
   installPwaWorker,
   isPublicPwaFile,
@@ -210,6 +212,45 @@ describe('PWA positive cache boundaries', () => {
       expect(isPwaShellNavigation(new URL(url, origin), origin)).toBe(false);
     }
   });
+  it.each([
+    '/my-games?page=1',
+    '/my-games?tab=library&page=2',
+    '/my-games?tab=ranking&page=9999',
+    '/my-library?page=2&catalogs=off',
+    '/my-rankings?page=25',
+  ])('allows a bounded Library page in its personal-workspace shell: %s', (path) => {
+    expect(isPwaShellNavigation(new URL(path, origin), origin)).toBe(true);
+  });
+  it.each([
+    '/my-games?page=',
+    '/my-games?page=0',
+    '/my-games?page=-1',
+    '/my-games?page=1.5',
+    '/my-games?page=01',
+    '/my-games?page=1e2',
+    '/my-games?page=10000',
+    '/my-games?page=Infinity',
+    '/my-games?page=private-note',
+    '/my-games?page=2&page=3',
+    '/my-games?tab=library&page=2&note=private',
+    '/my-games?page=2&access_token=private',
+    '/discover?page=2',
+    '/?page=2',
+    `/my-games?page=${'9'.repeat(2049)}`,
+  ])('rejects invalid, ambiguous or out-of-scope page queries: %s', (path) => {
+    expect(isPwaShellNavigation(new URL(path, origin), origin)).toBe(false);
+  });
+  it('agrees with every bounded Library page the URL writer can emit, including retained tab context', () => {
+    for (let page = 1; page <= 9999; page += 1) {
+      const search = libraryPageSearch('?tab=library&catalogs=off', page);
+      expect(parseLibraryPage(search)).toBe(page);
+      expect(isPwaShellNavigation(new URL(`/my-games${search}`, origin), origin)).toBe(true);
+    }
+    for (const tab of ['library', 'queue', 'ranking'] as const) {
+      const search = myGamesSearch(defaultFilters, tab, null, 9999);
+      expect(isPwaShellNavigation(new URL(`/my-games${search}`, origin), origin)).toBe(true);
+    }
+  });
   it('fails manifests outside byte/count/path/hash budgets', () => {
     expect(() => validatePwaManifest(manifest)).not.toThrow();
     expect(() =>
@@ -300,6 +341,19 @@ describe('version-bound offline security headers', () => {
       expect(response?.headers.get('Set-Cookie')).toBeNull();
     }
     expect(fallback?.headers.get('Cache-Control')).toBe('no-store');
+  });
+  it('serves a paged Library offline without caching the query or allowing a private query key', async () => {
+    const fixture = workerFixture();
+    await fixture.lifetime('install');
+    fixture.fetch.mockRejectedValue(new Error('Offline'));
+    const shell = await fixture.response(navigation(`${origin}/my-games?tab=library&page=2`));
+    expect(shell?.status).toBe(200);
+    expect(await shell?.text()).toBe('public fixture');
+    const denied = await fixture.response(navigation(`${origin}/my-games?tab=library&page=2&note=private`));
+    expect(denied?.status).toBe(503);
+    for (const cache of fixture.stores.values()) {
+      expect([...cache.entries.keys()].every((key) => new URL(key).search === '')).toBe(true);
+    }
   });
 
   it('preserves the previous document policy instead of applying a newer policy to old HTML', async () => {

@@ -45,6 +45,7 @@ const queryKeys = new Set([
   'progress',
   'game',
   'tab',
+  'page',
   'source',
   'offset',
   'online',
@@ -84,7 +85,11 @@ export function isPwaShellNavigation(url: URL, origin: string): boolean {
     !url.password &&
     shellRoutes.has(url.pathname) &&
     url.search.length <= 2048 &&
-    [...url.searchParams.keys()].every((key) => queryKeys.has(key))
+    [...url.searchParams.keys()].every((key) => queryKeys.has(key)) &&
+    (!url.searchParams.has('page') ||
+      (['/my-games', '/my-library', '/my-rankings'].includes(url.pathname) &&
+        url.searchParams.getAll('page').length === 1 &&
+        /^[1-9]\d{0,3}$/.test(url.searchParams.get('page') ?? '')))
   );
 }
 

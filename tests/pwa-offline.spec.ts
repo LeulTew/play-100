@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readLibrary } from './library-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
+import { installGuestLibrary, libraryFixture } from './library-pagination-helpers';
 
 test.use({ serviceWorkers: 'allow' });
 
@@ -25,6 +26,54 @@ async function cacheInventory(page: Page) {
     return result;
   });
 }
+
+test('a prepared worker reloads Library page 2 offline without losing the page or private records', async ({
+  page,
+  context,
+  browserName,
+  baseURL,
+}) => {
+  test.setTimeout(120000);
+  expect(browserName).toBe('chromium');
+  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) {
+    throw new Error('The paged offline proof requires a fresh loopback context.');
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await installGuestLibrary(page, libraryFixture(60), '/my-games?tab=library&page=2&catalogs=off');
+  const before = await readLibrary(page);
+  const expectedIds = Object.values(before.records)
+    .sort((left, right) => left.title.localeCompare(right.title))
+    .slice(25, 50)
+    .map((record) => record.id);
+  const pager = page.getByRole('navigation', { name: 'Library pages', exact: true });
+  await expect(pager.getByRole('combobox')).toHaveValue('2');
+  const settings = await openOfflineSettings(page);
+  await settings.getByRole('button', { name: 'Enable offline access', exact: true }).click();
+  await expect(settings.getByRole('button', { name: 'Offline files ready', exact: true })).toBeDisabled({
+    timeout: 45000,
+  });
+  await page.keyboard.press('Escape');
+  await context.setOffline(true);
+  try {
+    await page.reload();
+    await expect(page.locator('#my-games-title')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+    await expect(pager.getByRole('combobox')).toHaveValue('2');
+    await expect(pager).toContainText('26–50 of 60 matching games');
+    expect(new URL(page.url()).searchParams.get('page')).toBe('2');
+    expect(
+      await page
+        .locator('ul.personal-records > .personal-row-static')
+        .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
+    ).toEqual(expectedIds);
+    expect(await readLibrary(page)).toEqual(before);
+    for (const cache of await cacheInventory(page)) {
+      expect(cache.urls.every((url) => new URL(url).search === '')).toBe(true);
+    }
+  } finally {
+    await context.setOffline(false);
+  }
+});
 
 test('explicit offline preparation preserves guest data and serves fresh local routes without caching APIs or auth', async ({
   page,
