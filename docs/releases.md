@@ -100,7 +100,9 @@ its carry-forward.
   `mobile-nav-readability.spec.ts` 3/3 (plus its 3 skips by design),
   `played-ranking.spec.ts` 14/14, and the progress-sync cloud-UI test 2/2.
 - Candidate verification: 43/43 and 49/49.
-- Gitleaks 8.30.1 over `c877a04b..228493e8` (33 commits): 0 findings.
+- Gitleaks 8.30.1 over `c877a04b..228493e8` (33 commits): the parent's receipt
+  records no leaks found. That receipt summarizes the result; it is not the
+  scanner's raw report.
 
 **Validation stops.** Each was root-caused, and none was a product defect.
 - The queue touch-drag test aimed its handle at the next row's centre, so on
@@ -558,13 +560,18 @@ Do these in runbook order and record each readback.
    - `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`
 
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
-3. **Rules.** Publish `firestore.rules` from `228493e8` (Release 5), and only
-   while Release 5 or later is serving. Its SHA-256 is
-   `6c8ebcb2e8147753b8976eb8fedf739057c0469d6fda1f351e1c0fd887f3440d`
-   (105,291 bytes). It supersedes the unpublished Release 3 rules
-   (`9458021a…`) and Release 1 rules (`37e55c79…`). Readback: copy the
-   published text back and confirm its SHA-256 equals that value, then record
-   the version timestamp. The pre-release rollback archive is
+3. **Rules.** Publish `firestore.rules` from the Release 6 tree (R12), and only
+   while Release 6 or later is serving. Its SHA-256 is
+   `4f18213789aefc45b1834ac02d61903d1fe360c0e68f14f8128ccd30f8420a3f`
+   (107,103 bytes). It supersedes the unpublished Release 5 rules
+   (`6c8ebcb2…`), Release 3 rules (`9458021a…`) and Release 1 rules
+   (`37e55c79…`). Under it a Release 5 client gets the generic authorization
+   message in three cases only: publishing or selected-sharing a title with a
+   control or format character; saving a new or changed name that contains a
+   Hangul filler or U+2800, or holds only marks and spaces; and re-requesting,
+   or at the 1,000-pair cap releasing, within 10 minutes of its own cancel.
+   Readback: copy the published text back and confirm its SHA-256 equals that
+   value, then record the version timestamp. The pre-release rollback archive is
    `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
 4. **WAF.** Switch `api-per-ip` (`rule_api_per_ip_xpgBNf`, in **Log** mode since
    2026-09-25 09:49:22Z; see

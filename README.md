@@ -753,8 +753,10 @@ retains existing results and retries that page, not the first page. Anonymous
 Wikidata requests ask for public 300-second caching; normalized responses use
 short CDN caching. The FreeToGame snapshot also has a bounded per-instance
 cache, filled once for concurrent cold requests; this is not a durable database.
-Search admission is per instance (6 active, 90 upstream searches per minute) and
-the Vercel WAF rule is the global rate limit. Search upstreams must return JSON.
+Search admission is per instance (6 active, 90 upstream searches per minute).
+The Vercel WAF rule is the intended global rate limit, but it runs in Log mode,
+which records matches and blocks nothing, until its scheduled switch to 429.
+Search upstreams must return JSON.
 Owned HTTP error bodies are cancelled rather than read without a size bound.
 If cancellation fails, bounded logging records only a fixed message and status;
 the original HTTP/rate-limit error and no-store policy still reach the caller.
@@ -937,7 +939,8 @@ served entry/worker/manifest sizes against the budgets, and the key journeys.
 Retain these additional release receipts:
 
 - [ ] The local gate (see Quality checks) passed and was reviewed for the exact
-  `sourceCommit` being promoted, and the Gitleaks full-history scan is clean.
+  `sourceCommit` being promoted, and the Gitleaks full-history scan's redacted
+  raw report shows no findings (a summary of the result is not the report).
 - [ ] Record the local `budget-report.json` from that commit's build.
 - [ ] Record the new deployment ID/URL together with its verified `sourceCommit`
   metadata.
