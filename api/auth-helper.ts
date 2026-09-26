@@ -169,6 +169,14 @@ export default async function handler(request: IncomingMessage, response: Server
     return;
   }
   const helper = page as AuthHelperPage;
+  if (request.method === 'HEAD') {
+    // HEAD describes the helper document without fetching it, so it costs no upstream request. Only the fetched
+    // template determines the length, so Content-Length is omitted (RFC 9110 sections 8.6 and 9.3.2).
+    response.setHeader('Content-Security-Policy', authHelperCsp(randomBytes(16).toString('base64')));
+    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    response.writeHead(200).end();
+    return;
+  }
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(new HelperFailure(504, { reason: 'timeout' })),
@@ -217,7 +225,7 @@ export default async function handler(request: IncomingMessage, response: Server
     response.setHeader('Content-Security-Policy', authHelperCsp(nonce));
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
     response.setHeader('Content-Length', String(body.byteLength));
-    response.writeHead(200).end(request.method === 'HEAD' ? undefined : body);
+    response.writeHead(200).end(body);
   } catch (error: unknown) {
     if (response.destroyed) return;
     const failure =

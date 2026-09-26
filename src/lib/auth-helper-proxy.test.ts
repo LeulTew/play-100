@@ -136,16 +136,22 @@ describe('fresh-nonce Firebase Auth helper function', () => {
     expect(response.headers.get('content-security-policy')).not.toContain('unsafe-eval');
     expect(Number(response.headers.get('content-length'))).toBe(Buffer.byteLength(await response.text()));
   });
-  it('answers HEAD with the GET headers and no body', async () => {
-    upstreamHtml(HANDLER);
-    const response = await nativeFetch(`${base}/api/auth-helper?page=handler`, { method: 'HEAD' });
-    expect(response.status).toBe(200);
-    expect(headerNames(response)).toEqual(EXPECTED_HEADERS);
-    expect(nonceOf(response)).toMatch(NONCE);
-    expect(Number(response.headers.get('content-length'))).toBe(
-      Buffer.byteLength(HANDLER) - 'firebase-auth-helper'.length + 24,
-    );
-    expect(await response.text()).toBe('');
+  it('answers HEAD with the success headers and a fresh nonce but no upstream request, body or length', async () => {
+    const upstream = upstreamHtml(HANDLER);
+    const responses: Response[] = [];
+    for (const page of ['handler', 'iframe', 'handler'])
+      responses.push(await nativeFetch(`${base}/api/auth-helper?page=${page}`, { method: 'HEAD' }));
+    for (const response of responses) {
+      expect(response.status).toBe(200);
+      expect(headerNames(response)).toEqual(EXPECTED_HEADERS.filter((name) => name !== 'content-length'));
+      expect(nonceOf(response)).toMatch(NONCE);
+      expect(response.headers.get('content-security-policy')).toBe(authHelperCsp(nonceOf(response)));
+      expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
+      expect(await response.text()).toBe('');
+    }
+    expect(new Set(responses.map(nonceOf)).size).toBe(3);
+    expect((await nativeFetch(`${base}/api/auth-helper?page=links`, { method: 'HEAD' })).status).toBe(404);
+    expect(upstream).not.toHaveBeenCalled();
   });
   it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])(
     'refuses %s with 405 before any upstream request',

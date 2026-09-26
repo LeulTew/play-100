@@ -436,7 +436,7 @@ In-function limits are per instance and cannot stop distributed abuse:
 and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
 (a coalesced FreeToGame fill holds one slot). The auth helper
 (`/__/auth/handler` and `/__/auth/iframe`) fetches the upstream Firebase helper
-on every request and is never cached, so it needs the same global bound. This
+on every GET and is never cached, so it needs the same global bound. This
 WAF rule is the global control. Hobby allows one rate-limit rule per project, so
 one rule covers both prefixes; add exactly this one under Firewall → Configure →
 New rule:
@@ -464,6 +464,15 @@ project's first firewall config also enabled Vercel's default OWASP rule set
 block (ruling WAF-01-CRS). Remaining step: review the Log hits, then switch
 `api-per-ip` to 429 no earlier than 2026-10-02 and record the switch time in
 [releases.md](releases.md).
+
+**HEAD (R12).** The live conditions omit HEAD for `/api/`, unlike the table
+above. No function now does upstream work for HEAD: the catalog functions answer
+it with 405, and `api/auth-helper.ts` answers it with the helper's headers and a
+fresh-nonce CSP but no body, without fetching the upstream helper. A direct
+`HEAD /api/auth-helper?page=handler`, which the live rule does not match,
+therefore costs one function invocation, not an upstream fetch. When the rule
+is next edited (at the switch to 429), add HEAD to its `/api/` condition so it
+matches the table, and read the saved conditions back.
 
 ### App Check, monitor first
 
@@ -512,7 +521,8 @@ Production only, after promotion; preview origins are referrer-blocked.
    run (sign-in completes).
 3. `curl -i -X POST https://play-100-collection.vercel.app/__/auth/handler`
    returns 405 with `Allow: GET, HEAD`. `curl -I` on both documents returns 200
-   with the headers above.
+   with the headers above and a fresh nonce. HEAD does not fetch the upstream
+   helper, so only step 2's GET loads show that the helper template still loads.
 4. Any failure, or a Vercel function log `Auth helper upstream refused.` with
    `reason: drift`: use **Instant Rollback** to the previous release's
    deployment. Every Release 1 or later deployment also serves the fresh-nonce

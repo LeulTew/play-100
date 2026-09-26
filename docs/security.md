@@ -604,7 +604,8 @@ chunk inlines the whole `import.meta.env` object (a `BASE_URL` property or a
 
 **SEC-01: fresh per-response nonce on the auth helper documents.** The two HTML
 helpers, `/__/auth/handler` and `/__/auth/iframe`, rewrite to
-`api/auth-helper.ts` with a fixed `page`. The function GETs the fixed upstream
+`api/auth-helper.ts` with a fixed `page`. For a GET, the function fetches the
+fixed upstream
 `https://play100-online-48823b32.firebaseapp.com/__/auth/<page>` with only
 `Accept: text/html`: no client query, Cookie, Authorization or other header is
 forwarded. It then replaces exactly the value in `nonce="firebase-auth-helper"`
@@ -630,7 +631,15 @@ upstream `Cache-Control: max-age=1800` with no CSP or Set-Cookie. Tests use
 synthetic fixtures with the same markers (`src/lib/auth-helper-proxy.test.ts`).
 
 **GET/HEAD only.** Every other method gets 405 with `Allow: GET, HEAD` and is
-never sent upstream. Firebase Hosting substitutes a POST body into the handler's
+never sent upstream. Since R12, HEAD is never sent upstream either: it answers
+200 with the success headers and its own fresh-nonce CSP, `Content-Type:
+text/html; charset=utf-8` and no body. It omits `Content-Length`, which only the
+fetched template determines (RFC 9110 lets a HEAD response omit such a field,
+and forbids a `Content-Length` other than the GET's). A HEAD request therefore
+costs no upstream fetch, and it also no longer shows that the upstream template
+loads; only a GET does. HEAD stays supported rather than refused with 405 so
+that `curl -I` checks of the helper's own header policy keep working. Firebase
+Hosting substitutes a POST body into the handler's
 nonced `var POST_BODY = '{{POST_BODY}}'` script, and a fresh nonce cannot
 protect an injection inside an already-nonced block. The app enables only
 Google and Email/Password, with redirect flows that return via GET. **Provider
