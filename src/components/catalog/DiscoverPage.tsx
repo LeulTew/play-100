@@ -135,7 +135,7 @@ export default function DiscoverPage({
       ? `${localPage.start}–${localPage.end} of ${local.length} catalog games`
       : filters.q.trim()
         ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}`
-        : `${local.length} games · Illustrated first`;
+        : `${local.length} ${local.length === 1 ? 'game' : 'games'} · Illustrated first`;
   const catalogStatus = catalogLoading
     ? 'Loading the catalog…'
     : collection.status === 'error'

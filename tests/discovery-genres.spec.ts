@@ -201,3 +201,14 @@ test('changing a family cannot discard an invalid pending rating or replace its 
   await expect(family).toHaveValue('');
   expect(await readLibrary(page)).toEqual(before);
 });
+
+test('one unqueried Discover result is counted in the singular', async ({ page }) => {
+  await page.goto('/discover?source=collection&genre=Action-Adventure&year=2018&catalogs=off');
+  await ready(page);
+  await expect(page.locator('[data-catalog-id]')).toHaveCount(1);
+  await expect(page.locator('.discovery-results-heading')).toContainText('1 game · Illustrated first');
+  await page.goto('/discover?source=collection&year=2018&catalogs=off');
+  await ready(page);
+  await expect(page.locator('[data-catalog-id]')).toHaveCount(3);
+  await expect(page.locator('.discovery-results-heading')).toContainText('3 games · Illustrated first');
+});
