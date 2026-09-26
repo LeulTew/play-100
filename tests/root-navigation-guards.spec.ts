@@ -339,9 +339,14 @@ for (const roundtrip of [false, true]) {
     }
     const retained = page.url();
     await releaseSave(page);
-    await expect(
-      rankedList(page).getByRole('textbox', { name: `Your note for ${first.title}`, exact: true, includeHidden: true }),
-    ).toBeEnabled();
+    const savedNote = rankedList(page).getByRole('textbox', {
+      name: `Your note for ${first.title}`,
+      exact: true,
+      includeHidden: true,
+    });
+    // Back leaves the Ranking pane hidden, and a hidden pane releases its clean editors once the held save settles.
+    if (roundtrip) await expect(savedNote).toBeEnabled();
+    else await expect(savedNote).toHaveCount(0);
     await expectOneWrite(page, before.revision);
     await expect(page).toHaveURL(retained);
     expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.note).toBe(
