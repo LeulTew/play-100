@@ -125,7 +125,7 @@ describe('fresh-nonce Firebase Auth helper function', () => {
       'cdn-cache-control': 'no-store',
       'vercel-cdn-cache-control': 'no-store',
       'content-type': 'text/html; charset=utf-8',
-      'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+      'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), display-capture=()',
       'referrer-policy': 'no-referrer',
       'strict-transport-security': 'max-age=63072000; includeSubDomains',
       'x-content-type-options': 'nosniff',

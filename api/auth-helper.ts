@@ -77,7 +77,10 @@ function baseHeaders(response: ServerResponse): void {
   response.setHeader('Cache-Control', 'private, no-store, max-age=0');
   response.setHeader('CDN-Cache-Control', 'no-store');
   response.setHeader('Vercel-CDN-Cache-Control', 'no-store');
-  response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), display-capture=()',
+  );
   response.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
 }
 

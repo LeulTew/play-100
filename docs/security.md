@@ -530,6 +530,10 @@ and security-migration 63; see the [release ledger](releases.md#release-1-2026-0
 ## Headers, auth proxy and supply chain
 
 The main document uses COOP `same-origin` and CORP `same-origin`, without COEP.
+Both the main rule and the auth helper (its `vercel.json` rule and
+`api/auth-helper.ts`) send `Permissions-Policy: camera=(), microphone=(),
+geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(),
+display-capture=()`; the app uses none of these features.
 Source Google sign-in, linking and reauthentication use redirect methods only;
 no popup methods or window.opener flow were found. Its validated production
 authDomain is the application origin. The now-redundant firebaseapp.com origin
