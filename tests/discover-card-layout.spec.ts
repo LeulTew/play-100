@@ -64,6 +64,56 @@ test('Discover primary filters share aligned native select styling at 1440px', a
   }
 });
 
+test('Discover single-line and two-line titles start together without shrinking their targets', async ({
+  page,
+  isMobile,
+}) => {
+  await page.setViewportSize({ width: isMobile ? 393 : 1024, height: isMobile ? 851 : 1000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await emptyCatalogs(page);
+  const titles = ['Age of Empires', 'Age of Empires II: The Age of Kings'];
+  const titleItems = items.slice(0, titles.length).map((item, index) => ({
+    ...item,
+    record: { ...item.record, title: titles[index]! },
+  }));
+  await page.route('**/data/discovery/catalog.v1.json', (route) =>
+    route.fulfill({ json: { ...catalogFixture, items: titleItems } }),
+  );
+  await page.goto('/discover?catalogs=off');
+  const cards = page.locator('.discovery-cards-grid > .discovery-card');
+  await expect(cards).toHaveCount(titles.length);
+  await expect(cards.locator('h3 button')).toHaveText(titles);
+  await page.evaluate(() => document.fonts.ready);
+  const geometry = await cards.evaluateAll((elements) =>
+    elements.map((card) => {
+      const heading = card.querySelector('h3');
+      const button = heading?.querySelector('button');
+      if (!heading || !button) throw new Error('The title must keep its native button.');
+      // The 44px button box can hide text misalignment; measure its actual line fragments.
+      const range = document.createRange();
+      range.selectNodeContents(button);
+      const lines = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+      const firstLine = lines[0];
+      if (!firstLine) throw new Error('The full game title must have visible text.');
+      const bounds = button.getBoundingClientRect();
+      return {
+        cardTop: card.getBoundingClientRect().top,
+        firstLineTop: firstLine.top,
+        lines: lines.length,
+        height: bounds.height,
+        widthDifference: Math.abs(bounds.width - heading.getBoundingClientRect().width),
+        textFits: button.scrollHeight <= button.clientHeight + 1 && button.scrollWidth <= button.clientWidth + 1,
+      };
+    }),
+  );
+  expect(geometry.map((title) => title.lines)).toEqual([1, 2]);
+  for (const field of ['cardTop', 'firstLineTop'] as const) {
+    const positions = geometry.map((title) => title[field]);
+    expect(Math.max(...positions) - Math.min(...positions), field).toBeLessThanOrEqual(1);
+  }
+  expect(geometry.every((title) => title.height >= 44 && title.widthDifference <= 1 && title.textFits)).toBe(true);
+});
+
 test('Discover grid action rows align at 1024 and 393 without truncating text', async ({ page, isMobile }) => {
   await page.setViewportSize({ width: isMobile ? 393 : 1024, height: isMobile ? 851 : 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });

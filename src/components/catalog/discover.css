@@ -212,7 +212,8 @@
   overflow-wrap: anywhere;
 }
 .discovery-card h3 button {
-  display: block;
+  display: flex;
+  align-items: flex-start;
   min-height: 44px;
   min-width: 44px;
   width: 100%;

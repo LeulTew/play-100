@@ -141,6 +141,8 @@ weight, spacing and line height rather than smaller type to distinguish utility
 text. Only explicitly `aria-hidden` illustration lettering may use 11px.
 Card identities and metadata can wrap without changing the numbered jackets or
 native-size artwork. Increased text spacing must not clip controls or labels.
+Discover title buttons top-align the first line across single-line and wrapped
+names, retaining the full-width 44px target and aligned card actions.
 
 In forced colors, system-color borders, outlines and underlines distinguish
 focus and selected states without depending on lime fills. Native inputs and
