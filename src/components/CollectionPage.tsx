@@ -26,6 +26,7 @@ import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
 import { scrollCollectionIntoView } from './collection-landing';
 import { ComparePinButton } from './compare-tray/ComparePinButton';
+import { formatResultRange } from '../lib/local-pagination';
 
 const PAGE_SIZE = 24;
 
@@ -362,7 +363,8 @@ export default function CollectionPage({
                 )}
                 <div className="collection-end">
                   <p>
-                    Showing {Math.min(visibleCount, results.length)} of {results.length} games from the 100
+                    {results.length > 1 ? 'Showing ' : ''}
+                    {formatResultRange(results.length, 1, Math.min(visibleCount, results.length))} from the 100
                   </p>
                   {visibleCount < results.length ? (
                     <button

@@ -132,7 +132,13 @@ describe('workspace embedding contract', () => {
           },
         }),
       );
-      expect(html).toContain(`Showing ${total ? 1 : 0}–${Math.min(total, 25)} of ${total} matching games`);
+      expect(html).toContain(
+        total === 0
+          ? '0 matching games'
+          : total === 1
+            ? '1 matching game'
+            : `Showing 1–${Math.min(total, 25)} of ${total} matching games`,
+      );
       expect(html).toContain('Your library results</h3>');
       expect(html).toContain('role="status" aria-atomic="true"');
       expect(html.match(/class="personal-row personal-row-static"/g) ?? []).toHaveLength(Math.min(total, 25));

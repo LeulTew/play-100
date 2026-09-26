@@ -551,7 +551,7 @@ export default function DiscoverPage({
         {filters.online === 'auto' && localReady && localPage.pageCount > 1 && (
           <LocalPager
             label="Catalog pages"
-            itemLabel="catalog games"
+            itemLabel="catalog game"
             total={local.length}
             offset={localPage.offset}
             pageSize={DISCOVERY_PAGE_SIZE}

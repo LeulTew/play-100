@@ -207,7 +207,11 @@ test('0, 1, 25 and 26 matches use the shared exact boundaries and existing empty
     await installGuestLibrary(page, libraryFixture(total));
     await expect(libraryRows(page)).toHaveCount(Math.min(total, 25));
     await expect(page.locator('.library-results-boundary [role="status"]')).toHaveText(
-      `Showing ${total ? 1 : 0}–${Math.min(total, 25)} of ${total} matching games`,
+      total === 0
+        ? '0 matching games'
+        : total === 1
+          ? '1 matching game'
+          : `Showing 1–${Math.min(total, 25)} of ${total} matching games`,
     );
     if (total === 0) {
       await expect(page.getByRole('heading', { name: 'No games yet', exact: true })).toBeVisible();

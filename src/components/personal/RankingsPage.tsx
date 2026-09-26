@@ -18,7 +18,7 @@ import { flushPendingEdits, hasPendingEdits, useExitSave, usePendingEdits } from
 import { useLibraryMode } from '../../lib/library-mode';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
 import { focusPendingEditor } from '../../lib/dialog-focus';
-import { getLocalPage } from '../../lib/local-pagination';
+import { formatResultRange, getLocalPage } from '../../lib/local-pagination';
 import { LocalPager } from '../LocalPager';
 import './my-games.css';
 import './ranking-safety.css';
@@ -443,11 +443,12 @@ export default function RankingsPage({
           Your ranking results
         </h3>
         <p role="status" aria-atomic="true" className={page.pageCount > 1 ? 'sr-only' : 'section-help'}>
-          Showing {page.start}–{page.end} of {records.length} ranked games
+          {records.length > 1 ? 'Showing ' : ''}
+          {formatResultRange(records.length, page.start, page.end, 'ranked game')}
         </p>
         <LocalPager
           label="Ranking pages"
-          itemLabel="ranked games"
+          itemLabel="ranked game"
           total={records.length}
           offset={page.offset}
           pageSize={RANKING_PAGE_SIZE}

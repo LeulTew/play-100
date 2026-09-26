@@ -1,4 +1,4 @@
-import { getLocalPage } from '../lib/local-pagination';
+import { formatResultRange, getLocalPage } from '../lib/local-pagination';
 import './local-pager.css';
 
 export interface LocalPagerProps {
@@ -8,6 +8,7 @@ export interface LocalPagerProps {
   onOffsetChange: (offset: number) => void;
   disabled?: boolean;
   label?: string;
+  /** Singular label, such as "matching game". */
   itemLabel?: string;
 }
 
@@ -18,7 +19,7 @@ export function LocalPager({
   onOffsetChange,
   disabled = false,
   label = 'Result pages',
-  itemLabel = 'games',
+  itemLabel = 'game',
 }: LocalPagerProps) {
   const current = getLocalPage(total, pageSize, offset);
   if (current.pageCount < 2) return null;
@@ -75,9 +76,7 @@ export function LocalPager({
           Last
         </button>
       </div>
-      <p>
-        {current.start}–{current.end} of {total} {itemLabel}
-      </p>
+      <p>{formatResultRange(total, current.start, current.end, itemLabel)}</p>
     </nav>
   );
 }

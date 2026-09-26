@@ -21,7 +21,7 @@ import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveGamesDialog } from './RemoveGamesDialog';
 import { LocalPager } from '../LocalPager';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
-import { getLocalPage } from '../../lib/local-pagination';
+import { formatResultRange, getLocalPage } from '../../lib/local-pagination';
 import { useCommittedCue } from '../../hooks/useCommittedCue';
 import { useUrlState } from '../../hooks/useUrlState';
 import { myGamesTab, parseLibraryPage } from '../../lib/my-games-navigation';
@@ -445,7 +445,7 @@ export default function LibraryPage({
           busy={busy}
           selectAllLabel={
             tab !== 'later'
-              ? `Select all ${records.length} matching games${page.pageCount > 1 ? ` (all ${page.pageCount} pages)` : ''}`
+              ? `Select all ${records.length} matching ${records.length === 1 ? 'game' : 'games'}${page.pageCount > 1 ? ` (all ${page.pageCount} pages)` : ''}`
               : undefined
           }
           selectionHelp={
@@ -471,7 +471,8 @@ export default function LibraryPage({
             Your library results
           </h3>
           <p className={page.pageCount > 1 ? 'sr-only' : 'library-results-count'} role="status" aria-atomic="true">
-            Showing {page.start}–{page.end} of {records.length} matching games
+            {records.length > 1 ? 'Showing ' : ''}
+            {formatResultRange(records.length, page.start, page.end, 'matching game')}
           </p>
           <LocalPager
             total={records.length}
@@ -479,7 +480,7 @@ export default function LibraryPage({
             offset={page.offset}
             disabled={busy}
             label="Library pages"
-            itemLabel="matching games"
+            itemLabel="matching game"
             onOffsetChange={changePage}
           />
         </div>

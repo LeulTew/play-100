@@ -26,7 +26,7 @@ describe('LocalPager availability', () => {
         offset: 475,
         onOffsetChange,
         label: 'Library pages',
-        itemLabel: 'matching games',
+        itemLabel: 'matching game',
       }),
     );
     expect(html).toContain('aria-label="Library pages"');
