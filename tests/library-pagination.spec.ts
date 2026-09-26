@@ -645,7 +645,7 @@ test('detail pagination abandons an awaited save after Back closes the game, wit
   await expect(menu).toBeFocused();
 });
 
-test('Queue remains an unpaged full list beyond 25 and retains existing arrow order', async ({ page }) => {
+test('Queue uses its own bounded pager and retains global arrow order', async ({ page }) => {
   let fixture = libraryFixture(26);
   fixture = applyPersonalAction(fixture, {
     type: 'set-progress',
@@ -658,7 +658,9 @@ test('Queue remains an unpaged full list beyond 25 and retains existing arrow or
   await selectPage(page, 2);
   await tab(page, 'Queue').click();
   const queue = page.getByRole('list', { name: 'Your play order', exact: true });
-  await expect(queue.locator('.personal-row')).toHaveCount(26);
+  await expect(queue.locator('.personal-row')).toHaveCount(25);
+  const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+  await expect(queuePager.getByRole('combobox')).toHaveValue('1');
   await expect(pager(page)).toHaveCount(0);
   const first = fixture.records[fixture.queueOrder[0]!]!;
   await queue.getByRole('button', { name: `Move ${first.title} down in queue`, exact: true }).click();
@@ -667,10 +669,112 @@ test('Queue remains an unpaged full list beyond 25 and retains existing arrow or
     .toEqual(
       applyPersonalAction(fixture, { type: 'move-item', list: 'queue', id: first.id, overId: fixture.queueOrder[1]! }),
     );
+  await queuePager.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(queue.locator('.personal-row')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Your queue results', exact: true })).toBeFocused();
+  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await tab(page, 'Library').click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(rankingEditors(page)).toHaveCount(0);
+});
+
+for (const saved of [true, false]) {
+  test(`Queue paging waits for a pending edit and ${saved ? 'commits after its ACK' : 'stays put on rejection'}`, async ({
+    page,
+  }) => {
+    const base = libraryFixture(60);
+    const fixture = applyPersonalAction(base, {
+      type: 'set-progress',
+      records: Object.values(base.records),
+      key: 'later',
+      value: true,
+    });
+    await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
+    const queue = page.getByRole('list', { name: 'Your play order', exact: true });
+    const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+    const ids = await queue
+      .locator('.personal-row')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id')));
+    await heldEditor(page);
+    await queuePager.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-library-flush-count', '1');
+    await expect(queuePager.getByRole('combobox')).toHaveValue('1');
+    expect(
+      await queue.locator('.personal-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
+    ).toEqual(ids);
+    await finishEditor(page, saved);
+    if (saved) {
+      await expect(queuePager.getByRole('combobox')).toHaveValue('2');
+      await expect(page.getByRole('heading', { name: 'Your queue results', exact: true })).toBeFocused();
+    } else {
+      await expect(page.getByRole('alert').filter({ hasText: 'Your edit has not saved' })).toBeVisible();
+      await expect(queuePager.getByRole('combobox')).toHaveValue('1');
+      expect(
+        await queue.locator('.personal-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
+      ).toEqual(ids);
+    }
+    await releaseEditor(page);
+    expect(await readLibrary(page)).toEqual(fixture);
+  });
+}
+
+test('Queue search retains the bounded rows while an editor is pending and applies when it settles', async ({
+  page,
+}) => {
+  const base = libraryFixture(60);
+  const fixture = applyPersonalAction(base, {
+    type: 'set-progress',
+    records: Object.values(base.records),
+    key: 'later',
+    value: true,
+  });
+  await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
+  const queue = page.getByRole('list', { name: 'Your play order', exact: true });
+  const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+  await queuePager.getByRole('combobox').selectOption('2');
+  const ids = await queue
+    .locator('.personal-row')
+    .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id')));
+  await heldEditor(page);
+  const first = fixture.records[fixture.queueOrder[0]!]!;
+  await page.getByRole('searchbox', { name: 'Search your queue', exact: true }).fill(first.title);
+  expect(
+    await queue.locator('.personal-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
+  ).toEqual(ids);
+  await expect(queue.locator('.personal-row')).toHaveCount(25);
+  await releaseEditor(page);
+  await expect(queue.locator('.personal-row').first()).toHaveAttribute('data-record-id', first.id);
+  await page.getByRole('searchbox', { name: 'Search your queue', exact: true }).fill('');
+  await expect(queuePager.getByRole('combobox')).toHaveValue('1');
+  expect(await readLibrary(page)).toEqual(fixture);
+});
+
+test('a queued boundary move cannot follow or steal focus after a native-history tab exit', async ({ page }) => {
+  const base = libraryFixture(60);
+  const fixture = applyPersonalAction(base, {
+    type: 'set-progress',
+    records: Object.values(base.records),
+    key: 'later',
+    value: true,
+  });
+  await installGuestLibrary(page, fixture);
+  await tab(page, 'Queue').click();
+  const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+  await queuePager.getByRole('combobox').selectOption('2');
+  const moved = fixture.records[fixture.queueOrder[25]!]!;
+  await heldEditor(page);
+  await page.getByRole('button', { name: `Move ${moved.title} up in queue`, exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-library-flush-count', '1');
+  await page.goBack();
+  await expect(tab(page, 'Library')).toHaveAttribute('aria-current', 'page');
+  const target = tab(page, 'Library');
+  await target.focus();
+  await finishEditor(page);
+  await releaseEditor(page);
+  await expect(target).toBeFocused();
+  await expect(queuePager).toHaveCount(0);
+  expect(await readLibrary(page)).toEqual(fixture);
 });
 
 test('320px Library pager and results are keyboard reachable, 44px, contained and accessible', async ({

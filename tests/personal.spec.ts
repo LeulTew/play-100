@@ -113,6 +113,8 @@ test('play queue reorders by keyboard and accessible arrows, then survives reloa
   await seedLegacy(page);
   await page.goto('/my-library?list=later');
   await expect(page.locator('.personal-row')).toHaveCount(3);
+  await expect(page.getByRole('navigation', { name: 'Queue pages', exact: true })).toHaveCount(0);
+  await expect(page.locator('.library-results-count')).toHaveText('Showing 1–3 of 3 queued games');
   const handle = page.getByRole('button', { name: 'Drag Red Dead Redemption 2 to reorder your queue', exact: true });
   await page.evaluate(() => document.fonts.ready);
   await handle.focus();

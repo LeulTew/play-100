@@ -27,6 +27,10 @@ import { useUrlState } from '../../hooks/useUrlState';
 import { myGamesTab, parseLibraryPage } from '../../lib/my-games-navigation';
 import { pageFromPath } from '../../lib/url';
 import type { CommittedCue } from '../../lib/route-continuity';
+import { usePendingEdits } from '../../hooks/useExitSave';
+import { useNavigationScope } from '../../hooks/useNavigationScope';
+import { useLibraryMode } from '../../lib/library-mode';
+import { focusPendingEditor } from '../../lib/dialog-focus';
 import './library-pagination.css';
 
 const LIBRARY_PAGE_SIZE = 25;
@@ -78,17 +82,44 @@ export default function LibraryPage({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [removing, setRemoving] = useState<LibraryRecord[]>([]);
+  const tab = workspaceView
+    ? workspaceView === 'queue'
+      ? 'later'
+      : completedOnly
+        ? 'completed'
+        : 'all'
+    : filters.list === 'completed'
+      ? 'completed'
+      : filters.list === 'later'
+        ? 'later'
+        : 'all';
   const { page: hostPage, libraryPage: urlPage, changeLibraryPage: changeUrlPage } = useUrlState();
-  const usesUrlPage = hostPage === 'games' || hostPage === 'library' || hostPage === 'rankings';
+  const usesUrlPage = tab !== 'later' && (hostPage === 'games' || hostPage === 'library' || hostPage === 'rankings');
   const [localPage, setLocalPage] = useState(1);
-  const libraryPage = usesUrlPage ? urlPage : localPage;
+  const [queuePage, setQueuePage] = useState(1);
+  const libraryPage = tab === 'later' ? queuePage : usesUrlPage ? urlPage : localPage;
   const changeLibraryPage = useCallback(
     (nextPage: number, method: 'push' | 'replace' = 'push') => {
-      if (usesUrlPage) changeUrlPage(nextPage, method);
+      if (tab === 'later') setQueuePage(nextPage);
+      else if (usesUrlPage) changeUrlPage(nextPage, method);
       else setLocalPage(nextPage);
     },
-    [usesUrlPage, changeUrlPage],
+    [tab, usesUrlPage, changeUrlPage],
   );
+  const pendingEdits = usePendingEdits();
+  const mode = useLibraryMode();
+  const { captureFocusGuard } = useNavigationScope(mode.scope);
+  const queueResults = useRef<HTMLDivElement>(null);
+  const moveCommand = useRef(false);
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState('');
+  const [followMove, setFollowMove] = useState<{
+    id: string;
+    position: number;
+    offset: number;
+    revision: number;
+    isCurrent: () => boolean;
+  } | null>(null);
   const [pageCue, setPageCue] = useState<CommittedCue | null>(null);
   const pageCueSerial = useRef(0);
   const pageCueLease = useRef(0);
@@ -104,17 +135,6 @@ export default function LibraryPage({
     [state.queueOrder],
   );
   const rankedIds = useMemo(() => new Set(state.ranking.map((entry) => entry.id)), [state.ranking]);
-  const tab = workspaceView
-    ? workspaceView === 'queue'
-      ? 'later'
-      : completedOnly
-        ? 'completed'
-        : 'all'
-    : filters.list === 'completed'
-      ? 'completed'
-      : filters.list === 'later'
-        ? 'later'
-        : 'all';
   const progressView = progressFilter ?? (completedOnly ? 'completed' : effectiveProgressFilter(filters));
   const records = useMemo(() => {
     const ordered =
@@ -136,30 +156,38 @@ export default function LibraryPage({
       ? (libraryPage - 1) * LIBRARY_PAGE_SIZE
       : 0,
   );
-  const current = useRef({ active, definition, total: records.length, offset: page.offset, libraryPage });
+  const current = useRef({ active, definition, total: records.length, offset: page.offset, libraryPage, state });
   if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
-  current.current = { active, definition, total: records.length, offset: page.offset, libraryPage };
+  current.current = { active, definition, total: records.length, offset: page.offset, libraryPage, state };
   useCommittedCue(
     pageBoundary,
     pageCue,
-    active && tab !== 'later' && !busy,
+    active && !busy && !moving && !pendingEdits,
     () => mounted.current && current.current.active && generation.current === pageCueLease.current,
   );
-  const visibleRecords = tab === 'later' ? records : records.slice(page.offset, page.offset + LIBRARY_PAGE_SIZE);
+  const visibleQueue = useRef<LibraryRecord[]>([]);
+  // Retain the bounded Queue page while an editor is saving, even if an external change reorders it.
+  if (!pendingEdits || visibleQueue.current.length === 0) {
+    visibleQueue.current = tab === 'later' ? records.slice(page.offset, page.offset + LIBRARY_PAGE_SIZE) : [];
+  }
+  const visibleRecords =
+    tab === 'later' ? visibleQueue.current : records.slice(page.offset, page.offset + LIBRARY_PAGE_SIZE);
   const selectedRecords = records.filter((record) => selected.has(record.id));
   useEffect(() => {
     setSelected(new Set());
   }, [tab, query, progressView, active]);
   useEffect(() => {
     setQuery('');
+    setMoveError('');
   }, [tab]);
   useEffect(() => {
+    if (tab === 'later' && pendingEdits) return;
     previousDefinition.current = definition;
     previousQuery.current = query;
-    if (active && tab !== 'later' && libraryPage !== Math.max(1, page.page)) {
+    if (active && libraryPage !== Math.max(1, page.page)) {
       changeLibraryPage(Math.max(1, page.page), 'replace');
     }
-  }, [active, tab, query, definition, libraryPage, page.page, changeLibraryPage]);
+  }, [active, tab, query, definition, libraryPage, page.page, changeLibraryPage, pendingEdits]);
   useEffect(() => {
     mounted.current = true;
     const restorePage = () => {
@@ -193,10 +221,40 @@ export default function LibraryPage({
   // A page change takes focus once the requested page has rendered, so the one layout it forces
   // already holds the new rows, and the frame, focus, scroll and page cue all reuse it.
   useLayoutEffect(() => {
-    if (!focusAfterPage.current) return;
+    if (!focusAfterPage.current || pendingEdits) return;
     focusAfterPage.current = false;
     if (mounted.current && current.current.active) focusResults();
   });
+  useLayoutEffect(() => {
+    if (!followMove || !active || busy || moving || pendingEdits) return;
+    if (!followMove.isCurrent() || tab !== 'later') {
+      setFollowMove(null);
+      return;
+    }
+    const position = queuePositions.get(followMove.id);
+    if (state.revision <= followMove.revision || position !== followMove.position) return;
+    const offset = Math.floor((position - 1) / LIBRARY_PAGE_SIZE) * LIBRARY_PAGE_SIZE;
+    if (offset === followMove.offset) {
+      setFollowMove(null);
+      return;
+    }
+    if (page.offset !== offset) {
+      pageCueLease.current = generation.current;
+      setPageCue({
+        serial: ++pageCueSerial.current,
+        kind: 'library-page',
+        direction: offset > page.offset ? 1 : -1,
+      });
+      setQueuePage(offset / LIBRARY_PAGE_SIZE + 1);
+      return;
+    }
+    const title = queueResults.current?.querySelector<HTMLElement>(
+      `[data-record-id="${CSS.escape(followMove.id)}"] .record-title`,
+    );
+    if (!title) return;
+    focusPendingEditor(title);
+    setFollowMove(null);
+  }, [followMove, active, busy, moving, pendingEdits, tab, queuePositions, state.revision, page.offset]);
   useEffect(() => {
     if (removing.length) return;
     const requested = removalFocus.current;
@@ -205,7 +263,8 @@ export default function LibraryPage({
       focusResults();
   }, [removing.length, active]);
   const changePage = (offset: number) => {
-    if (busy || !active || tab === 'later') return;
+    if ((busy && tab !== 'later') || !active || moving) return;
+    setFollowMove(null);
     const next = getLocalPage(records.length, LIBRARY_PAGE_SIZE, offset);
     if (next.offset === page.offset) return;
     const request = generation.current;
@@ -233,6 +292,42 @@ export default function LibraryPage({
     setRemoving(chosen);
   };
   const canReorder = tab === 'later' && !query && !selecting && progressView === 'all';
+  const move = async (id: string, overId: string) => {
+    if (!active || busy || !canReorder || moveCommand.current) return;
+    const request = generation.current;
+    const scopeAndNavigation = captureFocusGuard();
+    const isCurrent = () =>
+      mounted.current && current.current.active && generation.current === request && scopeAndNavigation();
+    moveCommand.current = true;
+    setMoving(true);
+    setMoveError('');
+    setFollowMove(null);
+    try {
+      const saved = await onPresentationChange(() => {});
+      if (!saved || !isCurrent()) return;
+      const { queueOrder, revision } = current.current.state;
+      const from = queueOrder.indexOf(id);
+      const to = queueOrder.indexOf(overId);
+      if (from < 0 || to < 0) {
+        setMoveError('That queue position is no longer available. Choose a current position and retry.');
+        return;
+      }
+      if (from === to) return;
+      const moved = await onAction({ type: 'move-item', list: 'queue', id, overId });
+      if (!isCurrent()) return;
+      if (!moved) {
+        setMoveError('The position could not be saved. Your queue has not moved; retry.');
+        return;
+      }
+      setFollowMove({ id, position: to + 1, offset: current.current.offset, revision, isCurrent });
+    } catch (cause) {
+      console.error('The Queue change could not finish.', cause);
+      if (isCurrent()) setMoveError('The queue could not be changed. Your current view is still open; retry.');
+    } finally {
+      moveCommand.current = false;
+      if (mounted.current) setMoving(false);
+    }
+  };
   const filtered = Boolean(query || progressView !== 'all');
   const firstRunEmpty = Object.keys(state.records).length === 0 && !filtered && !selecting;
   const clearView = () => {
@@ -433,8 +528,13 @@ export default function LibraryPage({
       {tab === 'later' && records.length > 0 && (
         <p className="queue-instructions">
           {canReorder
-            ? 'Drag or use arrows to reorder. Completed games can stay here for a replay.'
+            ? 'Drag and keyboard sorting stay on this page; move arrows can cross pages. Completed games can stay here for a replay.'
             : 'Clear search, progress filters and selection to reorder.'}
+        </p>
+      )}
+      {tab === 'later' && pendingEdits && (
+        <p className="section-help" role="status">
+          Pending edits keep the current queue rows visible. Finish or retry the unsaved edit to update the results.
         </p>
       )}
       {selecting && (
@@ -443,16 +543,8 @@ export default function LibraryPage({
           count={selectedRecords.length}
           total={records.length}
           busy={busy}
-          selectAllLabel={
-            tab !== 'later'
-              ? `Select all ${records.length} matching ${records.length === 1 ? 'game' : 'games'}${page.pageCount > 1 ? ` (all ${page.pageCount} pages)` : ''}`
-              : undefined
-          }
-          selectionHelp={
-            tab !== 'later'
-              ? 'Selection includes matching games on other pages. Changing filters or tabs clears it.'
-              : undefined
-          }
+          selectAllLabel={`Select all ${records.length} matching ${records.length === 1 ? 'game' : 'games'}${page.pageCount > 1 ? ` (all ${page.pageCount} pages)` : ''}`}
+          selectionHelp="Selection includes matching games on other pages. Changing filters or tabs clears it."
           onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))}
           onClear={() => setSelected(new Set())}
           onDone={() => {
@@ -465,41 +557,51 @@ export default function LibraryPage({
           onRemove={() => requestRemoval(selectedRecords)}
         />
       )}
-      {tab !== 'later' && (
-        <div ref={pageBoundary} className="library-results-boundary">
-          <h3 ref={resultsHeading} tabIndex={-1}>
-            Your library results
-          </h3>
-          <p className={page.pageCount > 1 ? 'sr-only' : 'library-results-count'} role="status" aria-atomic="true">
-            {records.length > 1 ? 'Showing ' : ''}
-            {formatResultRange(records.length, page.start, page.end, 'matching game')}
-          </p>
-          <LocalPager
-            total={records.length}
-            pageSize={LIBRARY_PAGE_SIZE}
-            offset={page.offset}
-            disabled={busy}
-            label="Library pages"
-            itemLabel="matching game"
-            onOffsetChange={changePage}
-          />
-        </div>
+      <div ref={pageBoundary} className="library-results-boundary">
+        <h3 ref={resultsHeading} tabIndex={-1}>
+          {tab === 'later' ? 'Your queue results' : 'Your library results'}
+        </h3>
+        <p className={page.pageCount > 1 ? 'sr-only' : 'library-results-count'} role="status" aria-atomic="true">
+          {records.length > 1 ? 'Showing ' : ''}
+          {formatResultRange(records.length, page.start, page.end, tab === 'later' ? 'queued game' : 'matching game')}
+        </p>
+        <LocalPager
+          total={records.length}
+          pageSize={LIBRARY_PAGE_SIZE}
+          offset={page.offset}
+          disabled={tab === 'later' ? !active || moving : busy}
+          label={tab === 'later' ? 'Queue pages' : 'Library pages'}
+          itemLabel={tab === 'later' ? 'queued game' : 'matching game'}
+          onOffsetChange={changePage}
+        />
+      </div>
+      {moveError && tab === 'later' && (
+        <p className="inline-error" role="alert">
+          {moveError}
+        </p>
       )}
-      {records.length ? (
+      {visibleRecords.length ? (
         tab === 'later' ? (
-          <ReorderList
-            records={records}
-            kind="queue"
-            canReorder={canReorder}
-            busy={busy}
-            animate={animate}
-            positionFor={(id) => queuePositions.get(id) ?? null}
-            onMove={(id, overId) => {
-              void onAction({ type: 'move-item', list: 'queue', id, overId });
-            }}
-          >
-            {renderRecord}
-          </ReorderList>
+          <div ref={queueResults}>
+            <ReorderList
+              records={visibleRecords}
+              kind="queue"
+              canReorder={canReorder}
+              busy={busy || moving}
+              animate={animate}
+              positionFor={(id) => queuePositions.get(id) ?? null}
+              totalItems={state.queueOrder.length}
+              neighborsFor={(id) => {
+                const index = (queuePositions.get(id) ?? 0) - 1;
+                return { previous: state.queueOrder[index - 1], next: state.queueOrder[index + 1] };
+              }}
+              onMove={(id, overId) => {
+                void move(id, overId);
+              }}
+            >
+              {renderRecord}
+            </ReorderList>
+          </div>
         ) : (
           <ul className="personal-records" aria-label="Your games">
             {visibleRecords.map((record) => (
@@ -553,7 +655,7 @@ export default function LibraryPage({
             if (success && mounted.current) {
               const removed = new Set(ids);
               setSelected((prior) => new Set([...prior].filter((id) => !removed.has(id))));
-              if (tab !== 'later' && current.current.active && request === generation.current) {
+              if (current.current.active && request === generation.current) {
                 removalFocus.current = { trigger: removalTrigger.current, generation: request };
               }
             }
