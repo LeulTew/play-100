@@ -48,8 +48,8 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | Firebase owner identity | Set `_owner/config.uid` to the verified owner UID while keeping `email`; reopen and confirm both fields. Do not publish the UID in receipts. |
 | Three Firestore indexes | Collection scope: `entries`: `format ASC, epoch ASC, active ASC, entry.title ASC`; `entries`: `format ASC, epoch ASC, active ASC, entry.position ASC`; `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`. All three must show Enabled; delete nothing. |
 | Firebase rules | Owner publishes reviewed `firestore.rules`; the R11 (Release 5) SHA-256 is `6c8ebcb2e8147753b8976eb8fedf739057c0469d6fda1f351e1c0fd887f3440d`, and it may be published only while Release 5 or later is serving, because its handle claims need that client. Copy published text back, compare its hash, record publication time and retain the previous rules archive. A later changed rules file requires a new explicit reviewed hash, not reuse of this receipt. |
-| Real Google Auth | Production desktop and mobile sign-in, link and reauthentication return signed in without CSP errors; emulator tests cannot certify real credentials, MFA or provider configuration. |
-| WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Do not invent a completed switch or modify the log-only OWASP rules. |
+| Real Google Auth | Production desktop and mobile sign-in, link and reauthentication return signed in without CSP errors; emulator tests cannot certify real credentials, MFA or provider configuration. Reaching Google's sign-in page shows only that the redirect started; it is not a pass. |
+| WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
 
 Use the [security promotion order](security-release-runbook.md#promotion-order)
@@ -92,7 +92,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Browser install failed' }
 Use an existing Chrome installation or the documented owner-approved
 `npx --no-install playwright install chrome` step. Retain the install audit and
 Node/npm versions. The maintainer must also retain the full-history Gitleaks
-scan described in [Quality checks](../README.md#quality-checks).
+scan described in [Quality checks](../README.md#quality-checks): the scanner's
+redacted JSON report and command log, not only a summary of its result.
 
 ## 2. Candidate-bound local gate
 

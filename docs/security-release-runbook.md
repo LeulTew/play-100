@@ -17,7 +17,9 @@ repository but are disabled by the owner; no hosted check gates a release. The
 gate is the local suites plus review (README "Quality checks"): unit/browser,
 cloud emulator, e2e production and development, cloud-UI, `tsc`, lint, build,
 `check:csp`, `check:budgets`, and `npm audit` / `npm audit signatures` at install.
-The parent's Gitleaks full-history scan remains a pre-merge step. Each promotion's
+The parent's Gitleaks full-history scan remains a pre-merge step. Keep the
+scanner's redacted JSON report and command log with the release evidence: a
+receipt that summarizes the result is not the scanner's report. Each promotion's
 readback, checks and pending owner actions are recorded in the
 [release ledger](releases.md).
 
@@ -437,7 +439,8 @@ and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
 (a coalesced FreeToGame fill holds one slot). The auth helper
 (`/__/auth/handler` and `/__/auth/iframe`) fetches the upstream Firebase helper
 on every GET and is never cached, so it needs the same global bound. This
-WAF rule is the global control. Hobby allows one rate-limit rule per project, so
+WAF rule is the global control once it enforces with 429; in Log mode it records
+matches and blocks nothing. Hobby allows one rate-limit rule per project, so
 one rule covers both prefixes; add exactly this one under Firewall → Configure →
 New rule:
 
@@ -518,6 +521,8 @@ Production only, after promotion; preview origins are referrer-blocked.
 
 1. Desktop and a mobile viewport: Google sign-in by redirect, then link Google
    to an Email/Password account, then reauthenticate. Each must return to the
+   app signed in. Reaching Google's account chooser or sign-in page shows only
+   that the redirect started; record a pass only for a flow that returned to the
    app signed in.
 2. DevTools → Network on `/__/auth/handler` and `/__/auth/iframe`:
    - status 200;

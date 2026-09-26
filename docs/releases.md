@@ -232,8 +232,10 @@ its decision.
 - Candidate verification: 43/43 and 47/47. The first candidate,
   `dpl_FQWRzCpyXNm2rNfRQohV9gSSrv9o` (built from `720082df`), was superseded
   and never promoted.
-- Gitleaks 8.30.1 over `f8ba8549..c877a04b` (26 commits): 0 findings. An
-  independent review of the runtime commits found no issues.
+- Gitleaks 8.30.1 over `f8ba8549..c877a04b` (26 commits): the parent's receipt
+  records no leaks found. That receipt summarizes the result; it is not the
+  scanner's raw report. An independent review of the runtime commits found no
+  issues.
 
 **Validation stops.** Each was root-caused, and none was a product defect.
 - The configured-build harness read the budget rows through a field the report
@@ -302,7 +304,9 @@ the details.
 - Security: display names reject control and format characters, confusable
   reserved handles are refused, other users' names render isolated, the unused
   Firebase Installations origin is gone from connect-src, and reviewed install
-  scripts are pinned.
+  scripts are recorded in `allowScripts`. The npm 11 used for this release only
+  warns about unapproved scripts, so that list is advisory
+  ([install scripts](security.md#headers-auth-proxy-and-supply-chain)).
 - Readiness: the share card uses the brand fonts, the missing licence notices
   are added, and `npm run release:manifest` records each release's evidence.
 
@@ -396,7 +400,8 @@ carry-forward.
   intermittent). `friend-all-review` three times: 54/54.
 - Ranking with 2,000 games: opens in 82 ms with 25 rows mounted.
 - Candidate verification: 47/47. Gitleaks 8.30.1 over `80df63f9..f8ba8549`
-  (59 commits): 0 findings.
+  (59 commits): the parent's receipt records no leaks found. That receipt
+  summarizes the result; it is not the scanner's raw report.
 
 **Receipts,** kept outside the repository:
 

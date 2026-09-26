@@ -153,7 +153,10 @@ bounded-admission helper (`api/_lib/admission.ts`) caps detail at 4 active and
 per minute, releasing each slot in `finally` (success, failure or client abort).
 Concurrent cold FreeToGame requests share one snapshot fill, and search upstream
 responses must be `application/json`. The Vercel WAF rule in the runbook is the
-global control; it and its deployment evidence remain with the parent/integrator.
+intended global control, but it runs in Log mode, which records matches and
+blocks nothing, until its scheduled switch to 429; until then only these
+per-instance limiters bound requests. The rule and its deployment evidence
+remain with the parent/integrator.
 
 ### Preview referrers and production smoke
 
@@ -685,7 +688,9 @@ Vercel installs with `npm ci`. The GitHub workflows (CI, CodeQL, Dependency
 review, Secret scan) remain in the repository but are disabled by the owner, so
 `npm audit` and `npm audit signatures` run locally after each install as part of
 the release gate (local suites plus review; README "Quality checks"), and the
-maintainer's full-history Gitleaks scan remains a pre-merge step.
+maintainer's full-history Gitleaks scan remains a pre-merge step. Its evidence
+is the scanner's redacted JSON report and command log; a summary of the result
+is a reading of the scan, not the scanner's output.
 Registry availability/signature failures remain real failures for review, not
 reasons to bypass integrity. This does not replace Dependabot, code scanning or
 runtime testing.
@@ -703,8 +708,9 @@ patched version itself.
 **Install scripts (R9).** `package.json` `allowScripts` records the reviewed
 dependency lifecycle scripts at their exact locked versions. Only npm 12 and
 later enforce it by blocking scripts that are not approved. The recorded
-installs used npm 11 (11.16.0), which only warns, and npm is not pinned locally
-or on Vercel, so on npm 11 the list is advisory documentation, not a control.
+installs used npm 11 (11.16.0 at R9; the Release 5 audit ran 11.19.0), which
+only warns, and npm is not pinned locally or on Vercel, so on npm 11 the list is
+advisory documentation, not a control, and no release gate counts it as one.
 Five packages in the lock have an install script; the first four are approved:
 - `esbuild@0.28.2` (dev, Vite's bundler): its postinstall checks that the
   platform-specific esbuild binary package was installed and works.
@@ -821,6 +827,6 @@ adoption; otherwise drop the commit.
 | H8 nonce and five helper routes | SEC-01 fresh per-response nonce via `api/auth-helper.ts`, GET/HEAD only; production auth smoke required |
 | H9 COOP/CORP and main auth-origin reduction | Redirect-only source compatible; verify final public headers and share-image override |
 | Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
-| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; parent/I per-IP WAF evidence required |
+| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; the per-IP WAF rule runs in Log mode until its 429 switch, so parent/I enforcement evidence is required |
 | H12 npm ci/signatures | Local install/build gate only; no runtime account change |
 | H14 controls | Parent's dated black-box evidence above; App Check/reCAPTCHA accepted risks, not enforced. Authenticated console still required for UID setup and rules publication. |
