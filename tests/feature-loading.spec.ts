@@ -70,6 +70,73 @@ test('native Back before the cold detail/parser module arrives cannot reopen a c
   }
 });
 
+for (const finish of ['Escape', 'Close', 'load'] as const) {
+  test(`a cold catalog detail owns loading focus and supports ${finish}`, async ({ page }) => {
+    let release = () => {};
+    let requested = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      requested = resolve;
+    });
+    const chunk = /\/assets\/CatalogDetail-[^/]+\.js(?:\?|$)/;
+    await page.route(chunk, async (route) => {
+      requested();
+      await gate;
+      await route.continue();
+    });
+    try {
+      await page.goto('/discover?q=Kingdomcome&catalogs=off');
+      const opener = page
+        .locator('[data-catalog-id="wikidata:Q15408545"]')
+        .getByRole('button', { name: 'Kingdom Come: Deliverance', exact: true });
+      await expect(opener).toBeVisible();
+      const before = await readLibrary(page);
+      await opener.click();
+      await started;
+      const loading = page.getByRole('dialog', { name: 'Opening game…', exact: true });
+      await expect(loading).toBeVisible();
+      await expect(loading.getByRole('heading', { name: 'Opening game…', exact: true })).toBeFocused();
+      expect(await loading.evaluate((element) => element.matches(':modal'))).toBe(true);
+      await expect(loading.getByRole('status')).toHaveText('Loading its details.');
+      await expect(loading.locator('input, textarea, select')).toHaveCount(0);
+      await expect(page.locator('.catalog-detail-rating')).toHaveCount(0);
+      await expect(page).toHaveURL((url) => url.searchParams.has('game'));
+      if (finish === 'load') {
+        release();
+        await expect(page.locator('#catalog-game-title')).toBeFocused();
+        await expect(loading).toHaveCount(0);
+        await expect(page.locator('dialog[open]')).toHaveCount(1);
+        await expect(page).toHaveURL((url) => url.searchParams.has('game'));
+        await page.keyboard.press('Escape');
+      } else {
+        if (finish === 'Escape') await page.keyboard.press('Escape');
+        else await loading.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        await expect(page.locator('dialog[open]')).toHaveCount(0);
+        await expect(page).not.toHaveURL((url) => url.searchParams.has('game'));
+        await expect(opener).toBeFocused();
+        const delivered = page.waitForEvent('requestfinished', (request) => chunk.test(request.url()));
+        release();
+        await delivered;
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+            }),
+        );
+      }
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+      await expect(page).not.toHaveURL((url) => url.searchParams.has('game'));
+      await expect(opener).toBeFocused();
+      expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+      expect(await readLibrary(page)).toEqual(before);
+    } finally {
+      release();
+    }
+  });
+}
+
 test('a failed cold detail module surfaces recovery without deleting saved device data', async ({ page }) => {
   let requests = 0;
   await page.route(/\/assets\/CatalogDetail-[^/]+\.js(?:\?|$)/, (route) =>

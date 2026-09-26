@@ -8,6 +8,9 @@ previews and account state. It composes `MotionProvider`, `AppMotionBindings`,
 [RouteHost](../src/components/app/RouteHost.tsx) selects page content and loads
 the online controller lazily. [DialogHost](../src/components/app/DialogHost.tsx)
 renders the selected detail or utility dialog without owning its saved data.
+A known catalog preview uses a native, cancellable loading dialog while its
+detail module loads, without mounting private editors. Close or Escape clears
+the selection; late module completion cannot reopen the dismissed detail.
 Before the first commit, a built `index.html` may show the static
 [first-paint shell](first-paint-shell.md) of the landing page in `#root`;
 `createRoot()` replaces it, and no app code reads it. The shell's inline boot

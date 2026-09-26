@@ -68,7 +68,16 @@ export function DialogHost({
             </Dialog>
           }
         >
-          <Suspense fallback={null}>
+          <Suspense
+            fallback={
+              <Dialog open titleId="loading-catalog-title" onClose={onCloseGame} className="info-dialog">
+                <h2 id="loading-catalog-title" data-autofocus tabIndex={-1}>
+                  Opening game…
+                </h2>
+                <p role="status">Loading its details.</p>
+              </Dialog>
+            }
+          >
             <CatalogDetail key={catalog.key} {...catalog.props} />
           </Suspense>
         </ChunkBoundary>
