@@ -32,10 +32,7 @@ function queueFixture(total = 60) {
     records: Object.fromEntries(records.map((record) => [record.id, record])),
     queueOrder: records.map((record) => record.id),
     progress: Object.fromEntries(
-      records.map((record, index) => [
-        record.id,
-        { later: true, played: index % 2 === 1, completed: index % 2 === 1 },
-      ]),
+      records.map((record, index) => [record.id, { later: true, played: index % 2 === 1, completed: index % 2 === 1 }]),
     ),
   });
 }

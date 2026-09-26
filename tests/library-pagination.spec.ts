@@ -711,7 +711,9 @@ for (const saved of [true, false]) {
       await expect(page.getByRole('alert').filter({ hasText: 'Your edit has not saved' })).toBeVisible();
       await expect(queuePager.getByRole('combobox')).toHaveValue('1');
       expect(
-        await queue.locator('.personal-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
+        await queue
+          .locator('.personal-row')
+          .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
       ).toEqual(ids);
     }
     await releaseEditor(page);
