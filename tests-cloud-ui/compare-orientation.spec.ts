@@ -475,6 +475,8 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
   await expect(page.locator('.compare-people input:checked')).toHaveCount(6);
   await page.goto('/account');
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  // Sign-out finishes asynchronously and lands on the home page; navigating earlier can abort it.
+  await expect(page).toHaveURL(/\/$/);
   await login(page, fixture().peers[0]!);
   await page.goto('/compare');
   await expect(page.locator('.compare-people input:checked')).toHaveCount(1);

@@ -501,6 +501,8 @@ test('All export and reversible then full deletion retain the device copy and re
   await page.getByRole('button', { name: 'Agree & enable', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Sign out and sign in again' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  // Sign-out finishes asynchronously and lands on the home page; navigating earlier can abort it.
+  await expect(page).toHaveURL(/\/$/);
   await signIn(page, email);
   await expect(page.locator('input[name="connection-copy"][value="cached"]')).toBeVisible();
   await enableSync(page, 'cached');
