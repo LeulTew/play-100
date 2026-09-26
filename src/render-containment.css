@@ -41,14 +41,30 @@
   }
 }
 @media screen and (min-width: 761px) and (max-width: 1150px) {
-  .games-grid > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 400px; }
+  .games-grid > .game-card:nth-child(n + 5) {
+    contain-intrinsic-block-size: auto 400px;
+  }
 }
 @media screen and (max-width: 760px) {
-  .games-grid > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 370px; }
-  .games-list > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 240px; }
-  .discovery-cards-grid > .discovery-card:nth-child(n + 6) { contain-intrinsic-block-size: auto 420px; }
-  .discovery-cards-list > .discovery-card:nth-child(n + 5) { contain-intrinsic-block-size: auto 280px; }
-  .films-list > li { contain-intrinsic-block-size: auto 110px; }
-  .workbook-section { contain-intrinsic-block-size: auto 550px; }
-  .site-footer { contain-intrinsic-block-size: auto 260px; }
+  .games-grid > .game-card:nth-child(n + 5) {
+    contain-intrinsic-block-size: auto 370px;
+  }
+  .games-list > .game-card:nth-child(n + 5) {
+    contain-intrinsic-block-size: auto 240px;
+  }
+  .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
+    contain-intrinsic-block-size: auto 420px;
+  }
+  .discovery-cards-list > .discovery-card:nth-child(n + 5) {
+    contain-intrinsic-block-size: auto 280px;
+  }
+  .films-list > li {
+    contain-intrinsic-block-size: auto 110px;
+  }
+  .workbook-section {
+    contain-intrinsic-block-size: auto 550px;
+  }
+  .site-footer {
+    contain-intrinsic-block-size: auto 260px;
+  }
 }

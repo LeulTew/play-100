@@ -1,118 +1,589 @@
-.friends-page .page-heading h1, .friend-detail-page h1, .friends-sharing-page .page-heading h1, .friend-compare-page .page-heading h1, .invitation-page h1 { font: 700 48px/1.1 var(--display); margin-block: 0 24px; }
-.friend-list, .friend-groups, .friend-ranking-list, .compare-freshness { list-style: none; padding: 0; margin-block: 20px; }
-.friend-list > li { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 20px; border-bottom: 1px solid var(--line); }
-.friend-list > li > div:first-child { min-width: 0; }
-.friend-identity { display: flex; align-items: center; gap: 16px; min-width: 0; margin-block: 16px; }
-.friend-identity img { flex-shrink: 0; }
-.friend-identity > div, .friend-identity > span { min-width: 0; overflow-wrap: anywhere; }
-.friend-identity h2 { font-size: 24px; }
-.friend-identity small, .friend-ranking-list small { display: block; color: var(--muted); font-size: 13px; }
-.friend-list .button-row { flex-shrink: 0; }
-.friend-ranking-list > li { display: grid; grid-template-columns: 28px minmax(0, 1fr) 72px; gap: 16px; align-items: center; padding-block: 10px; border-bottom: 1px solid var(--line); }
-.friend-ranking-list > li > button { text-align: left; justify-content: flex-start; }
-.friend-ranking-list strong { text-align: right; font-variant-numeric: tabular-nums; }
-.app-page.invitation-page { max-width: 760px; }
-.invite-acceptance { margin-block: 24px; padding-block: 20px; border-top: 1px solid var(--line); }
-.compare-people { display: flex; flex-wrap: wrap; gap: 12px 24px; border: 0; margin: 20px 0; padding: 0; }
-.compare-people legend { font-weight: 600; margin-bottom: 16px; }
-.compare-people label { max-width: 320px; }
-.compare-toolbar { display: flex; flex-wrap: wrap; gap: 20px; margin-block: 24px; }
-.compare-toolbar label { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px; max-width: 500px; }
-.compare-toolbar input, .compare-toolbar select, .friend-compare-page form input, #friend-invite-link { min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); background: var(--white); color: var(--ink); font-size: 16px; border-radius: 4px; width: 100%; }
-.compare-game-filter { padding-block: 12px; margin-block: 20px; border-block: 1px solid var(--line); }
-.compare-game-filter ul { display: flex; flex-wrap: wrap; gap: 4px 20px; list-style: none; padding: 0; margin: 8px 0 0; }
-.compare-game-filter li { min-width: 0; max-width: 100%; }
-.compare-game-filter li button { text-align: left; overflow-wrap: anywhere; }
-.compare-freshness { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; color: var(--muted); }
-.friend-compare-page .page-heading { flex-direction: row; align-items: center; gap: 12px; margin-bottom: 10px; }
-.friend-compare-page .page-heading h1 { margin: 0; }
-.friend-compare-page .page-heading > .text-button { flex-shrink: 0; }
-.compare-chosen-people { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
-.compare-chosen-people strong { font-weight: 650; }
-.compare-people-disclosure, .compare-coverage-disclosure { border-bottom: 1px solid var(--line); }
-.compare-people-disclosure > summary, .compare-coverage-disclosure > summary { min-height: 44px; align-content: center; cursor: pointer; font-size: 14px; font-weight: 600; padding-block: 8px; }
-.compare-people-disclosure > summary:hover, .compare-coverage-disclosure > summary:hover { text-decoration: underline; text-underline-offset: 4px; }
-.compare-people-disclosure > p, .compare-opening { font-size: 14px; line-height: 1.5; color: var(--muted); }
-.friend-compare-page .compare-toolbar { margin-block: 12px; gap: 12px; }
-.friend-compare-page .compare-toolbar label { min-width: 0; gap: 6px; font-size: 13px; }
-.friend-compare-page .compare-toolbar label:first-child { flex: 0 1 240px; }
-.compare-coverage-summary { display: block; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--muted); margin-top: 2px; }
-.compare-problems { margin-block: 12px; font-size: 14px; line-height: 1.5; color: #8c3026; }
-.compare-problems ul { list-style: none; padding: 0; margin: 0; }
-.compare-problems .text-button { color: var(--ink); }
-.comparison-scroll { overflow: auto; max-width: 100%; max-height: min(62dvh, 620px); border-block: 1px solid var(--ink); margin-block: 12px 20px; }
-.comparison-scroll:focus-visible { outline: 3px solid #426515; outline-offset: 4px; }
-.friend-matrix { border-collapse: separate; border-spacing: 0; min-width: 650px; width: 100%; font-variant-numeric: tabular-nums; }
-.friend-matrix th, .friend-matrix td { text-align: left; vertical-align: middle; padding: 14px 16px; border-bottom: 1px solid var(--line); min-width: 132px; }
-.friend-matrix th:first-child { min-width: 190px; max-width: 260px; position: sticky; left: 0; background: var(--paper); z-index: 1; }
-.friend-matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--paper); box-shadow: 0 1px 0 var(--line); overflow-wrap: anywhere; }
-.friend-matrix thead th:first-child { z-index: 3; }
-.compare-participant-heading { display: flex; align-items: center; gap: 8px; }
-.compare-participant-heading > span { min-width: 0; overflow-wrap: anywhere; }
-.friend-matrix th:first-child button { text-align: left; justify-content: flex-start; line-height: 1.4; }
-.friend-matrix small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 6px; }
-.friend-matrix td > span { font-size: 13px; color: var(--muted); }
-.friend-compare-page .account-section form { max-width: 640px; }
-.friend-compare-page .account-section label { display: block; margin-block: 16px 12px; }
-.shared-games-page .page-heading h1 { font: 700 48px/1.1 var(--display); margin: 0; }
-.shared-games-page .page-heading { flex-wrap: wrap; }
-.friend-shelf-art .game-artwork { width: 100%; height: 100%; aspect-ratio: auto; background: var(--paper); }
-.friend-shelf-art .game-artwork img { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
-.shelf-artwork-credits { margin-block: 20px; overflow-wrap: anywhere; }
-.shelf-artwork-credits summary { cursor: pointer; min-height: 44px; padding-block: 12px; }
-.shelf-artwork-credits ul { list-style: none; padding: 0; display: grid; gap: 16px; }
-.shelf-artwork-credits li { display: grid; gap: 8px; }
-.friends-page .page-heading { align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
-.friends-page .page-heading h1 { margin-bottom: 0; }
-.friends-page .text-button { min-width: 44px; }
-.friend-view-tabs { display: flex; overflow-x: auto; max-width: 100%; padding-bottom: 6px; }
-.friends-page .friend-view-tabs { flex-wrap: nowrap; gap: 12px; }
-.friends-page .friend-view-tabs > button { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding-inline: 4px; font-size: 14px; white-space: nowrap; }
-.friend-manager-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 240px); gap: 20px; margin-top: 24px; max-width: 780px; }
-.friend-manager-toolbar label { display: grid; gap: 8px; font-weight: 600; }
-.friend-manager-toolbar input, .friend-manager-toolbar select { width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); color: var(--ink); font: inherit; font-size: 16px; }
-.friend-list-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-block: 12px; }
-.friend-list-summary p, .friend-update-notice { color: var(--muted); font-size: 14px; }
-.friend-list-summary .text-button { flex-shrink: 0; }
-.friend-selection-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; position: sticky; top: 88px; z-index: 3; background: var(--paper); border-block: 1px solid var(--ink); padding: 12px 0; }
-.friend-selection-bar > span { font-weight: 650; }
-.friend-selection-bar > p { flex-basis: 100%; margin: 0; }
-.friend-row-person { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-.friend-row-person .friend-identity { margin-block: 0; }
-.friend-select { flex: 0 0 44px; min-width: 44px; min-height: 44px; justify-content: center; }
-.friend-row-person strong { font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
-.friend-avatar-placeholder { width: 48px; height: 48px; display: grid; place-items: center; background: var(--line); border-radius: 50%; flex-shrink: 0; }
-.friend-more-menu { position: fixed; inset: auto; margin: 0; padding: 6px; min-width: 184px; max-width: calc(100vw - 16px); border: 1px solid var(--ink); border-radius: 4px; background: var(--white); color: var(--ink); }
-.friend-more-menu:popover-open { display: grid; }
-.friend-more-menu .text-button { justify-content: flex-start; padding-inline: 12px; }
-.friend-invite-status { font-size: 18px; }
-.friend-invite-dates { color: var(--muted); font-size: 14px; line-height: 1.6; margin-block: 8px 0; }
+.friends-page .page-heading h1,
+.friend-detail-page h1,
+.friends-sharing-page .page-heading h1,
+.friend-compare-page .page-heading h1,
+.invitation-page h1 {
+  font: 700 48px/1.1 var(--display);
+  margin-block: 0 24px;
+}
+.friend-list,
+.friend-groups,
+.friend-ranking-list,
+.compare-freshness {
+  list-style: none;
+  padding: 0;
+  margin-block: 20px;
+}
+.friend-list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.friend-list > li > div:first-child {
+  min-width: 0;
+}
+.friend-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin-block: 16px;
+}
+.friend-identity img {
+  flex-shrink: 0;
+}
+.friend-identity > div,
+.friend-identity > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.friend-identity h2 {
+  font-size: 24px;
+}
+.friend-identity small,
+.friend-ranking-list small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+.friend-list .button-row {
+  flex-shrink: 0;
+}
+.friend-ranking-list > li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 72px;
+  gap: 16px;
+  align-items: center;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.friend-ranking-list > li > button {
+  text-align: left;
+  justify-content: flex-start;
+}
+.friend-ranking-list strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.app-page.invitation-page {
+  max-width: 760px;
+}
+.invite-acceptance {
+  margin-block: 24px;
+  padding-block: 20px;
+  border-top: 1px solid var(--line);
+}
+.compare-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  border: 0;
+  margin: 20px 0;
+  padding: 0;
+}
+.compare-people legend {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.compare-people label {
+  max-width: 320px;
+}
+.compare-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-block: 24px;
+}
+.compare-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 500px;
+}
+.compare-toolbar input,
+.compare-toolbar select,
+.friend-compare-page form input,
+#friend-invite-link {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  font-size: 16px;
+  border-radius: 4px;
+  width: 100%;
+}
+.compare-game-filter {
+  padding-block: 12px;
+  margin-block: 20px;
+  border-block: 1px solid var(--line);
+}
+.compare-game-filter ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.compare-game-filter li {
+  min-width: 0;
+  max-width: 100%;
+}
+.compare-game-filter li button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.compare-freshness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.friend-compare-page .page-heading {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.friend-compare-page .page-heading h1 {
+  margin: 0;
+}
+.friend-compare-page .page-heading > .text-button {
+  flex-shrink: 0;
+}
+.compare-chosen-people {
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.compare-chosen-people strong {
+  font-weight: 650;
+}
+.compare-people-disclosure,
+.compare-coverage-disclosure {
+  border-bottom: 1px solid var(--line);
+}
+.compare-people-disclosure > summary,
+.compare-coverage-disclosure > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding-block: 8px;
+}
+.compare-people-disclosure > summary:hover,
+.compare-coverage-disclosure > summary:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.compare-people-disclosure > p,
+.compare-opening {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.friend-compare-page .compare-toolbar {
+  margin-block: 12px;
+  gap: 12px;
+}
+.friend-compare-page .compare-toolbar label {
+  min-width: 0;
+  gap: 6px;
+  font-size: 13px;
+}
+.friend-compare-page .compare-toolbar label:first-child {
+  flex: 0 1 240px;
+}
+.compare-coverage-summary {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.compare-problems {
+  margin-block: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #8c3026;
+}
+.compare-problems ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.compare-problems .text-button {
+  color: var(--ink);
+}
+.comparison-scroll {
+  overflow: auto;
+  max-width: 100%;
+  max-height: min(62dvh, 620px);
+  border-block: 1px solid var(--ink);
+  margin-block: 12px 20px;
+}
+.comparison-scroll:focus-visible {
+  outline: 3px solid #426515;
+  outline-offset: 4px;
+}
+.friend-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 650px;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.friend-matrix th,
+.friend-matrix td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  min-width: 132px;
+}
+.friend-matrix th:first-child {
+  min-width: 190px;
+  max-width: 260px;
+  position: sticky;
+  left: 0;
+  background: var(--paper);
+  z-index: 1;
+}
+.friend-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--line);
+  overflow-wrap: anywhere;
+}
+.friend-matrix thead th:first-child {
+  z-index: 3;
+}
+.compare-participant-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compare-participant-heading > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.friend-matrix th:first-child button {
+  text-align: left;
+  justify-content: flex-start;
+  line-height: 1.4;
+}
+.friend-matrix small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 6px;
+}
+.friend-matrix td > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.friend-compare-page .account-section form {
+  max-width: 640px;
+}
+.friend-compare-page .account-section label {
+  display: block;
+  margin-block: 16px 12px;
+}
+.shared-games-page .page-heading h1 {
+  font: 700 48px/1.1 var(--display);
+  margin: 0;
+}
+.shared-games-page .page-heading {
+  flex-wrap: wrap;
+}
+.friend-shelf-art .game-artwork {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  background: var(--paper);
+}
+.friend-shelf-art .game-artwork img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.shelf-artwork-credits {
+  margin-block: 20px;
+  overflow-wrap: anywhere;
+}
+.shelf-artwork-credits summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 12px;
+}
+.shelf-artwork-credits ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.shelf-artwork-credits li {
+  display: grid;
+  gap: 8px;
+}
+.friends-page .page-heading {
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.friends-page .page-heading h1 {
+  margin-bottom: 0;
+}
+.friends-page .text-button {
+  min-width: 44px;
+}
+.friend-view-tabs {
+  display: flex;
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 6px;
+}
+.friends-page .friend-view-tabs {
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+.friends-page .friend-view-tabs > button {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.friend-manager-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 240px);
+  gap: 20px;
+  margin-top: 24px;
+  max-width: 780px;
+}
+.friend-manager-toolbar label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+.friend-manager-toolbar input,
+.friend-manager-toolbar select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.friend-list-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-block: 12px;
+}
+.friend-list-summary p,
+.friend-update-notice {
+  color: var(--muted);
+  font-size: 14px;
+}
+.friend-list-summary .text-button {
+  flex-shrink: 0;
+}
+.friend-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  position: sticky;
+  top: 88px;
+  z-index: 3;
+  background: var(--paper);
+  border-block: 1px solid var(--ink);
+  padding: 12px 0;
+}
+.friend-selection-bar > span {
+  font-weight: 650;
+}
+.friend-selection-bar > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.friend-row-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.friend-row-person .friend-identity {
+  margin-block: 0;
+}
+.friend-select {
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.friend-row-person strong {
+  font-size: 18px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.friend-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  background: var(--line);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.friend-more-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 6px;
+  min-width: 184px;
+  max-width: calc(100vw - 16px);
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--ink);
+}
+.friend-more-menu:popover-open {
+  display: grid;
+}
+.friend-more-menu .text-button {
+  justify-content: flex-start;
+  padding-inline: 12px;
+}
+.friend-invite-status {
+  font-size: 18px;
+}
+.friend-invite-dates {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-block: 8px 0;
+}
 @media (max-width: 760px) {
-  .friends-page .page-heading h1, .friend-detail-page h1, .friends-sharing-page .page-heading h1, .friend-compare-page .page-heading h1, .invitation-page h1 { font-size: 38px; }
-  .friend-list > li { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .friend-list .button-row { flex-wrap: wrap; }
-  .friend-matrix th, .friend-matrix td { padding: 12px; min-width: 120px; }
-  .friend-matrix th:first-child { min-width: 156px; max-width: 190px; }
-  .app-page.friend-compare-page { padding-top: 6px; }
-  .friend-compare-page .page-heading { flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
-  .friend-compare-page .page-heading > .text-button { gap: 6px; }
-  .friend-compare-page .compare-toolbar label:first-child { flex: 1; }
-  .friend-compare-page .compare-toolbar { margin-block: 8px; }
-  .friend-compare-page .compare-toolbar input, .friend-compare-page .compare-toolbar select { padding-inline: 8px; }
-  .compare-chosen-people { font-size: 13px; }
-  .friend-compare-page .comparison-scroll { max-height: 58dvh; margin-top: 6px; }
-  .friend-compare-page .friend-matrix thead th { padding-block: 6px; }
-  .friend-compare-page .friend-matrix th:not(:first-child), .friend-compare-page .friend-matrix td { min-width: 176px; }
-  .friend-manager-toolbar { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .friend-manager-toolbar label:last-child { max-width: 260px; }
-  .friend-list > .friend-manager-row { gap: 12px; padding-block: 20px; align-items: stretch; }
-  .friend-manager-row .friend-row-actions { justify-content: flex-end; gap: 8px 16px; }
-  .friend-selection-bar { top: 72px; gap: 8px; }
-  .friend-selection-bar .button-row { flex-wrap: wrap; gap: 8px 16px; }
-  .friend-selection-bar .button { padding-inline: 14px; }
-  .friend-row-person { gap: 4px; }
-  .friend-row-person .friend-identity { gap: 12px; }
+  .friends-page .page-heading h1,
+  .friend-detail-page h1,
+  .friends-sharing-page .page-heading h1,
+  .friend-compare-page .page-heading h1,
+  .invitation-page h1 {
+    font-size: 38px;
+  }
+  .friend-list > li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .friend-list .button-row {
+    flex-wrap: wrap;
+  }
+  .friend-matrix th,
+  .friend-matrix td {
+    padding: 12px;
+    min-width: 120px;
+  }
+  .friend-matrix th:first-child {
+    min-width: 156px;
+    max-width: 190px;
+  }
+  .app-page.friend-compare-page {
+    padding-top: 6px;
+  }
+  .friend-compare-page .page-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .friend-compare-page .page-heading > .text-button {
+    gap: 6px;
+  }
+  .friend-compare-page .compare-toolbar label:first-child {
+    flex: 1;
+  }
+  .friend-compare-page .compare-toolbar {
+    margin-block: 8px;
+  }
+  .friend-compare-page .compare-toolbar input,
+  .friend-compare-page .compare-toolbar select {
+    padding-inline: 8px;
+  }
+  .compare-chosen-people {
+    font-size: 13px;
+  }
+  .friend-compare-page .comparison-scroll {
+    max-height: 58dvh;
+    margin-top: 6px;
+  }
+  .friend-compare-page .friend-matrix thead th {
+    padding-block: 6px;
+  }
+  .friend-compare-page .friend-matrix th:not(:first-child),
+  .friend-compare-page .friend-matrix td {
+    min-width: 176px;
+  }
+  .friend-manager-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .friend-manager-toolbar label:last-child {
+    max-width: 260px;
+  }
+  .friend-list > .friend-manager-row {
+    gap: 12px;
+    padding-block: 20px;
+    align-items: stretch;
+  }
+  .friend-manager-row .friend-row-actions {
+    justify-content: flex-end;
+    gap: 8px 16px;
+  }
+  .friend-selection-bar {
+    top: 72px;
+    gap: 8px;
+  }
+  .friend-selection-bar .button-row {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+  .friend-selection-bar .button {
+    padding-inline: 14px;
+  }
+  .friend-row-person {
+    gap: 4px;
+  }
+  .friend-row-person .friend-identity {
+    gap: 12px;
+  }
 }
 @media (max-width: 380px) {
-  .friend-compare-page .page-heading h1 { font-size: 32px; }
+  .friend-compare-page .page-heading h1 {
+    font-size: 32px;
+  }
 }

@@ -1,102 +1,354 @@
-
 @media (max-width: 1100px) {
-  .account-nav-copy { display: none; }
+  .account-nav-copy {
+    display: none;
+  }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
-  .desktop-nav a:last-child { display: flex; }
-  .desktop-nav { gap: 15px; }
-  .saved-nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .desktop-nav a:last-child {
+    display: flex;
+  }
+  .desktop-nav {
+    gap: 15px;
+  }
+  .saved-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 @media (max-width: 760px) {
-  .site-header-online .header-download { display: none; }
-  .site-header-online .account-nav { padding: 0; }
-  .author-footer { gap: 6px; }
-  .author-footer nav { gap: 8px 15px; }
-  .author-footer p, .author-footer a { font-size: 12px; }
-  .author-rating-card { font-size: 12px; }
-  .author-rating-card strong { font-size: 13px; }
-  .source-version-notice { flex-wrap: wrap; }
-  .games-list .card-played { margin-left: 95px; }
-  .catalog-record-actions .played-toggle { flex-basis: 100%; }
-  .site-header .header-actions { gap: 7px; }
-  .site-header .saved-nav { padding-inline: 8px; }
-  .header-download { width: 44px; height: 44px; }
-  .header-download svg { width: 19px; height: 19px; }
-  .collection-extra-actions { margin-block: -3px 15px; gap: 10px; }
-  .collection-extra-actions .text-button { font-size: 12px; gap: 6px; }
-  .view-controls { gap: 12px; }
-  .view-switch { padding-left: 3px; }
-  .view-switch .icon-button { width: 44px; }
-  .selection-bar { padding: 13px; }
-  .selection-summary { gap: 3px 14px; }
-  .selection-done { margin-left: 0; }
-  .selection-actions { gap: 8px; }
-  .selection-actions .button { font-size: 12px; flex: 1; padding-inline: 12px; gap: 7px; }
-  .selection-bar > p { font-size: 12px; }
-  .ratings-explainer { gap: 5px; }
-  .ratings-explainer > p { font-size: 12px; }
-  .ratings-scroll { max-height: 70vh; }
-  .ratings-table .table-game { width: 146px; min-width: 146px; max-width: 146px; left: var(--selection-width); }
-  .ratings-table th, .ratings-table td { padding-inline: 9px; }
-  .ratings-table .table-game a { align-items: flex-start; gap: 6px; font-size: 13px; }
-  .ratings-table .table-inline-rank { display: inline; flex-shrink: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
-  .ratings-table .table-game > span { font-size: 12px; }
-  .ratings-table thead .table-game { white-space: normal; }
-  .ratings-table .table-rank { width: 62px; min-width: 62px; max-width: 62px; position: static; }
-  .ratings-table thead .table-rank { position: sticky; left: auto; z-index: 3; }
-  .table-sort { font-size: 12px; }
-  .table-footnote { font-size: 12px; }
-  .app-page { padding-top: 27px; padding-bottom: 35px; }
-  .page-heading { flex-direction: column; gap: 12px; margin-bottom: 18px; }
-  .page-heading h1 { font-size: 41px; }
-  .page-heading h1 > span, .page-heading h1 > br { display: none; }
-  .page-heading p { font-size: 14px; margin-top: 12px; line-height: 1.5; }
-  .page-heading > .button { margin-top: 0; font-size: 13px; }
-  .private-label { min-height: 20px; font-size: 12px; }
-  .collection-title-line h1 { font-size: 34px; }
-  .personal-tabs { gap: 19px; margin-bottom: 17px; }
-  .personal-tabs > button { font-size: 12px; gap: 7px; }
-  .personal-tabs span { font-size: 12px; }
-  .record-title { font-size: 15px; }
-  .personal-score { grid-column: 1; max-width: 88px; }
-  .personal-score input { width: 100%; }
-  .manual-add { margin-top: 20px; }
-  .manual-add summary { font-size: 13px; }
-  .manual-fields { grid-template-columns: 1fr; gap: 12px; }
-  .manual-fields > label:last-child { max-width: 180px; }
-  .manual-fields > label:last-child span { display: inline; }
-  .app-page .empty-state { padding: 32px 17px; }
-  .app-page .empty-state h2 { font-size: 32px; }
-  .app-page .empty-state .button { font-size: 13px; }
-  .mobile-nav > a, .mobile-nav > button { min-width: 48px; flex: 1; font-size: 12px; }
-  .catalog-results > li { gap: 11px; flex-wrap: wrap; padding-block: 17px; }
-  .catalog-record-actions { width: 100%; gap: 9px; }
-  .catalog-record-actions .button { flex: 1; }
-  .catalog-error { flex-wrap: wrap; padding: 14px; }
-  .catalog-error > div { min-width: 200px; }
-  .catalog-error > .text-button { margin-left: 35px; }
-  .unranked-list > li { flex-wrap: wrap; gap: 12px; }
-  .source-searches { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .extended-heading { align-items: baseline; gap: 8px; }
-  .extended-heading h2 { font-size: 30px; }
+  .site-header-online .header-download {
+    display: none;
+  }
+  .site-header-online .account-nav {
+    padding: 0;
+  }
+  .author-footer {
+    gap: 6px;
+  }
+  .author-footer nav {
+    gap: 8px 15px;
+  }
+  .author-footer p,
+  .author-footer a {
+    font-size: 12px;
+  }
+  .author-rating-card {
+    font-size: 12px;
+  }
+  .author-rating-card strong {
+    font-size: 13px;
+  }
+  .source-version-notice {
+    flex-wrap: wrap;
+  }
+  .games-list .card-played {
+    margin-left: 95px;
+  }
+  .catalog-record-actions .played-toggle {
+    flex-basis: 100%;
+  }
+  .site-header .header-actions {
+    gap: 7px;
+  }
+  .site-header .saved-nav {
+    padding-inline: 8px;
+  }
+  .header-download {
+    width: 44px;
+    height: 44px;
+  }
+  .header-download svg {
+    width: 19px;
+    height: 19px;
+  }
+  .collection-extra-actions {
+    margin-block: -3px 15px;
+    gap: 10px;
+  }
+  .collection-extra-actions .text-button {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .view-controls {
+    gap: 12px;
+  }
+  .view-switch {
+    padding-left: 3px;
+  }
+  .view-switch .icon-button {
+    width: 44px;
+  }
+  .selection-bar {
+    padding: 13px;
+  }
+  .selection-summary {
+    gap: 3px 14px;
+  }
+  .selection-done {
+    margin-left: 0;
+  }
+  .selection-actions {
+    gap: 8px;
+  }
+  .selection-actions .button {
+    font-size: 12px;
+    flex: 1;
+    padding-inline: 12px;
+    gap: 7px;
+  }
+  .selection-bar > p {
+    font-size: 12px;
+  }
+  .ratings-explainer {
+    gap: 5px;
+  }
+  .ratings-explainer > p {
+    font-size: 12px;
+  }
+  .ratings-scroll {
+    max-height: 70vh;
+  }
+  .ratings-table .table-game {
+    width: 146px;
+    min-width: 146px;
+    max-width: 146px;
+    left: var(--selection-width);
+  }
+  .ratings-table th,
+  .ratings-table td {
+    padding-inline: 9px;
+  }
+  .ratings-table .table-game a {
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .ratings-table .table-inline-rank {
+    display: inline;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ratings-table .table-game > span {
+    font-size: 12px;
+  }
+  .ratings-table thead .table-game {
+    white-space: normal;
+  }
+  .ratings-table .table-rank {
+    width: 62px;
+    min-width: 62px;
+    max-width: 62px;
+    position: static;
+  }
+  .ratings-table thead .table-rank {
+    position: sticky;
+    left: auto;
+    z-index: 3;
+  }
+  .table-sort {
+    font-size: 12px;
+  }
+  .table-footnote {
+    font-size: 12px;
+  }
+  .app-page {
+    padding-top: 27px;
+    padding-bottom: 35px;
+  }
+  .page-heading {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .page-heading h1 {
+    font-size: 41px;
+  }
+  .page-heading h1 > span,
+  .page-heading h1 > br {
+    display: none;
+  }
+  .page-heading p {
+    font-size: 14px;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+  .page-heading > .button {
+    margin-top: 0;
+    font-size: 13px;
+  }
+  .private-label {
+    min-height: 20px;
+    font-size: 12px;
+  }
+  .collection-title-line h1 {
+    font-size: 34px;
+  }
+  .personal-tabs {
+    gap: 19px;
+    margin-bottom: 17px;
+  }
+  .personal-tabs > button {
+    font-size: 12px;
+    gap: 7px;
+  }
+  .personal-tabs span {
+    font-size: 12px;
+  }
+  .record-title {
+    font-size: 15px;
+  }
+  .personal-score {
+    grid-column: 1;
+    max-width: 88px;
+  }
+  .personal-score input {
+    width: 100%;
+  }
+  .manual-add {
+    margin-top: 20px;
+  }
+  .manual-add summary {
+    font-size: 13px;
+  }
+  .manual-fields {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .manual-fields > label:last-child {
+    max-width: 180px;
+  }
+  .manual-fields > label:last-child span {
+    display: inline;
+  }
+  .app-page .empty-state {
+    padding: 32px 17px;
+  }
+  .app-page .empty-state h2 {
+    font-size: 32px;
+  }
+  .app-page .empty-state .button {
+    font-size: 13px;
+  }
+  .mobile-nav > a,
+  .mobile-nav > button {
+    min-width: 48px;
+    flex: 1;
+    font-size: 12px;
+  }
+  .catalog-results > li {
+    gap: 11px;
+    flex-wrap: wrap;
+    padding-block: 17px;
+  }
+  .catalog-record-actions {
+    width: 100%;
+    gap: 9px;
+  }
+  .catalog-record-actions .button {
+    flex: 1;
+  }
+  .catalog-error {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+  .catalog-error > div {
+    min-width: 200px;
+  }
+  .catalog-error > .text-button {
+    margin-left: 35px;
+  }
+  .unranked-list > li {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .source-searches {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .extended-heading {
+    align-items: baseline;
+    gap: 8px;
+  }
+  .extended-heading h2 {
+    font-size: 30px;
+  }
 }
 @media (max-width: 380px) {
-  .site-header .wordmark { font-size: 26px; }
-  .page-heading h1 { font-size: 37px; }
-  .personal-tabs { gap: 14px; }
-  .personal-tabs > button { font-size: 12px; }
+  .site-header .wordmark {
+    font-size: 26px;
+  }
+  .page-heading h1 {
+    font-size: 37px;
+  }
+  .personal-tabs {
+    gap: 14px;
+  }
+  .personal-tabs > button {
+    font-size: 12px;
+  }
 }
-.friend-sharing-summary { margin-block: 16px 24px; padding-block: 16px; border-block: 1px solid var(--line); }
-.friend-sharing-summary > .button-row { justify-content: space-between; align-items: center; }
-.friend-sharing-summary p { min-width: 0; max-width: 68ch; overflow-wrap: anywhere; }
-.friend-sharing-summary > .section-help { margin-top: 8px; }
-.progress-filter { display: grid; gap: 6px; min-width: 0; max-width: 250px; font-size: 14px; color: var(--ink); }
-.progress-filter select { width: 100%; min-height: 44px; max-width: 100%; background: var(--white); border: 1px solid #a5ac98; border-radius: 4px; padding: 8px 30px 8px 10px; font: inherit; color: var(--ink); }
-.completed-toggle { white-space: nowrap; padding-inline: 6px; gap: 5px; }
-.completed-toggle[aria-pressed="true"] { color: var(--ink); background: var(--lime); border-radius: 4px; }
-.view-controls { flex-wrap: wrap; }
+.friend-sharing-summary {
+  margin-block: 16px 24px;
+  padding-block: 16px;
+  border-block: 1px solid var(--line);
+}
+.friend-sharing-summary > .button-row {
+  justify-content: space-between;
+  align-items: center;
+}
+.friend-sharing-summary p {
+  min-width: 0;
+  max-width: 68ch;
+  overflow-wrap: anywhere;
+}
+.friend-sharing-summary > .section-help {
+  margin-top: 8px;
+}
+.progress-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 250px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.progress-filter select {
+  width: 100%;
+  min-height: 44px;
+  max-width: 100%;
+  background: var(--white);
+  border: 1px solid #a5ac98;
+  border-radius: 4px;
+  padding: 8px 30px 8px 10px;
+  font: inherit;
+  color: var(--ink);
+}
+.completed-toggle {
+  white-space: nowrap;
+  padding-inline: 6px;
+  gap: 5px;
+}
+.completed-toggle[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--lime);
+  border-radius: 4px;
+}
+.view-controls {
+  flex-wrap: wrap;
+}
 @media (max-width: 620px) {
-  .view-controls .progress-filter { width: 100%; }
-  .progress-filter select { font-size: 16px; }
-  .table-progress { flex-wrap: wrap; }
+  .view-controls .progress-filter {
+    width: 100%;
+  }
+  .progress-filter select {
+    font-size: 16px;
+  }
+  .table-progress {
+    flex-wrap: wrap;
+  }
 }

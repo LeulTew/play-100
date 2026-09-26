@@ -46,11 +46,11 @@
   height: 100%;
 }
 
-.collection-artifact[data-render-mode="webgl"] .artifact-canvas {
+.collection-artifact[data-render-mode='webgl'] .artifact-canvas {
   visibility: visible;
 }
 
-.collection-artifact[data-render-mode="webgl"] .artifact-still {
+.collection-artifact[data-render-mode='webgl'] .artifact-still {
   visibility: hidden;
 }
 
@@ -76,7 +76,7 @@
 
 .artifact-caption-title {
   font-weight: 700;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 

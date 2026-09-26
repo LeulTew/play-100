@@ -7,8 +7,13 @@
   user-select: none;
 }
 
-.motion-return-host { z-index: 1000; overflow: hidden; }
-.dialog-motion-slot { z-index: 4; }
+.motion-return-host {
+  z-index: 1000;
+  overflow: hidden;
+}
+.dialog-motion-slot {
+  z-index: 4;
+}
 
 .motion-public-visual {
   position: fixed;
@@ -20,22 +25,32 @@
   transform-origin: 0 0;
 }
 
-.motion-public-visual[data-motion-visual="jacket"] {
+.motion-public-visual[data-motion-visual='jacket'] {
   color: var(--ink, #20231e);
   background: var(--lime, #d3f36b);
   border: 1px solid currentColor;
 }
 
 .motion-public-rank {
-  font-family: var(--display, "Barlow Condensed", sans-serif);
+  font-family: var(--display, 'Barlow Condensed', sans-serif);
   font-weight: 800;
   line-height: 1;
 }
 
-.motion-public-visual img { width: 100%; height: 100%; object-fit: contain; }
-html[data-motion] .dialog[open][data-motion-owned] .dialog-inner { animation: none; }
+.motion-public-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+html[data-motion] .dialog[open][data-motion-owned] .dialog-inner {
+  animation: none;
+}
 
-html[data-motion="off"] .motion-public-visual { display: none; }
+html[data-motion='off'] .motion-public-visual {
+  display: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  .motion-public-visual { display: none; }
+  .motion-public-visual {
+    display: none;
+  }
 }

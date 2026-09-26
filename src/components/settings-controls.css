@@ -1,10 +1,46 @@
-.settings-account { padding-block: 16px; border-block: 1px solid var(--line); margin-block: 20px; }
-.settings-account strong { color: var(--ink); }
-.backup-panel { margin-top: 28px; padding-top: 23px; border-top: 1px solid var(--line); }
-.backup-panel .button { font-size: 13px; padding-inline: 16px; }
-.backup-panel .button-row { gap: 9px; }
-.restore-preview { margin-top: 18px; border: 1px solid #b1bd9b; border-radius: 4px; padding: 16px; background: #e6ecda; }
-.storage-info-line { margin-top: 14px; font-size: 12px; color: #4c6034; line-height: 1.5; }
-.pwa-settings > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 650; }
-.pwa-settings .button-row { margin-top: 12px; }
-.pwa-settings > button, .pwa-settings > .reset-confirmation { margin-top: 14px; }
+.settings-account {
+  padding-block: 16px;
+  border-block: 1px solid var(--line);
+  margin-block: 20px;
+}
+.settings-account strong {
+  color: var(--ink);
+}
+.backup-panel {
+  margin-top: 28px;
+  padding-top: 23px;
+  border-top: 1px solid var(--line);
+}
+.backup-panel .button {
+  font-size: 13px;
+  padding-inline: 16px;
+}
+.backup-panel .button-row {
+  gap: 9px;
+}
+.restore-preview {
+  margin-top: 18px;
+  border: 1px solid #b1bd9b;
+  border-radius: 4px;
+  padding: 16px;
+  background: #e6ecda;
+}
+.storage-info-line {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #4c6034;
+  line-height: 1.5;
+}
+.pwa-settings > summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+  font-weight: 650;
+}
+.pwa-settings .button-row {
+  margin-top: 12px;
+}
+.pwa-settings > button,
+.pwa-settings > .reset-confirmation {
+  margin-top: 14px;
+}

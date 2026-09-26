@@ -1,4 +1,17 @@
-.route-fallback > .page-heading { flex-direction: row; align-items: center; min-height: 53px; margin-bottom: 20px; }
-.route-fallback > .discovery-heading { min-height: 44px; }
-.route-skeleton { margin-top: 24px; }
-@media (max-width: 760px) { .route-fallback > .page-heading { min-height: 48px; } }
+.route-fallback > .page-heading {
+  flex-direction: row;
+  align-items: center;
+  min-height: 53px;
+  margin-bottom: 20px;
+}
+.route-fallback > .discovery-heading {
+  min-height: 44px;
+}
+.route-skeleton {
+  margin-top: 24px;
+}
+@media (max-width: 760px) {
+  .route-fallback > .page-heading {
+    min-height: 48px;
+  }
+}

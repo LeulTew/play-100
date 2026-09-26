@@ -1,30 +1,165 @@
-.header-download { border: 1px solid var(--line); }
-.site-footer.compact-footer { padding-block: 24px; }
-.footer-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; }
-.footer-tools > a, .footer-tools > button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; background: none; color: var(--muted); font-size: 13px; }
-.footer-tools > a:hover, .footer-tools > button:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-.data-use-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; font-size: 13px; color: var(--muted); }
-.data-use-page { max-width: 850px; padding-block: 48px 64px; }
-.data-use-page h1 { font: 700 48px/1.1 var(--display); }
-.data-use-page h2 { font-size: 22px; margin-block: 32px 12px; }
-.data-use-page p { font-size: 16px; line-height: 1.7; margin-block: 16px; max-width: 72ch; }
-.account-nav { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 5px 9px; border-radius: 4px; border: 1px solid var(--line); }
-.account-nav:hover { background: #e6e9dc; border-color: var(--ink); }
-.account-nav-avatar { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; }
-.account-nav-avatar img { display: block; border-radius: 4px; }
-.account-nav-copy { display: flex; flex-direction: column; gap: 1px; width: 150px; min-width: 0; }
-.account-nav-copy strong { font-size: 12px; font-weight: 650; line-height: 1.5; overflow-wrap: anywhere; }
-.account-nav-copy small { font-size: 12px; color: var(--muted); max-width: 150px; line-height: 1.5; overflow-wrap: anywhere; }
-.settings-account p { font-size: 13px; line-height: 1.5; color: var(--muted); }
-.desktop-nav a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 7px; }
-.page-loading { padding: 44px var(--gutter); min-height: 360px; max-width: 1600px; margin-inline: auto; }
-.page-loading h2 { font: 700 40px/1.1 var(--display); }
-.page-loading p { margin-top: 15px; color: var(--muted); }
-.global-storage { max-width: 1600px; padding: 18px var(--gutter) 0; margin-inline: auto; }
-.global-storage .storage-banner { margin: 0; }
-.collection-extra-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 15px; margin: -4px 0 15px; }
-.collection-extra-actions .text-button { font-size: 13px; }
-.collection-extra-actions button[aria-pressed="true"] { color: #49621f; }
-.collection-section { scroll-margin-top: 0; }
-.collection-title-line h1 { font-family: var(--display); font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
-.collection-title-line h1 > span { vertical-align: top; display: inline-block; margin: 3px 0 0 11px; font-family: 'Hanken Grotesk Variable', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.7; }
+.header-download {
+  border: 1px solid var(--line);
+}
+.site-footer.compact-footer {
+  padding-block: 24px;
+}
+.footer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
+.footer-tools > a,
+.footer-tools > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+.footer-tools > a:hover,
+.footer-tools > button:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.data-use-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.data-use-page {
+  max-width: 850px;
+  padding-block: 48px 64px;
+}
+.data-use-page h1 {
+  font: 700 48px/1.1 var(--display);
+}
+.data-use-page h2 {
+  font-size: 22px;
+  margin-block: 32px 12px;
+}
+.data-use-page p {
+  font-size: 16px;
+  line-height: 1.7;
+  margin-block: 16px;
+  max-width: 72ch;
+}
+.account-nav {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 5px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+.account-nav:hover {
+  background: #e6e9dc;
+  border-color: var(--ink);
+}
+.account-nav-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+.account-nav-avatar img {
+  display: block;
+  border-radius: 4px;
+}
+.account-nav-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 150px;
+  min-width: 0;
+}
+.account-nav-copy strong {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.account-nav-copy small {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 150px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.settings-account p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.desktop-nav a[aria-current='page'] {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 7px;
+}
+.page-loading {
+  padding: 44px var(--gutter);
+  min-height: 360px;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+.page-loading h2 {
+  font: 700 40px/1.1 var(--display);
+}
+.page-loading p {
+  margin-top: 15px;
+  color: var(--muted);
+}
+.global-storage {
+  max-width: 1600px;
+  padding: 18px var(--gutter) 0;
+  margin-inline: auto;
+}
+.global-storage .storage-banner {
+  margin: 0;
+}
+.collection-extra-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0 15px;
+  margin: -4px 0 15px;
+}
+.collection-extra-actions .text-button {
+  font-size: 13px;
+}
+.collection-extra-actions button[aria-pressed='true'] {
+  color: #49621f;
+}
+.collection-section {
+  scroll-margin-top: 0;
+}
+.collection-title-line h1 {
+  font-family: var(--display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.collection-title-line h1 > span {
+  vertical-align: top;
+  display: inline-block;
+  margin: 3px 0 0 11px;
+  font-family: 'Hanken Grotesk Variable', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.7;
+}
