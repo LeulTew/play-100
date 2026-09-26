@@ -11,6 +11,9 @@ const storageFull = 'Device storage is full. Your changes were not saved. Free s
 const restoreFailed = 'Restore failed. Your existing library was not replaced.';
 const restoreSaved = 'Your backup was restored and saved on this device.';
 const manualFailed = 'The game could not be added. Your entry is unchanged; try again.';
+// Chromium's IndexedDB backend approves a write against a cached space-remaining figure for up to 30 s, and a quota
+// override does not reset that cache, so an IndexedDB write meets a lowered quota only after the cache expires.
+const indexedDbSpaceCacheMs = 31_000;
 // The worker message, redundant-worker event and registration rejection are distinct client paths.
 const preparationErrors = [
   'Offline preparation or storage failed. Reconnect, free storage if needed, and retry.',
@@ -157,6 +160,7 @@ test('a quota-refused large import preserves the durable library and retries aft
   let settings = await openSettings(page);
   await selectBackup(settings, backup);
   await withQuota(page, new URL(baseURL!).origin, 1024, info, async ({ lift }) => {
+    await page.waitForTimeout(indexedDbSpaceCacheMs);
     await settings.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
     await expect(settings.locator('.backup-panel').getByRole('alert')).toHaveText(restoreFailed);
     await expect(settings.locator('.storage-warning')).toHaveText(storageFull);
@@ -203,6 +207,7 @@ test('a quota-refused manual save keeps the open form and every typed field unti
   await manual.getByLabel('Year (optional)', { exact: true }).fill(year);
   const document = await page.evaluate(() => performance.timeOrigin);
   await withQuota(page, new URL(baseURL!).origin, 0, info, async ({ lift }) => {
+    await page.waitForTimeout(indexedDbSpaceCacheMs);
     await manual.getByRole('button', { name: 'Add to my library', exact: true }).click();
     await expect(manual.getByRole('alert')).toHaveText(manualFailed);
     await expect(manual).toHaveAttribute('open', '');
