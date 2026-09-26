@@ -243,24 +243,17 @@ check; `npm run format` applies the committed source-only Prettier policy: the
 TypeScript and JavaScript sources, and the authored stylesheets under `src/`,
 apart from the frozen files `.prettierignore` names with their reasons.
 
-The supported release runtime is **Node 24.x**, matching the Vercel build and
-Functions runtime and `package.json` engines. `.nvmrc` selects major 24 for
-compatible version managers. A local gate on a newer Node is a documented
-coverage expansion, not a replacement: at least the complete unit/browser
-gate must pass on Node 24 before release. Record both runs separately.
-If Node 24 is not already selected, npm's documented
-[`exec --package` syntax](https://docs.npmjs.com/cli/v11/commands/npm-exec)
-can put the `node@24` executable on the command PATH:
-
-```powershell
-npm exec --yes --package=node@24 -- node --version
-npm exec --yes --package=node@24 -- node node_modules/vitest/vitest.mjs run --maxWorkers=1
-```
-
-This explicitly invokes Vitest with Node 24 rather than relying on which Node
-an existing npm launcher uses. It may download Node into the npm cache; it
-does not add a project dependency. Keep the version output and runner exit
-code. Use an active Node 24 installation for the rest of the release gate.
+The supported application runtime is **Node 24.x**, matching the Vercel build
+and Functions runtime and `package.json` engines. The release verification
+runtime is **exactly Node 24.21.0**, pinned in `.nvmrc`, with that installation's
+bundled npm. Use it for the candidate's complete release gate, build, release
+tooling and manifest collection. The
+[local release operations runbook](docs/release-operations.md) is the single
+authoritative procedure for selecting the runtime and collecting evidence.
+`release:manifest` records the executing Node and npm versions; it does not
+rerun older tests. Do not carry forward an older Node 24 receipt when release
+tooling changed. A local gate on a newer Node is separately recorded coverage
+expansion, not a replacement for the pinned release gate.
 
 The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in
 `.github/workflows` but are **disabled by the owner**; nothing runs on pull
