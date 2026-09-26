@@ -239,6 +239,34 @@ describe('S3 report and friendship boundaries', () => {
     await assertSucceeds(request.commit());
   });
 
+  it('holds a cancelled request against its sender for ten minutes, on re-request and on deletion', async () => {
+    const request = (uid: string) => {
+      const db = user(uid);
+      const batch = db.batch();
+      batch.update(db.doc('friendPairs/Alice~Bob'), {
+        from: uid,
+        state: 'pending',
+        epoch: 2,
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(db.doc(`accountQuotas/${uid}/limits/pairs`), { count: 0, revision: 1, lastPair: 'Alice~Bob' });
+      return batch.commit();
+    };
+    const remove = (uid: string) => user(uid).doc('friendPairs/Alice~Bob').delete();
+    const aged = Timestamp.fromMillis(Date.now() - 11 * 60 * 1000);
+    await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'cancelled') });
+    await assertFails(request('Alice'));
+    await assertFails(remove('Alice'));
+    // The other person is not held back: they may request at once, or release the cancelled pair.
+    await assertSucceeds(request('Bob'));
+    await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'cancelled') });
+    await assertSucceeds(remove('Bob'));
+    await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'cancelled', aged) });
+    await assertSucceeds(remove('Alice'));
+    await seed({ 'friendPairs/Alice~Bob': pair('Alice', 'cancelled', aged) });
+    await assertSucceeds(request('Alice'));
+  });
+
   it('does not reveal hidden or missing public profiles to other accounts', async () => {
     await seed({ 'publicProfiles/Bob': { uid: 'Bob', published: false, hidden: true } });
     const outsider = user('Third');

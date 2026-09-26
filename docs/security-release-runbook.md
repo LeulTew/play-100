@@ -121,7 +121,9 @@ ordinary under-cap requests.
 Smoke includes report missing/existing confidentiality, new counted report
 creation/review, cancelled verified registration removal, incoming/outgoing
 identity direction, ordinary acceptance, mutual invitation acceptance, 29/31-day
-decline behavior, handle rename/reserved legacy edits, generation cleanup,
+decline behavior, a sender's re-request within 10 minutes of their own cancel
+(refused) while the other person can request, handle rename/reserved legacy
+edits, generation cleanup,
 All-sharing update/stop, and shared-device dirty-copy refusal. An unauthenticated
 GET of missing `publicProfiles/{uid}` must deny, replacing live 270f's 404.
 Deletion must resume after interruption and preserve Auth until all checked

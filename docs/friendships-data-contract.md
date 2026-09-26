@@ -377,8 +377,10 @@ counted, converted or used to release a slot. Accept/re-request uses the same
 caller-owned proof touch without increasing that count.
 
 Decline keeps its server timestamp and slot for 30 days. Early deletion cannot
-bypass it; cancelled/removed and expired-declined pairs can be removed, with the
-existing full-account-deletion exception. A mutually intended invitation may
+bypass it; removed and expired-declined pairs can be removed, and so can a
+cancelled pair, except by its sender during the 10 minutes after the cancel,
+when that sender also cannot re-request (R12). Deletion during full account
+deletion is exempt from both holds. A mutually intended invitation may
 accept an existing declined pair in place, subject to current token, block and
 lifetime proofs. A re-created pending pair at epoch1 grants no accepted access.
 Pair documents contain only relationship metadata, no identity, scores or tokens.

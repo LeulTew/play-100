@@ -656,13 +656,19 @@ service cloud.firestore {
           ? before.state in ['declined', 'cancelled', 'removed'] && fRequest(after) && fPairTouch(request.auth.uid, id, false)
             && (before.state != 'declined' || after.from != before.from
               || request.time >= before.updatedAt + duration.value(30, 'd'))
+            && (before.state != 'cancelled' || after.from != before.from
+              || request.time >= before.updatedAt + duration.value(10, 'm'))
           : after.state == 'accepted'
             ? before.state == 'pending' && after.from == before.from && after.inviteSlot == null
               && request.auth.uid != before.from && fKnownLive(request.auth.uid) && fPairTouch(request.auth.uid, id, false)
             : fOwnLive(request.auth.uid) && fPairTransition(before, after);
     }
+    // A sender who cancels waits ten minutes before requesting again, and cannot delete the cancelled pair sooner to
+    // start over; the other person may request, or release the pair, at once.
     function fPairDeletable(data) {
-      return data.state in ['cancelled', 'removed']
+      return data.state == 'removed'
+        || (data.state == 'cancelled' && (request.auth.uid != data.from
+          || request.time >= data.updatedAt + duration.value(10, 'm')))
         || (data.state == 'declined' && request.time >= data.updatedAt + duration.value(30, 'd'))
         || fDeleted(request.auth.uid);
     }

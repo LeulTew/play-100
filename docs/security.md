@@ -49,6 +49,20 @@ The decliner may initiate sooner. Firestore compares the existing server-written
 `updatedAt` against `request.time`; the new timestamp must equal request.time.
 The client says only that a request cannot be sent right now, not why.
 
+After cancelling their own request, a sender waits 10 minutes (R12) before
+requesting the same person again, with the same server-time comparison. They
+also cannot delete the cancelled pair sooner, which would otherwise let them
+create a fresh request at once; the other person may request, or release the
+pair, immediately, and account deletion is unaffected. Ten minutes turns a
+request-and-cancel loop into a few requests an hour, while a sender who
+cancelled by mistake waits only briefly. The client says so in plain text and
+skips such a pair when freeing pair capacity, so at the 1,000-pair cap a fresh
+cancellation frees its slot after those ten minutes. **Accepted residual:** a
+sender who withdraws by blocking and then unblocking the recipient leaves the
+pair `removed`, which has no hold, because a hold there would also delay every
+re-request after an unfriend. Each such cycle needs a block and an unblock, and
+the recipient's own block stops all requests from that sender.
+
 ## Cursor-only list-cost bounds (PRE-G2-H6)
 
 All 19 permissive list grants require an absent or zero query offset, including
@@ -239,7 +253,8 @@ Groups, blocks and open reports have registered-new caps of 50, 1,000 and 100.
 Pairs have a 1,000-document cap attributed to the actual creator, including an
 invite's accepter. Every pair state counts until physical deletion. A declined
 pair retains its slot and server timestamp for 30 days; ordinary early deletion
-cannot bypass that cooldown. Legacy pairs retain their original shape and
+cannot bypass that cooldown. A cancelled pair is held against its sender the
+same way for 10 minutes (R12). Legacy pairs retain their original shape and
 in-place lifecycle, never acquire attribution, and never release a counted slot.
 Legacy group edits likewise remain supported without enrollment. New records
 cannot use the unenrolled legacy write path under candidate rules.
@@ -587,6 +602,7 @@ that suspends H5 bounds. The table below explains why each change is client-firs
 | S1 handle existence | Old publish reads the proposed handle before claiming it, so a new handle's read is denied and it cannot claim one; republishing an unchanged handle still works | Write-claim client first, then rules |
 | R12 title characters | An older publish or selected share of a title with a control or format character is denied with the generic authorization message; other titles are unaffected | Client with the plain-text refusal first, then rules |
 | R12 blank-looking names | An older client saving a new name with a Hangul filler, U+2800 or only marks gets the generic authorization message; other names are unaffected | Client with the plain-text refusal first, then rules |
+| R12 cancel hold | An older client re-requesting, or freeing pair capacity by releasing, within 10 minutes of its own cancel gets the generic authorization message | Client with the plain-text refusal and capacity skip first, then rules |
 | H7 creator UID | Old client asks the same ownerAccess endpoint | Console UID addition before rules |
 | H11 device removal | Old Sign out still retains its cache | New optional client action; no rule dependency |
 | H13 password length | Old UI truncation remains | New client; no rule dependency |

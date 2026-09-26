@@ -337,6 +337,17 @@ describe('canonical friendship requests and private relationship metadata', () =
     await assertFails(b.store.identity(a.uid));
     expect((await a.store.sendRequest(a.uid, b.uid)).epoch).toBe(pair.epoch + 1);
   });
+  it('asks a sender who just cancelled to wait before requesting again, while the other person can request', async () => {
+    const a = await client();
+    const b = await client();
+    let pair = await a.store.sendRequest(a.uid, b.uid);
+    pair = await a.store.respond(a.uid, b.uid, 'cancel', pair.epoch);
+    await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toThrow(
+      'You cancelled a request to this person a moment ago. Try again in a few minutes.',
+    );
+    expect(await a.store.pair(a.uid, b.uid)).toMatchObject({ state: 'cancelled', epoch: pair.epoch });
+    expect(await b.store.sendRequest(b.uid, a.uid)).toMatchObject({ from: b.uid, state: 'pending' });
+  });
   it('requires participant-constrained, capped queries and supports a 20-row actual page', async () => {
     const a = await client();
     const b = await client();

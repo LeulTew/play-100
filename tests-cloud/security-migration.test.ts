@@ -841,7 +841,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
         await assertFails(b.friends.ranking(a.uid));
       });
 
-      it('denies creation at the attributed pair cap, then frees one eligible slot and retries only after a real cancellation', async () => {
+      it('denies creation at the attributed pair cap, then frees one eligible slot only after a real cancellation ages', async () => {
         const a = await peer('pair_cap_a');
         const b = await peer('pair_cap_b');
         const c = await peer('pair_cap_c');
@@ -897,6 +897,11 @@ for (const policy of ['live-270f', 'candidate'] as const)
         await expect(a.friends.sendRequest(a.uid, c.uid)).rejects.toBeInstanceOf(AccountQuotaFull);
         expect((await getDocFromServer(doc(a.db, 'friendPairs', id))).exists()).toBe(false);
         await a.friends.respond(a.uid, b.uid, 'cancel', original.epoch);
+        // A sender's own cancellation is held for ten minutes, so it frees no slot yet.
+        await expect(a.friends.sendRequest(a.uid, c.uid)).rejects.toBeInstanceOf(AccountQuotaFull);
+        const cancelledPath = `friendPairs/${friendPairId(a.uid, b.uid)}`;
+        const cancelled = await stored(cancelledPath);
+        await seed({ [cancelledPath]: { ...cancelled, updatedAt: Timestamp.fromMillis(Date.now() - 11 * 60 * 1000) } });
         const release = vi.spyOn(a.friends, 'releasePair');
         expect(await a.friends.sendRequest(a.uid, c.uid)).toMatchObject({ creatorUid: a.uid, state: 'pending' });
         expect(release).toHaveBeenCalledTimes(1);
@@ -912,6 +917,8 @@ for (const policy of ['live-270f', 'candidate'] as const)
           let pair = await a.friends.sendRequest(a.uid, b.uid);
           if (action === 'remove') pair = await b.friends.respond(b.uid, a.uid, 'accept', pair.epoch);
           pair = await a.friends.respond(a.uid, b.uid, action, pair.epoch);
+          // Only the canceller is held for ten minutes; the other person releases the pair at once.
+          if (action === 'cancel') await assertFails(a.friends.releasePair(a.uid, b.uid, pair.epoch));
           expect(await b.friends.releasePair(b.uid, a.uid, pair.epoch)).toBe(true);
           expect((await getDocFromServer(quotaRef(a.db, a.uid, 'pairs'))).data()?.count).toBe(0);
         },

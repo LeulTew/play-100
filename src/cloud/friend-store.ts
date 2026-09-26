@@ -89,7 +89,10 @@ import {
 import type { SlotQuotaKind } from './account-quota';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+/** After cancelling, the sender waits this long before requesting again or releasing the pair (rules fPairAction). */
+export const FRIEND_CANCEL_COOLDOWN_MS = 10 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
+const recentlyCancelled = 'You cancelled a request to this person a moment ago. Try again in a few minutes.';
 
 function conflict(message = 'This changed elsewhere. Reload before trying again.'): never {
   throw new FriendStoreError('conflict', message);
@@ -454,6 +457,8 @@ export class FriendStore {
       for (const row of rows.docs) {
         const pair = parseFriendPair(row.data());
         if (pair.state === 'declined' && Date.now() < pair.updatedAt + FRIEND_REQUEST_COOLDOWN_MS) continue;
+        if (pair.state === 'cancelled' && pair.from === uid && Date.now() < pair.updatedAt + FRIEND_CANCEL_COOLDOWN_MS)
+          continue;
         const peer = pair.a === uid ? pair.b : pair.a;
         if (await this.releasePair(uid, peer, pair.epoch)) return;
       }
@@ -493,6 +498,13 @@ export class FriendStore {
           Date.now() < current.updatedAt + FRIEND_REQUEST_COOLDOWN_MS
         ) {
           throw new FriendStoreError('request-unavailable', requestUnavailable);
+        }
+        if (
+          current?.state === 'cancelled' &&
+          current.from === uid &&
+          Date.now() < current.updatedAt + FRIEND_CANCEL_COOLDOWN_MS
+        ) {
+          throw new FriendStoreError('request-unavailable', recentlyCancelled);
         }
         const [a, b] = [uid, otherUid].sort();
         if (counted) await this.touchPairCount(tx, uid, ref.id, current === null);
