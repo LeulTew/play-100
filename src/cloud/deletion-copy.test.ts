@@ -1,5 +1,5 @@
 import { deleteApp, initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, Timestamp } from 'firebase/firestore';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudStore } from './cloud-store';
 
@@ -65,4 +65,58 @@ describe('bounded read-only deletion notice probe', () => {
       }
     },
   );
+});
+
+describe('deletion cleanup failure guidance', () => {
+  const deletedHead = {
+    format: 1,
+    epoch: 4,
+    revision: 7,
+    enabled: false,
+    deleted: true,
+    current: null,
+    previous: null,
+    updatedAt: Timestamp.fromMillis(1000),
+  };
+
+  it('identifies the service update needed after a denied payload list with a still-valid deleted head', async () => {
+    reads.document.mockResolvedValue({ exists: () => true, data: () => deletedHead });
+    const cause = Object.assign(new Error('Synthetic deletion list denial'), { code: 'permission-denied' });
+    reads.list.mockRejectedValueOnce(cause);
+
+    await expect(store.cleanup(true, { expectedDeletionEpoch: 4, isCurrent: () => true })).rejects.toMatchObject({
+      name: 'DeletionListPermissionPending',
+      message:
+        'Deletion is paused because the online service needs an update; no saved content has been removed and online saving and sharing are off. Once the service is updated, choose Finish deleting to continue.',
+      cause,
+    });
+    expect(reads.document).toHaveBeenCalledTimes(2);
+    expect(reads.list).toHaveBeenCalledOnce();
+    expect(reads.writes).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'unavailable',
+      'Deletion stopped before it finished; your account is still here. Check your connection, then choose Finish deleting to continue.',
+    ],
+    [
+      'resource-exhausted',
+      'Deletion paused because the online service reached a limit. Wait a while, then choose Finish deleting to continue.',
+    ],
+  ])('keeps the existing %s guidance distinct from a service-permission dependency', async (code, message) => {
+    reads.document.mockResolvedValue({ exists: () => true, data: () => deletedHead });
+    const cause = Object.assign(new Error('Synthetic deletion interruption'), { code });
+    reads.list.mockRejectedValueOnce(cause);
+
+    await expect(store.cleanup(true, { expectedDeletionEpoch: 4, isCurrent: () => true })).rejects.toMatchObject({
+      name: 'DeletionCleanupInterrupted',
+      message,
+      confirmed: 0,
+      cause,
+    });
+    expect(reads.document).toHaveBeenCalledOnce();
+    expect(reads.list).toHaveBeenCalledOnce();
+    expect(reads.writes).not.toHaveBeenCalled();
+  });
 });

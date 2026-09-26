@@ -426,6 +426,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
         const pending = owner.cloud.cleanup(true, options);
         await expect(pending).rejects.toBeInstanceOf(DeletionListPermissionPending);
         await expect(pending).rejects.toThrow('no saved content has been removed');
+        await expect(pending).rejects.toThrow('Once the service is updated, choose Finish deleting to continue.');
         expect(await owner.cloud.probeDeletedCopy()).toBe('unknown');
         for (const digest of saved.current!.chunks)
           expect(await stored(`accounts/${owner.uid}/chunks/${digest}`)).toBeDefined();

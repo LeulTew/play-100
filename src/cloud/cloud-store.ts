@@ -51,7 +51,7 @@ export class DeletionCleanupInterrupted extends Error {
 export class DeletionListPermissionPending extends Error {
   constructor(cause: unknown) {
     super(
-      'Deletion is paused; no saved content has been removed and online saving and sharing are off. Wait a few minutes, then choose Finish deleting to continue.',
+      'Deletion is paused because the online service needs an update; no saved content has been removed and online saving and sharing are off. Once the service is updated, choose Finish deleting to continue.',
       { cause },
     );
     this.name = 'DeletionListPermissionPending';
