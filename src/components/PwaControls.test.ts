@@ -47,10 +47,13 @@ describe('offline controls copy preserves readiness and privacy boundaries', () 
         createElement(PwaControls, { pwa, open: true, onUpdate: vi.fn(async () => false) }),
       );
       expect(html).toContain('Keep The 100 and this device&#x27;s library available offline.');
-      expect(html).toContain('Account services and live catalog details need a connection.');
-      expect(html).toContain('does not store private or account responses');
+      expect(html).toContain('Account services and live catalog results need a connection.');
+      expect(html).toContain('Offline preparation downloads public files, not private or account data.');
+      expect(html).toContain('recently viewed artwork included with the app have storage limits.');
       expect(html).toContain('No install prompt is available here.');
-      expect(html).toContain('Workbooks, films, cloud pages and live-provider responses are not downloaded');
+      expect(html).toContain('Workbooks, films, online-only pages and live catalog results are not downloaded');
+      expect(html).not.toContain('offline worker');
+      expect(html).not.toContain('live-provider responses');
       expect(html).toContain(
         offlineState === 'ready'
           ? 'Offline files ready'

@@ -21,8 +21,8 @@ export default function PwaControls({
       <summary>Install &amp; offline access</summary>
       <p>Keep The 100 and this device's library available offline.</p>
       <p>
-        Account services and live catalog details need a connection. The offline worker does not store private or
-        account responses.
+        Account services and live catalog results need a connection. Offline preparation downloads public files, not
+        private or account data.
       </p>
       {pwa.installState === 'installed' ? (
         <p role="status">Running as an installed app.</p>
@@ -68,8 +68,8 @@ export default function PwaControls({
         )}
       </div>
       <p className="section-help">
-        Public app files, metadata and recently viewed bundled artwork have storage limits. Workbooks, films, cloud
-        pages and live-provider responses are not downloaded for offline use.
+        Public app files, collection details and recently viewed artwork included with the app have storage limits.
+        Workbooks, films, online-only pages and live catalog results are not downloaded for offline use.
       </p>
       <div role="status">{pwa.message && <p>{pwa.message}</p>}</div>
       {pwa.error && !pwa.moduleError && (

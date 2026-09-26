@@ -12,6 +12,10 @@ standalone display mode supplies that indication.
 
 ## What offline access stores
 
+User-facing instructions describe public files and storage limits, not workers
+or an app shell. They still exclude private/account data, online-only pages,
+sign-in details, live catalog results, films and workbooks from offline preparation.
+
 Preparing offline access is explicit, not a first-visit download. The build
 generates `sw.js` and `pwa-assets.json` from Vite's manifest. Named roots are the
 main entry, Discover, CatalogDetail and MyGames (Library, Queue and Ranking),

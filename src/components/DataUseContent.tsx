@@ -14,15 +14,15 @@ export default function DataUseContent() {
       </p>
       <h2>Installation and offline access</h2>
       <p>
-        Installation uses your browser's own controls. Enabling offline access downloads a bounded public app shell,
-        collection metadata and recently viewed bundled artwork. It does not cache account, Firebase, authentication or
-        catalog API responses, or replace the existing device library database. Films and workbooks are not downloaded
-        automatically.
+        Installation uses your browser's own controls. Offline preparation downloads public app files, collection
+        details and recently viewed artwork included with the app, within storage limits. It does not download private
+        or account data, online-only pages, sign-in details or live catalog results for offline use, or replace your
+        existing device library. Films and workbooks are not downloaded automatically.
       </p>
       <p>
-        Offline access does not make cloud features available offline or move an account library into the guest library.
-        Updates wait for an explicit choice and successful edit checks; another open app window or unfinished form can
-        prevent a reload. This data-use page does not register the offline worker.
+        Online features still need a connection, and account and guest libraries stay separate. Updates wait for your
+        choice and for edits to save successfully; another open app window or unfinished form can prevent a reload.
+        Opening this page does not turn on offline access.
       </p>
       <h2>Sign-in</h2>
       <p>
