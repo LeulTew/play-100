@@ -12,6 +12,7 @@ export const initialDeferredPwaState: PwaState = {
   installState: 'unavailable',
   offlineState: 'idle',
   updateState: 'none',
+  checkingUpdate: false,
   online: true,
   message: '',
   error: '',
