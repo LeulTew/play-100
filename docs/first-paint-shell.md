@@ -1,11 +1,12 @@
 # First-paint shell
 
-The landing page paints before any JavaScript runs. `index.html` carries, inside
+The landing shell paints before the application module executes, after the
+inline boot script accepts and reveals it. `index.html` carries, inside
 `#root`, static markup of exactly what React's first commit renders at `/`: the
 skip link, header, hero, the loading collection and the mobile navigation. It is
 hidden by default. A small inline boot script shows it only when React's first
 commit will match it, and `createRoot()` replaces it in that commit, so the first
-paint and the hydrated page never differ. The page below the loading collection
+paint and React's first rendered page never differ. The page below the loading collection
 (films, workbook, footer) is React-only; the shell's `main` keeps the page as tall
 as the viewport so no scrollbar appears at the handoff. The collection section is
 at least a viewport tall in every state, in the shell and in React alike, so that

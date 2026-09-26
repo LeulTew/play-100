@@ -77,11 +77,14 @@ workspace controls. Invalid or failed edits keep the current page and draft;
 stale navigation/account transitions cannot finish an old page request. A
 successful page change focuses **Your library results** once the new rows have
 rendered. Page/query/form state survives an in-place game detail and
-Library/Ranking tab switches. The page is transient React state, not a private
-URL or saved preference: Back keeps its route/tab/dialog meaning, while leaving
-and remounting the workspace or reloading starts page 1. Entering Queue or changing
-the effective Library filter resets the Library page. Paging never writes or
-caps stored games, progress, notes or fixed positions.
+Library/Ranking tab switches. On My games routes, the numeric Library page is
+stored in `?page=` (omitted for page 1). Page changes create history entries;
+Back, Forward and reload restore the bounded 25-game page. Entering Queue or
+changing the effective Library filter resets it; removals clamp it with replace.
+Private Library search text and saved opinions stay out of the URL. When embedded
+outside a My games route, the Library pager uses local state without rewriting
+the host URL. Paging never writes or caps stored games, progress, notes or fixed
+positions.
 
 **Played and Completed are different.** Played records that you tried a game;
 Completed records finishing it and also implies Played. Unmarking Completed
