@@ -408,7 +408,7 @@ export class SocialStore {
       // other input the rules judge still holds; any other denial stays an authorization error.
       if (!denied(cause) || !claim.staged || claim.from === handle) throw cause;
       if (!(await this.claimRefused(uid, input.creator, expected, claim.from).catch(() => false))) throw cause;
-      throw new Error('That handle is already taken. Choose another one.');
+      throw new Error('That handle is already taken. Choose another one.', { cause });
     }
   }
   /**
