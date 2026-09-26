@@ -104,6 +104,14 @@ async function client(anonymous = false) {
 function publication(handle: string, listed = false, entries = [entry]) {
   return { handle, displayName: 'A chosen nickname', avatar, title: 'My favorites', listed, creator: false, entries };
 }
+// The stored owner of a handle, read with rules disabled: clients cannot read a missing handle at all.
+async function handleOwner(handle: string): Promise<string | undefined> {
+  let owner: string | undefined;
+  await environment.withSecurityRulesDisabled(async (context) => {
+    owner = (await context.firestore().doc(`handles/${handle}`).get()).data()?.uid;
+  });
+  return owner;
+}
 async function stageGeneration(owner: Awaited<ReturnType<typeof client>>, ref: ReturnType<typeof doc>) {
   const registryRef = doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry');
   const registry = await getDocFromServer(registryRef);
@@ -164,7 +172,7 @@ describe('consented public snapshots, handle claims and moderation', () => {
     expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(true);
     await owner.social.deleteProfile(owner.uid);
     expect((await getDocFromServer(profile)).exists()).toBe(false);
-    expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(false);
+    expect(await handleOwner(first.handle)).toBeUndefined();
     expect((await getDocFromServer(doc(owner.db, 'publicProfiles', owner.uid, 'metadata', 'registry'))).exists()).toBe(
       false,
     );
@@ -175,7 +183,7 @@ describe('consented public snapshots, handle claims and moderation', () => {
       publication('next_bounded_handle'),
       await owner.social.control(owner.uid),
     );
-    expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(false);
+    expect(await handleOwner(first.handle)).toBeUndefined();
     expect((await getDocFromServer(doc(owner.db, 'handles', second.handle))).exists()).toBe(true);
   });
   it('keeps link-only publication out of the directory and never publishes private state', async () => {
@@ -221,9 +229,49 @@ describe('consented public snapshots, handle claims and moderation', () => {
       b.social.publish(b.uid, publication('unique_handle'), control),
     ]);
     expect(result.filter((item) => item.status === 'fulfilled')).toHaveLength(1);
+    // The loser's write-based claim is refused by the rules and reported as a taken handle, not as a raw denial.
+    const lost = result.find((item): item is PromiseRejectedResult => item.status === 'rejected');
+    expect(lost?.reason).toMatchObject({ message: 'That handle is already taken. Choose another one.' });
     const guest = await client(true);
-    expect([a.uid, b.uid]).toContain((await guest.social.profile('unique_handle'))?.uid);
+    const winner = (await guest.social.profile('unique_handle'))?.uid;
+    expect([a.uid, b.uid]).toContain(winner);
+    expect(await handleOwner('unique_handle')).toBe(winner);
   });
+  it('reports a handle another account holds as taken, whether published, unpublished or hidden', async () => {
+    const shown = await client();
+    const kept = await client();
+    const hidden = await client();
+    const moderator = await client();
+    const claimant = await client();
+    await shown.social.publish(shown.uid, publication('shown_handle'), control);
+    await kept.social.publish(kept.uid, publication('kept_handle'), control);
+    await kept.social.unpublish(kept.uid, await kept.social.control(kept.uid));
+    await hidden.social.publish(hidden.uid, publication('hidden_handle'), control);
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
+    });
+    await moderator.social.moderate(hidden.uid, true);
+    // No handle is read first: each claim is a write that the rules refuse because another account holds the handle.
+    for (const handle of ['shown_handle', 'kept_handle', 'hidden_handle'])
+      await expect(
+        claimant.social.publish(claimant.uid, publication(handle), await claimant.social.control(claimant.uid)),
+      ).rejects.toThrow('That handle is already taken. Choose another one.');
+    // A published account renaming onto a held handle is refused the same way and keeps its current handle.
+    await expect(
+      shown.social.publish(shown.uid, publication('kept_handle'), await shown.social.control(shown.uid)),
+    ).rejects.toThrow('That handle is already taken. Choose another one.');
+    expect((await shown.social.ownProfile(shown.uid))?.handle).toBe('shown_handle');
+    expect(await handleOwner('shown_handle')).toBe(shown.uid);
+    expect(await handleOwner('kept_handle')).toBe(kept.uid);
+    expect(await handleOwner('hidden_handle')).toBe(hidden.uid);
+    expect(await claimant.social.ownProfile(claimant.uid)).toBeNull();
+    // The refused claims changed nothing else: a free handle still publishes under the same publication control.
+    const before = await claimant.social.control(claimant.uid);
+    expect(before).toEqual(control);
+    const free = await claimant.social.publish(claimant.uid, publication('free_handle'), before);
+    expect(free).toMatchObject({ uid: claimant.uid, handle: 'free_handle', published: true });
+    expect(await handleOwner('free_handle')).toBe(claimant.uid);
+  }, 60000);
   it('rejects forged ranks, private fields, role flags and incomplete generations through direct SDK writes', async () => {
     const owner = await client();
     await setDoc(doc(owner.db, 'publicControls', owner.uid), control);

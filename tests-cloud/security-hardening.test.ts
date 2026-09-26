@@ -394,6 +394,29 @@ describe('S3 report and friendship boundaries', () => {
   });
 });
 
+describe('S1 handle existence', () => {
+  it('reads a missing, unpublished or hidden handle alike and resolves only a published one for other readers', async () => {
+    await seed({
+      'publicProfiles/Alice': { uid: 'Alice', handle: 'kept_games', published: false, hidden: false },
+      'handles/kept_games': { uid: 'Alice' },
+      'publicProfiles/Bob': { uid: 'Bob', handle: 'hidden_games', published: false, hidden: true },
+      'handles/hidden_games': { uid: 'Bob' },
+      'publicProfiles/Carol': { uid: 'Carol', handle: 'shown_games', published: true, hidden: false },
+      'handles/shown_games': { uid: 'Carol' },
+    });
+    for (const db of [environment.unauthenticatedContext().firestore(), user('Third')]) {
+      // The same denial for a never-claimed handle as for a retained one, so a raw read reveals neither.
+      for (const handle of ['never_games', 'kept_games', 'hidden_games'])
+        await expect(db.doc(`handles/${handle}`).get()).rejects.toMatchObject({ code: 'permission-denied' });
+      expect((await assertSucceeds(db.doc('handles/shown_games').get())).data()).toEqual({ uid: 'Carol' });
+    }
+    // Owners still resolve their own retained handles, and nobody reads a missing one.
+    await assertSucceeds(user('Alice').doc('handles/kept_games').get());
+    await assertSucceeds(user('Bob').doc('handles/hidden_games').get());
+    await expect(user('Alice').doc('handles/never_games').get()).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
+
 describe('display-name hygiene', () => {
   const badNames = [
     'Bad\u202Ename',

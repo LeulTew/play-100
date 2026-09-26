@@ -216,7 +216,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
         await owner.social.control(owner.uid),
       );
       expect(next.generation).not.toBe(first.generation);
-      expect((await getDocFromServer(doc(owner.db, 'handles', first.handle))).exists()).toBe(false);
+      expect(await stored(`handles/${first.handle}`)).toBeUndefined();
       expect((await guest.social.profile(next.handle))?.uid).toBe(owner.uid);
       await reporter.social.report(reporter.uid, owner.uid, 'Synthetic migration report');
       expect(
@@ -1950,7 +1950,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
           expect(await owner.social.control(owner.uid)).toEqual(before);
           const renamed = await owner.social.publish(owner.uid, publication('migration_compliant'), before);
           expect(renamed.handle).toBe('migration_compliant');
-          expect((await getDocFromServer(doc(owner.db, 'handles', handle))).exists()).toBe(false);
+          expect(await stored(`handles/${handle}`)).toBeUndefined();
           expect((await session().social.profile(renamed.handle))?.uid).toBe(owner.uid);
         },
       );

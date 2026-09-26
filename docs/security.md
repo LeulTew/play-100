@@ -432,6 +432,25 @@ FriendStore.publicIdentity (used by outgoing FriendManagerFeed and FriendDetailP
 and PublicProfilePage's handle lookup. Owner-only mutation transactions do not
 swallow authorization failures.
 
+**Handle existence (R11 S1).** A handle document resolves only for its verified
+owner while the owner's profile still points to it, or for any reader while that
+profile is published and not hidden. A never-claimed handle is denied to every
+reader, its eventual claimant included, exactly like another account's
+unpublished (retained) or hidden handle, so a raw read cannot tell a retained
+handle from a free one. Publication therefore claims its handle by writing it in
+the final publication transaction without reading it first: the rules create a
+free handle or keep this account's own and refuse a handle another account
+holds. `SocialStore.publish` reports that refusal as "That handle is already
+taken" only for a handle new to the profile and only while the other inputs the
+rules judge (publication control, released old handle and creator flag) still
+hold; any other denial stays an authorization error. One narrow disclosure
+remains by design, because handles are unique: a verified account that can
+publish learns from a refused claim that someone holds the handle (not who, or
+whether it is published), and the same attempt claims a free handle rather than
+merely testing it. Published handles are public anyway. Handle secrecy is
+therefore not absolute: the rules make reads indistinguishable and claim nothing
+about other Firestore error surfaces.
+
 New handle claims reject reserved prefixes, including `leul_tew`,
 `play100_official` and `support_team`. Existing syntax-valid legacy handles remain
 readable so an owner can rename/unpublish; new publication requires a compliant
@@ -518,6 +537,7 @@ that suspends H5 bounds. The table below explains why each change is client-firs
 | H5 deletion marker | Old parsers cannot read a head carrying cleanupEpoch; old full-deletion flow cannot prove completion | Keep a compatible current client during repair; no old-client full-deletion claim |
 | Ranking 16 MiB allocation | Normal old generator output fits; new oversized raw allocations are denied, old 20 MiB reads/cleanup remain | Cap is separately droppable; private remains 20 MiB |
 | H6 reserved/atomic handle | Old transaction already releases its old handle; old reserved claims are denied | New validation/read compatibility client first |
+| S1 handle existence | Old publish reads the proposed handle before claiming it, so a new handle's read is denied and it cannot claim one; republishing an unchanged handle still works | Write-claim client first, then rules |
 | H7 creator UID | Old client asks the same ownerAccess endpoint | Console UID addition before rules |
 | H11 device removal | Old Sign out still retains its cache | New optional client action; no rule dependency |
 | H13 password length | Old UI truncation remains | New client; no rule dependency |

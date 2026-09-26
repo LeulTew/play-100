@@ -379,8 +379,8 @@ The quota inventory is not a blanket allow for other collections:
   the associated manifests/registries bound their fields.
 - `handles/{handle}` is one current claim per ordinary owner under atomic
   rename and profile-delete rules. Old hoarded/unreferenced claims require the UID-based inventory
-  query; they are not silently counted as one. A missing-handle availability
-  read remains intentional.
+  query; they are not silently counted as one. Since R11 S1 a missing handle
+  reads like a retained one; only a refused claim reveals that a handle is held.
 - Avatar descriptors are bounded fields in member/friend/public records, not
   an upload collection. No Firebase Storage/file-upload grant is introduced.
 - `_owner`, `ownerAccess` and `catalog/author` are not ordinary client-write

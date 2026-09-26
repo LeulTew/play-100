@@ -352,8 +352,10 @@ service cloud.firestore {
         && !existsAfter(/databases/$(database)/documents/handles/$(resource.data.handle));
     }
     match /handles/{handle} {
-      allow get: if resource == null || (profile(resource.data.uid).handle == handle
-        && ((verified() && resource.data.uid == request.auth.uid) || liveProfile(resource.data.uid)));
+      // A missing handle reads like another account's unpublished or hidden one, so reads cannot tell retained handles
+      // from free ones. Only the owner and readers of a live profile resolve a handle; a claim is a write (below).
+      allow get: if resource != null && profile(resource.data.uid).handle == handle
+        && ((verified() && resource.data.uid == request.auth.uid) || liveProfile(resource.data.uid));
       allow list: if false;
       allow create, update: if verified() && validHandle(handle) && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid

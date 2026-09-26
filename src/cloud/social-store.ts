@@ -29,6 +29,7 @@ import {
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { displayNameProblem } from '../lib/text-controls';
 import { ensureAccountActivity } from './account-lifecycle';
+import { creatorAccess } from './cloud-store';
 import { releaseIndexedPayload } from './generation-cleanup';
 import { ACCOUNT_LIMITS, AccountQuotaFull, quotaRef, quotaSupported, requireVisibleCapacity } from './account-quota';
 
@@ -352,52 +353,81 @@ export class SocialStore {
       await batch.commit();
     }
     if (beforeCommit) await beforeCommit();
-    return runTransaction(this.db, async (tx) => {
-      const ref = doc(this.db, 'publicProfiles', uid);
-      const handleRef = doc(this.db, 'handles', handle);
-      const [control, oldProfile, claim, generation] = await Promise.all([
-        tx.get(controlRef),
-        tx.get(ref),
-        tx.get(handleRef),
-        tx.get(generationRef),
-      ]);
-      const current = parseControl(control.data() ?? {});
-      if (
-        current.epoch !== expected.epoch ||
-        current.hidden ||
-        current.deleted ||
-        !generation.exists() ||
-        generation.data().epoch !== current.epoch ||
-        generation.data().status !== 'ready'
-      )
-        throw new Error(
-          'The public ranking changed elsewhere. Your private ranking is safe; refresh the preview before replacing it.',
-        );
-      if (claim.exists() && claim.data().uid !== uid)
-        throw new Error('That handle is already taken. Choose another one.');
-      const next: PublicProfile = {
-        uid,
-        handle,
-        displayName,
-        avatar,
-        title,
-        count: entries.length,
-        preview: entries.slice(0, 3).map((entry) => entry.title),
-        generation: id,
-        epoch: current.epoch + 1,
-        published: true,
-        listed: input.listed,
-        hidden: false,
-        creator: input.creator,
-        updatedAt: Date.now(),
-      };
-      if (oldProfile.exists() && oldProfile.data().handle !== handle)
-        tx.delete(doc(this.db, 'handles', oldProfile.data().handle));
-      tx.set(handleRef, { uid });
-      tx.update(controlRef, { epoch: next.epoch });
-      tx.set(ref, { ...next, updatedAt: serverTimestamp() });
-      return next;
-    });
+    // Rules keep a missing handle as unreadable as another account's retained one, so the claim is a write they allow
+    // only for a free handle or this account's own. A refused claim is how a publisher learns the handle is taken.
+    const claim = { staged: false, from: null as string | null };
+    try {
+      return await runTransaction(this.db, async (tx) => {
+        claim.staged = false;
+        const ref = doc(this.db, 'publicProfiles', uid);
+        const handleRef = doc(this.db, 'handles', handle);
+        const [control, oldProfile, generation] = await Promise.all([
+          tx.get(controlRef),
+          tx.get(ref),
+          tx.get(generationRef),
+        ]);
+        const current = parseControl(control.data() ?? {});
+        if (
+          current.epoch !== expected.epoch ||
+          current.hidden ||
+          current.deleted ||
+          !generation.exists() ||
+          generation.data().epoch !== current.epoch ||
+          generation.data().status !== 'ready'
+        )
+          throw new Error(
+            'The public ranking changed elsewhere. Your private ranking is safe; refresh the preview before replacing it.',
+          );
+        const next: PublicProfile = {
+          uid,
+          handle,
+          displayName,
+          avatar,
+          title,
+          count: entries.length,
+          preview: entries.slice(0, 3).map((entry) => entry.title),
+          generation: id,
+          epoch: current.epoch + 1,
+          published: true,
+          listed: input.listed,
+          hidden: false,
+          creator: input.creator,
+          updatedAt: Date.now(),
+        };
+        const from = oldProfile.exists() ? (oldProfile.data().handle as string) : null;
+        if (from !== null && from !== handle) tx.delete(doc(this.db, 'handles', from));
+        tx.set(handleRef, { uid });
+        tx.update(controlRef, { epoch: next.epoch });
+        tx.set(ref, { ...next, updatedAt: serverTimestamp() });
+        claim.staged = true;
+        claim.from = from;
+        return next;
+      });
+    } catch (cause) {
+      // Only a staged claim of a handle new to this profile can be refused for the handle itself, and only while every
+      // other input the rules judge still holds; any other denial stays an authorization error.
+      if (!denied(cause) || !claim.staged || claim.from === handle) throw cause;
+      if (!(await this.claimRefused(uid, input.creator, expected, claim.from).catch(() => false))) throw cause;
+      throw new Error('That handle is already taken. Choose another one.');
+    }
+  }
+  /**
+   * Whether the rules can only have refused a staged publication for its handle: the transaction already checked its
+   * own reads, the account's publication control is still the one it published under, the handle it released is
+   * still this account's, and the role flag it sent is the account's role.
+   */
+  private async claimRefused(
+    uid: string,
+    creator: boolean,
+    expected: PublicControl,
+    from: string | null,
+  ): Promise<boolean> {
+    const [control, released, role] = await Promise.all([
+      this.control(uid),
+      from === null ? true : getDocFromServer(doc(this.db, 'handles', from)).then((link) => link.data()?.uid === uid),
+      creatorAccess(this.db),
+    ]);
+    return control.epoch === expected.epoch && !control.hidden && !control.deleted && released && role === creator;
   }
   async unpublish(uid: string, expected: PublicControl, deleting = false): Promise<void> {
     await runTransaction(this.db, async (tx) => {
