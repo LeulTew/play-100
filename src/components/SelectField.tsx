@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 export function SelectField({
   id,
   label,
+  descriptionId,
   value,
   onChange,
   children,
@@ -11,6 +12,7 @@ export function SelectField({
 }: {
   id: string;
   label: string;
+  descriptionId?: string;
   value: string;
   onChange: (value: string) => void;
   children: ReactNode;
@@ -21,7 +23,13 @@ export function SelectField({
     <div className={`filter-select ${className}`}>
       <label htmlFor={id}>{label}</label>
       <div className="select-shell">
-        <select id={id} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        <select
+          id={id}
+          aria-describedby={descriptionId}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        >
           {children}
         </select>
         <svg

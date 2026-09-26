@@ -213,6 +213,10 @@ Dark, lime, outline, quiet and destructive variants use the extracted assignment
 
 Keep search, original-data filters, sorting and device-list controls legible and directly operable. Do not imply that changing the view changes authored ranks. Desktop navigation is direct; mobile prioritizes reachable controls rather than decorative navigation chrome.
 
+Discover's four primary filters share SelectField's existing progress-filter
+treatment: 12px labels, 48px native selects, olive borders and soft-white fill.
+The mobile filter disclosure and optional exact-source-genre control remain.
+
 Keyboard Show more continues at the first appended game's title in Grid, List
 and Table; pointer activation keeps its existing focus behavior.
 

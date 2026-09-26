@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
@@ -15,6 +15,7 @@ import ManualGameForm from '../personal/ManualGameForm';
 import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
 import { ProgressFilter } from '../ProgressFilter';
+import { SelectField } from '../SelectField';
 import { selectionOperation } from '../../lib/game-progress';
 import type { useCollection } from '../../hooks/useCollection';
 import { catalogActionRecord, collectionGameForId } from '../../lib/catalog-identity';
@@ -51,6 +52,7 @@ export default function DiscoverPage({
   const games = collection.data?.games ?? [];
   const search = useDiscoverSearch(filters, games, collection.status === 'ready', state);
   const progressView = filters.progress ?? 'all';
+  const filterId = useId();
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Any change of results clears the selection, including Back/Forward and other URL updates outside change().
@@ -217,66 +219,66 @@ export default function DiscoverPage({
             value={progressView}
             onChange={(progress) => change({ progress, offset: 0, online: 'auto' })}
           />
-          <label>
-            Genre family
-            <select
-              aria-describedby="discovery-genre-help"
-              value={filters.genreFamily ?? ''}
-              onChange={(event) =>
-                change({
-                  genreFamily: parseDiscoveryGenreFamily(event.target.value),
-                  genre: '',
-                  offset: 0,
-                  online: 'auto',
-                })
-              }
-            >
-              <option value="">All families</option>
-              {DISCOVERY_GENRE_FAMILIES.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Year
-            <select
-              value={filters.year}
-              onChange={(event) => change({ year: event.target.value, offset: 0, online: 'auto' })}
-            >
-              <option value="">Any year</option>
-              {filters.year && !years.includes(Number(filters.year)) && <option>{filters.year}</option>}
-              {years.map((year) => (
-                <option key={year}>{year}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Source
-            <select
-              value={filters.source}
-              onChange={(event) =>
-                change({
-                  source:
-                    event.target.value === 'collection'
-                      ? 'collection'
-                      : event.target.value === 'wikidata'
-                        ? 'wikidata'
-                        : event.target.value === 'freetogame'
-                          ? 'freetogame'
-                          : 'all',
-                  offset: 0,
-                  online: 'auto',
-                })
-              }
-            >
-              <option value="all">All sources</option>
-              <option value="collection">The 100</option>
-              <option value="wikidata">Wikidata</option>
-              <option value="freetogame">FreeToGame</option>
-            </select>
-          </label>
+          <SelectField
+            id={`${filterId}-genre-family`}
+            className="progress-filter"
+            label="Genre family"
+            descriptionId="discovery-genre-help"
+            value={filters.genreFamily ?? ''}
+            onChange={(value) =>
+              change({
+                genreFamily: parseDiscoveryGenreFamily(value),
+                genre: '',
+                offset: 0,
+                online: 'auto',
+              })
+            }
+          >
+            <option value="">All families</option>
+            {DISCOVERY_GENRE_FAMILIES.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            id={`${filterId}-year`}
+            className="progress-filter"
+            label="Year"
+            value={filters.year}
+            onChange={(value) => change({ year: value, offset: 0, online: 'auto' })}
+          >
+            <option value="">Any year</option>
+            {filters.year && !years.includes(Number(filters.year)) && <option>{filters.year}</option>}
+            {years.map((year) => (
+              <option key={year}>{year}</option>
+            ))}
+          </SelectField>
+          <SelectField
+            id={`${filterId}-source`}
+            className="progress-filter"
+            label="Source"
+            value={filters.source}
+            onChange={(value) =>
+              change({
+                source:
+                  value === 'collection'
+                    ? 'collection'
+                    : value === 'wikidata'
+                      ? 'wikidata'
+                      : value === 'freetogame'
+                        ? 'freetogame'
+                        : 'all',
+                offset: 0,
+                online: 'auto',
+              })
+            }
+          >
+            <option value="all">All sources</option>
+            <option value="collection">The 100</option>
+            <option value="wikidata">Wikidata</option>
+            <option value="freetogame">FreeToGame</option>
+          </SelectField>
         </div>
         <p className="section-help" id="discovery-genre-help">
           Families group source labels and can overlap. Other includes unclear or missing genres. Changing family clears

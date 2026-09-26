@@ -37,7 +37,7 @@
   flex: 1;
   max-width: 280px;
 }
-.discovery-toolbar select {
+.discovery-toolbar > label select {
   display: block;
   width: 100%;
   min-height: 44px;

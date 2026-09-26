@@ -19,6 +19,51 @@ const items = [
   aliases: [],
 }));
 
+test('Discover primary filters share aligned native select styling at 1440px', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await emptyCatalogs(page);
+  await page.route('**/data/discovery/catalog.v1.json', (route) =>
+    route.fulfill({ json: { ...catalogFixture, items } }),
+  );
+  await page.goto('/discover?catalogs=off');
+  await expect(page.locator('.discovery-card')).toHaveCount(items.length);
+  const toolbar = page.locator('.discovery-toolbar').first();
+  const selects = toolbar.getByRole('combobox');
+  await expect(selects).toHaveCount(4);
+  await expect(toolbar.getByRole('combobox', { name: 'Genre family', exact: true })).toHaveAttribute(
+    'aria-describedby',
+    'discovery-genre-help',
+  );
+  await page.evaluate(() => document.fonts.ready);
+  const geometry = await selects.evaluateAll((elements) =>
+    elements.map((element) => {
+      if (!(element instanceof HTMLSelectElement)) throw new Error('Discover filters must remain native selects.');
+      const label = element.labels?.[0];
+      if (!label) throw new Error('Every Discover filter needs its visible label.');
+      const bounds = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        name: label.textContent?.trim(),
+        top: bounds.top,
+        height: bounds.height,
+        border: style.borderTopColor,
+        fill: style.backgroundColor,
+        labelSize: getComputedStyle(label).fontSize,
+      };
+    }),
+  );
+  expect(geometry.map((control) => control.name)).toEqual(['Progress', 'Genre family', 'Year', 'Source']);
+  const tops = geometry.map((control) => control.top);
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
+  for (const control of geometry) {
+    expect(control.height).toBe(48);
+    expect(control.border).toBe('rgb(165, 172, 152)');
+    expect(control.fill).toBe('rgb(253, 253, 246)');
+    expect(control.labelSize).toBe('12px');
+  }
+});
+
 test('Discover grid action rows align at 1024 and 393 without truncating text', async ({ page, isMobile }) => {
   await page.setViewportSize({ width: isMobile ? 393 : 1024, height: isMobile ? 851 : 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
