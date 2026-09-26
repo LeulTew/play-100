@@ -6,6 +6,7 @@ import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../lib/test-server-ports';
 import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-library';
+import { MAX_BACKUP_FILE_BYTES } from '../lib/personal-types';
 
 interface RadioFrame {
   checked: string | undefined;
@@ -155,6 +156,21 @@ afterAll(async () => {
 
 const radio = (page: Page, value: string) => page.locator(`input[name="visual-experience"][value="${value}"]`);
 
+const unreadableBackupMessage =
+  "This backup could not be read as JSON. Choose a file made with Export my library, then try again. Your existing data hasn't changed.";
+const unsupportedBackupMessage =
+  "This isn't a supported Play 100 backup. Choose a JSON file made with Export my library. Your existing data hasn't changed.";
+
+async function expectBackupImportFailure(page: Page, message: string) {
+  const panel = page.locator('.backup-panel');
+  await browserExpect(panel.getByRole('alert')).toHaveText(message);
+  await browserExpect(panel.locator('.restore-preview')).toHaveCount(0);
+  await browserExpect(panel.getByRole('button', { name: 'Import backup', exact: true })).toBeEnabled();
+  await browserExpect(panel.getByRole('button', { name: 'Export my library', exact: true })).toBeEnabled();
+  await browserExpect(panel.getByLabel('Import personal library backup file')).toHaveValue('');
+  expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(0);
+}
+
 for (const mobile of [false, true]) {
   describe(mobile ? 'mobile Settings motion radios' : 'desktop Settings motion radios', () => {
     async function withPage(work: (page: Page) => Promise<void>) {
@@ -196,6 +212,96 @@ for (const mobile of [false, true]) {
           await browserExpect(option).toHaveCount(1);
           await browserExpect(option).toHaveAccessibleDescription(description);
           await browserExpect(option).not.toHaveAttribute('aria-label');
+        }
+      });
+    });
+
+    it.each([
+      ['malformed JSON', '{not json', unreadableBackupMessage],
+      ['unsupported JSON', '{"version":0,"games":[]}', unsupportedBackupMessage],
+      [
+        'unsupported version',
+        JSON.stringify({ ...createLibraryBackup(emptyPersonalLibrary()), formatVersion: 99 }),
+        unsupportedBackupMessage,
+      ],
+    ] as const)('gives a recovery step for an import with %s without replacing data', async (kind, text, message) => {
+      await withPage(async (page) => {
+        const panel = page.locator('.backup-panel');
+        const input = panel.getByLabel('Import personal library backup file');
+        await input.setInputFiles({
+          name: `${kind}.json`,
+          mimeType: 'application/json',
+          buffer: Buffer.from(text),
+        });
+        await expectBackupImportFailure(page, message);
+        await input.setInputFiles({
+          name: 'supported-backup.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+        });
+        await browserExpect(panel.locator('.restore-preview')).toBeVisible();
+        await browserExpect(panel.getByRole('alert')).toHaveCount(0);
+        expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(0);
+      });
+    });
+
+    it('explains an unreadable backup file without appending the file-system error', async () => {
+      await withPage(async (page) => {
+        const original = await page.evaluateHandle(() => File.prototype.text);
+        try {
+          await page.evaluate(() => {
+            File.prototype.text = () =>
+              Promise.reject(new DOMException('Synthetic file-system detail.', 'NotReadableError'));
+          });
+          await page.getByLabel('Import personal library backup file').setInputFiles({
+            name: 'unreadable-backup.json',
+            mimeType: 'application/json',
+            buffer: Buffer.from('{}'),
+          });
+          await expectBackupImportFailure(page, unreadableBackupMessage);
+        } finally {
+          await original.evaluate((read) => {
+            File.prototype.text = read;
+          });
+          await original.dispose();
+        }
+      });
+    });
+
+    it('keeps the size-limit refusal and rejects an oversized file before reading it', async () => {
+      await withPage(async (page) => {
+        const probe = await page.evaluateHandle((size) => {
+          const originalSize = Object.getOwnPropertyDescriptor(File.prototype, 'size');
+          const originalText = File.prototype.text;
+          const observation = {
+            reads: 0,
+            restore() {
+              File.prototype.text = originalText;
+              if (originalSize) Object.defineProperty(File.prototype, 'size', originalSize);
+              else Reflect.deleteProperty(File.prototype, 'size');
+            },
+          };
+          Object.defineProperty(File.prototype, 'size', { configurable: true, get: () => size });
+          File.prototype.text = function () {
+            observation.reads += 1;
+            return originalText.call(this);
+          };
+          return observation;
+        }, MAX_BACKUP_FILE_BYTES + 1);
+        try {
+          await page.getByLabel('Import personal library backup file').setInputFiles({
+            name: 'oversized-backup.json',
+            mimeType: 'application/json',
+            buffer: Buffer.from('{}'),
+          });
+          await expectBackupImportFailure(
+            page,
+            'This backup file exceeds the 24 MB import limit. No data was changed.',
+          );
+          expect(await probe.evaluate((observation) => observation.reads)).toBe(0);
+        } finally {
+          await probe.evaluate((observation) => observation.restore());
+          await probe.dispose();
         }
       });
     });

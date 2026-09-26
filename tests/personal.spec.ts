@@ -285,7 +285,9 @@ test('backup export and validated replacement restore queue and private rankings
     mimeType: 'application/json',
     buffer: Buffer.from('{"formatVersion":2,"library":{"bad":true}}'),
   });
-  await expect(page.locator('.backup-panel .inline-error')).toContainText('No data was changed');
+  await expect(page.locator('.backup-panel .inline-error')).toHaveText(
+    "This isn't a supported Play 100 backup. Choose a JSON file made with Export my library. Your existing data hasn't changed.",
+  );
   expect((await readLibrary(page)).queueOrder).toEqual([first, second, third]);
 });
 

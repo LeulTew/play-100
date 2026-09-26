@@ -86,11 +86,16 @@ This does not promise that unsaved tab state survives a user-requested reload,
 site-data clearing or browser eviction; downloaded backups remain independent
 recovery copies.
 
-A failed import keeps its pending preview and Settings dialog open, with
+A failed backup replacement keeps its pending preview and Settings dialog open, with
 “Restore failed. Your existing library was not replaced.” Retrying that preview
 after freeing space can commit it, clear the failure and report
 “Your backup was restored and saved on this device.” Reloading before retry
 requires selecting the backup file again; it must not replace the old library.
+
+Import feedback distinguishes unreadable JSON/files from unsupported backup
+formats or versions and points to Export my library for a compatible file.
+Size-limit refusals keep their existing wording; stored-library validation and
+recovery diagnostics are not rewritten.
 
 Manual entry is an inline native `details` form, not a dialog. A refused or
 rejected Save reports “The game could not be added. Your entry is unchanged;

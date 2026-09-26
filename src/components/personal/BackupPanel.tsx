@@ -77,7 +77,9 @@ export default function BackupPanel({
       setError(
         cause instanceof Error && cause.name === 'PersonalLibraryBudgetError'
           ? cause.message
-          : `This backup could not be read. No data was changed. ${cause instanceof Error ? cause.message : ''}`,
+          : cause instanceof Error && cause.name === 'PersonalLibraryValidationError'
+            ? "This isn't a supported Play 100 backup. Choose a JSON file made with Export my library. Your existing data hasn't changed."
+            : "This backup could not be read as JSON. Choose a file made with Export my library, then try again. Your existing data hasn't changed.",
       );
     } finally {
       setReading(false);
