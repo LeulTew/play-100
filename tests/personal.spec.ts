@@ -172,6 +172,23 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([second, first, third]);
 });
 
+test('saving Played keeps keyboard focus, so a second Space reverses it', async ({ page }) => {
+  await seedLegacy(page);
+  await page.goto('/my-library?list=later');
+  await expect(page.locator('.personal-row')).toHaveCount(3);
+  const played = page.getByRole('checkbox', { name: 'Played: The Witcher 3: Wild Hunt', exact: true });
+  await played.focus();
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await readLibrary(page)).progress[third]?.played).toBe(true);
+  await expect(played).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(played).toBeChecked();
+  await expect(played).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await readLibrary(page)).progress[third]?.played).toBe(false);
+  await expect(played).not.toBeChecked();
+  await expect(played).toBeFocused();
+});
+
 test('a manual draft opened from a legacy library link survives a Ranking round trip', async ({ page }) => {
   const editor = page.locator('.my-games-editor:visible');
   const view = (label: string) =>

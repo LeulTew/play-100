@@ -36,8 +36,10 @@ export function PlayedToggle({
         <input
           type="checkbox"
           checked={played}
-          disabled={busy}
+          // Pending, not disabled: disabling the focused checkbox during a save dropped keyboard focus.
+          aria-disabled={busy || undefined}
           onChange={(event) => {
+            if (busy) return;
             if (!event.target.checked && completed) setReview(key);
             else onChange(event.target.checked);
           }}

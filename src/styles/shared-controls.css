@@ -16,6 +16,10 @@
   margin: 0;
   flex-shrink: 0;
 }
+.check-control input[aria-disabled='true'] {
+  cursor: progress;
+  opacity: 0.55;
+}
 .check-control {
   display: inline-flex;
   align-items: center;
