@@ -279,6 +279,10 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
     await openMenu(page);
     const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
     const close = await expectReachableClose(menu);
+    // Full motion is still settling the Menu's entrance; measure its resting position.
+    await menu.evaluate((element) =>
+      Promise.all(element.getAnimations({ subtree: true }).map((item) => item.finished)),
+    );
     const before = await close.boundingBox();
     if (!before) throw new Error('Landscape Menu Close must be laid out.');
     const scroller = menu.locator('.menu-scroll');
