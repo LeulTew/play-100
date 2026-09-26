@@ -170,18 +170,38 @@ $env:VITE_USE_FIREBASE_EMULATORS = 'true'
 npm run dev -- --mode cloud-test --host 127.0.0.1 --port 4187 --strictPort
 ```
 
-Terminal C, with `$evidence` set to the same external directory:
+Terminal C, with `$evidence` set to the same external directory, first
+allocates the six-person comparison fixture, then runs the gate with it:
 
 ```powershell
+Remove-Item Env:PLAY100_COMPARE_ORIGIN -ErrorAction SilentlyContinue
+$env:PLAY100_COMPARE_FIXTURE = "$evidence\compare-fixture.json"
+npx --no-install playwright test --config playwright.compare-fixture.config.ts
+if ($LASTEXITCODE -ne 0) { throw 'Comparison fixture allocation failed' }
+$env:PLAY100_RELEASE_GATE = '1'
 $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\cloud-ui.json"
 npx --no-install playwright test --config playwright.cloud.config.ts --reporter=list,json
 if ($LASTEXITCODE -ne 0) { throw 'Cloud-UI gate failed' }
-Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME
+Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_RELEASE_GATE, Env:PLAY100_COMPARE_FIXTURE
 ```
 
-Global setup seeds only the demo emulators and verifies cloud-test mode. Stop
-the servers using Ctrl+C in their own terminals. Record both projects' outcomes,
-including skips. Never point the emulator suite at production.
+The allocation creates six new synthetic, verified accounts in these emulators
+through the 4187 app: an owner, four friends who share automatically, one legacy
+friend who shares a selected ranking, and the owner's two- and six-person
+groups. It takes several minutes, refuses to reuse or overwrite an existing
+manifest, and records only labels, synthetic emails, UIDs and routes, never a
+password or token. Keep Terminal A running until the gate finishes: restarting
+the emulators discards the fixture, so allocate again into a new manifest path.
+With `PLAY100_RELEASE_GATE` set, `compare-orientation.spec.ts` fails instead of
+skipping when `PLAY100_COMPARE_FIXTURE` is missing, so the gate cannot pass
+without its six cases; ordinary runs without these variables still skip them.
+Expect no compare-orientation skip on desktop and one on mobile, whose
+single-matrix pixel case runs only on desktop.
+
+Global setup of both configs seeds only the demo emulators and verifies
+cloud-test mode. Stop the servers using Ctrl+C in their own terminals. Record
+both projects' outcomes, including skips. Never point the emulator suite at
+production.
 
 ## 4. Manifest and complete evidence packet
 

@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { devices, expect, test } from '@playwright/test';
 import type { BrowserContext, Locator, Page } from '@playwright/test';
 import type { FriendGroup } from '../src/lib/friend-types';
+import { compareFixtureGate } from '../scripts/playwright-env';
 import { password } from './helpers';
 
 interface Actor {
@@ -20,6 +21,7 @@ interface FixtureLane {
 }
 interface FixtureManifest {
   status: string;
+  origin?: string;
   lanes: FixtureLane[];
 }
 interface CompareProbe {
@@ -38,15 +40,21 @@ declare global {
   }
 }
 
+const gate = compareFixtureGate(process.env);
 const fixturePath = process.env.PLAY100_COMPARE_FIXTURE;
 const manifest: FixtureManifest | null = fixturePath ? JSON.parse(readFileSync(fixturePath, 'utf8')) : null;
 const lane = manifest?.lanes.find((item) => item.lane === 'B');
-const origin = process.env.PLAY100_COMPARE_ORIGIN ?? 'http://127.0.0.1:4199';
-test.skip(!fixturePath, 'Needs the verified, allocated lane-B emulator fixture; never creates or resets accounts.');
+const origin = process.env.PLAY100_COMPARE_ORIGIN ?? manifest?.origin ?? 'http://127.0.0.1:4199';
+// Allocate the fixture with playwright.compare-fixture.config.ts; the release gate fails here instead of skipping.
+test.skip(gate === 'skip', 'Needs the verified, allocated lane-B emulator fixture; never creates or resets accounts.');
 test.use({ baseURL: origin, trace: 'off', serviceWorkers: 'block' });
 test.setTimeout(90_000);
 
 function fixture() {
+  if (gate === 'missing')
+    throw new Error(
+      'The release gate needs PLAY100_COMPARE_FIXTURE: allocate it with playwright.compare-fixture.config.ts first.',
+    );
   if (
     !['http://127.0.0.1:4187', 'http://127.0.0.1:4199'].includes(origin) ||
     manifest?.status !== 'READY' ||

@@ -349,6 +349,15 @@ of a user's real Google credentials, MFA or email delivery. Production checks
 must separately verify provider configuration, narrow CSP, rules, current
 billing, a real managed-account data roundtrip, and the exact workbook hashes.
 
+`compare-orientation.spec.ts` needs a verified six-person comparison cohort and
+skips unless `PLAY100_COMPARE_FIXTURE` names an allocated manifest. With the same
+emulators and app running, set that variable to a new file path and run
+`npx playwright test --config playwright.compare-fixture.config.ts` once to
+allocate the cohort and write the manifest, then run the suite with the variable
+still set. The release gate also sets `PLAY100_RELEASE_GATE=1`, which turns a
+missing fixture into a failure; see
+[release operations](release-operations.md#3-configured-build-budgets-and-e2e-partitions).
+
 Follow the [README release path](../README.md#deploy-to-vercel): stage the exact
 reviewed commit already on `origin/main`, then use the pinned CLI to
 `deploy --prod --skip-domain`, verify the remote-built deployment, and `promote`.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cloudUiServerProblem, localGateOptions } from './playwright-env.ts';
+import { cloudUiServerProblem, compareFixtureGate, localGateOptions } from './playwright-env.ts';
 
 describe('local Playwright gate', () => {
   it('refuses .only and never reuses a server on the fixed port by default', () => {
@@ -28,6 +28,20 @@ describe('local Playwright gate', () => {
     expect(
       localGateOptions({ PLAY100_BASE_URL: 'https://example.vercel.app', PLAY100_TEST_BUILD: 'development' }),
     ).toEqual({ forbidOnly: true, reuseExistingServer: false });
+  });
+});
+
+describe('comparison fixture gate', () => {
+  it('keeps the opt-in skip for ordinary runs and runs the cases once a fixture manifest is named', () => {
+    expect(compareFixtureGate({})).toBe('skip');
+    expect(compareFixtureGate({ PLAY100_COMPARE_FIXTURE: '' })).toBe('skip');
+    expect(compareFixtureGate({ PLAY100_COMPARE_FIXTURE: 'C:\\evidence\\compare-fixture.json' })).toBe('run');
+  });
+
+  it('turns a missing fixture into a failure whenever the release gate is set', () => {
+    expect(compareFixtureGate({ PLAY100_RELEASE_GATE: '1' })).toBe('missing');
+    expect(compareFixtureGate({ PLAY100_RELEASE_GATE: 'true', PLAY100_COMPARE_FIXTURE: '' })).toBe('missing');
+    expect(compareFixtureGate({ PLAY100_RELEASE_GATE: '1', PLAY100_COMPARE_FIXTURE: 'fixture.json' })).toBe('run');
   });
 });
 

@@ -8,6 +8,8 @@ export type HarnessEnvironment = Readonly<Record<string, string | undefined>>;
 
 export const REUSE_SERVER_VARIABLE = 'PLAY100_REUSE_SERVER';
 export const ALLOW_ONLY_VARIABLE = 'PLAY100_ALLOW_ONLY';
+export const RELEASE_GATE_VARIABLE = 'PLAY100_RELEASE_GATE';
+export const COMPARE_FIXTURE_VARIABLE = 'PLAY100_COMPARE_FIXTURE';
 
 export interface LocalGateOptions {
   readonly forbidOnly: boolean;
@@ -24,6 +26,15 @@ export function localGateOptions(environment: HarnessEnvironment): LocalGateOpti
     forbidOnly: ci || environment[ALLOW_ONLY_VARIABLE] !== '1',
     reuseExistingServer: !ci && environment[REUSE_SERVER_VARIABLE] === '1',
   };
+}
+
+/**
+ * How the cloud-UI cases that need the allocated six-person comparison fixture treat it. An ordinary run skips them
+ * unless a fixture manifest is named; any release-gate value makes a missing fixture an error instead of a silent skip.
+ */
+export function compareFixtureGate(environment: HarnessEnvironment): 'run' | 'skip' | 'missing' {
+  if (environment[COMPARE_FIXTURE_VARIABLE]) return 'run';
+  return environment[RELEASE_GATE_VARIABLE] ? 'missing' : 'skip';
 }
 
 /** The dev-server module whose served source shows the mode it was started in. */
