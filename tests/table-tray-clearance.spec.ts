@@ -147,7 +147,10 @@ for (const viewport of [
       await expect(page.locator('.toast-visible')).toContainText('Your library is updated.');
       const samples = await observation.evaluate((probe) => probe.finished);
       expect(samples.some((sample) => sample.running && sample.translated)).toBe(true);
-      expect(samples.every((sample) => !sample.intersects), JSON.stringify(samples)).toBe(true);
+      expect(
+        samples.every((sample) => !sample.intersects),
+        JSON.stringify(samples),
+      ).toBe(true);
       if (viewport.width === 1440) {
         expect(samples.every((sample) => Math.abs(sample.tableHeight - before.height) <= 1)).toBe(true);
         expect(await tray.evaluate((element) => element.getBoundingClientRect().toJSON())).toEqual(before.tray);
