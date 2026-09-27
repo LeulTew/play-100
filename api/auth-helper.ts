@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { createAdmission } from './_lib/admission.js';
 
 // Serves the Firebase Auth redirect helper documents (/__/auth/handler and /__/auth/iframe) on the app
 // origin with a fresh CSP nonce per response. The JS helper paths stay plain vercel.json rewrites.
@@ -9,6 +10,11 @@ export type AuthHelperPage = (typeof AUTH_HELPER_PAGES)[number];
 export const AUTH_HELPER_TEMPLATE_NONCE = 'firebase-auth-helper';
 export const AUTH_HELPER_MAX_BYTES = 256 * 1024;
 export const AUTH_HELPER_TIMEOUT_MS = 5000;
+// Per-instance: each GET holds a slot while it fetches the upstream helper, and one sign-in loads one or two helper
+// pages. The WAF rule is the global limit.
+export const AUTH_HELPER_ADMISSION = { maxActive: 8, maxPerWindow: 120, windowMs: 60_000 };
+export const AUTH_HELPER_RETRY_AFTER_SECONDS = 15;
+const admission = createAdmission(AUTH_HELPER_ADMISSION);
 
 const NONCE_ATTRIBUTE = `nonce="${AUTH_HELPER_TEMPLATE_NONCE}"`;
 const POST_BODY_PLACEHOLDER = '{{POST_BODY}}';
@@ -177,6 +183,13 @@ export default async function handler(request: IncomingMessage, response: Server
     response.writeHead(200).end();
     return;
   }
+  // Only a GET fetches the upstream helper, so only a GET takes a slot.
+  const release = admission.acquire();
+  if (!release) {
+    response.setHeader('Retry-After', String(AUTH_HELPER_RETRY_AFTER_SECONDS));
+    sendText(request, response, 429, 'The sign-in helper is busy. Please wait a few seconds and try again.\n');
+    return;
+  }
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(new HelperFailure(504, { reason: 'timeout' })),
@@ -244,6 +257,7 @@ export default async function handler(request: IncomingMessage, response: Server
         : 'The sign-in helper is unavailable. Please try again later.\n',
     );
   } finally {
+    release();
     clearTimeout(timeout);
     request.removeListener('aborted', disconnect);
     response.removeListener('close', disconnect);

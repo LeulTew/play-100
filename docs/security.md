@@ -179,8 +179,11 @@ Firestore followed by Auth. Update CSP and Data Use before enabling that
 traffic. Roll back by un-enforcing, not by weakening rules.
 The API limiters are per instance, not global per-IP protection. One shared
 bounded-admission helper (`api/_lib/admission.ts`) caps detail at 4 active and
-30 uncached lookups per minute and search at 6 active and 90 upstream searches
-per minute, releasing each slot in `finally` (success, failure or client abort).
+30 uncached lookups per minute, search at 6 active and 90 upstream searches
+per minute, and the Firebase sign-in helper at 8 active and 120 page loads per
+minute, releasing each slot in `finally` (success, failure or client abort). A
+refused request gets 429 with `Retry-After`. The sign-in helper takes a slot
+only for a GET, since HEAD fetches nothing upstream.
 Concurrent cold FreeToGame requests share one snapshot fill, and search upstream
 responses must be `application/json`. The Vercel WAF rule in the runbook is the
 intended global control, but it runs in Log mode, which records matches and

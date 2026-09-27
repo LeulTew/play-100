@@ -410,3 +410,89 @@ describe('fresh-nonce Firebase Auth helper function', () => {
     }
   });
 });
+
+describe('per-instance admission', () => {
+  const html = () => new Response(HANDLER, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  // A fresh module per test, so each starts with empty admission and the other tests keep their own instance.
+  async function freshHelper() {
+    vi.resetModules();
+    const module = await import('../../api/auth-helper');
+    const instance = createServer((request, response) => {
+      void module.default(request, response);
+    });
+    await listenOnFetchSafePort(instance);
+    const address = instance.address();
+    if (!address || typeof address === 'string') throw new Error('Missing admission test server address');
+    return {
+      module,
+      url: (page: string) => `http://127.0.0.1:${address.port}/api/auth-helper?page=${page}`,
+      close: async () => {
+        instance.closeAllConnections();
+        await new Promise<void>((resolve, reject) => instance.close((error) => (error ? reject(error) : resolve())));
+      },
+    };
+  }
+
+  it('refuses a GET over the active limit with 429 and Retry-After before any upstream request, and HEAD stays free', async () => {
+    const held: Array<(response: Response) => void> = [];
+    const upstream = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          held.push(resolve);
+        }),
+    );
+    vi.stubGlobal('fetch', upstream);
+    const helper = await freshHelper();
+    try {
+      const { maxActive } = helper.module.AUTH_HELPER_ADMISSION;
+      const pending = Array.from({ length: maxActive }, () => nativeFetch(helper.url('handler')));
+      await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(maxActive));
+      const refused = await nativeFetch(helper.url('handler'));
+      expect(refused.status).toBe(429);
+      expect(refused.headers.get('retry-after')).toBe(String(helper.module.AUTH_HELPER_RETRY_AFTER_SECONDS));
+      expect(refused.headers.get('cache-control')).toBe('private, no-store, max-age=0');
+      expect(refused.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+      expect(await refused.text()).toBe('The sign-in helper is busy. Please wait a few seconds and try again.\n');
+      const head = await nativeFetch(helper.url('handler'), { method: 'HEAD' });
+      expect(head.status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(maxActive);
+      held.shift()!(html());
+      // The first request to finish released its slot in finally, before its response reached the client.
+      expect((await Promise.race(pending)).status).toBe(200);
+      const admitted = nativeFetch(helper.url('handler'));
+      await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(maxActive + 1));
+      for (const resolve of held.splice(0)) resolve(html());
+      expect((await admitted).status).toBe(200);
+      for (const response of await Promise.all(pending)) expect(response.status).toBe(200);
+    } finally {
+      await helper.close();
+    }
+  });
+
+  it('refuses the GET after the window limit and admits again once the window rolls over', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
+    const upstream = vi.fn(async () => html());
+    vi.stubGlobal('fetch', upstream);
+    const helper = await freshHelper();
+    try {
+      const { maxPerWindow, windowMs } = helper.module.AUTH_HELPER_ADMISSION;
+      for (let index = 0; index < maxPerWindow; index += 1) {
+        const response = await nativeFetch(helper.url('handler'));
+        await response.arrayBuffer();
+        expect(response.status).toBe(200);
+      }
+      const refused = await nativeFetch(helper.url('handler'));
+      await refused.arrayBuffer();
+      expect(refused.status).toBe(429);
+      expect(refused.headers.get('retry-after')).toBe(String(helper.module.AUTH_HELPER_RETRY_AFTER_SECONDS));
+      vi.setSystemTime(Date.now() + windowMs);
+      const admitted = await nativeFetch(helper.url('handler'));
+      await admitted.arrayBuffer();
+      expect(admitted.status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(maxPerWindow + 1);
+    } finally {
+      await helper.close();
+    }
+  });
+});
