@@ -2,13 +2,28 @@ import { Component } from 'react';
 import type { ReactNode } from 'react';
 import { ChunkRecovery } from './ChunkRecovery';
 
-export class OnlineBoundary extends Component<{ children: ReactNode; onDevice: () => void }, { failed: boolean }> {
+interface OnlineBoundaryProps {
+  children: ReactNode;
+  onDevice: () => void;
+  /** Told when the online tools fail, and when that failed boundary unmounts, so a new one starts over. */
+  onFailedChange?: (failed: boolean) => void;
+}
+
+export class OnlineBoundary extends Component<OnlineBoundaryProps, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
   }
+  componentDidMount() {
+    // A boundary can fail as it mounts, and development's StrictMode then remounts it: report the failure again.
+    if (this.state.failed) this.props.onFailedChange?.(true);
+  }
   componentDidCatch(error: Error) {
     console.warn('Online tools could not load. The device library is retained.', error.message);
+    this.props.onFailedChange?.(true);
+  }
+  componentWillUnmount() {
+    if (this.state.failed) this.props.onFailedChange?.(false);
   }
   render() {
     if (this.state.failed)

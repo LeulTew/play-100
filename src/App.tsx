@@ -214,11 +214,12 @@ export default function App() {
   const [hintChecking, setHintChecking] = useState(ONLINE_AVAILABLE && !onlineRequested);
   const [hintError, setHintError] = useState('');
   const [online, setOnline] = useState<OnlineBridge | null>(null);
+  const [onlineFailed, setOnlineFailed] = useState(false);
   const currentOnline = useRef(online);
   currentOnline.current = online;
-  const onlineOpening =
-    ONLINE_AVAILABLE &&
-    (hintChecking || Boolean(hintError) || (onlineRequested && online === null) || Boolean(online?.loading));
+  // Online tools that failed to open are no longer opening: the device library stays usable, and so does a reload.
+  const controllerOpening = !onlineFailed && ((onlineRequested && online === null) || Boolean(online?.loading));
+  const onlineOpening = ONLINE_AVAILABLE && (hintChecking || Boolean(hintError) || controllerOpening);
   const library = online?.controller ?? guestLibrary;
   const libraryBusy = library.busy || library.status === 'loading' || onlineOpening;
   const libraryScope = online?.scope ?? 'guest';
@@ -925,6 +926,11 @@ export default function App() {
                                     setOnlineRequested(false);
                                     setOnline(null);
                                     navigate('collection');
+                                  },
+                                  onFailedChange: (failed) => {
+                                    setOnlineFailed(failed);
+                                    // The failed controller has unmounted; its last bridge describes no account.
+                                    if (failed) setOnline(null);
                                   },
                                   fallback: cloudPage
                                     ? { route: page, kind: 'cloud-page' }

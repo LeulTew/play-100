@@ -27,6 +27,7 @@ export interface RouteHostProps {
     props: ComponentProps<typeof OnlineController>;
     fallback: RouteFallbackProps | null;
     onDevice: () => void;
+    onFailedChange: (failed: boolean) => void;
   } | null;
   content: PublicContent | { kind: 'unconfigured' } | null;
 }
@@ -51,7 +52,7 @@ export function RouteHost({ route, scope, online, content }: RouteHostProps) {
   return (
     <>
       {online && (
-        <OnlineBoundary onDevice={online.onDevice}>
+        <OnlineBoundary onDevice={online.onDevice} onFailedChange={online.onFailedChange}>
           <Suspense fallback={online.fallback ? <RouteFallback {...online.fallback} /> : null}>
             <OnlineController {...online.props} />
           </Suspense>
