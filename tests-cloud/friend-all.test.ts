@@ -425,9 +425,7 @@ describe('All-sharing bounded SDK transport', () => {
       ),
     );
     expect((await b.all.page(a.uid, 'games')).entries).toEqual([value]);
-    expect((await getDocFromServer(doc(b.db, 'friendAllGames', a.uid, 'entries', value.id))).data()?.format).toBe(
-      3,
-    );
+    expect((await getDocFromServer(doc(b.db, 'friendAllGames', a.uid, 'entries', value.id))).data()?.format).toBe(3);
     expect((await getDocFromServer(doc(a.db, 'friendAllGames', a.uid, 'entries', legacy.id))).exists()).toBe(true);
     await deleteDoc(doc(a.db, 'friendAllGames', a.uid, 'entries', legacy.id));
     expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).data()?.count).toBe(1);
@@ -969,9 +967,7 @@ describe('All-sharing bounded SDK transport', () => {
     const replay = writeBatch(a.db);
     replay.set(row, original);
     await assertFails(replay.commit());
-    await expect(
-      a.all.publish(a.uid, 'games', games(2), policy, source, () => true),
-    ).resolves.toMatchObject({
+    await expect(a.all.publish(a.uid, 'games', games(2), policy, source, () => true)).resolves.toMatchObject({
       status: 'ready',
       count: 2,
     });

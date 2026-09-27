@@ -363,7 +363,12 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     },
     {
       source: 'steam',
-      patch: { source: 'steam', id: 'steam:12', sourceId: '12', sourceUrl: 'https://store.steampowered.com/app/12/?evil=1' },
+      patch: {
+        source: 'steam',
+        id: 'steam:12',
+        sourceId: '12',
+        sourceUrl: 'https://store.steampowered.com/app/12/?evil=1',
+      },
       valid: { source: 'steam', id: 'steam:12', sourceId: '12', sourceUrl: 'https://store.steampowered.com/app/12/' },
     },
     {
