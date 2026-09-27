@@ -24,8 +24,7 @@ function gapiStandIn() {
   const scope = window as unknown as Record<string, unknown>;
   type Message = { channel: string; kind: string; id: number; name?: string; data?: unknown; responses?: unknown[] };
   let nextId = 1;
-  const post = (target: Window, message: Omit<Message, 'channel'>) =>
-    target.postMessage({ ...message, channel }, '*');
+  const post = (target: Window, message: Omit<Message, 'channel'>) => target.postMessage({ ...message, channel }, '*');
   // One side of the conversation with the other document: the helper iframe, seen from the app, or the app, seen
   // from the helper iframe. A message for a name no handler has registered yet waits for that handler.
   const endpoint = (peer: () => Window | null) => {
