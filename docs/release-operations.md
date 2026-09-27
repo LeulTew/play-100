@@ -209,7 +209,11 @@ helper iframe both load Google's loader script,
 those assets and a local stand-in for the loader, and it refuses any other
 request to a host outside this machine. The stand-in styles the helper iframe
 through the CSS object model, so the gate's strict-style case checks the app
-and Firebase Auth, not Google's own iframe code.
+and Firebase Auth, not Google's own iframe code. A loader that never answers is
+a gate case too: Firebase Auth gives it no timeout of its own, so the Account
+stops at its 45-second restoration bound. It then says online tools couldn't
+open, keeps the device library usable, and its reload shows the sign-in panel
+without the loader.
 
 The real Google service is a separately named check, outside the release gate.
 It repeats the redirect-and-Back case and the strict-style Google case through

@@ -84,3 +84,53 @@ test('Google stays in the same tab even if windows are blocked, and browser Back
   expect(google.loaders).toEqual([new URL(baseURL ?? '/').origin, authOrigin]);
   expect(google.refused).toEqual([]);
 });
+
+test('a Google return whose loader never answers stops at the restoration bound, then a reload recovers the guest', async ({
+  page,
+  context,
+}) => {
+  const google = await routeGoogleProvider(context, { loader: 'stall' });
+  try {
+    await page.addInitScript(() => {
+      window.open = () => null;
+    });
+    await page.goto('/account');
+    await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
+    await page.waitForURL(/127\.0\.0\.1:9199/, { timeout: 20000 });
+    // Firebase Auth gives the loader script no timeout of its own; the app bounds restoration at 45 s of page time,
+    // which the fake clock reaches without waiting.
+    await page.clock.install();
+    await page.goBack();
+    await expect(page.getByRole('heading', { name: 'Restoring account…', exact: true })).toBeVisible();
+    await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Opening account…');
+    await expect.poll(() => google.loaders.length).toBe(1);
+    const stopped = page.locator('.data-error').filter({
+      has: page.getByRole('heading', { name: "Online tools couldn't open.", exact: true }),
+    });
+    await expect(async () => {
+      await page.clock.fastForward('00:46');
+      await expect(stopped).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 20000 });
+    await expect(stopped).toContainText('Your device library is still available.');
+    // The failed restoration is no longer opening, so the device library and the reload guard are free again.
+    await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
+    expect((await readLibrary(page)).records).toEqual({});
+    // Reading the result cleared its pending redirect, so the reload reads it without Google's loader.
+    await page.route('**/*', (route) =>
+      route.request().method() === 'HEAD' ? route.fulfill({ status: 200 }) : route.fallback(),
+    );
+    await Promise.all([
+      page.waitForEvent('framenavigated', (frame) => frame === page.mainFrame()),
+      stopped.getByRole('button', { name: 'Reload this page', exact: true }).click(),
+    ]);
+    await expect(page.locator('.auth-panel')).toBeVisible();
+    await expect(page.locator('.auth-panel .inline-error')).toHaveCount(0);
+    await expect(page.locator('.auth-panel')).toContainText('Google sign-in was not completed');
+    await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeEnabled();
+    expect((await readLibrary(page)).records).toEqual({});
+    expect(google.loaders).toHaveLength(1);
+    expect(google.refused).toEqual([]);
+  } finally {
+    await google.release();
+  }
+});
