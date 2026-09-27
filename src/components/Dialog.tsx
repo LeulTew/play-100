@@ -111,6 +111,19 @@ export function Dialog({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       data-motion-owned={motion !== undefined ? 'true' : undefined}
+      onKeyDown={(event) => {
+        if (
+          event.key !== 'Escape' ||
+          event.defaultPrevented ||
+          event.nativeEvent.isComposing ||
+          foregroundDialog() !== event.currentTarget
+        )
+          return;
+        // Programmatic modal stacks can share a native close-watcher group; cancel the key, not each close request.
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat) onClose();
+      }}
       onCancel={(event) => {
         event.preventDefault();
         event.stopPropagation();

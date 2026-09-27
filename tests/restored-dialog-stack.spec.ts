@@ -41,6 +41,46 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
+for (const dismiss of ['Escape', 'Close button'] as const) {
+  test(`a compound Settings deep link closes one native layer with ${dismiss}`, async ({ page }) => {
+    await page.goto(`/?catalogs=off&game=${game}&info=settings`);
+    const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
+    const detail = page.getByRole('dialog', { name: 'Red Dead Redemption 2', exact: true });
+    await expect(page.locator('dialog[open]')).toHaveCount(2);
+    await expectForeground(settings);
+    if (dismiss === 'Escape') await page.keyboard.down('Escape');
+    else await settings.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await expect(settings).toHaveCount(0);
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await expectForeground(detail);
+    await expect(detail.locator('#game-title')).toBeFocused();
+    await expect(page).toHaveURL((url) => url.searchParams.get('game') === game && !url.searchParams.has('info'));
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+    if (dismiss === 'Escape') {
+      await page.keyboard.down('Escape');
+      await expectForeground(detail);
+      await expect(page).toHaveURL((url) => url.searchParams.get('game') === game);
+      await page.keyboard.up('Escape');
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/game=|info=/);
+    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+  });
+}
+
+test('ordinary single-dialog Escape restores its opener and releases the body lock', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  const opener = page.getByRole('button', { name: 'Menu', exact: true });
+  await opener.click();
+  const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
+  await expectForeground(menu);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+});
+
 for (const panel of panels) {
   for (const order of ['utility-first', 'game-first'] as const) {
     test(`restored ${panel.info} stays above its game when ${order}`, async ({ page }) => {

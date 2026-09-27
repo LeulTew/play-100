@@ -4,7 +4,7 @@ export const DialogLayerContext = createContext(0);
 
 const layers: { dialog: HTMLDialogElement; priority: number }[] = [];
 
-export function foregroundDialog(exclude: HTMLDialogElement): HTMLDialogElement | null {
+export function foregroundDialog(exclude?: HTMLDialogElement): HTMLDialogElement | null {
   let foreground: (typeof layers)[number] | undefined;
   for (const layer of layers) {
     if (

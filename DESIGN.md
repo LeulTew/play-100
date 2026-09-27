@@ -287,8 +287,10 @@ scroll position and focused control rather than remounting the utility.
 Closing a stacked dialog keeps focus inside the foreground dialog that remains:
 its valid trigger or focused editor takes precedence over a page-level return
 target, with its normal focus-in target as the fallback.
-Escape dismisses only the foreground native dialog. The global panel-intent
-cancellation handles Escape only when no native modal is open.
+Escape dismisses only the foreground native dialog. Its keydown cancels the
+browser's grouped close request before closing that layer, and a held key cannot
+dismiss the next layer. Handled child-control keys retain their own behavior.
+The global panel-intent cancellation handles Escape only when no native modal is open.
 Committed Settings and About dialogs use their own tab titles; pending/error
 states, Menu, Compare tray and sign-in retain the underlying route or game title.
 Closing the titled dialog restores that title; URL and history behavior are unchanged.
