@@ -45,8 +45,9 @@ import type { ShellVariant } from './shell-html.ts';
  *
  * The boot script inserts the startup tags after the shell's first contentful paint when it shows
  * the shell, and at once otherwise. It runs the module entry only after the entry stylesheet has
- * loaded or failed and the document is parsed, so React never commits before the complete
- * stylesheet applies. When the app cannot start, it replaces the shell with the failure notice.
+ * loaded and the document is parsed, so React never commits before the complete stylesheet
+ * applies. When the app cannot start, or the entry stylesheet does not load, it replaces the shell
+ * with the failure notice.
  */
 
 /** The inert <template> that holds the startup tags until the boot script inserts them. */

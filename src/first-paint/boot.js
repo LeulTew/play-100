@@ -67,11 +67,14 @@
 
   // The failure notice follows the shell in #root, so React's first commit replaces both, and
   // src/main.tsx marks <html> with data-app-started as its last statement, before that commit. Until
-  // then the notice replaces the shell when the app cannot start: when the module entry or one of its
-  // modulepreloads does not load, when the entry has run without that mark (it threw), or when the app
-  // has not started a minute after the loader began. That is about twice what the eager scripts and
-  // stylesheet (175 kB compressed) take at 50 kbit/s, and a start that is slower still ends in the
-  // app, whose first commit removes the notice. A failed stylesheet or preload does not stop the app.
+  // then the notice replaces the shell when the app cannot start: when the module entry, one of its
+  // modulepreloads or the entry stylesheet does not load, when the entry has run without that mark (it
+  // threw), or when the app has not started a minute after the loader began. That is about twice what
+  // the eager scripts and stylesheet (175 kB compressed) take at 50 kbit/s, and a start that is slower
+  // still ends in the app, whose first commit removes the notice. The app never runs without the entry
+  // stylesheet, as the inline style holds only the shell's and the notice's rules. Its Reload fetches
+  // the stylesheet again and loses nothing, as the app has not started. A failed font or data preload
+  // does not stop the app.
   var watchdog;
   var reveal = function () {
     var notice = document.getElementById('p100-boot-error');
@@ -93,9 +96,9 @@
 
   // The template holds Vite's module entry, its modulepreloads, the entry stylesheet and the head
   // preloads, in that order, and starts none of them. start() inserts them once, the entry as a
-  // modulepreload. The entry itself runs only after every stylesheet has loaded or failed, so React
-  // never commits before the full stylesheet applies, and, like the parser-inserted module it
-  // replaces, only once the document is parsed and #root exists.
+  // modulepreload. The entry itself runs only after every stylesheet has loaded (one that fails shows
+  // the notice instead), so React never commits before the full stylesheet applies, and, like the
+  // parser-inserted module it replaces, only once the document is parsed and #root exists.
   var started = false;
   var start = function () {
     if (started) return;
@@ -133,7 +136,7 @@
         if (rel === 'stylesheet') {
           pending += 1;
           link.addEventListener('load', settle);
-          link.addEventListener('error', settle);
+          link.addEventListener('error', fail);
         }
       }
     }

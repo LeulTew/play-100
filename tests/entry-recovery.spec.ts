@@ -13,21 +13,37 @@ declare global {
 // REL-04: when the module entry or one of its static imports does not load, React never starts. The first-paint boot
 // script (src/first-paint/boot.js) then replaces the shell with the failure notice index.html keeps hidden in #root.
 // Documents carry the production policy, under which the notice has to work without an inline handler or style.
+// REL-02: nor does the app start without the entry stylesheet, as the inline style holds only the shell's and the
+// notice's rules; a failed font or collection preload is not a failed start.
 test.use({ serviceWorkers: 'block' });
 
 const deployed = Boolean(process.env.PLAY100_BASE_URL);
 
-/** The module entry and the entry stylesheet the served document's startup template names. */
-async function startupAssets(page: Page): Promise<{ entry: string; stylesheet: string }> {
+/** The module entry, the entry stylesheet and the preloads the served document's startup template names. */
+async function startupAssets(page: Page): Promise<{ entry: string; stylesheet: string; preloads: string[] }> {
   const html = await (await page.request.get('/')).text();
   const deferred = /<template id="p100-deferred">([\s\S]*?)<\/template>/.exec(html)?.[1] ?? '';
   const entry = /<script type="module" crossorigin src="(\/assets\/[^"]+\.js)"/.exec(deferred)?.[1];
   const stylesheet = /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)"/.exec(deferred)?.[1];
-  if (!entry || !stylesheet)
+  const preloads = [...deferred.matchAll(/<link rel="preload" href="(\/[^"]+)"/g)].map((match) => match[1]!);
+  if (!entry || !stylesheet || !preloads.length)
     throw new Error(
-      'Build the app before this check: index.html has no startup template with an entry script and stylesheet.',
+      'Build the app before this check: the startup template of index.html lacks the entry, stylesheet or preloads.',
     );
-  return { entry, stylesheet };
+  return { entry, stylesheet, preloads };
+}
+
+/** Records in window.p100NoticeShown whether the failure notice ever showed. */
+async function recordNoticeShown(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.p100NoticeShown = false;
+    new MutationObserver((records) => {
+      for (const { target } of records) {
+        if (target instanceof HTMLElement && target.id === 'p100-boot-error' && !target.hidden)
+          window.p100NoticeShown = true;
+      }
+    }).observe(document, { attributes: true, attributeFilter: ['hidden'], subtree: true });
+  });
 }
 
 /**
@@ -85,15 +101,7 @@ for (const path of ['/', '/?catalogs=off']) {
     page.on('pageerror', (error) => errors.push(error.message));
     await emptyCatalogs(page);
     const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
-    await page.addInitScript(() => {
-      window.p100NoticeShown = false;
-      new MutationObserver((records) => {
-        for (const { target } of records) {
-          if (target instanceof HTMLElement && target.id === 'p100-boot-error' && !target.hidden)
-            window.p100NoticeShown = true;
-        }
-      }).observe(document, { attributes: true, attributeFilter: ['hidden'], subtree: true });
-    });
+    await recordNoticeShown(page);
     const served = await (await page.request.get(path)).text();
     expect(served).toContain(NOTICE_OPEN);
     await page.goto(path);
@@ -157,3 +165,69 @@ for (const { path, stylesheet } of [
     expect(errors).toEqual([]);
   });
 }
+
+// Without the entry stylesheet the app would run nearly unstyled and look like a normal start. It fails once here, so
+// the notice replaces the shell, and its Reload starts the app with the stylesheet fetched again.
+for (const path of ['/', '/?catalogs=off']) {
+  test(`a failed entry stylesheet shows the failure notice and Reload recovers: ${path}`, async ({ page, baseURL }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await emptyCatalogs(page);
+    const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
+    const assets = await startupAssets(page);
+    const refused: string[] = [];
+    await page.route(
+      (url) => url.pathname === assets.stylesheet,
+      (route) => {
+        if (refused.length) return route.fallback();
+        refused.push(new URL(route.request().url()).pathname);
+        return route.abort('failed');
+      },
+    );
+    await page.goto(path);
+    const notice = page.locator('#p100-boot-error');
+    await expect(notice.getByRole('heading', { level: 1 })).toHaveText("The collection couldn't finish loading.");
+    await expect(page.locator('.first-paint-shell'), 'the notice replaces the shell').toHaveCount(0);
+    expect(refused).toEqual([assets.stylesheet]);
+    expect(await stylesheetApplied(page, assets.stylesheet), 'the entry stylesheet failed').toBe(false);
+    // The boot script adds the module entry only once every startup stylesheet has loaded.
+    await expect(page.locator('head script[type="module"]'), 'the app never starts without it').toHaveCount(0);
+    await expect(page.locator('html')).not.toHaveAttribute('data-app-started');
+    await expectNoticeStyled(page, 'from the inline style alone');
+    const reload = notice.getByRole('button', { name: 'Reload the collection', exact: true });
+    await Promise.all([page.waitForEvent('framenavigated', (frame) => frame === page.mainFrame()), reload.click()]);
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    await expect(page.locator('#p100-boot-error')).toHaveCount(0);
+    await expect(page.locator('html')).toHaveAttribute('data-app-started', '');
+    expect(await stylesheetApplied(page, assets.stylesheet), 'Reload fetched the stylesheet again').toBe(true);
+    expect(refused, 'only the first request failed').toEqual([assets.stylesheet]);
+    expect(await violations.read()).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('a failed font or collection preload is not a failed start', async ({ page, baseURL }) => {
+  await emptyCatalogs(page);
+  const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
+  await recordNoticeShown(page);
+  const { preloads } = await startupAssets(page);
+  expect(preloads.some((href) => href.endsWith('.woff2'))).toBe(true);
+  expect(preloads).toContain('/data/collection.json');
+  // Each preload fails once; a font or data request the app makes after it may load.
+  const refused = new Set<string>();
+  await page.route(
+    (url) => preloads.includes(url.pathname),
+    (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (refused.has(pathname)) return route.fallback();
+      refused.add(pathname);
+      return route.abort('failed');
+    },
+  );
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-app-started', '');
+  await expect(page.locator('#p100-boot-error'), "React's first commit replaced it").toHaveCount(0);
+  expect(await page.evaluate(() => window.p100NoticeShown)).toBe(false);
+  expect([...refused].sort()).toEqual([...preloads].sort());
+  expect(await violations.read()).toEqual([]);
+});

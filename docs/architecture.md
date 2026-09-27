@@ -15,8 +15,9 @@ Before the first commit, a built `index.html` may show the static
 [first-paint shell](first-paint-shell.md) of the landing page in `#root`;
 `createRoot()` replaces it, and no app code reads it. The shell's inline boot
 script loads the app entry, after the shell's first paint on the landing page.
-If the entry does not load or throws, the boot script shows the failure notice
-`#root` also holds instead. [main.tsx](../src/main.tsx) marks `<html>` with
+If the entry or its stylesheet does not load, or the entry throws, the boot
+script shows the failure notice `#root` also holds instead.
+[main.tsx](../src/main.tsx) marks `<html>` with
 `data-app-started` as its last statement, which keeps the notice hidden. It
 renders the app as a transition, so React renders the first commit in time
 slices; that commit is the same, because only its effects apply the guest

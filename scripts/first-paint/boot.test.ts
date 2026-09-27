@@ -396,7 +396,7 @@ describe('first-paint app loader', () => {
     ]);
   });
 
-  it('starts at once where it keeps the shell hidden, and runs the entry once the stylesheet settled and the document is parsed', () => {
+  it('starts at once where it keeps the shell hidden, and runs the entry once the stylesheet loaded and the document is parsed', () => {
     for (const url of [
       'https://play-100.test/discover',
       'https://play-100.test/?catalogs=off',
@@ -406,10 +406,10 @@ describe('first-paint app loader', () => {
       expect(result.attributes).toEqual({});
       expect(result.inserted(), url).toEqual(STARTUP);
       expect(result.observers, url).toEqual([]);
-      result.settle('error');
+      result.settle('load');
       expect(result.inserted(), `${url}: #root may not exist before the document is parsed`).toEqual(STARTUP);
       result.parsed();
-      expect(result.inserted(), `${url}: a failed stylesheet still starts the app`).toEqual([...STARTUP, ENTRY]);
+      expect(result.inserted(), url).toEqual([...STARTUP, ENTRY]);
       expect(
         result.timers.map((timer) => timer.delay),
         `${url}: the watchdog`,
@@ -454,7 +454,7 @@ describe('first-paint app loader', () => {
     });
     result.parsed();
     const [first, second] = result.appended.filter((node) => node.getAttribute('rel') === 'stylesheet');
-    first?.dispatch('error');
+    first?.dispatch('load');
     expect(result.inserted().at(-1)).toBe('link rel=stylesheet crossorigin= href=/assets/extra-D.css');
     second?.dispatch('load');
     expect(result.inserted().at(-1)).toBe(ENTRY);
@@ -647,11 +647,34 @@ describe('first-paint failure notice', () => {
     expect(result.reloads()).toBe(1);
   });
 
-  it('stays hidden when only a stylesheet or a preload fails, which does not stop the app', () => {
-    const result = run({ url: OTHER_ROUTE });
-    for (const node of result.appended.filter((tag) => tag.getAttribute('rel') !== 'modulepreload'))
-      node.dispatch('error');
+  it.each([
+    ['on the landing page', {}, true],
+    ['on another route', { url: OTHER_ROUTE }, true],
+    ['after the document is parsed', { url: OTHER_ROUTE, readyState: 'interactive' }, false],
+  ] as const)('shows instead of starting the app when the entry stylesheet fails %s', (_, environment, waits) => {
+    const result = run(environment);
+    result.paint('first-contentful-paint');
+    const stylesheet = result.appended.find((node) => node.getAttribute('rel') === 'stylesheet');
+    expect(stylesheet, 'the loader linked the entry stylesheet').toBeDefined();
+    stylesheet?.dispatch('error');
+    expect(result.notice.hidden, 'a failure before the parser reaches #root waits for it').toBe(waits);
     result.parsed();
+    expect(result.notice.hidden).toBe(false);
+    expect(result.shellRemoved()).toBe(true);
+    result.runTimers();
+    expect(result.entry(), 'the app never runs without the entry stylesheet').toBeUndefined();
+    expect(result.reload.listeners.map((listener) => listener.type)).toEqual(['click']);
+    result.reload.dispatch('click');
+    expect(result.reloads()).toBe(1);
+  });
+
+  it('stays hidden when only a font or data preload fails, which does not stop the app', () => {
+    const result = run({ url: OTHER_ROUTE });
+    const preloads = result.appended.filter((node) => node.getAttribute('rel') === 'preload');
+    expect(preloads.map((node) => node.getAttribute('as'))).toEqual(['font', 'fetch']);
+    for (const node of preloads) node.dispatch('error');
+    result.parsed();
+    result.settle('load');
     expect(result.inserted(), 'the app starts').toEqual([...STARTUP, ENTRY]);
     expect(result.notice.hidden).toBe(true);
   });

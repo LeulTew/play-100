@@ -110,10 +110,11 @@ stylesheet (after the inline style, so it wins cascade ties) and the preloads.
 The Data use page (`/data-use`) reads no collection data, and a prepared
 service worker refuses versioned data to that network-only document, so there
 the boot script leaves out the `fetch` preloads (`collection.json`).
-It adds the module entry itself only after every stylesheet has loaded or
-failed and, like the parser-inserted module it replaces, once the document is
-parsed, so React never commits before the complete stylesheet applies or before
-`#root` exists.
+It adds the module entry itself only after every stylesheet has loaded and,
+like the parser-inserted module it replaces, once the document is parsed, so
+React never commits before the complete stylesheet applies or before `#root`
+exists. A stylesheet that fails shows the [failure notice](#the-failure-notice)
+instead.
 
 That keeps Vite's stylesheet order. Only code the module entry runs can import a
 lazy chunk, and Vite's preload helper then appends the chunk's stylesheets to
@@ -146,22 +147,26 @@ notice when:
 - the module entry, or a modulepreload of its static imports, fires `error`: a
   network, HTTP or MIME failure. The browser keeps a failed module fetch for the
   document, so the entry cannot run after it;
+- the entry stylesheet fires `error`. The app never runs without it: the inline
+  style holds only the shell's and the notice's rules, so the app would start
+  nearly unstyled and look like a normal start. Reload fetches the stylesheet
+  again, and nothing is lost, as the app has not started;
 - the module entry has run (`load`) without the mark, which means it threw;
 - the app has not started a minute after the loader began. That watchdog is about
   twice what the eager scripts and stylesheet (175 kB compressed) take at
   50 kbit/s, and a start that is slower still ends in the app, whose first commit
   replaces the notice. A start clears the watchdog.
 
-A failed stylesheet, font or data preload is not a failed start: the app starts
-anyway. A failure before the parser reaches `#root` shows the notice once the
-document is parsed. The notice works without the app: the boot script adds the
-Reload listener (`location.reload()`), the workbook is a plain link, and the
-inline style keeps every entry-stylesheet rule the notice wears (the
-`.app-error` page, heading, paragraph and link, and the dark button). On `/` the
-notice usually appears before the entry stylesheet has arrived, so it looks the
-same and keeps its 48 px button and 44 px link at every viewport with the entry
-stylesheet, before it and without it. The build refuses a `#root` whose last
-child is not this notice.
+A failed font or data preload is not a failed start: the app starts anyway, as
+it would without the preload. A failure before the parser reaches `#root` shows
+the notice once the document is parsed. The notice works without the app: the
+boot script adds the Reload listener (`location.reload()`), the workbook is a
+plain link, and the inline style keeps every entry-stylesheet rule the notice
+wears (the `.app-error` page, heading, paragraph and link, and the dark button).
+On `/` the notice usually appears before the entry stylesheet has arrived, so it
+looks the same and keeps its 48 px button and 44 px link at every viewport with
+the entry stylesheet, before it and without it. The build refuses a `#root`
+whose last child is not this notice.
 
 ## Content Security Policy
 
@@ -268,8 +273,11 @@ Impact/Arial, or Liberation Sans/Arimo on Linux).
 the entry stylesheet too, the failure notice replaces the shell. It wears the error
 page's rules, with targets of at least 44 px, as it appears, once the entry
 stylesheet applies, and from the inline style alone when that stylesheet was
-refused. Its Reload starts the app once the entry loads again. A normal start
-never shows the notice, and React's first commit removes it.
+refused. Its Reload starts the app once the entry loads again. With only the entry
+stylesheet failing once, the notice replaces the shell too, the module entry never
+runs, and Reload starts the app with the stylesheet applied. A failed font or
+collection preload does not show the notice. A normal start never shows the
+notice, and React's first commit removes it.
 
 ## Budgets
 
