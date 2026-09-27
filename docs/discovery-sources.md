@@ -61,6 +61,18 @@ separate; no original is enlarged.
   lazily with the supplied intrinsic dimensions; missing or failed art needs an
   honest fallback. Artwork and provenance never enter personal/cloud records.
 
+Artwork-credit disclosures in the detail, Compare tray and My games share one
+presentation. Known collector separators and explicit `Original` / `Vector`
+roles produce labelled art, source, conversion and trademark lines; the image
+file and licence retain their own links. Contributor and source URLs become
+HTTP(S)-only links without credentials, with `noopener noreferrer`. Only an
+identical adjacent `URL (URL)` representation is shown once, never different
+URLs or repeated attribution words. The **Full supplied credit** disclosure
+retains the exact original string, including every notice and original URL.
+Ambiguous roles, separators or additional notices stay as the full original
+text instead of being partly parsed or truncated. No stored credit is rewritten,
+and no HTML supplied by a provider is injected.
+
 ## Canonical-first browsing contract
 
 User request (2026-09-20): searching Discover for a game in The 100 should bring

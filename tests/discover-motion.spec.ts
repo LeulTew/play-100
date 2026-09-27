@@ -131,12 +131,15 @@ test('catalog detail reuses exact licensed artwork, complete credits and native 
   const credits = dialog.locator('.game-artwork-disclosure');
   await credits.getByText('Artwork credits', { exact: true }).click();
   await expect(credits).toContainText(artwork.credit);
-  await expect(credits.getByRole('link').first()).toHaveAttribute('href', artwork.sourceUrl);
+  await expect(credits.getByRole('link', { name: 'Source image', exact: true })).toHaveAttribute(
+    'href',
+    artwork.sourceUrl,
+  );
   await expect(credits.getByRole('link', { name: artwork.license, exact: true })).toHaveAttribute(
     'href',
     artwork.licenseUrl,
   );
-  await expect(credits.getByRole('link').first()).toHaveAttribute('target', '_blank');
+  await expect(credits.getByRole('link', { name: 'Source image', exact: true })).toHaveAttribute('target', '_blank');
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();

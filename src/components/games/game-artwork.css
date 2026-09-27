@@ -19,22 +19,58 @@
   color: var(--muted);
 }
 .game-artwork-credit {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 5px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  max-width: 68ch;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.4;
-}
-.game-artwork-credit-text {
-  flex-basis: 100%;
+  line-height: 1.5;
   overflow-wrap: anywhere;
+}
+.game-artwork-credit-lines {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.game-artwork-credit-lines > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  min-width: 0;
+}
+.game-artwork-credit-lines > .game-artwork-credit-unparsed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.game-artwork-credit-lines dt {
+  flex: 0 0 75px;
+  color: var(--ink);
+  font-weight: 650;
+}
+.game-artwork-credit-lines dd {
+  flex: 1 1 140px;
+  margin: 0;
+  min-width: 0;
+}
+.game-artwork-credit-original > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.game-artwork-credit-original > p {
+  margin: 6px 0 0;
 }
 .game-artwork-credit a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
   text-decoration: underline;
   text-underline-offset: 3px;
   overflow-wrap: anywhere;

@@ -61,11 +61,11 @@ async function openView(page: Page, view: View) {
 async function expectCredits(row: Locator) {
   const disclosure = row.locator('.game-artwork-disclosure');
   await expect(disclosure).not.toHaveAttribute('open');
-  const summary = disclosure.locator('summary');
+  const summary = disclosure.locator(':scope > summary');
   await expect(summary).toHaveAccessibleName(`Artwork credits for ${provider.title}`);
   await summary.focus();
   await summary.press('Enter');
-  await expect(disclosure.locator('.game-artwork-credit-text')).toHaveText(`Art: ${artwork.credit}`);
+  await expect(disclosure.locator('.game-artwork-credit-text')).toHaveText(artwork.credit);
   await expect(disclosure.getByRole('link', { name: 'Source image', exact: true })).toHaveAttribute(
     'href',
     artwork.sourceUrl,

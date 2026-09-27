@@ -67,8 +67,8 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('<details class="game-artwork-disclosure">');
     expect(html).toContain(`aria-label="Artwork credits for ${discoveryFixture.record.title}"`);
     expect(html).toContain(artwork.credit);
-    expect(html).toContain(`href="${artwork.sourceUrl}" target="_blank" rel="noreferrer"`);
-    expect(html).toContain(`href="${artwork.licenseUrl}" target="_blank" rel="noreferrer"`);
+    expect(html).toContain(`href="${artwork.sourceUrl}" target="_blank" rel="noopener noreferrer"`);
+    expect(html).toContain(`href="${artwork.licenseUrl}" target="_blank" rel="noopener noreferrer"`);
     expect(html).toContain(artwork.license);
     expect(html).not.toContain('open=""');
     expect(html).toContain(`href="${discoveryFixture.record.sourceUrl}"`);
@@ -134,7 +134,7 @@ describe('catalog detail artwork continuity surface', () => {
         src: 'https://example.com/unlicensed-cover.webp',
         credit: '<script>not markup</script>',
         sourceUrl: 'javascript:alert(1)',
-        licenseUrl: 'http://example.com/license',
+        licenseUrl: 'ftp://example.com/license',
       },
     });
     expect(html).not.toContain('<img');
@@ -142,6 +142,6 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('&lt;script&gt;not markup&lt;/script&gt;');
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('href="javascript:');
-    expect(html).not.toContain('href="http://example.com/license"');
+    expect(html).not.toContain('href="ftp://example.com/license"');
   });
 });

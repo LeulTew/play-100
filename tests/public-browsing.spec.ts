@@ -332,18 +332,18 @@ test('the tray preserves complete art provenance behind a labelled disclosure an
   const disclosure = dialog.locator('.game-artwork-disclosure');
   await expect(disclosure).toHaveCount(1);
   await expect(disclosure.locator('.game-artwork-credit')).toBeHidden();
-  await disclosure.locator('summary').focus();
-  await disclosure.locator('summary').press('Enter');
+  await disclosure.locator(':scope > summary').focus();
+  await disclosure.locator(':scope > summary').press('Enter');
   await expect(disclosure.locator('.game-artwork-credit')).toBeVisible();
-  expect(await disclosure.locator('.game-artwork-credit').textContent()).toBe(
-    `Art: ${credited.artwork!.credit} Source image / ${credited.artwork!.license}`,
-  );
+  expect(await disclosure.locator('.game-artwork-credit-text').textContent()).toBe(credited.artwork!.credit);
   await expect(disclosure.getByRole('link', { name: 'Source image', exact: true })).toHaveAttribute(
     'href',
     credited.artwork!.sourceUrl,
   );
-  await expect(disclosure.locator('a')).toHaveCount(2);
-  await expect(disclosure.locator('a').last()).toHaveAttribute('href', credited.artwork!.licenseUrl);
+  await expect(disclosure.getByRole('link', { name: credited.artwork!.license, exact: true })).toHaveAttribute(
+    'href',
+    credited.artwork!.licenseUrl,
+  );
   expect((await readLibrary(page)).ranking).toEqual([]);
   expect((await readLibrary(page)).records).toEqual({});
 });
@@ -618,7 +618,7 @@ test('batched desktop and mobile pixels keep games before secondary filters and 
       const credits = page.locator('.compare-tray-sheet .game-artwork-disclosure');
       await expect(credits).toBeVisible();
       await page.screenshot({ path: info.outputPath(`tray-${viewport.width}.png`) });
-      await credits.locator('summary').click();
+      await credits.locator(':scope > summary').click();
       await expect(credits.locator('.game-artwork-credit')).toBeVisible();
       await page.screenshot({ path: info.outputPath(`tray-credits-${viewport.width}.png`) });
       await page
