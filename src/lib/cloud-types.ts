@@ -1,6 +1,6 @@
-import type { PersonalLibraryState } from './personal-types';
-import { MAX_LIBRARY_RECORDS, MAX_LIBRARY_ID_CHARACTERS, MAX_LIBRARY_TITLE_CHARACTERS } from './personal-types';
-import type { AvatarDescriptor } from './avatar';
+import type { PersonalLibraryState } from './personal-types.ts';
+import { MAX_LIBRARY_RECORDS, MAX_LIBRARY_ID_CHARACTERS, MAX_LIBRARY_TITLE_CHARACTERS } from './personal-types.ts';
+import type { AvatarDescriptor } from './avatar.ts';
 
 export const CLOUD_PROJECT = 'play100-online-48823b32';
 export const MAX_SNAPSHOT_BYTES = 20 * 1024 * 1024;

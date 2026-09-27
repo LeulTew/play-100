@@ -9,11 +9,11 @@ import {
   readBuildManifest,
   readFirstPaintRecord,
   textDigest,
-} from './build-metadata';
-import type { TextDigest } from './build-metadata';
-import { inlineBlocks } from './first-paint/csp';
-import type { ShellVariant } from './first-paint/shell-html';
-export { assertDeferredBundleModules } from './eager-module-guard';
+} from './build-metadata.ts';
+import type { TextDigest } from './build-metadata.ts';
+import { inlineBlocks } from './first-paint/csp.ts';
+import type { ShellVariant } from './first-paint/shell-html.ts';
+export { assertDeferredBundleModules } from './eager-module-guard.ts';
 
 const metrics = [
   'eagerCombinedGzipBytes',

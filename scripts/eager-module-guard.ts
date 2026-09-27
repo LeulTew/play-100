@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { DEFERRED_SOURCE_MODULES } from '../src/lib/deferred-module-policy';
+import { DEFERRED_SOURCE_MODULES } from '../src/lib/deferred-module-policy.ts';
 
 interface BuiltChunk {
   type: 'chunk';

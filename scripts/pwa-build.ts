@@ -1,19 +1,19 @@
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { assertDeferredBundleModules, eagerHtmlFiles } from './check-budgets';
-import { assertPublicBuildOutput, assertPublicPrecachePaths, retainBuildManifest } from './build-metadata';
+import { assertDeferredBundleModules, eagerHtmlFiles } from './check-budgets.ts';
+import { assertPublicBuildOutput, assertPublicPrecachePaths, retainBuildManifest } from './build-metadata.ts';
 import ts from 'typescript';
 import type { Manifest, Plugin, ResolvedConfig } from 'vite';
-import { PWA_ICONS, writePwaIcons } from './pwa-icons';
+import { PWA_ICONS, writePwaIcons } from './pwa-icons.ts';
 import {
   isPublicPwaFile,
   parsePwaDocumentPolicy,
   PWA_BUDGET,
   PWA_DOCUMENT_HEADERS,
   validatePwaManifest,
-} from '../src/pwa/worker';
-import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy } from '../src/pwa/types';
+} from '../src/pwa/worker.ts';
+import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy } from '../src/pwa/types.ts';
 
 export const PWA_ROOTS = [
   'index.html',

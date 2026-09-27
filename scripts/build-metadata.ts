@@ -1,8 +1,8 @@
 import { lstat, mkdir, readFile, readdir, rename, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Manifest } from 'vite';
-import { sha256Source } from './first-paint/csp';
-import type { ShellVariant } from './first-paint/shell-html';
+import { sha256Source } from './first-paint/csp.ts';
+import type { ShellVariant } from './first-paint/shell-html.ts';
 
 export function buildManifestPath(output: string): string {
   const directory = path.resolve(output);

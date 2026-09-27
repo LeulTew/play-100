@@ -1,4 +1,4 @@
-import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy, PwaWorkerClient, PwaWorkerHost } from './types';
+import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy, PwaWorkerClient, PwaWorkerHost } from './types.ts';
 
 export const PWA_CACHE_PREFIX = 'play100-pwa-v1-';
 export const PWA_BUDGET = {

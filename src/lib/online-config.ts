@@ -1,4 +1,4 @@
-import { CLOUD_PROJECT } from './cloud-types';
+import { CLOUD_PROJECT } from './cloud-types.ts';
 
 export interface FirebasePublicConfiguration {
   apiKey: string;
