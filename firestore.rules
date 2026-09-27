@@ -61,15 +61,16 @@ service cloud.firestore {
         && value.seed is string && value.seed.matches('^[a-f0-9]{32}$')
         && value.palette in ['lime', 'moss', 'clay', 'sky', 'lilac'];
     }
-    // cleanTitle's class holds every Unicode control (C0/C1) and format (Cf) character: bidi controls, zero-width
-    // characters, the BOM and tag characters. Its explicit code points repeat every Unicode 17.0 Cf character so an
+    // cleanTitle's class holds every Unicode control (C0/C1) and format (Cf) character (bidi controls, zero-width
+    // characters, the BOM and tag characters) and the line and paragraph separators, which force a line break. Its
+    // explicit code points repeat every Unicode 17.0 Cf character so an
     // engine with older Unicode tables still refuses them: the Firestore emulator's RE2J does not treat the
     // U+2066-U+2069 bidi isolates as Cf. Each pattern is one string literal because Firestore counts every evaluated
     // expression, string concatenation included, toward its limit of 1,000 per request; a unit test keeps the copies
     // of the class equal and pins it to the Unicode Cf set.
     // A public or shared ranking title with no control or format character; its caller checks the type and length.
     function cleanTitle(value) {
-      return value.matches('^[^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}]*$');
+      return value.matches('^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}]*$');
     }
     // 1-60 characters with no control, format or blank filler character anywhere (cleanTitle's class plus the Hangul
     // fillers and the blank Braille pattern, letters and symbols that render as nothing; a unit test keeps the client's
@@ -77,7 +78,7 @@ service cloud.firestore {
     // so a name cannot look empty.
     function cleanName(value) {
       return value is string && value.size() >= 1 && value.size() <= 60
-        && value.matches('^[^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}\\p{Z}]([^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}]*[^\\p{Cc}\\p{Cf}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}\\p{Z}])?$')
+        && value.matches('^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}\\p{Z}]([^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}]*[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\x{ad}\\x{600}-\\x{605}\\x{61c}\\x{6dd}\\x{70f}\\x{890}-\\x{891}\\x{8e2}\\x{180e}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2060}-\\x{2064}\\x{2066}-\\x{206f}\\x{feff}\\x{fff9}-\\x{fffb}\\x{110bd}\\x{110cd}\\x{13430}-\\x{1343f}\\x{1bca0}-\\x{1bca3}\\x{1d173}-\\x{1d17a}\\x{e0001}\\x{e0020}-\\x{e007f}\\x{115f}\\x{1160}\\x{2800}\\x{3164}\\x{ffa0}\\p{Z}])?$')
         && !value.matches('^[\\p{M}\\p{Z}]+$');
     }
     // An update may keep an unchanged legacy name until it is next edited. The unchanged name is compared first, so it
@@ -337,6 +338,7 @@ service cloud.firestore {
         && data.position is int && data.position >= 1 && data.position <= 200
         && data.id is string && data.id.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 200 && cleanTitle(data.title)
+        && !data.title.matches('^\\s+$')
         && (data.year == null || (data.year is int && data.year >= 1900 && data.year <= 2100))
         && data.source is string && data.sourceId is string && data.sourceId.matches('^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$')
         && (data.score == null || (data.score is number && data.score >= 0 && data.score <= 10))

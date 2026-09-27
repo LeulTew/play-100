@@ -555,6 +555,15 @@ that do. Friend-only shelf and All rows keep their C0/DEL rule: they mirror the
 whole library automatically, so a stricter rule would stop all automatic
 sharing for a library holding one such title.
 
+**Forced line breaks and blank entry titles (R13).** The shared class also
+refuses the line and paragraph separators U+2028 and U+2029 (`\p{Zl}`,
+`\p{Zp}`) anywhere in a new name or title, because a forced line break could
+fake a second line, such as a role or badge, under someone else's name. Names
+already refused them only at either end. The client's check refuses them too,
+and a unit test pins the rules' class. A new public entry title also cannot be
+only whitespace, as friend shelf and All rows already require. Library records
+cannot hold such a title, so that refusal reaches only direct writes.
+
 **Rules evaluation limit (R12).** Firestore stops evaluating a request after
 1,000 expressions, counted across every `allow` statement it tries, and then
 denies it. The first R12 rules crossed that on profile unpublish, where both

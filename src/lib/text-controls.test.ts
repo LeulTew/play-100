@@ -57,6 +57,8 @@ it('rejects bidi, zero-width, BOM and other control or format characters anywher
   for (let code = 0x200b; code <= 0x200f; code += 1) rejected.push(code);
   for (let code = 0x202a; code <= 0x202e; code += 1) rejected.push(code);
   for (let code = 0x2066; code <= 0x2069; code += 1) rejected.push(code);
+  // The line and paragraph separators force a line break, which could fake a second line under a name.
+  rejected.push(0x2028, 0x2029);
   for (const code of rejected) {
     const character = String.fromCodePoint(code);
     for (const name of [`Player${character}name`, `${character}Player`, `Player${character}`]) {
@@ -97,7 +99,18 @@ it('keeps the client blank filler list equal to the rules cleanName list', () =>
 });
 
 it('refuses control and format characters anywhere in a ranking title and keeps ordinary titles', () => {
-  for (const character of ['\u0000', '\u0085', '\u00ad', '\u200b', '\u202e', '\u2066', '\ufeff', '\u{e0041}']) {
+  for (const character of [
+    '\u0000',
+    '\u0085',
+    '\u00ad',
+    '\u200b',
+    '\u202e',
+    '\u2066',
+    '\ufeff',
+    '\u{e0041}',
+    '\u2028',
+    '\u2029',
+  ]) {
     for (const title of [`My${character}favorites`, `${character}My favorites`, `My favorites${character}`])
       expect(rankingTitleProblem(title)).toMatch(/Ranking titles cannot contain invisible, control or text-direction/);
     expect(stripControlOrFormat(`My${character} favorites`)).toBe('My favorites');
@@ -108,7 +121,8 @@ it('refuses control and format characters anywhere in a ranking title and keeps 
 
 it('keeps the rules backstop list equal to every format character this engine classes as \\p{Cf}', () => {
   const list = TITLE_PATTERN.exec(rulesFunction('cleanTitle'))?.[1] ?? '';
-  expect(list.startsWith('\\\\p{Cc}\\\\p{Cf}')).toBe(true);
+  // Controls, format characters and the forced line breaks, before the explicit Cf code points.
+  expect(list.startsWith('\\\\p{Cc}\\\\p{Cf}\\\\p{Zl}\\\\p{Zp}')).toBe(true);
   const listed = [...list.matchAll(/\\\\x\{([0-9a-f]+)\}(?:-\\\\x\{([0-9a-f]+)\})?/g)].map((match) => [
     parseInt(match[1]!, 16),
     parseInt(match[2] ?? match[1]!, 16),

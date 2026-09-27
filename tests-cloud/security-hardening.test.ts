@@ -462,6 +462,8 @@ describe('display-name hygiene', () => {
     '\uFFA0',
     '\u2800',
     '\u034F',
+    'Line\u2028break',
+    'Paragraph\u2029break',
   ];
   const memberDoc = (displayName: string) => ({
     uid: 'Alice',
@@ -548,7 +550,7 @@ describe('display-name hygiene', () => {
 });
 
 describe('public ranking titles', () => {
-  const invisible = ['\u0000', '\u0085', '\u202E', '\u2066'];
+  const invisible = ['\u0000', '\u0085', '\u202E', '\u2066', '\u2028', '\u2029'];
   const entry = {
     position: 1,
     id: 'wikidata:Q123',
@@ -615,6 +617,8 @@ describe('public ranking titles', () => {
       await assertFails(publish(`My${character}games`, ['Game'], 2));
       await assertFails(publish('My games', ['Game', `Second${character}game`], 2));
     }
+    // A public entry title cannot be only whitespace either, as friend shelf and All rows already require.
+    await assertFails(upload('   '));
     await assertSucceeds(upload('Game title'));
     await assertSucceeds(publish('My games', ['Game', 'Second game'], 2));
   });

@@ -7,12 +7,13 @@ export function hasAsciiControl(value: string): boolean {
 }
 
 export const DISPLAY_NAME_MAX = 60;
-const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u;
-const CONTROL_OR_FORMAT_ALL = /[\p{Cc}\p{Cf}]/gu;
+// The line and paragraph separators (U+2028, U+2029) force a line break, which could fake a second line under a name.
+const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const CONTROL_OR_FORMAT_ALL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
 
 /**
- * Whether text contains a Unicode control (C0/C1) or format character (bidi controls, zero-width characters, BOM),
- * which firestore.rules refuses in new display names and in new public and shared ranking titles.
+ * Whether text contains a Unicode control (C0/C1), format character (bidi controls, zero-width characters, BOM) or
+ * forced line break, which firestore.rules refuses in new display names and in new public and shared ranking titles.
  */
 export function hasControlOrFormat(value: string): boolean {
   return CONTROL_OR_FORMAT.test(value);
