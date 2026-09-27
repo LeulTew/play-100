@@ -101,8 +101,8 @@ export function AboutDialog({
       <section>
         <h3>Public catalogs</h3>
         <p>
-          Discover includes a bundled catalog and optional online metadata lookup from Wikidata (CC0) and the
-          documented FreeToGame API. Game data from FreeToGame is attributed and linked to its source.
+          Discover includes a bundled catalog and optional online metadata lookup from Wikidata (CC0) and the documented
+          FreeToGame API. Game data from FreeToGame is attributed and linked to its source.
         </p>
         <div className="button-row" role="group" aria-label="Public catalog sources">
           <a
@@ -153,9 +153,9 @@ export function AboutDialog({
         </p>
         <p>
           Built with React, Three.js, dnd kit, native IndexedDB and customized React Bits CountUp, Magnet and
-          AnimatedContent. React Bits copyright 2026 David Haz, used under its MIT + Commons Clause license.
-          Typography: Barlow Condensed and Hanken Grotesk, under the SIL Open Font License. Creature avatars use locally
-          generated DiceBear Critters (CC0 1.0) with DiceBear core (MIT); no Google photo is fetched.
+          AnimatedContent. React Bits copyright 2026 David Haz, used under its MIT + Commons Clause license. Typography:
+          Barlow Condensed and Hanken Grotesk, under the SIL Open Font License. Creature avatars use locally generated
+          DiceBear Critters (CC0 1.0) with DiceBear core (MIT); no Google photo is fetched.
         </p>
         <div className="button-row" role="group" aria-label="Project sources and notices">
           <a className="text-button" href="https://reactbits.dev" target="_blank" rel="noreferrer">
