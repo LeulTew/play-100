@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ExternalCatalogArtwork as Artwork } from '../../lib/catalog-enrichment';
+import type { CatalogExternalRating, ExternalCatalogArtwork as Artwork } from '../../lib/catalog-enrichment';
 import type { PublicCatalogLookup, useCatalogEnrichment } from '../../hooks/useCatalogEnrichment';
 import { GameArtworkCredit } from '../games/GameArtwork';
 import { Icon } from '../Icon';
@@ -35,6 +35,22 @@ export function ExternalCatalogArtworkCredit({ artwork }: { artwork: Artwork }) 
       </p>
     </div>
   );
+}
+
+function compactRatingContext(rating: CatalogExternalRating): string {
+  const source = rating.source === 'steam' ? 'Steam' : 'Wikidata';
+  const seen = new Set([source.toLowerCase()]);
+  const platforms = rating.platforms.filter((platform) => {
+    const key = platform.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return [
+    rating.kind === 'user-recommendations' ? 'User recommendations' : 'Reported review score',
+    rating.source === 'steam' ? source : `via ${source}`,
+    ...(platforms.length ? [platforms.join(' / ')] : []),
+  ].join(' · ');
 }
 
 export function CatalogEnrichment({
@@ -93,12 +109,7 @@ export function CatalogEnrichment({
                     <h4>{rating.publisher}</h4>
                     <strong>{rating.score.text}</strong>
                   </div>
-                  <p>
-                    {rating.kind === 'user-recommendations'
-                      ? 'User recommendations · Steam'
-                      : 'Reported review score · via Wikidata'}
-                    {rating.platforms.length > 0 && ` · ${rating.platforms.join(' / ')}`}
-                  </p>
+                  <p>{compactRatingContext(rating)}</p>
                   <details className="catalog-review-details">
                     <summary>Source details for {rating.publisher}</summary>
                     <p>

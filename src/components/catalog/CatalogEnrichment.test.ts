@@ -73,7 +73,7 @@ describe('separate public review provenance', () => {
       publisher: 'Steam users',
       publisherId: null,
       score: { text: '91%', value: 91, scale: 100, unit: 'percent' },
-      platforms: [],
+      platforms: ['Steam'],
       method: 'Steam purchases, all languages, off-topic activity excluded',
       count: 1000,
       asOf: null,
@@ -92,6 +92,52 @@ describe('separate public review provenance', () => {
     expect(html).toContain('Source details for Steam users');
     expect(html).toContain('View Steam reviews');
     expect(html).toContain('No scores are averaged together.');
+  });
+  it.each([
+    {
+      source: 'steam',
+      kind: 'user-recommendations',
+      platforms: ['Steam', 'PC', 'PC', 'Steam Deck'],
+      expected: 'User recommendations · Steam · PC / Steam Deck',
+    },
+    {
+      source: 'wikidata',
+      kind: 'review-score',
+      platforms: ['Wikidata', 'PC', 'pc', 'PlayStation 5'],
+      expected: 'Reported review score · via Wikidata · PC / PlayStation 5',
+    },
+    {
+      source: 'wikidata',
+      kind: 'review-score',
+      platforms: ['PC', 'PlayStation 5'],
+      expected: 'Reported review score · via Wikidata · PC / PlayStation 5',
+    },
+  ] as const)('deduplicates only compact $source context: $platforms', ({ source, kind, platforms, expected }) => {
+    const enrichment = state();
+    const original = enrichment.data.ratings[0]!;
+    enrichment.data.ratings = [
+      {
+        ...original,
+        source,
+        kind,
+        publisher: source === 'steam' ? 'Steam' : original.publisher,
+        platforms: [...platforms],
+        score: source === 'steam' ? { text: '88.1%', value: 88.1, scale: 100, unit: 'percent' } : original.score,
+        sourceUrl: source === 'steam' ? 'https://store.steampowered.com/app/123/#app_reviews_hash' : original.sourceUrl,
+      },
+    ];
+    const before = JSON.stringify(enrichment.data);
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    const compact = html.slice(html.indexOf('<li>'), html.indexOf('<details class="catalog-review-details">'));
+    expect(compact).toContain(`<p>${expected}</p>`);
+    expect(compact).toContain(`<strong>${enrichment.data.ratings[0]!.score.text}</strong>`);
+    expect(compact).toContain(`<h4>${enrichment.data.ratings[0]!.publisher}</h4>`);
+    expect(compact).not.toContain(original.method);
+    const details = html.match(/<details class="catalog-review-details">([\s\S]*?)<\/details>/)?.[1];
+    expect(details).toContain(platforms.join(' / '));
+    expect(details).toContain(original.method);
+    expect(details).toContain(enrichment.data.ratings[0]!.sourceUrl);
+    expect(JSON.stringify(enrichment.data)).toBe(before);
   });
   it('offers an explicit online enable action and keeps cached dates visible', () => {
     const html = renderToStaticMarkup(
