@@ -100,7 +100,10 @@ for (const forcedColors of ['none', 'active'] as const) {
     );
     await about.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.goto('/discover?catalogs=off');
-    const sources = page.locator('.discovery-help');
+    // Discover has two .discovery-help disclosures; the exact-genre one precedes the sources one.
+    const sources = page
+      .locator('.discovery-help')
+      .filter({ has: page.getByText('Search options & sources', { exact: true }) });
     await sources.getByText('Search options & sources', { exact: true }).click();
     const catalogRow = sources.getByRole('group', { name: 'Public catalog sources', exact: true });
     const discoverMeasurements = await expectSourceLinks(page, catalogRow, [catalogLinks[0], catalogLinks[2]]);
