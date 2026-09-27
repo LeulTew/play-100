@@ -270,16 +270,20 @@ test('backup export and validated replacement restore queue and private rankings
   await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([]);
+  const resetStatus = page.locator('.device-settings').getByRole('status');
+  await expect(resetStatus).toHaveText('Your active library, queue, ranking and preferences have been reset.');
   await page
     .getByLabel('Import personal library backup file')
     .setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: bytes });
   await expect(page.locator('.restore-preview')).toContainText('3 games, 3 queued, 1 ranked');
+  await expect(resetStatus).toHaveCount(0);
   await page.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([first, second, third]);
   expect((await readLibrary(page)).ranking[0]?.id).toBe(first);
   await expect(page.locator('.backup-panel').getByRole('status')).toHaveText(
     'Your backup was restored and saved on this device.',
   );
+  await expect(resetStatus).toHaveCount(0);
   await page.getByLabel('Import personal library backup file').setInputFiles({
     name: 'corrupt.json',
     mimeType: 'application/json',

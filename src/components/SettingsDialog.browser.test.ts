@@ -201,6 +201,30 @@ for (const mobile of [false, true]) {
       }
     }
 
+    for (const action of ['Export my library', 'Import backup'] as const) {
+      it(`${action} clears the previous reset result when it starts`, async () => {
+        await withPage(async (page) => {
+          await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
+          await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
+          const resetStatus = page.locator('.device-settings').getByRole('status');
+          await browserExpect(resetStatus).toHaveText(
+            'Your active library, queue, ranking and preferences have been reset.',
+          );
+          if (action === 'Export my library') {
+            const pending = page.waitForEvent('download');
+            await page.getByRole('button', { name: action, exact: true }).click();
+            expect(await (await pending).failure()).toBeNull();
+          } else {
+            const pending = page.waitForEvent('filechooser');
+            await page.getByRole('button', { name: action, exact: true }).click();
+            await pending;
+          }
+          await browserExpect(resetStatus).toHaveCount(0);
+          await browserExpect(page.getByRole('dialog')).toBeVisible();
+        });
+      });
+    }
+
     it('separates each visible preference label from its supporting description in the exact name', async () => {
       await withPage(async (page) => {
         for (const [name, description] of [

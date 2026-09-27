@@ -14,11 +14,13 @@ export default function BackupPanel({
   busy,
   persistent,
   onRestore,
+  onActionStart,
 }: {
   state: PersonalLibraryState;
   busy: boolean;
   persistent: boolean;
   onRestore: (state: PersonalLibraryState) => Promise<boolean>;
+  onActionStart?: () => void;
 }) {
   const mode = useLibraryMode();
   const input = useRef<HTMLInputElement>(null);
@@ -43,6 +45,7 @@ export default function BackupPanel({
     };
   }, []);
   const exportBackup = () => {
+    onActionStart?.();
     setError('');
     setMessage('');
     const backup = exportLibraryBackup(state);
@@ -60,6 +63,7 @@ export default function BackupPanel({
     setMessage('Backup download started. It includes your games, queue, rankings, notes and preferences.');
   };
   const readBackup = async (file: File | undefined) => {
+    onActionStart?.();
     setError('');
     setMessage('');
     setIncoming(null);
@@ -121,7 +125,14 @@ export default function BackupPanel({
           <Icon name="download" width="17" height="17" />
           Export my library
         </button>
-        <button className="button button-outline" disabled={busy || reading} onClick={() => input.current?.click()}>
+        <button
+          className="button button-outline"
+          disabled={busy || reading}
+          onClick={() => {
+            onActionStart?.();
+            input.current?.click();
+          }}
+        >
           <Icon name="upload" width="17" height="17" />
           {reading ? 'Reading backup…' : 'Import backup'}
         </button>
@@ -153,6 +164,7 @@ export default function BackupPanel({
               className="button button-dark"
               disabled={busy}
               onClick={() => {
+                onActionStart?.();
                 setError('');
                 setMessage('');
                 void onRestore(incoming).then((success) => {
