@@ -144,12 +144,18 @@ fixed before promotion; the rest were test, host or harness issues.
 | Probe harness defect record | `cc9dffd378c83fee6694e573ee3f0c059b82aa59f9c60599425cf0362be192bc` |
 
 **Rules.** Changed: title and name hygiene, the post-cancel hold and the
-evaluation-limit fix. The pending publish is now `firestore.rules` SHA-256
-`8e645497aaec7898e2e11f41d9985b7608fedf82c77305ac5b24b0fbf7bedb10`
-(pending action 3), to be published only while Release 6 or later is serving.
-Don't publish the Release 5 rules `6c8ebcb2…`: in a repeat run of the
-cloud-UI identity test under them, a legitimate sync-head update hit the same
-1,000-expression limit.
+evaluation-limit fix. At release the pending publish was `firestore.rules`
+SHA-256 `8e645497aaec7898e2e11f41d9985b7608fedf82c77305ac5b24b0fbf7bedb10`,
+to be published only while Release 6 or later is serving. The R13 rules
+supersede it, and pending action 3 names the rules to publish. Don't publish
+the Release 5 rules `6c8ebcb2…` either.
+
+Correction (R13): this entry first said that, in a repeat run of the cloud-UI
+identity test under the Release 5 rules, a legitimate sync-head update hit the
+1,000-expression limit. The refused save was a stale commit from the tab that
+lost the two-tab race. The limit in the emulator's denial came from a first,
+commit-wide pass that doesn't decide the outcome; see the save-commit
+evaluation limit in [security](security.md).
 
 **Waivers.** As for Release 5: no physical-device, iOS Safari, screen-reader
 or OS install and launch runs; the release coordinator waived them. The real
