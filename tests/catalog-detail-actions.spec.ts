@@ -65,7 +65,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
 }
 
 test('canonical Discover details keep the original collection actions', async ({ page }) => {
-  await page.goto('/discover?q=RDR2&include100=on&catalogs=off');
+  await page.goto('/discover?q=red%20dead%20redemption%202&include100=on&catalogs=off');
   await page
     .locator('[data-catalog-id="red-dead-redemption-2"]')
     .getByRole('button', { name: 'Red Dead Redemption 2', exact: true })
