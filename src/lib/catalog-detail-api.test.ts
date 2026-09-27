@@ -209,6 +209,40 @@ describe('public-only catalog detail endpoint', () => {
     // With the window spent, a free lookup still answers.
     expect((await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A1`)).status).toBe(200);
   });
+  it('answers new lookups during a Wikidata rate-limit cooldown without a slot, since they fetch nothing', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
+      let limited = true;
+      const upstream = vi.fn(async () =>
+        limited
+          ? new Response(new ReadableStream(), { status: 429, headers: { 'Retry-After': '3' } })
+          : json({ entities: {} }),
+      );
+      vi.stubGlobal('fetch', upstream);
+      const paid = (index: number) =>
+        `${base}/api/catalog-detail?id=wikidata%3AQ92000${String(index).padStart(3, '0')}`;
+      const limitedSource = { source: 'wikidata', status: 'error', code: 'rate-limited', retryAfter: 3 };
+      expect((await (await nativeFetch(paid(1))).json()).sources[0]).toMatchObject(limitedSource);
+      expect(upstream).toHaveBeenCalledOnce();
+      // More new lookups than the window admits, all during the cooldown: none fetches and none takes a slot.
+      for (let index = 2; index <= 32; index += 1) {
+        const response = await nativeFetch(paid(index));
+        expect(response.status).toBe(200);
+        expect((await response.json()).sources[0]).toMatchObject(limitedSource);
+      }
+      expect(upstream).toHaveBeenCalledOnce();
+      limited = false;
+      vi.setSystemTime(Date.now() + 3000);
+      // Only the first lookup took a slot, so 29 more paid lookups fit in the window before one is refused.
+      for (let index = 33; index <= 61; index += 1) expect((await nativeFetch(paid(index))).status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(30);
+      expect((await nativeFetch(paid(62))).status).toBe(429);
+      expect(upstream).toHaveBeenCalledTimes(30);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('shared cold detail lookups', () => {

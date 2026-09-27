@@ -26,7 +26,7 @@ const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 const JSON_OPTIONS = { maxBytes: 768 * 1024, timeoutMs: 3500, contentTypes: ['application/json'] };
 const cache = new Map<string, { expires: number; value: CatalogEnrichment }>();
 const cooldown = new Map<EnrichmentSource, number>();
-// Per-instance, and taken only by a lookup that fetches upstream: a FreeToGame detail costs no upstream request.
+// Per-instance, and taken only by a lookup that fetches upstream; FreeToGame details and cooldown answers take none.
 const admission = createAdmission({ maxActive: 4, maxPerWindow: 30, windowMs: 60_000 });
 // A cold lookup shared by every concurrent caller of the same ID. Each entry holds one admission slot, so the map
 // never exceeds `maxActive`; it is removed after either outcome and a failure is never cached.
@@ -52,22 +52,25 @@ function wikiUrl(base: string, parameters: Record<string, string>): URL {
   url.search = new URLSearchParams({ format: 'json', ...parameters }).toString();
   return url;
 }
-async function provider<T>(
-  source: EnrichmentSource,
-  work: () => Promise<T>,
-): Promise<{ value: T; error: null } | { value: null; error: EnrichmentSourceState }> {
+// While a source's rate-limit cooldown lasts, the error a lookup reports for it, with the seconds left; otherwise null.
+function cooledDown(source: EnrichmentSource): EnrichmentSourceState | null {
   const remaining = Math.ceil(((cooldown.get(source) ?? 0) - Date.now()) / 1000);
-  if (remaining > 0)
-    return {
-      value: null,
-      error: sourceState(
+  return remaining > 0
+    ? sourceState(
         source,
         'error',
         'This source is rate-limiting requests. Try again after the indicated delay.',
         'rate-limited',
         remaining,
-      ),
-    };
+      )
+    : null;
+}
+async function provider<T>(
+  source: EnrichmentSource,
+  work: () => Promise<T>,
+): Promise<{ value: T; error: null } | { value: null; error: EnrichmentSourceState }> {
+  const cooling = cooledDown(source);
+  if (cooling) return { value: null, error: cooling };
   try {
     return { value: await work(), error: null };
   } catch (error) {
@@ -116,6 +119,9 @@ export async function getCatalogDetail(id: string, signal: AbortSignal): Promise
   if (cached && cached.expires > Date.now()) return cached.value;
   let entry = inflight.get(id);
   if (!entry) {
+    // A new lookup during Wikidata's rate-limit cooldown fetches nothing either, so it too answers without a slot.
+    const cooling = cooledDown('wikidata');
+    if (cooling) return withoutEntity(id, new Date().toISOString(), cooling);
     const release = admission.acquire();
     if (!release)
       throw new CatalogError('Public detail lookups are busy. Please wait before retrying.', 429, 'rate-limited', 15);
@@ -196,6 +202,32 @@ function freeToGameDetail(id: string): CatalogEnrichment {
   };
 }
 
+// Without the exact Wikidata entity, neither a Steam ID nor a Commons image can be verified.
+function withoutEntity(id: string, fetchedAt: string, error: EnrichmentSourceState): CatalogEnrichment {
+  return {
+    schemaVersion: 1,
+    id,
+    fetchedAt,
+    ratings: [],
+    artwork: null,
+    sources: [
+      error,
+      sourceState(
+        'steam',
+        'unavailable',
+        'No verified Steam ID is available while the game source is unavailable.',
+        'missing',
+      ),
+      sourceState(
+        'commons',
+        'unavailable',
+        'Existing bundled artwork is unchanged. No new image was verified.',
+        'missing',
+      ),
+    ],
+  };
+}
+
 async function lookupDetail(
   id: string,
   identity: NonNullable<ReturnType<typeof enrichmentIdentity>>,
@@ -219,29 +251,7 @@ async function lookupDetail(
     return entity;
   });
   signal.throwIfAborted();
-  if (entityResult.error)
-    return {
-      schemaVersion: 1,
-      id,
-      fetchedAt,
-      ratings: [],
-      artwork: null,
-      sources: [
-        entityResult.error,
-        sourceState(
-          'steam',
-          'unavailable',
-          'No verified Steam ID is available while the game source is unavailable.',
-          'missing',
-        ),
-        sourceState(
-          'commons',
-          'unavailable',
-          'Existing bundled artwork is unchanged. No new image was verified.',
-          'missing',
-        ),
-      ],
-    };
+  if (entityResult.error) return withoutEntity(id, fetchedAt, entityResult.error);
   const entity = entityResult.value;
   const labels = reviewLabelIds(entity);
   const steam = exactSteamApp(entity);

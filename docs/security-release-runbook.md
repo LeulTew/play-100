@@ -442,7 +442,8 @@ These are console/platform steps; no lane or integrator session applies them.
 In-function limits are per instance and cannot stop distributed abuse:
 `api/catalog-detail.ts` admits 4 concurrent and 30 uncached lookups per minute
 (concurrent lookups of one ID share one run and one slot, and a FreeToGame
-detail, which fetches nothing upstream, takes none),
+detail or a lookup during Wikidata's rate-limit cooldown, which fetch nothing
+upstream, take none),
 and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
 (a coalesced FreeToGame fill holds one slot). The auth helper
 (`/__/auth/handler` and `/__/auth/iframe`) serves each page from a per-instance
