@@ -7,12 +7,18 @@ import App from './App';
 import DataUsePage from './components/DataUsePage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { startGuestLibraryLoad } from './lib/guest-library-startup';
+import { snapshotMotionHint } from './lib/motion-hint';
 import './styles.css';
 import './shared-ui.css';
 import './render-containment.css';
 
 const dataUsePage = /^\/data-use\/?$/.test(location.pathname);
-if (!dataUsePage) startGuestLibraryLoad();
+if (!dataUsePage) {
+  // The library load rewrites the guest hint, perhaps before App's first render. That render must name the artifact
+  // state the first-paint shell chose from the hint (src/first-paint/boot.js), so it reads the hint from before.
+  snapshotMotionHint('guest');
+  startGuestLibraryLoad();
+}
 
 const root = createRoot(document.getElementById('root')!);
 // As a transition the first render yields to the browser every few milliseconds instead of holding

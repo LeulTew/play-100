@@ -58,7 +58,7 @@ import type { MotionBoundary, MotionLocation } from './motion';
 import './motion/motion.css';
 import { loadAppTools, loadComparisonTools, prefetchAppTools } from './lib/app-tool-preload';
 import { scheduleIdlePrefetch } from './lib/idle-prefetch';
-import { effectiveMotionPreference, motionPreferencePending, readMotionHint } from './lib/motion-hint';
+import { effectiveMotionPreference, motionPreferencePending, startupMotionHint } from './lib/motion-hint';
 import { GlobalBanners } from './components/app/GlobalBanners';
 import { useNavigationScope } from './hooks/useNavigationScope';
 import { AppHeader } from './components/app/AppHeader';
@@ -230,7 +230,8 @@ export default function App() {
     }),
     [libraryScope, onlineOpening, online?.enabled, online?.label],
   );
-  const motionHint = useMemo(() => readMotionHint(libraryScope), [libraryScope]);
+  // The guest hint from before the library load could rewrite it (main.tsx), so the first commit matches the shell.
+  const motionHint = useMemo(() => startupMotionHint(libraryScope), [libraryScope]);
   const effectiveMotion = effectiveMotionPreference(library.status, library.state.motion, motionHint);
   const motionPending = motionPreferencePending(library.status, motionHint);
   const capabilities = useCapabilities(effectiveMotion);

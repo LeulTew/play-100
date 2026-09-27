@@ -204,6 +204,12 @@ not a `style=`.
     `data-scene-status`, `data-activation` and the React-only decorative still (absolutely
     positioned), and the Magnet wrapper omits its inline transition.
   - None changes layout.
+- Until the library opens, App takes the guest motion hint from the snapshot
+  `src/main.tsx` makes before the library load starts (`snapshotMotionHint()` in
+  `src/lib/motion-hint.ts`), not from storage. The load rewrites the hint from the
+  saved preference, perhaps before React's first commit, whose caption must stay
+  the one the shell chose. Only another tab that rewrites the hint before
+  `src/main.tsx` runs can still make them differ.
 - The entry stylesheet must not select what differs between the shell and React:
   `[inert]`, `[style]`, `[data-scene-status]`, `[data-activation]`,
   `[data-shell-art]`, `[data-boot…]`, `[data-app-started]` (which `src/main.tsx`

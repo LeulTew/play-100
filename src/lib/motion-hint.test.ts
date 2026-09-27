@@ -19,6 +19,8 @@ import {
   parseMotionHint,
   readMotionHint,
   rememberMotionHint,
+  snapshotMotionHint,
+  startupMotionHint,
 } from './motion-hint';
 
 let values: Map<string, string>;
@@ -120,6 +122,44 @@ describe('optional scoped enum-only motion hints', () => {
       expect(motionPreferencePending(status, null)).toBe(false);
       expect(motionPreferencePending(status, 'lite')).toBe(false);
     }
+  });
+
+  it('keeps the startup snapshot of its scope through a later rewrite, and reads other scopes as stored', () => {
+    const alice = accountScope('alice');
+    values.set(motionHintKey('guest'), 'lite');
+    expect(snapshotMotionHint('guest')).toBe('lite');
+    rememberMotionHint('guest', 'auto');
+    rememberMotionHint(alice, 'full');
+    expect(readMotionHint('guest')).toBe('auto');
+    expect(startupMotionHint('guest')).toBe('lite');
+    expect(startupMotionHint(alice)).toBe('full');
+    // A new snapshot replaces the old one.
+    expect(snapshotMotionHint('guest')).toBe('auto');
+    expect(startupMotionHint('guest')).toBe('auto');
+  });
+
+  it('snapshots no hint when storage is blocked, and keeps it once storage recovers', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const read = vi.spyOn(storage, 'getItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    expect(snapshotMotionHint('guest')).toBeNull();
+    expect(warn).toHaveBeenCalledOnce();
+    read.mockRestore();
+    values.set(motionHintKey('guest'), 'full');
+    expect(startupMotionHint('guest')).toBeNull();
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the first render on the snapshot when the opening library rewrites the hint before it', async () => {
+    // A fresh guest: the shell names no mode (src/first-paint/boot.js), and main.tsx snapshots the same missing hint.
+    expect(snapshotMotionHint('guest')).toBeNull();
+    // The library load initializes Auto and remembers it before App's first render reads the hint.
+    await loadPersonalLibrary([]);
+    expect(readMotionHint('guest')).toBe('auto');
+    const hint = startupMotionHint('guest');
+    expect(effectiveMotionPreference('loading', 'auto', hint)).toBe('lite');
+    expect(motionPreferencePending('loading', hint)).toBe(true);
   });
 
   it('writes guest default/load/save/restore/reset only after successful transactions', async () => {

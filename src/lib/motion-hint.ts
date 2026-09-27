@@ -17,6 +17,28 @@ export function readMotionHint(scope: LibraryScope): MotionPreference | null {
   }
 }
 
+let startupHint: { scope: LibraryScope; hint: MotionPreference | null } | null = null;
+
+/**
+ * Reads a scope's hint before its library load starts (src/main.tsx). The load rewrites the hint from the saved
+ * library, perhaps before the first render reads it; the snapshot keeps that render on the hint from before the load,
+ * the one the first-paint shell read (src/first-paint/boot.js) unless another tab has changed it since. A later call
+ * replaces the snapshot.
+ */
+export function snapshotMotionHint(scope: LibraryScope): MotionPreference | null {
+  startupHint = { scope, hint: readMotionHint(scope) };
+  return startupHint.hint;
+}
+
+/**
+ * The hint a render uses while its library opens (App.tsx): the startup snapshot of its scope, otherwise the stored
+ * hint. The guest library opens once per page, so its snapshot is the hint for as long as any hint matters.
+ */
+export function startupMotionHint(scope: LibraryScope): MotionPreference | null {
+  const snapshot = startupHint;
+  return snapshot && snapshot.scope === scope ? snapshot.hint : readMotionHint(scope);
+}
+
 export function clearMotionHint(scope: LibraryScope): void {
   try {
     localStorage.removeItem(motionHintKey(scope));

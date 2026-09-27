@@ -8,7 +8,17 @@ import { NOTICE_OPEN, bootNotice, shellMarkup } from '../../scripts/first-paint/
 import { AppHeader } from '../components/app/AppHeader';
 import { MobileNav } from '../components/app/MobileNav';
 import CollectionArtifact from '../components/CollectionArtifact';
+import type { CollectionArtifactProps } from '../components/CollectionArtifact';
 import CollectionPage from '../components/CollectionPage';
+import {
+  effectiveMotionPreference,
+  motionHintKey,
+  motionPreferencePending,
+  readMotionHint,
+  rememberMotionHint,
+  snapshotMotionHint,
+  startupMotionHint,
+} from '../lib/motion-hint';
 import { pageDestination } from '../lib/page-navigation';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import type { AppPage } from '../lib/types';
@@ -99,6 +109,19 @@ function shellArtifact(state: string): string {
       .split('"p100-shell-art-caption"')
       .join('"caption"'),
   );
+}
+
+/** CollectionArtifact's first render, as the shell's artifact markup must equal it. */
+function firstCommitArtifact(props: CollectionArtifactProps): string {
+  const react = renderToStaticMarkup(createElement(CollectionArtifact, props));
+  const caption = captured(/aria-describedby="([^"]+)"/, react);
+  // Only React paints the decorative still; it is absolutely positioned and moves nothing.
+  expect(react).toMatch(STILL);
+  return react
+    .replace(STILL, '')
+    .replace(/ data-scene-status="[^"]*"| data-activation="[^"]*"/g, '')
+    .split(`"${caption}"`)
+    .join('"caption"');
 }
 
 afterEach(() => {
@@ -278,17 +301,53 @@ describe("first-paint shell parity with React's first commit", () => {
     (state, props, coarsePointer) => {
       if (coarsePointer)
         vi.stubGlobal('window', { matchMedia: (query: string) => ({ matches: query === '(pointer: coarse)' }) });
-      const react = renderToStaticMarkup(createElement(CollectionArtifact, props));
-      const caption = captured(/aria-describedby="([^"]+)"/, react);
-      // Only React paints the decorative still; it is absolutely positioned and moves nothing.
-      expect(react).toMatch(STILL);
+      expect(shellArtifact(state)).toBe(firstCommitArtifact(props));
+    },
+  );
+
+  it.each([
+    ['pending', null, 'auto'],
+    ['lite', 'lite', 'auto'],
+    ['ready', 'full', 'lite'],
+  ] as const)(
+    'keeps the %s caption in the first commit when the library load rewrites the hint before it',
+    (state, stored, saved) => {
+      // boot.js chose `state` from the stored hint, and main.tsx snapshots that hint before the library load starts.
+      const values = new Map<string, string>();
+      if (stored) values.set(motionHintKey('guest'), stored);
+      vi.stubGlobal('localStorage', {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          values.set(key, value);
+        },
+        removeItem: (key: string) => {
+          values.delete(key);
+        },
+      });
+      snapshotMotionHint('guest');
+      // The opened library remembers its saved preference (src/lib/personal-db.ts) before App's first render.
+      rememberMotionHint('guest', saved);
+      expect(readMotionHint('guest')).toBe(saved);
+      // App's first commit, while the library still opens with its initial state (src/hooks/useLibrary.ts).
+      const hint = startupMotionHint('guest');
       expect(shellArtifact(state)).toBe(
-        react
-          .replace(STILL, '')
-          .replace(/ data-scene-status="[^"]*"| data-activation="[^"]*"/g, '')
-          .split(`"${caption}"`)
-          .join('"caption"'),
+        firstCommitArtifact({
+          quality: effectiveMotionPreference('loading', emptyPersonalLibrary().motion, hint),
+          pending: motionPreferencePending('loading', hint),
+          reducedMotion: false,
+          constrained: false,
+        }),
       );
     },
   );
+
+  it('derives the first commit from the hint main.tsx snapshots before the library load starts', () => {
+    const main = sourceTokens(read('../main.tsx'), ts.ScriptKind.TSX);
+    const snapshot = main.indexOf(sourceTokens("snapshotMotionHint('guest');"));
+    expect(snapshot).toBeGreaterThan(-1);
+    expect(snapshot).toBeLessThan(main.indexOf(sourceTokens('startGuestLibraryLoad();')));
+    expect(sourceTokens(appSource, ts.ScriptKind.TSX)).toContain(
+      sourceTokens('const motionHint = useMemo(() => startupMotionHint(libraryScope), [libraryScope]);'),
+    );
+  });
 });
