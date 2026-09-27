@@ -13,7 +13,8 @@ const CONTROL_OR_FORMAT_ALL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
 
 /**
  * Whether text contains a Unicode control (C0/C1), format character (bidi controls, zero-width characters, BOM) or
- * forced line break, which firestore.rules refuses in new display names and in new public and shared ranking titles.
+ * forced line break, which firestore.rules refuses in new display names, public and shared ranking titles and report
+ * reasons.
  */
 export function hasControlOrFormat(value: string): boolean {
   return CONTROL_OR_FORMAT.test(value);
@@ -56,4 +57,21 @@ export function cleanDisplayName(value: string): string {
   const problem = displayNameProblem(value);
   if (problem) throw new Error(problem);
   return value.trim();
+}
+
+export const REPORT_REASON_MAX = 400;
+const REPORT_LINE_BREAKS = /[\t\n\v\f\r\u0085\u2028\u2029]+/g;
+
+/**
+ * A report reason as firestore.rules accepts it: line breaks and tabs become single spaces, since the creator's view
+ * shows a reason on one line anyway, and any other control or format character is refused. Throws an Error with plain
+ * text.
+ */
+export function cleanReportReason(value: string): string {
+  const reason = value.replace(REPORT_LINE_BREAKS, ' ').trim();
+  if (!reason || reason.length > REPORT_REASON_MAX)
+    throw new Error(`Use 1-${REPORT_REASON_MAX} characters to describe a problem with another profile.`);
+  if (hasControlOrFormat(reason))
+    throw new Error('Reports cannot contain invisible, control or text-direction characters. Remove them and try again.');
+  return reason;
 }

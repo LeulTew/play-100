@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import {
   BLANK_CHARACTERS,
   cleanDisplayName,
+  cleanReportReason,
   displayNameProblem,
   hasAsciiControl,
   rankingTitleProblem,
@@ -139,4 +140,13 @@ it('keeps the rules backstop list equal to every format character this engine cl
   }
   expect(listed.length).toBeGreaterThan(0);
   expect(listed).toEqual(expected);
+});
+
+it('keeps a report reason on one line and refuses its other control or format characters', () => {
+  expect(cleanReportReason('  Spam\r\nprofile\tagain\u2028here  ')).toBe('Spam profile again here');
+  expect(cleanReportReason('x'.repeat(400))).toHaveLength(400);
+  for (const character of ['\u0000', '\u007f', '\u200b', '\u202e', '\u2066', '\ufeff'])
+    expect(() => cleanReportReason(`Spam${character}profile`)).toThrow(/invisible, control or text-direction/);
+  for (const reason of ['', ' \n\t ', 'x'.repeat(401)])
+    expect(() => cleanReportReason(reason)).toThrow(/Use 1-400 characters/);
 });

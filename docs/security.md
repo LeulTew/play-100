@@ -564,6 +564,12 @@ and a unit test pins the rules' class. A new public entry title also cannot be
 only whitespace, as friend shelf and All rows already require. Library records
 cannot hold such a title, so that refusal reaches only direct writes.
 
+**Report reasons (R13).** A new report reason also passes `cleanTitle`, so it
+cannot carry bidi, zero-width, control or line-break characters into the
+creator's review list. The client turns line breaks and tabs into spaces, since
+that list shows each reason on one line anyway, and refuses other control or
+format characters with plain text. The list renders each reason in `<bdi>`.
+
 **Rules evaluation limit (R12).** Firestore stops evaluating a request after
 1,000 expressions, counted across every `allow` statement it tries, and then
 denies it. The first R12 rules crossed that on profile unpublish, where both

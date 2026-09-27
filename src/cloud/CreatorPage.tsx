@@ -208,7 +208,9 @@ export function CreatorPage({
             <li key={report.id}>
               <div>
                 <strong>{report.status === 'open' ? 'Needs review' : 'Resolved'}</strong>
-                <p>{report.reason}</p>
+                <p>
+                  <bdi>{report.reason}</bdi>
+                </p>
                 <small>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(report.createdAt)}</small>
               </div>
               <div className="button-row">

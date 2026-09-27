@@ -27,7 +27,7 @@ import {
   PUBLIC_LIMIT,
 } from '../lib/community';
 import type { AvatarValue, Member, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
-import { displayNameProblem, rankingTitleProblem } from '../lib/text-controls';
+import { cleanReportReason, displayNameProblem, rankingTitleProblem } from '../lib/text-controls';
 import { ensureAccountActivity } from './account-lifecycle';
 import { creatorAccess } from './cloud-store';
 import { releaseIndexedPayload } from './generation-cleanup';
@@ -468,8 +468,8 @@ export class SocialStore {
     });
   }
   async report(reporterUid: string, targetUid: string, reason: string): Promise<void> {
-    if (!reason.trim() || reason.trim().length > 400 || reporterUid === targetUid)
-      throw new Error('Use 1-400 characters to describe a problem with another profile.');
+    if (reporterUid === targetUid) throw new Error('Use 1-400 characters to describe a problem with another profile.');
+    const text = cleanReportReason(reason);
     const reportId = reportDocumentId(targetUid, reporterUid);
     await ensureAccountActivity(this.db, reporterUid);
     const ref = doc(this.db, 'reports', reportId);
@@ -510,7 +510,7 @@ export class SocialStore {
       tx.set(ref, {
         reporterUid,
         targetUid,
-        reason: reason.trim(),
+        reason: text,
         status: 'open',
         createdAt: serverTimestamp(),
         ...(counted ? { counted: true } : {}),

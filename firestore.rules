@@ -543,6 +543,7 @@ service cloud.firestore {
         && request.resource.data.reporterUid == request.auth.uid && request.resource.data.targetUid is string
         && request.resource.data.targetUid != request.auth.uid && reportId == request.resource.data.targetUid + '_' + request.auth.uid
         && request.resource.data.reason is string && request.resource.data.reason.size() >= 1 && request.resource.data.reason.size() <= 400
+        && cleanTitle(request.resource.data.reason)
         && request.resource.data.status == 'open' && request.resource.data.createdAt == request.time
         && liveProfile(request.resource.data.targetUid);
       allow update: if false;

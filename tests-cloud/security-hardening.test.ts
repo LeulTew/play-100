@@ -142,6 +142,26 @@ describe('S3 report and friendship boundaries', () => {
     );
   });
 
+  it('refuses control, format and line-break characters in a new report reason', async () => {
+    const db = user('Alice');
+    const report = (reason: string) => {
+      const batch = db.batch();
+      batch.set(db.doc('reports/Bob_Alice'), {
+        reporterUid: 'Alice',
+        targetUid: 'Bob',
+        reason,
+        status: 'open',
+        createdAt: serverTimestamp(),
+        counted: true,
+      });
+      batch.set(db.doc('accountQuotas/Alice/limits/reports'), { count: 1, revision: 1, lastReport: 'Bob_Alice' });
+      return batch.commit();
+    };
+    for (const character of ['\u0000', '\n', '\u0085', '\u200B', '\u202E', '\u2066', '\u2028', '\u2029'])
+      await assertFails(report(`Spam${character}profile`));
+    await assertSucceeds(report('Spam profile'));
+  });
+
   it('never attributes an existing ambiguous legacy ID to another reporter segment', async () => {
     await seed({
       'reports/Target_Alice_Bob': {
