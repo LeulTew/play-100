@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { Filters, Game } from '../lib/types';
 import type { LibraryRecord } from '../lib/personal-types';
 import { defaultFilters, SORT_ORDERS } from '../lib/url';
@@ -46,6 +46,28 @@ export function CollectionControls({
   onFullLibrary,
 }: CollectionControlsProps) {
   const searchSession = useRef(false);
+  const viewAnchor = useRef<{ control: HTMLButtonElement; top: number; view: Filters['view'] } | null>(null);
+  const changeView = (view: Filters['view'], control: HTMLButtonElement) => {
+    viewAnchor.current = view === filters.view ? null : { control, top: control.getBoundingClientRect().top, view };
+    onChange({ view });
+  };
+  useLayoutEffect(() => {
+    const anchor = viewAnchor.current;
+    viewAnchor.current = null;
+    if (!anchor || anchor.view !== filters.view || !anchor.control.isConnected) return;
+    // The hero leaves or re-enters above these controls when the table view changes.
+    window.scrollBy({ top: anchor.control.getBoundingClientRect().top - anchor.top, behavior: 'instant' });
+    const bounds = anchor.control.getBoundingClientRect();
+    const top = (document.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0) + 8;
+    const navigation = document.querySelector('.mobile-nav')?.getBoundingClientRect();
+    const bottom = (navigation?.height ? navigation.top : window.innerHeight) - 8;
+    // A document-edge clamp may prevent exact anchoring; keep the control clear of fixed navigation.
+    if (bounds.top < top) {
+      window.scrollBy({ top: bounds.top - top, behavior: 'instant' });
+    } else if (bounds.bottom > bottom) {
+      window.scrollBy({ top: bounds.bottom - bottom, behavior: 'instant' });
+    }
+  }, [filters.view]);
   const genres = useMemo(
     () =>
       [
@@ -279,7 +301,7 @@ export function CollectionControls({
               className={`icon-button ${filters.view === 'grid' ? 'is-active' : ''}`}
               aria-label="Grid view"
               aria-pressed={filters.view === 'grid'}
-              onClick={() => onChange({ view: 'grid' })}
+              onClick={(event) => changeView('grid', event.currentTarget)}
             >
               <Icon name="grid" width="19" height="19" />
             </button>
@@ -287,7 +309,7 @@ export function CollectionControls({
               className={`icon-button ${filters.view === 'list' ? 'is-active' : ''}`}
               aria-label="List view"
               aria-pressed={filters.view === 'list'}
-              onClick={() => onChange({ view: 'list' })}
+              onClick={(event) => changeView('list', event.currentTarget)}
             >
               <Icon name="list" width="21" height="21" />
             </button>
@@ -295,7 +317,7 @@ export function CollectionControls({
               className={`icon-button ${filters.view === 'table' ? 'is-active' : ''}`}
               aria-label="Ratings table view"
               aria-pressed={filters.view === 'table'}
-              onClick={() => onChange({ view: 'table' })}
+              onClick={(event) => changeView('table', event.currentTarget)}
             >
               <Icon name="table" width="21" height="21" />
             </button>

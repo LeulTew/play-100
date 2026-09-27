@@ -67,6 +67,68 @@ for (const narrow of [false, true]) {
   }
 }
 
+for (const narrow of [false, true]) {
+  for (const view of ['List', 'Grid'] as const) {
+    for (const activation of ['keyboard', 'pointer'] as const) {
+      const viewport = narrow ? '320px' : 'project viewport';
+      test(`${activation} return to ${view} view anchors the switch with six pins at ${viewport}`, async ({ page }) => {
+        if (narrow) await page.setViewportSize({ width: 320, height: 851 });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await installGuestLibrary(page, libraryFixture(0));
+        await page.goto('/?catalogs=off&view=list');
+        await expect(page.locator('.game-card')).toHaveCount(24);
+        for (const record of libraryRecords.slice(0, 6)) {
+          await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
+        }
+        const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
+        const before = await readLibrary(page);
+        const tableSwitch = page.getByRole('button', { name: 'Ratings table view', exact: true });
+        await tableSwitch.click();
+        await expect(page.locator('.ratings-table tbody > tr')).toHaveCount(24);
+        await expect(page.locator('section.hero')).toHaveCount(0);
+        const switcher = page.getByRole('button', { name: `${view} view`, exact: true });
+        if (activation === 'keyboard') {
+          await tableSwitch.focus();
+          await page.keyboard.press('Shift+Tab');
+          if (view === 'Grid') await page.keyboard.press('Shift+Tab');
+          await expect(switcher).toBeFocused();
+        }
+        await switcher.evaluate((element) =>
+          window.scrollBy({ top: element.getBoundingClientRect().top - 200, behavior: 'instant' }),
+        );
+        expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+        const previousTop = await switcher.evaluate((element) => element.getBoundingClientRect().top);
+        if (activation === 'keyboard') await page.keyboard.press('Enter');
+        else await switcher.click();
+        await expect(page.locator('section.hero')).toHaveCount(1);
+        await expect(page.locator('.game-card')).toHaveCount(24);
+        await expect(switcher).toHaveAttribute('aria-pressed', 'true');
+        await expect(switcher).toBeFocused();
+        // Nothing after activation may scroll to repair the switch before these measurements.
+        const position = await switcher.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const header = document.querySelector('.site-header')!.getBoundingClientRect();
+          const navigation = document.querySelector('.mobile-nav')?.getBoundingClientRect();
+          return {
+            top: bounds.top,
+            visible:
+              bounds.top >= header.bottom &&
+              bounds.bottom <= (navigation?.height ? navigation.top : innerHeight) &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth &&
+              element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)),
+          };
+        });
+        expect(position.visible).toBe(true);
+        expect(Math.abs(position.top - previousTop)).toBeLessThanOrEqual(1);
+        await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-layout', 'dock');
+        expect(await readLibrary(page)).toEqual(before);
+        expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toBe(pins);
+      });
+    }
+  }
+}
+
 for (const width of [320, 393, 768, 1440]) {
   test(`tray feedback and contextual chip leave page-end actions clear at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 852 });
