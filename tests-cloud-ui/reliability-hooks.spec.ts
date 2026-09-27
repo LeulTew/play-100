@@ -25,6 +25,18 @@ declare global {
       remove: () => Promise<void>;
       inspect: () => Promise<{ writes: number; cache: unknown; removed: string[]; error: string }>;
     };
+    remoteHead: {
+      inspect: () => Promise<{
+        status: string;
+        base: number;
+        dirty: boolean;
+        generation: string | null;
+        published: string;
+        records: number;
+        uploads: number;
+        downloads: number;
+      }>;
+    };
   }
 }
 
@@ -177,6 +189,150 @@ test('sync lifetime retains ordinary edits and invalidates delayed work at every
   expect(await page.evaluate(() => window.syncReliability.inspect().oldCurrent)).toBe(false);
   await page.evaluate(() => window.syncReliability.finishOld());
   expect(await page.evaluate(() => window.syncReliability.inspect())).toMatchObject({ publishes: 0, error: '' });
+});
+
+// Mounts useCloudSync on this account's enabled, unsaved device copy while a newer online head arrives, as when another
+// tab or window of the account saved first. That head holds exactly this library, or a different one.
+async function mountRemoteHead(page: Page, identical: boolean) {
+  await page.goto('/data-use');
+  await page.evaluate(async (identical) => {
+    const hookPath = '/src/cloud/useCloudSync.ts';
+    const hook: typeof import('../src/cloud/useCloudSync') = await import(hookPath);
+    const accountPath = '/src/hooks/useAccountLibrary.ts';
+    const account: typeof import('../src/hooks/useAccountLibrary') = await import(accountPath);
+    const clientPath = '/src/cloud/firebase-client.ts';
+    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const libraryPath = '/src/lib/scoped-library.ts';
+    const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const personalPath = '/src/lib/personal-library.ts';
+    const personal: typeof import('../src/lib/personal-library') = await import(personalPath);
+    const transportPath = '/src/lib/snapshot-transport.ts';
+    const transport: typeof import('../src/lib/snapshot-transport') = await import(transportPath);
+    const storePath = '/src/cloud/cloud-store.ts';
+    const store: typeof import('../src/cloud/cloud-store') = await import(storePath);
+    const loaded = (pathname: string) => {
+      const url = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .findLast((value) => new URL(value).pathname === pathname);
+      if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
+      return url;
+    };
+    const { default: React }: { default: typeof import('react') } = await import(
+      loaded('/node_modules/.vite/deps/react.js')
+    );
+    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
+      loaded('/node_modules/.vite/deps/react-dom_client.js')
+    );
+    await client.cloudAuth.authStateReady();
+    const uid = client.cloudAuth.currentUser?.uid;
+    if (!uid) throw new Error('The synthetic account is missing.');
+    const scope = `account:demo-play100:${uid}` as const;
+    type SyncHead = import('../src/lib/cloud-types').SyncHead;
+    const empty = personal.emptyPersonalLibrary();
+    let copy = await library.loadScopedLibrary(scope);
+    if (!copy.sync.enabled) {
+      const connected: SyncHead = {
+        format: 1,
+        epoch: 1,
+        revision: 0,
+        enabled: true,
+        deleted: false,
+        current: null,
+        previous: null,
+        updatedAt: Date.now(),
+      };
+      await library.connectScopedLibrary(scope, empty, connected, 'Head fixture', false, {
+        localRevision: copy.state.revision,
+        epoch: copy.sync.epoch,
+        enabled: copy.sync.enabled,
+      });
+    }
+    const label = identical ? 'identical' : 'different';
+    const record: import('../src/lib/personal-types').LibraryRecord = {
+      id: `manual:${label}`,
+      source: 'manual',
+      sourceId: label,
+      sourceUrl: null,
+      title: `Remote head ${label} fixture`,
+      year: null,
+      collectionRank: null,
+      studio: null,
+      genre: null,
+    };
+    copy = await library.commitScopedAction(scope, { type: 'rate-game', record, score: 7 });
+    const published = await transport.packLibrary(identical ? copy.state : empty);
+    const newer: SyncHead = {
+      format: 1,
+      epoch: copy.sync.epoch,
+      revision: copy.sync.baseRemoteRevision + 1,
+      enabled: true,
+      deleted: false,
+      current: published.manifest,
+      previous: null,
+      updatedAt: Date.now(),
+    };
+    let uploads = 0;
+    let downloads = 0;
+    // The newer head reaches both the head listener and the sync read; no upload or download may decide the outcome.
+    store.CloudStore.prototype.head = async () => newer;
+    store.CloudStore.prototype.watch = (onHead) => {
+      const timer = setTimeout(() => onHead(newer));
+      return () => clearTimeout(timer);
+    };
+    store.CloudStore.prototype.upload = async () => {
+      uploads += 1;
+      throw new Error('No upload is expected while a newer head is pending.');
+    };
+    store.CloudStore.prototype.download = async () => {
+      downloads += 1;
+      throw new Error('No download is expected for an unsaved device copy.');
+    };
+    const current = () => true;
+    function Harness() {
+      const { snapshot } = account.useAccountLibrary(scope, 'auto', current);
+      const api = hook.useCloudSync(scope, snapshot, true, undefined, 1);
+      window.remoteHead = {
+        inspect: async () => {
+          const saved = await library.loadScopedLibrary(scope);
+          return {
+            status: api.status,
+            base: saved.sync.baseRemoteRevision,
+            dirty: saved.sync.dirty,
+            generation: saved.sync.remoteGeneration,
+            published: published.manifest.generation,
+            records: Object.keys(saved.state.records).length,
+            uploads,
+            downloads,
+          };
+        },
+      };
+      return React.createElement('output', { id: 'remote-head' }, api.status);
+    }
+    const container = document.createElement('div');
+    document.body.append(container);
+    DOM.createRoot(container).render(React.createElement(Harness));
+  }, identical);
+}
+
+test('a newer online copy of exactly the unsaved library is recorded as saved, and a different one needs a choice', async ({
+  page,
+}) => {
+  await createAccount(page, emailFor('sync-remote-head'));
+  await mountRemoteHead(page, true);
+  await expect(page.locator('#remote-head')).toHaveText('saved');
+  const identical = await page.evaluate(() => window.remoteHead.inspect());
+  expect(identical).toMatchObject({ base: 1, dirty: false, records: 1, uploads: 0, downloads: 0 });
+  expect(identical.generation).toBe(identical.published);
+  await mountRemoteHead(page, false);
+  await expect(page.locator('#remote-head')).toHaveText('conflict');
+  expect(await page.evaluate(() => window.remoteHead.inspect())).toMatchObject({
+    base: 1,
+    dirty: true,
+    records: 2,
+    uploads: 0,
+    downloads: 0,
+  });
 });
 
 async function mountSharing(page: Page) {

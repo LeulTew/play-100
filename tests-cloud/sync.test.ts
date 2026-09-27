@@ -23,7 +23,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { CloudStore, RemoteConflict } from '../src/cloud/cloud-store';
+import { CloudStore, RemoteConflict, SyncRevoked } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { applyPersonalAction, emptyPersonalLibrary } from '../src/lib/personal-library';
 import type { LibraryRecord } from '../src/lib/personal-types';
@@ -145,6 +145,58 @@ describe('real Auth and Firestore snapshot transactions', () => {
     expect(replacement.previous?.generation).toBe(accepted.current?.generation);
     expect(await first.store.download(replacement, true)).toEqual({ ...a, revision: 0, motion: 'auto' });
   });
+
+  it.each([
+    ['publishes the same library', 'adopted'],
+    ['publishes a different library', 'conflict'],
+    ['publishes the same library and then stops online saving', 'revoked'],
+  ] as const)(
+    'resolves a second writer held between its chunk writes and publication after the first writer %s',
+    async (_action, outcome) => {
+      const first = await client();
+      const second = await client(first.email);
+      const base = await first.store.enable(null);
+      const library = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8 });
+      const other = applyPersonalAction(library, { type: 'edit-ranking', id: game.id, score: 9 });
+      let release = () => {};
+      let arrive = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const arrived = new Promise<void>((resolve) => {
+        arrive = resolve;
+      });
+      let batches = 0;
+      // This one-game library packs into one private and one ranking batch. After both, the second writer has
+      // registered and staged its generation and waits just before marking it ready.
+      const pending = second.store.upload(library, base, async () => {
+        batches += 1;
+        if (batches !== 2) return;
+        arrive();
+        await held;
+      });
+      const early = pending.then(() => {
+        throw new Error('The second writer finished before reaching its barrier.');
+      });
+      early.catch(() => {});
+      await Promise.race([arrived, early]);
+      const published = await first.store.upload(outcome === 'conflict' ? other : library, base);
+      if (outcome === 'revoked') await first.store.revoke(published);
+      release();
+      if (outcome === 'adopted') {
+        const result = await pending;
+        expect(result).toMatchObject({ epoch: base.epoch, revision: published.revision, current: published.current });
+        expect(await second.store.download(result)).toEqual({ ...library, revision: 0, motion: 'auto' });
+      } else {
+        await expect(pending).rejects.toBeInstanceOf(outcome === 'conflict' ? RemoteConflict : SyncRevoked);
+      }
+      expect(batches).toBe(2);
+      expect(await first.store.head()).toMatchObject({
+        revision: published.revision + (outcome === 'revoked' ? 1 : 0),
+        current: published.current,
+      });
+    },
+  );
 
   it('an interruption between uploaded chunks and the head commit leaves the last complete copy intact', async () => {
     const { store } = await client();
