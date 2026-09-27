@@ -58,7 +58,7 @@ describe('separate public review provenance', () => {
       'Score date not supplied',
     ])
       expect(details).toContain(text);
-    expect(details).toContain('datetime="2026-09-22T12:00:00.000Z"');
+    expect(details).toMatch(/datetime="2026-09-22T12:00:00\.000Z"/i);
     const compact = html.slice(html.indexOf('<li>'), html.indexOf('<details class="catalog-review-details">'));
     expect(compact).not.toMatch(/not specified|not supplied/);
     expect(compact).toContain('83/100');
