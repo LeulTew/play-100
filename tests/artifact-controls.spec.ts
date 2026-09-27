@@ -64,6 +64,60 @@ test('Full is automatic and its Fan out control changes the active scene', async
   await expect(page.getByRole('button', { name: 'Stack up the collection sleeves', exact: true })).toBeVisible();
 });
 
+test('the first rendered canvas fades in only with permitted fine-pointer motion', async ({ page, isMobile }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.addInitScript(() => {
+    const handoffs: { name: string; duration: string; painted: boolean; interactive: boolean }[] = [];
+    document.addEventListener('animationstart', (event) => {
+      if (
+        !['artifact-canvas-reveal', 'artifact-still-recede'].includes(event.animationName) ||
+        !(event.target instanceof Element)
+      )
+        return;
+      const artifact = event.target.closest('.collection-artifact');
+      if (!(artifact instanceof HTMLElement)) throw new Error('The handoff must belong to the loaded artifact.');
+      handoffs.push({
+        name: event.animationName,
+        duration: getComputedStyle(event.target).animationDuration,
+        painted: Number(artifact.dataset.frameCount) > 0,
+        interactive: Boolean(artifact.querySelector('.artifact-control:not(:disabled)')),
+      });
+      document.documentElement.dataset.artifactHandoffs = JSON.stringify(handoffs);
+    });
+  });
+  await page.goto('/?catalogs=off');
+  await expect(page.locator('.save-game').first()).toBeEnabled();
+  const artifact = page.locator('.collection-artifact');
+  const fan = artifact.getByRole('button', { name: 'Fan out the collection sleeves', exact: true });
+  if (isMobile) {
+    await expect(artifact).toHaveAttribute('data-activation', 'on-demand');
+    await expect(artifact.locator('canvas')).toHaveCount(0);
+    await fan.click();
+  }
+  await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
+  await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
+  if (isMobile) {
+    await expect(artifact.locator('.artifact-canvas')).toHaveCSS('animation-name', 'none');
+    await expect(artifact.locator('.artifact-still')).toHaveCSS('animation-name', 'none');
+    expect(await page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]'))).toEqual(
+      [],
+    );
+  } else {
+    await expect
+      .poll(() => page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]').length))
+      .toBe(2);
+    const handoffs = await page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]'));
+    expect(handoffs).toEqual(
+      expect.arrayContaining([
+        { name: 'artifact-canvas-reveal', duration: '0.18s', painted: true, interactive: true },
+        { name: 'artifact-still-recede', duration: '0.18s', painted: true, interactive: true },
+      ]),
+    );
+    await fan.click();
+  }
+  await expect(artifact).toHaveAttribute('data-fanned', 'true');
+});
+
 test('Lite removes fan controls and retains the settled illustration and browsing', async ({ page }) => {
   await page.goto('/?catalogs=off');
   await selectQuality(page, 'Full');
@@ -76,6 +130,8 @@ test('Lite removes fan controls and retains the settled illustration and browsin
   await expect(artifact).toContainText('Illustrated view · Lite mode');
   await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
   await expect(artifact.locator('.artifact-still')).toBeVisible();
+  await expect(artifact.locator('.artifact-canvas')).toHaveCSS('animation-name', 'none');
+  await expect(artifact.locator('.artifact-still')).toHaveCSS('animation-name', 'none');
   await page.locator('.game-card .game-link').first().click();
   await expect(page.locator('.game-dialog[open]')).toBeVisible();
 });
@@ -90,6 +146,9 @@ test('system reduction removes the control even in Full and restores it only whe
   await expect(artifact).toHaveAttribute('data-activation', 'static');
   await expect(artifact).toContainText('Illustrated view · reduced motion');
   await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
+  await expect(artifact.locator('.artifact-canvas')).toHaveCSS('animation-name', 'none');
+  await expect(artifact.locator('.artifact-still')).toHaveCSS('animation-name', 'none');
+  expect(await artifact.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');

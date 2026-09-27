@@ -54,6 +54,36 @@
   visibility: hidden;
 }
 
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html[data-motion='on'] .collection-artifact[data-render-mode='webgl'] .artifact-canvas {
+    animation: artifact-canvas-reveal 180ms var(--ease-out);
+  }
+
+  html[data-motion='on'] .collection-artifact[data-render-mode='webgl'] .artifact-still {
+    animation: artifact-still-recede 180ms var(--ease-out);
+  }
+}
+
+@keyframes artifact-canvas-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes artifact-still-recede {
+  from {
+    opacity: 1;
+    visibility: visible;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 .artifact-footer {
   display: flex;
   flex-wrap: wrap;

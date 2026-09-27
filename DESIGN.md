@@ -197,6 +197,12 @@ the settled illustration without a Fan out control. Eligible touch Auto keeps
 the explicit Fan out action that starts 3D; unavailable rendering never leaves
 an interactive promise behind.
 
+The initial WebGL resting covers match the still's projection, alternating
+angles and layer spacing, with the same shallow printed ground guide. There is
+no startup lift. A 180ms opacity handoff begins only after a rendered frame,
+with allowed motion on a fine pointer; static and coarse-pointer modes retain
+their immediate representation switch. Input and idle activation never wait.
+
 ## Shapes
 
 Controls have restrained corners: the standard control radius and the smaller artifact-control radius are recorded above. Preserve the original numbered jacket geometry instead of replacing it with large-radius generic cards.

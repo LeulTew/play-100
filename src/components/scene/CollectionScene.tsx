@@ -27,6 +27,29 @@ const DEPTH = 1.8;
 const THICKNESS = 0.07;
 const COVER_WIDTH = 512;
 const COVER_HEIGHT = 352;
+const VIEW_HEIGHT = 4.35;
+const VIEW_WIDTH = (VIEW_HEIGHT * 600) / 360;
+const STILL_PIXELS_PER_UNIT = 360 / VIEW_HEIGHT;
+
+function restingProjection() {
+  // Fit the immutable still's cover matrix to an orthographic view of the same rectangular sleeve.
+  // Its largest singular value supplies uniform scale; the missing Y components complete the camera basis
+  // so covers rotate in 3D instead of being sheared to resemble the illustration.
+  const x = new THREE.Vector2((0.92 * 220) / WIDTH, (0.28 * 220) / WIDTH);
+  const z = new THREE.Vector2((0.68 * 150) / DEPTH, (-0.54 * 150) / DEPTH);
+  const horizontal = x.x ** 2 + z.x ** 2;
+  const vertical = x.y ** 2 + z.y ** 2;
+  const cross = x.x * x.y + z.x * z.y;
+  const squaredScale = (horizontal + vertical + Math.hypot(horizontal - vertical, 2 * cross)) / 2;
+  const scale = Math.sqrt(squaredScale);
+  const right = new THREE.Vector3(x.x / scale, Math.sqrt(1 - horizontal / squaredScale), z.x / scale);
+  const up = new THREE.Vector3(x.y / scale, Math.sqrt(1 - vertical / squaredScale), z.y / scale);
+  const normal = right.clone().cross(up).normalize();
+  return {
+    rotation: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, normal)).invert(),
+    scale: scale / STILL_PIXELS_PER_UNIT,
+  };
+}
 
 function canvasSurface(width: number, height: number) {
   const canvas = document.createElement('canvas');
@@ -151,38 +174,41 @@ function makeCover(design: FolioDesign) {
 }
 
 function makeRegistrationPlate() {
-  const { canvas, context } = canvasSurface(1024, 1024);
+  const { canvas, context } = canvasSurface(1200, 720);
+  context.scale(2, 2);
   context.strokeStyle = ARTIFACT_COLORS.graphite;
-  context.fillStyle = ARTIFACT_COLORS.graphite;
   context.globalAlpha = 0.25;
-  context.lineWidth = 1.7;
-  [357, 410].forEach((radius) => {
+  context.save();
+  context.translate(300, 282);
+  context.rotate(THREE.MathUtils.degToRad(-7));
+  for (const [rx, ry, width] of [
+    [240, 60, 0.8],
+    [206, 48, 0.65],
+  ] as const) {
+    context.lineWidth = width;
     context.beginPath();
-    context.arc(512, 512, radius, 0, Math.PI * 2);
-    context.stroke();
-  });
-  for (let tick = 0; tick < 32; tick += 1) {
-    const angle = (tick / 32) * Math.PI * 2;
-    const length = tick % 4 === 0 ? 15 : 6;
-    context.beginPath();
-    context.moveTo(512 + Math.cos(angle) * 410, 512 + Math.sin(angle) * 410);
-    context.lineTo(512 + Math.cos(angle) * (410 - length), 512 + Math.sin(angle) * (410 - length));
+    context.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
     context.stroke();
   }
-  [62, 962].forEach((x) => {
+  context.restore();
+  for (const [x1, y1, x2, y2, width] of [
+    [49, 300, 85, 296, 1],
+    [65, 289, 69, 307, 1],
+    [527, 262, 563, 258, 1],
+    [543, 251, 547, 269, 1],
+    [271, 224, 274, 236, 1],
+    [314, 328, 317, 341, 1],
+    [83, 322, 98, 317, 1.5],
+    [128, 335, 140, 328, 1.5],
+    [484, 232, 475, 241, 1.5],
+    [426, 217, 421, 225, 1.5],
+  ] as const) {
+    context.lineWidth = width;
     context.beginPath();
-    context.moveTo(x - 23, 512);
-    context.lineTo(x + 23, 512);
-    context.moveTo(x, 489);
-    context.lineTo(x, 535);
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
     context.stroke();
-  });
-  context.globalAlpha = 0.66;
-  context.font = sceneFont(600, 18);
-  context.fillText('P100 / ARCHIVE', 154, 857);
-  context.fillText('01—06', 759, 201);
-  context.font = sceneFont(600, 15);
-  context.fillText('M A D E  T O  O P E N', 589, 894);
+  }
   return canvas;
 }
 
@@ -257,13 +283,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
   let previousTime: number | null = null;
   let targetSpread = options.fanned ? 1 : 0;
   let spread = targetSpread;
-  let lift = 0.24;
-  let transition: { fromSpread: number; fromLift: number; elapsed: number; duration: number } | null = {
-    fromSpread: spread,
-    fromLift: lift,
-    elapsed: 0,
-    duration: 850,
-  };
+  let transition: { fromSpread: number; elapsed: number; duration: number } | null = null;
 
   function keep<T extends Disposable>(resource: T): T {
     resources.add(resource);
@@ -316,9 +336,17 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
     canvas.addEventListener('webglcontextlost', onContextLost);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-3.6, 3.6, 2.2, -2.2, 0.1, 40);
+    const camera = new THREE.OrthographicCamera(
+      -VIEW_WIDTH / 2,
+      VIEW_WIDTH / 2,
+      VIEW_HEIGHT / 2,
+      -VIEW_HEIGHT / 2,
+      0.1,
+      40,
+    );
+    const focus = new THREE.Vector3(0, 0.03, 0);
     camera.position.set(-5.2, 6.8, 8.4);
-    camera.lookAt(0, 0.03, 0);
+    camera.lookAt(focus);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x777a68, 1.65));
     const keyLight = new THREE.DirectionalLight(0xfffdf2, 2.05);
     keyLight.position.set(-3, 7, 5);
@@ -327,6 +355,12 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
     const collection = new THREE.Group();
     collection.rotation.y = -0.18;
     scene.add(collection);
+    const rest = restingProjection();
+    const viewToCollection = collection.quaternion.clone().invert().multiply(camera.quaternion);
+    const screenPoint = (x: number, y: number, depth: number) =>
+      new THREE.Vector3((x - 300) / STILL_PIXELS_PER_UNIT, (180 - y) / STILL_PIXELS_PER_UNIT, depth)
+        .applyQuaternion(camera.quaternion)
+        .add(focus);
     // Textures drawn before the web fonts load use the fallback; redraw them once, when they do.
     const textureRedraws: (() => void)[] = [];
     const fonts = sceneFontSet();
@@ -415,13 +449,35 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         folio.add(mark);
       }
       collection.add(folio);
-      return { folio, index };
+      const angle = THREE.MathUtils.degToRad(index % 2 === 0 ? -7 : 4);
+      const screenRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle);
+      const restRotation = viewToCollection.clone().multiply(screenRotation).multiply(rest.rotation);
+      const center = new THREE.Vector3(7.2, 18.3, 0).applyQuaternion(screenRotation);
+      // Camera-depth separation keeps the angled covers apart without changing their illustrated footprint.
+      const restPosition = screenPoint(
+        300 + (index % 2 === 0 ? -9 : 9) + center.x,
+        258 - index * 23 - center.y,
+        index * 0.45,
+      )
+        .applyQuaternion(collection.quaternion.clone().invert())
+        .sub(new THREE.Vector3(0, THICKNESS / 2 + 0.001, 0).applyQuaternion(restRotation).multiplyScalar(rest.scale));
+      const middle = index - 2.5;
+      return {
+        folio,
+        restPosition,
+        restRotation,
+        fanPosition: new THREE.Vector3(
+          middle * 0.72,
+          -0.12 + index * 0.135,
+          0.06 + Math.abs(middle) * 0.13 + middle * 0.495,
+        ),
+        fanRotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, middle * 0.24, 0)),
+      };
     });
 
     const plateCanvas = makeRegistrationPlate();
     const plateTexture = keep(new THREE.CanvasTexture(plateCanvas));
     plateTexture.colorSpace = THREE.SRGBColorSpace;
-    textureRedraws.push(() => redrawTexture(plateTexture, plateCanvas, makeRegistrationPlate()));
     const plateMaterial = keep(
       new THREE.MeshBasicMaterial({
         map: plateTexture,
@@ -429,9 +485,10 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         depthWrite: false,
       }),
     );
-    const plate = new THREE.Mesh(keep(new THREE.PlaneGeometry(6.7, 6.7)), plateMaterial);
-    plate.rotation.x = -Math.PI / 2;
-    plate.position.set(0, -0.75, 0);
+    // The printed ground guide shares the still's screen plane, behind the volumetric sleeves.
+    const plate = new THREE.Mesh(keep(new THREE.PlaneGeometry(VIEW_WIDTH, VIEW_HEIGHT)), plateMaterial);
+    plate.quaternion.copy(camera.quaternion);
+    plate.position.copy(screenPoint(300, 180, -2.4));
     plate.renderOrder = -2;
     scene.add(plate);
     const shadow = new THREE.Mesh(
@@ -440,14 +497,15 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         new THREE.MeshBasicMaterial({
           color: ARTIFACT_COLORS.graphite,
           transparent: true,
-          opacity: 0.085,
+          opacity: 0.09,
           depthWrite: false,
         }),
       ),
     );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.set(0.14, -0.742, 0.18);
-    shadow.scale.set(1.75, 1.08, 1);
+    shadow.quaternion.copy(camera.quaternion);
+    shadow.rotateZ(THREE.MathUtils.degToRad(7));
+    shadow.position.copy(screenPoint(310, 283, -2.39));
+    shadow.scale.set(157 / STILL_PIXELS_PER_UNIT, 30 / STILL_PIXELS_PER_UNIT, 1);
     shadow.renderOrder = -1;
     scene.add(shadow);
 
@@ -471,7 +529,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
       engine.setPixelRatio(currentDpr);
       engine.setSize(width, height, false);
       const aspect = width / height;
-      const viewHeight = Math.max(4.35, 7.1 / aspect);
+      const viewHeight = Math.max(VIEW_HEIGHT, VIEW_WIDTH / aspect);
       camera.left = (-viewHeight * aspect) / 2;
       camera.right = (viewHeight * aspect) / 2;
       camera.top = viewHeight / 2;
@@ -481,23 +539,11 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
     }
 
     function pose() {
-      collection.position.y = lift;
-      shadow.scale.x = lerp(1.75, 2.45, spread);
-      folios.forEach(({ folio, index }) => {
-        const middle = index - 2.5;
-        const parity = index % 2 === 0 ? -1 : 1;
-        folio.position.set(
-          lerp(parity * 0.085, middle * 0.72, spread),
-          lerp(-0.42 + index * 0.195, -0.12 + index * 0.135, spread),
-          lerp((index - 2.5) * 0.018, 0.06 + Math.abs(middle) * 0.13 + middle * 0.495, spread),
-        );
-        // Parallel fan targets keep the raised folds clear of neighboring covers.
-        folio.rotation.set(
-          lerp(parity * 0.012, 0, spread),
-          lerp(parity * 0.1, middle * 0.24, spread),
-          lerp(parity * 0.014, 0, spread),
-        );
-        folio.scale.setScalar(lerp(1, 0.79, spread));
+      shadow.scale.x = lerp(157, 196, spread) / STILL_PIXELS_PER_UNIT;
+      folios.forEach(({ folio, restPosition, restRotation, fanPosition, fanRotation }) => {
+        folio.position.lerpVectors(restPosition, fanPosition, spread);
+        folio.quaternion.slerpQuaternions(restRotation, fanRotation, spread);
+        folio.scale.setScalar(lerp(rest.scale, 0.79, spread));
       });
     }
 
@@ -512,7 +558,6 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         const progress = Math.min(1, transition.elapsed / transition.duration);
         const eased = 1 - (1 - progress) ** 3;
         spread = lerp(transition.fromSpread, targetSpread, eased);
-        lift = lerp(transition.fromLift, 0, eased);
         if (progress === 1) transition = null;
       }
       pose();
@@ -583,7 +628,6 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
         targetSpread = Number(fanned);
         transition = {
           fromSpread: spread,
-          fromLift: lift,
           elapsed: 0,
           duration: 780,
         };
