@@ -22,6 +22,7 @@ import {
 } from './scoped-library';
 import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
+import { compareTrayStorageKey, serializeCompareTray } from './compare-tray';
 
 const alice = accountScope('alice');
 const bob = accountScope('bob');
@@ -83,6 +84,23 @@ describe('explicit account scopes in the existing local database', () => {
     const empty = await loadScopedLibrary(alice);
     await deleteScopedLibrary(alice, empty.state.revision);
     expect((await loadScopedLibrary(alice)).state.ranking).toEqual([]);
+  });
+  it("removes the account's saved Compare tray pins with its device copy, and keeps them when removal is refused", async () => {
+    // The tray's own key function names the keys, so deleteScopedLibrary's spelled-out key must match it.
+    const trays = new Map(
+      [alice, bob, 'guest'].map((scope) => [compareTrayStorageKey(scope), serializeCompareTray(scope, [game])]),
+    );
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => trays.get(key) ?? null,
+      removeItem: (key: string) => {
+        trays.delete(key);
+      },
+    });
+    const clean = await connect();
+    await expect(deleteScopedLibrary(alice, clean.state.revision - 1)).rejects.toThrow(/kept/);
+    expect(trays.has(compareTrayStorageKey(alice))).toBe(true);
+    await deleteScopedLibrary(alice);
+    expect([...trays.keys()]).toEqual([compareTrayStorageKey(bob), compareTrayStorageKey('guest')]);
   });
   it('retains the original guest record and separates every account namespace', async () => {
     await loadPersonalLibrary([game]);

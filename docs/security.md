@@ -664,6 +664,11 @@ lifetimes, and never resumes them after an identity change or server revocation.
 A concurrent write leaves the copy intact even after Auth sign-out. Other accounts and guest data
 are untouched. Integration must preserve the newer P5 post-commit motion-hint
 removal inside `deleteScopedLibrary`; this change adds a guard, not a namespace.
+Since G6-SEC2 F2, the same post-commit step also removes the account's saved
+Compare tray pins (`play100:compare-tray:v1:<scope>`), which can hold manual
+titles, so this action and account deletion, which share `deleteScopedLibrary`,
+leave none of that account's local data behind, as Data use says. A refused
+removal keeps them with the copy.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
 ## Ordered parent-only rollout

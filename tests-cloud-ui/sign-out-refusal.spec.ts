@@ -98,6 +98,29 @@ async function openRemoval(page: Page) {
   await expect(dialog.getByRole('button', { name: 'Sign out and remove copy', exact: true })).toBeEnabled();
 }
 
+// Saves Compare tray pins for a library scope exactly as the tray does; savedPins reads the saved value back.
+async function savePins(page: Page, scope: string) {
+  await page.evaluate(async (scope) => {
+    const path = '/src/lib/compare-tray.ts';
+    const tray: typeof import('../src/lib/compare-tray') = await import(path);
+    const record = {
+      id: 'manual:pinned',
+      title: 'Pinned for comparison',
+      year: null,
+      source: 'manual' as const,
+      sourceId: 'pinned',
+      sourceUrl: null,
+      genre: null,
+      studio: null,
+      collectionRank: null,
+    };
+    localStorage.setItem(tray.compareTrayStorageKey(scope), tray.serializeCompareTray(scope, [record]));
+  }, scope);
+}
+function savedPins(page: Page, scope: string) {
+  return page.evaluate((key) => localStorage.getItem(key), `play100:compare-tray:v1:${scope}`);
+}
+
 async function expectRefused(page: Page, email: string, uid: string, message: string, ids: string[]) {
   const dialog = page.getByRole('dialog', { name: "Remove this device's account copy?", exact: true });
   await expect(dialog.getByRole('alert')).toContainText(message);
@@ -157,11 +180,19 @@ test('a copy changed during or after the removal check is kept while sync and sh
   await expectRefused(page, email, uid, unsynced, ['during', 'after']);
   await expectLive(page, uid, 2);
 
+  // Compare tray pins are part of the account's local data, so they go with its device copy; the guest's stay.
+  const account = `account:demo-play100:${uid}`;
+  await savePins(page, account);
+  await savePins(page, 'guest');
+  const guestPins = await savedPins(page, 'guest');
+  expect(await savedPins(page, account)).not.toBeNull();
   await openRemoval(page);
   await page.getByRole('button', { name: 'Sign out and remove copy', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:4187/');
   await expect(readAccount(page, uid)).rejects.toThrow('missing');
   expect(await readLibrary(page)).toEqual(guest);
+  expect(await savedPins(page, account)).toBeNull();
+  expect(await savedPins(page, 'guest')).toBe(guestPins);
 });
 
 test('a copy that cannot be read before or after suspension is kept while sync and sharing continue', async ({

@@ -376,6 +376,16 @@ export function rebaseScopedLibrary(
   });
 }
 
+// The account's saved Compare tray pins are its local data too. The key is compareTrayStorageKey's, spelled out so that
+// this lazy module needs nothing more from the eager tray code; the unit test pins the two together.
+function removeSavedCompareTray(scope: LibraryScope): void {
+  try {
+    localStorage.removeItem(`play100:compare-tray:v1:${scope}`);
+  } catch {
+    console.warn("The Compare tray's saved pins could not be removed from this device.");
+  }
+}
+
 export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?: number): Promise<void> {
   scopeUid(scope);
   await accountStorageTransaction(scope, (value, store) => {
@@ -393,6 +403,7 @@ export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?
     store.delete(`friends-all-work:v2:${scope}`);
   });
   clearMotionHint(scope);
+  removeSavedCompareTray(scope);
   publishLibraryChange(scope);
 }
 
