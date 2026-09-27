@@ -1,7 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import { appDocumentTitle } from './document-title';
+import { myGamesTab } from './my-games-navigation';
+import { pageFromPath } from './url';
 
 describe('committed-state document titles', () => {
+  it.each([
+    ['/my-library', '?list=later&catalogs=off', 'Queue'],
+    ['/my-library/', '?list=later', 'Queue'],
+    ['/my-games', '?tab=queue', 'Queue'],
+    ['/my-games', '?list=later', 'Queue'],
+    ['/my-games', '?tab=library&list=later', 'Library'],
+    ['/my-games', '?tab=ranking&list=later', 'Ranking'],
+    ['/my-rankings', '?list=later', 'Ranking'],
+    ['/my-library', '?list=completed', 'Library'],
+    ['/my-games', '', 'Library'],
+  ])('uses the resolved workspace tab for %s%s', (path, search, title) => {
+    expect(appDocumentTitle(pageFromPath(path), undefined, undefined, null, myGamesTab(path, search))).toBe(
+      `My games · ${title} | Play 100`,
+    );
+  });
+
+  it('keeps game, record and utility titles ahead of the resolved Queue tab', () => {
+    expect(appDocumentTitle('library', { title: 'Game', rank: 1 }, undefined, null, 'queue')).toBe(
+      'Game · #1 | Play 100',
+    );
+    expect(appDocumentTitle('games', undefined, { title: 'Private game' }, null, 'queue')).toBe(
+      'Private game | Play 100',
+    );
+    expect(appDocumentTitle('games', undefined, { title: 'Private game' }, 'settings', 'queue')).toBe(
+      'Settings & backups | Play 100',
+    );
+    expect(appDocumentTitle('games', undefined, undefined, 'about', 'queue')).toBe('About & credits | Play 100');
+    expect(appDocumentTitle('collection', undefined, undefined, null, 'queue')).toBe('Find your next game | Play 100');
+  });
+
   it.each([
     ['collection', 'Find your next game'],
     ['library', 'My games · Library'],

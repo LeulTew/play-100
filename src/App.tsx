@@ -518,8 +518,8 @@ export default function App() {
     setNotice('');
   }, [libraryScope]);
   useEffect(() => {
-    document.title = appDocumentTitle(page, selectedGame, selectedRecord, panel);
-  }, [selectedGame, selectedRecord, page, panel]);
+    document.title = appDocumentTitle(page, selectedGame, selectedRecord, panel, gamesView);
+  }, [selectedGame, selectedRecord, page, panel, gamesView]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]'))

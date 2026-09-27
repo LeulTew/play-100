@@ -297,6 +297,8 @@ The global panel-intent cancellation handles Escape only when no native modal is
 Committed Settings and About dialogs use their own tab titles; pending/error
 states, Menu, Compare tray and sign-in retain the underlying route or game title.
 Closing the titled dialog restores that title; URL and history behavior are unchanged.
+Personal-workspace document titles follow the resolved Library, Queue or Ranking
+tab, including legacy `list=later` links and history navigation.
 Starting a backup export, import or restore clears the superseded reset result
 in Settings. Backup and reset outcomes retain their polite status regions.
 

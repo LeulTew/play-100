@@ -150,6 +150,35 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
   await expect(page).toHaveURL(/\/$/);
 });
 
+for (const route of ['/my-library?list=later&catalogs=off', '/my-games?tab=queue&catalogs=off']) {
+  test(`Queue title follows direct entry, reload and history from ${route}`, async ({ page }) => {
+    await page.goto(route);
+    const tabs = page.getByRole('navigation', { name: 'My games views', exact: true });
+    const queue = tabs.getByRole('button', { name: /^Queue,/ });
+    await expect(queue).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveTitle('My games · Queue | Play 100');
+    await page.reload();
+    await expect(queue).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveTitle('My games · Queue | Play 100');
+    await tabs.getByRole('button', { name: /^Library,/ }).click();
+    await expect(page).toHaveTitle('My games · Library | Play 100');
+    await page.goBack();
+    await expect(page).toHaveURL(route);
+    await expect(queue).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveTitle('My games · Queue | Play 100');
+    await page.goForward();
+    await expect(tabs.getByRole('button', { name: /^Library,/ })).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveTitle('My games · Library | Play 100');
+    await queue.click();
+    await expect(page).toHaveTitle('My games · Queue | Play 100');
+    await page.goBack();
+    await expect(page).toHaveTitle('My games · Library | Play 100');
+    await page.goForward();
+    await expect(queue).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveTitle('My games · Queue | Play 100');
+  });
+}
+
 test('Library and Ranking routes use specific document titles through history', async ({ page }) => {
   await page.goto('/my-library');
   await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
