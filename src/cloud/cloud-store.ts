@@ -115,6 +115,12 @@ function sameHead(head: SyncHead, expected: Pick<SyncHead, 'epoch' | 'revision'>
   if (head.revision !== expected.revision) throw new RemoteConflict(head);
 }
 
+// Another writer of this account, such as another tab or window, already published exactly this library in the same
+// consent epoch. That head is then this upload's result: identical content is not a conflict.
+function publishedAlready(head: SyncHead, expected: Pick<SyncHead, 'epoch'>, digest: string): boolean {
+  return head.enabled && !head.deleted && head.epoch === expected.epoch && head.current?.digest === digest;
+}
+
 export class CloudStore {
   constructor(
     readonly db: Firestore,
@@ -353,13 +359,7 @@ export class CloudStore {
     try {
       await this.register(snapshot.manifest, summary.manifest, expected);
     } catch (error) {
-      if (
-        error instanceof RemoteConflict &&
-        error.head.enabled &&
-        !error.head.deleted &&
-        error.head.epoch === expected.epoch &&
-        error.head.current?.digest === snapshot.manifest.digest
-      )
+      if (error instanceof RemoteConflict && publishedAlready(error.head, expected, snapshot.manifest.digest))
         return error.head;
       throw error;
     }
@@ -375,17 +375,22 @@ export class CloudStore {
         if (afterChunk) await afterChunk();
       }
     }
-    await runTransaction(this.db, async (tx) => {
+    // Another writer can publish the same library between this upload's registration and its publication.
+    const published = await runTransaction(this.db, async (tx) => {
       const [head, generation] = await Promise.all([
         tx.get(this.headRef()),
         tx.get(this.generationRef(snapshot.manifest.generation)),
       ]);
-      if (!head.exists() || !generation.exists() || generation.data().status !== 'staging')
+      const current = head.exists() ? parseHead(head.data()) : null;
+      if (current && publishedAlready(current, expected, snapshot.manifest.digest)) return current;
+      if (!current || !generation.exists() || generation.data().status !== 'staging')
         throw new Error('The staged online snapshot is no longer available. Your local copy remains pending.');
-      sameHead(parseHead(head.data()), expected);
+      sameHead(current, expected);
       guard();
       tx.update(this.generationRef(snapshot.manifest.generation), { status: 'ready' });
+      return null;
     });
+    if (published) return published;
     return runTransaction(this.db, async (tx) => {
       const summaryRef = doc(this.db, 'creatorRanks', this.uid);
       const [head, previousSummary, generation, shared] = await Promise.all([
@@ -396,8 +401,7 @@ export class CloudStore {
       ]);
       if (!head.exists()) throw new SyncRevoked();
       const current = parseHead(head.data());
-      if (current.enabled && current.epoch === expected.epoch && current.current?.digest === snapshot.manifest.digest)
-        return current;
+      if (publishedAlready(current, expected, snapshot.manifest.digest)) return current;
       sameHead(current, expected);
       guard();
       if (!generation.exists() || generation.data().status !== 'ready')
