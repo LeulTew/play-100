@@ -586,13 +586,16 @@ and refused sets are unchanged. Unit tests keep the pattern copies equal, and
 emulator tests cover the heaviest writes: a 200-entry publication, a rename
 that runs every pattern, unpublishing and moderation with a saved online copy.
 
-**Save-commit evaluation limit (R13).** Private saving reached the same limit.
-In every emulator log since R9, the `syncHeads` update statement exhausts it:
-on a legitimate first save during a two-tab race under the Release 5 rules,
-and on refusals that should be cheap. An old writer's save without its All
-view pulses, and a resume of a deleted online copy without a fresh sign-in,
-were refused on the limit rather than by their own checks, so their tests
-passed without proving those checks. The changes:
+**Save-commit evaluation limit (R13).** Since R9, emulator denials of private
+saves have named the 1,000-expression limit. That includes the losing tab's
+save in a Release 5 two-tab race, and refusals that should be cheap, such as an
+old writer's save without its All view pulses or a resume of a deleted online
+copy without a fresh sign-in. The calibration below shows that this text comes
+from a first, commit-wide pass that does not decide the outcome. The Release 5
+save was a stale commit, which the upload now settles (see
+[online saving](online-saving.md#conflicts)). The `syncHeads` update is still
+the heaviest statement of a save, and Firebase documents the limit per request,
+so R13 lowers its cost as headroom in case production counts a whole commit:
 
 - Publish, stop and resume are separate statements, each testing its cheap
   discriminators first.
@@ -606,12 +609,15 @@ passed without proving those checks. The changes:
 
 The accepted and refused sets are unchanged.
 
-An emulator calibration test pins how the limit is counted: a refusal on the
-limit names it in its message, and one limit covers a whole commit, shared by
-all of its writes, as Firebase documents it per request. Emulator tests commit
-the heaviest save: the largest admissible snapshots, with both All views
-pulsed. They also require the unpulsed save and the resume without a fresh
-sign-in to be refused by their own checks.
+An emulator calibration test pins how the emulator applies the limit: it
+decides each write of a commit within its own limit and refuses a write over it
+with the limit named in the message. The same message can also name the limit
+from a first, commit-wide pass that does not decide the outcome, so denial text
+cannot show which check refused a write. Emulator tests therefore commit the
+heaviest save (the largest admissible snapshots, with both All views pulsed),
+and pair each refusal they rely on with an otherwise identical write that is
+accepted: the unpulsed save with the pulsed one, and a resume without a fresh
+sign-in with the resume after one.
 
 **Deletion marker (R13).** A deleted online copy stays deleted for sessions
 older than the deletion. The R12 rules let such a session pause a deleted head,

@@ -7,7 +7,7 @@ const endpoints = migrationEmulators();
 const repeat = (count: number, text: string) => Array.from({ length: count }, () => text).join(' && ');
 // Every comparison holds, so only the evaluation limit can refuse a write. A write of 10 comparisons stays far under
 // the 1,000-expression limit however the emulator counts each one. One of 1,200 exceeds it even at one expression per
-// comparison, and so do 150 writes of 10 when one limit covers a whole commit.
+// comparison, and so would 150 writes of 10 if one limit covered their whole commit.
 const controlRules = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -56,9 +56,10 @@ async function stored(path: string) {
 const refusal = (write: Promise<unknown>) => write.then(() => null, (cause: unknown) => cause);
 const capped = (cause: unknown) => cause instanceof Error && cause.message.includes('maximum of 1000 expressions');
 
-// What the save-commit tests can prove: a refusal on the limit names it in its message, so a refusal without that
-// text was decided by the rules themselves; and one limit covers a whole commit, shared by all of its writes, as
-// Firebase documents it per request, so a commit that succeeds keeps all of its writes together within the limit.
+// What the save-commit tests can prove: the emulator decides each write of a commit within its own limit, and refuses
+// a write over it with the limit named in its message. The message can also name the limit from a first, commit-wide
+// pass that does not decide the outcome, so its text cannot show which check refused a write; an otherwise identical
+// write that is accepted can.
 describe('emulator expression-limit calibration, not production permissions', () => {
   it('accepts one write of 10 holding comparisons and refuses one of 1,200 on the named evaluation limit', async () => {
     const db = environment.authenticatedContext('BudgetOwner').firestore();
@@ -69,18 +70,11 @@ describe('emulator expression-limit calibration, not production permissions', ()
     expect(await stored('expressionUnits')).toBe(1);
     expect(await stored('expressionWide')).toBe(0);
   });
-  it('shares one limit across a commit: five writes of 10 comparisons commit and 150 are refused on it', async () => {
+  it('decides each write of a commit within its own limit: 150 writes of 10 comparisons commit together', async () => {
     const db = environment.authenticatedContext('BudgetOwner').firestore();
-    const commit = (count: number, prefix: string) => {
-      const batch = db.batch();
-      for (let index = 0; index < count; index += 1)
-        batch.set(db.doc(`expressionUnits/${prefix}-${index}`), { value: 1 });
-      return batch.commit();
-    };
-    await commit(5, 'small');
-    const refused = await refusal(commit(150, 'large'));
-    expect(refused).toMatchObject({ code: 'permission-denied' });
-    expect(capped(refused)).toBe(true);
-    expect(await stored('expressionUnits')).toBe(5);
+    const batch = db.batch();
+    for (let index = 0; index < 150; index += 1) batch.set(db.doc(`expressionUnits/unit-${index}`), { value: 1 });
+    await batch.commit();
+    expect(await stored('expressionUnits')).toBe(150);
   });
 });

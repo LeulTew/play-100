@@ -332,10 +332,9 @@ describe('real Auth and Firestore snapshot transactions', () => {
     expect(await store.cleanup(true)).toBeGreaterThan(0);
     const registry = await getDocFromServer(doc(db, 'accounts', user.uid, 'metadata', 'registry'));
     expect(registry.exists()).toBe(false);
-    const refusal: unknown = await store.enable(deleted).then(() => null, (cause: unknown) => cause);
-    // Resuming a deleted online copy needs a fresh sign-in: that check refuses it, within the rules evaluation limit.
-    expect(refusal).toMatchObject({ code: 'permission-denied' });
-    expect(refusal instanceof Error ? refusal.message : '').not.toContain('maximum of 1000 expressions');
+    // Resuming a deleted online copy needs a sign-in newer than the deletion; the next test pairs this refusal with a
+    // fresh sign-in's accepted resume.
+    await assertFails(store.enable(deleted));
   });
 
   it('keeps a deleted online copy deleted for a session older than the deletion until a fresh sign-in resumes it', async () => {

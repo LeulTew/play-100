@@ -1152,13 +1152,15 @@ describe('All-sharing bounded SDK transport', () => {
     expect(await a.all.head(a.uid, 'games')).toMatchObject({ status: 'updating' });
     expect(await a.all.head(a.uid, 'ranking')).toMatchObject({ status: 'updating' });
   });
-  it('refuses the heaviest save commit without its view pulses on the pulse check, within the limit', async () => {
+  it('refuses the heaviest save commit without its view pulses and accepts the same commit with them', async () => {
     const a = await client();
     const { library, save } = await heaviestSave(a);
-    const refused: unknown = await save(false).then(() => null, (cause: unknown) => cause);
-    expect(refused).toMatchObject({ code: 'permission-denied' });
-    expect(refused instanceof Error ? refused.message : '').not.toContain('maximum of 1000 expressions');
+    await expect(save(false)).rejects.toMatchObject({ code: 'permission-denied' });
     expect(await a.cloud.head()).toMatchObject({ revision: 1, current: library.current });
+    // The emulator decides each write within its own limit, and the same commit with its pulses is accepted, so the
+    // missing pulses refused it; the denial text can still name the limit from a commit-wide pass that does not decide.
+    await save(true);
+    expect(await a.cloud.head()).toMatchObject({ revision: 2, current: library.next });
   });
   it.each(['never', 'selected', 'off', 'old-stop'] as const)(
     'does not freeze legacy private Pause when All is %s',
