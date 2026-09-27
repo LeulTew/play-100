@@ -61,6 +61,7 @@ import {
   rememberComparisonView,
 } from '../lib/friend-comparison-intent';
 import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
+import { clearInviteContinuation, liveInvitation } from '../lib/invite-continuation';
 import { readGoogleIntent } from '../lib/google-intent';
 import { readAccountLifecycle } from './account-lifecycle';
 import {
@@ -186,6 +187,9 @@ export default function OnlineController({
   onPinRecord?: (record: LibraryRecord) => boolean;
   artwork?: ReadonlyMap<string, CatalogArtwork>;
 }) {
+  const invitationNow = useRef(invitation);
+  invitationNow.current = invitation;
+  const [retiredInvitation, setRetiredInvitation] = useState<typeof invitation | null>(null);
   const {
     identity,
     setIdentity,
@@ -197,7 +201,11 @@ export default function OnlineController({
   } = useAccountIdentity((previousUid) => {
     clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', previousUid));
     clearComparisonGameFilter(accountScope(previousUid, firebaseApp.options.projectId));
+    // An invitation opened in this tab belongs to the account that opened it; the next person cannot open it.
+    clearInviteContinuation();
+    setRetiredInvitation(invitationNow.current);
   });
+  const openInvitation = liveInvitation(invitation, retiredInvitation);
   const [memberSnapshot, setMember] = useState<Member | null>(null);
   const memberReadVersion = useRef(0);
   const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
@@ -828,6 +836,8 @@ export default function OnlineController({
         signOut: () => signOut(cloudAuth),
         removeDeviceCopy: (revision) => deleteScopedLibrary(target, revision),
       });
+      clearInviteContinuation();
+      setRetiredInvitation(invitationNow.current);
       await rememberOnlineRequest(false);
       setIdentity(null);
       onCloseSheet();
@@ -963,7 +973,7 @@ export default function OnlineController({
         : page === 'compare'
           ? (new URLSearchParams(location.search).get('group') ?? '')
           : page === 'invite'
-            ? (invitation.capability ?? '')
+            ? (openInvitation.capability ?? '')
             : '';
   const visibleError = error || googleReturn?.error || '';
   const visibleMessage = message || googleReturn?.message || '';
@@ -1023,9 +1033,9 @@ export default function OnlineController({
   if (startupError) throw new Error(startupError);
   return (
     <>
-      {page === 'invite' && invitation.error && (
+      {page === 'invite' && openInvitation.error && (
         <p className="inline-error" role="alert">
-          {invitation.error}
+          {openInvitation.error}
         </p>
       )}
       {cloudPage && EMULATOR_MODE && (
@@ -1061,7 +1071,7 @@ export default function OnlineController({
           ) : page === 'invite' ? (
             <InvitationPage
               store={friends.store}
-              invitation={invitation}
+              invitation={openInvitation}
               identity={friendIdentity}
               authPanel={authPanel}
               onAccount={() => onNavigate('account')}

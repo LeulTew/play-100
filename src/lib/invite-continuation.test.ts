@@ -3,6 +3,7 @@ import {
   captureInviteContinuation,
   clearInviteContinuation,
   createInviteUrl,
+  liveInvitation,
   readInviteContinuation,
   saveInviteContinuation,
 } from './invite-continuation';
@@ -81,3 +82,20 @@ it.each(['normal acknowledgement', 'committed refresh error'])(
     expect(readInviteContinuation()).toBeNull();
   },
 );
+it('withdraws an opened invitation when its account signs out or changes, until the tab opens a link again', () => {
+  const opened = captureInviteContinuation();
+  expect(liveInvitation(opened, null)).toBe(opened);
+  // Signing out, or another account taking the tab, clears the stored copy and retires the opened invitation.
+  clearInviteContinuation();
+  expect(liveInvitation(opened, opened)).toEqual({ capability: null, error: '' });
+  vi.stubGlobal('location', { pathname: '/invite', hash: '', origin: 'https://play-100-collection.vercel.app' });
+  expect(captureInviteContinuation()).toEqual({ capability: null, error: '' });
+  vi.stubGlobal('location', {
+    pathname: '/invite',
+    hash: `#${synthetic}`,
+    origin: 'https://play-100-collection.vercel.app',
+  });
+  const reopened = captureInviteContinuation();
+  expect(reopened.capability).toBe(synthetic);
+  expect(liveInvitation(reopened, opened)).toBe(reopened);
+});

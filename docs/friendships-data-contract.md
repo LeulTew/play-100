@@ -305,6 +305,9 @@ hex characters, used directly as the opaque capability document ID. It is NOT a
 public identifier. UI puts it in the URL fragment only and never logs it, exports
 it, forwards it through OAuth, or puts it in analytics/query parameters. Expiry is
 seven days from server creation; preview hides all consumed recipient information.
+A tab keeps an opened invitation for at most 30 minutes so its recipient can sign
+in first. Signing out, or switching that tab to another account, clears it, so
+the next person there cannot open or accept it.
 
 Invite creation immediately opens an honest pending dialog, not a usable link.
 The UI waits for the real commit and authoritative timestamp readback. Duplicate

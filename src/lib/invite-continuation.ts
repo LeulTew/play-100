@@ -1,5 +1,17 @@
 const KEY = 'play100.invitation-return.v1';
 const lifetime = 30 * 60_000;
+export interface InviteContinuation {
+  capability: string | null;
+  error: string;
+}
+export const NO_INVITATION: InviteContinuation = { capability: null, error: '' };
+/**
+ * The invitation this tab still offers. One opened before its account signed out, or before another account took the
+ * tab, is withdrawn until the tab opens an invitation link again, so the next person cannot open it.
+ */
+export function liveInvitation(invitation: InviteContinuation, retired: InviteContinuation | null): InviteContinuation {
+  return invitation === retired ? NO_INVITATION : invitation;
+}
 export const isInviteCapability = (value: unknown): value is string =>
   typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 export function saveInviteContinuation(capability: string): void {
@@ -63,7 +75,7 @@ export function readInviteContinuation(): string | null {
     return null;
   }
 }
-export function captureInviteContinuation(): { capability: string | null; error: string } {
+export function captureInviteContinuation(): InviteContinuation {
   if (location.pathname !== '/invite') return { capability: null, error: '' };
   const fragment = location.hash.slice(1);
   if (!fragment) {
