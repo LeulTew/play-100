@@ -1,35 +1,24 @@
-import { useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
+import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import { SOURCE_LABELS } from '../../lib/personal-types';
-import { Icon } from '../Icon';
+import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
 import type { CompareTitleBinding } from '../compare-tray/compare-drag-types';
 
 export function RecordIdentity({
   record,
+  artwork,
   onOpen,
   compareDrag,
 }: {
   record: LibraryRecord;
+  artwork?: CatalogArtwork | null;
   onOpen: (id: string) => void;
   compareDrag?: CompareTitleBinding;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const providerArtwork = record.source === 'collection' ? null : artwork;
   return (
     <div className="record-identity">
-      <div className="record-thumb" aria-hidden="true">
-        {record.source === 'collection' && !imageFailed ? (
-          <img
-            src={`/covers/${record.id}.webp`}
-            width="48"
-            height="60"
-            loading="lazy"
-            alt=""
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <Icon name="stack" width="25" height="25" />
-        )}
-      </div>
+      <GameArtwork record={record} artwork={providerArtwork} className="record-thumb" />
       <div className="record-label">
         <button
           className="record-title"
@@ -47,6 +36,7 @@ export function RecordIdentity({
           {SOURCE_LABELS[record.source]}
           {record.collectionRank !== null && ` #${record.collectionRank}`}
         </p>
+        <GameArtworkCredit artwork={providerArtwork} disclosureLabel={`Artwork credits for ${record.title}`} />
       </div>
     </div>
   );

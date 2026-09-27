@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DiscoveryCatalog } from '../lib/discovery-catalog';
+import type { LibraryRecord } from '../lib/personal-types';
 import { loadDiscoveryCatalog } from '../lib/discovery-loader';
 import { isModuleLoadFailure } from '../lib/chunk-recovery';
+import { indexDiscoveryArtwork } from '../lib/discovery-catalog-shared';
+import { EMPTY_DISCOVERY_ARTWORK, hasKnownDiscoveryArtwork } from '../lib/discovery-artwork-presence';
 
 export function useDiscoveryCatalog(enabled: boolean) {
   const [attempt, setAttempt] = useState(0);
@@ -42,4 +45,11 @@ export function useDiscoveryCatalog(enabled: boolean) {
       if (!state.moduleError) setAttempt((value) => value + 1);
     },
   };
+}
+
+export function useDiscoveryArtwork(records: readonly LibraryRecord[], active: boolean) {
+  const { catalog } = useDiscoveryCatalog(
+    active && records.some((record) => record.source !== 'collection' && hasKnownDiscoveryArtwork(record.id)),
+  );
+  return useMemo(() => (catalog ? indexDiscoveryArtwork(catalog) : EMPTY_DISCOVERY_ARTWORK), [catalog]);
 }

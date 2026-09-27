@@ -227,21 +227,23 @@
   align-items: center;
   min-width: 0;
 }
-.record-thumb {
+.game-artwork.record-thumb {
   display: grid;
   place-items: center;
   width: 48px;
   height: 60px;
   background: #e3e8d6;
   color: #65794b;
-  flex-shrink: 0;
+  flex: 0 0 48px;
   overflow: hidden;
   border-radius: 2px;
 }
-.record-thumb img {
+.game-artwork.record-thumb img {
   object-fit: contain;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
 }
 .record-label {
   min-width: 0;
@@ -251,6 +253,18 @@
   font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+.record-label .game-artwork-disclosure > summary {
+  min-height: 44px;
+  align-content: center;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.record-label .game-artwork-disclosure > summary:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .library-row-content {
   display: flex;
@@ -427,9 +441,10 @@
   .record-identity {
     gap: 10px;
   }
-  .record-thumb {
+  .game-artwork.record-thumb {
     width: 38px;
     height: 49px;
+    flex-basis: 38px;
   }
   .record-label p {
     font-size: 12px;

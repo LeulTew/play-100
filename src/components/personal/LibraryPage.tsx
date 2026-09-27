@@ -29,6 +29,7 @@ import { pageFromPath } from '../../lib/url';
 import type { CommittedCue } from '../../lib/route-continuity';
 import { usePendingEdits } from '../../hooks/useExitSave';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
+import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
 import { useLibraryMode } from '../../lib/library-mode';
 import { focusPendingEditor } from '../../lib/dialog-focus';
 import './library-pagination.css';
@@ -172,6 +173,7 @@ export default function LibraryPage({
   }
   const visibleRecords =
     tab === 'later' ? visibleQueue.current : records.slice(page.offset, page.offset + LIBRARY_PAGE_SIZE);
+  const artwork = useDiscoveryArtwork(visibleRecords, active);
   const selectedRecords = records.filter((record) => selected.has(record.id));
   useEffect(() => {
     setSelected(new Set());
@@ -361,7 +363,7 @@ export default function LibraryPage({
               />
             </label>
           )}
-          <RecordIdentity record={record} onOpen={onOpen} compareDrag={binding} />
+          <RecordIdentity record={record} artwork={artwork.get(record.id)} onOpen={onOpen} compareDrag={binding} />
           <div className="record-actions">
             {onPin && (
               <button

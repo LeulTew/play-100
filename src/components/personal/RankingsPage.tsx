@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState, PersonalRanking } from '../../lib/personal-types';
+import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import { searchText } from '../../lib/collection';
 import { Icon } from '../Icon';
 import { RecordIdentity } from './RecordIdentity';
@@ -17,6 +18,7 @@ import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { flushPendingEdits, hasPendingEdits, useExitSave, usePendingEdits } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
+import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
 import { focusPendingEditor } from '../../lib/dialog-focus';
 import { formatResultRange, getLocalPage } from '../../lib/local-pagination';
 import { LocalPager } from '../LocalPager';
@@ -179,6 +181,7 @@ export default function RankingsPage({
   if (!pendingEdits || visible.current.length === 0) {
     visible.current = records.slice(page.offset, page.offset + RANKING_PAGE_SIZE);
   }
+  const artwork = useDiscoveryArtwork(visible.current, active);
   useEffect(() => {
     if (!active || pendingEdits) return;
     const offset = priorProgress.current !== progressView ? 0 : page.offset;
@@ -482,6 +485,7 @@ export default function RankingsPage({
                 <RankingRow
                   key={record.id}
                   record={record}
+                  artwork={artwork.get(record.id)}
                   entry={entry}
                   played={Boolean(state.progress[record.id]?.played)}
                   completed={Boolean(state.progress[record.id]?.completed)}
@@ -548,6 +552,7 @@ export default function RankingsPage({
 
 function RankingRow({
   record,
+  artwork,
   entry,
   played,
   completed,
@@ -567,6 +572,7 @@ function RankingRow({
   renderDragHandle,
 }: {
   record: LibraryRecord;
+  artwork?: CatalogArtwork;
   entry: PersonalRanking;
   played: boolean;
   completed: boolean;
@@ -637,7 +643,7 @@ function RankingRow({
       <CompareDragSource record={record} disabled={!active}>
         {(binding) => (
           <div ref={binding.sourceRef} {...binding.surfaceProps} className="ranking-game-identity">
-            <RecordIdentity record={record} onOpen={onOpen} compareDrag={binding} />
+            <RecordIdentity record={record} artwork={artwork} onOpen={onOpen} compareDrag={binding} />
             {(onPin || renderDragHandle) && (
               <div className="ranking-compare-actions">
                 {onPin && (
