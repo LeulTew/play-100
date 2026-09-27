@@ -16,7 +16,10 @@ for (const width of [1440, 393]) {
       const rows = page.locator('.ratings-table tbody > tr');
       await expect(rows).toHaveCount(24);
       for (let index = 0; index < 6; index++) {
-        await rows.nth(index).getByRole('button', { name: /^Pin for comparison:/ }).click();
+        await rows
+          .nth(index)
+          .getByRole('button', { name: /^Pin for comparison:/ })
+          .click();
       }
       await expect(page.locator('.compare-tray-expand')).toContainText('6 games');
       await page.evaluate(() => document.fonts.ready);
