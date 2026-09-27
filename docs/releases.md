@@ -8,6 +8,162 @@ the owner's email, so they stay out of this file. Operator steps follow the
 rollback and readback, and the
 [security release runbook](security-release-runbook.md#promotion-order).
 
+## Release 6: 2026-09-27
+
+| Field | Value |
+| --- | --- |
+| Commit | `129e73eebbf6c8c7eef5fc3eda1d4ab45f8161fe` (tree `a4137a9a7d9f18072ddd7c473c0d3fd2560b1bf3`) |
+| Merge | PR #9 (`leultew-r12-integration`) into `main`, a plain fast-forward of 30 commits from `228493e8`, merged 2026-09-27 02:30:46Z |
+| Build | Remote Vercel build from a clean export, Vercel CLI 59.16 |
+| Production deployment | `dpl_9Hh23osGZT4xU51H5iw3dHNK5ZSr` |
+| Promoted | 2026-09-27 02:32:44Z with `vercel promote` (CLI 59.16.0), started 02:32:27Z |
+| Rollback target | `dpl_5qytNVicHAZc9eo2KEqmEkSw29Me` (Release 5) |
+| Strict inline hashes | All three **changed**: style-src online `sha256-+GHL56F8oAQk/PYCqUBh1Zke2G+BD97jtTBHXwfrOwk=` (16,714 B), offline `sha256-JxBfcuqoj5AiCu4Iygik/+XCjyi3/wle7sZrYKDci8w=`; script-src boot script `sha256-/9qVKVqdtFFoDgAr7bGIaXKtVqd+2ULyuMo34F44Jq4=` (4,808 B; budget 4,856) |
+| Release manifest | SHA-256 `b89b1c44eedb59f5bb810e16eebff258840d2818b1785c0b76c4963be5183a96`, with 3 bound reports, 2 recorded carry-forwards, 1 decision and 1 waiver (the known issue below) |
+
+**What shipped.** The G4 review findings that need no console step; PR #9 has
+the details.
+- Reliability: the catalog detail's **Your rank** shortcut goes through the
+  pending-edit guard. A cold catalog detail opens an "Opening game…" dialog
+  with Close once its code has taken 300 ms, and a late chunk can't reopen a
+  closed detail.
+- Performance: the Queue mounts at most 25 rows per page and keeps global
+  order; moves cross pages and follow the game.
+- UX and copy: the Queue's trash control is **Remove from queue**, which
+  clears only queue membership. One-game removal and a single unqueried
+  Discover result read in the singular. A rejected backup explains how to
+  recover. On mobile the Ratings table's Compare strip keeps clear of the save
+  toast. The Discover filter row uses one control treatment, and wrapped
+  titles top-align.
+- Accessibility and motion: under forced colours the select chevrons follow
+  the field text colour. A first-time visitor sees "Illustrated view" instead
+  of "Lite mode" before their preference is known.
+- Security: the auth helper answers HEAD without an upstream fetch. Public
+  and shared titles refuse control and format characters, display names
+  refuse blank-looking fillers, and a cancelled friend request is held for
+  ten minutes against its sender. The docs no longer overstate the key
+  allowlist, scan summaries, WAF Log mode or a started Google redirect.
+- Release operations: an offline characterization partition runs
+  `tests/root-navigation-guards.spec.ts`, which skips itself on configured
+  builds. Every static check keeps its own exit-code receipt and log.
+
+**Readback.**
+- Alias `play-100-collection.vercel.app` resolves to
+  `dpl_9Hh23osGZT4xU51H5iw3dHNK5ZSr`, confirmed by both the Vercel API and
+  `vercel inspect`.
+- Before the readback, five consecutive public `/` responses matched the
+  candidate's index, with no stale response (02:33:00Z to 02:33:05Z).
+- Production `/` index.html SHA-256:
+  `0c8ece7303d0d51c273b16467df30d3ef14f481e9f28caeccf424b47f6818e81`, the
+  candidate's and the local configured build's. Entry
+  `/assets/index-92E_lsiE.js`.
+- CSP header SHA-256:
+  `c35e705911e8dbe37da0e61a531c54b60c9c0ff1672b20de14ff0d260923aa7d`. It
+  changed with the three inline hashes.
+- `/sw.js` SHA-256
+  `1d31b01a3b8a404c14eba56cea402ae114fde3eda2d6eb63ec74941c42cabc62`.
+  `/pwa-assets.json` SHA-256
+  `32eef18fa6ccd46cecf5a439c9616dec316ef075c1900735f6042538ef27e64f`, PWA
+  version `b3036a0bbcb6b183459e0517efbc481e2f745378c1b97acbb8f4a97b9e2f1cf4`.
+
+**Post-promotion production checks.** `npm run release:verify` passed 43/43
+on Node 24.21.0. The integrator's cross-check passed 50/50: the Release 5 set
+plus the offline style hash, with every hash and `Permissions-Policy` checked
+against `vercel.json`. They agree on the index, the worker, the PWA assets and
+the version. No rollback rule triggered.
+
+**Service-worker update probe: passed.** One pass on the public alias with no
+bypass, in headless Chromium with a persistent profile, across the promotion:
+
+1. Armed on Release 5: offline files ready in 23.4 s, with the controller on
+   Release 5's PWA version `8ea0c046…`, and no CSP violations.
+2. After promotion, the waiting Release 6 worker was applied through the app
+   with exactly one reload. The controller moved to `b3036a0b…`, Release 6's
+   `/pwa-assets.json` version.
+3. Cold offline launch: `/` and `/my-games` loaded from the worker on Release
+   6's entry.
+4. Under the updated worker, a single unqueried Discover result read
+   "1 game · Illustrated first". A fresh profile's landing caption never read
+   "Lite mode" before it settled.
+5. No CSP violations. The fresh-profile check first recorded a failure because
+   the probe read a violation counter that exists only in the persistent
+   profile; that page's own violation listener and its console both showed 0.
+   The receipt keeps the recorded status and the corrected reading.
+
+**Pre-promotion evidence.** The release manifest binds each report or records
+its carry-forward or waiver.
+- Static checks on `129e73ee`: types, Functions types, Prettier, ESLint and the
+  data and discovery validators, each with its own exit-code receipt and log.
+- Gate on `129e73ee` (Node 24.21.0): 184 files, 2,689 passed, 1 skipped (unit
+  171 / 2,530; browser 13 files, 159 plus 1 skip). The first run timed out one
+  budget-script test at 100% host CPU; the pre-authorized single re-run
+  passed, and both runs are kept.
+- Firestore emulator suite: 265/265, plus the handle-claim race case 5/5, on
+  rules `8e645497…`.
+- Configured build: `check:csp` clean, budgets 14/14.
+- Production partition, full, 852: 851 green. Development partition, full,
+  194: 189 passed, 5 skipped. Cloud-UI, full: 227 of 228, with the compare
+  fixture allocated and required.
+- Offline characterization partition: `root-navigation-guards` 36/36 on an
+  unconfigured build of the same commit, with its own manifest.
+- Candidate verification: 43/43 and 50/50.
+- Gitleaks 8.30.1 over `228493e8..129e73ee` (30 commits): the parent's receipt
+  records no leaks found; the scanner's redacted JSON report and log are kept
+  with it.
+
+**Validation stops.** Two were product defects in this release's own changes,
+fixed before promotion; the rest were test, host or harness issues.
+- The first R12 rules hit Firestore's limit of 1,000 evaluated expressions on
+  `publicProfiles` writes, so three emulator tests were denied. The rules now
+  use literal patterns and check cheap and unchanged values first, and a
+  heaviest-write test guards the limit.
+- The cancellable-detail dialog opened during React's one-commit lazy
+  suspension and took the card-to-detail motion, so `discover-motion` failed
+  on both projects. The dialog now waits 300 ms.
+- A stale assertion in `root-navigation-guards.spec.ts` had failed unnoticed
+  since 2026-09-25 because no partition ran the spec. It is fixed, and the new
+  offline partition runs it.
+- Host-load stalls, each passing on a targeted one-worker re-run: the
+  native-zoom test's context close, a cross-tab autosave race in
+  `release-review.spec.ts`, a Google script load in the cloud-UI identity
+  spec, and a budget-script unit test.
+- Harness defects in the integrator's own scripts: an extra dist-identity check
+  assumed an offline header class, and the fresh-profile CSP probe read the
+  wrong profile's counter. Neither changed a result.
+
+**Receipts,** kept outside the repository:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Promotion receipt (binds every step's receipt) | `3d48788ed8cc00f9910e8384aed2af05641fa6cbfa5c648e41900be1c5334f9c` |
+| Push and PR | `ac5521438554c7b9e3d22c630263b4a063cfe7a718bfdd4cb01edf5e18fd6b21` |
+| Promotion and public checks | `1dd692961707c073917020dabcfee733df0c965bf485acf20dbaacea5fb56d3e` |
+| Production `release:verify` JSON | `ce2cccf163559a05696b004c9417de1fd8f2220b4046ff5a3647cdfd502a8a1e` |
+| Service-worker arm | `ed995a6184b7223d81e9494b11e46eb53c7aa5084b3934c67b9259694e1581d3` |
+| Service-worker probe | `9af9dac37c238a5dc3be4106bc7eb11ccaf2d38b234e83072aa6bbdf891195fa` |
+| Probe harness defect record | `cc9dffd378c83fee6694e573ee3f0c059b82aa59f9c60599425cf0362be192bc` |
+
+**Rules.** Changed: title and name hygiene, the post-cancel hold and the
+evaluation-limit fix. The pending publish is now `firestore.rules` SHA-256
+`8e645497aaec7898e2e11f41d9985b7608fedf82c77305ac5b24b0fbf7bedb10`
+(pending action 3), to be published only while Release 6 or later is serving.
+Don't publish the Release 5 rules `6c8ebcb2…`: in a repeat run of the
+cloud-UI identity test under them, a legitimate sync-head update hit the same
+1,000-expression limit.
+
+**Waivers.** As for Release 5: no physical-device, iOS Safari, screen-reader
+or OS install and launch runs; the release coordinator waived them. The real
+Google smoke is still pending action 5.
+
+**Known issues at release.**
+- Two visible windows of one signed-in account can both upload the same pending
+  edit. The one that finishes second then shows "Needs a choice", a
+  recoverable conflict prompt. Both uploads hold identical content, and no data
+  crosses accounts. The race has existed since online saving shipped: the
+  cloud-UI identity test fails 2 of 10 on Release 5 and 3 of 10 on this
+  release, with the same signature. It is recorded as the manifest's waiver,
+  and the fix is scheduled next.
+
 ## Release 5: 2026-09-26
 
 | Field | Value |
