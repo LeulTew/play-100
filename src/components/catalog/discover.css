@@ -41,7 +41,7 @@
   display: block;
   width: 100%;
   min-height: 44px;
-  border: 1px solid #bbc1ac;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   background: transparent;
   padding: 8px 10px;

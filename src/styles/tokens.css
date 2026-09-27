@@ -11,6 +11,8 @@
   --muted: #606457;
   --lime: #d3f36b;
   --line: #d1d4c6;
+  /* Graphite ink at 55% over chalk: resting field edges keep 3:1 against chalk, soft white and hover fills. */
+  --control-border: #7f8179;
   --display: 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --gutter: clamp(24px, 4vw, 72px);

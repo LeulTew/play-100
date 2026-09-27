@@ -553,7 +553,7 @@
 .manual-fields input {
   width: 100%;
   min-height: 48px;
-  border: 1px solid #a5b293;
+  border: 1px solid var(--control-border);
   border-radius: 3px;
   background: var(--white);
   padding: 10px 12px;
@@ -580,7 +580,7 @@
 .personal-score input {
   width: 92px;
   min-height: 44px;
-  border: 1px solid #a8b796;
+  border: 1px solid var(--control-border);
   background: var(--white);
   border-radius: 3px;
   padding: 8px 9px;

@@ -8,6 +8,7 @@ colors:
   muted: "#606457"
   lime: "#d3f36b"
   line: "#d1d4c6"
+  control-border: "#7f8179"
 typography:
   display:
     fontFamily: "Barlow Condensed, Impact, Arial Narrow, sans-serif"
@@ -126,6 +127,7 @@ Feature overrides must beat shared defaults by specificity, not by stylesheet ar
 - **Graphite ink** (`ink`): primary reading, outlines and dark actions.
 - **Muted olive grey** (`muted`): secondary information.
 - **Chalk divider** (`line`): quiet ruled separation.
+- **Control edge** (`control-border`): the resting border of search fields, native selects, text inputs and text areas. Graphite ink at 55% over chalk, it keeps 3.54:1 against chalk, 3.87:1 against soft white and 3.30:1 against the `#e9ecdf` select hover fill. Decorative rules, keycaps and chips stay on `line`; focus, hover and disabled states keep their own treatments.
 
 Control-specific hover and destructive colors remain component variants, not an expanded brand palette. Sidecar tonal ramps are generated swatch-preview metadata, not implemented CSS palette steps.
 
@@ -222,8 +224,9 @@ Dark, lime, outline, quiet and destructive variants use the extracted assignment
 Keep search, original-data filters, sorting and device-list controls legible and directly operable. Do not imply that changing the view changes authored ranks. Desktop navigation is direct; mobile prioritizes reachable controls rather than decorative navigation chrome.
 
 Discover's four primary filters share SelectField's existing progress-filter
-treatment: 12px labels, 48px native selects, olive borders and soft-white fill.
-The mobile filter disclosure and optional exact-source-genre control remain.
+treatment: 12px labels, 48px native selects, `control-border` edges and
+soft-white fill. The mobile filter disclosure and optional exact-source-genre
+control remain.
 
 Keyboard Show more continues at the first appended game's title in Grid, List
 and Table; pointer activation keeps its existing focus behavior.

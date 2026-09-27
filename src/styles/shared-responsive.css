@@ -322,7 +322,7 @@
   min-height: 44px;
   max-width: 100%;
   background: var(--white);
-  border: 1px solid #a5ac98;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   padding: 8px 30px 8px 10px;
   font: inherit;

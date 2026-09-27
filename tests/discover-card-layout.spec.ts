@@ -58,7 +58,7 @@ test('Discover primary filters share aligned native select styling at 1440px', a
   expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
   for (const control of geometry) {
     expect(control.height).toBe(48);
-    expect(control.border).toBe('rgb(165, 172, 152)');
+    expect(control.border).toBe('rgb(127, 129, 121)');
     expect(control.fill).toBe('rgb(253, 253, 246)');
     expect(control.labelSize).toBe('12px');
   }

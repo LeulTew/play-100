@@ -137,7 +137,7 @@
 .public-profile-page textarea {
   width: 100%;
   min-height: 48px;
-  border: 1px solid #a5b293;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   background: var(--white);
   padding: 11px 12px;

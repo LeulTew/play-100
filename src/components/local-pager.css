@@ -28,7 +28,7 @@
   min-width: 108px;
   max-width: 100%;
   padding: 8px 10px;
-  border: 1px solid #bbc1ac;
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   color: var(--ink);
   background: var(--paper);

@@ -182,6 +182,88 @@ test('forced colors draws the select chevrons in the field text colour, not the 
   expect(new Set(colours.chevrons)).toEqual(new Set([colours.fieldText]));
 });
 
+/** A computed colour's sRGB channels (0 to 255) and alpha. */
+function rgba(color: string) {
+  const [r = 0, g = 0, b = 0, a = 1] = color.match(/[\d.]+/g)?.map(Number) ?? [];
+  return { r, g, b, a };
+}
+type Rgba = ReturnType<typeof rgba>;
+
+/** `top` painted over the opaque `bottom`. */
+const over = (top: Rgba, bottom: Rgba): Rgba => ({
+  r: top.r * top.a + bottom.r * (1 - top.a),
+  g: top.g * top.a + bottom.g * (1 - top.a),
+  b: top.b * top.a + bottom.b * (1 - top.a),
+  a: 1,
+});
+
+/** The WCAG 2 contrast ratio of two opaque colours. */
+function contrast(first: Rgba, second: Rgba): number {
+  const luminance = ({ r, g, b }: Rgba) => {
+    const [red, green, blue] = [r, g, b].map((value) => {
+      const channel = value / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  };
+  const [light, dark] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+test('resting search and select edges keep 3:1 against the page and their own fill', async ({ page }) => {
+  for (const [surface, route, items, selects] of [
+    ['Collection', '/?catalogs=off', '.game-card', 5],
+    ['Discover', '/discover?catalogs=off', '.discovery-cards > li', 6],
+  ] as const) {
+    await page.goto(route);
+    await expect(page.locator(items)).toHaveCount(24);
+    await openBrowsingFilters(page);
+    // Discover's exact source genre select sits in its own closed disclosure.
+    const exactGenre = page.locator('details.discovery-help').filter({ has: page.locator('select') });
+    if ((await exactGenre.count()) > 0 && (await exactGenre.getAttribute('open')) === null)
+      await exactGenre.locator('summary').click();
+    // At rest: no pointer over a field and no focus in one.
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    const edges = await page.locator('main .search-field, main select').evaluateAll((elements) =>
+      elements
+        .filter((element) => element.checkVisibility())
+        .map((element) => {
+          // What shows through the field: each ancestor's background, up to the first opaque one.
+          const layers: string[] = [];
+          for (let node = element.parentElement; node; node = node.parentElement) {
+            const background = getComputedStyle(node).backgroundColor;
+            layers.push(background);
+            if (!background.startsWith('rgba')) break;
+          }
+          const field = element instanceof HTMLSelectElement ? element : element.querySelector('input');
+          const style = getComputedStyle(element);
+          return {
+            name: field?.getAttribute('aria-label') ?? field?.labels?.[0]?.childNodes[0]?.textContent?.trim() ?? '',
+            search: element.classList.contains('search-field'),
+            border: style.borderTopColor,
+            borderStyle: style.borderTopStyle,
+            borderWidth: parseFloat(style.borderTopWidth),
+            fill: style.backgroundColor,
+            layers,
+          };
+        }),
+    );
+    expect(edges.filter((edge) => edge.search), `${surface} search field`).toHaveLength(1);
+    expect(edges.filter((edge) => !edge.search).length, `${surface} selects`).toBeGreaterThanOrEqual(selects);
+    for (const edge of edges) {
+      const label = `${surface} ${edge.search ? 'search field' : `${edge.name} select`}`;
+      const backdrop = edge.layers.reduceRight((below, layer) => over(rgba(layer), below), rgba('rgb(255, 255, 255)'));
+      const fill = over(rgba(edge.fill), backdrop);
+      const border = over(rgba(edge.border), fill);
+      expect(edge.borderStyle, label).toBe('solid');
+      expect(edge.borderWidth, label).toBeGreaterThan(0);
+      expect(contrast(border, backdrop), `${label} against the page`).toBeGreaterThanOrEqual(3);
+      expect(contrast(border, fill), `${label} against its fill`).toBeGreaterThanOrEqual(3);
+    }
+  }
+});
+
 test('empty and failed local views retain readable recovery at 320px with text spacing', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 852 });
   await installGuestLibrary(page, libraryFixture(0));
