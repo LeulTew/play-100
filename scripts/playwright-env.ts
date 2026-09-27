@@ -10,6 +10,7 @@ export const REUSE_SERVER_VARIABLE = 'PLAY100_REUSE_SERVER';
 export const ALLOW_ONLY_VARIABLE = 'PLAY100_ALLOW_ONLY';
 export const RELEASE_GATE_VARIABLE = 'PLAY100_RELEASE_GATE';
 export const COMPARE_FIXTURE_VARIABLE = 'PLAY100_COMPARE_FIXTURE';
+export const GOOGLE_LIVE_VARIABLE = 'PLAY100_GOOGLE_LIVE';
 
 export interface LocalGateOptions {
   readonly forbidOnly: boolean;
@@ -35,6 +36,14 @@ export function localGateOptions(environment: HarnessEnvironment): LocalGateOpti
 export function compareFixtureGate(environment: HarnessEnvironment): 'run' | 'skip' | 'missing' {
   if (environment[COMPARE_FIXTURE_VARIABLE]) return 'run';
   return environment[RELEASE_GATE_VARIABLE] ? 'missing' : 'skip';
+}
+
+/**
+ * Whether a cloud-UI run includes the live Google check (tests-cloud-ui/google-live.spec.ts), which loads Google's own
+ * scripts. It runs only on its explicit opt-in and never in the release gate, so a public host cannot decide the gate.
+ */
+export function googleLiveCheck(environment: HarnessEnvironment): boolean {
+  return environment[GOOGLE_LIVE_VARIABLE] === '1' && !environment[RELEASE_GATE_VARIABLE];
 }
 
 /** The dev-server module whose served source shows the mode it was started in. */

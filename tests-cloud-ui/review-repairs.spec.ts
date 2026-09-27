@@ -12,6 +12,7 @@ import {
   uidFor,
   verifyEmail,
 } from './helpers';
+import { routeGoogleProvider } from './google-provider-fixture';
 import { readLibrary } from '../tests/library-helpers';
 
 test.beforeEach(async ({ page }) => {
@@ -35,8 +36,10 @@ test('verified unused email registration can delete without first enabling sync 
 
 test('verified unused Google registration returns from reauthentication without deleting until explicitly confirmed', async ({
   page,
+  context,
   request,
 }) => {
+  const google = await routeGoogleProvider(context);
   const email = emailFor('unused-google');
   await page.goto('/account');
   await googleRedirect(
@@ -58,6 +61,9 @@ test('verified unused Google registration returns from reauthentication without 
   expect(await uidFor(request, email)).toBe(uid);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
+  // Both returns were read through the fixture's loader, and nothing left this machine.
+  expect(google.loaders.length).toBeGreaterThanOrEqual(2);
+  expect(google.refused).toEqual([]);
 });
 
 test('corrupt account cache does not trap sign-out or prevent a network-only account export', async ({

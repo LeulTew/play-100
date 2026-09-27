@@ -1,8 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
-import { localGateOptions } from './scripts/playwright-env';
+import { googleLiveCheck, localGateOptions } from './scripts/playwright-env';
 
 export default defineConfig({
   testDir: './tests-cloud-ui',
+  // The live Google check runs only when asked for (PLAY100_GOOGLE_LIVE=1), never in the release gate.
+  testIgnore: googleLiveCheck(process.env) ? [] : ['**/google-live.spec.ts'],
   globalSetup: './tests-cloud-ui/global-setup.ts',
   fullyParallel: false,
   forbidOnly: localGateOptions(process.env).forbidOnly,

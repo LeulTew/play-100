@@ -959,7 +959,11 @@ auth-iframe style object through `iframe.style`. `tests/strict-style-csp.spec.ts
 reauthentication on the Auth emulator's development server, which injects its own
 CSS elements, so it enforces `style-src-attr 'none'` and records any other added
 `<style>` element) must record zero violations on desktop and mobile before
-adoption; otherwise drop the commit.
+adoption; otherwise drop the commit. Its Google case runs in the release gate
+against the controlled Google provider fixture, whose loader stand-in also styles
+the auth iframe through `iframe.style`; the live Google check,
+`tests-cloud-ui/google-live.spec.ts`, repeats it with Google's own `gapi.iframes`
+outside the gate ([release-operations.md](release-operations.md)).
 
 | Remaining rollout item | LIVE 270f compatibility / owner |
 | --- | --- |

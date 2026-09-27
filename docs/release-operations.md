@@ -199,6 +199,34 @@ without its six cases; ordinary runs without these variables still skip them.
 Expect no compare-orientation skip on desktop and one on mobile, whose
 single-matrix pixel case runs only on desktop.
 
+The gate's Google redirect cases (`identity.spec.ts`, `review-repairs.spec.ts`
+and `strict-style-csp.spec.ts`) use a controlled provider fixture,
+`tests-cloud-ui/google-provider-fixture.ts`, so no public host decides them. On
+a Google redirect, the Auth emulator's sign-in page loads assets from unpkg.com
+and fonts.googleapis.com. On the return, Firebase Auth and the emulator's
+helper iframe both load Google's loader script,
+`https://apis.google.com/js/api.js`. The fixture serves empty stand-ins for
+those assets and a local stand-in for the loader, and it refuses any other
+request to a host outside this machine. The stand-in styles the helper iframe
+through the CSS object model, so the gate's strict-style case checks the app
+and Firebase Auth, not Google's own iframe code.
+
+The real Google service is a separately named check, outside the release gate.
+It repeats the redirect-and-Back case and the strict-style Google case through
+Google's own loader and iframe code. Run it in Terminal C with the same servers:
+
+```powershell
+$env:PLAY100_GOOGLE_LIVE = '1'
+npx --no-install playwright test --config playwright.cloud.config.ts tests-cloud-ui/google-live.spec.ts
+Remove-Item Env:PLAY100_GOOGLE_LIVE
+```
+
+The config includes this spec only with `PLAY100_GOOGLE_LIVE=1`, and never while
+`PLAY100_RELEASE_GATE` is set. A failure there means Google's hosts did not
+answer in time; record it, but it doesn't block the release. The real
+sign-in, link and reauthentication smoke on production is a separate owner
+action (see [releases.md](releases.md#pending-owner-actions)).
+
 Global setup of both configs seeds only the demo emulators and verifies
 cloud-test mode. Stop the servers using Ctrl+C in their own terminals. Record
 both projects' outcomes, including skips. Never point the emulator suite at

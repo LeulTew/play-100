@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cloudUiServerProblem, compareFixtureGate, localGateOptions } from './playwright-env.ts';
+import { cloudUiServerProblem, compareFixtureGate, googleLiveCheck, localGateOptions } from './playwright-env.ts';
 
 describe('local Playwright gate', () => {
   it('refuses .only and never reuses a server on the fixed port by default', () => {
@@ -42,6 +42,15 @@ describe('comparison fixture gate', () => {
     expect(compareFixtureGate({ PLAY100_RELEASE_GATE: '1' })).toBe('missing');
     expect(compareFixtureGate({ PLAY100_RELEASE_GATE: 'true', PLAY100_COMPARE_FIXTURE: '' })).toBe('missing');
     expect(compareFixtureGate({ PLAY100_RELEASE_GATE: '1', PLAY100_COMPARE_FIXTURE: 'fixture.json' })).toBe('run');
+  });
+});
+
+describe('live Google check', () => {
+  it('runs only on its explicit opt-in and never inside the release gate', () => {
+    expect(googleLiveCheck({})).toBe(false);
+    expect(googleLiveCheck({ PLAY100_GOOGLE_LIVE: 'true' })).toBe(false);
+    expect(googleLiveCheck({ PLAY100_GOOGLE_LIVE: '1' })).toBe(true);
+    expect(googleLiveCheck({ PLAY100_GOOGLE_LIVE: '1', PLAY100_RELEASE_GATE: '1' })).toBe(false);
   });
 });
 

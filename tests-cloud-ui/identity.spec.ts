@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, enableSync, readAccount, signIn, uidFor, verifyEmail } from './helpers';
+import { authOrigin, createAccount, emailFor, enableSync, readAccount, signIn, uidFor, verifyEmail } from './helpers';
+import { routeGoogleProvider } from './google-provider-fixture';
 import { readLibrary } from '../tests/library-helpers';
 
 test.beforeEach(async ({ page }) => {
@@ -62,7 +63,10 @@ test('a cross-tab identity change flushes the old account draft without exposing
 test('Google stays in the same tab even if windows are blocked, and browser Back cancels without changing the guest', async ({
   page,
   context,
+  baseURL,
 }) => {
+  // The controlled provider fixture stands in for Google's hosts, so no public host decides this case.
+  const google = await routeGoogleProvider(context);
   await page.addInitScript(() => {
     window.open = () => null;
   });
@@ -76,4 +80,7 @@ test('Google stays in the same tab even if windows are blocked, and browser Back
   await expect(page.locator('.auth-panel')).toContainText('Google sign-in was not completed');
   await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeEnabled();
   expect((await readLibrary(page)).records).toEqual({});
+  // The app read the redirect result through the emulator's helper iframe, both over the fixture's loader.
+  expect(google.loaders).toEqual([new URL(baseURL ?? '/').origin, authOrigin]);
+  expect(google.refused).toEqual([]);
 });
