@@ -314,6 +314,10 @@ Lazy-route fallbacks use destination headings with static card, ruled-list or
 form anatomy from eager styles, never zero counts or guessed private content.
 The cold sign-in placeholder remains a static native dialog with its original
 close and return-focus contract; loading a route never enables an unfinished form.
+Cancelling comparison sign-in can temporarily focus Account while readiness hides
+the tray. Its current return intent survives until the Compare action or compact
+tray opener is usable, unless navigation, identity/scope or the user's focus/input
+changes. A late module must not override those later choices.
 
 Unranked matches and saved additions use an open ruled list below the original
 100, not fake numbered jackets or empty critic-score cells. Source attribution

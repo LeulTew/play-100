@@ -183,23 +183,95 @@ test('cold loading to ready Sign in keeps the Compare origin until the final nat
   }
 });
 
-test('cold cancellation uses the current Account fallback without stealing focus when the module later arrives', async ({
+test('cold comparison cancellation returns from Account to Compare when its action becomes usable', async ({
   page,
 }) => {
   await fullDock(page);
+  for (const record of libraryRecords.slice(1, 6)) {
+    await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
+  }
+  const before = await readLibrary(page);
+  const original = page.url();
   const held = await holdAccountModule(page);
   try {
-    await compare(page).focus();
-    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Open Compare tray, 6 games', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Compare tray', exact: true })
+      .getByRole('button', { name: 'Choose friends', exact: true })
+      .click();
     await held.began;
     await expect(page.locator('#loading-account-title')).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(account(page)).toBeFocused();
+    await expect(compare(page)).toHaveCount(0);
     held.release();
     await expect(account(page)).toHaveAccessibleName('Account Device only');
     await expect(compare(page)).toBeVisible();
+    await expect(compare(page)).toBeFocused();
+    await expect(page).toHaveURL(original);
+    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+    expect(await readLibrary(page)).toEqual(before);
+  } finally {
+    held.release();
+  }
+});
+
+for (const returnToFallback of [false, true]) {
+  test(`cold comparison return is cancelled when focus moves${returnToFallback ? ' away and back' : ' to another control'}`, async ({
+    page,
+  }) => {
+    await fullDock(page);
+    const held = await holdAccountModule(page);
+    try {
+      await compare(page).click();
+      await held.began;
+      await expect(page.locator('#loading-account-title')).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(signIn(page)).toHaveCount(0);
+      await expect(account(page)).toBeFocused();
+      const search = page.getByRole('searchbox', { name: 'Search games, studios or genres', exact: true });
+      await search.focus();
+      await expect(search).toBeFocused();
+      if (returnToFallback) await account(page).focus();
+      held.release();
+      await expect(account(page)).toHaveAccessibleName('Account Device only');
+      await expect(compare(page)).toBeVisible();
+      await expect(returnToFallback ? account(page) : search).toBeFocused();
+      await expect(compare(page)).not.toBeFocused();
+    } finally {
+      held.release();
+    }
+  });
+}
+
+test('native Back cancels a cold comparison return before the account module finishes', async ({
+  page,
+  isMobile,
+}) => {
+  await page
+    .getByRole('navigation', { name: isMobile ? 'Mobile navigation' : 'Main navigation', exact: true })
+    .getByRole('link', { name: 'The 100', exact: true })
+    .click();
+  await expect(page).toHaveURL((url) => url.pathname === '/');
+  await expect(compare(page)).toBeVisible();
+  const held = await holdAccountModule(page);
+  try {
+    await compare(page).click();
+    await held.began;
+    await expect(page.locator('#loading-account-title')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(signIn(page)).toHaveCount(0);
     await expect(account(page)).toBeFocused();
+    await page.goBack();
+    await expect(page).toHaveURL((url) => url.pathname === '/my-games');
+    const retained = page.url();
+    held.release();
+    await expect(account(page)).toHaveAccessibleName('Account Device only');
+    await expect(chip(page)).toBeVisible();
+    await expect(chip(page)).not.toBeFocused();
+    await expect(page).toHaveURL(retained);
+    await expect(signIn(page)).toHaveCount(0);
   } finally {
     held.release();
   }

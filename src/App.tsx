@@ -83,6 +83,14 @@ function usableReturnFocusTarget(target: HTMLElement | null): target is HTMLElem
   );
 }
 
+function compareReturnFocusTarget(): HTMLElement | null {
+  return (
+    ['.compare-tray-action', '.compare-tray-expand']
+      .map((selector) => document.querySelector<HTMLElement>(selector))
+      .find(usableReturnFocusTarget) ?? null
+  );
+}
+
 function CompareTrayBindings({
   needsArtwork,
   previewId,
@@ -260,25 +268,70 @@ export default function App() {
   accountPanelOpen.current = panel === 'account';
   const compareSignInOrigin = useRef<{ isCurrent: () => boolean } | null>(null);
   const [signInTicket, setSignInTicket] = useState<SignInPurposeTicket | null>(null);
+  const [pendingCompareReturn, setPendingCompareReturn] = useState<{
+    origin: { isCurrent: () => boolean };
+    fallback: HTMLElement | null;
+  } | null>(null);
   const getSignInReturnFocus = useCallback((authenticated = false) => {
     const origin = compareSignInOrigin.current;
     if (!origin) return null;
     const current = !authenticated && origin.isCurrent();
     // A loading sheet can unmount while the same sign-in invocation is still open.
     if (current && accountPanelOpen.current) return null;
-    compareSignInOrigin.current = null;
-    const action = current
-      ? ['.compare-tray-action', '.compare-tray-expand']
-          .map((selector) => document.querySelector<HTMLElement>(selector))
-          .find(usableReturnFocusTarget)
-      : null;
-    if (action) return action;
-    return (
+    const action = current ? compareReturnFocusTarget() : null;
+    const fallback =
       [...document.querySelectorAll<HTMLElement>('.account-nav, [data-page-heading], #collection-title')].find(
         usableReturnFocusTarget,
-      ) ?? null
-    );
+      ) ?? null;
+    if (current && !action) setPendingCompareReturn({ origin, fallback });
+    else {
+      compareSignInOrigin.current = null;
+      setPendingCompareReturn(null);
+    }
+    return action ?? fallback;
   }, []);
+  useLayoutEffect(() => {
+    if (!pendingCompareReturn) return;
+    const { origin, fallback } = pendingCompareReturn;
+    const cancel = () => {
+      if (compareSignInOrigin.current === origin) compareSignInOrigin.current = null;
+      setPendingCompareReturn((current) => (current === pendingCompareReturn ? null : current));
+    };
+    if (
+      compareSignInOrigin.current !== origin ||
+      !origin.isCurrent() ||
+      online?.identity ||
+      panel ||
+      selectedSlug ||
+      document.activeElement !== fallback
+    ) {
+      cancel();
+      return;
+    }
+    const target = !onlineOpening && !document.querySelector('dialog[open]') ? compareReturnFocusTarget() : null;
+    if (target) {
+      cancel();
+      target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      target.focus({ preventScroll: true });
+      return;
+    }
+    // Dialog cleanup has already focused the fallback. Any later focus or input belongs to the user.
+    const movedFocus = (event: FocusEvent) => {
+      if (event.target !== fallback) cancel();
+    };
+    document.addEventListener('focusin', movedFocus);
+    document.addEventListener('pointerdown', cancel, true);
+    document.addEventListener('keydown', cancel, true);
+    window.addEventListener('popstate', cancel);
+    window.addEventListener('play100:navigate', cancel);
+    return () => {
+      document.removeEventListener('focusin', movedFocus);
+      document.removeEventListener('pointerdown', cancel, true);
+      document.removeEventListener('keydown', cancel, true);
+      window.removeEventListener('popstate', cancel);
+      window.removeEventListener('play100:navigate', cancel);
+    };
+  }, [pendingCompareReturn, onlineOpening, online?.identity, libraryScope, panel, selectedSlug]);
   const closePanel = useCallback(() => setPanel(null), [setPanel]);
   const [previewedRecords, setPreviewedRecords] = useState<{ scope: string; records: Map<string, PreviewedRecord> }>({
     scope: 'guest',
