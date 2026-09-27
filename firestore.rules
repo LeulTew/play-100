@@ -40,16 +40,20 @@ service cloud.firestore {
     function rankingManifest(value) {
       return manifest(value) && value.bytes <= 16777216 && value.chunks.size() <= 86;
     }
-    function headShape(data) {
+    // A head's fields without its manifests. An update validates a manifest it publishes and compares the ones it keeps:
+    // each stored manifest passed manifest(), unchanged since online saving began, when it was published.
+    function headFields(data) {
       return data.keys().hasOnly(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt', 'cleanupEpoch'])
         && data.keys().hasAll(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
         && data.format == 1 && data.epoch is int && data.epoch >= 1
         && data.revision is int && data.revision >= 0
         && data.enabled is bool && data.deleted is bool
         && (!('cleanupEpoch' in data) || (data.cleanupEpoch is int && data.cleanupEpoch >= 1))
-        && (data.current == null || manifest(data.current))
-        && (data.previous == null || manifest(data.previous))
         && data.updatedAt == request.time && (!data.deleted || (!data.enabled && data.current == null && data.previous == null));
+    }
+    function headShape(data) {
+      return headFields(data) && (data.current == null || manifest(data.current))
+        && (data.previous == null || manifest(data.previous));
     }
     function avatar(value) {
       return value is map && value.keys().hasOnly(['version', 'seed', 'palette'])
@@ -91,6 +95,14 @@ service cloud.firestore {
         && data.rankCount is int && data.rankCount >= 0 && data.rankCount <= 10000
         && data.gameCount is int && data.gameCount >= 0 && data.gameCount <= 10000;
     }
+    // A save changes only the counts and the time. The other fields keep values member() accepted when they were
+    // written; its one later change, to display names, admits an unchanged name through displayNameOk.
+    function memberCounts(data, before) {
+      return data.diff(before).affectedKeys().hasOnly(['rankCount', 'gameCount', 'updatedAt'])
+        && data.rankCount is int && data.rankCount >= 0 && data.rankCount <= 10000
+        && data.gameCount is int && data.gameCount >= 0 && data.gameCount <= 10000
+        && data.updatedAt == request.time;
+    }
     match /_owner/{document} { allow read, write: if false; }
     match /ownerAccess/status { allow get: if creator(); allow list, write: if false; }
     match /accountLifecycle/{uid} {
@@ -112,9 +124,47 @@ service cloud.firestore {
       allow list: if cursorOnly() && creator() && request.query.limit != null && request.query.limit <= 20;
       allow create: if accountActive(uid) && member(request.resource.data, uid) && request.resource.data.createdAt == request.time
         && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted);
-      allow update: if accountActive(uid) && member(request.resource.data, uid) && request.resource.data.createdAt == resource.data.createdAt
+      allow update: if accountActive(uid)
+        && (memberCounts(request.resource.data, resource.data) || member(request.resource.data, uid))
+        && request.resource.data.createdAt == resource.data.createdAt
         && (!exists(/databases/$(database)/documents/syncHeads/$(uid)) || !head(uid).deleted);
       allow delete: if own(uid) && head(uid).deleted;
+    }
+    // The three head transitions. Each tests its cheap discriminators before the checks they share, so an update
+    // evaluates the account, shape, All-sharing and generation checks once, for its own transition: Firestore counts
+    // every expression of every statement it tries toward one limit of 1,000.
+    function headCommon(uid, next, before) {
+      return next.revision == before.revision + 1
+        && ('cleanupEpoch' in before
+          ? 'cleanupEpoch' in next && next.cleanupEpoch == before.cleanupEpoch
+          : !('cleanupEpoch' in next))
+        && accountActive(uid) && headFields(next) && aSourcePulses(uid);
+    }
+    // A publication validates its new manifest; its previous one is the stored current manifest.
+    function headPublish(uid, next, before) {
+      return before.enabled && !before.deleted && next.enabled && !next.deleted && next.epoch == before.epoch
+        && next.current != null && next.previous == before.current
+        && headCommon(uid, next, before) && manifest(next.current)
+        && headPublished(uid, next, before.epoch, generation(uid, next.current.generation));
+    }
+    // A publication is backed by its ready generation and the creator summary committed with it.
+    function headPublished(uid, next, epoch, gen) {
+      let ranks = getAfter(/databases/$(database)/documents/creatorRanks/$(uid)).data;
+      return gen.status == 'ready' && gen.epoch == epoch && gen.private == next.current
+        && ranks.revision == next.revision && ranks.current == gen.ranking;
+    }
+    // A stop keeps the stored manifests, or clears them to delete the online copy.
+    function headStop(uid, next, before) {
+      return !next.enabled && next.epoch == before.epoch + 1
+        && (next.deleted || (next.current == before.current && next.previous == before.previous))
+        && headCommon(uid, next, before);
+    }
+    // A resume keeps the stored manifests. Resuming a deleted copy needs a sign-in newer than its deletion.
+    function headResume(uid, next, before) {
+      return !before.enabled && next.enabled && !next.deleted && next.epoch == before.epoch + 1
+        && next.current == before.current && next.previous == before.previous
+        && (!before.deleted || timestamp.value(request.auth.token.auth_time * 1000) > before.updatedAt)
+        && headCommon(uid, next, before);
     }
     match /syncHeads/{uid} {
       allow get: if own(uid);
@@ -125,28 +175,9 @@ service cloud.firestore {
         && request.resource.data.current == null && request.resource.data.previous == null
         && ((request.resource.data.enabled && !request.resource.data.deleted && get(/databases/$(database)/documents/members/$(uid)).data.consentVersion == 1)
           || (request.resource.data.deleted && !request.resource.data.enabled));
-      allow update: if request.resource.data.revision == resource.data.revision + 1
-        && accountActive(uid) && headShape(request.resource.data)
-        && ('cleanupEpoch' in resource.data
-          ? 'cleanupEpoch' in request.resource.data && request.resource.data.cleanupEpoch == resource.data.cleanupEpoch
-          : !('cleanupEpoch' in request.resource.data))
-        && aSourcePulses(uid)
-        && (
-          (resource.data.enabled && !resource.data.deleted && request.resource.data.enabled && !request.resource.data.deleted
-            && request.resource.data.epoch == resource.data.epoch && request.resource.data.previous == resource.data.current
-            && request.resource.data.current != null
-            && generation(uid, request.resource.data.current.generation).status == 'ready'
-            && generation(uid, request.resource.data.current.generation).epoch == resource.data.epoch
-            && generation(uid, request.resource.data.current.generation).private == request.resource.data.current
-            && getAfter(/databases/$(database)/documents/creatorRanks/$(uid)).data.revision == request.resource.data.revision
-            && getAfter(/databases/$(database)/documents/creatorRanks/$(uid)).data.current == generation(uid, request.resource.data.current.generation).ranking)
-          || (!request.resource.data.enabled && request.resource.data.epoch == resource.data.epoch + 1
-            && (request.resource.data.deleted || (request.resource.data.current == resource.data.current && request.resource.data.previous == resource.data.previous)))
-          || (!resource.data.enabled && request.resource.data.enabled && !request.resource.data.deleted
-            && request.resource.data.epoch == resource.data.epoch + 1
-            && request.resource.data.current == resource.data.current && request.resource.data.previous == resource.data.previous
-            && (!resource.data.deleted || timestamp.value(request.auth.token.auth_time * 1000) > resource.data.updatedAt))
-        );
+      allow update: if headPublish(uid, request.resource.data, resource.data);
+      allow update: if headStop(uid, request.resource.data, resource.data);
+      allow update: if headResume(uid, request.resource.data, resource.data);
       allow update: if own(uid) && resource.data.deleted == true
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cleanupEpoch'])
         && request.resource.data.cleanupEpoch is int && request.resource.data.cleanupEpoch == resource.data.epoch;
@@ -245,17 +276,21 @@ service cloud.firestore {
       allow update: if chunkUpdate(uid, id, 'private');
       allow delete: if chunkDelete(uid);
     }
+    // A summary is backed by the head committed with it and by its ready generation. Its previous summary is null, the
+    // stored current one, which passed manifest() when it was written, or another valid manifest.
+    function ranksHead(data, sync) { return data.epoch == sync.epoch && data.revision == sync.revision; }
+    function ranksGeneration(data, gen) { return data.current == gen.ranking && gen.status == 'ready'; }
     match /creatorRanks/{uid} {
       allow get: if own(uid) || creator();
       allow list: if false;
       allow create, update: if own(uid) && request.resource.data.keys().hasOnly(['format', 'epoch', 'revision', 'current', 'previous', 'updatedAt'])
-        && request.resource.data.format == 1 && rankingManifest(request.resource.data.current)
-        && (request.resource.data.previous == null || manifest(request.resource.data.previous))
-        && request.resource.data.epoch == getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.epoch
-        && request.resource.data.revision == getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.revision
-        && request.resource.data.current == generation(uid, request.resource.data.current.generation).ranking
-        && generation(uid, request.resource.data.current.generation).status == 'ready'
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.format == 1 && request.resource.data.updatedAt == request.time
+        && ranksHead(request.resource.data, getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data)
+        && rankingManifest(request.resource.data.current)
+        && (request.resource.data.previous == null
+          || (resource != null && request.resource.data.previous == resource.data.current)
+          || manifest(request.resource.data.previous))
+        && ranksGeneration(request.resource.data, generation(uid, request.resource.data.current.generation));
       allow delete: if own(uid) && getAfter(/databases/$(database)/documents/syncHeads/$(uid)).data.deleted;
     }
     match /creatorRanks/{uid}/chunks/{id} {
@@ -1350,15 +1385,17 @@ service cloud.firestore {
     function aCleanup(uid) {
       return own(uid) && (!aPolicy(uid).enabled || aPolicy(uid).deleted || fDeleted(uid));
     }
+    // A view that was ready before this write is pulsed by it: updating, one revision later.
+    function aPulseAfter(after, before) { return after.status == 'updating' && after.revision == before.revision + 1; }
+    function aPulsed(path, before) { return before.status != 'ready' || aPulseAfter(getAfter(path).data, before); }
     function aSourcePulseRequired(uid, kind) {
-      return !exists(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind))
-        || aHead(uid, kind).status != 'ready'
-        || (getAfter(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind)).data.status == 'updating'
-          && getAfter(/databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind)).data.revision == aHead(uid, kind).revision + 1);
+      let path = /databases/$(database)/documents/friendAllHeads/$(uid)/views/$(kind);
+      return !exists(path) || aPulsed(path, get(path).data);
     }
+    // A write that pulses every ready view, or finds none, skips the consent lookups.
     function aSourcePulses(uid) {
-      return !exists(/databases/$(database)/documents/friendAllPolicies/$(uid)) || !aConsent(uid)
-        || (aSourcePulseRequired(uid, 'games') && aSourcePulseRequired(uid, 'ranking'));
+      return !exists(/databases/$(database)/documents/friendAllPolicies/$(uid))
+        || (aSourcePulseRequired(uid, 'games') && aSourcePulseRequired(uid, 'ranking')) || !aConsent(uid);
     }
     function aSourcePulse(uid, before, after) {
       let sync = head(uid);
