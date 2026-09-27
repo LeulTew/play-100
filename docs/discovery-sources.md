@@ -154,6 +154,9 @@ for that identity, or any private record. Native opening, focus, close and
 editing never wait for a provider. Unsupported or failed sources stay explicit.
 Personal tracking, ranking and rating controls precede the supplementary
 external ratings, matching the original detail's reading and keyboard order.
+An external detail can add only its metadata to My games, without changing
+progress, queue membership or ranking. The action reflects the saved Library
+state; canonical collection details retain their existing actions.
 Each external row keeps its publisher, literal score/scale, score type and known
 platform visible. A native per-source disclosure retains method, counts, exact
 unknowns, score/reference/retrieval dates and active provenance links.

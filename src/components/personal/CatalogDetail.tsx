@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalProgress } from '../../lib/personal-types';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { MotionOriginLease } from '../../motion';
@@ -45,8 +45,19 @@ export default function CatalogDetail({
   onRankings,
 }: CatalogDetailProps) {
   const artRef = useRef<HTMLDivElement>(null);
+  const [addFailed, setAddFailed] = useState(false);
   const enrichment = useCatalogEnrichment(record.id, publicLookup);
   const externalArtwork = artwork ? null : (enrichment.data?.artwork ?? null);
+  const canAddToLibrary = record.source !== 'collection';
+  const addToLibrary = async () => {
+    setAddFailed(false);
+    try {
+      if (!(await onAction({ type: 'add-records', records: [record] }))) setAddFailed(true);
+    } catch (cause) {
+      console.error('The game could not be added to My games.', cause);
+      setAddFailed(true);
+    }
+  };
   return (
     <Dialog
       open
@@ -107,6 +118,19 @@ export default function CatalogDetail({
       )}
       <p className="section-help">Source metadata is not independently verified.</p>
       <div className="detail-actions">
+        {canAddToLibrary && (
+          <button
+            className={`button ${saved ? 'button-outline' : 'button-dark'}`}
+            disabled={busy || saved}
+            aria-label={`${saved ? 'In My games' : 'Add to My games'}: ${record.title}`}
+            onClick={() => {
+              void addToLibrary();
+            }}
+          >
+            <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />
+            {saved ? 'In My games' : 'Add to My games'}
+          </button>
+        )}
         <button
           className={`button ${progress?.later ? 'button-lime' : 'button-dark'}`}
           disabled={busy}
@@ -130,6 +154,11 @@ export default function CatalogDetail({
           Completed
         </button>
       </div>
+      {addFailed && !saved && (
+        <p className="inline-error" role="alert">
+          This game could not be added to My games. Your library is unchanged. Try again.
+        </p>
+      )}
       <div className="personal-detail-actions">
         <PlayedToggle
           id={record.id}
@@ -172,7 +201,9 @@ export default function CatalogDetail({
       <p className="device-note">
         {saved
           ? 'Saved in My games.'
-          : 'Preview only. Add to My games from Discover, or rate or mark progress here to keep this game.'}{' '}
+          : canAddToLibrary
+            ? 'Preview only. Add to My games to keep this game without changing your progress, queue or ranking.'
+            : 'Preview only. Rate or mark progress here to keep this game.'}{' '}
         The 100 stays unchanged.
       </p>
       <CatalogEnrichment enrichment={enrichment} lookup={publicLookup} />

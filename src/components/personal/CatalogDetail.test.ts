@@ -23,6 +23,25 @@ function renderDetail(overrides: Partial<CatalogDetailProps> = {}) {
 }
 
 describe('catalog detail artwork continuity surface', () => {
+  it.each([
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ])('offers the metadata-only library action with saved=%s and busy=%s', (saved, busy) => {
+    const { html, props } = renderDetail({ saved, busy });
+    const label = `${saved ? 'In My games' : 'Add to My games'}: ${discoveryFixture.record.title}`;
+    const button = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find((value) => value.includes(label));
+    expect(button).toBeDefined();
+    expect(button?.includes('disabled=""')).toBe(saved || busy);
+    expect(html).toContain(
+      saved
+        ? 'Saved in My games.'
+        : 'Preview only. Add to My games to keep this game without changing your progress, queue or ranking.',
+    );
+    expect(props.onAction).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])('keeps the detail queue name stable with pressed=%s', (selected) => {
     const { html } = renderDetail({ progress: { later: selected, completed: selected, played: selected } });
     const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
@@ -87,7 +106,8 @@ describe('catalog detail artwork continuity surface', () => {
       'Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.',
     );
     expect(html).toContain('Preview only.');
-    expect(html).toContain('Add to My games from Discover');
+    expect(html).toContain('Add to My games to keep this game without changing your progress, queue or ranking.');
+    expect(html).not.toContain('Add to My games from Discover');
     expect(html).toContain('The 100 stays unchanged.');
   });
 
@@ -125,6 +145,7 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).not.toContain('<img');
     expect(html).not.toContain('/covers/');
     expect(html).toContain('Artwork unavailable');
+    expect(html).not.toContain(`Add to My games: ${record.title}`);
   });
 
   it('retains the shared artwork safety and escaped-credit behavior in this consumer', () => {
