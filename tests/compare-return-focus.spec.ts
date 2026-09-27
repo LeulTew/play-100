@@ -245,10 +245,7 @@ for (const returnToFallback of [false, true]) {
   });
 }
 
-test('native Back cancels a cold comparison return before the account module finishes', async ({
-  page,
-  isMobile,
-}) => {
+test('native Back cancels a cold comparison return before the account module finishes', async ({ page, isMobile }) => {
   await page
     .getByRole('navigation', { name: isMobile ? 'Mobile navigation' : 'Main navigation', exact: true })
     .getByRole('link', { name: 'The 100', exact: true })
