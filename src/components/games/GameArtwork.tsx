@@ -99,7 +99,7 @@ function creditLines(credit: string): CreditLine[] | null {
 }
 
 function safeCreditLink(value: string): boolean {
-  if (/[\s\\\u0000-\u001f\u007f]/.test(value)) return false;
+  if (/[\s\\\p{Cc}]/u.test(value)) return false;
   try {
     const url = new URL(value);
     return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password;
