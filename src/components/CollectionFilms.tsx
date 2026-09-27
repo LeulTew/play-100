@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { collectionFilms, filmDuration, unloadFilm } from '../lib/films';
 import type { CollectionFilm } from '../lib/films';
-import thumbnails from '../generated/film-thumbnails.json';
+import thumbnails from '../generated/film-thumbnails.json' with { type: 'json' };
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 import './collection-films.css';

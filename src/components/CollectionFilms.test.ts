@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import thumbnails from '../generated/film-thumbnails.json';
+import thumbnails from '../generated/film-thumbnails.json' with { type: 'json' };
 import { collectionFilms } from '../lib/films';
 import { isPublicPwaFile } from '../pwa/worker';
 import CollectionFilms, { FilmPoster } from './CollectionFilms';

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Request } from '@playwright/test';
-import thumbnails from '../src/generated/film-thumbnails.json';
+import thumbnails from '../src/generated/film-thumbnails.json' with { type: 'json' };
 import { collectionFilms } from '../src/lib/films';
 
 test.use({ deviceScaleFactor: 2, serviceWorkers: 'block' });

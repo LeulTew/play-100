@@ -93,7 +93,7 @@ export async function generateFilmThumbnails(root = ROOT, verify = false) {
         } catch (error) {
           if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
           if (!(await readFile(destination)).equals(data)) {
-            throw new Error(`Refusing to overwrite a corrupt content-hashed thumbnail: ${filename}`);
+            throw new Error(`Refusing to overwrite a corrupt content-hashed thumbnail: ${filename}`, { cause: error });
           }
         }
       } finally {

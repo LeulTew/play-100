@@ -77,15 +77,16 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
     .poll(() =>
       page
         .locator('.film-poster img')
-        .evaluateAll((images) =>
-          images.length === 2 &&
-          images.every(
-            (image) =>
-              image instanceof HTMLImageElement &&
-              image.complete &&
-              image.naturalWidth > 0 &&
-              new URL(image.currentSrc).pathname.startsWith('/videos/thumbnails/'),
-          ),
+        .evaluateAll(
+          (images) =>
+            images.length === 2 &&
+            images.every(
+              (image) =>
+                image instanceof HTMLImageElement &&
+                image.complete &&
+                image.naturalWidth > 0 &&
+                new URL(image.currentSrc).pathname.startsWith('/videos/thumbnails/'),
+            ),
         ),
     )
     .toBe(true);
