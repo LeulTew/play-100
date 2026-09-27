@@ -1,3 +1,5 @@
+import type { LibraryRecord } from './personal-types';
+
 export const DISCOVERY_GENRE_FAMILIES = [
   { id: 'action-adventure', label: 'Action & adventure' },
   { id: 'role-playing', label: 'Role-playing' },
@@ -184,6 +186,14 @@ export function discoveryGenreFamilies(genre: string | null): readonly Discovery
     (genre ?? '').split('/').flatMap((term) => familiesByTerm.get(term.trim().toLowerCase()) ?? []),
   );
   return matches.size ? [...matches] : ['other'];
+}
+
+export function catalogGenreLabel(record: Pick<LibraryRecord, 'source' | 'genre'>): string | null {
+  if (record.source === 'collection' || record.source === 'manual') return record.genre;
+  const families = new Set(discoveryGenreFamilies(record.genre));
+  return DISCOVERY_GENRE_FAMILIES.filter(({ id }) => families.has(id))
+    .map(({ label }) => label)
+    .join(' · ');
 }
 
 export function matchesDiscoveryGenre(

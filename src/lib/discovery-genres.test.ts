@@ -3,6 +3,7 @@ import { sourceTokenBytes } from '../../scripts/source-contract';
 import { describe, expect, it } from 'vitest';
 import {
   DISCOVERY_GENRE_FAMILIES,
+  catalogGenreLabel,
   discoveryGenreFamilies,
   matchesDiscoveryGenre,
   parseDiscoveryGenreFamily,
@@ -12,6 +13,35 @@ import { parseCollection } from './collection';
 import { catalogSearchItems } from './catalog-identity';
 import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE, searchDiscoveryItems } from './discovery-search';
 import { getLocalPage } from './local-pagination';
+
+describe('concise provider genre labels', () => {
+  it.each([
+    [
+      'role-playing video game / turn-based Japanese role-playing game / time travel video game / video game with LGBT character',
+      'Role-playing',
+    ],
+    ['Action RPG / Sci-Fi', 'Action & adventure · Role-playing'],
+    ['tactical role-playing game / puzzle video game', 'Role-playing · Strategy · Puzzles'],
+    ['RPG / role-playing video game / RPG', 'Role-playing'],
+    ['real-time strategy / historical video game', 'Strategy'],
+    ['unknown shooterish theme', 'Other / unclassified'],
+    [null, 'Other / unclassified'],
+  ])('summarizes %s without rewriting it', (genre, expected) => {
+    const record = Object.freeze({ source: 'wikidata' as const, genre });
+    expect(catalogGenreLabel(record)).toBe(expected);
+    expect(record.genre).toBe(genre);
+  });
+
+  it.each(['steam', 'freetogame'] as const)('uses the same mapping for %s records', (source) => {
+    expect(catalogGenreLabel({ source, genre: 'Shooter' })).toBe('Shooters');
+  });
+
+  it.each(['collection', 'manual'] as const)('preserves %s genre wording and missing values', (source) => {
+    const genre = 'Action RPG / Sci-Fi';
+    expect(catalogGenreLabel({ source, genre })).toBe(genre);
+    expect(catalogGenreLabel({ source, genre: null })).toBeNull();
+  });
+});
 
 describe('explicit browsing families without rewriting source genres', () => {
   it.each([

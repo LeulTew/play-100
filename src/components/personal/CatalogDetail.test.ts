@@ -77,6 +77,17 @@ describe('catalog detail artwork continuity surface', () => {
     expect(props.onRankings).not.toHaveBeenCalled();
   });
 
+  it('keeps raw provider classifications in a native disclosure below the concise genre', () => {
+    const genre = 'role-playing video game / turn-based Japanese role-playing game / time travel video game';
+    const { html, props } = renderDetail({ record: { ...discoveryFixture.record, genre } });
+    expect(html).toContain('<dt>Genre</dt><dd>Role-playing</dd>');
+    expect(html).toContain('<details class="catalog-enrichment-sources catalog-source-classification">');
+    expect(html).toContain('<summary>Source classification</summary>');
+    expect(html).toContain(`<p class="catalog-enrichment-note">${genre}</p>`);
+    expect(html).not.toContain('open=""');
+    expect(props.record.genre).toBe(genre);
+  });
+
   it('retains the full source, conversion and license credit in a labelled native disclosure', () => {
     const artwork = {
       ...artworkFixture,

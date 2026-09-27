@@ -75,3 +75,45 @@ test('canonical Discover details keep the original collection actions', async ({
   await expect(detail.getByRole('button', { name: /^Add to My games:/ })).toHaveCount(0);
   await expect(detail.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
 });
+
+for (const [genre, label] of [
+  [
+    'role-playing video game / turn-based Japanese role-playing game / time travel video game / video game with LGBT character',
+    'Role-playing',
+  ],
+  ['time travel video game / unknown shooterish theme', 'Other / unclassified'],
+  [null, 'Other / unclassified'],
+] as const) {
+  test(`provider genre ${genre ?? 'missing'} keeps its full source classification`, async ({ page }) => {
+    await page.route('**/data/discovery/catalog.v1.json', (route) =>
+      route.fulfill({
+        json: {
+          ...catalogFixture,
+          items: [{ ...discoveryFixture, record: { ...record, genre } }],
+        },
+      }),
+    );
+    await page.goto('/discover?catalogs=off');
+    const card = page.locator(`[data-catalog-id="${record.id}"]`);
+    await expect(card.locator('.discovery-card-meta')).toHaveText(`${record.year} · ${label}`);
+    await card.getByText('Actions & source', { exact: true }).click();
+    await expect(card.locator('.discovery-card-source')).toContainText(
+      `Source classification: ${genre ?? 'Not provided'}`,
+    );
+    await card.getByRole('button', { name: record.title, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: record.title, exact: true });
+    const genreField = dialog.locator('.catalog-facts > div').filter({
+      has: page.locator('dt').filter({ hasText: /^Genre$/ }),
+    });
+    await expect(genreField.locator('dd')).toHaveText(label);
+    const classification = dialog.locator('.catalog-source-classification');
+    await expect(classification).not.toHaveAttribute('open');
+    await classification.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(classification).toHaveAttribute('open', '');
+    await expect(classification.locator('p')).toHaveText(genre ?? 'Not provided');
+    await dialog.getByRole('button', { name: `Add to My games: ${record.title}`, exact: true }).click();
+    await expect(dialog.getByRole('button', { name: `In My games: ${record.title}`, exact: true })).toBeDisabled();
+    expect((await readLibrary(page)).records[record.id]?.genre).toBe(genre);
+  });
+}

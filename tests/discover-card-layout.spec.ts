@@ -7,7 +7,8 @@ const items = [
   { title: 'A short title', genre: 'Puzzle' },
   {
     title: 'B longer title: an expedition across the many islands of a distant world',
-    genre: 'action-adventure game / role-playing video game / historical video game / open-world action RPG',
+    genre:
+      'action-adventure game / role-playing video game / historical video game / open-world action RPG / first-person shooter / platformer',
   },
   { title: 'C another game', genre: 'real-time strategy / historical video game' },
   {
@@ -218,10 +219,17 @@ test('Discover grid action rows align at 1024 and 393 without truncating text', 
   await expect(cards).toHaveCount(items.length);
   await page.evaluate(() => document.fonts.ready);
 
-  for (const { record } of items) {
+  const primaryGenres = [
+    'Puzzles',
+    'Action & adventure · Role-playing · Shooters · Platformers',
+    'Strategy',
+    'Casual & social',
+  ];
+  for (const [index, { record }] of items.entries()) {
     const card = page.locator(`[data-catalog-id="${record.id}"]`);
     await expect(card.locator('h3')).toHaveText(record.title);
-    await expect(card.locator('.discovery-card-meta')).toHaveText(`${record.year} · ${record.genre}`);
+    await expect(card.locator('.discovery-card-meta')).toHaveText(`${record.year} · ${primaryGenres[index]}`);
+    await expect(card.locator('.discovery-card-source')).toContainText(`Source classification: ${record.genre}`);
   }
   const geometry = await cards.evaluateAll((elements) =>
     elements.map((card) => {

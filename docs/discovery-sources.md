@@ -103,6 +103,10 @@ correction, not a new collection or a private-library migration.
 - Cards use the existing responsive discovery grid/list and original GameCover,
   a short "From The 100" rank/rating line, and existing labelled actions.
   Unknown games retain provider artwork/credits and explicit missing-art state.
+  Provider cards and details summarize the existing genre-family interpretation
+  in primary copy. Their complete original source classification stays available
+  under Actions & source or a native source-classification disclosure. Imported
+  records, canonical genres and manually entered genres are never rewritten.
   Grid cards share their row's height and anchor primary actions at the bottom
   of the flexible text area. Full titles and genres wrap without truncation;
   the ordinary list layout and native Actions & source disclosure are unchanged.

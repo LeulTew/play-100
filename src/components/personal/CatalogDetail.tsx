@@ -10,6 +10,7 @@ import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { author } from '../../lib/author';
 import { CATALOG_EDITION_HINTS } from '../../lib/collection-identities';
+import { catalogGenreLabel } from '../../lib/discovery-genres';
 import { useCatalogEnrichment } from '../../hooks/useCatalogEnrichment';
 import type { PublicCatalogLookup } from '../../hooks/useCatalogEnrichment';
 import { CatalogEnrichment, ExternalCatalogArtwork, ExternalCatalogArtworkCredit } from '../catalog/CatalogEnrichment';
@@ -107,9 +108,15 @@ export default function CatalogDetail({
         </div>
         <div>
           <dt>Genre</dt>
-          <dd>{record.genre ?? 'Not provided'}</dd>
+          <dd>{catalogGenreLabel(record) ?? 'Not provided'}</dd>
         </div>
       </dl>
+      {record.source !== 'collection' && record.source !== 'manual' && (
+        <details className="catalog-enrichment-sources catalog-source-classification">
+          <summary>Source classification</summary>
+          <p className="catalog-enrichment-note">{record.genre ?? 'Not provided'}</p>
+        </details>
+      )}
       {record.sourceUrl && (
         <a className="catalog-source-link" href={record.sourceUrl} target="_blank" rel="noreferrer">
           View on {SOURCE_LABELS[record.source]}

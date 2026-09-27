@@ -15,6 +15,7 @@ import { author, authorRatingText } from '../../lib/author';
 import { SavedCatalogCopies } from './SavedCatalogCopies';
 import { useCompareDragSource } from '../compare-tray/useCompareDragSource';
 import { CATALOG_EDITION_HINTS } from '../../lib/collection-identities';
+import { catalogGenreLabel } from '../../lib/discovery-genres';
 import './discover.css';
 
 export interface DiscoveryCardProps {
@@ -161,7 +162,7 @@ export function DiscoveryCard({
           </p>
         )}
         <p className="discovery-card-meta">
-          {[CATALOG_EDITION_HINTS.get(record.id) ?? record.year, record.genre]
+          {[CATALOG_EDITION_HINTS.get(record.id) ?? record.year, catalogGenreLabel(record)]
             .filter((value) => value !== null)
             .join(' · ') || 'Game'}
         </p>
@@ -253,6 +254,11 @@ export function DiscoveryCard({
           </div>
           <div className="discovery-card-source">
             {record.studio && <p>{record.studio}</p>}
+            {record.source !== 'collection' && record.source !== 'manual' && (
+              <p>
+                <strong>Source classification:</strong> {record.genre ?? 'Not provided'}
+              </p>
+            )}
             {record.sourceUrl ? (
               <a href={record.sourceUrl} target="_blank" rel="noreferrer">
                 Game data: {SOURCE_LABELS[record.source]}

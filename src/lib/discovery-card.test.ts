@@ -28,6 +28,8 @@ describe('compact catalog card markup', () => {
     expect(html).toContain(artworkFixture.sourceUrl);
     expect(html).toContain(artworkFixture.licenseUrl);
     expect(html).toContain(discoveryFixture.record.sourceUrl);
+    expect(html).toContain('<p class="discovery-card-meta">2018 · Role-playing</p>');
+    expect(html).toContain('<strong>Source classification:</strong> RPG');
     expect(html).toContain('Play later');
     expect(html).toContain('Add to ranking');
     expect(onAction).not.toHaveBeenCalled();
