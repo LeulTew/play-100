@@ -641,6 +641,15 @@ export default function LibraryPage({
           </div>
         </div>
       )}
+      <LocalPager
+        total={records.length}
+        pageSize={LIBRARY_PAGE_SIZE}
+        offset={page.offset}
+        disabled={tab === 'later' ? !active || moving : busy}
+        label={tab === 'later' ? 'Queue pages, end of list' : 'Library pages, end of list'}
+        itemLabel={tab === 'later' ? 'queued game' : 'matching game'}
+        onOffsetChange={changePage}
+      />
       <ManualGameForm
         busy={busy}
         actionLabel={tab === 'later' ? 'Add to my play queue' : 'Add to my library'}

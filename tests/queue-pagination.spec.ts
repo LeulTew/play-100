@@ -61,6 +61,46 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
+for (const view of ['Library', 'Queue'] as const) {
+  test(`${view} bottom pager continues from page 2 to page 3 and returns focus to the results`, async ({ page }) => {
+    const isQueue = view === 'Queue';
+    if (isQueue) await openQueue(page);
+    else await installGuestLibrary(page, queueFixture(), '/my-games?catalogs=off&page=2');
+    const top = page.getByRole('navigation', { name: `${view} pages`, exact: true });
+    const bottom = page.getByRole('navigation', { name: `${view} pages, end of list`, exact: true });
+    const heading = page.getByRole('heading', { name: `Your ${view.toLowerCase()} results`, exact: true });
+    const itemLabel = isQueue ? 'queued games' : 'matching games';
+    if (isQueue) await top.getByRole('combobox').selectOption('2');
+    await expect(top).toHaveCount(1);
+    await expect(bottom).toHaveCount(1);
+    await expect(bottom.getByRole('combobox')).toHaveValue('2');
+    await expect(bottom).toContainText(`26–50 of 60 ${itemLabel}`);
+    const before = await readLibrary(page);
+    const lastRow = page.locator('.personal-row').last();
+    await lastRow.scrollIntoViewIfNeeded();
+    await bottom.scrollIntoViewIfNeeded();
+    const rowBounds = await lastRow.boundingBox();
+    const pagerBounds = await bottom.boundingBox();
+    if (!rowBounds || !pagerBounds) throw new Error('Continuation pager or final record is missing.');
+    expect(pagerBounds.y).toBeGreaterThanOrEqual(rowBounds.y + rowBounds.height);
+    await bottom.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(top.getByRole('combobox')).toHaveValue('3');
+    await expect(bottom.getByRole('combobox')).toHaveValue('3');
+    await expect(top).toContainText(`51–60 of 60 ${itemLabel}`);
+    await expect(bottom).toContainText(`51–60 of 60 ${itemLabel}`);
+    await expect(heading).toBeFocused();
+    await expect(heading).toBeInViewport();
+    await expect(page.locator('.personal-row')).toHaveCount(10);
+    await expect(bottom.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+    expect(new URL(page.url()).searchParams.get('page')).toBe(isQueue ? null : '3');
+    expect(await readLibrary(page)).toEqual(before);
+    await page.getByRole('searchbox', { name: `Search your ${view.toLowerCase()}`, exact: true }).fill('00060');
+    await expect(page.locator('.personal-row')).toHaveCount(1);
+    await expect(top).toHaveCount(0);
+    await expect(bottom).toHaveCount(0);
+  });
+}
+
 test('10,000 queued games stay bounded through last-page navigation, boundary moves and search', async ({
   page,
 }, info) => {

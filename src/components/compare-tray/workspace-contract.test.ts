@@ -143,6 +143,12 @@ describe('workspace embedding contract', () => {
       expect(html).toContain('role="status" aria-atomic="true"');
       expect(html.match(/class="personal-row personal-row-static"/g) ?? []).toHaveLength(Math.min(total, 25));
       expect(html.includes('aria-label="Library pages"')).toBe(total > 25);
+      expect(html.includes('aria-label="Library pages, end of list"')).toBe(total > 25);
+      if (total > 25) {
+        const continuation = html.indexOf('aria-label="Library pages, end of list"');
+        expect(continuation).toBeGreaterThan(html.lastIndexOf('class="personal-row personal-row-static"'));
+        expect(continuation).toBeLessThan(html.indexOf('Add a game manually'));
+      }
       expect(html.includes('Search your library')).toBe(total > 0);
       expect(html.includes('Select games')).toBe(total > 0);
       expect(html).toContain('Add a game manually');
