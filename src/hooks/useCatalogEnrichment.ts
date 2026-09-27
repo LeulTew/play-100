@@ -1,27 +1,16 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { CatalogEnrichmentSession, enrichmentRequestKey } from '../lib/catalog-enrichment-session';
 import { afterFrame } from '../lib/after-frame';
+import { useConnectionStatus } from './useConnectionStatus';
 
 export interface PublicCatalogLookup {
   online: boolean;
   scopeKey: string;
   onEnableOnline: () => void;
 }
-function subscribeConnection(listener: () => void) {
-  window.addEventListener('online', listener);
-  window.addEventListener('offline', listener);
-  return () => {
-    window.removeEventListener('online', listener);
-    window.removeEventListener('offline', listener);
-  };
-}
 export function useCatalogEnrichment(id: string, lookup?: PublicCatalogLookup) {
   const [session] = useState(() => new CatalogEnrichmentSession());
-  const connected = useSyncExternalStore(
-    subscribeConnection,
-    () => navigator.onLine,
-    () => false,
-  );
+  const connected = useConnectionStatus();
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   const allowed = Boolean(lookup);
   const online = lookup?.online ?? false;

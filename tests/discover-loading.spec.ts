@@ -137,6 +137,53 @@ test('a failed seed reports incomplete coverage while retaining known original g
   await expect(page.locator('.game-dialog[open]')).toBeVisible();
 });
 
+test('an offline catalog retry gives reconnect instructions instead of promising an online fallback', async ({
+  page,
+  context,
+}) => {
+  await page.route('**/data/discovery/catalog.v1.json', (route) =>
+    route.fulfill({ status: 503, body: 'Controlled local catalog failure.' }),
+  );
+  await page.goto('/discover?q=Outer%20Wilds');
+  const notice = page.getByRole('alert').filter({ hasText: 'The local catalog could not be loaded.' });
+  await expect(notice).toBeVisible();
+  await context.setOffline(true);
+  try {
+    expect(await page.evaluate(() => navigator.onLine)).toBe(false);
+    await expect(notice).toContainText('Reconnect before reloading the catalog or searching online.');
+    await notice.getByRole('button', { name: 'Reload local catalog', exact: true }).click();
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText('Reconnect before reloading the catalog or searching online.');
+    await expect(page.locator('.discovery-results-heading [role="status"]')).toHaveText('Catalog incomplete');
+    await expect(page.locator('body')).not.toContainText('Trying online catalogs');
+  } finally {
+    await context.setOffline(false);
+  }
+  await expect(notice).not.toContainText('Reconnect before');
+});
+
+test('catalog fallback describes connected provider work only while the lookup is loading', async ({ page }) => {
+  const providers = holdCatalog();
+  await page.route('**/data/discovery/catalog.v1.json', (route) =>
+    route.fulfill({ status: 503, body: 'Controlled local catalog failure.' }),
+  );
+  await page.route('**/api/catalog?**', async (route) => {
+    await providers.ready;
+    await route.fallback();
+  });
+  try {
+    await page.goto('/discover?q=Outer%20Wilds&online=on');
+    const notice = page.getByRole('alert').filter({ hasText: 'The local catalog could not be loaded.' });
+    await expect(notice).toContainText('Trying online catalogs instead.');
+    providers.release();
+    await expect(page.getByRole('group', { name: 'Online catalog status', exact: true })).not.toContainText('Loading');
+    await expect(notice).toContainText('Online catalog results and source status are below.');
+    await expect(notice).not.toContainText('Trying online catalogs');
+  } finally {
+    providers.release();
+  }
+});
+
 for (const destination of ['/discover?q=Kingdomcome&catalogs=off', '/?q=Kingdomcome']) {
   for (const diagnostic of [
     'expected an ISO UTC timestamp.',

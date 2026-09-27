@@ -7,6 +7,7 @@ import type { DiscoveryFilters } from '../../lib/discovery-search';
 import { DISCOVERY_GENRE_FAMILIES, parseDiscoveryGenreFamily } from '../../lib/discovery-genres';
 import { useDiscoverSearch } from '../../hooks/useDiscoverSearch';
 import { useDiscoveryUrl } from '../../hooks/useDiscoveryUrl';
+import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { Icon } from '../Icon';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { SelectionBar } from '../SelectionBar';
@@ -49,6 +50,7 @@ export default function DiscoverPage({
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
   const { filters, update, error: navigationError, saving, search: locationSearch } = useDiscoveryUrl();
+  const connected = useConnectionStatus();
   const games = collection.data?.games ?? [];
   const search = useDiscoverSearch(filters, games, collection.status === 'ready', state);
   const progressView = filters.progress ?? 'all';
@@ -454,7 +456,15 @@ export default function DiscoverPage({
             <div className="discovery-notice" role="alert">
               <p>
                 {seed.error} The 100 remains searchable.{' '}
-                {filters.catalogs === 'off' ? 'Online lookup is off.' : 'Trying online catalogs instead.'}
+                {!connected
+                  ? 'Reconnect before reloading the catalog or searching online.'
+                  : filters.catalogs === 'off'
+                    ? 'Online lookup is off.'
+                    : remoteEnabled
+                      ? remote.loading
+                        ? 'Trying online catalogs instead.'
+                        : 'Online catalog results and source status are below.'
+                      : 'Change your search or filters to look online.'}
               </p>
               <button className="text-button" onClick={seed.retry}>
                 Reload local catalog

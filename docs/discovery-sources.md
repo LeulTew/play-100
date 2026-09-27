@@ -126,6 +126,9 @@ correction, not a new collection or a private-library migration.
   explicit. Public discovery never guesses a match while the canonical data is
   unavailable. A source failure must not replace authored metadata or mutate a
   saved library. Query, filters, paging, Back and reload keep their URL contract.
+  Failed local-catalog copy gives reconnect instructions while offline, describes
+  an online fallback only during a connected lookup, and points to source status
+  after that lookup settles. This does not promise offline Discover availability.
   `genreFamily` and the legacy exact `genre` remain independent, cumulative
   local filters. The include-collection choice resets only its own paging
   position; it does not rewrite either genre or unrelated URL parameters.
