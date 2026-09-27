@@ -78,7 +78,14 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
       page
         .locator('.film-poster img')
         .evaluateAll((images) =>
-          images.every((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth === 1920),
+          images.length === 2 &&
+          images.every(
+            (image) =>
+              image instanceof HTMLImageElement &&
+              image.complete &&
+              image.naturalWidth > 0 &&
+              new URL(image.currentSrc).pathname.startsWith('/videos/thumbnails/'),
+          ),
         ),
     )
     .toBe(true);
@@ -95,6 +102,7 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
     await expect(dialog.getByRole('heading', { name: film.title, exact: true })).toBeFocused();
     await expect(video).toHaveCount(1);
     await expect(video).toHaveAttribute('src', film.video.src);
+    await expect(video).toHaveAttribute('poster', film.poster.src);
     await expect.poll(() => video.evaluate((player: HTMLVideoElement) => player.readyState)).toBeGreaterThanOrEqual(1);
     expect(await video.evaluate((player: HTMLVideoElement) => player.paused && !player.autoplay)).toBe(true);
     expect(await video.evaluate((player: HTMLVideoElement) => player.duration)).toBeCloseTo(22, 1);
@@ -160,7 +168,9 @@ test('poster and media failures keep Watch, retry, text alternatives and downloa
   page,
   isMobile,
 }) => {
-  await page.route('**/videos/*.jpg', (route) => route.fulfill({ status: 404, body: 'Missing poster fixture' }));
+  await page.route('**/videos/thumbnails/*.webp', (route) =>
+    route.fulfill({ status: 404, body: 'Missing poster fixture' }),
+  );
   await page.route('**/videos/*.mp4', (route) => route.fulfill({ status: 503, body: 'Unavailable media fixture' }));
   await page.goto('/#collection-films');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();

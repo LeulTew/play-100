@@ -29,6 +29,17 @@ function manifest(): Manifest {
 }
 
 describe('generated public PWA build closure', () => {
+  it('does not add optional film thumbnail images to the full core even if Vite reports them as entry assets', () => {
+    const entries = manifest();
+    const root = entries['index.html']!;
+    root.assets = [
+      ...(root.assets ?? []),
+      `/videos/thumbnails/${'a'.repeat(64)}.webp`,
+      `videos/thumbnails/${'b'.repeat(64)}.webp`,
+    ];
+    expect(pwaCorePaths(entries)).toEqual(pwaCorePaths(manifest()));
+  });
+
   it('rejects Vite metadata in the generated core while preserving normal public roots', () => {
     const entries = manifest();
     const original = entries._shared;

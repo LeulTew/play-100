@@ -1,19 +1,30 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { collectionFilms, filmDuration, unloadFilm } from '../lib/films';
 import type { CollectionFilm } from '../lib/films';
+import thumbnails from '../generated/film-thumbnails.json';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 import './collection-films.css';
 
-function FilmPoster({ film }: { film: CollectionFilm }) {
+// Matches the 40% mobile / 42% desktop row, its 24px grid gap and the capped 1600px section.
+const POSTER_SIZES =
+  '(max-width: 380px) calc(40vw - 13.6px), (max-width: 760px) calc(40vw - 17.6px), ' +
+  '(max-width: 1600px) calc(19.32vw - 5.04px), (max-width: 1800px) calc(330.96px - 1.68vw), 300.72px';
+
+export function FilmPoster({ film, enabled }: { film: CollectionFilm; enabled: boolean }) {
   const [failed, setFailed] = useState(false);
+  const candidates = thumbnails.films[film.id].candidates;
+  const smallest = candidates[0];
+  if (!smallest) throw new Error(`Listing thumbnails are missing for ${film.id}.`);
   return (
     <span className="film-poster">
       {failed ? (
         <span className="film-poster-fallback">Poster unavailable</span>
-      ) : (
+      ) : enabled ? (
         <img
-          src={film.poster.src}
+          src={smallest.src}
+          srcSet={candidates.map((candidate) => `${candidate.src} ${candidate.width}w`).join(', ')}
+          sizes={POSTER_SIZES}
           width={film.poster.width}
           height={film.poster.height}
           loading="lazy"
@@ -21,7 +32,7 @@ function FilmPoster({ film }: { film: CollectionFilm }) {
           alt=""
           onError={() => setFailed(true)}
         />
-      )}
+      ) : null}
       <span className="film-play-mark" aria-hidden="true">
         <svg width="20" height="20" viewBox="0 0 20 20">
           <path d="M6 3 17 10 6 17Z" fill="currentColor" />
@@ -84,12 +95,32 @@ function FilmVideo({ film, onRetry }: { film: CollectionFilm; onRetry: () => voi
   );
 }
 
-export default function CollectionFilms() {
+export default function CollectionFilms({ postersReady }: { postersReady: boolean }) {
   const [active, setActive] = useState<CollectionFilm | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [postersEnabled, setPostersEnabled] = useState(false);
+  const section = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
   const close = () => setActive(null);
+  useEffect(() => {
+    if (!postersReady || postersEnabled || !section.current) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setPostersEnabled(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setPostersEnabled(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px 0px' },
+    );
+    observer.observe(section.current);
+    return () => observer.disconnect();
+  }, [postersReady, postersEnabled]);
   useEffect(() => {
     if (active) heading.current?.focus({ preventScroll: true });
   }, [active, attempt]);
@@ -105,7 +136,15 @@ export default function CollectionFilms() {
     };
   }, []);
   return (
-    <section id="collection-films" className="collection-films" aria-labelledby="collection-films-title">
+    <section
+      ref={section}
+      id="collection-films"
+      className="collection-films"
+      aria-labelledby="collection-films-title"
+      onFocusCapture={() => {
+        if (postersReady) setPostersEnabled(true);
+      }}
+    >
       <div className="films-heading">
         <h2 id="collection-films-title" tabIndex={-1}>
           Watch films
@@ -123,7 +162,7 @@ export default function CollectionFilms() {
                 setActive(film);
               }}
             >
-              <FilmPoster film={film} />
+              <FilmPoster film={film} enabled={postersReady && postersEnabled} />
               <span className="film-summary">
                 <strong>{film.title}</strong> <span>{film.description}</span>{' '}
                 <small>{filmDuration(film.durationSeconds)} · Watch film</small>

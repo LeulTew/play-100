@@ -39,8 +39,10 @@ describe('finished first-party collection films', () => {
       expect(readFileSync(asset(film.credits), 'utf8')).toMatch(/Kenney|kenney/);
       expect(readFileSync(asset(film.transcriptFile), 'utf8')).toContain('00:00-00:04');
     }
-    for (const file of readdirSync(new URL('../../public/videos/', import.meta.url)))
-      expect(file).toMatch(/^[a-f0-9]{64}\.(mp4|jpg|vtt|md|txt)$/);
+    for (const file of readdirSync(new URL('../../public/videos/', import.meta.url), { withFileTypes: true })) {
+      if (file.isDirectory()) expect(file.name).toBe('thumbnails');
+      else expect(file.name).toMatch(/^[a-f0-9]{64}\.(mp4|jpg|vtt|md|txt)$/);
+    }
   });
   it('ships fast-start MP4 files with the metadata before the media payload', () => {
     for (const film of collectionFilms) {

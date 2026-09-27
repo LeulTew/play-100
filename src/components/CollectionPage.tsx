@@ -473,7 +473,7 @@ export default function CollectionPage({
           </div>
         )}
       </section>
-      <CollectionFilms />
+      <CollectionFilms postersReady={collection.status !== 'loading'} />
       <AnimatedContent animate={animate} className="workbook-section">
         <div className="workbook-art" aria-hidden="true">
           <div className="workbook-sheet sheet-back" />
