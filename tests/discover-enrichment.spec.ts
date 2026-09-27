@@ -145,6 +145,42 @@ test('online optout makes no detail request until the explicit enable action', a
   expect(requests.length).toBeGreaterThan(0);
 });
 
+test('personal catalog actions precede a long external rating list at 393px', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 851 });
+  const data = enrichmentFixture();
+  const rating = data.ratings[0];
+  if (!rating) throw new Error('The enrichment fixture needs a source rating.');
+  data.ratings = Array.from({ length: 12 }, (_, index) => ({
+    ...rating,
+    id: `${rating.id}-${index}`,
+    publisher: `Fixture publication ${index + 1}`,
+  }));
+  await page.route('**/api/catalog-detail?**', (route) => route.fulfill({ json: data }));
+  await page.goto('/discover?q=Kingdomcome');
+  await page.locator(`[data-catalog-id="${id}"]`).getByRole('button', { name: title, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: title, exact: true });
+  await expect(dialog.locator('.catalog-review-list > li')).toHaveCount(12);
+  await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Completed', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Add to my ranking', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('spinbutton')).toBeEnabled();
+  const order = await dialog.evaluate((element) => {
+    const firstRating = element.querySelector('.catalog-review-list > li');
+    const personal = [...element.querySelectorAll('.detail-actions, .personal-detail-actions, .catalog-detail-rating')];
+    if (!firstRating || personal.length !== 3)
+      throw new Error('Both personal controls and external ratings must render.');
+    return personal.map((controls) => ({
+      bottom: controls.getBoundingClientRect().bottom,
+      ratingTop: firstRating.getBoundingClientRect().top,
+      precedes: Boolean(controls.compareDocumentPosition(firstRating) & Node.DOCUMENT_POSITION_FOLLOWING),
+    }));
+  });
+  for (const controls of order) {
+    expect(controls.precedes).toBe(true);
+    expect(controls.bottom).toBeLessThanOrEqual(controls.ratingTop);
+  }
+});
+
 test('a late response cannot reopen a closed detail or attach ratings to a new game', async ({ page }) => {
   let release = () => {};
   const waiting = new Promise<void>((resolve) => {

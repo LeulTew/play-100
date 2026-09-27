@@ -106,7 +106,6 @@ export default function CatalogDetail({
         </a>
       )}
       <p className="section-help">Source metadata is not independently verified.</p>
-      <CatalogEnrichment enrichment={enrichment} lookup={publicLookup} />
       <div className="detail-actions">
         <button
           className={`button ${progress?.later ? 'button-lime' : 'button-dark'}`}
@@ -176,6 +175,7 @@ export default function CatalogDetail({
           : 'Preview only. Add to My games from Discover, or rate or mark progress here to keep this game.'}{' '}
         The 100 stays unchanged.
       </p>
+      <CatalogEnrichment enrichment={enrichment} lookup={publicLookup} />
     </Dialog>
   );
 }
