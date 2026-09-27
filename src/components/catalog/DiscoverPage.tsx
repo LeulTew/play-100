@@ -133,8 +133,8 @@ export default function DiscoverPage({
   const localRange =
     localReady && filters.online === 'auto' && local.length > DISCOVERY_PAGE_SIZE
       ? `${localPage.start}–${localPage.end} of ${local.length} catalog games`
-      : filters.q.trim()
-        ? `${local.length} catalog ${local.length === 1 ? 'match' : 'matches'}`
+      : filters.q.trim() || filters.online === 'on'
+        ? `${records.length} catalog ${records.length === 1 ? 'match' : 'matches'} shown`
         : `${local.length} ${local.length === 1 ? 'game' : 'games'} · Illustrated first`;
   const catalogStatus = catalogLoading
     ? 'Loading the catalog…'

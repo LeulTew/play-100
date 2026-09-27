@@ -85,6 +85,9 @@ correction, not a new collection or a private-library migration.
   rating, ranking, bulk selection, Pin/drag and Preview use the same canonical
   ID as The 100. Provider page offsets/status still describe the provider
   response; deduplication is not a fabricated exhaustive remote count.
+  Queried and explicit-online summaries count the deduplicated matches shown,
+  not only the bundled subset. Catalog page ranges retain their known local
+  total; separate provider statuses still describe raw provider coverage.
 - Cards use the existing responsive discovery grid/list and original GameCover,
   a short "From The 100" rank/rating line, and existing labelled actions.
   Unknown games retain provider artwork/credits and explicit missing-art state.

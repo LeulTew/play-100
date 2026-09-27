@@ -6,6 +6,8 @@ import { parseDiscoveryCatalogJson } from '../src/lib/discovery-catalog';
 import { catalogSearchItems } from '../src/lib/catalog-identity';
 import { defaultDiscoveryFilters, parseDiscoverySearch } from '../src/lib/discovery-search';
 import { discoveryScope } from '../src/lib/discovery-scope';
+import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
+import { catalogRecord, respondWithCatalog } from './catalog-helpers';
 import { readLibrary } from './library-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
 
@@ -212,3 +214,27 @@ test('one unqueried Discover result is counted in the singular', async ({ page }
   await expect(page.locator('[data-catalog-id]')).toHaveCount(3);
   await expect(page.locator('.discovery-results-heading')).toContainText('3 games · Illustrated first');
 });
+
+for (const total of [0, 1, 5]) {
+  test(`Discover counts ${total} deduplicated matches shown separately from provider coverage`, async ({ page }) => {
+    const remote = Array.from({ length: total }, (_, index) =>
+      catalogRecord('wikidata', `Q9100000${index + 1}`, `Scope count ${index + 1}`),
+    );
+    const bundled = remote[0] ?? discoveryFixture.record;
+    await page.route('**/data/discovery/catalog.v1.json', (route) =>
+      route.fulfill({
+        json: { ...catalogFixture, items: [{ ...discoveryFixture, record: bundled }] },
+      }),
+    );
+    await page.route('**/api/catalog?**', (route) => respondWithCatalog(route, remote));
+    await page.goto('/discover?q=Scope%20count&source=wikidata');
+    await expect(page.getByRole('group', { name: 'Online catalog status', exact: true })).toContainText(
+      total === 0 ? 'No online matches' : `${total} loaded online`,
+    );
+    await expect(page.locator('.discovery-results-heading [role="status"]')).toHaveText(
+      `${total} catalog ${total === 1 ? 'match' : 'matches'} shown`,
+    );
+    await expect(page.locator('[data-catalog-id]')).toHaveCount(total);
+    expect(await ids(page)).toEqual(remote.map((record) => record.id));
+  });
+}
