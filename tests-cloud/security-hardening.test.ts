@@ -300,25 +300,36 @@ describe('S3 report and friendship boundaries', () => {
     const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
     await seed({
       'syncHeads/Alice': { enabled: true, deleted: false, epoch: 1, revision: 0, current: null, previous: null },
-      'accounts/Alice/metadata/registry': { ids: ids.slice(0, 8), revision: 1 },
+      'accounts/Alice/metadata/registry': { ids: ids.slice(0, 7), revision: 1 },
     });
     const db = user('Alice');
-    const manifest = { format: 1, generation: ids[8], digest: 'a'.repeat(64), bytes: 1, chunks: ['a'.repeat(64)] };
-    const growth = db.batch();
-    growth.set(db.doc(`accounts/Alice/generations/${ids[8]}`), {
-      private: manifest,
-      ranking: manifest,
-      epoch: 1,
-      status: 'staging',
-      createdAt: serverTimestamp(),
+    const manifestFor = (id: string) => ({
+      format: 1,
+      generation: id,
+      digest: 'a'.repeat(64),
+      bytes: 1,
+      chunks: ['a'.repeat(64)],
     });
-    growth.update(db.doc('accounts/Alice/metadata/registry'), { ids: ids.slice(0, 9), revision: 2 });
-    await assertFails(growth.commit());
+    const grow = (id: string, nextIds: string[], revision: number) => {
+      const manifest = manifestFor(id);
+      const batch = db.batch();
+      batch.set(db.doc(`accounts/Alice/generations/${id}`), {
+        private: manifest,
+        ranking: manifest,
+        epoch: 1,
+        status: 'staging',
+        createdAt: serverTimestamp(),
+      });
+      batch.update(db.doc('accounts/Alice/metadata/registry'), { ids: nextIds, revision });
+      return batch.commit();
+    };
+    await assertSucceeds(grow(ids[7], ids.slice(0, 8), 2));
+    await assertFails(grow(ids[8], ids.slice(0, 9), 3));
     await seed({
       'accounts/Alice/metadata/registry': { ids, revision: 1 },
       [`accounts/Alice/generations/${ids[9]}`]: {
-        private: { ...manifest, generation: ids[9] },
-        ranking: { ...manifest, generation: ids[9] },
+        private: manifestFor(ids[9]),
+        ranking: manifestFor(ids[9]),
         epoch: 1,
         status: 'deleting',
         createdAt: Timestamp.now(),
@@ -566,6 +577,24 @@ describe('display-name hygiene', () => {
     };
     for (const name of badNames) await assertFails(publish(name));
     await assertSucceeds(publish('Legacy\u202Ename'));
+    const cleanId = crypto.randomUUID();
+    const cleanProfile = { ...profile, uid: 'Bob', handle: 'bob_games', generation: cleanId };
+    await seed({
+      'publicProfiles/Bob': cleanProfile,
+      'handles/bob_games': { uid: 'Bob' },
+      'publicControls/Bob': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Bob/generations/${cleanId}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+    });
+    const cleanDb = user('Bob');
+    const clean = cleanDb.batch();
+    clean.set(cleanDb.doc('publicProfiles/Bob'), {
+      ...cleanProfile,
+      displayName: 'Clean profile name',
+      epoch: 2,
+      updatedAt: serverTimestamp(),
+    });
+    clean.update(cleanDb.doc('publicControls/Bob'), { epoch: 2 });
+    await assertSucceeds(clean.commit());
   });
 });
 
@@ -666,5 +695,24 @@ describe('public ranking titles', () => {
     });
     unpublish.update(db.doc('publicControls/Alice'), { epoch: 3 });
     await assertSucceeds(unpublish.commit());
+    const cleanReady = crypto.randomUUID();
+    const cleanProfile = { ...profile, uid: 'Bob', handle: 'bob_title_games', generation: cleanReady };
+    await seed({
+      'publicProfiles/Bob': cleanProfile,
+      'handles/bob_title_games': { uid: 'Bob' },
+      'publicControls/Bob': { epoch: 1, hidden: false, deleted: false },
+      [`publicProfiles/Bob/generations/${cleanReady}`]: { status: 'ready', epoch: 1, uploaded: 1 },
+    });
+    const cleanDb = user('Bob');
+    const clean = cleanDb.batch();
+    clean.set(cleanDb.doc('publicProfiles/Bob'), {
+      ...cleanProfile,
+      title: 'Clean title',
+      preview: ['Clean preview'],
+      epoch: 2,
+      updatedAt: serverTimestamp(),
+    });
+    clean.update(cleanDb.doc('publicControls/Bob'), { epoch: 2 });
+    await assertSucceeds(clean.commit());
   });
 });

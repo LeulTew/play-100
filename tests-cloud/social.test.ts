@@ -290,8 +290,16 @@ describe('consented public snapshots, handle claims and moderation', () => {
       await assertFails(batch.commit());
     }
     await assertFails(setDoc(ref, { epoch: 0, count: 1, uploaded: 1, status: 'ready', createdAt: serverTimestamp() }));
-    await assertFails(owner.social.publish(owner.uid, { ...publication('fake_owner'), creator: true }, control));
     expect((await getDocFromServer(ref)).data()?.uploaded).toBe(0);
+    const accepted = writeBatch(owner.db);
+    accepted.set(doc(ref, 'entries', '1'), entry);
+    accepted.update(ref, { uploaded: 1, status: 'ready' });
+    await assertSucceeds(accepted.commit());
+    await assertFails(owner.social.publish(owner.uid, { ...publication('fake_owner'), creator: true }, control));
+    await expect(owner.social.publish(owner.uid, publication('real_owner'), control)).resolves.toMatchObject({
+      creator: false,
+      published: true,
+    });
   });
   it.each([2048, 2049])('enforces new public source URL boundary%s through a direct SDK write', async (length) => {
     const owner = await client();
@@ -442,6 +450,9 @@ describe('consented public snapshots, handle claims and moderation', () => {
       setDoc(doc(owner.db, 'publicControls', owner.uid), { epoch: epoch + 2, hidden: false, deleted: false }),
     );
     expect(await reporter.social.profile('reported_list')).toBeNull();
+    await assertSucceeds(
+      setDoc(doc(moderator.db, 'publicControls', owner.uid), { epoch: epoch + 2, hidden: false, deleted: false }),
+    );
   });
 
   it.each(['has no uid', 'is missing'] as const)(
