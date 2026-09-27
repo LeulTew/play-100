@@ -259,8 +259,14 @@
   flex: 1;
 }
 .discovery-cards-grid > .discovery-card .discovery-card-primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
   margin-top: auto;
   padding-top: 12px;
+}
+.discovery-cards-grid > .discovery-card .discovery-card-primary > .button {
+  width: 100%;
 }
 .discovery-card-details {
   margin-top: 2px;

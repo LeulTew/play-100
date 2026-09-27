@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
 import { catalogRecord, emptyCatalogs } from './catalog-helpers';
+import { closeDialog } from './readability-helpers';
 
 const items = [
   { title: 'A short title', genre: 'Puzzle' },
@@ -18,6 +19,97 @@ const items = [
   record: { ...catalogRecord('wikidata', `Q9100000${index + 1}`, title), genre },
   aliases: [],
 }));
+
+for (const width of [320, 393, 768, 1024, 1440, 1920]) {
+  test(`Discover Pin and Pinned keep the same action rows at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await emptyCatalogs(page);
+    await page.route('**/data/discovery/catalog.v1.json', (route) =>
+      route.fulfill({ json: { ...catalogFixture, items } }),
+    );
+    await page.goto('/discover?catalogs=off');
+    const cards = page.locator('.discovery-cards-grid > .discovery-card');
+    await expect(cards).toHaveCount(items.length);
+    await page.evaluate(() => document.fonts.ready);
+    const card = cards.first();
+    const pin = card.getByRole('button', { name: `Pin for comparison: ${items[0]!.record.title}`, exact: true });
+    const pinned = card.getByRole('button', { name: `Pinned for comparison: ${items[0]!.record.title}`, exact: true });
+    const geometry = () =>
+      cards.evaluateAll((elements) =>
+        elements.map((element) => {
+          const primary = element.querySelector('.discovery-card-primary')!;
+          const targets = [
+            element,
+            ...primary.querySelectorAll('.button, [data-compare-drag-grip]'),
+            element.querySelector('.discovery-card-details > summary')!,
+          ];
+          return targets
+            .filter((target) => target.getClientRects().length > 0)
+            .map((target) => {
+              const bounds = target.getBoundingClientRect();
+              return {
+                x: bounds.x + scrollX,
+                y: bounds.y + scrollY,
+                width: bounds.width,
+                height: bounds.height,
+              };
+            });
+        }),
+      );
+    for (const forcedColors of ['none', 'active'] as const) {
+      await page.emulateMedia({ forcedColors });
+      await pin.scrollIntoViewIfNeeded();
+      await pin.focus();
+      const before = await geometry();
+      for (const targets of before) {
+        for (let index = 2; index < targets.length; index++) {
+          expect(targets[index]!.y).toBeGreaterThanOrEqual(targets[index - 1]!.y + targets[index - 1]!.height);
+        }
+      }
+      const pinBefore = await pin.boundingBox();
+      if (!pinBefore) throw new Error('The unpinned action must have a visible box.');
+      if (forcedColors === 'active') await pin.press('Enter');
+      else await pin.click();
+      await expect(pinned).toHaveAttribute('aria-disabled', 'true');
+      await expect(pinned).toBeFocused();
+      // Read immediately: no action may scroll the card to conceal a success-state layout shift.
+      const afterPin = await geometry();
+      const pinAfter = await pinned.boundingBox();
+      if (!pinAfter) throw new Error('The pinned action must keep a visible box.');
+      expect(Math.abs(pinAfter.y - pinBefore.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(pinAfter.x - pinBefore.x)).toBeLessThanOrEqual(1);
+      expect(pinAfter.height).toBeGreaterThanOrEqual(44);
+      expect(pinAfter.width).toBeGreaterThanOrEqual(44);
+      if (forcedColors === 'active') {
+        await expect(pinned).toHaveCSS('outline-style', 'solid');
+        await expect(pinned).toHaveCSS('outline-width', '3px');
+      }
+      await page.locator('.compare-tray-expand').click();
+      const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
+      await tray.getByRole('button', { name: `Unpin ${items[0]!.record.title} from comparison`, exact: true }).click();
+      await closeDialog(page);
+      await expect(pin).not.toHaveAttribute('aria-disabled');
+      // Document coordinates exclude intentional dialog scrolling, without moving any card back.
+      const afterUnpin = await geometry();
+      for (const after of [afterPin, afterUnpin]) {
+        expect(after).toHaveLength(before.length);
+        for (let index = 0; index < before.length; index++) {
+          expect(after[index]).toHaveLength(before[index]!.length);
+          for (let target = 0; target < before[index]!.length; target++) {
+            for (const field of ['x', 'y', 'width', 'height'] as const) {
+              expect(
+                Math.abs(after[index]![target]![field] - before[index]![target]![field]),
+                `card ${index}, target ${target}, ${field}, forced colors ${forcedColors}`,
+              ).toBeLessThanOrEqual(1);
+            }
+          }
+        }
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  });
+}
 
 test('Discover primary filters share aligned native select styling at 1440px', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
