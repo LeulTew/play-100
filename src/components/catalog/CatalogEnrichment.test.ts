@@ -22,21 +22,76 @@ describe('separate public review provenance', () => {
   });
   it('shows issuer, literal scale, platform, method and old score/reference dates separately', () => {
     const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment: state(), lookup }));
-    for (const text of [
-      '83/100',
-      'Example publication',
-      'PC',
-      'Critic average',
-      'via Wikidata',
-      '2024-04-20',
-      '2024-04-21',
-      '2026-09-22',
-    ])
-      expect(html).toContain(text);
-    expect(html).toContain('https://www.wikidata.org/wiki/Q15408545#P444');
-    expect(html).toContain('https://example.com/reviews/game');
+    const details = html.match(/<details class="catalog-review-details">([\s\S]*?)<\/details>/)?.[1];
+    expect(details).toBeDefined();
+    expect(details).toContain('<summary>Source details for Example publication</summary>');
+    for (const text of ['PC', 'Critic average', '32 source reviews/ratings', '2024-04-20', '2024-04-21', '2026-09-22'])
+      expect(details).toContain(text);
+    expect(details).toContain('https://www.wikidata.org/wiki/Q15408545#P444');
+    expect(details).toContain('https://example.com/reviews/game');
+    const compact = html.slice(html.indexOf('<li>'), html.indexOf('<details class="catalog-review-details">'));
+    for (const text of ['83/100', 'Example publication', 'PC', 'via Wikidata']) expect(compact).toContain(text);
+    expect(compact).not.toContain('Critic average');
+    expect(compact).not.toContain('2024-04-20');
+    expect(html).not.toContain('open=""');
     expect(html).not.toContain('Your rating / 10');
     expect(html).not.toContain('type="number"');
+  });
+  it('keeps exact missing metadata inside the source disclosure instead of repeating it in the compact row', () => {
+    const enrichment = state();
+    enrichment.data.ratings = enrichment.data.ratings.map((rating) => ({
+      ...rating,
+      platforms: [],
+      method: null,
+      count: null,
+      asOf: null,
+      referenceDate: null,
+      referenceUrl: null,
+    }));
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    const details = html.match(/<details class="catalog-review-details">([\s\S]*?)<\/details>/)?.[1];
+    expect(details).toBeDefined();
+    for (const text of [
+      'Platform not specified',
+      'Review method not specified',
+      'Review count not supplied',
+      'Score date not supplied',
+    ])
+      expect(details).toContain(text);
+    expect(details).toContain('datetime="2026-09-22T12:00:00.000Z"');
+    const compact = html.slice(html.indexOf('<li>'), html.indexOf('<details class="catalog-review-details">'));
+    expect(compact).not.toMatch(/not specified|not supplied/);
+    expect(compact).toContain('83/100');
+    expect(html).not.toContain('Cited source');
+  });
+  it('keeps user recommendations visibly distinct from reported review scores', () => {
+    const enrichment = state();
+    enrichment.data.ratings.push({
+      id: 'steam:fixture-summary',
+      source: 'steam',
+      kind: 'user-recommendations',
+      publisher: 'Steam users',
+      publisherId: null,
+      score: { text: '91%', value: 91, scale: 100, unit: 'percent' },
+      platforms: [],
+      method: 'Steam purchases, all languages, off-topic activity excluded',
+      count: 1000,
+      asOf: null,
+      referenceDate: null,
+      retrievedAt: enrichment.data.fetchedAt,
+      sourceUrl: 'https://store.steampowered.com/app/123/#app_reviews_hash',
+      referenceUrl: null,
+    });
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    expect(html.match(/<li>/g)).toHaveLength(2);
+    expect(html.match(/<details class="catalog-review-details">/g)).toHaveLength(2);
+    expect(html).toContain('<strong>83/100</strong>');
+    expect(html).toContain('<strong>91%</strong>');
+    expect(html).toContain('<p>User recommendations · Steam</p>');
+    expect(html).toContain('Reported review score · via Wikidata · PC');
+    expect(html).toContain('Source details for Steam users');
+    expect(html).toContain('View Steam reviews');
+    expect(html).toContain('No scores are averaged together.');
   });
   it('offers an explicit online enable action and keeps cached dates visible', () => {
     const html = renderToStaticMarkup(

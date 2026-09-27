@@ -97,41 +97,48 @@ export function CatalogEnrichment({
                     {rating.kind === 'user-recommendations'
                       ? 'User recommendations · Steam'
                       : 'Reported review score · via Wikidata'}
+                    {rating.platforms.length > 0 && ` · ${rating.platforms.join(' / ')}`}
                   </p>
-                  <p>
-                    {rating.platforms.length ? rating.platforms.join(' / ') : 'Platform not specified'}
-                    {rating.method ? ` · ${rating.method}` : ' · Review method not specified'}
-                  </p>
-                  <p>
-                    {rating.count === null
-                      ? 'Review count not supplied'
-                      : `${rating.count.toLocaleString()} ${rating.source === 'steam' ? 'Steam reviews' : 'source reviews/ratings'}`}
-                    {' · '}
-                    {rating.asOf ? (
-                      <>
-                        As of <time dateTime={rating.asOf}>{rating.asOf}</time>
-                      </>
-                    ) : (
-                      'Score date not supplied'
-                    )}
-                  </p>
-                  {rating.referenceDate && (
+                  <details className="catalog-review-details">
+                    <summary>Source details for {rating.publisher}</summary>
                     <p>
-                      Source reference retrieved <time dateTime={rating.referenceDate}>{rating.referenceDate}</time>.
+                      {rating.platforms.length ? rating.platforms.join(' / ') : 'Platform not specified'}
+                      {rating.method ? ` · ${rating.method}` : ' · Review method not specified'}
                     </p>
-                  )}
-                  <div className="catalog-review-links">
-                    <a href={rating.sourceUrl} target="_blank" rel="noreferrer">
-                      {rating.source === 'steam' ? 'View Steam reviews' : 'View Wikidata score claims'}
-                      <Icon name="up-right" width="14" height="14" />
-                    </a>
-                    {rating.referenceUrl && (
-                      <a href={rating.referenceUrl} target="_blank" rel="noreferrer">
-                        Cited source
+                    <p>
+                      {rating.count === null
+                        ? 'Review count not supplied'
+                        : `${rating.count.toLocaleString()} ${rating.source === 'steam' ? 'Steam reviews' : 'source reviews/ratings'}`}
+                      {' · '}
+                      {rating.asOf ? (
+                        <>
+                          As of <time dateTime={rating.asOf}>{rating.asOf}</time>
+                        </>
+                      ) : (
+                        'Score date not supplied'
+                      )}
+                    </p>
+                    {rating.referenceDate && (
+                      <p>
+                        Source reference retrieved <time dateTime={rating.referenceDate}>{rating.referenceDate}</time>.
+                      </p>
+                    )}
+                    <p>
+                      Retrieved <time dateTime={rating.retrievedAt}>{rating.retrievedAt.slice(0, 10)}</time>.
+                    </p>
+                    <div className="catalog-review-links">
+                      <a href={rating.sourceUrl} target="_blank" rel="noreferrer">
+                        {rating.source === 'steam' ? 'View Steam reviews' : 'View Wikidata score claims'}
                         <Icon name="up-right" width="14" height="14" />
                       </a>
-                    )}
-                  </div>
+                      {rating.referenceUrl && (
+                        <a href={rating.referenceUrl} target="_blank" rel="noreferrer">
+                          Cited source
+                          <Icon name="up-right" width="14" height="14" />
+                        </a>
+                      )}
+                    </div>
+                  </details>
                 </li>
               ))}
             </ul>

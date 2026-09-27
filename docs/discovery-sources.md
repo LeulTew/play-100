@@ -136,6 +136,9 @@ for that identity, or any private record. Native opening, focus, close and
 editing never wait for a provider. Unsupported or failed sources stay explicit.
 Personal tracking, ranking and rating controls precede the supplementary
 external ratings, matching the original detail's reading and keyboard order.
+Each external row keeps its publisher, literal score/scale, score type and known
+platform visible. A native per-source disclosure retains method, counts, exact
+unknowns, score/reference/retrieval dates and active provenance links.
 
 The outside-The-100 default was an autonomous product decision made while the
 user was unavailable, not a separately selected user preference. The reviewed

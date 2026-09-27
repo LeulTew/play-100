@@ -89,7 +89,8 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.catalog-enrichment-sources > summary {
+.catalog-enrichment-sources > summary,
+.catalog-review-details > summary {
   min-height: 44px;
   align-content: center;
   width: fit-content;

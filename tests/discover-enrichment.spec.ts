@@ -118,7 +118,28 @@ test('detail opens before enrichment, keeps source scales separate and does not 
   await expect(dialog.locator('.catalog-review-list')).toContainText('83/100');
   await expect(dialog.locator('.catalog-review-list')).toContainText('Example publication');
   await expect(dialog.locator('.catalog-review-list')).toContainText('via Wikidata');
-  await expect(dialog.locator('.catalog-review-list')).toContainText('2024-04-20');
+  const details = dialog.locator('.catalog-review-details').first();
+  const summary = details.locator('summary');
+  await expect(summary).toHaveText('Source details for Example publication');
+  await expect(details).not.toHaveAttribute('open');
+  await expect(details.getByRole('link')).toHaveCount(0);
+  await dialog.getByRole('spinbutton').focus();
+  await page.keyboard.press('Tab');
+  await expect(summary).toBeFocused();
+  await summary.press('Enter');
+  await expect(details).toHaveAttribute('open', '');
+  await expect(details).toContainText('PC · Critic average');
+  await expect(details.locator('time[datetime="2024-04-20"]')).toBeVisible();
+  await expect(details.locator('time[datetime="2024-04-21"]')).toBeVisible();
+  await expect(details.locator('time[datetime="2026-09-22T12:00:00.000Z"]')).toBeVisible();
+  await expect(details.getByRole('link', { name: 'View Wikidata score claims', exact: true })).toHaveAttribute(
+    'href',
+    'https://www.wikidata.org/wiki/Q15408545#P444',
+  );
+  await expect(details.getByRole('link', { name: 'Cited source', exact: true })).toHaveAttribute(
+    'href',
+    'https://example.com/reviews/game',
+  );
   await expect(dialog.getByRole('spinbutton')).toHaveValue('');
   expect(await readLibrary(page)).toEqual(before);
   expect(requests.length).toBeGreaterThan(0);
