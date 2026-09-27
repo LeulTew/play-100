@@ -1161,6 +1161,18 @@ for (const policy of ['live-270f', 'candidate'] as const)
             cleanupEpoch: 1,
           }),
         );
+        await assertSucceeds(
+          setDoc(doc(fresh.db, 'syncHeads', fresh.uid), {
+            format: 1,
+            epoch: 1,
+            revision: 0,
+            enabled: false,
+            deleted: true,
+            current: null,
+            previous: null,
+            updatedAt: serverTimestamp(),
+          }),
+        );
         const deleting = await owner.cloud.revoke(base, true);
         await assertFails(updateDoc(doc(other.db, 'syncHeads', owner.uid), { cleanupEpoch: deleting.epoch }));
         for (const cleanupEpoch of [deleting.epoch - 1, deleting.epoch + 1, String(deleting.epoch)]) {
@@ -1189,6 +1201,18 @@ for (const policy of ['live-270f', 'candidate'] as const)
           }),
         );
         await seed({ [ref.path]: { ...marked, updatedAt: Timestamp.fromMillis(1) } });
+        // With the sign-in now newer than the deletion, the same resume differs from the accepted one below only in
+        // changing the completion marker.
+        await assertFails(
+          updateDoc(ref, {
+            enabled: true,
+            deleted: false,
+            epoch: deleting.epoch + 1,
+            revision: deleting.revision + 1,
+            cleanupEpoch: deleting.epoch + 1,
+            updatedAt: serverTimestamp(),
+          }),
+        );
         const resumed = await owner.cloud.enable(await owner.cloud.head());
         expect(resumed).toMatchObject({ deleted: false, cleanupEpoch: deleting.epoch, epoch: deleting.epoch + 1 });
         await expect(owner.cloud.markCleanupComplete(deleting.epoch, () => true)).rejects.toThrow(/changed/);
@@ -1197,6 +1221,8 @@ for (const policy of ['live-270f', 'candidate'] as const)
         expect(repeated.epoch).toBe(deleting.epoch + 2);
         expect(await owner.cloud.probeDeletedCopy(repeated)).not.toBe('complete');
         await assertFails(updateDoc(ref, { cleanupEpoch: deleting.epoch }));
+        const completed = await owner.cloud.markCleanupComplete(repeated.epoch, () => true);
+        expect(completed.cleanupEpoch).toBe(repeated.epoch);
       });
 
       it('keeps legacy All rows readable to their owner but frozen, and counts physical format3 rows across epochs', async () => {
