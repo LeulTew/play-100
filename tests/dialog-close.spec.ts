@@ -78,7 +78,7 @@ for (const game of [
 ]) {
   for (const mode of ['full', 'lite', 'reduced'] as const) {
     test(`mobile ${game.title}: Close remains reachable at the bottom in ${mode}`, async ({ page, isMobile }) => {
-      test.skip(!isMobile, 'Mobile close rail; desktop placement has a separate unchanged-position check.');
+      test.skip(!isMobile, 'Mobile close rail; larger viewports have separate reachability checks.');
       await prepare(page, mode);
       await page.goto(`/?q=${encodeURIComponent(game.title)}&catalogs=off`);
       const opener = page.locator(`.game-card[data-game="${game.id}"] .game-link`);
@@ -215,12 +215,10 @@ test('mobile Menu retains its existing non-scrolling heading and Close while its
   await expect(opener).toBeFocused();
 });
 
-test('desktop original detail preserves the existing absolute Close offsets and browser Back', async ({
+test('desktop-size original detail keeps Close reachable at the scroll end and preserves browser Back', async ({
   page,
-  isMobile,
 }) => {
-  test.skip(isMobile, 'Desktop geometry remains unchanged by the mobile close rail.');
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await prepare(page);
   const opener = page.locator('.game-card[data-game="red-dead-redemption-2"] .game-link');
   await opener.focus();
@@ -228,39 +226,60 @@ test('desktop original detail preserves the existing absolute Close offsets and 
   const dialog = page.locator('.game-dialog[open]');
   await expect(dialog.locator('#game-title')).toBeFocused();
   const geometry = await dialog.evaluate((element) => {
-    const inner = element.querySelector('.dialog-inner');
-    const close = element.querySelector<HTMLElement>('.dialog-close');
     const rail = element.querySelector('.dialog-close-rail');
-    if (!inner || !close || !rail) throw new Error('The native close layout must be present.');
-    const frame = inner.getBoundingClientRect();
-    const button = close.getBoundingClientRect();
+    const content = element.querySelector('.detail-top');
+    if (!rail || !content) throw new Error('The reserved close rail and detail content must be present.');
+    const bounds = rail.getBoundingClientRect();
     return {
-      top: button.top - frame.top,
-      right: frame.right - button.right,
-      width: button.width,
-      height: button.height,
-      position: getComputedStyle(close).position,
-      railDisplay: getComputedStyle(rail).display,
-      sameContainingBlock: close.offsetParent === inner,
+      clear: content.getBoundingClientRect().top >= bounds.bottom,
+      scrollPadding: parseFloat(getComputedStyle(element).scrollPaddingTop),
+      height: bounds.height,
     };
   });
-  expect(geometry).toEqual({
-    top: 17,
-    right: 21,
-    width: 44,
-    height: 44,
-    position: 'absolute',
-    railDisplay: 'contents',
-    sameContainingBlock: true,
-  });
+  expect(geometry.clear).toBe(true);
+  expect(geometry.scrollPadding).toBeGreaterThanOrEqual(geometry.height);
+  await scrollToEnd(dialog);
+  await expectReachableClose(dialog);
   await page.goBack();
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();
 });
 
+test.describe('touch tablet close reachability', () => {
+  test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true });
+
+  test('portrait tablet detail keeps the reserved Close rail above its scrolled content', async ({ page }) => {
+    await prepare(page, 'lite');
+    expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0)).toBe(
+      true,
+    );
+    const opener = page.locator('.game-card[data-game="red-dead-redemption-2"] .game-link');
+    await opener.tap();
+    const dialog = page.locator('.game-dialog[open]');
+    await expect(dialog.locator('#game-title')).toBeFocused();
+    await expect(dialog.locator('.dialog-close-rail')).toHaveCSS('position', 'sticky');
+    const rating = dialog.getByRole('spinbutton');
+    await rating.evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await rating.focus();
+    expect(
+      await rating.evaluate((element) => {
+        const rail = element.closest('dialog')!.querySelector('.dialog-close-rail')!;
+        return element.getBoundingClientRect().top >= rail.getBoundingClientRect().bottom;
+      }),
+    ).toBe(true);
+    await scrollToEnd(dialog);
+    const close = await expectReachableClose(dialog);
+    await close.tap();
+    await expect(dialog).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+  });
+});
+
 for (const mode of ['full', 'lite', 'reduced'] as const) {
   test(`short landscape keeps game, Menu and Settings Close reachable in ${mode}`, async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'Rotated-phone viewport; normal desktop offsets are checked separately.');
+    test.skip(!isMobile, 'Rotated-phone viewport; larger viewports are checked separately.');
     await page.setViewportSize({ width: 851, height: 393 });
     await prepare(page, mode);
     expect(

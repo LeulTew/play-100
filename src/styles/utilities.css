@@ -698,28 +698,26 @@ html[data-motion='off']
     margin-left: 30px;
   }
 }
-@media (max-width: 760px), (max-height: 520px) {
-  .dialog:not(.menu-dialog) {
-    --dialog-close-safe-top: max(8px, env(safe-area-inset-top, 0px));
-    scroll-padding-top: calc(var(--dialog-close-safe-top) + 60px);
-  }
-  .dialog[open]:not(.menu-dialog) > .dialog-inner {
-    padding-top: 0;
-  }
-  .dialog:not(.menu-dialog) > .dialog-inner > .dialog-close-rail {
-    display: flex;
-    justify-content: flex-end;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    padding-block: var(--dialog-close-safe-top) 8px;
-    margin-bottom: 8px;
-    background: var(--paper);
-  }
-  .dialog:not(.menu-dialog) > .dialog-inner > .dialog-close-rail > .dialog-close {
-    position: static;
-    flex-shrink: 0;
-  }
+.dialog:not(.menu-dialog) {
+  --dialog-close-safe-top: max(8px, env(safe-area-inset-top, 0px));
+  scroll-padding-top: calc(var(--dialog-close-safe-top) + 60px);
+}
+.dialog[open]:not(.menu-dialog) > .dialog-inner {
+  padding-top: 0;
+}
+.dialog:not(.menu-dialog) > .dialog-inner > .dialog-close-rail {
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding-block: var(--dialog-close-safe-top) 8px;
+  margin-bottom: 8px;
+  background: var(--paper);
+}
+.dialog:not(.menu-dialog) > .dialog-inner > .dialog-close-rail > .dialog-close {
+  position: static;
+  flex-shrink: 0;
 }
 @media (max-width: 380px) {
   :root {
