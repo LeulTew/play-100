@@ -169,7 +169,11 @@ reads the head again and settles the same way. A dirty client whose library has
 a newer head's digest records that head as saved without replacing local data;
 an edit made meanwhile stays pending. Different content or an uncommitted
 editor still needs a choice, and a stopped, deleted or re-epoched head still
-stops saving.
+stops saving. A head read in one tab can still show the state from before
+another tab created or restarted the online copy: no head, or an older epoch.
+No client can delete a head, and a stop, deletion or restart always moves it to
+a newer epoch, so that view is stale. The tab waits for the current head, or
+retries its read, and never stops saving because of it.
 
 Confirmation is bound to the displayed remote revision/epoch and local revision.
 A newer intervening save requires another review, not silent last-write-wins.

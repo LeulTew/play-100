@@ -51,6 +51,14 @@ function createSyncLifetime(identity: LifetimeIdentity): Lifetime {
   };
 }
 const hardBlocked = (block: Block) => block === 'terminal' || block === 'conflict' || block === 'revoked';
+// A head read can show the state from before another tab or window of this account created or restarted the online
+// copy this device copy is connected to: no head, or an older consent epoch. Firestore serves a new listener the view
+// of an already open listen on the same head, which can still predate that commit. No client can delete a head, and
+// every stop, deletion or restart moves it to a newer epoch, so such a view is stale, not a revocation: the listener
+// delivers the current head next, and a stale read is retried with backoff like any transient failure.
+function staleHeadRead() {
+  return Object.assign(new Error('The online copy is not visible to this tab yet.'), { code: 'aborted' });
+}
 // Whether a head publishes exactly this library: the digest covers every field an upload sends. A library that cannot
 // be packed, such as one over the snapshot limit, is not held and still needs a choice.
 async function holdsLibrary(head: SyncHead, state: PersonalLibraryState): Promise<boolean> {
@@ -179,9 +187,10 @@ export function useCloudSync(
   const receive = useCallback(
     async (head: SyncHead | null) => {
       if (!scope || !store || !owns()) return;
+      // A stale view (see staleHeadRead) is followed by the current head from the same listener.
+      if (!head || head.epoch < lifetime.identity.epoch) return;
       const known = latestRemote.current;
-      if (head && known && (head.epoch < known.epoch || (head.epoch === known.epoch && head.revision < known.revision)))
-        return;
+      if (known && (head.epoch < known.epoch || (head.epoch === known.epoch && head.revision < known.revision))) return;
       latestRemote.current = head;
       setRemote(head);
       if (uploading.current?.lifetime === lifetime) return;
@@ -193,7 +202,8 @@ export function useCloudSync(
           setStatus('paused');
           return;
         }
-        if (!head || !head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
+        if (head.epoch < local.sync.epoch) return;
+        if (!head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
         if (hardBlocked(lifetime.block) || head.revision < local.sync.baseRemoteRevision) return;
         if (head.revision > local.sync.baseRemoteRevision) {
           if (hasPendingEdits() || (local.sync.dirty && !(await holdsLibrary(head, local.state))))
@@ -264,7 +274,8 @@ export function useCloudSync(
       if (!local.sync.enabled || local.sync.epoch !== epoch || !owns()) return;
       const head = await store.head();
       if (!owns()) return;
-      if (!head || !head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
+      if (!head || head.epoch < local.sync.epoch) throw staleHeadRead();
+      if (!head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
       setRemote(head);
       latestRemote.current = head;
       if (head.revision !== local.sync.baseRemoteRevision) {

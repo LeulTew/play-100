@@ -37,6 +37,18 @@ declare global {
         downloads: number;
       }>;
     };
+    staleHead: {
+      stop: () => void;
+      inspect: () => Promise<{
+        status: string;
+        statuses: string[];
+        enabled: boolean;
+        dirty: boolean;
+        base: number;
+        uploads: number;
+        headReads: number;
+      }>;
+    };
   }
 }
 
@@ -335,6 +347,145 @@ test('a newer online copy of exactly the unsaved library is recorded as saved, a
   });
 });
 
+// Mounts useCloudSync on this account's connected, unsaved device copy while its head reads first show no head, as when
+// another tab of the account had a head read open from just before this tab created the online copy: Firestore serves
+// a listener that joins that listen its earlier view. The listener then delivers the created head, uploads succeed, and
+// stop() delivers a genuine stop from another device.
+async function mountStaleHead(page: Page) {
+  await page.goto('/data-use');
+  await page.evaluate(async () => {
+    const hookPath = '/src/cloud/useCloudSync.ts';
+    const hook: typeof import('../src/cloud/useCloudSync') = await import(hookPath);
+    const accountPath = '/src/hooks/useAccountLibrary.ts';
+    const account: typeof import('../src/hooks/useAccountLibrary') = await import(accountPath);
+    const clientPath = '/src/cloud/firebase-client.ts';
+    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const libraryPath = '/src/lib/scoped-library.ts';
+    const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const personalPath = '/src/lib/personal-library.ts';
+    const personal: typeof import('../src/lib/personal-library') = await import(personalPath);
+    const transportPath = '/src/lib/snapshot-transport.ts';
+    const transport: typeof import('../src/lib/snapshot-transport') = await import(transportPath);
+    const storePath = '/src/cloud/cloud-store.ts';
+    const store: typeof import('../src/cloud/cloud-store') = await import(storePath);
+    const loaded = (pathname: string) => {
+      const url = performance
+        .getEntriesByType('resource')
+        .map((entry) => entry.name)
+        .findLast((value) => new URL(value).pathname === pathname);
+      if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
+      return url;
+    };
+    const { default: React }: { default: typeof import('react') } = await import(
+      loaded('/node_modules/.vite/deps/react.js')
+    );
+    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
+      loaded('/node_modules/.vite/deps/react-dom_client.js')
+    );
+    await client.cloudAuth.authStateReady();
+    const uid = client.cloudAuth.currentUser?.uid;
+    if (!uid) throw new Error('The synthetic account is missing.');
+    const scope = `account:demo-play100:${uid}` as const;
+    type SyncHead = import('../src/lib/cloud-types').SyncHead;
+    let serverHead: SyncHead = {
+      format: 1,
+      epoch: 1,
+      revision: 0,
+      enabled: true,
+      deleted: false,
+      current: null,
+      previous: null,
+      updatedAt: Date.now(),
+    };
+    const copy = await library.loadScopedLibrary(scope);
+    if (copy.sync.enabled) throw new Error('The fixture must start before online saving is connected.');
+    await library.connectScopedLibrary(scope, personal.emptyPersonalLibrary(), serverHead, 'Stale head', true, {
+      localRevision: copy.state.revision,
+      epoch: copy.sync.epoch,
+      enabled: copy.sync.enabled,
+    });
+    let headReads = 0;
+    let uploads = 0;
+    let listener: ((head: SyncHead | null) => void) | null = null;
+    store.CloudStore.prototype.head = async () => {
+      headReads += 1;
+      return headReads === 1 ? null : serverHead;
+    };
+    store.CloudStore.prototype.watch = (onHead) => {
+      listener = onHead;
+      const timers = [setTimeout(() => onHead(null)), setTimeout(() => onHead(serverHead), 50)];
+      return () => {
+        timers.forEach(clearTimeout);
+        if (listener === onHead) listener = null;
+      };
+    };
+    store.CloudStore.prototype.upload = async (state, expected) => {
+      uploads += 1;
+      const packed = await transport.packLibrary(state);
+      serverHead = {
+        ...expected,
+        revision: expected.revision + 1,
+        current: packed.manifest,
+        previous: expected.current,
+        updatedAt: Date.now(),
+      };
+      return serverHead;
+    };
+    store.CloudStore.prototype.cleanup = async () => 0;
+    store.CloudStore.prototype.download = async () => {
+      throw new Error('No download is expected for this device copy.');
+    };
+    const statuses: string[] = [];
+    const current = () => true;
+    function Harness() {
+      const { snapshot } = account.useAccountLibrary(scope, 'auto', current);
+      const api = hook.useCloudSync(scope, snapshot, true, undefined, 1);
+      // Only the connected lifetime's statuses count: the lifetime before the copy loads reports paused first.
+      if (snapshot?.sync.enabled && (statuses.length > 0 || api.status === 'loading') && statuses.at(-1) !== api.status)
+        statuses.push(api.status);
+      window.staleHead = {
+        stop: () => {
+          if (!listener) throw new Error('No head listener is attached.');
+          listener({ ...serverHead, epoch: serverHead.epoch + 1, revision: serverHead.revision + 1, enabled: false });
+        },
+        inspect: async () => {
+          const saved = await library.loadScopedLibrary(scope);
+          return {
+            status: api.status,
+            statuses,
+            enabled: saved.sync.enabled,
+            dirty: saved.sync.dirty,
+            base: saved.sync.baseRemoteRevision,
+            uploads,
+            headReads,
+          };
+        },
+      };
+      return React.createElement('output', { id: 'stale-head' }, api.status);
+    }
+    const container = document.createElement('div');
+    document.body.append(container);
+    DOM.createRoot(container).render(React.createElement(Harness));
+  });
+}
+
+test('a head view from before another tab created the online copy never pauses the connected device copy', async ({
+  page,
+}) => {
+  await createAccount(page, emailFor('sync-stale-head'));
+  await mountStaleHead(page);
+  // The stale sync read is retried with backoff, and the listener's stale view is followed by the created head.
+  await expect(page.locator('#stale-head')).toHaveText('saved', { timeout: 20000 });
+  const saved = await page.evaluate(() => window.staleHead.inspect());
+  expect(saved).toMatchObject({ enabled: true, dirty: false, base: 1, uploads: 1 });
+  expect(saved.headReads).toBeGreaterThan(1);
+  expect(saved.statuses[0]).toBe('loading');
+  expect(saved.statuses).not.toContain('paused');
+  // A genuine stop from another device still stops saving on this one.
+  await page.evaluate(() => window.staleHead.stop());
+  await expect(page.locator('#stale-head')).toHaveText('paused');
+  await expect.poll(async () => (await page.evaluate(() => window.staleHead.inspect())).enabled).toBe(false);
+});
 async function mountSharing(page: Page) {
   await page.goto('/data-use');
   await page.evaluate(async () => {
