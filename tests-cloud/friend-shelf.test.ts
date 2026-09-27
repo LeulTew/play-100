@@ -356,16 +356,37 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     );
   });
   it.each([
-    { source: 'wikidata', id: 'wikidata:Q0', sourceId: 'Q0', sourceUrl: 'https://www.wikidata.org/wiki/Q0' },
-    { source: 'steam', id: 'steam:12', sourceId: '12', sourceUrl: 'https://store.steampowered.com/app/12/?evil=1' },
+    {
+      source: 'wikidata',
+      patch: { source: 'wikidata', id: 'wikidata:Q0', sourceId: 'Q0', sourceUrl: 'https://www.wikidata.org/wiki/Q0' },
+      valid: { source: 'wikidata', id: 'wikidata:Q1', sourceId: 'Q1', sourceUrl: 'https://www.wikidata.org/wiki/Q1' },
+    },
+    {
+      source: 'steam',
+      patch: { source: 'steam', id: 'steam:12', sourceId: '12', sourceUrl: 'https://store.steampowered.com/app/12/?evil=1' },
+      valid: { source: 'steam', id: 'steam:12', sourceId: '12', sourceUrl: 'https://store.steampowered.com/app/12/' },
+    },
     {
       source: 'freetogame',
-      id: 'freetogame:12',
-      sourceId: '12',
-      sourceUrl: 'https://www.freetogame.com.evil.test/game',
+      patch: {
+        source: 'freetogame',
+        id: 'freetogame:12',
+        sourceId: '12',
+        sourceUrl: 'https://www.freetogame.com.evil.test/game',
+      },
+      valid: {
+        source: 'freetogame',
+        id: 'freetogame:12',
+        sourceId: '12',
+        sourceUrl: 'https://www.freetogame.com/game',
+      },
     },
-    { source: 'manual', id: 'manual:saved', sourceId: 'saved', sourceUrl: 'https://example.test/image.svg' },
-  ])('denies malformed $source source identity through raw SDK writes', async (patch) => {
+    {
+      source: 'manual',
+      patch: { source: 'manual', id: 'manual:saved', sourceId: 'saved', sourceUrl: 'https://example.test/image.svg' },
+      valid: { source: 'manual', id: 'manual:saved', sourceId: 'saved', sourceUrl: null },
+    },
+  ])('denies malformed $source source identity through raw SDK writes', async ({ patch, valid }) => {
     const a = await client();
     const config = await a.store.saveConfig(
       a.uid,
@@ -374,6 +395,11 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     );
     const id = await stage(a, config, 1);
     await assertFails(rawChunk(a, id, [{ ...entry, ...patch }], [patch.id]));
+    // A chunk may carry only selected IDs and no valid wikidata identity keeps the malformed Q0 ID, so that twin first
+    // selects its own ID and stages a generation for it.
+    const twin =
+      valid.id === patch.id ? id : await stage(a, await select(a, [{ ...entry, ...valid } as FriendShelfEntry]), 1);
+    await assertSucceeds(rawChunk(a, twin, [{ ...entry, ...valid }], [valid.id]));
   });
   it('denies malformed selection/control/generation mutations and incomplete publication', async () => {
     const a = await client();
@@ -399,7 +425,8 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
     ]) {
       await assertFails(setDoc(doc(a.db, 'friendShelfSettings', a.uid), { ...wire, ...patch }));
     }
-    const selected = await select(a, [entry]);
+    await assertSucceeds(setDoc(doc(a.db, 'friendShelfSettings', a.uid), wire));
+    const selected = (await a.store.config(a.uid))!;
     await assertFails(stage(a, selected, 0));
     const id = await stage(a, selected, 1);
     const batch = writeBatch(a.db);
@@ -415,6 +442,20 @@ describe('selected shelf SDK authorization and strict full-size chunks', () => {
       updatedAt: serverTimestamp(),
     });
     await assertFails(batch.commit());
+    await assertSucceeds(rawChunk(a, id, [entry], [entry.id]));
+    const publishBatch = writeBatch(a.db);
+    publishBatch.update(doc(a.db, 'friendShelves', a.uid, 'generations', id), { status: 'published' });
+    publishBatch.set(doc(a.db, 'friendShelfHeads', a.uid), {
+      format: 1,
+      epoch: selected.epoch,
+      settingsRevision: selected.revision,
+      source,
+      revision: 1,
+      current: { generation: id, digest: '0'.repeat(64), count: 1 },
+      previous: null,
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(publishBatch.commit());
   });
 });
 describe('shelf revocation, source CAS and bounded recovery', () => {
@@ -568,6 +609,17 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
       rawChunk(
         a,
         id,
+        entries.slice(0, 2),
+        entries.slice(0, 2).map((item) => item.id),
+        {},
+        'staging',
+      ),
+    );
+    const freshSourceId = await stage(a, config, entries.length, { syncEpoch: 1, remoteRevision: 1 });
+    await assertSucceeds(
+      rawChunk(
+        a,
+        freshSourceId,
         entries.slice(0, 2),
         entries.slice(0, 2).map((item) => item.id),
         {},
