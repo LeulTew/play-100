@@ -53,7 +53,11 @@ async function stored(path: string) {
   });
   return size;
 }
-const refusal = (write: Promise<unknown>) => write.then(() => null, (cause: unknown) => cause);
+const refusal = (write: Promise<unknown>) =>
+  write.then(
+    () => null,
+    (cause: unknown) => cause,
+  );
 const capped = (cause: unknown) => cause instanceof Error && cause.message.includes('maximum of 1000 expressions');
 
 // What the save-commit tests can prove: the emulator decides each write of a commit within its own limit, and refuses

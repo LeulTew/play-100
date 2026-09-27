@@ -72,6 +72,8 @@ export function cleanReportReason(value: string): string {
   if (!reason || reason.length > REPORT_REASON_MAX)
     throw new Error(`Use 1-${REPORT_REASON_MAX} characters to describe a problem with another profile.`);
   if (hasControlOrFormat(reason))
-    throw new Error('Reports cannot contain invisible, control or text-direction characters. Remove them and try again.');
+    throw new Error(
+      'Reports cannot contain invisible, control or text-direction characters. Remove them and try again.',
+    );
   return reason;
 }

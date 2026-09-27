@@ -246,7 +246,11 @@ describe('real Auth and Firestore snapshot transactions', () => {
     await held;
     const published = await first.store.upload(library, base);
     release();
-    expect(await pending).toMatchObject({ epoch: base.epoch, revision: published.revision, current: published.current });
+    expect(await pending).toMatchObject({
+      epoch: base.epoch,
+      revision: published.revision,
+      current: published.current,
+    });
     expect(await first.store.head()).toMatchObject({ revision: published.revision, current: published.current });
   });
   it('settles a chunk write refused because the other writer added its own holder first', async () => {
@@ -294,7 +298,11 @@ describe('real Auth and Firestore snapshot transactions', () => {
     await held;
     const published = await first.store.upload(played, saved);
     release();
-    expect(await pending).toMatchObject({ epoch: saved.epoch, revision: published.revision, current: published.current });
+    expect(await pending).toMatchObject({
+      epoch: saved.epoch,
+      revision: published.revision,
+      current: published.current,
+    });
   });
   it('an interruption between uploaded chunks and the head commit leaves the last complete copy intact', async () => {
     const { store } = await client();
@@ -360,7 +368,11 @@ describe('real Auth and Firestore snapshot transactions', () => {
     expect(await first.store.head()).toMatchObject({ enabled: false, deleted: true, revision: deleted.revision });
     await new Promise((resolve) => setTimeout(resolve, 1100));
     const fresh = await client(first.email);
-    expect(await fresh.store.enable(deleted)).toMatchObject({ enabled: true, deleted: false, epoch: deleted.epoch + 1 });
+    expect(await fresh.store.enable(deleted)).toMatchObject({
+      enabled: true,
+      deleted: false,
+      epoch: deleted.epoch + 1,
+    });
   });
 
   it('checks current server authority even when the payload matches an earlier head', async () => {

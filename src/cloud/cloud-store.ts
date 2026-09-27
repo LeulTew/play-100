@@ -427,51 +427,52 @@ export class CloudStore {
       return null;
     });
     if (published) return published;
-    const publishHead = () => runTransaction(this.db, async (tx) => {
-      const summaryRef = doc(this.db, 'creatorRanks', this.uid);
-      const [head, previousSummary, generation, shared] = await Promise.all([
-        tx.get(this.headRef()),
-        tx.get(summaryRef),
-        tx.get(this.generationRef(snapshot.manifest.generation)),
-        this.sharingHeads(tx),
-      ]);
-      if (!head.exists()) throw new SyncRevoked();
-      const current = parseHead(head.data());
-      if (publishedAlready(current, expected, snapshot.manifest.digest)) return current;
-      sameHead(current, expected);
-      guard();
-      if (!generation.exists() || generation.data().status !== 'ready')
-        throw new Error('The complete online copy could not be saved. Retry online saving.');
-      const next = {
-        ...current,
-        revision: current.revision + 1,
-        current: snapshot.manifest,
-        previous: current.current,
-        updatedAt: Date.now(),
-      };
-      tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
-      for (const view of shared)
-        if (view.exists() && parseFriendAllHead(view.data()).status === 'ready')
-          tx.update(view.ref, {
-            status: 'updating',
-            revision: parseFriendAllHead(view.data()).revision + 1,
-            updatedAt: serverTimestamp(),
-          });
-      tx.set(summaryRef, {
-        format: 1,
-        epoch: next.epoch,
-        revision: next.revision,
-        current: summary.manifest,
-        previous: previousSummary.exists() ? previousSummary.data().current : null,
-        updatedAt: serverTimestamp(),
+    const publishHead = () =>
+      runTransaction(this.db, async (tx) => {
+        const summaryRef = doc(this.db, 'creatorRanks', this.uid);
+        const [head, previousSummary, generation, shared] = await Promise.all([
+          tx.get(this.headRef()),
+          tx.get(summaryRef),
+          tx.get(this.generationRef(snapshot.manifest.generation)),
+          this.sharingHeads(tx),
+        ]);
+        if (!head.exists()) throw new SyncRevoked();
+        const current = parseHead(head.data());
+        if (publishedAlready(current, expected, snapshot.manifest.digest)) return current;
+        sameHead(current, expected);
+        guard();
+        if (!generation.exists() || generation.data().status !== 'ready')
+          throw new Error('The complete online copy could not be saved. Retry online saving.');
+        const next = {
+          ...current,
+          revision: current.revision + 1,
+          current: snapshot.manifest,
+          previous: current.current,
+          updatedAt: Date.now(),
+        };
+        tx.set(this.headRef(), { ...next, updatedAt: serverTimestamp() });
+        for (const view of shared)
+          if (view.exists() && parseFriendAllHead(view.data()).status === 'ready')
+            tx.update(view.ref, {
+              status: 'updating',
+              revision: parseFriendAllHead(view.data()).revision + 1,
+              updatedAt: serverTimestamp(),
+            });
+        tx.set(summaryRef, {
+          format: 1,
+          epoch: next.epoch,
+          revision: next.revision,
+          current: summary.manifest,
+          previous: previousSummary.exists() ? previousSummary.data().current : null,
+          updatedAt: serverTimestamp(),
+        });
+        tx.update(doc(this.db, 'members', this.uid), {
+          rankCount: state.ranking.length,
+          gameCount: Object.keys(state.records).length,
+          updatedAt: serverTimestamp(),
+        });
+        return next;
       });
-      tx.update(doc(this.db, 'members', this.uid), {
-        rankCount: state.ranking.length,
-        gameCount: Object.keys(state.records).length,
-        updatedAt: serverTimestamp(),
-      });
-      return next;
-    });
     for (let retried = false; ; retried = true) {
       try {
         return await publishHead();
