@@ -198,17 +198,14 @@ test('reduced motion skips endpoint measurement and optional animation setup', a
   const receipt = await page.evaluate(() => window.discoverContinuityReceipt);
   const noMotion = { sourceReads: 0, targetReads: 0, animatedControlAncestor: false, animationDurations: [] };
   expect(receipt).toMatchObject(noMotion);
+  await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+  await expect(dialog.locator('.catalog-detail-sleeve')).toHaveCSS('opacity', '1');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   expect(await page.evaluate(() => window.discoverContinuityReceipt)).toMatchObject(noMotion);
 });
 
-test('motion-enabled pointer and keyboard previews retain immediate native close and rapid reopen', async ({
-  page,
-  isMobile,
-}) => {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
+async function readyMotionCatalog(page: Page) {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto(catalogUrl(illustratedItem));
   const card = page.locator(`[data-catalog-id="${illustratedItem.record.id}"]`);
@@ -232,6 +229,16 @@ test('motion-enabled pointer and keyboard previews retain immediate native close
         .evaluate((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0),
     )
     .toBe(true);
+  return { card, opener };
+}
+
+test('motion-enabled pointer and keyboard previews retain immediate native close and rapid reopen', async ({
+  page,
+  isMobile,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const { opener } = await readyMotionCatalog(page);
   await recordContinuity(page);
 
   const dialog = page.getByRole('dialog', { name: illustratedItem.record.title, exact: true });
@@ -268,4 +275,159 @@ test('motion-enabled pointer and keyboard previews retain immediate native close
     await expect(opener).toBeFocused();
   }
   expect(errors).toEqual([]);
+});
+
+async function pauseArtworkEntry(page: Page, isMobile: boolean, failMovement = false) {
+  const { opener } = await readyMotionCatalog(page);
+  const dialog = page.getByRole('dialog', { name: illustratedItem.record.title, exact: true });
+  // Warm only the code and image; this proof measures a flight, not the separate cold-loading timeout.
+  await opener.click();
+  await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+  const probe = await page.evaluateHandle((failMovement) => {
+    const animate = Element.prototype.animate;
+    const effects: { element: Element; animation: Animation }[] = [];
+    let failed = false;
+    const movement = '[data-motion-visual="catalog-art"][data-motion-phase="enter"]';
+    Element.prototype.animate = function (frames, options) {
+      if (failMovement && this.matches(movement)) {
+        failed = true;
+        throw new Error('Synthetic provider artwork animation failure.');
+      }
+      const animation = animate.call(this, frames, options);
+      if (this.matches(movement) || this.matches('.catalog-detail-sleeve')) {
+        animation.pause();
+        animation.currentTime = 0;
+        effects.push({ element: this, animation });
+      }
+      return animation;
+    };
+    return {
+      ready: () => effects.some(({ element }) => element.matches(movement)),
+      failed: () => failed,
+      sample(progress: number) {
+        for (const { animation } of effects) {
+          const duration = animation.effect?.getTiming().duration;
+          if (typeof duration !== 'number') throw new Error('The artwork handoff must have a numeric duration.');
+          animation.currentTime = duration * progress;
+        }
+        const sprite = document.querySelector(movement);
+        const destination = document.querySelector('.catalog-detail-sleeve');
+        if (!sprite || !destination) throw new Error('Both decorative surfaces must be present during the handoff.');
+        return {
+          sprite: Number(getComputedStyle(sprite).opacity),
+          destination: Number(getComputedStyle(destination).opacity),
+        };
+      },
+      async finish() {
+        const finished = effects.map(({ animation }) => animation.finished);
+        for (const { animation } of effects) animation.finish();
+        await Promise.all(finished);
+      },
+      cancelMovement() {
+        const flight = effects.find(({ element }) => element.matches(movement));
+        if (!flight) throw new Error('The travelling artwork must be active before cancellation.');
+        flight.animation.cancel();
+      },
+      restore() {
+        Element.prototype.animate = animate;
+        for (const { animation } of effects) animation.cancel();
+      },
+    };
+  }, failMovement);
+  try {
+    if (isMobile) await opener.tap();
+    else await opener.click();
+    await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+    await expect.poll(() => probe.evaluate((proof) => proof.ready() || proof.failed())).toBe(true);
+    return { dialog, opener, probe };
+  } catch (cause) {
+    await probe.evaluate((proof) => proof.restore());
+    await probe.dispose();
+    throw cause;
+  }
+}
+
+test('provider entry hands off opacity without changing the settled artwork', async ({ page, isMobile }) => {
+  if (!isMobile) await page.setViewportSize({ width: 1920, height: 1080 });
+  const { dialog, probe } = await pauseArtworkEntry(page, isMobile);
+  try {
+    const before = await readLibrary(page);
+    const samples = await probe.evaluate((proof) =>
+      Array.from({ length: 100 }, (_, index) => proof.sample(index / 100)),
+    );
+    expect(samples.some((sample) => sample.sprite > 0.5)).toBe(true);
+    expect(samples.some((sample) => sample.destination > 0.5)).toBe(true);
+    expect(samples.every((sample) => sample.sprite <= 0.5 || sample.destination <= 0.5)).toBe(true);
+    expect(samples.every((sample) => sample.sprite + sample.destination >= 0.95)).toBe(true);
+    await expect(dialog.locator('.dialog-inner')).toHaveCSS('opacity', '1');
+    await expect(dialog.locator('.detail-actions')).toHaveCSS('opacity', '1');
+    await expect(dialog.locator('.catalog-detail-art-credits')).toHaveCSS('opacity', '1');
+    await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+    await expect(dialog.getByRole('spinbutton')).toBeEnabled();
+    await probe.evaluate((proof) => proof.finish());
+    await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+    await expect(dialog.locator('.catalog-detail-sleeve')).toHaveCSS('opacity', '1');
+    expect(await dialog.locator('.catalog-detail-sleeve').evaluate((element) => element.getAnimations().length)).toBe(
+      0,
+    );
+    await expect(dialog.locator('.catalog-detail-sleeve img')).toHaveAttribute('src', artwork.src);
+    expect(await readLibrary(page)).toEqual(before);
+  } finally {
+    await probe.evaluate((proof) => proof.restore());
+    await probe.dispose();
+  }
+});
+
+for (const interruption of ['resize', 'reduced motion', 'cancelled sprite'] as const) {
+  test(`provider entry restores its real artwork after mid-flight ${interruption}`, async ({ page, isMobile }) => {
+    const { dialog, opener, probe } = await pauseArtworkEntry(page, isMobile);
+    try {
+      const currentUrl = page.url();
+      const sample = await probe.evaluate((proof) => proof.sample(0.1));
+      expect(sample.sprite).toBeGreaterThan(0.5);
+      expect(sample.destination).toBeLessThanOrEqual(0.5);
+      if (interruption === 'resize') {
+        const viewport = page.viewportSize();
+        if (!viewport) throw new Error('The native resize check needs a known viewport.');
+        await page.setViewportSize({ width: viewport.width - 1, height: viewport.height });
+      } else if (interruption === 'reduced motion') {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+      } else {
+        await probe.evaluate((proof) => proof.cancelMovement());
+      }
+      await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+      await expect(dialog.locator('.catalog-detail-sleeve')).toHaveCSS('opacity', '1');
+      expect(await dialog.locator('.catalog-detail-sleeve').evaluate((element) => element.getAnimations().length)).toBe(
+        0,
+      );
+      await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+      await expect(dialog.getByRole('spinbutton')).toBeEnabled();
+      await expect(page).toHaveURL(currentUrl);
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+    } finally {
+      await probe.evaluate((proof) => proof.restore());
+      await probe.dispose();
+    }
+  });
+}
+
+test('failed provider flight setup leaves the real artwork and native controls visible', async ({ page, isMobile }) => {
+  const { dialog, probe } = await pauseArtworkEntry(page, isMobile, true);
+  try {
+    expect(await probe.evaluate((proof) => proof.failed())).toBe(true);
+    await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+    await expect(dialog.locator('.catalog-detail-sleeve')).toHaveCSS('opacity', '1');
+    await expect(dialog.locator('.catalog-detail-sleeve img')).toHaveAttribute('src', artwork.src);
+    await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+    await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
+  } finally {
+    await probe.evaluate((proof) => proof.restore());
+    await probe.dispose();
+  }
 });

@@ -599,7 +599,7 @@ export function createMotionRuntime(
             nativeSlot(dialog, slot) && imageReady(target, entry.hint.visual) ? measure(target) : null;
           if (destination && slot) {
             const to = fitMotionVisual(entry.hint.visual, destination);
-            entrance = fly(entry, slot, entry.start, to, 'enter');
+            entrance = fly(entry, slot, entry.start, to, 'enter', target);
           } else {
             finishOrigin(entry);
             localArrival();
@@ -682,6 +682,7 @@ export function createMotionRuntime(
     from: MotionRect,
     to: MotionRect,
     phase: 'enter' | 'return',
+    destination?: HTMLElement,
   ): MotionSession | null {
     const session = runtime.startMotionSession({ channel: 'continuity', guard: entry.guard });
     if (!session || !currentOrigin(entry)) {
@@ -699,15 +700,26 @@ export function createMotionRuntime(
       if (phase === 'return' && origin === entry && entry.phase === 'return') finishOrigin(entry);
     });
     const timings = MOTION_TIMINGS.artwork[phase];
-    session.animate(
+    const timing = { duration: read().policy.coarsePointer ? timings.coarse : timings.fine };
+    const handoff = 0.82;
+    const reveal =
+      phase === 'enter' && entry.hint.visual.kind === 'catalog-art' && destination && publicTarget(destination)
+        ? session.animate(destination, [{ opacity: 0 }, { opacity: 0, offset: handoff }, { opacity: 1 }], timing)
+        : null;
+    const movement = session.animate(
       sprite,
       [
         { transform: motionTransform(from, to), opacity: 0.96 },
-        { transform: 'none', opacity: 0.96, offset: 0.82 },
+        { transform: 'none', opacity: 0.96, offset: handoff },
         { transform: 'none', opacity: 0 },
       ],
-      { duration: read().policy.coarsePointer ? timings.coarse : timings.fine },
+      timing,
     );
+    // One public artwork owns the whole handoff; cancelling either effect must also restore the real destination.
+    if (reveal && movement) {
+      void reveal.finished.catch(() => session.cancel());
+      void movement.finished.catch(() => session.cancel());
+    }
     return session;
   }
   return runtime;

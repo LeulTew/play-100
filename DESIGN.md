@@ -471,6 +471,11 @@ artwork settle is at most 160ms fine / 140ms coarse.
 The coarse adjustment makes the substantial artwork travel easier to follow;
 it is not a global slowdown or a frame-rate claim. Keep the existing
 `cubic-bezier(.16,1,.3,1)` easing, 300ms rejection cap and origin lifetime.
+For provider artwork, the destination stays transparent until the travelling
+image reaches its handoff, then fades in as that image fades out. Both effects
+belong to one cancellable session; interruption, reduced motion or failed setup
+restores the real illustration immediately. Text, credits, controls and focus
+are never part of this opacity handoff.
 
 Menu enters in 180ms; ready Settings, About and sign-in utilities use 160ms.
 Cold or unsafe account readiness stays static. Native close, unlock and exact
