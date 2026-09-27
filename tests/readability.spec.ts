@@ -249,7 +249,10 @@ test('resting search and select edges keep 3:1 against the page and their own fi
           };
         }),
     );
-    expect(edges.filter((edge) => edge.search), `${surface} search field`).toHaveLength(1);
+    expect(
+      edges.filter((edge) => edge.search),
+      `${surface} search field`,
+    ).toHaveLength(1);
     expect(edges.filter((edge) => !edge.search).length, `${surface} selects`).toBeGreaterThanOrEqual(selects);
     for (const edge of edges) {
       const label = `${surface} ${edge.search ? 'search field' : `${edge.name} select`}`;
