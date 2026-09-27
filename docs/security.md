@@ -177,7 +177,9 @@ review. If adopted, follow the runbook's App Check section: ship that client
 first, observe verified-request ratios for at least seven days, then enforce
 Firestore followed by Auth. Update CSP and Data Use before enabling that
 traffic. Roll back by un-enforcing, not by weakening rules.
-The API limiters are per instance, not global per-IP protection. One shared
+The API limiters are per instance, not global per-IP protection, and only work
+that reaches upstream takes a slot: a FreeToGame detail lookup takes none, since
+it fetches nothing upstream. One shared
 bounded-admission helper (`api/_lib/admission.ts`) caps detail at 4 active and
 30 uncached lookups per minute, search at 6 active and 90 upstream searches
 per minute, and the Firebase sign-in helper at 8 active and 120 upstream

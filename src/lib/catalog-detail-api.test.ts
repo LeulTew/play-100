@@ -189,16 +189,25 @@ describe('public-only catalog detail endpoint', () => {
     upstream.mockImplementation(async () => json({ entities: {} }));
     expect((await nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ90000015`)).status).toBe(200);
   });
-  it('refuses the thirty-first uncached lookup in one window before any upstream request', async () => {
-    const upstream = vi.fn();
+  it('keeps FreeToGame lookups, which fetch nothing upstream, out of the window, and refuses the thirty-first paid lookup before it fetches', async () => {
+    const upstream = vi.fn(async () => json({ entities: {} }));
     vi.stubGlobal('fetch', upstream);
-    for (let index = 1; index <= 30; index += 1) {
-      expect((await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A${index}`)).status).toBe(200);
-    }
-    const refused = await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A31`);
-    expect(refused.status).toBe(429);
-    expect(await refused.json()).toMatchObject({ code: 'rate-limited' });
+    const paid = (index: number) => `${base}/api/catalog-detail?id=wikidata%3AQ91000${String(index).padStart(3, '0')}`;
+    // A burst of free lookups, more than twice the window's size, spends none of it.
+    for (let round = 0; round < 2; round += 1)
+      for (let index = 1; index <= 31; index += 1)
+        expect((await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A${index}`)).status).toBe(200);
     expect(upstream).not.toHaveBeenCalled();
+    for (let index = 1; index <= 30; index += 1) expect((await nativeFetch(paid(index))).status).toBe(200);
+    expect(upstream).toHaveBeenCalledTimes(30);
+    const refused = await nativeFetch(paid(31));
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get('retry-after')).toBe('15');
+    expect(refused.headers.get('cache-control')).toBe('no-store');
+    expect(await refused.json()).toMatchObject({ code: 'rate-limited' });
+    expect(upstream).toHaveBeenCalledTimes(30);
+    // With the window spent, a free lookup still answers.
+    expect((await nativeFetch(`${base}/api/catalog-detail?id=freetogame%3A1`)).status).toBe(200);
   });
 });
 

@@ -202,7 +202,8 @@ coverage are not evidence of current, complete or independent review quality.
 
 - `GET /api/catalog-detail?id=wikidata:Q...` accepts one exact public ID only.
   FreeToGame IDs return an explicit unsupported-enrichment state without
-  querying an undocumented ratings/image endpoint. Titles, arbitrary URLs,
+  querying an undocumented ratings/image endpoint, so they take no slot of the
+  function's per-instance upstream admission. Titles, arbitrary URLs,
   manual IDs, extra/duplicate parameters and curated aliases are rejected
   before upstream traffic. No private account, opinion, note or score is sent.
 - Root supplies optional `publicLookup` only for an eligible public Discover

@@ -26,6 +26,7 @@ const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 const JSON_OPTIONS = { maxBytes: 768 * 1024, timeoutMs: 3500, contentTypes: ['application/json'] };
 const cache = new Map<string, { expires: number; value: CatalogEnrichment }>();
 const cooldown = new Map<EnrichmentSource, number>();
+// Per-instance, and taken only by a lookup that fetches upstream: a FreeToGame detail costs no upstream request.
 const admission = createAdmission({ maxActive: 4, maxPerWindow: 30, windowMs: 60_000 });
 // A cold lookup shared by every concurrent caller of the same ID. Each entry holds one admission slot, so the map
 // never exceeds `maxActive`; it is removed after either outcome and a failure is never cached.
@@ -109,6 +110,8 @@ export async function getCatalogDetail(id: string, signal: AbortSignal): Promise
       400,
       'invalid',
     );
+  // Answered without an upstream request, so it takes no admission slot and cannot spend the budget of lookups that do.
+  if (identity.source === 'freetogame') return freeToGameDetail(id);
   const cached = cache.get(id);
   if (cached && cached.expires > Date.now()) return cached.value;
   let entry = inflight.get(id);
@@ -174,29 +177,32 @@ function waitForShared(id: string, entry: SharedLookup, signal: AbortSignal): Pr
   });
 }
 
+// FreeToGame documents no review scores or reusable image grant, so its detail needs no upstream request.
+function freeToGameDetail(id: string): CatalogEnrichment {
+  return {
+    schemaVersion: 1,
+    id,
+    fetchedAt: new Date().toISOString(),
+    ratings: [],
+    artwork: null,
+    sources: [
+      sourceState(
+        'freetogame',
+        'unavailable',
+        'FreeToGame does not document review scores or a reusable image grant for this lookup. Its game data and source link remain available.',
+        'unsupported',
+      ),
+    ],
+  };
+}
+
 async function lookupDetail(
   id: string,
   identity: NonNullable<ReturnType<typeof enrichmentIdentity>>,
   signal: AbortSignal,
 ): Promise<CatalogEnrichment> {
+  if (identity.source === 'freetogame') return freeToGameDetail(id);
   const fetchedAt = new Date().toISOString();
-  if (identity.source === 'freetogame') {
-    return {
-      schemaVersion: 1,
-      id,
-      fetchedAt,
-      ratings: [],
-      artwork: null,
-      sources: [
-        sourceState(
-          'freetogame',
-          'unavailable',
-          'FreeToGame does not document review scores or a reusable image grant for this lookup. Its game data and source link remain available.',
-          'unsupported',
-        ),
-      ],
-    };
-  }
   const entityResult = await provider('wikidata', async () => {
     const payload = await upstreamJson(
       wikiUrl(WIKIDATA, { action: 'wbgetentities', ids: identity.sourceId, props: 'claims' }),
