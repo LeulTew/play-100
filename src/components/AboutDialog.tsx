@@ -101,20 +101,28 @@ export function AboutDialog({
       <section>
         <h3>Public catalogs</h3>
         <p>
-          Discover includes a bundled catalog and optional online metadata lookup from{' '}
-          <a href="https://www.wikidata.org/wiki/Wikidata:Data_access" target="_blank" rel="noreferrer">
-            Wikidata (CC0)
-          </a>{' '}
-          and the documented{' '}
-          <a href="https://www.freetogame.com/api-doc" target="_blank" rel="noreferrer">
-            FreeToGame API
-          </a>
-          . Game data from{' '}
-          <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">
-            FreeToGame
-          </a>{' '}
-          is attributed and linked to its source.
+          Discover includes a bundled catalog and optional online metadata lookup from Wikidata (CC0) and the
+          documented FreeToGame API. Game data from FreeToGame is attributed and linked to its source.
         </p>
+        <div className="button-row" role="group" aria-label="Public catalog sources">
+          <a
+            className="text-button"
+            href="https://www.wikidata.org/wiki/Wikidata:Data_access"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Wikidata (CC0)
+            <Icon name="up-right" width="17" height="17" />
+          </a>
+          <a className="text-button" href="https://www.freetogame.com/api-doc" target="_blank" rel="noreferrer">
+            FreeToGame API
+            <Icon name="up-right" width="17" height="17" />
+          </a>
+          <a className="text-button" href="https://www.freetogame.com/" target="_blank" rel="noreferrer">
+            FreeToGame
+            <Icon name="up-right" width="17" height="17" />
+          </a>
+        </div>
         <p>
           Online catalog search sends your query to a small read-only proxy and the selected provider. It does not send
           your private library, notes or rankings. Pages load only when requested. Wikidata coverage is limited to
@@ -144,22 +152,25 @@ export function AboutDialog({
           Fallback game jackets and the folding 3D collection are original supporting artwork, not official game covers.
         </p>
         <p>
-          Built with React, Three.js, dnd kit, native IndexedDB and customized{' '}
-          <a href="https://reactbits.dev" target="_blank" rel="noreferrer">
-            React Bits
-          </a>{' '}
-          CountUp, Magnet and AnimatedContent. React Bits copyright 2026 David Haz, used under its MIT + Commons Clause
-          license. Typography: Barlow Condensed and Hanken Grotesk, under the SIL Open Font License. Creature avatars
-          use locally generated DiceBear Critters (CC0 1.0) with DiceBear core (MIT); no Google photo is fetched.
+          Built with React, Three.js, dnd kit, native IndexedDB and customized React Bits CountUp, Magnet and
+          AnimatedContent. React Bits copyright 2026 David Haz, used under its MIT + Commons Clause license.
+          Typography: Barlow Condensed and Hanken Grotesk, under the SIL Open Font License. Creature avatars use locally
+          generated DiceBear Critters (CC0 1.0) with DiceBear core (MIT); no Google photo is fetched.
         </p>
-        <a className="text-button" href="/licenses/dicebear.txt" target="_blank" rel="noreferrer">
-          Creature avatar notices
-          <Icon name="up-right" width="17" height="17" />
-        </a>
-        <a className="text-button" href="/credits.txt" target="_blank" rel="noreferrer">
-          Read third-party notices
-          <Icon name="up-right" width="17" height="17" />
-        </a>
+        <div className="button-row" role="group" aria-label="Project sources and notices">
+          <a className="text-button" href="https://reactbits.dev" target="_blank" rel="noreferrer">
+            React Bits
+            <Icon name="up-right" width="17" height="17" />
+          </a>
+          <a className="text-button" href="/licenses/dicebear.txt" target="_blank" rel="noreferrer">
+            Creature avatar notices
+            <Icon name="up-right" width="17" height="17" />
+          </a>
+          <a className="text-button" href="/credits.txt" target="_blank" rel="noreferrer">
+            Read third-party notices
+            <Icon name="up-right" width="17" height="17" />
+          </a>
+        </div>
       </section>
     </Dialog>
   );

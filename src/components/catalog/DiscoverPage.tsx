@@ -635,16 +635,24 @@ export default function DiscoverPage({
           <p>
             Only public search terms and exact public game IDs are sent to providers, not your saved progress, ratings
             or notes. Opening an eligible game can load separately labelled ratings and licensed artwork while online
-            lookup is on. Metadata from{' '}
-            <a href="https://www.wikidata.org/wiki/Wikidata:Data_access" target="_blank" rel="noreferrer">
-              Wikidata (CC0)
-            </a>{' '}
-            and{' '}
-            <a href="https://www.freetogame.com/" target="_blank" rel="noreferrer">
-              FreeToGame
-            </a>
-            . Image credits are under each game's Actions &amp; source or in its details.
+            lookup is on. Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's Actions &amp;
+            source or in its details.
           </p>
+          <div className="button-row" role="group" aria-label="Public catalog sources">
+            <a
+              className="text-button"
+              href="https://www.wikidata.org/wiki/Wikidata:Data_access"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Wikidata (CC0)
+              <Icon name="up-right" width="17" height="17" />
+            </a>
+            <a className="text-button" href="https://www.freetogame.com/" target="_blank" rel="noreferrer">
+              FreeToGame
+              <Icon name="up-right" width="17" height="17" />
+            </a>
+          </div>
         </details>
       </div>
       <ManualGameForm
