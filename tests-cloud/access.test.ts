@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
+import { serverTimestamp } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 let environment: RulesTestEnvironment;
@@ -92,12 +93,17 @@ describe('managed verified identity and protected creator role', () => {
     const alice = environment
       .authenticatedContext('alice', { email: 'alice@example.test', email_verified: true })
       .firestore();
-    await assertFails(alice.doc('members/alice').update({ admin: true }));
-    await assertFails(alice.doc('members/alice').update({ email: 'a@example.test' }));
+    const profile = alice.doc('members/alice');
+    // A full profile update that commits, so each refusal below differs from an accepted write in one field alone:
+    // without the fresh updatedAt the whole-profile check refuses every one of them anyway.
+    const accepted = () => ({ displayName: 'Alice', updatedAt: serverTimestamp() });
+    await assertSucceeds(profile.update(accepted()));
+    await assertFails(profile.update({ ...accepted(), admin: true }));
+    await assertFails(profile.update({ ...accepted(), email: 'a@example.test' }));
     await assertFails(
-      alice.doc('members/alice').update({ avatar: { version: 1, url: 'https://evil.invalid/avatar.svg' } }),
+      profile.update({ ...accepted(), avatar: { version: 1, url: 'https://evil.invalid/avatar.svg' } }),
     );
-    await assertFails(alice.doc('members/alice').update({ displayName: 'a'.repeat(61) }));
-    expect((await alice.doc('members/alice').get()).data()?.displayName).toBe('alice');
+    await assertFails(profile.update({ ...accepted(), displayName: 'a'.repeat(61) }));
+    expect((await profile.get()).data()?.displayName).toBe('Alice');
   });
 });

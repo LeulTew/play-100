@@ -122,25 +122,45 @@ describe('S3 report and friendship boundaries', () => {
   });
 
   it.each([
-    ['Reporter_Custom', 'Bob'],
-    ['Alice', 'Target_Custom'],
-  ])('fails closed on report creation for ambiguous UID pair %s and %s', async (reporterUid, targetUid) => {
-    await seed({
-      [`accountLifecycle/${reporterUid}`]: { state: 'active' },
-      [`publicProfiles/${targetUid}`]: { uid: targetUid, published: true, hidden: false },
-    });
-    const ref = user(reporterUid).doc(`reports/${targetUid}_${reporterUid}`);
-    await expect(ref.get()).rejects.toMatchObject({ code: 'permission-denied' });
-    await assertFails(
-      ref.set({
-        reporterUid,
-        targetUid,
-        reason: 'Fixture report',
-        status: 'open',
-        createdAt: serverTimestamp(),
-      }),
-    );
-  });
+    ['Reporter_Custom', 'Bob', 'ReporterCustom', 'Bob'],
+    ['Alice', 'Target_Custom', 'Alice', 'TargetCustom'],
+  ])(
+    'fails closed on report creation for ambiguous UID pair %s and %s, which the delimiter-safe pair %s and %s passes',
+    async (reporterUid, targetUid, safeReporter, safeTarget) => {
+      await seed({
+        [`accountLifecycle/${reporterUid}`]: { state: 'active' },
+        [`publicProfiles/${targetUid}`]: { uid: targetUid, published: true, hidden: false },
+        [`accountLifecycle/${safeReporter}`]: { state: 'active' },
+        [`publicProfiles/${safeTarget}`]: { uid: safeTarget, published: true, hidden: false },
+      });
+      // A counted report with its quota entry, exactly as the client commits one: the ambiguous pair differs from its
+      // delimiter-safe control only by the underscore that makes its ID ambiguous. The quota's lastReport pattern
+      // refuses that ID too, so no otherwise-valid transaction can separate the report rule's UID check from it.
+      const report = (reporter: string, target: string) => {
+        const db = user(reporter);
+        const batch = db.batch();
+        batch.set(db.doc(`reports/${target}_${reporter}`), {
+          reporterUid: reporter,
+          targetUid: target,
+          reason: 'Fixture report',
+          status: 'open',
+          createdAt: serverTimestamp(),
+          counted: true,
+        });
+        batch.set(db.doc(`accountQuotas/${reporter}/limits/reports`), {
+          count: 1,
+          revision: 1,
+          lastReport: `${target}_${reporter}`,
+        });
+        return batch.commit();
+      };
+      const ref = user(reporterUid).doc(`reports/${targetUid}_${reporterUid}`);
+      await expect(ref.get()).rejects.toMatchObject({ code: 'permission-denied' });
+      await assertFails(report(reporterUid, targetUid));
+      await assertSucceeds(user(safeReporter).doc(`reports/${safeTarget}_${safeReporter}`).get());
+      await assertSucceeds(report(safeReporter, safeTarget));
+    },
+  );
 
   it('refuses control, format and line-break characters in a new report reason', async () => {
     const db = user('Alice');
