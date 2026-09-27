@@ -215,6 +215,97 @@ const games = (count: number): FriendShelfEntry[] =>
 const ranks = (count: number): PublicEntry[] =>
   games(count).map((entry, index) => ({ ...entry, position: index + 1, score: index === 0 ? 0 : null }));
 
+// Seeds a later save of the largest snapshots the rules admit (107 private chunks of 20 MiB, 86 ranking chunks of
+// 16 MiB) while All sharing is on and both views are ready. save() then runs that save's final commit as
+// CloudStore.upload does, reads included: the head, a pulse for each ready view unless omitted, the creator summary and
+// the member counts, in one transaction.
+async function heaviestSave(a: Client) {
+  const policy = await enable(a);
+  await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+  await a.all.publish(a.uid, 'ranking', ranks(1), policy, source, () => true);
+  const manifest = (tag: string, generation: string, chunks: number, bytes: number) => ({
+    format: 1,
+    generation,
+    digest: tag.repeat(64),
+    bytes,
+    chunks: Array.from({ length: chunks }, (_, index) => `${tag}${index.toString(16)}`.padEnd(64, '0')),
+  });
+  const ids = { previous: crypto.randomUUID(), current: crypto.randomUUID(), next: crypto.randomUUID() };
+  const library = {
+    previous: manifest('a', ids.previous, 107, 20971520),
+    current: manifest('b', ids.current, 107, 20971520),
+    next: manifest('c', ids.next, 107, 20971520),
+  };
+  const ranking = {
+    previous: manifest('d', ids.previous, 86, 16777216),
+    current: manifest('e', ids.current, 86, 16777216),
+    next: manifest('f', ids.next, 86, 16777216),
+  };
+  await seed(`syncHeads/${a.uid}`, {
+    format: 1,
+    epoch: 1,
+    revision: 1,
+    enabled: true,
+    deleted: false,
+    current: library.current,
+    previous: library.previous,
+    updatedAt: Timestamp.now(),
+  });
+  await seed(`creatorRanks/${a.uid}`, {
+    format: 1,
+    epoch: 1,
+    revision: 1,
+    current: ranking.current,
+    previous: ranking.previous,
+    updatedAt: Timestamp.now(),
+  });
+  await seed(`accounts/${a.uid}/generations/${ids.next}`, {
+    private: library.next,
+    ranking: ranking.next,
+    epoch: 1,
+    status: 'ready',
+    createdAt: Timestamp.now(),
+  });
+  const save = (pulse: boolean) =>
+    runTransaction(a.db, async (tx) => {
+      const headRef = doc(a.db, 'syncHeads', a.uid);
+      const summaryRef = doc(a.db, 'creatorRanks', a.uid);
+      const [head, summary, , ...views] = await Promise.all([
+        tx.get(headRef),
+        tx.get(summaryRef),
+        tx.get(doc(a.db, 'accounts', a.uid, 'generations', ids.next)),
+        ...['games', 'ranking'].map((kind) => tx.get(doc(a.db, 'friendAllHeads', a.uid, 'views', kind))),
+      ]);
+      const before = head.data();
+      if (!before) throw new Error('The seeded head is missing.');
+      tx.set(headRef, {
+        ...before,
+        revision: before.revision + 1,
+        current: library.next,
+        previous: before.current,
+        updatedAt: serverTimestamp(),
+      });
+      if (pulse)
+        for (const view of views)
+          if (view.data()?.status === 'ready')
+            tx.update(view.ref, {
+              status: 'updating',
+              revision: view.data()?.revision + 1,
+              updatedAt: serverTimestamp(),
+            });
+      tx.set(summaryRef, {
+        format: 1,
+        epoch: before.epoch,
+        revision: before.revision + 1,
+        current: ranking.next,
+        previous: summary.data()?.current ?? null,
+        updatedAt: serverTimestamp(),
+      });
+      tx.update(doc(a.db, 'members', a.uid), { rankCount: 10000, gameCount: 10000, updatedAt: serverTimestamp() });
+    });
+  return { library, save };
+}
+
 describe('All-sharing bounded SDK transport', () => {
   it('batch-deletes known legacy rows without per-row transactions and denies an uncounted concurrent format3 deletion', async () => {
     const a = await client();
@@ -1052,6 +1143,22 @@ describe('All-sharing bounded SDK transport', () => {
     const result = await b.all.page(a.uid, 'ranking');
     expect(result.entries).toMatchObject([{ score: 8.2 }]);
     expect(JSON.stringify(result)).not.toContain('Strictly private');
+  });
+  it('keeps the heaviest private save commit within the rules evaluation limit', async () => {
+    const a = await client();
+    const { library, save } = await heaviestSave(a);
+    await save(true);
+    expect(await a.cloud.head()).toMatchObject({ revision: 2, current: library.next, previous: library.current });
+    expect(await a.all.head(a.uid, 'games')).toMatchObject({ status: 'updating' });
+    expect(await a.all.head(a.uid, 'ranking')).toMatchObject({ status: 'updating' });
+  });
+  it('refuses the heaviest save commit without its view pulses on the pulse check, within the limit', async () => {
+    const a = await client();
+    const { library, save } = await heaviestSave(a);
+    const refused: unknown = await save(false).then(() => null, (cause: unknown) => cause);
+    expect(refused).toMatchObject({ code: 'permission-denied' });
+    expect(refused instanceof Error ? refused.message : '').not.toContain('maximum of 1000 expressions');
+    expect(await a.cloud.head()).toMatchObject({ revision: 1, current: library.current });
   });
   it.each(['never', 'selected', 'off', 'old-stop'] as const)(
     'does not freeze legacy private Pause when All is %s',
