@@ -1237,9 +1237,16 @@ describe('bounded strict friends-only ranking generations', () => {
       sourceId: `Q${i + 1}`,
       sourceUrl: `https://www.wikidata.org/wiki/Q${i + 1}`,
     }));
+    const finalEntry: PublicEntry = {
+      ...entry,
+      position: 3,
+      id: 'wikidata:Q3',
+      sourceId: 'Q3',
+      sourceUrl: 'https://www.wikidata.org/wiki/Q3',
+    };
     const control = await a.store.saveSettings(
       a.uid,
-      { enabled: true, selectedIds: entries.map((row) => row.id) },
+      { enabled: true, selectedIds: [...entries.map((row) => row.id), finalEntry.id] },
       await settings(a),
     );
     const generation = crypto.randomUUID();
@@ -1324,6 +1331,23 @@ describe('bounded strict friends-only ranking generations', () => {
       second.update(ref, { uploaded: 2, ids: [...entries.map((item) => item.id), row.id], status: 'ready' });
       await assertFails(second.commit());
     }
+    const second = writeBatch(a.db);
+    second.set(doc(ref, 'chunks', '1'), { index: 1, entries: [finalEntry], ids: [finalEntry.id] });
+    second.update(ref, { uploaded: 2, ids: [...entries.map((item) => item.id), finalEntry.id], status: 'ready' });
+    await assertSucceeds(second.commit());
+    const publishHead = writeBatch(a.db);
+    publishHead.update(ref, { status: 'published' });
+    publishHead.set(doc(a.db, 'friendShareHeads', a.uid), {
+      format: 1,
+      epoch: control.epoch,
+      settingsRevision: control.revision,
+      source,
+      revision: 1,
+      current: { generation, digest, count: 3 },
+      previous: null,
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(publishHead.commit());
   });
   it('denies a direct SDK chunk commit captured before the authoritative private source revision changed', async () => {
     const a = await client();
@@ -1346,7 +1370,7 @@ describe('bounded strict friends-only ranking generations', () => {
       status: 'staging',
       createdAt: serverTimestamp(),
     });
-    await stage.commit();
+    await assertSucceeds(stage.commit());
     await seed(`syncHeads/${a.uid}`, {
       format: 1,
       epoch: 1,
@@ -1361,6 +1385,30 @@ describe('bounded strict friends-only ranking generations', () => {
     upload.set(doc(ref, 'chunks', '0'), { index: 0, entries: [entry], ids: [entry.id] });
     upload.update(ref, { uploaded: 1, ids: [entry.id], status: 'ready' });
     await assertFails(upload.commit());
+    const acceptedGeneration = crypto.randomUUID();
+    const acceptedRef = doc(a.db, 'friendShares', a.uid, 'generations', acceptedGeneration);
+    const updatedSource = { ...source, remoteRevision: 1 };
+    const acceptedStage = writeBatch(a.db);
+    acceptedStage.update(doc(a.db, 'friendShareRegistry', a.uid), {
+      ids: [generation, acceptedGeneration],
+      revision: 2,
+    });
+    acceptedStage.set(acceptedRef, {
+      epoch: control.epoch,
+      settingsRevision: control.revision,
+      source: updatedSource,
+      count: 1,
+      digest,
+      uploaded: 0,
+      ids: [],
+      status: 'staging',
+      createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(acceptedStage.commit());
+    const acceptedUpload = writeBatch(a.db);
+    acceptedUpload.set(doc(acceptedRef, 'chunks', '0'), { index: 0, entries: [entry], ids: [entry.id] });
+    acceptedUpload.update(acceptedRef, { uploaded: 1, ids: [entry.id], status: 'ready' });
+    await assertSucceeds(acceptedUpload.commit());
   });
   it('revokes reads on remove/unshare/full deletion but not merely on private-saving pause', async () => {
     const a = await client();
