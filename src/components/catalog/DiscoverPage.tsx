@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
@@ -7,7 +7,6 @@ import type { DiscoveryFilters } from '../../lib/discovery-search';
 import { DISCOVERY_GENRE_FAMILIES, parseDiscoveryGenreFamily } from '../../lib/discovery-genres';
 import { useDiscoverSearch } from '../../hooks/useDiscoverSearch';
 import { useDiscoveryUrl } from '../../hooks/useDiscoveryUrl';
-import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { Icon } from '../Icon';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { SelectionBar } from '../SelectionBar';
@@ -26,6 +25,16 @@ import { gameDetailSearch } from '../../lib/my-games-navigation';
 import './discover.css';
 import './catalog-enrichment.css';
 
+// Kept local rather than shared with the catalog detail: a module used by both lazy pages would become its own
+// precache chunk, and the offline core is at its file budget.
+function subscribeConnection(listener: () => void) {
+  window.addEventListener('online', listener);
+  window.addEventListener('offline', listener);
+  return () => {
+    window.removeEventListener('online', listener);
+    window.removeEventListener('offline', listener);
+  };
+}
 export default function DiscoverPage({
   collection,
   state,
@@ -50,7 +59,11 @@ export default function DiscoverPage({
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
   const { filters, update, error: navigationError, saving, search: locationSearch } = useDiscoveryUrl();
-  const connected = useConnectionStatus();
+  const connected = useSyncExternalStore(
+    subscribeConnection,
+    () => navigator.onLine,
+    () => false,
+  );
   const games = collection.data?.games ?? [];
   const search = useDiscoverSearch(filters, games, collection.status === 'ready', state);
   const progressView = filters.progress ?? 'all';
