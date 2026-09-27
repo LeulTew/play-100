@@ -267,9 +267,12 @@ shell on: a fresh guest's captions never name Lite mode, and once the visitor
 chooses Lite, the next visit's shell and first commit do. It also reads the
 live `<head>` on first loads of lazy routes and after navigating from the
 landing shell: every stylesheet stays in `<head>`, the startup stylesheets come
-first and only once, and the lazy chunk stylesheets follow them. The shell
-comparisons need the local fonts the probes measure (Windows or macOS
-Impact/Arial, or Liberation Sans/Arimo on Linux).
+first and only once, and the lazy chunk stylesheets follow them. On phones, the
+inline style alone lays out the shell's mobile navigation in five equal columns
+at 320 and 393 px, each label inside its own column with its lines centred,
+with the WCAG text spacing too. The shell comparisons need the local fonts the
+probes measure (Windows or macOS Impact/Arial, or Liberation Sans/Arimo on
+Linux).
 
 [`tests/entry-recovery.spec.ts`](../tests/entry-recovery.spec.ts) loads `/` and
 `/?catalogs=off` under the production CSP. With the module entry refused, and once

@@ -4,6 +4,8 @@ import type { Page, Route } from '@playwright/test';
 import { mainDocumentPolicy } from '../scripts/first-paint/csp';
 import { motionHintKey } from '../src/lib/motion-hint';
 import { emptyCatalogs } from './catalog-helpers';
+import { expectEqualColumns, readNavigationColumns } from './mobile-nav-helpers';
+import { adoptTextSpacing } from './readability-helpers';
 
 interface Box {
   key: string;
@@ -480,6 +482,44 @@ test('the startup artifact caption names Lite mode only when the visitor chose i
   expect(lite, 'the shell').toContain('shell: Illustrated view · Lite mode');
   expect(lite, "React's first commit").toContain('app: Illustrated view · Lite mode');
   expect(errors).toEqual([]);
+});
+
+// G6-QA A11Y-001: the inline style alone lays the shell's navigation out in the app's five equal columns.
+test("the shell's mobile navigation keeps five equal columns under the inline style", async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'The mobile navigation shows only in the phone layout.');
+  await emptyCatalogs(page);
+  await serveWithPolicy(page);
+  const built = await (await page.request.get('/')).text();
+  const deferred = /<template id="p100-deferred">([\s\S]*?)<\/template>/.exec(built)?.[1] ?? '';
+  const entryScript = /<script type="module" crossorigin src="(\/assets\/[^"]+\.js)"/.exec(deferred)?.[1];
+  const entryStylesheet = /<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)"/.exec(deferred)?.[1];
+  if (!entryScript || !entryStylesheet)
+    throw new Error(
+      'Build the app before this check: index.html has no startup template with an entry script and stylesheet.',
+    );
+  // Neither the app nor the entry stylesheet arrives, so only the inline style lays out the shell.
+  const releaseScript = await hold(page, (url) => url.pathname === entryScript);
+  const releaseStylesheet = await hold(page, (url) => url.pathname === entryStylesheet);
+  const selector = '.first-paint-shell .mobile-nav';
+  try {
+    for (const width of [320, 393]) {
+      await page.setViewportSize({ width, height: 851 });
+      await page.goto('/', { waitUntil: 'commit' });
+      await expect(page.locator(selector)).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('data-boot', 'landing');
+      await expect(page.locator('html')).not.toHaveAttribute('data-app-started');
+      await page.evaluate(() => document.fonts.ready);
+      expectEqualColumns(await readNavigationColumns(page, selector), `the shell at ${width}px`);
+      await adoptTextSpacing(page);
+      const spaced = await readNavigationColumns(page, selector);
+      const spacing = new Set(spaced.items.map((item) => item.letterSpacing));
+      expect(spacing, 'the WCAG letter spacing applies').toEqual(new Set(['1.44px']));
+      expectEqualColumns(spaced, `the shell at ${width}px with text spacing`);
+    }
+  } finally {
+    releaseScript();
+    releaseStylesheet();
+  }
 });
 
 // The boot script starts the app, so a policy that blocked it would leave the page without React.

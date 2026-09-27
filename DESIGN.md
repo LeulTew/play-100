@@ -508,6 +508,9 @@ their purpose or order. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
 Primary mobile navigation labels use 12px while retaining the existing
 48px minimum target width, navigation height, spacing and safe-area padding.
+Its five destinations share one box model (the Menu button adds no padding of
+its own) in five equal columns. A label that needs more room, as under the
+user's text spacing, wraps centred within its own column.
 An active notification clears the measured tray, including its error and
 storage marker, instead of covering Compare. Empty transient drag targets add
 no page spacer. Dismissible limit feedback stays inside the measured dock, and

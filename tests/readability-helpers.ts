@@ -6,6 +6,15 @@ export const textSpacingCSS = `
   p { margin-bottom: 2em !important; }
 `;
 
+/** Applies textSpacingCSS as a constructed stylesheet, which needs no inline-style permission from the page's CSP. */
+export async function adoptTextSpacing(page: Page): Promise<void> {
+  await page.evaluate((css) => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  }, textSpacingCSS);
+}
+
 export async function expectReadableSurface(page: Page, surface: string, checkClipping = false) {
   await page.evaluate(() => document.fonts.ready);
   const report = await page.evaluate(

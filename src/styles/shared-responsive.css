@@ -234,12 +234,6 @@
   .app-page .empty-state .button {
     font-size: 13px;
   }
-  .mobile-nav > a,
-  .mobile-nav > button {
-    min-width: 48px;
-    flex: 1;
-    font-size: 12px;
-  }
   .catalog-results > li {
     gap: 11px;
     flex-wrap: wrap;

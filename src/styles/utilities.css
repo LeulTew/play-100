@@ -521,9 +521,10 @@ html[data-motion='off']
     padding-block: 31px 24px;
   }
   .mobile-nav {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     align-items: stretch;
-    justify-content: space-around;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -544,10 +545,13 @@ html[data-motion='off']
     gap: 3px;
     min-height: 51px;
     min-width: 48px;
+    padding: 0;
     background: transparent;
     font-size: 12px;
     font-weight: 600;
     color: var(--muted);
+    text-align: center;
+    overflow-wrap: anywhere;
     border-radius: 4px;
   }
   .mobile-nav > a[aria-current='page'],

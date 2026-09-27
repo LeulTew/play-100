@@ -2,6 +2,8 @@ import { chromium, expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { loadEnv } from 'vite';
 import { readFirebaseConfiguration } from '../src/lib/online-config';
+import { expectEqualColumns, readNavigationColumns } from './mobile-nav-helpers';
+import { adoptTextSpacing } from './readability-helpers';
 
 const mode = process.env.PLAY100_TEST_BUILD === 'development' ? 'development' : 'production';
 const environment = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
@@ -139,6 +141,30 @@ for (const width of [320, 393]) {
     await assertNavigation(page);
     await activateAll(page, true);
     await assertNavigation(page);
+  });
+}
+
+// G6-QA A11Y-001: under the WCAG 1.4.12 text spacing the labels grow; each stays in its own column, centred.
+for (const width of [320, 393]) {
+  test(`the five navigation columns stay equal with every label inside and centred at ${width}px, with and without text spacing`, async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'The actual coarse-pointer contract is exercised in the mobile project.');
+    await page.setViewportSize({ width, height: 851 });
+    await page.goto('/?catalogs=off');
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    await page.evaluate(() => document.fonts.ready);
+    expectEqualColumns(await readNavigationColumns(page), `${width}px`);
+    await adoptTextSpacing(page);
+    const spaced = await readNavigationColumns(page);
+    const spacing = new Set(spaced.items.map((item) => item.letterSpacing));
+    expect(spacing, 'the WCAG letter spacing applies').toEqual(new Set(['1.44px']));
+    expectEqualColumns(spaced, `${width}px with text spacing`);
+    if (width === 320) {
+      const myGames = spaced.items.find((item) => item.label === 'My games');
+      expect(myGames?.lines, 'the longest label wraps within its column').toHaveLength(2);
+    }
   });
 }
 
