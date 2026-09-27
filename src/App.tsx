@@ -842,6 +842,9 @@ export default function App() {
                   const dragHandle = (record: LibraryRecord) =>
                     !onlineOpening && <CompareDragHandle record={record} compact />;
                   const inlineTray = page === 'collection' && filters.view === 'table' && collection.status === 'ready';
+                  const inlineTrayError = inlineTray && !motionBlocked ? tray.error : null;
+                  // Tray errors use the existing polite provider status; the toast supplies their visible copy.
+                  const currentNotice = inlineTrayError || visibleNotice;
                   const comparisonTray = (
                     <TrayHost
                       page={page}
@@ -1225,9 +1228,9 @@ export default function App() {
                         manualShare={manualLink ? { link: manualLink, onClose: closeManualLink } : null}
                       />
                       <div
-                        className={`toast ${visibleNotice || toastRecovery ? 'toast-visible' : ''}`}
-                        role={toastRecovery ? undefined : 'status'}
-                        aria-live={toastRecovery ? undefined : 'polite'}
+                        className={`toast ${currentNotice || toastRecovery ? 'toast-visible' : ''}`}
+                        role={toastRecovery || inlineTrayError ? undefined : 'status'}
+                        aria-live={toastRecovery || inlineTrayError ? undefined : 'polite'}
                         aria-atomic="true"
                       >
                         {toastRecovery ? (
@@ -1245,16 +1248,19 @@ export default function App() {
                             </button>
                           </>
                         ) : (
-                          visibleNotice && (
+                          currentNotice && (
                             <>
                               <Icon name="info" width="19" height="19" />
-                              <span>{visibleNotice}</span>
+                              <span>{currentNotice}</span>
                               <button
                                 className="icon-button"
                                 aria-label="Dismiss notification"
                                 onClick={() => {
-                                  setNotice('');
-                                  if (!panelRecovery) dismissPanelMessage();
+                                  if (inlineTrayError) tray.dismissError();
+                                  else {
+                                    setNotice('');
+                                    if (!panelRecovery) dismissPanelMessage();
+                                  }
                                 }}
                               >
                                 <Icon name="close" width="17" height="17" />

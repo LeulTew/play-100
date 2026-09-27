@@ -95,6 +95,7 @@ function ScopedCompareTray({
     }
     if (
       error &&
+      layout !== 'inline' &&
       node &&
       focused instanceof HTMLElement &&
       focused.closest('.game-card, .discovery-card, .ratings-table, .personal-records')

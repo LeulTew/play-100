@@ -3,6 +3,97 @@ import { emptyCatalogs } from './catalog-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
+for (const width of [1440, 393]) {
+  for (const mode of ['full', 'lite'] as const) {
+    test(`table pin limit stays visible without moving focus at ${width}px in ${mode}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 393 ? 851 : 900 });
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await emptyCatalogs(page);
+      const state = libraryFixture(0);
+      state.motion = mode;
+      await installGuestLibrary(page, state);
+      await page.goto('/?view=table&catalogs=off');
+      const rows = page.locator('.ratings-table tbody > tr');
+      await expect(rows).toHaveCount(24);
+      for (let index = 0; index < 6; index++) {
+        await rows.nth(index).getByRole('button', { name: /^Pin for comparison:/ }).click();
+      }
+      await expect(page.locator('.compare-tray-expand')).toContainText('6 games');
+      await page.evaluate(() => document.fonts.ready);
+      const before = await readLibrary(page);
+      const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
+      const pin = rows.nth(6).getByRole('button', { name: /^Pin for comparison:/ });
+      await pin.focus();
+      await pin.evaluate((element) => {
+        element.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+        const table = element.closest('.ratings-scroll')!;
+        window.scrollBy({ top: table.getBoundingClientRect().top - 164, behavior: 'instant' });
+      });
+      const scrollBefore = await page.evaluate(() => ({
+        page: scrollY,
+        table: document.querySelector('.ratings-scroll')!.scrollTop,
+      }));
+      const pinBefore = await pin.boundingBox();
+      if (!pinBefore) throw new Error('The seventh pin must be visible before activation.');
+      await pin.press('Enter');
+      const message = 'The Compare tray holds six games. Unpin one before adding another.';
+      const toast = page.locator('.toast-visible');
+      await expect(toast).toContainText(message);
+      await expect(page.locator('.sr-only[role="status"]').filter({ hasText: message })).toHaveAttribute(
+        'aria-live',
+        'polite',
+      );
+      await expect(pin).toBeFocused();
+      await expect(pin).toHaveAttribute('aria-pressed', 'false');
+      // Read before any further action could reveal the error or return focus to the rejected pin.
+      const pinAfter = await pin.boundingBox();
+      if (!pinAfter) throw new Error('The rejected pin must remain visible.');
+      expect(Math.abs(pinAfter.y - pinBefore.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(pinAfter.x - pinBefore.x)).toBeLessThanOrEqual(1);
+      expect(
+        await page.evaluate(() => ({
+          page: scrollY,
+          table: document.querySelector('.ratings-scroll')!.scrollTop,
+        })),
+      ).toEqual(scrollBefore);
+      await expect
+        .poll(() =>
+          toast.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const navigation = document.querySelector('.mobile-nav')?.getBoundingClientRect();
+            const text = element.querySelector('span')!.getBoundingClientRect();
+            return (
+              bounds.top >= 0 &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth &&
+              bounds.bottom <= (navigation?.height ? navigation.top : innerHeight) &&
+              text.top >= bounds.top &&
+              text.bottom <= bounds.bottom &&
+              element.contains(document.elementFromPoint(text.x + text.width / 2, text.y + text.height / 2))
+            );
+          }),
+        )
+        .toBe(true);
+      await toast.evaluate((element) =>
+        Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+      );
+      await expect(pin).toBeFocused();
+      expect(
+        await page.evaluate(() => ({
+          page: scrollY,
+          table: document.querySelector('.ratings-scroll')!.scrollTop,
+        })),
+      ).toEqual(scrollBefore);
+      expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toBe(pins);
+      expect(await readLibrary(page)).toEqual(before);
+      await toast.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+      await expect(toast).toHaveCount(0);
+      await expect(page.locator('.compare-tray-error')).toHaveCount(0);
+      await expect(page.locator('.compare-tray-expand')).toContainText('6 games');
+    });
+  }
+}
+
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 393, height: 851 },

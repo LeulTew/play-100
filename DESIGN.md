@@ -235,6 +235,9 @@ Table view places the Compare tray in its own strip below the table scrollport,
 not over the cells. With pins present, the table and strip fit the usable window;
 the first pin reveals both the tray and the next row action. Other views keep
 the existing dock, and an active drag still exposes the fixed drop target.
+Table pin refusals also appear in the existing viewport toast without scrolling
+or moving focus. The tray's polite status announces the refusal once; dismissing
+its notification clears the same error shown in the strip.
 On narrow windows, a visible toast reserves its measured height and entrance
 clearance in the table's height limit, keeping the inline strip clear without
 changing the desktop layout or moving it into the table scrollport.
