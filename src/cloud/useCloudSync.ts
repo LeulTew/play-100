@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryScope, ScopedLibrary, SyncHead, SyncStatus } from '../lib/cloud-types';
 import { scopeUid } from '../lib/cloud-types';
+import type { PersonalLibraryState } from '../lib/personal-types';
 import {
   acknowledgeScopedUpload,
   adoptScopedRemote,
@@ -9,6 +10,7 @@ import {
   pauseScopedLibrary,
   rebaseScopedLibrary,
 } from '../lib/scoped-library';
+import { packLibrary } from '../lib/snapshot-transport';
 import { syncFailure, SyncWorkQueue } from '../lib/sync-retry';
 import { hasPendingEdits, usePendingEdits } from '../hooks/useExitSave';
 import { CloudStore, RemoteConflict, SyncRevoked } from './cloud-store';
@@ -49,6 +51,16 @@ function createSyncLifetime(identity: LifetimeIdentity): Lifetime {
   };
 }
 const hardBlocked = (block: Block) => block === 'terminal' || block === 'conflict' || block === 'revoked';
+// Whether a head publishes exactly this library: the digest covers every field an upload sends. A library that cannot
+// be packed, such as one over the snapshot limit, is not held and still needs a choice.
+async function holdsLibrary(head: SyncHead, state: PersonalLibraryState): Promise<boolean> {
+  if (!head.current) return false;
+  try {
+    return (await packLibrary(state)).manifest.digest === head.current.digest;
+  } catch {
+    return false;
+  }
+}
 
 export function useCloudSync(
   scope: LibraryScope | null,
@@ -184,18 +196,31 @@ export function useCloudSync(
         if (!head || !head.enabled || head.deleted || head.epoch !== local.sync.epoch) throw new SyncRevoked();
         if (hardBlocked(lifetime.block) || head.revision < local.sync.baseRemoteRevision) return;
         if (head.revision > local.sync.baseRemoteRevision) {
-          if (local.sync.dirty || hasPendingEdits()) throw new RemoteConflict(head);
-          const incoming = await store.download(head);
-          if (!incoming) throw new Error('The newer online copy has no saved library. Your local copy is retained.');
-          if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
-          local = await adoptScopedRemote(
-            scope,
-            incoming,
-            head,
-            local.state.revision,
-            false,
-            () => owns() && !hardBlocked(lifetime.block) && !hasPendingEdits(),
-          );
+          if (hasPendingEdits() || (local.sync.dirty && !(await holdsLibrary(head, local.state))))
+            throw new RemoteConflict(head);
+          if (local.sync.dirty) {
+            // Another tab or window of this account saved exactly this library before this tab recorded it: record
+            // that head without replacing local data. An edit made meanwhile stays pending.
+            if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
+            local = await acknowledgeScopedUpload(
+              scope,
+              local.sync.dataRevision,
+              head,
+              () => owns() && !hardBlocked(lifetime.block),
+            );
+          } else {
+            const incoming = await store.download(head);
+            if (!incoming) throw new Error('The newer online copy has no saved library. Your local copy is retained.');
+            if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
+            local = await adoptScopedRemote(
+              scope,
+              incoming,
+              head,
+              local.state.revision,
+              false,
+              () => owns() && !hardBlocked(lifetime.block) && !hasPendingEdits(),
+            );
+          }
         }
         if (!owns()) return;
         if (!local.sync.dirty && !hasPendingEdits()) succeeded('saved');
