@@ -64,20 +64,30 @@ test('an actual dirty draft is preserved through another-tab updates and saves i
 }) => {
   await prepareRanking(page);
   const peer = await context.newPage();
-  await peer.goto('/my-rankings');
-  await expect(peer.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
-  const current = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
-  await current.fill('8.5');
-  const remote = peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
-  await remote.fill('9');
-  await remote.press('Tab');
-  await expect.poll(async () => (await readLibrary(peer)).ranking[0]?.score).toBe(9);
-  await peer.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true }).click();
-  await expect(page.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true })).toBeChecked();
-  await expect(current).toHaveValue('8.5');
-  await current.press('Tab');
-  await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
-  await peer.close();
+  try {
+    await peer.goto('/my-rankings');
+    await expect(peer.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
+    const current = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
+    // Cross-tab refresh uses BroadcastChannel and native IndexedDB events, so it can run while autosave is paused.
+    await page.clock.install({ time: new Date('2026-09-27T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-09-27T00:00:10Z'));
+    try {
+      await current.fill('8.5');
+      const remote = peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
+      await remote.fill('9');
+      await remote.press('Tab');
+      await expect.poll(async () => (await readLibrary(peer)).ranking[0]?.score).toBe(9);
+      await peer.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true }).click();
+      await expect(page.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true })).toBeChecked();
+      await expect(current).toHaveValue('8.5');
+    } finally {
+      await page.clock.resume();
+    }
+    await current.press('Tab');
+    await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
+  } finally {
+    await peer.close();
+  }
 });
 
 test('invalid native number input never clears a previously saved personal score', async ({ page }) => {
