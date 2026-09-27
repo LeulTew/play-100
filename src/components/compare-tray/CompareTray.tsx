@@ -84,12 +84,14 @@ function ScopedCompareTray({
     if (layout === 'inline' && hasContent && !hidden && !dragging && node && !inlineRevealed.current) {
       inlineRevealed.current = true;
       const table = node.closest('.ratings-mode')?.querySelector('.ratings-scroll');
-      const next =
-        focused instanceof HTMLElement && table?.contains(focused)
-          ? focused.closest('tr')?.nextElementSibling?.querySelector<HTMLElement>('.table-progress > button:last-child')
-          : null;
-      table?.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
-      next?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      // Reveal the first table pin and its next action, not an unrelated view switch.
+      if (focused instanceof HTMLElement && table?.contains(focused)) {
+        const next = focused
+          .closest('tr')
+          ?.nextElementSibling?.querySelector<HTMLElement>('.table-progress > button:last-child');
+        table.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+        next?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      }
     }
     if (
       error &&

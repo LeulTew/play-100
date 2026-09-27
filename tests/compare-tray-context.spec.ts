@@ -3,6 +3,70 @@ import { installGuestLibrary, libraryFixture, libraryRecords } from './library-p
 import { readLibrary } from './library-helpers';
 import { closeDialog } from './readability-helpers';
 
+for (const narrow of [false, true]) {
+  for (const occupied of [false, true]) {
+    for (const activation of ['keyboard', 'pointer'] as const) {
+      const title = `table switch keeps ${activation} focus visible with ${occupied ? 'six pins' : 'no pins'}`;
+      const viewport = narrow ? '320px' : 'project viewport';
+      test(`${title} at ${viewport}`, async ({ page }) => {
+        if (narrow) await page.setViewportSize({ width: 320, height: 851 });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await installGuestLibrary(page, libraryFixture(0));
+        await page.goto('/?catalogs=off&view=list');
+        await expect(page.locator('.game-card')).toHaveCount(24);
+        if (occupied) {
+          for (const record of libraryRecords.slice(0, 6)) {
+            await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
+          }
+          await expect(page.locator('.compare-tray-expand')).toContainText('6 games');
+        }
+        const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
+        const before = await readLibrary(page);
+        const switcher = page.getByRole('button', { name: 'Ratings table view', exact: true });
+        if (activation === 'keyboard') {
+          await page.getByRole('button', { name: 'List view', exact: true }).focus();
+          await page.keyboard.press('Tab');
+          await expect(switcher).toBeFocused();
+          await page.keyboard.press('Enter');
+        } else {
+          await switcher.click();
+        }
+        await expect(page.locator('.ratings-table tbody > tr')).toHaveCount(24);
+        await expect(switcher).toHaveAttribute('aria-pressed', 'true');
+        await expect(switcher).toBeFocused();
+        // Measure before any subsequent Playwright action can scroll the control back into view.
+        expect(
+          await switcher.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const header = document.querySelector('.site-header')!.getBoundingClientRect();
+            const navigation = document.querySelector('.mobile-nav')?.getBoundingClientRect();
+            return (
+              bounds.top >= header.bottom &&
+              bounds.bottom <= (navigation?.height ? navigation.top : innerHeight) &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth &&
+              element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2))
+            );
+          }),
+        ).toBe(true);
+        await expect(page.locator('.compare-tray-dock')).toHaveCount(occupied ? 1 : 0);
+        if (occupied) {
+          const tray = page.locator('.ratings-tray-strip .compare-tray-dock');
+          await expect(tray).toHaveAttribute('data-layout', 'inline');
+          await tray.locator('.compare-tray-expand').click();
+          await expect(page.getByRole('dialog', { name: 'Compare tray', exact: true })).toBeVisible();
+          await expect(page.locator('.compare-tray-games > li')).toHaveCount(6);
+          await closeDialog(page);
+          await expect(tray.locator('.compare-tray-expand')).toBeFocused();
+          await expect(tray.locator('.compare-tray-expand')).toBeInViewport({ ratio: 1 });
+        }
+        expect(await readLibrary(page)).toEqual(before);
+        expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toBe(pins);
+      });
+    }
+  }
+}
+
 for (const width of [320, 393, 768, 1440]) {
   test(`tray feedback and contextual chip leave page-end actions clear at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 852 });
