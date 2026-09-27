@@ -110,6 +110,10 @@ export function parseHead(value: DocumentData): SyncHead {
   };
 }
 
+function permissionDenied(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied');
+}
+
 function sameHead(head: SyncHead, expected: Pick<SyncHead, 'epoch' | 'revision'>): void {
   if (!head.enabled || head.deleted || head.epoch !== expected.epoch) throw new SyncRevoked();
   if (head.revision !== expected.revision) throw new RemoteConflict(head);
@@ -356,22 +360,54 @@ export class CloudStore {
       if (fresh.current?.digest !== snapshot.manifest.digest) throw new RemoteConflict(fresh);
       return fresh;
     }
-    try {
-      await this.register(snapshot.manifest, summary.manifest, expected);
-    } catch (error) {
-      if (error instanceof RemoteConflict && publishedAlready(error.head, expected, snapshot.manifest.digest))
-        return error.head;
-      throw error;
+    // Another writer of this account can commit between one of these transactions' reads and its commit. The
+    // emulator evaluates rules before the transaction's read preconditions, so such a stale commit is refused instead
+    // of retried. Read the head again and settle as the retry would: an identical publication is this upload's
+    // result, a changed head is a conflict, and an unchanged head gets one retry, since a stale read of the registry,
+    // a chunk's holders or an All view is refused too.
+    const settle = async (error: unknown, retried: boolean): Promise<SyncHead | null> => {
+      if (!permissionDenied(error)) throw error;
+      const fresh = await this.head();
+      if (!fresh || !fresh.enabled || fresh.deleted || fresh.epoch !== expected.epoch) throw new SyncRevoked();
+      if (publishedAlready(fresh, expected, snapshot.manifest.digest)) return fresh;
+      if (fresh.revision !== expected.revision) throw new RemoteConflict(fresh);
+      if (retried) throw error;
+      guard();
+      return null;
+    };
+    for (let retried = false; ; retried = true) {
+      try {
+        await this.register(snapshot.manifest, summary.manifest, expected);
+        break;
+      } catch (error) {
+        if (error instanceof RemoteConflict && publishedAlready(error.head, expected, snapshot.manifest.digest))
+          return error.head;
+        const settled = await settle(error, retried);
+        if (settled) return settled;
+      }
     }
+    // Two writers of one library also write the same content-named chunks and add their generations to the same
+    // holders, so a chunk write can be just as stale.
+    const writeChunk = async (kind: 'private' | 'ranking', chunk: SnapshotChunk): Promise<SyncHead | null> => {
+      for (let retried = false; ; retried = true) {
+        try {
+          await this.putChunk(kind, chunk, snapshot.manifest.generation);
+          return null;
+        } catch (error) {
+          const settled = await settle(error, retried);
+          if (settled) return settled;
+        }
+      }
+    };
     for (const [kind, chunks] of [
       ['private', snapshot.chunks],
       ['ranking', summary.chunks],
     ] as const) {
       for (let index = 0; index < chunks.length; index += 3) {
         guard();
-        await Promise.all(
-          chunks.slice(index, index + 3).map((chunk) => this.putChunk(kind, chunk, snapshot.manifest.generation)),
-        );
+        const batch = await Promise.all(chunks.slice(index, index + 3).map((chunk) => writeChunk(kind, chunk)));
+        const settled = batch.find((head) => head !== null);
+        if (settled) return settled;
         if (afterChunk) await afterChunk();
       }
     }
@@ -391,7 +427,7 @@ export class CloudStore {
       return null;
     });
     if (published) return published;
-    return runTransaction(this.db, async (tx) => {
+    const publishHead = () => runTransaction(this.db, async (tx) => {
       const summaryRef = doc(this.db, 'creatorRanks', this.uid);
       const [head, previousSummary, generation, shared] = await Promise.all([
         tx.get(this.headRef()),
@@ -436,6 +472,14 @@ export class CloudStore {
       });
       return next;
     });
+    for (let retried = false; ; retried = true) {
+      try {
+        return await publishHead();
+      } catch (error) {
+        const settled = await settle(error, retried);
+        if (settled) return settled;
+      }
+    }
   }
 
   async revoke(expected: SyncHead | null, remove = false): Promise<SyncHead> {

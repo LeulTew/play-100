@@ -163,10 +163,13 @@ Two tabs or windows of one account share its device copy, so both may upload
 the same pending library. Identical content is not a conflict. An upload that
 finds exactly its library already published in the same consent epoch takes
 that head as its result; cleanup removes any generation it staged, as after an
-interrupted upload. A dirty client whose library has a newer head's digest
-records that head as saved without replacing local data; an edit made
-meanwhile stays pending. Different content or an uncommitted editor still
-needs a choice, and a stopped, deleted or re-epoched head still stops saving.
+interrupted upload. That holds even when the other publication lands between
+the upload's last read and its commit, which the rules then refuse: the upload
+reads the head again and settles the same way. A dirty client whose library has
+a newer head's digest records that head as saved without replacing local data;
+an edit made meanwhile stays pending. Different content or an uncommitted
+editor still needs a choice, and a stopped, deleted or re-epoched head still
+stops saving.
 
 Confirmation is bound to the displayed remote revision/epoch and local revision.
 A newer intervening save requires another review, not silent last-write-wins.

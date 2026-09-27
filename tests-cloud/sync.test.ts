@@ -19,14 +19,22 @@ import {
   enableNetwork,
   getDocFromServer,
   getFirestore,
+  runTransaction,
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import type { DocumentReference, Firestore, Transaction, TransactionOptions } from 'firebase/firestore';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloudStore, RemoteConflict, SyncRevoked } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { applyPersonalAction, emptyPersonalLibrary } from '../src/lib/personal-library';
 import type { LibraryRecord } from '../src/lib/personal-types';
+
+// A pass-through, so one test can hold a transaction between its reads and its commit.
+vi.mock('firebase/firestore', async (original) => {
+  const actual = await original<typeof import('firebase/firestore')>();
+  return { ...actual, runTransaction: vi.fn(actual.runTransaction) };
+});
 
 let environment: RulesTestEnvironment;
 const apps: FirebaseApp[] = [];
@@ -53,6 +61,8 @@ beforeAll(async () => {
   });
 });
 beforeEach(async () => {
+  const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+  vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
   await environment.clearFirestore();
 });
 afterEach(async () => {
@@ -198,6 +208,94 @@ describe('real Auth and Firestore snapshot transactions', () => {
     },
   );
 
+  it('settles a head commit refused because the other writer published the same library first', async () => {
+    const first = await client();
+    const second = await client(first.email);
+    const base = await first.store.enable(null);
+    const library = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8 });
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    let staged = () => {};
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      staged = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let holding = true;
+    // Holds the second writer's head commit after its transaction read the head and staged its writes, so the first
+    // writer publishes in between. The emulator refuses that stale commit instead of retrying it, as it did in the
+    // Release 5 two-tab race that ended in "Online saving paused".
+    vi.mocked(runTransaction).mockImplementation(
+      async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+        actual.runTransaction(
+          db,
+          async (tx) => {
+            const result = await operation(tx);
+            if (holding && db === second.db && result && typeof result === 'object' && 'current' in result) {
+              holding = false;
+              staged();
+              await released;
+            }
+            return result;
+          },
+          options,
+        ),
+    );
+    const pending = second.store.upload(library, base);
+    await held;
+    const published = await first.store.upload(library, base);
+    release();
+    expect(await pending).toMatchObject({ epoch: base.epoch, revision: published.revision, current: published.current });
+    expect(await first.store.head()).toMatchObject({ revision: published.revision, current: published.current });
+  });
+  it('settles a chunk write refused because the other writer added its own holder first', async () => {
+    const first = await client();
+    const second = await client(first.email);
+    const library = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8 });
+    const saved = await first.store.upload(library, await first.store.enable(null));
+    // Only the private library changes, so both writers carry the saved ranking chunk over and add a holder to it.
+    const played = applyPersonalAction(library, { type: 'toggle-progress', record: game, key: 'played' });
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    let staged = () => {};
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      staged = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let holding = true;
+    // Holds the second writer's ranking chunk write after its transaction read the chunk, so the first writer adds its
+    // own holder in between and the second writer's holders are stale.
+    vi.mocked(runTransaction).mockImplementation(
+      async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+        actual.runTransaction(
+          db,
+          async (tx) => {
+            let chunk = false;
+            const read = tx.get.bind(tx);
+            tx.get = ((ref: DocumentReference) => {
+              if (ref.path.startsWith(`creatorRanks/${first.user.uid}/chunks/`)) chunk = true;
+              return read(ref);
+            }) as Transaction['get'];
+            const result = await operation(tx);
+            if (holding && chunk && db === second.db) {
+              holding = false;
+              staged();
+              await released;
+            }
+            return result;
+          },
+          options,
+        ),
+    );
+    const pending = second.store.upload(played, saved);
+    await held;
+    const published = await first.store.upload(played, saved);
+    release();
+    expect(await pending).toMatchObject({ epoch: saved.epoch, revision: published.revision, current: published.current });
+  });
   it('an interruption between uploaded chunks and the head commit leaves the last complete copy intact', async () => {
     const { store } = await client();
     const empty = await store.enable(null);
