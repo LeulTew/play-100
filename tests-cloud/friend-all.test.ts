@@ -351,6 +351,16 @@ describe('All-sharing bounded SDK transport', () => {
     await assertFails(staleBatch.commit());
     expect((await getDocFromServer(ref)).data()?.format).toBe(3);
     expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).data()?.count).toBe(1);
+    const countedRelease = writeBatch(a.db);
+    countedRelease.delete(ref);
+    countedRelease.update(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'), {
+      count: 0,
+      last: [ref.id],
+      updatedAt: serverTimestamp(),
+    });
+    await countedRelease.commit();
+    expect((await getDocFromServer(ref)).exists()).toBe(false);
+    expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).data()?.count).toBe(0);
   });
 
   it('migrates an old head automatically and rejects same-epoch frozen rows or an unfiltered peer query on the new head', async () => {
@@ -415,6 +425,9 @@ describe('All-sharing bounded SDK transport', () => {
       ),
     );
     expect((await b.all.page(a.uid, 'games')).entries).toEqual([value]);
+    expect((await getDocFromServer(doc(b.db, 'friendAllGames', a.uid, 'entries', value.id))).data()?.format).toBe(
+      3,
+    );
     expect((await getDocFromServer(doc(a.db, 'friendAllGames', a.uid, 'entries', legacy.id))).exists()).toBe(true);
     await deleteDoc(doc(a.db, 'friendAllGames', a.uid, 'entries', legacy.id));
     expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).data()?.count).toBe(1);
@@ -513,6 +526,14 @@ describe('All-sharing bounded SDK transport', () => {
     );
     expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).exists()).toBe(false);
     expect((await getDocFromServer(doc(a.db, 'friendAllHeads', a.uid, 'views', 'games'))).exists()).toBe(false);
+    const accepted = await client();
+    const acceptedPolicy = await enable(accepted);
+    await expect(
+      accepted.all.publish(accepted.uid, 'games', games(1), acceptedPolicy, source, () => true),
+    ).resolves.toMatchObject({
+      status: 'ready',
+      count: 1,
+    });
   });
 
   it('creates the new default atomically, publishes both safe paths, and allows bounded accepted-friend reads only', async () => {
@@ -549,6 +570,8 @@ describe('All-sharing bounded SDK transport', () => {
     );
     await assertFails(getDocFromServer(doc(b.db, 'friendAllPolicies', a.uid)));
     await assertFails(getDocFromServer(doc(b.db, 'friendAllJobs', a.uid, 'views', 'games')));
+    expect((await getDocFromServer(doc(a.db, 'friendAllPolicies', a.uid))).data()).toMatchObject({ enabled: true });
+    expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', 'games'))).exists()).toBe(true);
   });
   it('does not default an existing off/custom setup and explicitly transitions both scopes without changing public publication', async () => {
     const a = await client();
@@ -946,6 +969,12 @@ describe('All-sharing bounded SDK transport', () => {
     const replay = writeBatch(a.db);
     replay.set(row, original);
     await assertFails(replay.commit());
+    await expect(
+      a.all.publish(a.uid, 'games', games(2), policy, source, () => true),
+    ).resolves.toMatchObject({
+      status: 'ready',
+      count: 2,
+    });
     const noPulse = writeBatch(a.db);
     noPulse.update(doc(a.db, 'syncHeads', a.uid), {
       enabled: false,
