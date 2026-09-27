@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "encoder": {
+    "sharp": "0.35.4",
+    "vips": "8.18.6"
+  },
+  "transform": {
+    "format": "webp",
+    "quality": 76,
+    "effort": 6,
+    "withoutEnlargement": true,
+    "widths": [
+      160,
+      240,
+      320,
+      480,
+      640
+    ]
+  },
+  "films": {
+    "discover-compare": {
+      "source": {
+        "src": "/videos/9ad1b154e0052138411dbdeec800b42183d46e8a5f2a21748abdcabcaa9f215e.jpg",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 114777,
+        "sha256": "9ad1b154e0052138411dbdeec800b42183d46e8a5f2a21748abdcabcaa9f215e",
+        "credits": "/videos/1f6bf9d8fddb61620080855efd6dc16449382c77be13dba709737430e4e8700f.md"
+      },
+      "candidates": [
+        {
+          "src": "/videos/thumbnails/01e6cc4577c17e1743cae58e0c491bd9cae23eb56adf60e50a22255f6799fbb2.webp",
+          "width": 160,
+          "height": 90,
+          "bytes": 1654,
+          "sha256": "01e6cc4577c17e1743cae58e0c491bd9cae23eb56adf60e50a22255f6799fbb2"
+        },
+        {
+          "src": "/videos/thumbnails/1b980842729d31ca95d130196395bea411fcfc58fd6d3f2bc68d268061e57a11.webp",
+          "width": 240,
+          "height": 135,
+          "bytes": 2878,
+          "sha256": "1b980842729d31ca95d130196395bea411fcfc58fd6d3f2bc68d268061e57a11"
+        },
+        {
+          "src": "/videos/thumbnails/20714bd925c9c4aa4e39181fea9cbc65c6353bd0438cd5591b198f1f0281f2c4.webp",
+          "width": 320,
+          "height": 180,
+          "bytes": 4214,
+          "sha256": "20714bd925c9c4aa4e39181fea9cbc65c6353bd0438cd5591b198f1f0281f2c4"
+        },
+        {
+          "src": "/videos/thumbnails/0c9d0dd6f2d053fbcea5b9c2b17592cd732cec87dc7a18641e81a2705fc963d4.webp",
+          "width": 480,
+          "height": 270,
+          "bytes": 7198,
+          "sha256": "0c9d0dd6f2d053fbcea5b9c2b17592cd732cec87dc7a18641e81a2705fc963d4"
+        },
+        {
+          "src": "/videos/thumbnails/b5ffc8e2f85c80a5aad0f2e6065bfd77d8e6acea556340c95cee971b8c8e78b8.webp",
+          "width": 640,
+          "height": 360,
+          "bytes": 10142,
+          "sha256": "b5ffc8e2f85c80a5aad0f2e6065bfd77d8e6acea556340c95cee971b8c8e78b8"
+        }
+      ]
+    },
+    "the-100": {
+      "source": {
+        "src": "/videos/2d5598c99f42915f129a8e97f4a2073f12e1384b560371df8549ba58b353bb0f.jpg",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 149045,
+        "sha256": "2d5598c99f42915f129a8e97f4a2073f12e1384b560371df8549ba58b353bb0f",
+        "credits": "/videos/1152ca02b811985425a3403a3923908d7e092314a4f602a2ad13483b7bea208d.md"
+      },
+      "candidates": [
+        {
+          "src": "/videos/thumbnails/721cb3790d52a6c2d46df7648dcf541f1836b8faa3e312be94b2a6ffa38b15ab.webp",
+          "width": 160,
+          "height": 90,
+          "bytes": 1712,
+          "sha256": "721cb3790d52a6c2d46df7648dcf541f1836b8faa3e312be94b2a6ffa38b15ab"
+        },
+        {
+          "src": "/videos/thumbnails/ad97b32b83ff83780473870d5d692fb9ddf5d014abcf44f0c98465b1356d078b.webp",
+          "width": 240,
+          "height": 135,
+          "bytes": 2972,
+          "sha256": "ad97b32b83ff83780473870d5d692fb9ddf5d014abcf44f0c98465b1356d078b"
+        },
+        {
+          "src": "/videos/thumbnails/9c894aa9e18117d933c4680839d47a2c16c3b91d2c99754051fd639b00aed49f.webp",
+          "width": 320,
+          "height": 180,
+          "bytes": 4472,
+          "sha256": "9c894aa9e18117d933c4680839d47a2c16c3b91d2c99754051fd639b00aed49f"
+        },
+        {
+          "src": "/videos/thumbnails/7345ea32b243a9c088ba0932dbdad3bc01e237689bc8269a56cb27a60ee5e451.webp",
+          "width": 480,
+          "height": 270,
+          "bytes": 7830,
+          "sha256": "7345ea32b243a9c088ba0932dbdad3bc01e237689bc8269a56cb27a60ee5e451"
+        },
+        {
+          "src": "/videos/thumbnails/6527fab2b84768311e6d572e9ecd7567f160b8727d785497becfd758c4887740.webp",
+          "width": 640,
+          "height": 360,
+          "bytes": 11552,
+          "sha256": "6527fab2b84768311e6d572e9ecd7567f160b8727d785497becfd758c4887740"
+        }
+      ]
+    }
+  }
+}
