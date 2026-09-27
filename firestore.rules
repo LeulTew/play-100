@@ -40,8 +40,9 @@ service cloud.firestore {
     function rankingManifest(value) {
       return manifest(value) && value.bytes <= 16777216 && value.chunks.size() <= 86;
     }
-    // A head's fields without its manifests. An update validates a manifest it publishes and compares the ones it keeps:
-    // each stored manifest passed manifest(), unchanged since online saving began, when it was published.
+    // A head's fields without its manifests. An update binds a manifest it publishes to its ready generation and
+    // compares the ones it keeps: each passed manifest(), unchanged since online saving began, when its generation was
+    // created.
     function headFields(data) {
       return data.keys().hasOnly(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt', 'cleanupEpoch'])
         && data.keys().hasAll(['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'])
@@ -141,11 +142,12 @@ service cloud.firestore {
           : !('cleanupEpoch' in next))
         && accountActive(uid) && headFields(next) && aSourcePulses(uid);
     }
-    // A publication validates its new manifest; its previous one is the stored current manifest.
+    // A publication's new manifest is its ready generation's private manifest, which passed manifest() when the
+    // generation was created and can never change; its previous one is the stored current manifest.
     function headPublish(uid, next, before) {
       return before.enabled && !before.deleted && next.enabled && !next.deleted && next.epoch == before.epoch
         && next.current != null && next.previous == before.current
-        && headCommon(uid, next, before) && manifest(next.current)
+        && headCommon(uid, next, before)
         && headPublished(uid, next, before.epoch, generation(uid, next.current.generation));
     }
     // A publication is backed by its ready generation and the creator summary committed with it.

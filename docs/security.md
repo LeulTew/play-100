@@ -599,9 +599,11 @@ so R13 lowers its cost as headroom in case production counts a whole commit:
 
 - Publish, stop and resume are separate statements, each testing its cheap
   discriminators first.
-- A publication validates only its new manifest, and looks up its generation
-  and creator summary once each. A kept manifest is compared with the stored
-  one, which passed the same `manifest()` when it was published.
+- A publication looks up its generation and creator summary once each. Its
+  new manifest must equal its ready generation's private manifest, which
+  passed the same `manifest()` when the generation was created and can never
+  change, so it is not validated again. A kept manifest is compared with the
+  stored one, which passed `manifest()` when it was published.
 - The pulse check runs before the consent lookups.
 - The creator summary compares an unchanged previous summary first.
 - A save's member write changes only the counts and the time, so it no
