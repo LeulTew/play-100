@@ -129,19 +129,24 @@ function projected(mesh: THREE.Mesh, camera: THREE.Camera, width: number, height
 
 function stillCoverBounds(width: number, height: number) {
   const html = renderToStaticMarkup(createElement(ArtifactStill, { fanned: false }));
-  const matrix = html.match(/transform="matrix\(([-\d. ]+)\)"/)?.[1]?.split(' ').map(Number);
+  const matrix = html
+    .match(/transform="matrix\(([-\d. ]+)\)"/)?.[1]
+    ?.split(' ')
+    .map(Number);
   if (!matrix || matrix.length !== 6) throw new Error('The still must expose its authored cover projection.');
   const [a, b, c, d, e, f] = matrix as [number, number, number, number, number, number];
   const scale = Math.min(width / 600, height / 360);
   return [...html.matchAll(/transform:translate\(([-\d.]+)px, ([-\d.]+)px\) rotate\(([-\d.]+)deg\)/g)].map((match) => {
     const angle = THREE.MathUtils.degToRad(Number(match[3]));
     return bounds(
-      ([
-        [0, 0],
-        [220, 0],
-        [220, 150],
-        [0, 150],
-      ] as const).map(([u, v]) => {
+      (
+        [
+          [0, 0],
+          [220, 0],
+          [220, 150],
+          [0, 150],
+        ] as const
+      ).map(([u, v]) => {
         const x = a * u + c * v + e;
         const y = b * u + d * v + f;
         return {
