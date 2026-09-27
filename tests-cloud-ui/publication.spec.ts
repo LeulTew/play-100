@@ -118,3 +118,42 @@ test('a fresh unverified mistyped registration can be cancelled without touching
   const result = (await lookup.json()) as { users?: unknown[] };
   expect(result.users ?? []).toEqual([]);
 });
+
+test('Community keeps its URL in step with the directory it shows, through Show listed profiles, Try again and a reload', async ({
+  page,
+}) => {
+  // A handle prefix no fixture publishes. The catalogs setting is unrelated URL state that every search must keep.
+  const prefix = `nomatch_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`;
+  const field = page.getByLabel('Handle prefix', { exact: true });
+  const find = page.getByRole('button', { name: 'Find handles', exact: true });
+  const noMatch = page.getByRole('heading', { name: 'No matching handles', exact: true });
+  const directory = page
+    .locator('.community-profiles')
+    .or(page.getByRole('heading', { name: 'No listed rankings', exact: true }));
+  const search = () => new URL(page.url()).search;
+  await page.goto('/community?catalogs=off');
+  await expect(directory).toBeVisible();
+  await field.fill('9zz');
+  await find.click();
+  const invalid = page.getByRole('alert').filter({ hasText: 'Search by the start of a handle' });
+  await expect(invalid).toBeVisible();
+  await expect.poll(search).toBe('?catalogs=off&q=9zz');
+  // Try again repeats the failed search that the URL and the field name, not the directory shown before it.
+  await invalid.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
+  await expect(invalid).toBeVisible();
+  expect(search()).toBe('?catalogs=off&q=9zz');
+  await field.fill(prefix);
+  await find.click();
+  await expect(noMatch).toBeVisible();
+  await expect.poll(search).toBe(`?catalogs=off&q=${prefix}`);
+  await page.getByRole('button', { name: 'Show listed profiles', exact: true }).click();
+  await expect(directory).toBeVisible();
+  await expect(field).toHaveValue('');
+  await expect.poll(search).toBe('?catalogs=off');
+  await page.reload();
+  await expect(directory).toBeVisible();
+  await expect(noMatch).toHaveCount(0);
+  await expect(field).toHaveValue('');
+  expect(search()).toBe('?catalogs=off');
+});

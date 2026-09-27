@@ -23,7 +23,11 @@ export function CommunityPage({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const generation = useRef(0);
+  // The term of the latest directory request. A failed search keeps the previous results' term, but the URL and the
+  // field already name the new one, so "Try again" repeats this one.
+  const requested = useRef(initial);
   const load = async (nextTerm: string, more = false) => {
+    if (!more) requested.current = nextTerm;
     const current = ++generation.current;
     setBusy(true);
     setError('');
@@ -42,6 +46,15 @@ export function CommunityPage({
     } finally {
       if (current === generation.current) setBusy(false);
     }
+  };
+  // Opens the directory for a term and names it in the URL, so a reload or a copied link shows the same directory. Only
+  // `q` changes, other URL state is kept, and the history entry is replaced, as for every search.
+  const search = (nextTerm: string) => {
+    const url = new URL(location.href);
+    if (nextTerm) url.searchParams.set('q', nextTerm);
+    else url.searchParams.delete('q');
+    history.replaceState(history.state, '', url);
+    void load(nextTerm);
   };
   useEffect(() => {
     let disposed = false;
@@ -83,12 +96,7 @@ export function CommunityPage({
         className="community-search"
         onSubmit={(event) => {
           event.preventDefault();
-          const trimmed = query.trim().toLowerCase();
-          const url = new URL(location.href);
-          if (trimmed) url.searchParams.set('q', trimmed);
-          else url.searchParams.delete('q');
-          history.replaceState(history.state, '', url);
-          void load(trimmed);
+          search(query.trim().toLowerCase());
         }}
       >
         <label htmlFor="community-handle">Handle prefix</label>
@@ -120,7 +128,7 @@ export function CommunityPage({
             className="text-button"
             disabled={busy}
             onClick={() => {
-              void load(term);
+              void load(requested.current);
             }}
           >
             Try again
@@ -187,7 +195,7 @@ export function CommunityPage({
               term
                 ? () => {
                     setQuery('');
-                    void load('');
+                    search('');
                   }
                 : onPublish
             }
