@@ -240,6 +240,32 @@ describe('real Auth and Firestore snapshot transactions', () => {
     expect(refusal instanceof Error ? refusal.message : '').not.toContain('maximum of 1000 expressions');
   });
 
+  it('keeps a deleted online copy deleted for a session older than the deletion until a fresh sign-in resumes it', async () => {
+    const first = await client();
+    const library = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8 });
+    const deleted = await first.store.revoke(await first.store.upload(library, await first.store.enable(null)), true);
+    await expect(first.store.revoke(deleted)).rejects.toBeInstanceOf(SyncRevoked);
+    // This session signed in before the deletion. Its raw pause would clear the deleted marker, so that a later resume
+    // skipped the fresh sign-in; the rules refuse it.
+    const headRef = doc(first.db, 'syncHeads', first.user.uid);
+    const stored = (await getDocFromServer(headRef)).data();
+    if (!stored) throw new Error('The deleted head is missing.');
+    await assertFails(
+      setDoc(headRef, {
+        ...stored,
+        enabled: false,
+        deleted: false,
+        epoch: stored.epoch + 1,
+        revision: stored.revision + 1,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    expect(await first.store.head()).toMatchObject({ enabled: false, deleted: true, revision: deleted.revision });
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const fresh = await client(first.email);
+    expect(await fresh.store.enable(deleted)).toMatchObject({ enabled: true, deleted: false, epoch: deleted.epoch + 1 });
+  });
+
   it('checks current server authority even when the payload matches an earlier head', async () => {
     const { store } = await client();
     const first = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 7 });

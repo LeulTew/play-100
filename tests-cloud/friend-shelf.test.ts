@@ -479,6 +479,20 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
       ),
     );
     expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
+    // This session signed in before the deletion: it can neither pause the deleted copy back to life nor, through that,
+    // make the shelf the deletion hid readable again.
+    const tombstone = (await getDocFromServer(headRef)).data()!;
+    await assertFails(
+      setDoc(headRef, {
+        ...tombstone,
+        enabled: false,
+        deleted: false,
+        epoch: tombstone.epoch + 1,
+        revision: tombstone.revision + 1,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(b.store.head(a.uid));
     await new Promise((resolve) => setTimeout(resolve, 1100));
     const signedIn = await signInWithEmailAndPassword(
       a.auth,

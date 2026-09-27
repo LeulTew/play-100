@@ -458,7 +458,12 @@ export class CloudStore {
         return deleted;
       }
       const head = parseHead(current.data());
-      if (remove && head.deleted) return head;
+      // A deleted copy stays deleted: deleting it again is already done, and only a resume after a fresh sign-in may
+      // reopen it, never a pause.
+      if (head.deleted) {
+        if (remove) return head;
+        throw new SyncRevoked();
+      }
       if (!expected || head.revision !== expected.revision || head.epoch !== expected.epoch)
         throw new RemoteConflict(head);
       const next: SyncHead = {

@@ -172,6 +172,8 @@ Confirmation is bound to the displayed remote revision/epoch and local revision.
 A newer intervening save requires another review, not silent last-write-wins.
 Stopping sync increments the consent epoch. Deletion additionally removes head
 references and marks the scope deleted, blocking old tabs from recreating data.
+The deleted marker stays until a sign-in newer than the deletion resumes
+saving: a session from before it can neither pause nor resume the deleted copy.
 
 ## Identity, profiles and permissions
 

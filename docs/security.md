@@ -595,6 +595,15 @@ the heaviest save: the largest admissible snapshots, with both All views
 pulsed. They also require the unpulsed save and the resume without a fresh
 sign-in to be refused by their own checks.
 
+**Deletion marker (R13).** A deleted online copy stays deleted for sessions
+older than the deletion. The R12 rules let such a session pause a deleted head,
+which cleared `deleted` because its manifests were already null, and then
+resume it, which skipped the fresh-sign-in check that guards a direct resume.
+The pause alone also made a shelf the deletion hid readable again. The stop
+transition now refuses to clear `deleted`, and `CloudStore.revoke` refuses to
+pause a deleted copy. Emulator tests cover the refused pause, the shelf staying
+unreadable, and a fresh sign-in's resume.
+
 The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion on both rename and profile deletion.
 Deleting/recreating a profile cannot leave a new hoarded claim behind. Full

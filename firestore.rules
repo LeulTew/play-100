@@ -153,9 +153,10 @@ service cloud.firestore {
       return gen.status == 'ready' && gen.epoch == epoch && gen.private == next.current
         && ranks.revision == next.revision && ranks.current == gen.ranking;
     }
-    // A stop keeps the stored manifests, or clears them to delete the online copy.
+    // A stop keeps the stored manifests, or clears them to delete the online copy. A deleted copy stays deleted: only a
+    // resume after a sign-in newer than the deletion reopens it, so an older session cannot pause it back to life.
     function headStop(uid, next, before) {
-      return !next.enabled && next.epoch == before.epoch + 1
+      return !next.enabled && next.epoch == before.epoch + 1 && (!before.deleted || next.deleted)
         && (next.deleted || (next.current == before.current && next.previous == before.previous))
         && headCommon(uid, next, before);
     }
