@@ -350,8 +350,9 @@ export default function App() {
       navigationMounted.current = false;
     };
   }, []);
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (libraryBusy || !navigationRecovery) return;
+    // Native dialog cleanup restores its opener first; failed-navigation recovery owns the final editor focus.
     if (navigationRecovery.isCurrent()) focusPendingEditor(navigationRecovery.target);
     setNavigationRecovery(null);
   }, [libraryBusy, navigationRecovery]);
@@ -672,41 +673,47 @@ export default function App() {
       navigate('account');
       return;
     }
+    const identity = online.identity;
+    const intent = ++navigationIntent.current;
+    const origin = `${window.location.pathname}${window.location.search}`;
+    const isCurrent = () =>
+      navigationMounted.current &&
+      intent === navigationIntent.current &&
+      scopeGeneration.current === startedScope &&
+      navigationGeneration.current === startedNavigation &&
+      currentOnline.current?.identity?.uid === identity.uid &&
+      currentOnline.current.identity.verified &&
+      origin === `${window.location.pathname}${window.location.search}`;
+    const blocked: { target: HTMLElement | null } = { target: null };
+    setNavigationRecovery(null);
     try {
       const [
         { createComparisonGameFilter, rememberComparisonGameFilter },
         { comparisonScope, initialComparison, readComparisonView, rememberComparisonView },
       ] = await loadComparisonTools();
-      if (
-        scopeGeneration.current !== startedScope ||
-        navigationGeneration.current !== startedNavigation ||
-        currentOnline.current?.identity?.uid !== online.identity.uid ||
-        !currentOnline.current.identity.verified
-      )
-        return;
+      if (!isCurrent()) return;
       const filter = createComparisonGameFilter(libraryScope, records);
-      if (!(await flushPendingEdits())) {
+      const saved = await flushPendingEdits((target) => {
+        blocked.target = target;
+      });
+      if (!isCurrent()) return;
+      if (!saved) {
         notify('Correct the open edit before starting a comparison.');
+        setNavigationRecovery({ target: blocked.target, isCurrent });
         return;
       }
-      if (
-        scopeGeneration.current !== startedScope ||
-        navigationGeneration.current !== startedNavigation ||
-        currentOnline.current?.identity?.uid !== online.identity.uid ||
-        !currentOnline.current.identity.verified
-      )
-        return;
       const project = libraryScope.split(':')[1] ?? '';
-      const scope = comparisonScope(project, online.identity.uid);
-      const prior = readComparisonView(scope) ?? initialComparison(scope, online.identity.uid);
+      const scope = comparisonScope(project, identity.uid);
+      const prior = readComparisonView(scope) ?? initialComparison(scope, identity.uid);
       navigate('compare');
       rememberComparisonView({ ...prior, mode: 'all-shared', query: '', page: 1 }, true);
       const warning = rememberComparisonGameFilter(filter);
       if (warning) notify(warning);
     } catch (cause) {
-      if (scopeGeneration.current === startedScope && navigationGeneration.current === startedNavigation) {
+      if (isCurrent()) {
         if (isModuleLoadFailure(cause)) setToolFailure({ scope: libraryScope, page });
         else notify(cause instanceof Error ? cause.message : 'The game comparison could not be opened.');
+        if (blocked.target) setNavigationRecovery({ target: blocked.target, isCurrent });
       } else
         console.warn(
           'A comparison operation failed after its page or account changed. No stale navigation was applied.',

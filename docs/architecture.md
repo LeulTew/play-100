@@ -219,6 +219,10 @@ links' pending-edit guard. Invalid or refused edits keep their original field
 and return focus to it once enabled; a changed scope or navigation cancels the
 old destination. Navigation-only shortcuts remain available during a blur save
 so the guard can await it. Native dialog Close, Escape and Back are unchanged.
+Authenticated Compare uses the same deferred editor recovery for both its dock
+and expanded tray actions. Invalid or rejected saves return to the exact field
+after native tray cleanup and busy controls settle; changed identity, scope,
+navigation or a newer destination request cancels the old recovery.
 Account entry retains a failed field as its focus target instead of opening sign-in.
 PWA update preparation flushes edits and rejects unsubmitted forms. Its reload
 guard also checks the current Settings panel, busy state and new input events.
