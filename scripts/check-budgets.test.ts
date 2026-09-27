@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   ROUTE_ROOTS,
   budgetRows,
@@ -567,54 +567,74 @@ describe('offline built-output budgets', () => {
     await expect(measureBuild(directory)).resolves.toBeDefined();
   });
 
-  it('costs each route as its root chunk, static-import closure and their CSS beyond the eager set, gating the largest', async () => {
-    const { directory, files } = await routeFixture();
-    const measured = await measureBuild(directory, ['route-b', 'route-a']);
-    const cost = (paths: string[]) => ({
-      rawBytes: paths.reduce((sum, file) => sum + Buffer.byteLength(files[file]!), 0),
-      gzipBytes: paths.reduce((sum, file) => sum + gzipSync(files[file]!, { level: 9 }).byteLength, 0),
+  describe('whole-route costs', () => {
+    // One route fixture, the file's largest, serves both tests: on a loaded host, the first test once ran past the
+    // default timeout building and measuring its own. It skips the per-test cleanup until afterAll.
+    let routeBuild: Awaited<ReturnType<typeof routeFixture>>;
+    let workspaces: string[] = [];
+    beforeAll(async () => {
+      routeBuild = await routeFixture();
+      workspaces = folders.splice(0);
     });
-    // The eager shared chunk and the entry chunk the feature imports are already loaded, so they cost nothing.
-    const routeA = [
-      'assets/feature-12345678.css',
-      'assets/feature-12345678.js',
-      'assets/route-a-12345678.css',
-      'assets/route-a-12345678.js',
-    ];
-    const routeB = ['assets/feature-12345678.css', 'assets/feature-12345678.js', 'assets/route-b-12345678.js'];
-    expect(
-      measured.routes.map((route) => ({ ...route, files: route.files.map((asset) => asset.file) })),
-      'the most expensive route first',
-    ).toEqual([
-      { root: 'route-a', ...cost(routeA), files: routeA },
-      { root: 'route-b', ...cost(routeB), files: routeB },
-    ]);
-    expect(measured.values.largestRouteGzipBytes).toBe(cost(routeA).gzipBytes);
-    const limits = parseBudgetLimits({ version: 1, limits: measured.values });
-    const failures = (largestRouteGzipBytes: number) => {
-      const rows = budgetRows(measured, { ...limits, largestRouteGzipBytes });
-      return rows.filter((row) => row.result === 'FAIL').map((row) => row.metric);
-    };
-    expect(failures(cost(routeA).gzipBytes), 'within its cap').toEqual([]);
-    expect(failures(cost(routeA).gzipBytes - 1)).toEqual(['largestRouteGzipBytes']);
-    expect(failures(0), 'the placeholder cap fails').toEqual(['largestRouteGzipBytes']);
-  });
+    afterAll(async () => {
+      for (const folder of workspaces) await rm(folder, { recursive: true, force: true, maxRetries: 5 });
+    });
 
-  it('fails closed on a route root the build does not emit as a lazy entry, or a chunk it cannot resolve', async () => {
-    const { directory } = await routeFixture();
-    for (const root of ['src/components/MissingPage.tsx', 'shared']) {
-      await expect(measureBuild(directory, [root])).rejects.toThrow(
-        `Route root is not a lazy entry of this build: ${root}.`,
+    it('costs each route as its root chunk, static-import closure and their CSS beyond the eager set, gating the largest', async () => {
+      const { directory, files } = routeBuild;
+      const measured = await measureBuild(directory, ['route-b', 'route-a']);
+      const cost = (paths: string[]) => ({
+        rawBytes: paths.reduce((sum, file) => sum + Buffer.byteLength(files[file]!), 0),
+        gzipBytes: paths.reduce((sum, file) => sum + gzipSync(files[file]!, { level: 9 }).byteLength, 0),
+      });
+      // The eager shared chunk and the entry chunk the feature imports are already loaded, so they cost nothing.
+      const routeA = [
+        'assets/feature-12345678.css',
+        'assets/feature-12345678.js',
+        'assets/route-a-12345678.css',
+        'assets/route-a-12345678.js',
+      ];
+      const routeB = ['assets/feature-12345678.css', 'assets/feature-12345678.js', 'assets/route-b-12345678.js'];
+      expect(
+        measured.routes.map((route) => ({ ...route, files: route.files.map((asset) => asset.file) })),
+        'the most expensive route first',
+      ).toEqual([
+        { root: 'route-a', ...cost(routeA), files: routeA },
+        { root: 'route-b', ...cost(routeB), files: routeB },
+      ]);
+      expect(measured.values.largestRouteGzipBytes).toBe(cost(routeA).gzipBytes);
+      const limits = parseBudgetLimits({ version: 1, limits: measured.values });
+      const failures = (largestRouteGzipBytes: number) => {
+        const rows = budgetRows(measured, { ...limits, largestRouteGzipBytes });
+        return rows.filter((row) => row.result === 'FAIL').map((row) => row.metric);
+      };
+      expect(failures(cost(routeA).gzipBytes), 'within its cap').toEqual([]);
+      expect(failures(cost(routeA).gzipBytes - 1)).toEqual(['largestRouteGzipBytes']);
+      expect(failures(0), 'the placeholder cap fails').toEqual(['largestRouteGzipBytes']);
+    });
+
+    it('fails closed on a route root the build does not emit as a lazy entry, or a chunk it cannot resolve', async () => {
+      const { directory, files } = routeBuild;
+      for (const root of ['src/components/MissingPage.tsx', 'shared']) {
+        await expect(measureBuild(directory, [root])).rejects.toThrow(
+          `Route root is not a lazy entry of this build: ${root}.`,
+        );
+      }
+      await expect(measureBuild(directory, ['route-c'])).rejects.toThrow(
+        'Unresolvable route entry: ghost, imported by the route-c route.',
       );
-    }
-    await expect(measureBuild(directory, ['route-c'])).rejects.toThrow(
-      'Unresolvable route entry: ghost, imported by the route-c route.',
-    );
-    await rm(path.join(directory, 'assets', 'route-b-12345678.js'));
-    await expect(measureBuild(directory, ['route-b'])).rejects.toThrow(
-      'Missing built asset: assets/route-b-12345678.js.',
-    );
-    await expect(measureBuild(directory, ['route-a'])).resolves.toBeDefined();
+      const chunk = path.join(directory, 'assets', 'route-b-12345678.js');
+      await rm(chunk);
+      try {
+        await expect(measureBuild(directory, ['route-b'])).rejects.toThrow(
+          'Missing built asset: assets/route-b-12345678.js.',
+        );
+        await expect(measureBuild(directory, ['route-a'])).resolves.toBeDefined();
+      } finally {
+        // The other test reads the same fixture.
+        await writeFile(chunk, files['assets/route-b-12345678.js']!);
+      }
+    });
   });
 
   it('costs every React.lazy() root of the app', async () => {
