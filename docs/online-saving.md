@@ -159,6 +159,15 @@ one with an uncommitted editor, keeps its current state and presents **Needs a
 choice**. The user can download both copies, adopt the reviewed online copy
 with local recovery retained, or explicitly replace the reviewed online copy.
 
+Two tabs or windows of one account share its device copy, so both may upload
+the same pending library. Identical content is not a conflict. An upload that
+finds exactly its library already published in the same consent epoch takes
+that head as its result; cleanup removes any generation it staged, as after an
+interrupted upload. A dirty client whose library has a newer head's digest
+records that head as saved without replacing local data; an edit made
+meanwhile stays pending. Different content or an uncommitted editor still
+needs a choice, and a stopped, deleted or re-epoched head still stops saving.
+
 Confirmation is bound to the displayed remote revision/epoch and local revision.
 A newer intervening save requires another review, not silent last-write-wins.
 Stopping sync increments the consent epoch. Deletion additionally removes head
