@@ -4,6 +4,7 @@ import path from 'node:path';
 import Beasties from 'beasties';
 import type { Logger as BeastiesLogger, Options as BeastiesOptions } from 'beasties';
 import { Parser } from 'htmlparser2';
+import ts from 'typescript';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { textDigest, writeFirstPaintRecord } from '../build-metadata.ts';
 import type { FirstPaintRecord } from '../build-metadata.ts';
@@ -88,16 +89,57 @@ export function firstPaintVariant(
   return online.config ? 'online' : 'offline';
 }
 
-/** Drops comments and indentation from src/first-paint/boot.js; the result is what the CSP hash covers. */
+/** The tokens whose text can look like a comment: strings, template parts and regular expressions. */
+const LITERAL_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.StringLiteral,
+  ts.SyntaxKind.NoSubstitutionTemplateLiteral,
+  ts.SyntaxKind.TemplateHead,
+  ts.SyntaxKind.TemplateMiddle,
+  ts.SyntaxKind.TemplateTail,
+  ts.SyntaxKind.RegularExpressionLiteral,
+]);
+
+/** Script text that holds no literal, each comment in it replaced by the whitespace it counts as. */
+function withoutComments(code: string): string {
+  return code.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.startsWith('//') ? '' : comment.includes('\n') ? '\n' : ' ',
+  );
+}
+
+/**
+ * Drops comments and indentation from src/first-paint/boot.js; the result is what the CSP hash covers. TypeScript's
+ * parser finds the literals, which stay as written, so text in a string, template or regular expression that only
+ * looks like a comment is kept. Outside them a comment is whitespace: a line break if it spans lines, a space
+ * otherwise. The script must be valid JavaScript, and a literal that spans lines is refused, as trimming its lines
+ * would change its value.
+ */
 export function stripBootScript(source: string): string {
-  const script = source
-    .replace(/\r\n?/g, '\n')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const text = source.replace(/\r\n?/g, '\n');
+  // Throws a SyntaxError, so the parser below only ever sees valid JavaScript.
+  new Function(text);
+  const file = ts.createSourceFile('boot.js', text, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
+  const literals: { start: number; end: number }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (LITERAL_KINDS.has(node.kind)) literals.push({ start: node.getStart(file), end: node.end });
+    else ts.forEachChild(node, visit);
+  };
+  visit(file);
+  let code = '';
+  let position = 0;
+  for (const { start, end } of literals.sort((a, b) => a.start - b.start)) {
+    if (text.slice(start, end).includes('\n')) {
+      const line = file.getLineAndCharacterOfPosition(start).line + 1;
+      throw new Error(`The boot script has a literal that spans lines (line ${line}); trimming it would change it.`);
+    }
+    code += withoutComments(text.slice(position, start)) + text.slice(start, end);
+    position = end;
+  }
+  const script = (code + withoutComments(text.slice(position)))
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('//'))
+    .filter(Boolean)
     .join('\n');
-  // Throws on a syntax error, for example a "/*" in a string that the comment removal cut short.
+  // So must the result.
   new Function(script);
   return script;
 }

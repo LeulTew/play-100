@@ -82,8 +82,31 @@ describe('first-paint boot script', () => {
     expect(stripBootScript(source.replaceAll('\r\n', '\n'))).toBe(stripBootScript(source));
   });
 
-  it('refuses a script that comment stripping would break', () => {
-    expect(() => stripBootScript("var a = '/*'; var b = 1; /* note */")).toThrow(SyntaxError);
+  it.each([
+    ['a string', 'var label = "before/* literal text */after";'],
+    ['a string holding a line comment marker', "var url = 'https://play.example/';"],
+    ['a template', 'var label = `before/* kept */after // kept too`;'],
+    ['a regular expression', 'var slashes = /\\/*x*/g;'],
+  ])('keeps comment-like text in %s as written', (_, statement) => {
+    expect(stripBootScript(`${statement} /* note */\n// line note\nvar next = 1;`)).toBe(`${statement}\nvar next = 1;`);
+  });
+
+  it('turns a comment into the whitespace it counts as, in a template expression too', () => {
+    expect(stripBootScript('var total = a/* plus */+b;')).toBe('var total = a +b;');
+    expect(stripBootScript('var label = `a${/* one */ 1}b`;')).toBe('var label = `a${  1}b`;');
+    expect(stripBootScript('var a = 1 /* two\nlines */ var b = 2;')).toBe('var a = 1\nvar b = 2;');
+  });
+
+  it.each([
+    ['a template that spans lines', 'var text = `first\n  second`;'],
+    ['a string continued on the next line', "var text = 'first\\\n  second';"],
+  ])('refuses %s, whose value trimming lines would change', (_, script) => {
+    expect(() => stripBootScript(script)).toThrow('spans lines');
+  });
+
+  it('refuses a script that is not valid JavaScript', () => {
+    expect(() => stripBootScript('var a = ;')).toThrow(SyntaxError);
+    expect(() => stripBootScript('var a = 1; /* never closed')).toThrow(SyntaxError);
   });
 
   it('ships src/first-paint/boot.js as a small comment-free classic script', () => {

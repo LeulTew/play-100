@@ -93,7 +93,10 @@ In this order:
 ### The boot script
 
 [`src/first-paint/boot.js`](../src/first-paint/boot.js) ships with its comments
-and indentation removed. It accepts the document only at `/` without
+and indentation removed. The build finds its literals with TypeScript's parser,
+so text in a string, template or regular expression that only looks like a
+comment stays as written, and it refuses a literal that spans lines, whose value
+trimming would change. The script accepts the document only at `/` without
 `view=table`, `game` or `catalogs=off`, derives the artifact caption state React
 renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
