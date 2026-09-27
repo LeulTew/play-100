@@ -568,6 +568,33 @@ and refused sets are unchanged. Unit tests keep the pattern copies equal, and
 emulator tests cover the heaviest writes: a 200-entry publication, a rename
 that runs every pattern, unpublishing and moderation with a saved online copy.
 
+**Save-commit evaluation limit (R13).** Private saving reached the same limit.
+In every emulator log since R9, the `syncHeads` update statement exhausts it:
+on a legitimate first save during a two-tab race under the Release 5 rules,
+and on refusals that should be cheap. An old writer's save without its All
+view pulses, and a resume of a deleted online copy without a fresh sign-in,
+were refused on the limit rather than by their own checks, so their tests
+passed without proving those checks. The changes:
+
+- Publish, stop and resume are separate statements, each testing its cheap
+  discriminators first.
+- A publication validates only its new manifest, and looks up its generation
+  and creator summary once each. A kept manifest is compared with the stored
+  one, which passed the same `manifest()` when it was published.
+- The pulse check runs before the consent lookups.
+- The creator summary compares an unchanged previous summary first.
+- A save's member write changes only the counts and the time, so it no
+  longer re-validates the other fields.
+
+The accepted and refused sets are unchanged.
+
+An emulator calibration test pins how the limit is counted: a refusal on the
+limit names it in its message, and one limit covers a whole commit, shared by
+all of its writes, as Firebase documents it per request. Emulator tests commit
+the heaviest save: the largest admissible snapshots, with both All views
+pulsed. They also require the unpulsed save and the resume without a fresh
+sign-in to be refused by their own checks.
+
 The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion on both rename and profile deletion.
 Deleting/recreating a profile cannot leave a new hoarded claim behind. Full

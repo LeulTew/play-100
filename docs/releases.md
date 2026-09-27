@@ -716,19 +716,27 @@ Do these in runbook order and record each readback.
    - `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`
 
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
-3. **Rules.** Publish `firestore.rules` from the Release 6 tree (R12), and only
-   while Release 6 or later is serving. Its SHA-256 is
-   `8e645497aaec7898e2e11f41d9985b7608fedf82c77305ac5b24b0fbf7bedb10`
-   (108,749 bytes). It supersedes the unpublished Release 5 rules
-   (`6c8ebcb2…`), Release 3 rules (`9458021a…`) and Release 1 rules
-   (`37e55c79…`). Under it a Release 5 client gets the generic authorization
+3. **Rules.** Publish `firestore.rules` from the Release 7 tree (R13), and only
+   while Release 7 or later is serving. Its SHA-256 is
+   `e327d98f626ae7f4583457fde05900dc79e9bec906e6a63706c58013ac771666`
+   (110,733 bytes). It supersedes the unpublished Release 6 rules
+   (`8e645497…`), Release 5 rules (`6c8ebcb2…`), Release 3 rules
+   (`9458021a…`) and Release 1 rules (`37e55c79…`); don't publish any of them.
+   Under the Release 5 rules, a legitimate sync-head update in a cloud-UI
+   identity repeat hit the 1,000-expression limit. The Release 6 rules keep the
+   same head statement.
+
+   The R13 rules accept and refuse exactly what the Release 6 rules do, and
+   keep the heaviest save commit within that limit, so a Release 6 client
+   meets identical outcomes. A Release 5 client gets the generic authorization
    message in three cases only: publishing or selected-sharing a title with a
    control or format character; saving a new or changed name that contains a
    Hangul filler or U+2800, or holds only marks and spaces; and re-requesting,
    or at the 1,000-pair cap releasing, within 10 minutes of its own cancel.
+
    Readback: copy the published text back and confirm its SHA-256 equals that
-   value, then record the version timestamp. The pre-release rollback archive is
-   `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
+   value, then record the version timestamp. The pre-release rollback archive
+   is `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
 4. **WAF.** Switch `api-per-ip` (`rule_api_per_ip_xpgBNf`, in **Log** mode since
    2026-09-25 09:49:22Z; see
    [Release 2](#release-2-2026-09-25) and the
