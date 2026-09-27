@@ -211,8 +211,9 @@ Five fixed `/__/auth/` helper paths are served from the dedicated project's
 `firebaseapp.com` origin. They are not 302 redirects or an arbitrary-host proxy.
 The three scripts (`handler.js`, `iframe.js`, `experiments.js`) are plain
 Vercel rewrites. The two documents (`handler`, `iframe`) go through
-`api/auth-helper.ts`, which fetches the fixed upstream page and serves it with a
-fresh per-response CSP nonce. It accepts GET/HEAD only, so a `form_post` provider
+`api/auth-helper.ts`, which serves the fixed upstream page from a per-instance
+cache, refreshed at most every 10 minutes, with a fresh per-response CSP nonce.
+It accepts GET/HEAD only, so a `form_post` provider
 needs a reviewed POST path first (docs/security.md, SEC-01).
 The browser `authDomain` is **`play-100-collection.vercel.app`**, so the helper
 iframe and the app use first-party storage on the same origin. The Google OAuth

@@ -180,10 +180,11 @@ traffic. Roll back by un-enforcing, not by weakening rules.
 The API limiters are per instance, not global per-IP protection. One shared
 bounded-admission helper (`api/_lib/admission.ts`) caps detail at 4 active and
 30 uncached lookups per minute, search at 6 active and 90 upstream searches
-per minute, and the Firebase sign-in helper at 8 active and 120 page loads per
-minute, releasing each slot in `finally` (success, failure or client abort). A
-refused request gets 429 with `Retry-After`. The sign-in helper takes a slot
-only for a GET, since HEAD fetches nothing upstream.
+per minute, and the Firebase sign-in helper at 8 active and 120 upstream
+template refreshes per minute, releasing each slot in `finally` (success,
+failure or client abort). A refused request gets 429 with `Retry-After`. The
+sign-in helper takes a slot only to refresh its cached template (SEC-01's
+template cache), so page loads and HEAD take none.
 Concurrent cold FreeToGame requests share one snapshot fill, and search upstream
 responses must be `application/json`. The Vercel WAF rule in the runbook is the
 intended global control, but it runs in Log mode, which records matches and
@@ -760,13 +761,14 @@ chunk inlines the whole `import.meta.env` object (a `BASE_URL` property or a
 
 **SEC-01: fresh per-response nonce on the auth helper documents.** The two HTML
 helpers, `/__/auth/handler` and `/__/auth/iframe`, rewrite to
-`api/auth-helper.ts` with a fixed `page`. For a GET, the function fetches the
+`api/auth-helper.ts` with a fixed `page`. For a GET, the function serves the
 fixed upstream
-`https://play100-online-48823b32.firebaseapp.com/__/auth/<page>` with only
-`Accept: text/html`: no client query, Cookie, Authorization or other header is
-forwarded. It then replaces exactly the value in `nonce="firebase-auth-helper"`
-with 16 random bytes (base64), and sends that nonce in its own CSP. All other
-bytes are unchanged. The policy is otherwise the previous helper policy, with
+`https://play100-online-48823b32.firebaseapp.com/__/auth/<page>`, which it
+fetches with only `Accept: text/html`: no client query, Cookie, Authorization
+or other header is forwarded. For each response it replaces exactly the value
+in `nonce="firebase-auth-helper"` with 16 random bytes (base64), and sends that
+nonce in its own CSP. All other bytes are unchanged. The policy is otherwise
+the previous helper policy, with
 `frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, private/CDN no-store,
 nosniff, `no-referrer`, HSTS and Permissions-Policy. It fails closed with a
 static no-store 502 and a counts-only log unless all of these hold:
@@ -777,8 +779,20 @@ static no-store 502 and a counts-only log unless all of these hold:
 Also:
 - upstream non-200, non-HTML, invalid UTF-8 and bodies over 256 KiB return 502;
 - the 5 s upstream timeout returns 504;
-- a client disconnect aborts the upstream fetch;
 - a 3xx passes through only to a same-origin `/__/auth/` path.
+
+**Template cache (G6-SEC2 F1).** The template is the same for every user, so
+each instance keeps the last one that passed these checks, per page, in memory,
+and every response still gets its own nonce and no-store headers. It refreshes a
+page's template once it is 10 minutes old, and one refresh per page at a time
+serves every request waiting for it. A client that disconnects gets nothing
+written, but the refresh is not aborted: other requests may share it, and the
+timeout bounds it. If a refresh fails, the instance keeps serving the previous
+template while it is under 30 minutes old, which is upstream's own
+`max-age=1800`, and waits 15 s before the next refresh. Without such a template
+it repeats the failure's 502 or 504 until then, without asking upstream again.
+It also repeats an upstream redirect for those 15 s. Only a refresh takes an
+admission slot, so page loads, however many or from whom, never meet the limit.
 
 Evidence: the parent's read-only capture recorded the handler (462 B) and
 iframe (364 B). Each was byte-identical across query strings, with one nonce

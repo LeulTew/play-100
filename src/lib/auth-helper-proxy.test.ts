@@ -1,12 +1,19 @@
 import { ServerResponse, createServer } from 'node:http';
 import type { Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import handler, {
+import {
+  AUTH_HELPER_ADMISSION,
   AUTH_HELPER_MAX_BYTES,
+  AUTH_HELPER_REFRESH_BACKOFF_MS,
+  AUTH_HELPER_RETRY_AFTER_SECONDS,
+  AUTH_HELPER_TEMPLATE_MAX_AGE_MS,
+  AUTH_HELPER_TEMPLATE_TTL_MS,
   AUTH_HELPER_TIMEOUT_MS,
   AUTH_HELPER_UPSTREAM,
   authHelperCsp,
+  createAuthHelperHandler,
 } from '../../api/auth-helper';
+import type { AdmissionLimits } from '../../api/_lib/admission';
 import { listenOnFetchSafePort } from './test-server-ports';
 
 // Synthetic templates with the same structural markers as the captured Firebase helpers; not Google's bytes.
@@ -39,8 +46,10 @@ const nativeFetch = globalThis.fetch;
 let server: Server;
 let base = '';
 beforeEach(async () => {
+  // Each test gets its own helper instance, so no test is served a template another test cached.
+  const handle = createAuthHelperHandler();
   server = createServer((request, response) => {
-    void handler(request, response);
+    void handle(request, response);
   });
   await listenOnFetchSafePort(server);
   const address = server.address();
@@ -75,6 +84,32 @@ function headerNames(response: Response): string[] {
   return [...response.headers.keys()]
     .filter((name) => !['connection', 'date', 'keep-alive', 'transfer-encoding'].includes(name))
     .sort();
+}
+
+// Another helper instance on its own server, with its own template cache, admission and, if given, clock.
+async function helperServer(options: { admission?: AdmissionLimits; now?: () => number } = {}) {
+  const handle = createAuthHelperHandler(options);
+  let handled: Promise<void> = Promise.resolve();
+  let last: ServerResponse | undefined;
+  let requests = 0;
+  const instance = createServer((request, response) => {
+    requests += 1;
+    last = response;
+    handled = handle(request, response);
+  });
+  await listenOnFetchSafePort(instance);
+  const address = instance.address();
+  if (!address || typeof address === 'string') throw new Error('Missing auth helper test server address');
+  return {
+    url: (page: string) => `http://127.0.0.1:${address.port}/api/auth-helper?page=${page}`,
+    handled: () => handled,
+    response: () => last,
+    requests: () => requests,
+    close: async () => {
+      instance.closeAllConnections();
+      await new Promise<void>((resolve, reject) => instance.close((error) => (error ? reject(error) : resolve())));
+    },
+  };
 }
 
 describe('fresh-nonce Firebase Auth helper function', () => {
@@ -324,19 +359,27 @@ describe('fresh-nonce Firebase Auth helper function', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const oversized = `${padded} `;
     const chunks = [oversized.slice(0, 1000), oversized.slice(1000)];
-    upstreamHtml(
-      new ReadableStream({
-        start(controller) {
-          for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
-          controller.close();
-        },
-      }),
-    );
-    expect((await nativeFetch(`${base}/api/auth-helper?page=handler`)).status).toBe(502);
-    upstreamHtml(HANDLER, {
-      headers: { 'content-type': 'text/html', 'content-length': String(AUTH_HELPER_MAX_BYTES + 1) },
-    });
-    expect((await nativeFetch(`${base}/api/auth-helper?page=handler`)).status).toBe(502);
+    // Each refusal runs on a helper with nothing cached, since the first instance now serves the accepted template.
+    const streamed = await helperServer();
+    const declared = await helperServer();
+    try {
+      upstreamHtml(
+        new ReadableStream({
+          start(controller) {
+            for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+            controller.close();
+          },
+        }),
+      );
+      expect((await nativeFetch(streamed.url('handler'))).status).toBe(502);
+      upstreamHtml(HANDLER, {
+        headers: { 'content-type': 'text/html', 'content-length': String(AUTH_HELPER_MAX_BYTES + 1) },
+      });
+      expect((await nativeFetch(declared.url('handler'))).status).toBe(502);
+    } finally {
+      await streamed.close();
+      await declared.close();
+    }
   });
   it('times out a held upstream with 504', async () => {
     vi.useFakeTimers();
@@ -363,134 +406,232 @@ describe('fresh-nonce Firebase Auth helper function', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0');
     expect(await response.text()).toBe('The sign-in helper took too long to load. Please try again.\n');
   });
-  it('aborts the held upstream when the client disconnects and writes nothing', async () => {
-    let handled: Promise<void> | undefined;
-    const local = createServer((request, response) => {
-      handled = handler(request, response);
-    });
-    await listenOnFetchSafePort(local);
-    const address = local.address();
-    if (!address || typeof address === 'string') throw new Error('Missing auth helper test server address');
+  it('writes nothing to a client that disconnects, and still caches the refresh it started for the next request', async () => {
+    const helper = await helperServer();
     let upstreamSignal: AbortSignal | undefined;
+    let answer: (response: Response) => void = () => undefined;
     let started: () => void = () => undefined;
     const start = new Promise<void>((resolve) => {
       started = resolve;
     });
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(
-        (_url, options: RequestInit) =>
-          new Promise((_, reject) => {
-            upstreamSignal = options.signal ?? undefined;
-            options.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
-            started();
-          }),
-      ),
+    const upstream = vi.fn().mockImplementation(
+      (_url, options: RequestInit) =>
+        new Promise<Response>((resolve) => {
+          upstreamSignal = options.signal ?? undefined;
+          answer = resolve;
+          started();
+        }),
     );
+    vi.stubGlobal('fetch', upstream);
     const writeHead = vi.spyOn(ServerResponse.prototype, 'writeHead');
     try {
       const client = new AbortController();
-      const pending = nativeFetch(`http://127.0.0.1:${address.port}/api/auth-helper?page=iframe`, {
-        signal: client.signal,
-      });
+      const pending = nativeFetch(helper.url('iframe'), { signal: client.signal });
       await start;
-      expect(upstreamSignal?.aborted).toBe(false);
-      const upstreamAborted = new Promise<void>((resolve) =>
-        upstreamSignal?.addEventListener('abort', () => resolve(), { once: true }),
-      );
       client.abort();
       await expect(pending).rejects.toThrow();
-      await upstreamAborted;
-      await handled;
-      expect(upstreamSignal?.aborted).toBe(true);
+      await vi.waitFor(() => expect(helper.response()?.destroyed).toBe(true));
+      // Other requests may be waiting for the same refresh, so a disconnect does not abort it; the timeout bounds it.
+      expect(upstreamSignal?.aborted).toBe(false);
+      answer(new Response(IFRAME, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }));
+      await helper.handled();
       expect(writeHead).not.toHaveBeenCalled();
+      const next = await nativeFetch(helper.url('iframe'));
+      expect(next.status).toBe(200);
+      expect(await next.text()).toBe(IFRAME.replace('nonce="firebase-auth-helper"', `nonce="${nonceOf(next)}"`));
+      expect(upstream).toHaveBeenCalledTimes(1);
     } finally {
-      local.closeAllConnections();
-      await new Promise<void>((resolve, reject) => local.close((error) => (error ? reject(error) : resolve())));
+      await helper.close();
     }
   });
 });
 
-describe('per-instance admission', () => {
-  const html = () => new Response(HANDLER, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
-  // A fresh module per test, so each starts with empty admission and the other tests keep their own instance.
-  async function freshHelper() {
-    vi.resetModules();
-    const module = await import('../../api/auth-helper');
-    const instance = createServer((request, response) => {
-      void module.default(request, response);
-    });
-    await listenOnFetchSafePort(instance);
-    const address = instance.address();
-    if (!address || typeof address === 'string') throw new Error('Missing admission test server address');
-    return {
-      module,
-      url: (page: string) => `http://127.0.0.1:${address.port}/api/auth-helper?page=${page}`,
-      close: async () => {
-        instance.closeAllConnections();
-        await new Promise<void>((resolve, reject) => instance.close((error) => (error ? reject(error) : resolve())));
-      },
-    };
+describe('per-instance template cache and admission', () => {
+  const START = new Date('2030-01-01T00:00:00Z').getTime();
+  const REFRESHED = HANDLER.replace('Synthetic handler', 'Refreshed synthetic handler');
+  const html = (template: string) =>
+    new Response(template, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  const served = (template: string, response: Response) =>
+    template.replace('nonce="firebase-auth-helper"', `nonce="${nonceOf(response)}"`);
+  async function read(url: string, init?: RequestInit) {
+    const response = await nativeFetch(url, init);
+    return { response, text: await response.text() };
   }
-
-  it('refuses a GET over the active limit with 429 and Retry-After before any upstream request, and HEAD stays free', async () => {
-    const held: Array<(response: Response) => void> = [];
+  // Upstream requests the test answers one at a time.
+  function heldUpstream() {
+    const answers: Array<(response: Response) => void> = [];
     const upstream = vi.fn(
       () =>
         new Promise<Response>((resolve) => {
-          held.push(resolve);
+          answers.push(resolve);
         }),
     );
     vi.stubGlobal('fetch', upstream);
-    const helper = await freshHelper();
+    return { upstream, answers };
+  }
+
+  it("serves page loads from one validated template per page, so one client's burst cannot refuse another client", async () => {
+    const upstream = vi.fn(async (url: string) => html(url.endsWith('/iframe') ? IFRAME : HANDLER));
+    vi.stubGlobal('fetch', upstream);
+    const helper = await helperServer();
     try {
-      const { maxActive } = helper.module.AUTH_HELPER_ADMISSION;
-      const pending = Array.from({ length: maxActive }, () => nativeFetch(helper.url('handler')));
-      await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(maxActive));
-      const refused = await nativeFetch(helper.url('handler'));
-      expect(refused.status).toBe(429);
-      expect(refused.headers.get('retry-after')).toBe(String(helper.module.AUTH_HELPER_RETRY_AFTER_SECONDS));
-      expect(refused.headers.get('cache-control')).toBe('private, no-store, max-age=0');
-      expect(refused.headers.get('content-type')).toBe('text/plain; charset=utf-8');
-      expect(await refused.text()).toBe('The sign-in helper is busy. Please wait a few seconds and try again.\n');
-      const head = await nativeFetch(helper.url('handler'), { method: 'HEAD' });
-      expect(head.status).toBe(200);
-      expect(upstream).toHaveBeenCalledTimes(maxActive);
-      held.shift()!(html());
-      // The first request to finish released its slot in finally, before its response reached the client.
-      expect((await Promise.race(pending)).status).toBe(200);
-      const admitted = nativeFetch(helper.url('handler'));
-      await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(maxActive + 1));
-      for (const resolve of held.splice(0)) resolve(html());
-      expect((await admitted).status).toBe(200);
-      for (const response of await Promise.all(pending)) expect(response.status).toBe(200);
+      const { maxActive, maxPerWindow } = AUTH_HELPER_ADMISSION;
+      const burst = await Promise.all(
+        Array.from({ length: maxPerWindow + maxActive + 1 }, () =>
+          read(helper.url('handler'), { headers: { 'X-Forwarded-For': '203.0.113.7' } }),
+        ),
+      );
+      for (const { response, text } of burst) {
+        expect(response.status).toBe(200);
+        expect(text).toBe(served(HANDLER, response));
+      }
+      expect(new Set(burst.map(({ response }) => nonceOf(response))).size).toBe(burst.length);
+      for (const page of ['handler', 'iframe']) {
+        const other = await read(helper.url(page), { headers: { 'X-Forwarded-For': '198.51.100.23' } });
+        expect(other.response.status).toBe(200);
+        expect(other.text).toBe(served(page === 'iframe' ? IFRAME : HANDLER, other.response));
+      }
+      expect(upstream.mock.calls.map(([url]) => url)).toEqual([
+        `${AUTH_HELPER_UPSTREAM}/__/auth/handler`,
+        `${AUTH_HELPER_UPSTREAM}/__/auth/iframe`,
+      ]);
     } finally {
       await helper.close();
     }
   });
 
-  it('refuses the GET after the window limit and admits again once the window rolls over', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
-    const upstream = vi.fn(async () => html());
-    vi.stubGlobal('fetch', upstream);
-    const helper = await freshHelper();
+  it('refreshes a template older than the TTL with one upstream request, however many page loads wait for it', async () => {
+    const clock = { time: START };
+    const { upstream, answers } = heldUpstream();
+    const helper = await helperServer({ now: () => clock.time });
     try {
-      const { maxPerWindow, windowMs } = helper.module.AUTH_HELPER_ADMISSION;
-      for (let index = 0; index < maxPerWindow; index += 1) {
-        const response = await nativeFetch(helper.url('handler'));
-        await response.arrayBuffer();
+      const first = read(helper.url('handler'));
+      await vi.waitFor(() => expect(answers).toHaveLength(1));
+      answers.shift()!(html(HANDLER));
+      const loaded = await first;
+      expect(loaded.text).toBe(served(HANDLER, loaded.response));
+      clock.time = START + AUTH_HELPER_TEMPLATE_TTL_MS - 1;
+      const cached = await read(helper.url('handler'));
+      expect(cached.text).toBe(served(HANDLER, cached.response));
+      expect(upstream).toHaveBeenCalledTimes(1);
+      clock.time = START + AUTH_HELPER_TEMPLATE_TTL_MS;
+      const before = helper.requests();
+      const waiting = Array.from({ length: 5 }, () => read(helper.url('handler')));
+      await vi.waitFor(() => expect(helper.requests()).toBe(before + 5));
+      expect(answers).toHaveLength(1);
+      answers.shift()!(html(REFRESHED));
+      for (const { response, text } of await Promise.all(waiting)) {
         expect(response.status).toBe(200);
+        expect(text).toBe(served(REFRESHED, response));
       }
-      const refused = await nativeFetch(helper.url('handler'));
-      await refused.arrayBuffer();
-      expect(refused.status).toBe(429);
-      expect(refused.headers.get('retry-after')).toBe(String(helper.module.AUTH_HELPER_RETRY_AFTER_SECONDS));
-      vi.setSystemTime(Date.now() + windowMs);
-      const admitted = await nativeFetch(helper.url('handler'));
-      await admitted.arrayBuffer();
-      expect(admitted.status).toBe(200);
-      expect(upstream).toHaveBeenCalledTimes(maxPerWindow + 1);
+      const after = await read(helper.url('handler'));
+      expect(after.text).toBe(served(REFRESHED, after.response));
+      expect(upstream).toHaveBeenCalledTimes(2);
+    } finally {
+      await helper.close();
+    }
+  });
+
+  it("keeps serving the last template while refreshes fail, up to upstream's max-age, and retries only after the backoff", async () => {
+    const clock = { time: START };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let failing = false;
+    const upstream = vi.fn(async () =>
+      failing ? new Response('Unavailable', { status: 503, headers: { 'content-type': 'text/html' } }) : html(HANDLER),
+    );
+    vi.stubGlobal('fetch', upstream);
+    const helper = await helperServer({ now: () => clock.time });
+    const at = async (offset: number) => {
+      clock.time = START + offset;
+      return read(helper.url('handler'));
+    };
+    try {
+      expect((await at(0)).response.status).toBe(200);
+      failing = true;
+      const stale = await at(AUTH_HELPER_TEMPLATE_TTL_MS);
+      expect(stale.response.status).toBe(200);
+      expect(stale.text).toBe(served(HANDLER, stale.response));
+      expect(upstream).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect((await at(AUTH_HELPER_TEMPLATE_TTL_MS + AUTH_HELPER_REFRESH_BACKOFF_MS - 1)).response.status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(2);
+      expect((await at(AUTH_HELPER_TEMPLATE_TTL_MS + AUTH_HELPER_REFRESH_BACKOFF_MS)).response.status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(3);
+      // A template as old as upstream's max-age is not served, even when its refresh fails.
+      const expired = await at(AUTH_HELPER_TEMPLATE_MAX_AGE_MS);
+      expect(expired.response.status).toBe(502);
+      expect(expired.text).toBe('The sign-in helper is unavailable. Please try again later.\n');
+      expect(upstream).toHaveBeenCalledTimes(4);
+      expect((await at(AUTH_HELPER_TEMPLATE_MAX_AGE_MS + AUTH_HELPER_REFRESH_BACKOFF_MS - 1)).response.status).toBe(
+        502,
+      );
+      expect(upstream).toHaveBeenCalledTimes(4);
+      failing = false;
+      expect((await at(AUTH_HELPER_TEMPLATE_MAX_AGE_MS + AUTH_HELPER_REFRESH_BACKOFF_MS)).response.status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(5);
+    } finally {
+      await helper.close();
+    }
+  });
+
+  it('repeats an upstream redirect until the backoff ends instead of asking upstream on every page load', async () => {
+    const clock = { time: START };
+    const upstream = vi.fn(
+      async () => new Response(null, { status: 302, headers: { location: '/__/auth/handler?mode=x' } }),
+    );
+    vi.stubGlobal('fetch', upstream);
+    const helper = await helperServer({ now: () => clock.time });
+    try {
+      // The last offset is a clock that stepped back: it ends the backoff instead of stretching it.
+      for (const offset of [0, AUTH_HELPER_REFRESH_BACKOFF_MS - 1, AUTH_HELPER_REFRESH_BACKOFF_MS, 0]) {
+        clock.time = START + offset;
+        const response = await nativeFetch(helper.url('handler'), { redirect: 'manual' });
+        expect(response.status).toBe(302);
+        expect(response.headers.get('location')).toBe('/__/auth/handler?mode=x');
+      }
+      expect(upstream).toHaveBeenCalledTimes(3);
+    } finally {
+      await helper.close();
+    }
+  });
+
+  it('takes an admission slot only for an upstream refresh, so cached pages answer while refreshes are refused', async () => {
+    const clock = { time: START };
+    const { upstream, answers } = heldUpstream();
+    // One refresh at a time and two in a window longer than the test, so both limits are reached.
+    const helper = await helperServer({
+      admission: { maxActive: 1, maxPerWindow: 2, windowMs: 24 * 60 * 60_000 },
+      now: () => clock.time,
+    });
+    try {
+      const first = read(helper.url('handler'));
+      await vi.waitFor(() => expect(answers).toHaveLength(1));
+      const refused = await read(helper.url('iframe'));
+      expect(refused.response.status).toBe(429);
+      expect(refused.response.headers.get('retry-after')).toBe(String(AUTH_HELPER_RETRY_AFTER_SECONDS));
+      expect(refused.response.headers.get('cache-control')).toBe('private, no-store, max-age=0');
+      expect(refused.response.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+      expect(refused.text).toBe('The sign-in helper is busy. Please wait a few seconds and try again.\n');
+      expect((await nativeFetch(helper.url('iframe'), { method: 'HEAD' })).status).toBe(200);
+      expect(upstream).toHaveBeenCalledTimes(1);
+      answers.shift()!(html(HANDLER));
+      expect((await first).response.status).toBe(200);
+      const frame = read(helper.url('iframe'));
+      await vi.waitFor(() => expect(answers).toHaveLength(1));
+      answers.shift()!(html(IFRAME));
+      expect((await frame).response.status).toBe(200);
+      for (const page of ['handler', 'iframe', 'handler'])
+        expect((await read(helper.url(page))).response.status).toBe(200);
+      // With the window spent, a due refresh keeps the cached template within upstream's max-age, then answers 429.
+      clock.time = START + AUTH_HELPER_TEMPLATE_TTL_MS;
+      const stale = await read(helper.url('handler'));
+      expect(stale.response.status).toBe(200);
+      expect(stale.text).toBe(served(HANDLER, stale.response));
+      clock.time = START + AUTH_HELPER_TEMPLATE_MAX_AGE_MS;
+      const spent = await read(helper.url('handler'));
+      expect(spent.response.status).toBe(429);
+      expect(spent.response.headers.get('retry-after')).toBe(String(AUTH_HELPER_RETRY_AFTER_SECONDS));
+      expect(upstream).toHaveBeenCalledTimes(2);
     } finally {
       await helper.close();
     }

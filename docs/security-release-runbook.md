@@ -444,10 +444,12 @@ In-function limits are per instance and cannot stop distributed abuse:
 (concurrent lookups of one ID share one run and one slot),
 and `api/catalog.ts` admits 6 concurrent and 90 upstream searches per minute
 (a coalesced FreeToGame fill holds one slot). The auth helper
-(`/__/auth/handler` and `/__/auth/iframe`) fetches the upstream Firebase helper
-on every GET and is never cached, so it needs the same global bound;
-`api/auth-helper.ts` admits 8 concurrent and 120 of those GETs per minute per
-instance and answers the rest with 429 and `Retry-After`. This
+(`/__/auth/handler` and `/__/auth/iframe`) serves each page from a per-instance
+template cache and fetches the upstream Firebase helper only to refresh it, at
+most once per page every 10 minutes, or every 15 s while refreshes fail.
+`api/auth-helper.ts` admits 8 concurrent and 120 of those refreshes per minute
+per instance, as a backstop, and answers a refused refresh that has no usable
+template with 429 and `Retry-After`; page loads take no slot. This
 WAF rule is the global control once it enforces with 429; in Log mode it records
 matches and blocks nothing. Hobby allows one rate-limit rule per project, so
 one rule covers both prefixes; add exactly this one under Firewall → Configure →
