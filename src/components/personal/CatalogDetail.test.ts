@@ -79,8 +79,11 @@ describe('catalog detail artwork continuity surface', () => {
     const { html } = renderDetail({
       feedback: '1 game added to your library.',
       error: result === 'failed' ? 'Device storage is full.' : '',
+      publicLookup: { online: false, scopeKey: 'guest:0:0', onEnableOnline: vi.fn() },
     });
     expect(html).toContain(`role="${role}">${text}</p>`);
+    expect(html).toContain('Enable online details');
+    expect(html.indexOf('Enable online details')).toBeLessThan(html.indexOf(`role="${role}">${text}</p>`));
     if (result === 'failed') expect(html).not.toContain('class="detail-share-notice"');
   });
 

@@ -239,6 +239,7 @@ export default function CatalogDetail({
             : 'Preview only. Rate or mark progress here to keep this game.'}{' '}
         The 100 stays unchanged.
       </p>
+      <CatalogEnrichment enrichment={enrichment} lookup={publicLookup} />
       {failure ? (
         <p className="inline-error" role="alert">
           {failure}
@@ -248,7 +249,6 @@ export default function CatalogDetail({
           {status}
         </p>
       ) : null}
-      <CatalogEnrichment enrichment={enrichment} lookup={publicLookup} />
     </Dialog>
   );
 }

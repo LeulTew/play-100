@@ -342,6 +342,10 @@ rating failures retain their field-owned alert rather than announcing twice.
 Closing a catalog detail still flushes its pending rating through the captured
 record and library action. The dialog's lifetime only gates its local feedback,
 not that exit-save; a closed instance never updates or focuses a newer dialog.
+Mutation feedback follows the public-detail controls, so a rating blur cannot
+insert a new message above a pressed Enable action and move its pointer target
+before the click completes. Online consent still waits for the registered save
+and cancels if the route or scope changes.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the

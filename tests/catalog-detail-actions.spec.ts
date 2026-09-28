@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
+import { catalogFixture, discoveryFixture, enrichmentFixture } from '../src/lib/discovery-test-fixtures';
 import { applyPersonalAction } from '../src/lib/personal-library';
 import type { PersonalAction, PersonalLibraryState } from '../src/lib/personal-types';
 import { emptyCatalogs } from './catalog-helpers';
@@ -131,6 +131,96 @@ async function holdCatalogWrite(page: Page, rejected: boolean) {
     { id: record.id, rejected },
   );
 }
+
+test('enabling public details receives the rating-blur click and waits for its save', async ({ page }) => {
+  const requests: URL[] = [];
+  await page.route('**/api/catalog-detail?**', (route) => {
+    requests.push(new URL(route.request().url()));
+    return route.fulfill({ json: enrichmentFixture() });
+  });
+  await page.goto('/discover?catalogs=off&genreFamily=role-playing&campaign=retained');
+  await page
+    .locator(`[data-catalog-id="${record.id}"]`)
+    .getByRole('button', { name: record.title, exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: record.title, exact: true });
+  const rating = dialog.getByRole('spinbutton');
+  const enable = dialog.getByRole('button', { name: 'Enable online details', exact: true });
+  await expect(enable).toBeEnabled();
+  const original = page.url();
+  const historyLength = await page.evaluate(() => history.length);
+  const before = await readLibrary(page);
+  await rating.fill('11');
+  await enable.click();
+  await expect(rating).toHaveAttribute('aria-invalid', 'true');
+  await expect(page).toHaveURL(original);
+  expect(requests).toEqual([]);
+
+  const held = await holdCatalogWrite(page, false);
+  const activation = await enable.evaluateHandle((button) => {
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Public consent needs its native button.');
+    const receipt = { clicks: 0, press: null as { x: number; y: number } | null };
+    const down = (event: PointerEvent) => {
+      receipt.press = { x: event.clientX, y: event.clientY };
+    };
+    const click = () => {
+      receipt.clicks += 1;
+    };
+    button.addEventListener('pointerdown', down);
+    button.addEventListener('click', click);
+    return {
+      read() {
+        const box = button.getBoundingClientRect();
+        const point = receipt.press;
+        return {
+          clicks: receipt.clicks,
+          stillUnderPointer:
+            point !== null &&
+            point.x >= box.left &&
+            point.x <= box.right &&
+            point.y >= box.top &&
+            point.y <= box.bottom,
+        };
+      },
+      dispose() {
+        button.removeEventListener('pointerdown', down);
+        button.removeEventListener('click', click);
+      },
+    };
+  });
+  try {
+    await rating.fill('7.25');
+    await enable.click();
+    await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+    expect(await activation.evaluate((probe) => probe.read())).toEqual({ clicks: 1, stillUnderPointer: true });
+    await expect(dialog.locator('.detail-share-notice')).toHaveText('Saving changes…');
+    await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
+    await expect(rating).toBeDisabled();
+    await expect(enable).toBeEnabled();
+    await expect(page).toHaveURL(original);
+    expect(requests).toEqual([]);
+    await held.evaluate((probe) => probe.release());
+    await expect(enable).toHaveCount(0);
+    await expect(rating).toBeEnabled();
+    await expect.poll(() => requests.length).toBeGreaterThan(0);
+    const expectedUrl = new URL(original);
+    expectedUrl.searchParams.delete('catalogs');
+    const currentUrl = new URL(page.url());
+    expect(currentUrl.pathname).toBe(expectedUrl.pathname);
+    expect([...currentUrl.searchParams].sort()).toEqual([...expectedUrl.searchParams].sort());
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
+    expect(await readLibrary(page)).toEqual(applyPersonalAction(before, { type: 'rate-game', record, score: 7.25 }));
+    expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+    for (const request of requests) expect([...request.searchParams]).toEqual([['id', record.id]]);
+    await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
+    await expect(page.locator('.toast-visible')).toHaveCount(0);
+  } finally {
+    await activation.evaluate((probe) => probe.dispose());
+    await activation.dispose();
+    await held.evaluate((probe) => probe.restore());
+    await held.dispose();
+  }
+});
 
 const mutationCases: {
   name: string;
