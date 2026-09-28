@@ -57,6 +57,11 @@ separate; no original is enlarged.
   are plain text, not HTML to inject. Most licensed assets are logos: use
   `object-fit: contain` and a light/paper image surface so transparent black
   logos remain legible instead of cropping or inverting them.
+- Discover artwork wider than 3:1 uses a flat title lockup inside the same 4:3
+  tile, selected from the supplied dimensions before the image decodes. The
+  native-size wordmark remains above a condensed title; no source is enlarged,
+  cropped or recolored. The repeated decorative title is hidden from assistive
+  technology; the card's full title and actions remain unchanged.
 - Load the manifest lazily in discovery/search. Serve visible/nearby images
   lazily with the supplied intrinsic dimensions; missing or failed art needs an
   honest fallback. Artwork and provenance never enter personal/cloud records.

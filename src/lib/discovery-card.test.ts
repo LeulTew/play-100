@@ -6,6 +6,33 @@ import { emptyPersonalLibrary } from './personal-library';
 import { artworkFixture, discoveryFixture } from './discovery-test-fixtures';
 
 describe('compact catalog card markup', () => {
+  it.each([
+    [56, true],
+    [159, true],
+    [160, false],
+    [360, false],
+  ] as const)('uses a pre-sized wordmark plate only above a 3:1 aspect ratio (480 x %i)', (height, wordmark) => {
+    const html = renderToStaticMarkup(
+      createElement(DiscoveryCard, {
+        record: discoveryFixture.record,
+        artwork: { ...artworkFixture, width: 480, height },
+        state: emptyPersonalLibrary(),
+        busy: false,
+        onAction: vi.fn(),
+        onPin: vi.fn(),
+      }),
+    );
+    expect(html.includes('data-wordmark=""')).toBe(wordmark);
+    expect(html.includes(`<strong aria-hidden="true">${discoveryFixture.record.title}</strong>`)).toBe(wordmark);
+    expect(html).toContain(`width="480" height="${height}"`);
+    expect(html).toContain(artworkFixture.src);
+    expect(html).toContain(artworkFixture.credit);
+    expect(html).toContain(artworkFixture.sourceUrl);
+    expect(html).toContain(artworkFixture.licenseUrl);
+    expect(html).toContain('Add to My games: Kingdom Come: Deliverance');
+    expect(html).toContain('Pin for comparison: Kingdom Come: Deliverance');
+  });
+
   it('renders intrinsic image dimensions, lazy decoding, visible actions and active attribution', () => {
     const onAction = vi.fn();
     const onPin = vi.fn();
