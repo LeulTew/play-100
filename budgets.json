@@ -12,7 +12,7 @@
     "largestLazyGzipBytes": 146641,
     "indexHtmlRawBytes": 33546,
     "indexHtmlGzipBytes": 9386,
-    "inlineStyleRawBytes": 16952,
+    "inlineStyleRawBytes": 18810,
     "inlineScriptRawBytes": 4856,
     "largestRouteGzipBytes": 283422
   },
@@ -42,6 +42,7 @@
     "r10": "Parent-configured R10 scratch chain f84456f (R9 tip 0b4f8b09 + REL-10a + PERF-10a + UX-10a/b), configured online build: index.html raw = ceil(32888 * 1.02) = 33546, gzip9 = ceil(9201 * 1.02) = 9386; first-paint inline style = ceil(16619 * 1.02) = 16952 (online variant; offline 15834); boot script = ceil(4642 * 1.02) = 4735. The offline build's index.html measures 31543 raw / 8966 gzip9.",
     "r10b": "Parent-configured R10 scratch chain c470a52 (R9 tip 25e2ab6d + R10 + R10b), configured online build: largest whole route = src/cloud/FriendComparisonPage.tsx at 277864 gzip9 (1053028 raw, 16 files), cap ceil(277864 * 1.02) = 283422. Online page rows include the online bridge closure their chunks import; offline build 277856.",
     "r11": "Parent-measured R11 scratch tree abcec9f6 (R10 main c877a04b + R11 ranges 1-11), configured online build: boot script = ceil(4760 * 1.02) = 4856, after G3 REL-001 added the Data use exception to the deferred-tag loop (+118 B over the R10 measurement of 4642). index.html then measures 33006 raw / 9252 gzip9, within its R10 caps; every other cap is unchanged.",
+    "r19": "Parent-configured R19 integration tree (R18b 9ea25e7 + the seven R19 ranges), configured online build: the first-paint inline style = ceil(18441 * 1.02) = 18810 (online variant; offline 17651). The +1822 B over R18's 16619 are the Roboto fallback faces and probe styles that let the static shell show on Android, whose system fonts the Impact and Arial faces cannot match (lab FCP about 0.8 s instead of about 2.5 s there); the shell's CSS is otherwise minified by Lightning CSS. index.html stays within its R10 caps (33236 raw / 9256 gzip9).",
     "compression": "gzip level 9, independently per file, summed after deduplication. Fonts, JSON and the root worker are not part of the eager JS+CSS gate.",
     "lazy": "All emitted assets/*.js outside the eager set; raw and gzip maxima are measured separately. The root service worker is excluded.",
     "routes": "Whole-route cost: for each lazily loaded page or picker root (ROUTE_ROOTS in scripts/check-budgets.ts, every React.lazy() in src), the gzip9 bytes, per file, of its root chunk, its static-import closure and the CSS those chunks import, beyond the eager set, from the retained Vite manifest. The most expensive route is gated; every route is reported.",
