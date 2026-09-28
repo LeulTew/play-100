@@ -65,12 +65,12 @@ import { clearInviteContinuation, liveInvitation } from '../lib/invite-continuat
 import { readGoogleIntent } from '../lib/google-intent';
 import { readAccountLifecycle } from './account-lifecycle';
 import {
-  createAccountDeletion,
   currentDeletionApproval,
   useAccountDeletionState,
   useDeletionApprovalExpiry,
   useDeletionProbe,
 } from './account-deletion';
+import type { AccountDeletionContext } from './account-deletion-action';
 import { useAccountIdentity } from './account-identity';
 import type { ConnectionChoice } from './AccountPage';
 import type { OnlineBridge } from './ui-types';
@@ -1004,7 +1004,8 @@ export default function OnlineController({
           'Online account data was exported. The unreadable copy on this device is marked unavailable in the export; it was not replaced or deleted.',
         );
     });
-  const deleteOnline = createAccountDeletion({
+  // Account runs the deletion itself (account-deletion-action.ts), so its code loads with that page only.
+  const deletionContext: AccountDeletionContext = {
     identity,
     identityRef,
     scope,
@@ -1026,7 +1027,7 @@ export default function OnlineController({
     refresh,
     onCloseSheet,
     onNavigate,
-  });
+  };
 
   const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
   const pageScope = `${scope ?? 'guest'}:${authSessionEpoch.current}`;
@@ -1427,7 +1428,7 @@ export default function OnlineController({
                   </>
                 )
               }
-              onDelete={deleteOnline}
+              deletion={deletionContext}
               onPublish={() => onNavigate('publish')}
               onCommunity={() => onNavigate('community')}
               onCreator={() => onNavigate('creator')}

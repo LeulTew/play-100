@@ -169,15 +169,19 @@ describe('STORAGE-02 exact query/index contract', () => {
       ),
     ];
     expect(identities(oldQueries)).toEqual(oldOwners.sort());
+    // SocialStore's publishing, moderation, report and public-copy cleanup methods run in SocialPublication, which
+    // loads with the pages that use them (social-publication.ts); the queries are the same.
+    const current = (owner: string) =>
+      owner.replace('src/cloud/social-store.ts#SocialStore.', 'src/cloud/social-publication.ts#SocialPublication.');
     expect(identities(currentQueries)).toEqual(
       [
-        ...oldOwners,
+        ...oldOwners.map(current),
         'src/cloud/cloud-store.ts#CloudStore.probeDeletedCopy',
         'src/cloud/cloud-store.ts#CloudStore.purgeDeletedPayload',
         'src/cloud/friend-all-store.ts#FriendAllStore.pruneLegacy',
         'src/cloud/friend-store.ts#FriendStore.freePairCapacity',
         'src/cloud/friend-store.ts#FriendStore.cleanupDeleted',
-        'src/cloud/social-store.ts#SocialStore.report',
+        'src/cloud/social-publication.ts#SocialPublication.report',
       ].sort(),
     );
     for (const file of manifest.files) {

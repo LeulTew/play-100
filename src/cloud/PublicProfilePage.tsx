@@ -10,6 +10,8 @@ import { Icon } from '../components/Icon';
 import { Dialog } from '../components/Dialog';
 import { onlineError } from './errors';
 import type { SocialStore } from './social-store';
+// The store's publication methods it calls (social-publication.ts) load with this page.
+import './social-publication';
 
 // A generic span cannot carry an accessible name, so the visual score is hidden and spoken as a phrase instead.
 export function PublicScore({ score }: { score: number | null }) {

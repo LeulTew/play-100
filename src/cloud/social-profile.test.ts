@@ -37,4 +37,13 @@ describe('public profile existence privacy', () => {
     expect(parseHandle('leul_tew')).toBe('leul_tew');
     expect(() => normalizeHandle('leul_tew')).toThrow(/reserved/);
   });
+  it('runs publication methods through the store, so a patched store method is the one they call', async () => {
+    const withdraw = vi.spyOn(SocialStore.prototype, 'withdrawReport').mockResolvedValue();
+    try {
+      expect(await social.resolveReport('report-a')).toBe(true);
+      expect(withdraw).toHaveBeenCalledExactlyOnceWith('report-a');
+    } finally {
+      withdraw.mockRestore();
+    }
+  });
 });

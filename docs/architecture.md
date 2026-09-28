@@ -131,10 +131,13 @@ Security policy and release procedures are defined in [Security](security.md)
 and the [security release runbook](security-release-runbook.md).
 
 The internal [account-deletion](../src/cloud/account-deletion.ts) unit owns
-deletion approval expiry, scope-qualified cleanup probes and the ordered
-reauthentication/reservation/cleanup/Auth-deletion operation. Its pure selectors
+deletion approval expiry and scope-qualified cleanup probes, and
+[account-deletion-action](../src/cloud/account-deletion-action.ts) owns the
+ordered reauthentication/reservation/cleanup/Auth-deletion operation, which only
+Account runs and which therefore loads with that page. Its pure selectors
 keep approval ownership, saving epochs, auth-session generations and completed
-cleanup receipts distinct. The controller passes its existing stores and callbacks;
+cleanup receipts distinct. The controller passes its existing stores and callbacks
+as the operation's context;
 approval-expiry and probe hooks stay at their original positions relative to
 identity reset, Google-return handling and member subscriptions. No page body,
 UI text or backend authorization policy is owned by this unit.
@@ -298,6 +301,16 @@ root when nothing else lazy has loaded. The online bridge
 (`src/cloud/OnlineController.tsx`) has its own row, and an online page's row also
 counts the part of the bridge's closure that the page's chunks import, so the two
 rows overlap rather than add up.
+
+The bridge's closure leaves out code that only some pages run, so opening Compare,
+Friends or any other page does not load it. Publishing, moderation, reports and
+public-copy cleanup ([social-publication](../src/cloud/social-publication.ts))
+load with the Community, public profile, Publish, Creator and Account pages,
+which import them; `SocialStore`'s methods of the same names delegate to them and
+load them on first use elsewhere. The account deletion operation loads with
+Account. The avatar renderer stays in the closure because every signed-in page
+draws avatars; the avatar picker was already its own route.
+`src/cloud/online-bridge-closure.test.ts` follows the static imports to keep it so.
 
 Route costs (R10 configured build), gzip9 bytes. `budgets.json` caps the largest
 2% above it (`notes.r10b`).

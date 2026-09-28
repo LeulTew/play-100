@@ -5,7 +5,6 @@ import type { SyncHead } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import type { FriendAllPolicy } from '../lib/friend-all';
 import {
-  createAccountDeletion,
   currentDeletionApproval,
   deletionApprovalMatches,
   deletionCopyState,
@@ -14,7 +13,9 @@ import {
   deletionProbeKey,
   expireDeletionApproval,
 } from './account-deletion';
-import type { AccountDeletionContext, GoogleDeletionApproval } from './account-deletion';
+import type { GoogleDeletionApproval } from './account-deletion';
+import { createAccountDeletion } from './account-deletion-action';
+import type { AccountDeletionContext } from './account-deletion-action';
 
 const calls = vi.hoisted(() => ({
   auth: { currentUser: null as { uid: string; email: string } | null },

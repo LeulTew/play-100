@@ -7,6 +7,8 @@ import type { PersonalLibraryState } from '../lib/personal-types';
 import type { AvatarDescriptor } from '../lib/avatar';
 import type { AccountIdentity } from './ui-types';
 import type { SocialStore } from './social-store';
+// The store's publication methods it calls (social-publication.ts) load with this page.
+import './social-publication';
 import { onlineError } from './errors';
 import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';

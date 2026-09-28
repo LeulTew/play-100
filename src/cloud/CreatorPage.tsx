@@ -9,6 +9,8 @@ import { CloudStore } from './cloud-store';
 import { cloudDb } from './firebase-client';
 import { onlineError } from './errors';
 import type { SocialStore } from './social-store';
+// The store's publication methods it calls (social-publication.ts) load with this page.
+import './social-publication';
 
 export function CreatorPage({
   social,

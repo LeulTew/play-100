@@ -5,6 +5,8 @@ import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
 import { onlineError } from './errors';
 import type { SocialStore } from './social-store';
+// The store's publication methods it calls (social-publication.ts) load with this page.
+import './social-publication';
 
 export function CommunityPage({
   social,

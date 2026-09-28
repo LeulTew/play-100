@@ -13,6 +13,10 @@ import { Icon } from '../components/Icon';
 import { DataUseLink } from '../components/DataUseLink';
 import { CANCELLED_REGISTRATION_MESSAGE } from './account-lifecycle';
 import type { DeletionCopyState } from './cloud-store';
+import { createAccountDeletion } from './account-deletion-action';
+import type { AccountDeletionContext } from './account-deletion-action';
+// Account's deletion, cleanup and export use the public-copy cleanup, so it loads with this page.
+import './social-publication';
 
 export type ConnectionChoice = 'guest' | 'online' | 'empty' | 'cached';
 export interface AccountPageProps {
@@ -46,7 +50,8 @@ export interface AccountPageProps {
   onDownload: (source: 'local' | 'online' | 'guest' | 'all') => Promise<boolean>;
   onUseRemote: (head: SyncHead, localRevision: number) => Promise<boolean>;
   onUseLocal: (head: SyncHead, localRevision: number) => Promise<boolean>;
-  onDelete: (account: boolean, password: string) => Promise<boolean>;
+  /** What deleting an online copy or the account runs in; the page runs it (account-deletion-action.ts). */
+  deletion: AccountDeletionContext;
   googleDeletion: { requestId: string; target: 'copy' | 'account' } | null;
   onDismissDeletion: () => void;
   onPublish: () => void;
@@ -89,7 +94,7 @@ export function AccountPage(props: AccountPageProps) {
     onDownload,
     onUseRemote,
     onUseLocal,
-    onDelete,
+    deletion,
     onPublish,
     onCommunity,
     onCreator,
@@ -101,6 +106,7 @@ export function AccountPage(props: AccountPageProps) {
     onSignOutAndRemove,
     deletionState = 'checking',
   } = props;
+  const onDelete = createAccountDeletion(deletion);
   const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
   const [name, setName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
