@@ -333,11 +333,15 @@ test('the header navigation stays put as the Compare chip comes and goes, yieldi
   await expect(page.locator('.game-card')).toHaveCount(24);
   await page.evaluate(() => document.fonts.ready);
   const header = page.locator('.site-header');
-  const widths = [768, 1024, 1150, 1151, 1440, 1920];
-  // Both builds' headers have room for the chip beside the resting navigation at these widths. At 768 and 1151 the
-  // configured build's, with Friends and Account, does not: its navigation rests 41.6px and 47.2px from the actions,
-  // and the chip needs its 55px slot and a 12px gap, so there it moves 25.4px and 19.8px, to just clear the actions.
+  const widths = [761, 762, 763, 768, 1024, 1150, 1151, 1440, 1920];
+  // Both builds' headers have room for the chip beside the resting navigation at these widths. At 761-768 and 1151 the
+  // configured build's, with Friends and Account, does not: its navigation rests 38.3-41.6px and 47.2px from the
+  // actions, and the chip needs its 55px slot and the chip gap, so there it moves 25.4-26.7px and 19.8px, to just
+  // clear the actions.
   const roomy = [1024, 1150, 1440, 1920];
+  // The chip gap: 12px, and 10px at 761-763px, where the configured header would otherwise be up to 2.3px short of
+  // room for the chip even with the navigation beside the actions, and its labels would wrap.
+  const chipGap = (width: number) => (width <= 763 ? 10 : 12);
   const measure = () =>
     header.evaluate((element) => {
       const nav = element.querySelector('.desktop-nav')!.getBoundingClientRect();
@@ -373,14 +377,15 @@ test('the header navigation stays put as the Compare chip comes and goes, yieldi
       now.heights.forEach((height, index) =>
         expect(Math.abs(height - before.heights[index]!), `control ${index} height ${at}`).toBeLessThanOrEqual(0.5),
       );
-      // The chip's slot is its 46px anchor and the actions' 9px gap, and header items then keep 12px apart.
+      // The chip's slot is its 46px anchor and the actions' 9px gap, and header items then keep the chip gap apart.
       expect(Math.abs(before.actions - now.actions - (chip ? 55 : 0)), `chip slot ${at}`).toBeLessThanOrEqual(0.5);
-      if (chip) expect(now.gap, `chip gap ${at}`).toBe(12);
+      const gap = chipGap(width);
+      if (chip) expect(now.gap, `chip gap ${at}`).toBe(gap);
       // The resting navigation keeps its place wherever that slot and gap fit beside it. Elsewhere it yields only the
-      // shortfall, which leaves it 12px from the actions.
-      const shortfall = chip ? Math.max(0, 55 + 12 - before.room) : 0;
+      // shortfall, which leaves it the chip gap from the actions.
+      const shortfall = chip ? Math.max(0, 55 + gap - before.room) : 0;
       if (roomy.includes(width)) expect(shortfall, `room for the chip ${at}`).toBe(0);
-      if (shortfall > 0) expect(Math.abs(now.room - 12), `gap to the actions ${at}`).toBeLessThanOrEqual(0.5);
+      if (shortfall > 0) expect(Math.abs(now.room - gap), `gap to the actions ${at}`).toBeLessThanOrEqual(0.5);
       expect(now.links, `navigation links ${at}`).toHaveLength(before.links.length);
       now.links.forEach((left, index) =>
         expect(Math.abs(before.links[index]! - shortfall - left), `link ${index} ${at}`).toBeLessThanOrEqual(0.5),

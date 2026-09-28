@@ -252,7 +252,9 @@ stands without pins, so the chip arriving or leaving never moves it while the
 header has room for both. Where it has less, the spacer gives way before
 anything else does, so the navigation moves only as far as it must to stay 12px
 from the actions.
-Above 760px, header items keep 12px apart while the chip is there. The five
+Above 760px, header items keep 12px apart while the chip is there, and 10px at
+761–763px, where the configured header would otherwise be up to 2.3px short of
+room for the chip and its labels would wrap. The five
 navigation targets
 retain at least 44px each, with intrinsic word widths protected when pins need a
 slot. One activation opens the existing native tray and its Choose friends action.

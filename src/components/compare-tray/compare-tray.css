@@ -127,6 +127,16 @@ button.compare-drag-handle[hidden] {
     margin-inline-end: -12px;
   }
 }
+@media (min-width: 761px) and (max-width: 763px) {
+  /* The configured header's resting content leaves the chip up to 2.3px short here, so its labels would wrap: 10px
+     gaps give it the room. */
+  .site-header[data-compare-chip] {
+    gap: 10px;
+  }
+  .site-header[data-compare-chip]::before {
+    margin-inline-end: -10px;
+  }
+}
 @media (min-width: 761px) and (max-height: 520px) {
   .games-grid .game-cover:not(:has(> .art-fallback-note)) {
     max-height: 80px;
