@@ -1,14 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  getIdTokenResult,
-  reload,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signOut,
-} from 'firebase/auth';
-import type { User } from 'firebase/auth';
+import { getIdTokenResult, signOut } from 'firebase/auth';
 import type { AppPage, Game } from '../lib/types';
 import type { LibraryRecord } from '../lib/personal-types';
 import type { CatalogArtwork } from '../lib/discovery-catalog';
@@ -45,44 +36,23 @@ import { creatorAccess } from './cloud-store';
 import type { CloudStore } from './cloud-store';
 import { SocialStore } from './social-store';
 import { useCloudSync } from './useCloudSync';
-import { onlineError, popupCancelled } from './errors';
+import { onlineError } from './errors';
 import { syncFailure } from '../lib/sync-retry';
 import { startGoogleRedirect } from './google-auth';
-import {
-  applyGoogleReturn,
-  observeAccountSession,
-  signInNeedsAccountPage,
-  useAccountSessionState,
-} from './account-session';
-import {
-  clearComparisonView,
-  comparisonScope,
-  initialComparison,
-  rememberComparisonView,
-} from '../lib/friend-comparison-intent';
-import { clearComparisonGameFilter } from '../lib/comparison-game-filter';
-import { clearInviteContinuation, liveInvitation } from '../lib/invite-continuation';
-import { readGoogleIntent } from '../lib/google-intent';
+import { comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
 import { readAccountLifecycle } from './account-lifecycle';
-import {
-  currentDeletionApproval,
-  useAccountDeletionState,
-  useDeletionApprovalExpiry,
-  useDeletionProbe,
-} from './account-deletion';
+import { currentDeletionApproval, useAccountDeletionState, useDeletionProbe } from './account-deletion';
 import type { AccountDeletionContext } from './account-deletion-action';
-import { useAccountIdentity } from './account-identity';
 import type { ConnectionChoice } from './AccountPage';
 import type { OnlineBridge } from './ui-types';
+import { useGoogleReturn, useOnlineSession } from './useOnlineSession';
 import { useFriendSharing } from './useFriendSharing';
 import { useFriendAll } from './useFriendAll';
 import { friendSharingView } from '../lib/friend-all';
 import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { navigateFriend, prepareFriendIdentity } from './friend-page-actions';
-import { deviceComparePins, forgetCompareSignIn, rememberCompareSignIn, takeCompareSignIn } from './compare-sign-in';
 import { useFriendShelf } from './useFriendShelf';
 import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
-import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import { signOutTransition } from './sign-out-transition';
 import { reportDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
 import { libraryBackupText } from './backup-download';
@@ -213,29 +183,19 @@ export default function OnlineController({
     'friend-sharing',
     'friend-shelf',
   ].includes(page);
-  // The committed invitation: signing out or changing accounts retires the one this tab had open.
-  const invitationNow = useRef(invitation);
-  useLayoutEffect(() => {
-    invitationNow.current = invitation;
-  }, [invitation]);
-  const [retiredInvitation, setRetiredInvitation] = useState<typeof invitation | null>(null);
-  const {
-    identity,
-    setIdentity,
-    identityRef,
-    authSessionEpoch,
-    reconcileIdentity,
-    observeUser,
-    controllerLive,
-    clearVerificationMismatch,
-  } = useAccountIdentity((previousUid) => {
-    clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', previousUid));
-    clearComparisonGameFilter(accountScope(previousUid, firebaseApp.options.projectId));
-    // An invitation opened in this tab belongs to the account that opened it; the next person cannot open it.
-    clearInviteContinuation();
-    setRetiredInvitation(invitationNow.current);
+  const session = useOnlineSession({
+    page,
+    invitation,
+    showSheet,
+    cloudPage,
+    onCompareSignIn,
+    onCloseSheet,
+    onNavigate,
   });
-  const openInvitation = liveInvitation(invitation, retiredInvitation);
+  const { identity, setIdentity, identityRef, authSessionEpoch, reconcileIdentity } = session;
+  const { openInvitation, retireInvitation, busy, error, message, setError, setMessage, run } = session;
+  const { googleReturn, returnSheet, setReturnSheet, startupError, sessionUnconfirmed, signInOpen } = session;
+  const { googleCompare, resendIn, google, email, sendVerification, resetEmail, refreshIdentity } = session;
   const [memberSnapshot, setMember] = useState<Member | null>(null);
   const memberReadVersion = useRef(0);
   const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
@@ -246,58 +206,14 @@ export default function OnlineController({
   const profile = profileSnapshot?.uid === identity?.uid ? profileSnapshot : null;
   const head = headSnapshot?.uid === identity?.uid ? (headSnapshot?.value ?? null) : null;
   const isCreator = Boolean(identity?.verified && creatorUid === identity.uid);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const {
-    sessionUnconfirmed,
-    setSessionUnconfirmed,
-    googleReturn,
-    setGoogleReturn,
-    returnSheet,
-    setReturnSheet,
-    startupError,
-    setStartupError,
-    handledGoogleReturn,
-  } = useAccountSessionState();
-  const signInOpen = !identity && (showSheet || (returnSheet && !cloudPage));
   const deletion = useAccountDeletionState();
   const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
-  // Whether this page load returned from a Google redirect that the Compare tray's sign-in started. The return's own
-  // transition reads the ref, which a sign-in that completes here clears at once.
-  const [googleCompare, setGoogleCompare] = useState(false);
-  const googleCompareNow = useRef(false);
-  // A sign-in the Compare tray started continues to Compare with the device's pins once its account has opened. App
-  // then runs the tray's own checks, so an account that cannot compare yet opens Account. Without pins it opens Account.
-  // Only this signed-in session continues it: a sign-out or another sign-in, in this tab or another, replaces the user.
-  const continueToCompare = (uid: string) => {
-    const pins = deviceComparePins();
-    const user = cloudAuth.currentUser;
-    if (!pins.length || !onCompareSignIn || user?.uid !== uid) return false;
-    onCompareSignIn(uid, pins, () => cloudAuth.currentUser === user);
-    return true;
-  };
-  const signInNavigation = {
-    page,
-    onCloseSheet,
-    onNavigate,
-    continueSignIn: (uid: string) => googleCompareNow.current && continueToCompare(uid),
-  };
-  // The committed page and handlers, which a Google return's transition (an effect) navigates with.
-  const navigation = useRef(signInNavigation);
-  useLayoutEffect(() => {
-    navigation.current = signInNavigation;
-  });
   const [avatarOpen, setAvatarOpen] = useState(false);
   // A fresh default creature for each account, until the member has one of its own.
   const [defaultAvatar, setDefaultAvatar] = useState(() => createAvatarDescriptor());
-  const [cooldown, setCooldown] = useState(0);
-  // Only compared with a cooldown, which starts at 0, so its first value is never shown.
-  const [now, setNow] = useState(0);
-  const running = useRef(false);
   const uid = identity?.uid;
-  // Each account starts afresh: nothing the previous one loaded, was told or had open carries over, its registration
-  // state is unknown until it is read, and it has a new default creature.
+  // Each account starts afresh: nothing the previous one loaded or had open carries over, its registration state is
+  // unknown until it is read, and it has a new default creature.
   const [accountUid, setAccountUid] = useState(uid);
   if (accountUid !== uid) {
     setAccountUid(uid);
@@ -306,8 +222,6 @@ export default function OnlineController({
     setHeadSnapshot(null);
     setCreatorUid(null);
     setCancelledUid(null);
-    setError('');
-    setMessage('');
     setAvatarOpen(false);
     setDeletionApproval(null);
     setDefaultAvatar(createAvatarDescriptor());
@@ -325,7 +239,7 @@ export default function OnlineController({
     return () => {
       current = false;
     };
-  }, [uid]);
+  }, [uid, setError]);
   const scope = useMemo(() => (uid ? accountScope(uid, firebaseApp.options.projectId) : null), [uid]);
   const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
   const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
@@ -409,7 +323,7 @@ export default function OnlineController({
         await refreshAccount();
       }
     },
-    [scope, uid, social, refreshAccount],
+    [scope, uid, social, refreshAccount, setMessage],
   );
   const sync = useCloudSync(
     scope,
@@ -440,64 +354,7 @@ export default function OnlineController({
     [cacheUnavailable, active, account.controller],
   );
   const activeController = protectedController ?? guest;
-
-  useEffect(
-    () =>
-      observeAccountSession({
-        state: {
-          setSessionUnconfirmed,
-          // A return from a redirect the Compare tray's sign-in started continues to Compare. Its flag is taken as the
-          // return arrives, so the return's own transition and the sheet it reopens both see it.
-          setGoogleReturn: (outcome) => {
-            if (takeCompareSignIn()) {
-              googleCompareNow.current = true;
-              setGoogleCompare(true);
-            }
-            setGoogleReturn(outcome);
-          },
-          setReturnSheet,
-          setStartupError,
-        },
-        onUser: (user, isCurrent, settled) => {
-          observeUser(user, isCurrent, settled, (cause) => setError(onlineError(cause)));
-        },
-        onError: (cause) => {
-          setIdentity(null);
-          setError(onlineError(cause));
-        },
-        hasGoogleIntent: () => readGoogleIntent().raw !== null,
-      }),
-    [observeUser, setIdentity, setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError],
-  );
-  useEffect(() => {
-    applyGoogleReturn({
-      state: { googleReturn, handledGoogleReturn, setReturnSheet },
-      identity,
-      cacheReady: Boolean(account.snapshot),
-      cacheError: account.error,
-      epoch: account.snapshot?.sync.epoch ?? 0,
-      sessionEpoch: authSessionEpoch.current,
-      navigation,
-      setDeletionApproval,
-      setError,
-      setMessage,
-    });
-  }, [
-    googleReturn,
-    identity,
-    account.snapshot,
-    account.error,
-    setDeletionApproval,
-    handledGoogleReturn,
-    setReturnSheet,
-    authSessionEpoch,
-  ]);
-  useDeletionApprovalExpiry(page, deletionApproval, setDeletionApproval);
-  useEffect(() => {
-    if (cooldown <= now) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [cooldown, now]);
+  useGoogleReturn({ page, session, snapshot: account.snapshot, cacheError: account.error, deletion });
   const refresh = useCallback(
     async (includeMember = true) => {
       const user = identityRef.current;
@@ -529,7 +386,7 @@ export default function OnlineController({
         }
       }
     },
-    [social, sync.store, scope, identityRef],
+    [social, sync.store, scope, identityRef, setError],
   );
   const accountReady = Boolean(account.snapshot || account.error);
   useEffect(() => {
@@ -552,6 +409,7 @@ export default function OnlineController({
     sync.profileAvailable,
     sync.profileConnection,
     reportProfileError,
+    setError,
   ]);
   // Each head the sync session sees replaces the one Account previews, until a read or an action here replaces it.
   const [seenRemote, setSeenRemote] = useState<{ uid: string | undefined; head: SyncHead | null }>({
@@ -610,7 +468,16 @@ export default function OnlineController({
       alive = false;
       unsubscribe();
     };
-  }, [uid, scope, identity?.verified, sync.profileAvailable, sync.profileConnection, reportProfileError, social]);
+  }, [
+    uid,
+    scope,
+    identity?.verified,
+    sync.profileAvailable,
+    sync.profileConnection,
+    reportProfileError,
+    social,
+    setError,
+  ]);
 
   const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? (uid ? defaultAvatar : loadingAvatar);
   const headerIdentity = useMemo(
@@ -653,7 +520,7 @@ export default function OnlineController({
     return () => {
       alive = false;
     };
-  }, [uid, identity?.verified, friendIdentityReady, friends.store, memberName, memberAvatar]);
+  }, [uid, identity?.verified, friendIdentityReady, friends.store, memberName, memberAvatar, setError]);
   const canEnableAll = 'canEnable' in automatic.eligibility && automatic.eligibility.canEnable;
   const sharingView = friendSharingView({
     controlsAll: automatic.controlsAll,
@@ -750,61 +617,6 @@ export default function OnlineController({
     if (identity) withdrawDeviceLeftovers();
   }, [identity]);
 
-  const run = async (operation: () => Promise<void>, identityChange = false): Promise<boolean> => {
-    if (running.current) return false;
-    const startedUid = identityRef.current?.uid;
-    running.current = true;
-    setBusy(true);
-    setError('');
-    setMessage('');
-    setGoogleReturn(null);
-    try {
-      await operation();
-      return true;
-    } catch (cause) {
-      if (identityChange || identityRef.current?.uid === startedUid) {
-        const committed = startedUid ? committedFriendChange(cause, startedUid) : null;
-        if (committed) {
-          setMessage(committedFriendMessage(committed));
-          setError('The remaining steps have not finished. Refresh before continuing this action.');
-        } else if (!popupCancelled(cause)) setError(onlineError(cause));
-      }
-      return false;
-    } finally {
-      running.current = false;
-      setBusy(false);
-    }
-  };
-  const afterSignIn = async (user: User, compare: boolean) => {
-    await reconcileIdentity(user);
-    // A sign-in that finishes after this controller unmounted remembers nothing: the user may have chosen this device.
-    if (cloudAuth.currentUser?.uid !== user.uid || !controllerLive()) return;
-    rememberOnlineRequest(true);
-    // A sign-in uses the sheet a cancelled Google return reopened: neither it nor its Compare purpose reopens after a
-    // later sign-out.
-    setReturnSheet(false);
-    setGoogleCompare(false);
-    googleCompareNow.current = false;
-    onCloseSheet();
-    if (compare && continueToCompare(user.uid)) return;
-    if (signInNeedsAccountPage(page)) onNavigate('account');
-  };
-  const google = (compare = false) =>
-    run(async () => {
-      const session = authSessionEpoch.current;
-      if (!(await flushPendingEdits())) throw new Error('Finish or correct the open rating/note before signing in.');
-      if (authSessionEpoch.current !== session || cloudAuth.currentUser)
-        throw new Error('The signed-in account changed. Review Account before continuing.');
-      // Only a redirect the Compare tray's sign-in starts has its return continue to Compare.
-      if (compare) rememberCompareSignIn();
-      else forgetCompareSignIn();
-      try {
-        await startGoogleRedirect(cloudAuth, { kind: 'sign-in', uid: null });
-      } catch (cause) {
-        forgetCompareSignIn();
-        throw cause;
-      }
-    }, true);
   const linkGoogle = () =>
     run(async () => {
       const { user } = verifiedIdentity();
@@ -815,44 +627,6 @@ export default function OnlineController({
         throw new Error('The account changed. No other account was linked.');
       await startGoogleRedirect(cloudAuth, { kind: 'link', uid: user.uid });
     });
-  const email = (address: string, password: string, create: boolean, compare = false) =>
-    run(async () => {
-      if (!(await flushPendingEdits())) throw new Error('Finish or correct the open edit before signing in.');
-      const result = create
-        ? await createUserWithEmailAndPassword(cloudAuth, address, password)
-        : await signInWithEmailAndPassword(cloudAuth, address, password);
-      await afterSignIn(result.user, compare);
-    }, true);
-  const sendVerification = () =>
-    run(async () => {
-      const user = cloudAuth.currentUser;
-      if (!user) throw new Error('Sign in before requesting verification.');
-      if (user.emailVerified) {
-        const next = await reconcileIdentity(user, true);
-        setMessage(
-          next.verified
-            ? 'Your email is verified. You can continue with this account.'
-            : 'The signed-in session could not yet confirm verification. Use I verified my email to retry.',
-        );
-        return;
-      }
-      if (Date.now() < cooldown) throw new Error('Wait for the resend countdown before requesting another email.');
-      await sendEmailVerification(user, { url: `${location.origin}/account` });
-      setCooldown(Date.now() + 60000);
-      setNow(Date.now());
-      setMessage('Verification email requested. Check your inbox and spam folder, then return here.');
-    });
-  const resetEmail = (address: string) =>
-    run(async () => {
-      if (!address) throw new Error('Enter your email before requesting a reset.');
-      if (Date.now() < cooldown) throw new Error('Wait a minute before requesting another email.');
-      await sendPasswordResetEmail(cloudAuth, address, { url: `${location.origin}/account` });
-      setCooldown(Date.now() + 60000);
-      setNow(Date.now());
-      setMessage(
-        'If this account can receive password reset emails, one has been requested. Check your inbox and spam folder.',
-      );
-    }, true);
   const verifiedIdentity = () => {
     const user = cloudAuth.currentUser;
     if (
@@ -936,8 +710,7 @@ export default function OnlineController({
         signOut: () => signOut(cloudAuth),
         removeDeviceCopy: (revision) => deleteScopedLibrary(target, revision),
       });
-      clearInviteContinuation();
-      setRetiredInvitation(invitationNow.current);
+      retireInvitation();
       await rememberOnlineRequest(false);
       setIdentity(null);
       onCloseSheet();
@@ -1365,7 +1138,7 @@ export default function OnlineController({
               message={visibleMessage}
               cleanupWarning={sync.cleanupWarning}
               busy={busy || account.controller.busy}
-              resendIn={Math.max(0, Math.ceil((cooldown - now) / 1000))}
+              resendIn={resendIn}
               isCreator={isCreator}
               avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
               onAvatar={() => setAvatarOpen(true)}
@@ -1386,20 +1159,7 @@ export default function OnlineController({
               }
               onConnect={connect}
               onVerify={sendVerification}
-              onRefreshIdentity={() =>
-                run(async () => {
-                  const user = cloudAuth.currentUser;
-                  if (!user) return;
-                  await reload(user);
-                  clearVerificationMismatch(user.uid);
-                  const next = await reconcileIdentity(user, true);
-                  setMessage(
-                    next.verified
-                      ? 'Email verified. You can choose online saving or publishing.'
-                      : 'Verification is not confirmed yet. Open the latest email link, then try again.',
-                  );
-                })
-              }
+              onRefreshIdentity={refreshIdentity}
               onSignOut={signOutAccount}
               onSignOutAndRemove={() => signOutAccount(true)}
               onLinkGoogle={linkGoogle}

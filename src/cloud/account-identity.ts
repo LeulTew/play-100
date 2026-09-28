@@ -117,8 +117,9 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
   };
 }
 /**
- * The account identity lifetime. clearPrevious clears the previous account's device-held views. OnlineController
- * supplies it and imports those comparison modules itself, which keeps them in the separate chunks the offline core lists.
+ * The account identity lifetime. clearPrevious clears the previous account's device-held views. The online session
+ * (useOnlineSession) supplies it and imports those comparison modules itself, which keeps them in the separate chunks
+ * the offline core lists.
  */
 export function useAccountIdentity(clearPrevious: (uid: string) => void) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
