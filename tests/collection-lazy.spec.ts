@@ -4,6 +4,8 @@ import { readBuildManifest } from '../scripts/build-metadata';
 import { emptyPersonalLibrary } from '../src/lib/personal-library';
 import { installGuestLibrary } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
+import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
+import { catalogRecord, respondWithCatalog } from './catalog-helpers';
 
 async function extrasAsset() {
   const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
@@ -107,7 +109,7 @@ test('a failed conditional chunk offers guarded reload without removing collecti
   await expect(page.locator('.game-card')).toHaveCount(24);
 });
 
-test('approaching saved additions loads their real controls without changing private data', async ({ page }) => {
+test('saved additions load immediately and preserve their heading and private data', async ({ page }) => {
   const record = {
     id: 'manual:lazy-fixture',
     source: 'manual' as const,
@@ -137,9 +139,9 @@ test('approaching saved additions loads their real controls without changing pri
   try {
     await page.goto('/?catalogs=off');
     await expect(page.locator('.game-card')).toHaveCount(24);
-    expect(requests).toEqual([]);
     const heading = page.getByRole('heading', { name: 'Beyond The 100', exact: true });
-    await heading.scrollIntoViewIfNeeded();
+    await expect(heading).toBeVisible();
+    await expect.poll(() => requests.length).toBe(1);
     const handle = await heading.elementHandle();
     if (!handle) throw new Error('The additional-results heading must exist while loading.');
     release();
@@ -199,3 +201,102 @@ test('cold film anchors remain connected across chunk arrival', async ({ page })
     release();
   }
 });
+
+for (const activate of [false, true]) {
+  const behavior = activate ? 'queued activation' : 'keyboard focus';
+  test(`cold query loads extras without proximity: ${behavior}`, async ({ page }, info) => {
+    const locals = Array.from({ length: 6 }, (_, index) =>
+      catalogRecord('wikidata', `Q${990010 + index}`, `Mass local fixture ${index + 1}`),
+    );
+    const local = locals[0]!;
+    const remote = catalogRecord('wikidata', 'Q990002', 'Mass remote fixture');
+    const seed = {
+      ...catalogFixture,
+      items: locals.map((record) => ({ ...discoveryFixture, record, aliases: [] })),
+    };
+    const asset = await extrasAsset();
+    let release = () => {};
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const imports: string[] = [];
+    const lookups: string[] = [];
+    await page.route(`**${asset}`, async (route) => {
+      imports.push(route.request().url());
+      await waiting;
+      await route.continue();
+    });
+    await page.route('**/data/discovery/catalog.v1.json', (route) => route.fulfill({ json: seed }));
+    await page.route('**/api/catalog?**', (route) => {
+      const source = new URL(route.request().url()).searchParams.get('source');
+      if (!source) throw new Error('The catalog request needs its source.');
+      lookups.push(source);
+      return respondWithCatalog(route, source === 'wikidata' ? [remote] : []);
+    });
+    try {
+      await page.goto('/?q=mass');
+      await expect(page.locator('[data-game="mass-effect-2"]')).toBeVisible();
+      const section = page.getByRole('region', { name: 'Beyond The 100', exact: true });
+      await expect(section).toHaveAttribute('aria-busy', 'true');
+      await expect(section.getByText('6 matches', { exact: true })).toBeVisible();
+      await expect.poll(() => imports.length).toBe(1);
+      expect(await page.evaluate(() => scrollY)).toBe(0);
+      await expect(section.locator('[data-unranked-id]')).toHaveCount(locals.length);
+      const beforeLibrary = await readLibrary(page);
+      const heading = section.getByRole('heading', { name: 'Beyond The 100', exact: true });
+      const search = section.getByRole('button', { name: 'Search online', exact: true });
+      await expect(search).toBeEnabled();
+      if (activate) {
+        await search.evaluate((button: HTMLButtonElement) => button.focus({ preventScroll: true }));
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('Enter');
+        expect(await page.evaluate(() => scrollY)).toBe(0);
+      } else {
+        await heading.focus();
+        await page.keyboard.press('Tab');
+        await expect(search).toBeFocused();
+      }
+      expect(lookups).toEqual([]);
+      await page.evaluate(() => document.fonts.ready);
+      const before = await section.boundingBox();
+      const shifts = await page.evaluateHandle(() => {
+        const result = { value: 0 };
+        new PerformanceObserver((entries) => {
+          for (const entry of entries.getEntries()) {
+            if ('value' in entry && typeof entry.value === 'number') result.value += entry.value;
+          }
+        }).observe({ type: 'layout-shift' });
+        return result;
+      });
+      release();
+      await expect(section).toHaveAttribute('aria-busy', 'false');
+      await expect(section.locator(`[data-catalog-id="${local.id}"]`)).toBeVisible();
+      if (activate) {
+        await expect(heading).toBeFocused();
+      } else {
+        await expect(search).toBeFocused();
+        const after = await section.boundingBox();
+        if (!before || !after) throw new Error('The extended-results frame must stay mounted across loading.');
+        expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(1);
+        expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(1);
+        await page.evaluate(
+          () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+        );
+        expect(await shifts.evaluate((result) => result.value)).toBe(0);
+        expect(lookups).toEqual([]);
+        await page.keyboard.press('Enter');
+      }
+      await shifts.dispose();
+      await expect.poll(() => [...lookups].sort()).toEqual(['freetogame', 'wikidata']);
+      await expect(section.locator(`[data-unranked-id="${remote.id}"]`)).toBeVisible();
+      expect(imports).toHaveLength(1);
+      expect(await readLibrary(page)).toEqual(beforeLibrary);
+      await info.attach('active-search-intent', {
+        contentType: 'application/json',
+        body: JSON.stringify({ activationQueued: activate, chunkRequests: imports.length, lookupSources: lookups }),
+      });
+    } finally {
+      release();
+    }
+  });
+}

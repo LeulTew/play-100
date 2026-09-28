@@ -215,10 +215,18 @@ for animation completion.
 Collection-only table, additional-result and film implementations share the
 guarded `CollectionExtras` entry. The default grid does not import those
 implementations. Table hover, focus or pointer-down preloads the entry; a table
-deep link requests it directly. Additional results and films request it within
-800px of their section, after collection metadata settles for films. Fallbacks
+deep link requests it directly. Films request it within 800px of their section,
+after collection metadata settles. Additional results mount only for an
+eligible search or matching saved additions, so mounting requests their tools
+immediately rather than waiting for proximity. A no-query landing with no
+additional matches retains deferred film loading.
+Fallback Search online stays operable outside the inert cards. Focusing it
+requests the chunk and transfers focus to the real control; activation latches
+one action for the same query and runs it after loading, moving focus to the
+persistent results heading. A changed query or unmount discards that intent,
+and loading never steals focus from another control. Fallbacks
 retain the same table content/frame and film listing copy/16:9 frames; loading
-table/result controls are inert, while a film Watch request is retained until
+table/result-card controls are inert, while a film Watch request is retained until
 the player can open. Unmount prevents a late import from publishing stale UI.
 The eager parent permanently owns the film section/heading and the
 additional-results labelled section/heading. Only their bodies swap from

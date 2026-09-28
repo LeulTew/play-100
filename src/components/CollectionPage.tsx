@@ -41,6 +41,7 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
   const [film, setFilm] = useState<'the-100' | 'discover-compare'>();
   const root = useRef<HTMLDivElement>(null);
   const focusedFilm = useRef<string | null>(null);
+  const pendingSearch = useRef<{ queryKey: string; trigger: HTMLButtonElement; activate: boolean } | null>(null);
   const ready = input.kind !== 'films' || input.props.postersReady;
   useEffect(() => {
     if (!ready || requested || module || !root.current) return;
@@ -83,12 +84,45 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
       root.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
     }
   }, [module]);
+  useLayoutEffect(() => {
+    const pending = pendingSearch.current;
+    if (!pending) return;
+    if (input.kind !== 'extended' || pending.queryKey !== input.props.queryKey) {
+      pendingSearch.current = null;
+      return;
+    }
+    if (!module) return;
+    pendingSearch.current = null;
+    const retainFocus = document.activeElement === pending.trigger || document.activeElement === document.body;
+    if (pending.activate) {
+      if (retainFocus) {
+        root.current?.querySelector<HTMLElement>('#extended-results-title')?.focus({ preventScroll: true });
+      }
+      if (input.props.online.eligible && !input.props.online.remoteEnabled) input.props.online.searchOnline();
+    } else if (retainFocus) {
+      const target =
+        root.current?.querySelector<HTMLButtonElement>('[data-extended-search]') ??
+        root.current?.querySelector<HTMLElement>('#extended-results-title');
+      target?.focus({ preventScroll: true });
+    }
+  }, [input, module]);
   const Loaded = module?.default;
   const fallback =
     input.kind === 'table' ? (
       <TableFallback {...input.props} />
     ) : input.kind === 'extended' ? (
-      <ExtendedFallback {...input.props} />
+      <ExtendedFallback
+        {...input.props}
+        onSearchIntent={(trigger, activate) => {
+          const prior = pendingSearch.current;
+          pendingSearch.current = {
+            queryKey: input.props.queryKey,
+            trigger,
+            activate: activate || (prior?.queryKey === input.props.queryKey && prior.activate),
+          };
+          setRequested(true);
+        }}
+      />
     ) : (
       <FilmsFallback
         onWatch={(id) => {
@@ -148,7 +182,9 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
           aria-busy={!Loaded && !failed}
         >
           <div className="extended-heading">
-            <h2 id="extended-results-title">Beyond The 100</h2>
+            <h2 id="extended-results-title" tabIndex={-1}>
+              Beyond The 100
+            </h2>
             <span>
               {input.props.records.length} {input.props.records.length === 1 ? 'match' : 'matches'}
               {input.props.online.loading ? ' so far' : ''}
@@ -569,7 +605,6 @@ export default function CollectionPage({
             {!results.length && comparisonTray}
             {showExtended && (
               <DeferredCollection
-                near={results.length > 0}
                 input={{
                   kind: 'extended',
                   props: {

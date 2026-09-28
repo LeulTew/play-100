@@ -83,7 +83,7 @@ export default function ExtendedResults({
             </div>
           )}
           {!online.remoteEnabled && (
-            <button className="text-button" onClick={online.searchOnline}>
+            <button className="text-button" data-extended-search onClick={online.searchOnline}>
               Search online
             </button>
           )}

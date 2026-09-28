@@ -126,7 +126,15 @@ export function TableFallback({
   );
 }
 
-export function ExtendedFallback({ records, online, state, onPin }: ComponentProps<typeof ExtendedResults>) {
+export function ExtendedFallback({
+  records,
+  online,
+  state,
+  onPin,
+  onSearchIntent,
+}: ComponentProps<typeof ExtendedResults> & {
+  onSearchIntent: (trigger: HTMLButtonElement, activate: boolean) => void;
+}) {
   return (
     <>
       <p className="sr-only" role="status">
@@ -134,7 +142,7 @@ export function ExtendedFallback({ records, online, state, onPin }: ComponentPro
       </p>
       <ul className="discovery-cards discovery-cards-list" aria-hidden="true" inert>
         {records.slice(0, 24).map((record) => (
-          <li className="discovery-card" key={record.id}>
+          <li className="discovery-card" key={record.id} data-unranked-id={record.id}>
             <div className="discovery-card-art">
               {!online.artwork.has(record.id) && (
                 <div className="discovery-no-art">
@@ -169,6 +177,18 @@ export function ExtendedFallback({ records, online, state, onPin }: ComponentPro
           </li>
         ))}
       </ul>
+      {online.eligible && !online.remoteEnabled && (
+        <div className="discovery-online">
+          <button
+            className="text-button"
+            data-extended-search
+            onFocus={(event) => onSearchIntent(event.currentTarget, false)}
+            onClick={(event) => onSearchIntent(event.currentTarget, true)}
+          >
+            Search online
+          </button>
+        </div>
+      )}
       {!records.length && <p className="extended-empty">Loading additional games…</p>}
     </>
   );
