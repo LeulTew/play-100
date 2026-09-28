@@ -551,6 +551,15 @@ describe('display-name hygiene', () => {
     await assertSucceeds(db.doc('members/Alice').update({ displayName: 'Alice', updatedAt: serverTimestamp() }));
   });
 
+  it.each(['rankCount', 'gameCount'] as const)('bounds counts-only member %s updates', async (field) => {
+    const member = user('Alice').doc('members/Alice');
+    await assertSucceeds(member.set(memberDoc('Alice')));
+    await assertSucceeds(member.update({ rankCount: 10000, gameCount: 10000, updatedAt: serverTimestamp() }));
+    for (const value of [10001, -1, 0.5])
+      await assertFails(member.update({ [field]: value, updatedAt: serverTimestamp() }));
+    expect((await assertSucceeds(member.get())).data()).toMatchObject({ rankCount: 10000, gameCount: 10000 });
+  });
+
   it('applies the same rule to friend-facing identities', async () => {
     const db = user('Alice');
     const rename = (displayName: string) =>
