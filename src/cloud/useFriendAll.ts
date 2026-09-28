@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { onSnapshot, doc } from 'firebase/firestore';
 import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import { accountScope } from '../lib/cloud-types';
@@ -22,6 +22,29 @@ import { onlineError } from './errors';
 
 export type FriendAllStatus =
   'checking' | 'off' | 'paused' | 'pending' | 'saving' | 'saved' | 'retrying' | 'quota' | 'error';
+/** The choice these controls give for one set of account inputs: a render's own, or the last committed ones. */
+export function friendAllChoice(
+  uid: string | undefined,
+  scope: LibraryScope | null,
+  verified: boolean,
+  snapshot: ScopedLibrary | null,
+  controls: FriendAllControls,
+): FriendAllEligibility {
+  return friendAllEligibility({
+    uid: uid ?? null,
+    scope,
+    projectId: cloudDb.app.options.projectId ?? '',
+    verified,
+    cacheReady: snapshot?.scope === scope,
+    confirmed: true,
+    source: snapshot ? { enabled: snapshot.sync.enabled, deleted: false, epoch: snapshot.sync.epoch } : null,
+    ...controls,
+  });
+}
+/** Keeps one policy object while its account and revision stay the same, so a re-read doesn't restart publication. */
+export function stableFriendAllPolicy(previous: FriendAllPolicy | null, next: FriendAllPolicy | null) {
+  return next && previous?.uid === next.uid && previous.revision === next.revision ? previous : next;
+}
 export function useFriendAll(
   uid: string | undefined,
   scope: LibraryScope | null,
@@ -36,7 +59,6 @@ export function useFriendAll(
     key: string;
     confirmed: boolean;
     controls: FriendAllControls;
-    eligibility: FriendAllEligibility;
     status: FriendAllStatus;
     error: string;
     games: FriendAllHead | null;
@@ -49,8 +71,11 @@ export function useFriendAll(
     games: FriendAllProgress | null;
     ranking: FriendAllProgress | null;
   } | null>(null);
+  // The last committed inputs, which work that settles later checks it still belongs to.
   const current = useRef({ uid, scope, snapshot, verified, games, key });
-  current.current = { uid, scope, snapshot, verified, games, key };
+  useLayoutEffect(() => {
+    current.current = { uid, scope, snapshot, verified, games, key };
+  }, [uid, scope, snapshot, verified, games, key]);
   const queue = useRef<SyncWorkQueue | null>(null);
   // The current publication queue's own wake, which recomputes availability for that queue's lease, not the caller's.
   const wakeQueue = useRef<(() => void) | null>(null);
@@ -72,24 +97,10 @@ export function useFriendAll(
       value.snapshot?.scope === scope,
     );
   }, [uid, scope, key]);
+  // For work that settles later. Each render judges its own inputs instead (see choice below).
   const eligibility = useCallback(
     (controls: FriendAllControls) =>
-      friendAllEligibility({
-        uid: uid ?? null,
-        scope,
-        projectId: cloudDb.app.options.projectId ?? '',
-        verified: current.current.verified,
-        cacheReady: current.current.snapshot?.scope === scope,
-        confirmed: true,
-        source: current.current.snapshot
-          ? {
-              enabled: current.current.snapshot.sync.enabled,
-              deleted: false,
-              epoch: current.current.snapshot.sync.epoch,
-            }
-          : null,
-        ...controls,
-      }),
+      friendAllChoice(uid, scope, current.current.verified, current.current.snapshot, controls),
     [uid, scope],
   );
   const accept = useCallback(
@@ -100,14 +111,13 @@ export function useFriendAll(
         key,
         confirmed: true,
         controls,
-        eligibility: eligibility(controls),
         status: old?.key === key ? old.status : 'checking',
         error: '',
         games: old?.key === key ? old.games : null,
         ranking: old?.key === key ? old.ranking : null,
       }));
     },
-    [owns, key, eligibility],
+    [owns, key],
   );
   useEffect(() => {
     if (!uid || !scope || !verified || snapshot?.scope !== scope) return;
@@ -150,7 +160,6 @@ export function useFriendAll(
           key,
           confirmed: false,
           controls: old?.key === key ? old.controls : { policy: null, ranking: null, shelf: null },
-          eligibility: { kind: 'checking' },
           status: 'error',
           error: onlineError(cause),
           games: null,
@@ -179,7 +188,6 @@ export function useFriendAll(
               key,
               confirmed: false,
               controls: old?.key === key ? old.controls : { policy: null, ranking: null, shelf: null },
-              eligibility: { kind: 'checking' },
               status: 'error',
               error: onlineError(cause),
               games: null,
@@ -213,11 +221,14 @@ export function useFriendAll(
     retryVersion,
   ]);
   const rawPolicy = state?.key === key ? state.controls.policy : null;
-  const policyValue = useRef<FriendAllPolicy | null>(null);
-  if (!rawPolicy || policyValue.current?.uid !== rawPolicy.uid || policyValue.current.revision !== rawPolicy.revision)
-    policyValue.current = rawPolicy;
-  const policy = policyValue.current;
-  const choice = state?.key === key && state.confirmed ? eligibility(state.controls) : { kind: 'checking' as const };
+  // State, not a ref written in render: a render React discards can't change the policy that later renders keep.
+  const [heldPolicy, holdPolicy] = useState<FriendAllPolicy | null>(null);
+  const policy = stableFriendAllPolicy(heldPolicy, rawPolicy);
+  if (policy !== heldPolicy) holdPolicy(policy);
+  const choice =
+    state?.key === key && state.confirmed
+      ? friendAllChoice(uid, scope, verified, snapshot, state.controls)
+      : { kind: 'checking' as const };
   const choiceKind = choice.kind;
   useEffect(() => {
     if (!uid || !scope || !policy || choiceKind !== 'all') return;
