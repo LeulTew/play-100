@@ -246,7 +246,10 @@ not over the cells. With pins present, the table and strip fit the usable window
 the first pin reveals both the tray and the next row action. Other views use a
 46px count chip with a 44px control: above 760px it sits beside Play later in the
 sticky header; below that it occupies its own slot in the bottom-navigation band.
-No pin-dependent gutter or content width changes. The five navigation targets
+No pin-dependent gutter or content width changes. In the header, a spacer after
+the wordmark as wide as the chip's slot, and the first to give way, keeps the
+centred navigation where it stands without pins, so the chip arriving or leaving
+never moves it while the header has room. The five navigation targets
 retain at least 44px each, with intrinsic word widths protected when pins need a
 slot. One activation opens the existing native tray and its Choose friends action.
 No scroll-driven hiding, resize loop or automatic expansion changes the resting

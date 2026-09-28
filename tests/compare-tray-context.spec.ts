@@ -305,6 +305,44 @@ test('header Compare keeps its slot and expansion edge across wide breakpoints',
   expect(await readLibrary(page)).toEqual(before);
 });
 
+test('the header navigation stays put as the Compare chip arrives and leaves', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Below 761px the navigation is the bottom band, whose pinned slot has its own rules.');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await emptyCatalogs(page);
+  await installGuestLibrary(page, libraryFixture(0));
+  await page.goto('/?view=list&catalogs=off');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await page.evaluate(() => document.fonts.ready);
+  const header = page.locator('.site-header');
+  const widths = [768, 1024, 1150, 1151, 1440, 1920];
+  const links = () =>
+    page.locator('.desktop-nav a').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().left));
+  const resting = new Map<number, number[]>();
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 1000 });
+    resting.set(width, await links());
+  }
+  // UI-008: the chip's slot used to push the centred navigation 27.5px left, and back when Table view took the tray.
+  const expectResting = async (state: string) => {
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 1000 });
+      const expected = resting.get(width)!;
+      const actual = await links();
+      expect(actual, `navigation links ${state} at ${width}px`).toHaveLength(expected.length);
+      actual.forEach((left, index) =>
+        expect(Math.abs(left - expected[index]!), `link ${index} ${state} at ${width}px`).toBeLessThanOrEqual(0.5),
+      );
+    }
+  };
+  await page.locator('.game-card').first().getByRole('button', { name: /^Pin for comparison:/ }).click();
+  await expect(header).toHaveAttribute('data-compare-chip', '');
+  await expectResting('with the chip');
+  await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
+  await expect(page.locator('.ratings-tray-strip .compare-tray-dock')).toHaveCount(1);
+  await expect(header).not.toHaveAttribute('data-compare-chip');
+  await expectResting('after Table view moves the tray');
+});
+
 for (const narrow of [false, true]) {
   for (const occupied of [false, true]) {
     for (const activation of ['keyboard', 'pointer'] as const) {
