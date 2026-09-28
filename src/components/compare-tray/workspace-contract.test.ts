@@ -15,6 +15,7 @@ import { CompareTray } from './CompareTray';
 import { ComparePinButton } from './ComparePinButton';
 import { CompareDragHandle } from './CompareDragHandle';
 import { CompareDragSource } from './CompareDragSource';
+import { CompareTrayProvider } from './CompareTrayProvider';
 import { CompareTrayContext } from './compare-tray-context';
 import { MotionPolicyContext, staticMotionPolicy } from '../../motion/context';
 
@@ -378,6 +379,16 @@ describe('tray and image rendering contract', () => {
     cancelDrag: vi.fn(),
     dropGame: vi.fn(() => true),
   };
+  it.each([undefined, false, true])('renders grip readiness from current props before effects (%s)', (enabled) => {
+    const html = renderToStaticMarkup(
+      h(CompareTrayProvider, {
+        scope: 'guest',
+        interaction: enabled === undefined ? undefined : { enabled, captureCurrent: () => ({ isCurrent: () => true }) },
+        children: h(CompareDragHandle, { record: alpha }),
+      }),
+    );
+    expect(html.includes('disabled=""')).toBe(enabled === false);
+  });
   it.each([false, true])('names full and compact comparison toggles with pressed=%s', (pinned) => {
     for (const compact of [false, true]) {
       const html = renderToStaticMarkup(

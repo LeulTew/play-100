@@ -3,7 +3,7 @@ import { compareTrayStorageKey } from '../../lib/compare-tray';
 import { useMotionRuntime } from '../../motion';
 import type { CompareTrayProviderProps } from './compare-drag-types';
 import { createCompareTrayBinding } from './compare-tray-binding';
-import { CompareDragSourceContext } from './compare-drag-source-context';
+import { CompareDragEnabledContext, CompareDragSourceContext } from './compare-drag-source-context';
 import { CompareTrayContext } from './compare-tray-context';
 
 export function CompareTrayProvider({ scope, children, interaction }: CompareTrayProviderProps) {
@@ -41,7 +41,11 @@ export function CompareTrayProvider({ scope, children, interaction }: CompareTra
   );
   return (
     <CompareTrayContext.Provider value={value}>
-      <CompareDragSourceContext.Provider value={controller}>{children}</CompareDragSourceContext.Provider>
+      <CompareDragSourceContext.Provider value={controller}>
+        <CompareDragEnabledContext.Provider value={interaction?.enabled !== false}>
+          {children}
+        </CompareDragEnabledContext.Provider>
+      </CompareDragSourceContext.Provider>
       <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {snapshot.status}
       </span>
