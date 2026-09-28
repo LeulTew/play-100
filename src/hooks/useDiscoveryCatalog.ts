@@ -8,20 +8,24 @@ import { EMPTY_DISCOVERY_ARTWORK, hasKnownDiscoveryArtwork } from '../lib/discov
 
 export function useDiscoveryCatalog(enabled: boolean) {
   const [attempt, setAttempt] = useState(0);
+  const [wasEnabled, setWasEnabled] = useState(enabled);
   const [state, setState] = useState<{
     status: 'idle' | 'loading' | 'ready' | 'error';
     catalog: DiscoveryCatalog | null;
     error: string | null;
     moduleError?: boolean;
   }>({
-    status: 'idle',
+    status: enabled ? 'loading' : 'idle',
     catalog: null,
     error: null,
   });
+  if (wasEnabled !== enabled) {
+    setWasEnabled(enabled);
+    if (enabled) setState((prior) => ({ ...prior, status: 'loading', error: null }));
+  }
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    setState((prior) => ({ ...prior, status: 'loading', error: null }));
     void loadDiscoveryCatalog(controller.signal)
       .then((catalog) => {
         if (!controller.signal.aborted) setState({ status: 'ready', catalog, error: null });
@@ -42,7 +46,10 @@ export function useDiscoveryCatalog(enabled: boolean) {
   return {
     ...state,
     retry: () => {
-      if (!state.moduleError) setAttempt((value) => value + 1);
+      if (!state.moduleError) {
+        if (enabled) setState((prior) => ({ ...prior, status: 'loading', error: null }));
+        setAttempt((value) => value + 1);
+      }
     },
   };
 }

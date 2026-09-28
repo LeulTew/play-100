@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import type { LibraryController } from '../lib/library-controller';
 import type { PersonalAction, PersonalLibraryState } from '../lib/personal-types';
@@ -17,24 +17,27 @@ export function useAccountLibrary(
   const [pending, setPending] = useState(0);
   const currentScope = useRef(scope);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
-  currentScope.current = scope;
-  const refresh = useCallback(async () => {
-    if (!scope) return;
-    try {
-      await queue.current;
-      if (currentScope.current !== scope || !identityIsCurrent()) return;
-      const value = await loadScopedLibrary(scope, deviceMotion);
-      if (currentScope.current === scope) {
-        setSnapshot(value);
-        setFailure(null);
-      }
-    } catch (error) {
-      if (currentScope.current === scope)
-        setFailure({
-          scope,
-          message: error instanceof Error ? error.message : 'Account device storage is unavailable.',
-        });
-    }
+  useLayoutEffect(() => {
+    currentScope.current = scope;
+  }, [scope]);
+  const refresh = useCallback(() => {
+    if (!scope) return Promise.resolve();
+    return queue.current
+      .then(async () => {
+        if (currentScope.current !== scope || !identityIsCurrent()) return;
+        const value = await loadScopedLibrary(scope, deviceMotion);
+        if (currentScope.current === scope) {
+          setSnapshot(value);
+          setFailure(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (currentScope.current === scope)
+          setFailure({
+            scope,
+            message: error instanceof Error ? error.message : 'Account device storage is unavailable.',
+          });
+      });
   }, [scope, deviceMotion, identityIsCurrent]);
   useEffect(() => {
     if (!scope) return;

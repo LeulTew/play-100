@@ -1,18 +1,31 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { MotionControllerContext, MotionPolicyContext } from './context';
 import { createMotionRuntime } from './runtime';
 import type { MotionProviderProps, MotionSnapshot } from './types';
 
-export function MotionProvider({ policy, boundary, location, children }: MotionProviderProps) {
-  const snapshot = useRef<MotionSnapshot>({ policy, boundary, location });
-  snapshot.current = { policy, boundary, location };
-  const host = useRef<HTMLDivElement>(null);
-  const [controller] = useState(() =>
-    createMotionRuntime(
-      () => snapshot.current,
-      () => host.current,
+function createMotionBinding(initial: MotionSnapshot) {
+  let snapshot = initial;
+  let host: HTMLDivElement | null = null;
+  return {
+    controller: createMotionRuntime(
+      () => snapshot,
+      () => host,
     ),
-  );
+    setSnapshot(next: MotionSnapshot) {
+      snapshot = next;
+    },
+    setHost(node: HTMLDivElement | null) {
+      host = node;
+    },
+  };
+}
+
+export function MotionProvider({ policy, boundary, location, children }: MotionProviderProps) {
+  const [binding] = useState(() => createMotionBinding({ policy, boundary, location }));
+  const { controller } = binding;
+  useLayoutEffect(() => {
+    binding.setSnapshot({ policy, boundary, location });
+  });
   useLayoutEffect(() => {
     controller.mount();
     return () => controller.dispose();
@@ -24,7 +37,13 @@ export function MotionProvider({ policy, boundary, location, children }: MotionP
     <MotionControllerContext.Provider value={controller}>
       <MotionPolicyContext.Provider value={policy}>
         {children}
-        <div ref={host} className="motion-return-host" data-motion-host="root" aria-hidden="true" inert />
+        <div
+          ref={(node) => binding.setHost(node)}
+          className="motion-return-host"
+          data-motion-host="root"
+          aria-hidden="true"
+          inert
+        />
       </MotionPolicyContext.Provider>
     </MotionControllerContext.Provider>
   );

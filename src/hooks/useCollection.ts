@@ -17,13 +17,13 @@ export function useCollection() {
       timedOut = true;
       controller.abort();
     }, 15000);
-    setResult({ status: 'loading', data: null, error: null });
     fetch('/data/collection.json', { signal: controller.signal, cache: attempt ? 'reload' : 'no-cache' })
       .then((response) => {
         if (!response.ok) throw new Error(`The collection request failed (${response.status}).`);
         return response.json() as Promise<unknown>;
       })
       .then((value) => {
+        if (controller.signal.aborted) return;
         const data = parseCollection(value);
         // The ready collection re-renders the controls and the first cards; as a transition React
         // renders it in slices.
@@ -47,5 +47,11 @@ export function useCollection() {
       controller.abort();
     };
   }, [attempt]);
-  return { ...result, retry: () => setAttempt((value) => value + 1) };
+  return {
+    ...result,
+    retry: () => {
+      setResult({ status: 'loading', data: null, error: null });
+      setAttempt((value) => value + 1);
+    },
+  };
 }

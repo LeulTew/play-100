@@ -1,12 +1,12 @@
 // Adapted from React Bits CountUp, (c) 2026 David Haz. See third-party/react-bits/LICENSE.md.
 // Native frames replace the Motion scheduler; the original spring parameters and accessible values remain.
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { stepCount } from './count-up';
 import type { CountState } from './count-up';
 
 export default function CountUp({ to, animate, className = '' }: { to: number; animate: boolean; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const initial = useRef(to);
+  const [initial] = useState(to);
   const current = useRef<CountState>({ value: to, velocity: 0 });
 
   useLayoutEffect(() => {
@@ -46,7 +46,7 @@ export default function CountUp({ to, animate, className = '' }: { to: number; a
     <span className={className}>
       <span className="sr-only">{to}</span>
       <span aria-hidden="true" ref={ref}>
-        {initial.current}
+        {initial}
       </span>
     </span>
   );

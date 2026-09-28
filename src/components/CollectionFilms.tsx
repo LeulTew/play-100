@@ -108,7 +108,8 @@ export default function CollectionFilms({
     () => collectionFilms.find((film) => film.id === initialFilmId) ?? null,
   );
   const [attempt, setAttempt] = useState(0);
-  const [postersEnabled, setPostersEnabled] = useState(false);
+  const [postersObserved, setPostersEnabled] = useState(false);
+  const postersEnabled = postersObserved || typeof IntersectionObserver === 'undefined';
   const list = useRef<HTMLUListElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
@@ -116,10 +117,6 @@ export default function CollectionFilms({
   useEffect(() => {
     const section = list.current?.closest('.collection-films');
     if (!postersReady || postersEnabled || !section) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      setPostersEnabled(true);
-      return;
-    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {

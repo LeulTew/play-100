@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { useExtendedSearch } from '../../hooks/useExtendedSearch';
@@ -37,10 +37,9 @@ export default function ExtendedResults({
   onAction: (action: PersonalAction) => Promise<boolean>;
   embedded?: boolean;
 }) {
-  const [localLimit, setLocalLimit] = useState(24);
-  useEffect(() => {
-    setLocalLimit(24);
-  }, [queryKey]);
+  const [page, setPage] = useState({ queryKey, limit: 24 });
+  const localLimit = page.queryKey === queryKey ? page.limit : 24;
+  if (page.queryKey !== queryKey) setPage({ queryKey, limit: 24 });
   const failed = online.sources.some((source) => source.status === 'error');
   // Keep mounted rating drafts in place when another provider finishes.
   const limit = localLimit + online.sources.reduce((count, source) => count + source.records.length, 0);
@@ -68,7 +67,7 @@ export default function ExtendedResults({
         </ul>
       )}
       {records.length > limit && (
-        <button className="text-button" onClick={() => setLocalLimit((count) => count + 24)}>
+        <button className="text-button" onClick={() => setPage({ queryKey, limit: localLimit + 24 })}>
           Show {Math.min(24, records.length - limit)} more games
         </button>
       )}

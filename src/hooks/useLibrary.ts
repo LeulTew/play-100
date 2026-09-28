@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   commitPersonalAction,
   loadPersonalLibrary,
@@ -39,7 +39,9 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
   const startupLoad = useRef<{ records: LibraryRecord[]; promise: ReturnType<typeof loadPersonalLibrary> } | null>(
     null,
   );
-  records.current = canonicalRecords;
+  useLayoutEffect(() => {
+    records.current = canonicalRecords;
+  }, [canonicalRecords]);
 
   const publish = useCallback((next: Snapshot) => {
     current.current = next;
