@@ -361,12 +361,19 @@ test('operational status uses the utility scale and the header fits desktop and 
         width: rect.width,
         height: rect.height,
         overflow: document.documentElement.scrollWidth > innerWidth,
+        // Where its two lines show, both sit inside the control.
+        copy: [...element.querySelectorAll('.account-nav-copy > *')].every((line) => {
+          const box = line.getBoundingClientRect();
+          return box.height === 0 || (box.top >= rect.top && box.bottom <= rect.bottom);
+        }),
       };
     });
     expect(layout.fits).toBe(true);
     expect(layout.overflow).toBe(false);
     expect(layout.width).toBeGreaterThanOrEqual(44);
-    expect(layout.height).toBeGreaterThanOrEqual(44);
+    // UI-009: exactly its 44px neighbours' height, not 49px, without clipping its lines.
+    expect(layout.height).toBe(44);
+    expect(layout.copy).toBe(true);
     if (width <= 1100) await expect(copy).toBeHidden();
   }
 });
