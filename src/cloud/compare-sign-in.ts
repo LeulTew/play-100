@@ -24,7 +24,7 @@ export function forgetCompareSignIn(): void {
 
 /** Whether a fresh Compare sign-in redirect is pending in this tab; it is removed either way. */
 export function takeCompareSignIn(now = Date.now()): boolean {
-  let raw: string | null = null;
+  let raw: string | null;
   try {
     raw = sessionStorage.getItem(KEY);
   } catch {
