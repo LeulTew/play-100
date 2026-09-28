@@ -109,6 +109,9 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       target: 'es2022',
+      // The browser floor (README "Browser support"): the ES2022 build needs Chromium 94 and Safari 16.4, and native
+      // modal dialogs Firefox 98.
+      cssTarget: ['chrome94', 'edge94', 'firefox98', 'opera80', 'safari16.4', 'ios16.4'],
       chunkSizeWarningLimit: 650,
       assetsInlineLimit: 0,
     },
