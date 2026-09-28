@@ -57,6 +57,16 @@ still detect the mounted unsubmitted form. Paging flushes registered editors
 before replacing rows; a dirty note keeps its row mounted even when a saved
 score changes its global rank.
 
+The personal page bodies delegate paging and guarded commands to
+[useLibraryPage](../src/components/personal/useLibraryPage.ts) and
+[useRankingsPage](../src/components/personal/useRankingsPage.ts). Record and ranking
+rows remain ordinary subcomponents with the same DOM and editor identities.
+Bounded retained rows and mounted tab panes belong to React state, so discarded renders
+do not overwrite the committed editor page. Latest callback inputs and navigation
+generations update at commit; focus recovery consumes each request once without
+an extra state-clearing render. The Library cursor preserves a requested reset
+until its URL replacement commits, while still accepting Back and Forward.
+
 [useLibrary](../src/hooks/useLibrary.ts) owns the guest library snapshot and
 serializes writes through the device database. Storage failure is explicit:
 temporary edits stay in the tab rather than claiming a durable save. The opened
@@ -73,6 +83,9 @@ Unsaved previews are bounded, scope-qualified metadata in App, not library impor
 for shared previews; it does not persist records.
 [CompareTrayProvider](../src/components/compare-tray/CompareTrayProvider.tsx)
 owns a separate scoped pin store backed by localStorage, not the library queue.
+Its binding becomes active in a layout effect and is revoked during cleanup:
+constructing an abandoned replacement does not invalidate the displayed tray.
+Neither binding construction nor an inactive binding can read or write storage.
 Panel state belongs to [useAppPanel](../src/hooks/useAppPanel.ts); notification,
 manual-share and offline-settings state are separate from the selected URL detail.
 Visible toast surfaces pass pointer input through to the page except at their
