@@ -330,6 +330,15 @@ Personal-workspace document titles follow the resolved Library, Queue or Ranking
 tab, including legacy `list=later` links and history navigation.
 Starting a backup export, import or restore clears the superseded reset result
 in Settings. Backup and reset outcomes retain their polite status regions.
+Catalog-detail mutations keep their native action focused while saving, using
+guarded `aria-disabled` and one in-flight action rather than disabling the
+focused button. The saved **In My games** button remains focusable and ignores
+repeat activation; ranking add becomes **Your rank** on the same button. Pending/success feedback
+uses the modal's status region and failures use its alert region, without an
+exterior toast while that catalog dialog is open. A fresh detail does not replay
+another detail's result, and no completion handler moves the visitor's focus.
+The saved-ranking shortcut still invokes the existing pending-editor guard, and
+rating failures retain their field-owned alert rather than announcing twice.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the

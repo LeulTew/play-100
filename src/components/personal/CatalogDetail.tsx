@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalProgress } from '../../lib/personal-types';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { MotionOriginLease } from '../../motion';
@@ -23,6 +23,8 @@ export interface CatalogDetailProps {
   rankingPosition: number | null;
   rating: number | null;
   busy: boolean;
+  feedback?: string;
+  error?: string;
   artwork?: CatalogArtwork | null;
   motionOrigin?: MotionOriginLease;
   publicLookup?: PublicCatalogLookup;
@@ -38,6 +40,8 @@ export default function CatalogDetail({
   rankingPosition,
   rating,
   busy,
+  feedback = '',
+  error = '',
   artwork,
   motionOrigin,
   publicLookup,
@@ -46,19 +50,42 @@ export default function CatalogDetail({
   onRankings,
 }: CatalogDetailProps) {
   const artRef = useRef<HTMLDivElement>(null);
-  const [addFailed, setAddFailed] = useState(false);
+  const active = useRef(true);
+  const saving = useRef(false);
+  const [result, setResult] = useState<'idle' | 'pending' | 'saved' | 'failed'>('idle');
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  const blocked = busy || result === 'pending';
   const enrichment = useCatalogEnrichment(record.id, publicLookup);
   const externalArtwork = artwork ? null : (enrichment.data?.artwork ?? null);
   const canAddToLibrary = record.source !== 'collection';
-  const addToLibrary = async () => {
-    setAddFailed(false);
+  const mutate = async (action: PersonalAction): Promise<boolean> => {
+    if (!active.current || busy || saving.current) return false;
+    saving.current = true;
+    setResult('pending');
+    // The rating field already owns its retryable error announcement.
+    const failed = action.type === 'rate-game' ? 'idle' : 'failed';
     try {
-      if (!(await onAction({ type: 'add-records', records: [record] }))) setAddFailed(true);
+      const saved = await onAction(action);
+      if (active.current) setResult(saved ? 'saved' : failed);
+      return saved;
     } catch (cause) {
-      console.error('The game could not be added to My games.', cause);
-      setAddFailed(true);
+      console.error('The catalog detail change could not be saved.', cause);
+      if (active.current) setResult(failed);
+      return false;
+    } finally {
+      saving.current = false;
     }
   };
+  const failure =
+    result === 'failed'
+      ? error || feedback || 'This change could not be saved. Your library is unchanged. Try again.'
+      : '';
+  const status = result === 'pending' ? 'Saving changes…' : result === 'saved' ? feedback : '';
   return (
     <Dialog
       open
@@ -124,14 +151,14 @@ export default function CatalogDetail({
         </a>
       )}
       <p className="section-help">Source metadata is not independently verified.</p>
-      <div className="detail-actions">
+      <div className="detail-actions" aria-busy={blocked || undefined}>
         {canAddToLibrary && (
           <button
             className={`button ${saved ? 'button-outline' : 'button-dark'}`}
-            disabled={busy || saved}
+            aria-disabled={blocked || saved || undefined}
             aria-label={`${saved ? 'In My games' : 'Add to My games'}: ${record.title}`}
             onClick={() => {
-              void addToLibrary();
+              if (!saved) void mutate({ type: 'add-records', records: [record] });
             }}
           >
             <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />
@@ -140,10 +167,10 @@ export default function CatalogDetail({
         )}
         <button
           className={`button ${progress?.later ? 'button-lime' : 'button-dark'}`}
-          disabled={busy}
+          aria-disabled={blocked || undefined}
           aria-pressed={Boolean(progress?.later)}
           onClick={() => {
-            void onAction({ type: 'toggle-progress', record, key: 'later' });
+            void mutate({ type: 'toggle-progress', record, key: 'later' });
           }}
         >
           <Icon name="bookmark" fill={progress?.later ? 'currentColor' : 'none'} />
@@ -151,57 +178,55 @@ export default function CatalogDetail({
         </button>
         <button
           className={`button ${progress?.completed ? 'button-lime' : 'button-outline'}`}
-          disabled={busy}
+          aria-disabled={blocked || undefined}
           aria-pressed={Boolean(progress?.completed)}
           onClick={() => {
-            void onAction({ type: 'set-progress', records: [record], key: 'completed', value: !progress?.completed });
+            void mutate({ type: 'set-progress', records: [record], key: 'completed', value: !progress?.completed });
           }}
         >
           <Icon name={progress?.completed ? 'check' : 'plus'} />
           Completed
         </button>
       </div>
-      {addFailed && !saved && (
-        <p className="inline-error" role="alert">
-          This game could not be added to My games. Your library is unchanged. Try again.
-        </p>
-      )}
       <div className="personal-detail-actions">
         <PlayedToggle
           id={record.id}
           title={record.title}
           played={Boolean(progress?.played)}
           completed={progress?.completed}
-          busy={busy}
+          busy={blocked}
           onChange={(value) => {
-            void onAction({ type: 'set-progress', records: [record], key: 'played', value });
+            void mutate({ type: 'set-progress', records: [record], key: 'played', value });
           }}
         />
-        {rankingPosition === null ? (
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => {
-              void onAction({ type: 'add-ranking', records: [record] });
-            }}
-          >
-            <Icon name="rank" width="18" height="18" />
-            Add to my ranking
-          </button>
-        ) : (
-          <button className="text-button" onClick={onRankings}>
-            Your rank: #{rankingPosition}
-            <Icon name="arrow" width="17" height="17" />
-          </button>
-        )}
+        <button
+          className="text-button"
+          aria-disabled={(rankingPosition === null && blocked) || undefined}
+          onClick={() => {
+            if (rankingPosition === null) void mutate({ type: 'add-ranking', records: [record] });
+            else onRankings();
+          }}
+        >
+          {rankingPosition === null ? (
+            <>
+              <Icon name="rank" width="18" height="18" />
+              Add to my ranking
+            </>
+          ) : (
+            <>
+              Your rank: #{rankingPosition}
+              <Icon name="arrow" width="17" height="17" />
+            </>
+          )}
+        </button>
       </div>
       <div className="catalog-detail-rating">
         <PersonalRatingInput
           key={record.id}
           title={record.title}
           value={rating}
-          busy={busy}
-          onCommit={(score) => onAction({ type: 'rate-game', record, score })}
+          busy={blocked}
+          onCommit={(score) => mutate({ type: 'rate-game', record, score })}
         />
         <p>Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.</p>
       </div>
@@ -213,6 +238,15 @@ export default function CatalogDetail({
             : 'Preview only. Rate or mark progress here to keep this game.'}{' '}
         The 100 stays unchanged.
       </p>
+      {failure ? (
+        <p className="inline-error" role="alert">
+          {failure}
+        </p>
+      ) : status ? (
+        <p className="detail-share-notice" role="status">
+          {status}
+        </p>
+      ) : null}
       <CatalogEnrichment enrichment={enrichment} lookup={publicLookup} />
     </Dialog>
   );

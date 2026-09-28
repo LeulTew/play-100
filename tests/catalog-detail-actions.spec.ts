@@ -1,15 +1,23 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
+import { applyPersonalAction } from '../src/lib/personal-library';
+import type { PersonalAction, PersonalLibraryState } from '../src/lib/personal-types';
 import { emptyCatalogs } from './catalog-helpers';
 import { readLibrary } from './library-helpers';
 
 const record = discoveryFixture.record;
 
-test.beforeEach(async ({ page, baseURL, isMobile }) => {
+test.beforeEach(async ({ page, context, baseURL, isMobile }) => {
   if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname))
     throw new Error('Catalog detail fixtures require the owned local preview.');
   await page.setViewportSize({ width: isMobile ? 393 : 1440, height: isMobile ? 851 : 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await context.route('**/*', (route) =>
+    new URL(route.request().url()).origin === new URL(baseURL).origin
+      ? route.fallback()
+      : route.abort('blockedbyclient'),
+  );
   await emptyCatalogs(page);
   await page.route('**/data/discovery/catalog.v1.json', (route) => route.fulfill({ json: catalogFixture }));
 });
@@ -43,7 +51,12 @@ for (const input of ['pointer', 'keyboard'] as const) {
       await page.keyboard.press('Enter');
     } else if (isMobile) await add.tap();
     else await add.click();
-    await expect(dialog.getByRole('button', { name: `In My games: ${record.title}`, exact: true })).toBeDisabled();
+    const saved = dialog.getByRole('button', { name: `In My games: ${record.title}`, exact: true });
+    await expect(saved).toBeDisabled();
+    await expect(saved).not.toHaveAttribute('disabled');
+    if (input === 'keyboard') await expect(saved).toBeFocused();
+    await expect(dialog.locator('.detail-share-notice')).toHaveText('1 game added to your library.');
+    await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
     await expect(dialog.locator('.device-note')).toHaveText('Saved in My games. The 100 stays unchanged.');
     const after = await readLibrary(page);
     expect(after).toEqual({
@@ -63,6 +76,217 @@ for (const input of ['pointer', 'keyboard'] as const) {
     expect(await readLibrary(page)).toEqual(after);
   });
 }
+
+async function holdCatalogWrite(page: Page, rejected: boolean) {
+  return page.evaluateHandle(
+    ({ id, rejected }) => {
+      const put = IDBObjectStore.prototype.put;
+      const state = { attempts: 0, held: false };
+      let finish: (() => void) | null = null;
+      IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
+        const value: Partial<PersonalLibraryState> | null | undefined = args[0];
+        if (
+          this.transaction.db.name === 'play100-personal' &&
+          this.name === 'library' &&
+          args[1] === 'state' &&
+          value?.records?.[id]
+        ) {
+          state.attempts += 1;
+          if (state.attempts === 1) {
+            const transaction = this.transaction;
+            const eventName = rejected ? 'onabort' : 'oncomplete';
+            const callback = transaction[eventName];
+            if (!callback) throw new Error('The library transaction must have its completion receiver.');
+            transaction[eventName] = (event) => {
+              state.held = true;
+              finish = () => {
+                state.held = false;
+                transaction[eventName] = callback;
+                callback.call(transaction, event);
+              };
+            };
+          }
+          if (rejected) throw new DOMException('Synthetic catalog write refusal.', 'QuotaExceededError');
+        }
+        return put.apply(this, args);
+      };
+      return {
+        state,
+        release() {
+          if (!finish) throw new Error('Observe the native transaction before releasing its completion.');
+          const callback = finish;
+          finish = null;
+          callback();
+        },
+        restore() {
+          IDBObjectStore.prototype.put = put;
+          if (finish) {
+            const callback = finish;
+            finish = null;
+            callback();
+          }
+        },
+      };
+    },
+    { id: record.id, rejected },
+  );
+}
+
+const mutationCases: {
+  name: string;
+  label: string;
+  after: string;
+  key: 'Enter' | 'Space';
+  action: PersonalAction;
+  message: string;
+}[] = [
+  {
+    name: 'library add',
+    label: `Add to My games: ${record.title}`,
+    after: `In My games: ${record.title}`,
+    key: 'Enter',
+    action: { type: 'add-records', records: [record] },
+    message: '1 game added to your library.',
+  },
+  {
+    name: 'queue',
+    label: 'Play later',
+    after: 'Play later',
+    key: 'Space',
+    action: { type: 'toggle-progress', record, key: 'later' },
+    message: 'Your library is updated.',
+  },
+  {
+    name: 'completion',
+    label: 'Completed',
+    after: 'Completed',
+    key: 'Space',
+    action: { type: 'set-progress', records: [record], key: 'completed', value: true },
+    message: '1 game updated in your play history.',
+  },
+  {
+    name: 'ranking add',
+    label: 'Add to my ranking',
+    after: 'Your rank: #1',
+    key: 'Enter',
+    action: { type: 'add-ranking', records: [record] },
+    message: 'Your ranking has been updated. Games are not automatically marked played.',
+  },
+];
+
+for (const mutation of mutationCases) {
+  for (const rejected of [false, true]) {
+    test(`catalog ${mutation.name} keeps focus through a pending ${rejected ? 'rejected' : 'successful'} save`, async ({
+      page,
+    }) => {
+      await page.goto('/discover?catalogs=off');
+      const opener = page
+        .locator(`[data-catalog-id="${record.id}"]`)
+        .getByRole('button', { name: record.title, exact: true });
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: record.title, exact: true });
+      if (mutation.name !== 'library add') {
+        await dialog.getByRole('button', { name: `Add to My games: ${record.title}`, exact: true }).click();
+        await expect(dialog.getByRole('button', { name: `In My games: ${record.title}`, exact: true })).toBeDisabled();
+        await page.keyboard.press('Escape');
+        await opener.click();
+        await expect(dialog.locator('.detail-share-notice')).toHaveCount(0);
+      }
+      const before = await readLibrary(page);
+      const control = dialog.getByRole('button', { name: mutation.label, exact: true });
+      const node = await control.elementHandle();
+      if (!node) throw new Error('The original mutation control must be mounted.');
+      const held = await holdCatalogWrite(page, rejected);
+      try {
+        await control.focus();
+        await page.keyboard.press(mutation.key);
+        await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+        await expect(control).toBeFocused();
+        await expect(control).toHaveAttribute('aria-disabled', 'true');
+        await expect(control).not.toHaveAttribute('disabled');
+        await expect(dialog.locator('.detail-share-notice')).toHaveText('Saving changes…');
+        await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('Space');
+        await node.evaluate((element) => {
+          if (!(element instanceof HTMLButtonElement)) throw new Error('The mutation target must stay a button.');
+          element.click();
+        });
+        expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+        await held.evaluate((probe) => probe.release());
+        await expect(dialog.locator('.detail-actions')).not.toHaveAttribute('aria-busy', 'true');
+        if (rejected) {
+          await expect(dialog.getByRole('alert')).toHaveText(
+            'Device storage is full. Your changes were not saved. Free some space and try again.',
+          );
+          await expect(dialog.locator('.detail-share-notice')).toHaveCount(0);
+          await expect(control).toBeFocused();
+          await expect(control).toBeEnabled();
+          expect(await readLibrary(page)).toEqual(before);
+          await held.evaluate((probe) => probe.restore());
+          await page.keyboard.press(mutation.key);
+        }
+        await expect(dialog.locator('.detail-share-notice')).toHaveText(mutation.message);
+        await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
+        await expect(dialog.getByRole('alert')).toHaveCount(0);
+        await expect(dialog.getByRole('button', { name: mutation.after, exact: true })).toBeFocused();
+        expect(
+          await node.evaluate((element) => ({
+            sameFocus: element.isConnected && document.activeElement === element,
+            visibleFocus: element.matches(':focus-visible') && getComputedStyle(element).outlineStyle !== 'none',
+            documentFocused: document.hasFocus(),
+          })),
+        ).toEqual({ sameFocus: true, visibleFocus: true, documentFocused: true });
+        expect(await readLibrary(page)).toEqual(applyPersonalAction(before, mutation.action));
+        expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+        await expect(page.locator('.toast-visible')).toHaveCount(0);
+        if (mutation.name === 'library add') {
+          await page.keyboard.press('Enter');
+          await node.evaluate((element) => {
+            if (!(element instanceof HTMLButtonElement)) throw new Error('The saved control must stay a button.');
+            element.click();
+          });
+          expect(await readLibrary(page)).toEqual(applyPersonalAction(before, mutation.action));
+          expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+        }
+      } finally {
+        await held.evaluate((probe) => probe.restore());
+        await held.dispose();
+        await node.dispose();
+      }
+    });
+  }
+}
+
+test('a closed catalog save does not steal focus or replay feedback in a fresh detail', async ({ page }) => {
+  await page.goto('/discover?catalogs=off');
+  const opener = page
+    .locator(`[data-catalog-id="${record.id}"]`)
+    .getByRole('button', { name: record.title, exact: true });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: record.title, exact: true });
+  const held = await holdCatalogWrite(page, false);
+  try {
+    const add = dialog.getByRole('button', { name: `Add to My games: ${record.title}`, exact: true });
+    await add.focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await opener.click();
+    await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+    await held.evaluate((probe) => probe.release());
+    await expect(dialog.getByRole('button', { name: `In My games: ${record.title}`, exact: true })).toBeDisabled();
+    await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+    await expect(dialog.locator('.detail-share-notice')).toHaveCount(0);
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(page.locator('.toast-visible')).toHaveCount(0);
+    expect((await readLibrary(page)).records[record.id]).toEqual(record);
+  } finally {
+    await held.evaluate((probe) => probe.restore());
+    await held.dispose();
+  }
+});
 
 test('canonical Discover details keep the original collection actions', async ({ page }) => {
   await page.goto('/discover?q=red%20dead%20redemption%202&include100=on&catalogs=off');

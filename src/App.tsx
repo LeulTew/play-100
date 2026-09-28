@@ -503,6 +503,7 @@ export default function App() {
   }, [transientPreview, previewPermitted, allRecords, closeGame, notify]);
   const performDetailAction = useCallback(
     (action: PersonalAction) => {
+      setNotice('');
       if (
         transientPreview?.authority &&
         !allRecords.has(transientPreview.record.id) &&
@@ -894,7 +895,8 @@ export default function App() {
                   const trayHasContent = tray.items.length > 0 || Boolean(tray.warning) || Boolean(tray.error);
                   const trayError = !motionBlocked ? tray.error : null;
                   // Tray errors use the existing polite provider status; the toast supplies their visible copy.
-                  const currentNotice = trayError || visibleNotice;
+                  const currentNotice =
+                    trayError || (!selectedGame && selectedRecord && !onlineOpening ? '' : visibleNotice);
                   const comparisonTray = (
                     <TrayHost
                       page={page}
@@ -1168,6 +1170,8 @@ export default function App() {
                                   motionOrigin: origin,
                                   publicLookup,
                                   saved: Boolean(library.state.records[selectedRecord.id]),
+                                  feedback: notice,
+                                  error: library.error ?? '',
                                   progress: library.state.progress[selectedRecord.id],
                                   rankingPosition: rankingPosition || null,
                                   rating:

@@ -1,10 +1,19 @@
-import { createElement } from 'react';
+import { createElement, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { artworkFixture, discoveryFixture } from '../../lib/discovery-test-fixtures';
 import CatalogDetail from './CatalogDetail';
 import type { CatalogDetailProps } from './CatalogDetail';
+
+vi.mock('react', async (importOriginal) => {
+  const react = await importOriginal<typeof import('react')>();
+  return { ...react, useState: vi.fn(react.useState) };
+});
+
+afterEach(() => {
+  vi.mocked(useState).mockReset();
+});
 
 function renderDetail(overrides: Partial<CatalogDetailProps> = {}) {
   const props: CatalogDetailProps = {
@@ -33,13 +42,58 @@ describe('catalog detail artwork continuity surface', () => {
     const label = `${saved ? 'In My games' : 'Add to My games'}: ${discoveryFixture.record.title}`;
     const button = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find((value) => value.includes(label));
     expect(button).toBeDefined();
-    expect(button?.includes('disabled=""')).toBe(saved || busy);
+    expect(button).not.toContain('disabled=""');
+    expect(button?.includes('aria-disabled="true"')).toBe(saved || busy);
     expect(html).toContain(
       saved
         ? 'Saved in My games.'
         : 'Preview only. Add to My games to keep this game without changing your progress, queue or ranking.',
     );
     expect(props.onAction).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('keeps mutation buttons natively focusable while busy=%s', (busy) => {
+    const { html } = renderDetail({ busy });
+    const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+    for (const label of ['Play later', 'Completed', 'Add to my ranking']) {
+      const button = buttons.find((value) => value.includes(`>${label}</button>`));
+      expect(button).toBeDefined();
+      expect(button).not.toContain('disabled=""');
+      expect(button?.includes('aria-disabled="true"')).toBe(busy);
+    }
+  });
+
+  it('keeps the saved-ranking shortcut available to its existing pending-editor guard', () => {
+    const { html } = renderDetail({ busy: true, rankingPosition: 1 });
+    const button = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find((value) => value.includes('Your rank: #1'));
+    expect(button).toBeDefined();
+    expect(button).not.toContain('disabled=');
+  });
+
+  it.each([
+    ['pending', 'status', 'Saving changes…'],
+    ['saved', 'status', '1 game added to your library.'],
+    ['failed', 'alert', 'Device storage is full.'],
+  ] as const)('announces its own %s mutation inside the dialog', (result, role, text) => {
+    vi.mocked(useState).mockReturnValueOnce([result, vi.fn()]);
+    const { html } = renderDetail({
+      feedback: '1 game added to your library.',
+      error: result === 'failed' ? 'Device storage is full.' : '',
+    });
+    expect(html).toContain(`role="${role}">${text}</p>`);
+    if (result === 'failed') expect(html).not.toContain('class="detail-share-notice"');
+  });
+
+  it('does not replay a previous detail result before this dialog has changed anything', () => {
+    const { html } = renderDetail({ feedback: 'An earlier save completed.', error: 'An earlier error.' });
+    expect(html).not.toContain('An earlier save completed.');
+    expect(html).not.toContain('An earlier error.');
+  });
+
+  it('has an actionable fallback when a rejected callback supplies no library diagnostic', () => {
+    vi.mocked(useState).mockReturnValueOnce(['failed', vi.fn()]);
+    const { html } = renderDetail();
+    expect(html).toContain('role="alert">This change could not be saved. Your library is unchanged. Try again.</p>');
   });
 
   it.each([false, true])('keeps the detail queue name stable with pressed=%s', (selected) => {
