@@ -26,6 +26,7 @@ import { onlineError } from './errors';
 import { FriendChangeDialog, InviteLinkDialog } from './FriendsPageDialogs';
 import type { FriendChange } from './FriendsPageDialogs';
 import { FriendRelationList } from './FriendRelationList';
+import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
 import { Icon } from '../components/Icon';
 
 function subscribeUrl(listener: () => void) {
@@ -653,82 +654,27 @@ export function FriendsPage({
         />
       )}
       {view.view === 'invites' && (
-        <ul className="friend-list">
-          {currentInvites.map((invite) => {
-            const status = invitationStatus(invite, now);
-            return (
-              <li key={invite.token}>
-                <div>
-                  <strong className="friend-invite-status">{status}</strong>
-                  <p className="friend-invite-dates">
-                    Created{' '}
-                    <time dateTime={new Date(invite.createdAt).toISOString()}>
-                      {dateFormat.format(invite.createdAt)}
-                    </time>
-                    <br />
-                    {status === 'Expired' ? 'Expired' : 'Expiry'}{' '}
-                    <time dateTime={new Date(invite.expiresAt).toISOString()}>
-                      {dateFormat.format(invite.expiresAt)}
-                    </time>
-                  </p>
-                </div>
-                {status === 'Active' && (
-                  <div className="button-row">
-                    <button
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => {
-                        setCopyState('');
-                        void shareLink(invite, false);
-                      }}
-                    >
-                      Copy link
-                    </button>
-                    <button
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => {
-                        setCopyState('');
-                        void shareLink(invite, true);
-                      }}
-                    >
-                      Share
-                    </button>
-                    <button
-                      className="text-button danger-text"
-                      disabled={busy}
-                      onClick={() => setConfirmation({ action: 'revoke', invite })}
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <FriendInviteList
+          invites={currentInvites}
+          now={now}
+          dateFormat={dateFormat}
+          busy={busy}
+          onShare={(invite, native) => {
+            setCopyState('');
+            void shareLink(invite, native);
+          }}
+          onConfirm={setConfirmation}
+        />
       )}
       {copyState && !link && <p role="status">{copyState}</p>}
       {view.view === 'blocked' && (
-        <ul className="friend-list">
-          {aux.blocks.map((block) => (
-            <li key={block.uid}>
-              <div>
-                <strong>Blocked account …{block.uid.slice(-6)}</strong>
-                <p className="section-help">Unblocking will not restore friendship.</p>
-              </div>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => {
-                  void run(() => store.unblock(uid, block.uid), 'Unblocked. Friendship was not restored.');
-                }}
-              >
-                Unblock
-              </button>
-            </li>
-          ))}
-        </ul>
+        <FriendBlockList
+          blocks={aux.blocks}
+          busy={busy}
+          onUnblock={(peer) => {
+            void run(() => store.unblock(uid, peer), 'Unblocked. Friendship was not restored.');
+          }}
+        />
       )}
       {ready && !loading && !problem && empty && (
         <div className="empty-state">
