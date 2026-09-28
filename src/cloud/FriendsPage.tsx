@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendBlock, FriendCursor, FriendInvitation, FriendSettings } from '../lib/friend-types';
-import type { FriendsView, FriendsViewState } from '../lib/friend-manager';
-import {
-  friendsViewUrl,
-  invitationStatus,
-  nextInvitationExpiry,
-  parseFriendsView,
-  visibleFriendPairs,
-} from '../lib/friend-manager';
+import type { FriendsView } from '../lib/friend-manager';
+import { invitationStatus, nextInvitationExpiry, visibleFriendPairs } from '../lib/friend-manager';
 import { FriendManagerFeed } from '../lib/friend-manager-feed';
 import {
   comparisonScope,
@@ -28,17 +22,9 @@ import type { FriendChange } from './FriendsPageDialogs';
 import { FriendRelationList } from './FriendRelationList';
 import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
 import { FriendListStatus, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
+import { subscribeUrl, useFriendsView } from './friends-page-view';
 import { Icon } from '../components/Icon';
 
-function subscribeUrl(listener: () => void) {
-  window.addEventListener('popstate', listener);
-  window.addEventListener('play100:navigate', listener);
-  return () => {
-    window.removeEventListener('popstate', listener);
-    window.removeEventListener('play100:navigate', listener);
-  };
-}
-const readUrl = () => location.search;
 interface AuxiliaryPage {
   view: FriendsView;
   invites: FriendInvitation[];
@@ -70,9 +56,7 @@ export function FriendsPage({
 }) {
   const uid = identity.uid;
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
-  const search = useSyncExternalStore(subscribeUrl, readUrl, () => '');
-  const view = useMemo(() => parseFriendsView(search), [search]);
-  const relationView = view.view === 'friends' || view.view === 'incoming' || view.view === 'sent';
+  const { view, relationView, updateView } = useFriendsView();
   const kind = view.view === 'friends' ? 'accepted' : 'pending';
   const feed = useMemo(
     () => new FriendManagerFeed(store, uid, kind, () => cloudAuth.currentUser?.uid === uid),
@@ -317,10 +301,6 @@ export function FriendsPage({
       window.removeEventListener('focus', update);
     };
   }, [timerInvites]);
-  const updateView = (patch: Partial<FriendsViewState>, replace = false) => {
-    history[replace ? 'replaceState' : 'pushState'](null, '', friendsViewUrl({ ...view, ...patch }));
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  };
   const refresh = async () => {
     const refreshed = relationView ? await feed.refresh() : await loadAux();
     if (current() && refreshed) {
