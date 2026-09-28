@@ -97,8 +97,7 @@ test('Settings exposes Export and Import without scrolling at 1440x900', async (
   if (layout.accountRules) expect(layout.accountRules).toEqual({ top: '1px', bottom: '0px', nextTop: '1px' });
   expect(layout.preferenceGap).toBeGreaterThanOrEqual(28);
   expect(layout.sectionRhythm).toHaveLength(3);
-  for (const rhythm of layout.sectionRhythm)
-    expect(rhythm).toEqual({ margin: '28px', padding: '25px', rule: '1px' });
+  for (const rhythm of layout.sectionRhythm) expect(rhythm).toEqual({ margin: '28px', padding: '25px', rule: '1px' });
   expect(layout.controls.map((button) => button.name)).toEqual(['Export my library', 'Import backup']);
   expect(layout.controls.every((button) => button.visible && button.hit)).toBe(true);
 });
