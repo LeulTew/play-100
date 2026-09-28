@@ -86,7 +86,7 @@
   color: #b5d5d2;
 }
 .jacket-1 {
-  background: #d3f36b;
+  background: var(--lime);
   color: #445f21;
 }
 .jacket-2 {
@@ -406,8 +406,8 @@
   gap: 14px;
   padding: 14px 17px;
   margin-bottom: 24px;
-  background: #f8e3bc;
-  border: 1px solid #cfb782;
+  background: var(--caution-tint);
+  border: 1px solid var(--caution-edge);
   border-radius: 4px;
 }
 .storage-banner p {
@@ -681,7 +681,7 @@
 }
 .menu-links a:hover,
 .menu-links button:hover {
-  background: #e6e9dc;
+  background: var(--hover);
 }
 .menu-links a[aria-current='page'] {
   background: var(--lime);
@@ -1004,7 +1004,7 @@
   background: #e5edd8;
 }
 .motion-option input {
-  accent-color: #405e1c;
+  accent-color: var(--accent);
   width: 19px;
   height: 19px;
   flex-shrink: 0;
@@ -1048,7 +1048,7 @@
   margin-top: 16px;
 }
 .reset-confirmation {
-  border: 1px solid #cfa89b;
+  border: 1px solid var(--danger-edge);
   padding: 17px;
   margin-top: 20px;
   border-radius: 4px;
@@ -1062,8 +1062,8 @@
   padding-inline: 15px;
 }
 .storage-warning {
-  background: #f8e3bc;
-  border: 1px solid #cfb782;
+  background: var(--caution-tint);
+  border: 1px solid var(--caution-edge);
   padding: 12px;
   border-radius: 4px;
 }

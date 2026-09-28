@@ -1,13 +1,10 @@
 .collection-artifact {
-  --artifact-ink: #20231e;
-  --artifact-chalk: #f3f3e9;
-  --artifact-lime: #d3f36b;
   position: relative;
   width: 100%;
   min-width: 0;
   min-height: 292px;
   margin: 0;
-  color: var(--artifact-ink);
+  color: var(--ink);
 }
 
 .artifact-stage {
@@ -126,10 +123,10 @@
   min-width: 112px;
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid var(--artifact-ink);
+  border: 1px solid var(--ink);
   border-radius: 2px;
   background: transparent;
-  color: var(--artifact-ink);
+  color: var(--ink);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -145,17 +142,17 @@
 }
 
 .artifact-control:focus-visible {
-  outline: 2px solid var(--artifact-ink);
+  outline: 2px solid var(--ink);
   outline-offset: 4px;
 }
 
 .artifact-control:active {
-  background: var(--artifact-lime);
+  background: var(--lime);
 }
 
 @media (hover: hover) {
   .artifact-control:hover {
-    background: var(--artifact-lime);
+    background: var(--lime);
   }
 }
 

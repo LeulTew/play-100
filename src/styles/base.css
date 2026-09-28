@@ -57,7 +57,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 :where(button, a, input, select, textarea, summary, [tabindex]) {
@@ -130,21 +130,21 @@ svg {
   color: var(--white);
 }
 .button-dark:hover {
-  background: #39422e;
+  background: var(--hover-ink);
 }
 .button-lime {
   background: var(--lime);
   color: var(--ink);
 }
 .button-lime:hover {
-  background: #c2e459;
+  background: var(--hover-lime);
 }
 .button-outline {
   background: transparent;
-  border-color: #a5ac98;
+  border-color: var(--edge);
 }
 .button-outline:hover {
-  background: #e6e9dc;
+  background: var(--hover);
   border-color: var(--ink);
 }
 .button-quiet {
@@ -152,10 +152,10 @@ svg {
   padding-inline: 12px;
 }
 .button-quiet:hover {
-  background: #e6e9dc;
+  background: var(--hover);
 }
 .button-danger {
-  background: #8c3026;
+  background: var(--danger);
   color: #fff;
 }
 .text-button {
@@ -187,7 +187,7 @@ svg {
   background: transparent;
 }
 .icon-button:hover {
-  background: #e1e6d4;
+  background: var(--hover-icon);
 }
 .button-row {
   display: flex;

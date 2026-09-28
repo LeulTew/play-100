@@ -214,7 +214,7 @@
   margin-block: 12px;
   font-size: 14px;
   line-height: 1.5;
-  color: #8c3026;
+  color: var(--danger);
 }
 .compare-problems ul {
   list-style: none;
@@ -232,7 +232,7 @@
   margin-block: 12px 20px;
 }
 .comparison-scroll:focus-visible {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 .friend-matrix {

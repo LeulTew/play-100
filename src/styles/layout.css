@@ -91,7 +91,7 @@
 }
 .menu-nav:hover,
 .menu-nav[aria-expanded='true'] {
-  background: #e6e9dc;
+  background: var(--hover);
 }
 .saved-nav {
   min-height: 44px;
@@ -310,8 +310,8 @@
   height: 57px;
 }
 .search-field:focus-within {
-  border-color: #426515;
-  outline: 2px solid #426515;
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .search-field > svg {
@@ -381,7 +381,7 @@
   text-overflow: ellipsis;
 }
 .filter-select select:hover {
-  background-color: #e9ecdf;
+  background-color: var(--hover-select);
 }
 .select-chevron {
   position: absolute;

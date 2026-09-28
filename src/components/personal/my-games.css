@@ -287,7 +287,7 @@
   text-align: right;
 }
 .state-completed {
-  color: #405d21;
+  color: var(--positive);
   font-weight: 600;
 }
 .ranking-row-content {
@@ -559,7 +559,7 @@
   font-size: 12px;
 }
 .ranking-compare-actions > .text-button[aria-pressed='true'] {
-  color: #405d21;
+  color: var(--positive);
 }
 .my-games-workspace .record-actions {
   flex-wrap: wrap;

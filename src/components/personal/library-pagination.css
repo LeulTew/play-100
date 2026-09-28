@@ -10,7 +10,7 @@
   scroll-margin-block-start: 12px;
 }
 .library-results-boundary > h3:focus {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 .library-results-count {

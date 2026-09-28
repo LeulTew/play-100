@@ -13,6 +13,23 @@
   --line: #d1d4c6;
   /* Graphite ink at 55% over chalk: resting field edges keep 3:1 against chalk, soft white and hover fills. */
   --control-border: #7f8179;
+  /* State colors (DESIGN.md "States"). */
+  --focus: #426515;
+  --accent: #405e1c;
+  --edge: #a5ac98;
+  --hover: #e6e9dc;
+  --hover-icon: #e1e6d4;
+  --hover-select: #e9ecdf;
+  --hover-lime: #c2e459;
+  --hover-ink: #39422e;
+  --positive: #405d21;
+  --danger: #8c3026;
+  --danger-tint: #f6e6dc;
+  --danger-edge: #cfa89b;
+  --warning: #744719;
+  --warning-tint: #f5ead5;
+  --caution-tint: #f8e3bc;
+  --caution-edge: #cfb782;
   --display: 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --gutter: clamp(24px, 4vw, 72px);

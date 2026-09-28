@@ -64,7 +64,7 @@
   border: 1px solid var(--line);
 }
 .account-nav:hover {
-  background: #e6e9dc;
+  background: var(--hover);
   border-color: var(--ink);
 }
 .account-nav-avatar {

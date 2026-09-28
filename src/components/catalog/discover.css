@@ -68,7 +68,7 @@
   line-height: 1.5;
 }
 .discovery-results-heading h2:focus {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 .discovery-results-heading p {
@@ -94,7 +94,7 @@
   align-self: start;
 }
 .discovery-card.is-selected {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 5px;
 }
 .discovery-card-art {
@@ -191,7 +191,7 @@
 .discovery-select input {
   width: 20px;
   height: 20px;
-  accent-color: #426515;
+  accent-color: var(--focus);
 }
 .discovery-card-body {
   padding-top: 10px;
@@ -386,7 +386,7 @@
   margin-left: 16px;
 }
 .discovery-source-error {
-  color: #8c3026;
+  color: var(--danger);
   line-height: 1.5;
 }
 .discovery-help {

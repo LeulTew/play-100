@@ -3,7 +3,7 @@
   flex-shrink: 0;
   max-width: none;
   border-radius: 6px;
-  background: var(--paper, #f3f3e9);
+  background: var(--paper);
   object-fit: contain;
 }
 
@@ -61,7 +61,7 @@ section.avatar-picker h3 {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  border: 1px solid #a5ac98;
+  border: 1px solid var(--edge);
   border-radius: 4px;
   cursor: pointer;
   transition:
@@ -103,7 +103,7 @@ section.avatar-picker h3 {
 
 .avatar-picker__candidate:has(input:focus-visible),
 .avatar-picker__palette:has(input:focus-visible) {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 
@@ -157,9 +157,9 @@ section.avatar-picker h3 {
 .avatar-picker .avatar-picker__error {
   margin-top: 20px;
   padding: 12px;
-  border: 1px solid #cfa89b;
+  border: 1px solid var(--danger-edge);
   border-radius: 4px;
-  color: #8c3026;
+  color: var(--danger);
   font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -189,7 +189,7 @@ section.avatar-picker h3 {
   .avatar-picker__candidate:hover:not(:has(input:disabled)),
   .avatar-picker__palette:hover:not(:has(input:disabled)) {
     border-color: var(--ink);
-    background: #e6e9dc;
+    background: var(--hover);
   }
 }
 

@@ -9,6 +9,22 @@ colors:
   lime: "#d3f36b"
   line: "#d1d4c6"
   control-border: "#7f8179"
+  focus: "#426515"
+  accent: "#405e1c"
+  edge: "#a5ac98"
+  hover: "#e6e9dc"
+  hover-icon: "#e1e6d4"
+  hover-select: "#e9ecdf"
+  hover-lime: "#c2e459"
+  hover-ink: "#39422e"
+  positive: "#405d21"
+  danger: "#8c3026"
+  danger-tint: "#f6e6dc"
+  danger-edge: "#cfa89b"
+  warning: "#744719"
+  warning-tint: "#f5ead5"
+  caution-tint: "#f8e3bc"
+  caution-edge: "#cfb782"
 typography:
   display:
     fontFamily: "Barlow Condensed, Impact, Arial Narrow, sans-serif"
@@ -50,7 +66,7 @@ components:
     rounded: "{rounded.control}"
     padding: "12px 22px"
   button-dark-hover:
-    backgroundColor: "#39422e"
+    backgroundColor: "{colors.hover-ink}"
   button-lime:
     backgroundColor: "{colors.lime}"
     textColor: "{colors.ink}"
@@ -58,7 +74,7 @@ components:
     rounded: "{rounded.control}"
     padding: "12px 22px"
   button-lime-hover:
-    backgroundColor: "#c2e459"
+    backgroundColor: "{colors.hover-lime}"
   button-outline:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
@@ -66,7 +82,7 @@ components:
     rounded: "{rounded.control}"
     padding: "12px 22px"
   button-outline-hover:
-    backgroundColor: "#e6e9dc"
+    backgroundColor: "{colors.hover}"
   button-quiet:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
@@ -74,9 +90,9 @@ components:
     rounded: "{rounded.control}"
     padding: "12px"
   button-quiet-hover:
-    backgroundColor: "#e6e9dc"
+    backgroundColor: "{colors.hover}"
   button-danger:
-    backgroundColor: "#8c3026"
+    backgroundColor: "{colors.danger}"
     textColor: "#fff"
     typography: "{typography.button}"
     rounded: "{rounded.control}"
@@ -127,9 +143,19 @@ Feature overrides must beat shared defaults by specificity, not by stylesheet ar
 - **Graphite ink** (`ink`): primary reading, outlines and dark actions.
 - **Muted olive grey** (`muted`): secondary information.
 - **Chalk divider** (`line`): quiet ruled separation.
-- **Control edge** (`control-border`): the resting border of search fields, native selects, text inputs and text areas. Graphite ink at 55% over chalk, it keeps 3.54:1 against chalk, 3.87:1 against soft white and 3.30:1 against the `#e9ecdf` select hover fill. Decorative rules, keycaps and chips stay on `line`; focus, hover and disabled states keep their own treatments.
+- **Control edge** (`control-border`): the resting border of search fields, native selects, text inputs and text areas. Graphite ink at 55% over chalk, it keeps 3.54:1 against chalk, 3.87:1 against soft white and 3.30:1 against the select hover fill (`hover-select`). Decorative rules, keycaps and chips stay on `line`; focus, hover and disabled states keep their own treatments.
 
-Control-specific hover and destructive colors remain component variants, not an expanded brand palette. Sidecar tonal ramps are generated swatch-preview metadata, not implemented CSS palette steps.
+### States
+State colors are tokens in `src\styles\tokens.css`, so one role has one value everywhere:
+- **Focus** (`focus`): focus outlines, the focused search field and the selected card outline.
+- **Accent** (`accent`): native checkbox and radio fills.
+- **Edge** (`edge`): the outline button's and avatar palette's resting border.
+- **Hover** (`hover`, `hover-icon`, `hover-select`, `hover-lime`, `hover-ink`): the quiet and outline hover fill shared by buttons, menus and the account control, and the icon, select, lime and dark button hovers.
+- **Positive** (`positive`): notices and completed or pressed states.
+- **Danger** (`danger`, `danger-tint`, `danger-edge`): errors and destructive actions.
+- **Warning and caution** (`warning`, `warning-tint`, `caution-tint`, `caution-edge`): emulator, sync and catalog warnings, and storage cautions.
+
+The remaining literal colors are component tints: the jacket palette, illustration, placeholder and badge fills, table rules and ink shadows. They stay with the components that use them rather than joining the palette. Sidecar tonal ramps are generated swatch-preview metadata, not implemented CSS palette steps.
 
 ## Typography
 

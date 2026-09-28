@@ -53,8 +53,8 @@
 .emulator-note {
   font-size: 12px;
   line-height: 1.6;
-  color: #744719;
-  background: #f5ead5;
+  color: var(--warning);
+  background: var(--warning-tint);
   padding: 10px 14px;
   border-radius: 4px;
   margin-bottom: 16px;
@@ -80,7 +80,7 @@
 }
 .google-signin:hover {
   background: #f5f5f5;
-  border-color: #20231e;
+  border-color: var(--ink);
 }
 .google-signin svg {
   flex-shrink: 0;
@@ -168,7 +168,7 @@
   border-top: 1px solid var(--line);
 }
 .account-notice {
-  color: #405d21;
+  color: var(--positive);
   background: #e8eedc;
   padding: 14px 16px;
   border-radius: 4px;
@@ -282,8 +282,8 @@
 }
 .sync-state.sync-conflict,
 .sync-state.sync-error {
-  background: #f5ead5;
-  color: #744719;
+  background: var(--warning-tint);
+  color: var(--warning);
 }
 .connect-choices {
   border: 0;
@@ -305,7 +305,7 @@
   min-height: 56px;
 }
 .connect-choices input {
-  accent-color: #405e1c;
+  accent-color: var(--accent);
   width: 18px;
   height: 18px;
   margin-top: 3px;
@@ -601,7 +601,7 @@
   margin-top: 8px;
 }
 .public-profile-page textarea:focus-visible {
-  outline: 3px solid #426515;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 .publication-fields {
