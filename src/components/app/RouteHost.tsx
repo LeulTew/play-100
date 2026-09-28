@@ -9,10 +9,11 @@ import { createMemoizedModule } from '../../lib/memoized-module';
 import { ChunkBoundary } from '../ChunkBoundary';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { routeBoundaryKey } from './route-boundary';
+import { OnlineRoute } from './OnlineRoute';
+import type { OnlineControllerProps } from './OnlineRoute';
 
 const MyGamesPage = lazy(createMemoizedModule(() => import('../personal/MyGamesPage')).load);
 const DiscoverPage = lazy(createMemoizedModule(() => import('../catalog/DiscoverPage')).load);
-const OnlineController = lazy(createMemoizedModule(() => import('../../cloud/OnlineController')).load);
 
 type PublicContent =
   | { kind: 'private-library' }
@@ -24,7 +25,7 @@ export interface RouteHostProps {
   route: AppPage;
   scope: string;
   online: {
-    props: ComponentProps<typeof OnlineController>;
+    props: OnlineControllerProps;
     fallback: RouteFallbackProps | null;
     onDevice: () => void;
     onFailedChange: (failed: boolean) => void;
@@ -55,7 +56,7 @@ export const RouteHost = memo(function RouteHost({ route, scope, online, content
       {online && (
         <OnlineBoundary onDevice={online.onDevice} onFailedChange={online.onFailedChange}>
           <Suspense fallback={online.fallback ? <RouteFallback {...online.fallback} /> : null}>
-            <OnlineController {...online.props} />
+            <OnlineRoute {...online.props} />
           </Suspense>
         </OnlineBoundary>
       )}
