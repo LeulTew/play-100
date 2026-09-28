@@ -293,8 +293,11 @@ Actions with read-only repository access and no deployment credentials.
 | Secret scan | Full checked-out Git history with redacted Gitleaks 8.30.1 findings; the pinned release checksum file and archive are SHA-256 verified before the binary is extracted |
 
 `budget-report.json` has a deterministic schema: `sourceCommit` (from
-`GITHUB_SHA`, so `null` in local runs), each enforced measurement/cap/headroom
-and pass result, reported-only totals and the eager file list. Failures before
+`GITHUB_SHA`, falling back to local `git rev-parse HEAD`), a `dirty` flag for
+tracked changes (`git status --porcelain --untracked-files=no`), each enforced
+measurement/cap/headroom and pass result, reported-only totals and the eager
+file list. Unavailable Git fields are `null`, with a warning, rather than a
+false clean claim; untracked evidence files do not mark the report dirty. Failures before
 measurements complete may leave no report, which is not a budget pass.
 
 Any Gitleaks history finding must be reviewed before landing; confirmed false

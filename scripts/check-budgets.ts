@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -487,11 +488,30 @@ export function parseBudgetArguments(args: readonly string[]): { jsonPath?: stri
   return { jsonPath: args[1] };
 }
 
+export function readBudgetSource(
+  environment: NodeJS.ProcessEnv = process.env,
+  runGit: (args: string[]) => string = (args) =>
+    execFileSync('git', args, {
+      cwd: fileURLToPath(new URL('../', import.meta.url)),
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }),
+): { sourceCommit: string | null; dirty: boolean | null } {
+  let sourceCommit = environment.GITHUB_SHA || null;
+  try {
+    sourceCommit ||= runGit(['rev-parse', 'HEAD']).trim();
+    return { sourceCommit, dirty: runGit(['status', '--porcelain', '--untracked-files=no']).trim() !== '' };
+  } catch {
+    console.warn('Budget source Git metadata is unavailable; unknown fields are recorded as null.');
+    return { sourceCommit, dirty: null };
+  }
+}
+
 export async function reportBudgets(
   measured: BuildMeasurement,
   limits: BudgetLimits,
   jsonPath?: string,
-  sourceCommit: string | null = process.env.GITHUB_SHA || null,
+  source = readBudgetSource(),
 ): Promise<0 | 1> {
   const rows = budgetRows(measured, limits);
   console.table(rows);
@@ -537,7 +557,7 @@ export async function reportBudgets(
   if (jsonPath !== undefined) {
     const report = {
       schemaVersion: 1,
-      sourceCommit,
+      ...source,
       pass,
       budgets: rows.map((row) => ({
         metric: row.metric,

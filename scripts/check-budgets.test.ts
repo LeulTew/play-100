@@ -12,6 +12,7 @@ import {
   measureBuild,
   parseBudgetArguments,
   parseBudgetLimits,
+  readBudgetSource,
   reportBudgets,
 } from './check-budgets';
 import type { BuildMeasurement } from './check-budgets';
@@ -284,13 +285,14 @@ describe('offline built-output budgets', () => {
       const file = await reportPath();
       const measured = measurement();
       const commit = 'a'.repeat(40);
-      vi.stubEnv('GITHUB_SHA', commit);
-      expect(await reportBudgets(measured, measured.values, file)).toBe(0);
+      const source = { sourceCommit: commit, dirty: false };
+      expect(await reportBudgets(measured, measured.values, file, source)).toBe(0);
       const first = await readFile(file, 'utf8');
       const report = JSON.parse(first);
       expect(report).toEqual({
         schemaVersion: 1,
         sourceCommit: commit,
+        dirty: false,
         pass: true,
         budgets: Object.entries(measured.values).map(([metric, value]) => ({
           metric,
@@ -316,21 +318,52 @@ describe('offline built-output budgets', () => {
       });
       expect(report.budgets).toHaveLength(14);
       expect(first.endsWith('\n')).toBe(true);
-      expect(await reportBudgets(measured, measured.values, file)).toBe(0);
+      expect(await reportBudgets(measured, measured.values, file, source)).toBe(0);
       expect(await readFile(file, 'utf8')).toBe(first);
     });
 
-    it('writes over-cap JSON before returning failure, with a null commit outside CI', async () => {
+    it('writes over-cap JSON before returning failure, preserving unavailable Git metadata', async () => {
       const file = await reportPath();
       const measured = measurement();
-      vi.stubEnv('GITHUB_SHA', undefined);
-      expect(await reportBudgets(measured, { ...measured.values, cssGzipBytes: 19 }, file)).toBe(1);
+      const source = { sourceCommit: null, dirty: null };
+      expect(await reportBudgets(measured, { ...measured.values, cssGzipBytes: 19 }, file, source)).toBe(1);
       const report = JSON.parse(await readFile(file, 'utf8'));
-      expect(report).toMatchObject({ schemaVersion: 1, sourceCommit: null, pass: false });
+      expect(report).toMatchObject({ schemaVersion: 1, sourceCommit: null, dirty: null, pass: false });
       expect(report.budgets.filter((row: { pass: boolean }) => !row.pass)).toEqual([
         { metric: 'cssGzipBytes', measured: 20, cap: 19, headroom: -1, pass: false },
       ]);
       expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(13);
+    });
+
+    it.each(['', ' M src/example.ts'])('records local HEAD and tracked dirty state %j', (status) => {
+      const runGit = vi.fn((args: string[]) => (args[0] === 'rev-parse' ? 'a'.repeat(40) + '\n' : status));
+      expect(readBudgetSource({}, runGit)).toEqual({ sourceCommit: 'a'.repeat(40), dirty: status !== '' });
+      expect(runGit.mock.calls).toEqual([
+        [['rev-parse', 'HEAD']],
+        [['status', '--porcelain', '--untracked-files=no']],
+      ]);
+    });
+
+    it('prefers the CI commit while still reading tracked dirty state', () => {
+      const runGit = vi.fn(() => '');
+      expect(readBudgetSource({ GITHUB_SHA: 'b'.repeat(40) }, runGit)).toEqual({
+        sourceCommit: 'b'.repeat(40),
+        dirty: false,
+      });
+      expect(runGit).toHaveBeenCalledOnce();
+      expect(runGit).toHaveBeenCalledWith(['status', '--porcelain', '--untracked-files=no']);
+    });
+
+    it.each([undefined, 'c'.repeat(40)])('fails soft without Git, preserving CI identity %s', (commit) => {
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const runGit = () => {
+        throw new Error('not a repository');
+      };
+      expect(readBudgetSource({ GITHUB_SHA: commit }, runGit)).toEqual({
+        sourceCommit: commit ?? null,
+        dirty: null,
+      });
+      expect(warning).toHaveBeenCalledOnce();
     });
 
     it('accepts only an optional --json path and rejects missing, unknown or extra arguments', () => {
