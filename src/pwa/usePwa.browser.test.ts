@@ -13,38 +13,10 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html><head><title>Direct Settings controls</title></head><body>
-<div id="root"></div><script type="module">
-import { createElement as h, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { usePwa } from '/src/pwa/usePwa.ts';
-import { pwaClientModule } from '/src/pwa/deferred-controller.ts';
-import { SettingsPanel } from '/src/components/app/SettingsPanel.tsx';
-import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
-window.requestIdleCallback = () => 1;
-window.cancelIdleCallback = () => {};
-let loads = 0;
-const held = new Promise(resolve => { window.releasePwaControls = resolve; });
-const actualLoad = pwaClientModule.load;
-pwaClientModule.load = () => { loads++; return held.then(actualLoad); };
-window.pwaControlLoads = () => loads;
-function Harness() {
-  const [settings, showSettings] = useState(false);
-  const pwa = usePwa({ enabled: true, wantControls: settings });
-  return h('main', null,
-    h('button', { onClick: () => showSettings(true) }, 'Open Settings directly'),
-    settings && h(SettingsPanel, {
-      settings: {
-        motion: 'auto', reducedMotion: true, constrained: false, saved: 0, completed: 0, warning: null,
-        onMotion: async () => true, onReset: async () => true, state: emptyPersonalLibrary(), persistent: true,
-        busy: false, onRestore: async () => true, onAbout() {}, onClose: () => showSettings(false)
-      },
-      offline: { pwa, open: true, onUpdate: async () => false }
-    })
-  );
-}
-createRoot(document.getElementById('root')).render(h(Harness));
-</script></body></html>`;
+<div id="root"></div><script type="module" src="/src/pwa/usePwa.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer;
 let browser: Browser;

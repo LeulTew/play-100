@@ -22,86 +22,10 @@ declare global {
 
 // Mounts the app's real input-generation hook and update guard, then drives the real
 // executePwaUpdate reload path against a scripted controller whose STATUS reply is held.
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html><head><title>PWA update input guard</title></head><body>
-<div id="root"></div><script type="module">
-import { createElement as h, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { createPwaUpdateGuard, useInputGeneration } from '/src/pwa/update-guard.ts';
-import { executePwaUpdate } from '/src/pwa/apply-update.ts';
-import { ChunkRecovery } from '/src/components/ChunkRecovery.tsx';
-import { ReloadGuardContext } from '/src/lib/reload-guard-context.ts';
-import { registerPendingEditor } from '/src/hooks/useExitSave.ts';
-const version = 'a'.repeat(64);
-let requests = 0;
-let held = [];
-window.pageInstance = Math.random();
-window.statusRequests = () => requests;
-window.releaseStatus = () => { const replies = held; held = []; replies.forEach(reply => reply()); };
-const worker = {
-  scriptURL: location.origin + '/sw.js',
-  postMessage(message, [port]) {
-    requests++;
-    held.push(() => port.postMessage({ channel: 'play100-pwa-v1', version, ready: message.type === 'STATUS' }));
-  },
-};
-Object.defineProperty(navigator.serviceWorker, 'controller', { configurable: true, get: () => worker });
-function Harness() {
-  const inputGeneration = useInputGeneration();
-  const [state, setState] = useState('idle');
-  const [error, setError] = useState('');
-  const apply = () => {
-    setState('applying'); setError('');
-    const guard = createPwaUpdateGuard({ isCurrent: () => true, busy: () => false, inputGeneration });
-    void executePwaUpdate(worker, true, guard, {
-      isCurrent: () => true,
-      waiting: () => null,
-      requestedVersion: () => version,
-      rememberVersion() {},
-      publish: patch => { if (patch.updateState) setState(patch.updateState); if (patch.error) setError(patch.error); },
-      report: message => setError(message),
-    });
-  };
-  return h('main', null,
-    h('input', { 'aria-label': 'Search games' }),
-    h('button', { onClick: apply }, 'Apply update'),
-    h('p', { 'data-testid': 'update-state' }, state),
-    h('p', { role: 'alert' }, error),
-  );
-}
-let scope = 0, busy = false, pendingRating = false, failSave = false, saves = 0;
-registerPendingEditor({
-  pending: () => pendingRating,
-  flush: async () => { saves++; if (failSave) return false; pendingRating = false; return true; },
-});
-window.recoveryGuardFixture = {
-  failSave: () => { failSave = true; },
-  busy: () => { busy = true; },
-  changeScope: () => { scope++; },
-  saves: () => saves,
-};
-function RecoveryHarness() {
-  const inputGeneration = useInputGeneration();
-  const [draft, setDraft] = useState('');
-  const [savedName, setSavedName] = useState('Player');
-  const [savedEdited, setSavedEdited] = useState(false);
-  const capture = () => {
-    const start = scope;
-    return createPwaUpdateGuard({ isCurrent: () => start === scope, busy: () => busy, inputGeneration });
-  };
-  return h(ReloadGuardContext.Provider, { value: capture }, h('main', null,
-    h('form', { onSubmit: event => event.preventDefault() },
-      h('input', { 'aria-label': 'Manual title', value: draft, onChange: event => setDraft(event.target.value) })),
-    h('form', { 'data-unsaved': savedEdited ? 'true' : 'false', onSubmit: event => event.preventDefault() },
-      h('input', { 'aria-label': 'Saved name', value: savedName, onChange: event => { setSavedName(event.target.value); setSavedEdited(true); } })),
-    h('input', { type: 'number', 'aria-label': 'Pending rating', onChange: () => { pendingRating = true; } }),
-    h('input', { 'aria-label': 'Search games' }),
-    h(ChunkRecovery, { message: 'Fixture module failed.' })
-  ));
-}
-createRoot(document.getElementById('root')).render(h(
-  location.pathname === '/chunk-recovery-guard-fixture' ? RecoveryHarness : Harness
-));
-</script></body></html>`;
+<div id="root"></div><script type="module" src="/src/pwa/update-guard.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer;
 let browser: Browser;

@@ -6,45 +6,10 @@ import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../lib/test-server-ports';
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html><head><title>Panel guard fixture</title></head><body>
-<div id="root"></div><script type="module">
-import { createElement as h } from 'react';
-import { createRoot } from 'react-dom/client';
-import { useAppPanel } from '/src/hooks/useAppPanel.ts';
-import { aboutDialogModule, settingsDialogModule } from '/src/lib/secondary-dialogs.ts';
-window.waitForSettings = async () => {
-  await settingsDialogModule.load();
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-};
-window.waitForAbout = async () => {
-  await aboutDialogModule.load();
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-};
-window.requestIdleCallback = () => 1;
-window.cancelIdleCallback = () => {};
-let scope = 'guest', opening = !new URLSearchParams(location.search).has('settled');
-const root = createRoot(document.getElementById('root'));
-function Harness() {
-  const result = useAppPanel(scope, opening);
-  return h('main', null,
-    h('output', { id: 'panel' }, result.panel || 'none'),
-    h('output', { id: 'message' }, result.panelMessage),
-    h('output', { id: 'message-state' }, JSON.stringify({ text: result.panelMessage, error: result.panelMessageError })),
-    h('output', { id: 'opening' }, String(opening)),
-    h('output', { id: 'failure' }, result.panelFailure || 'none'),
-    ...['menu', 'about', 'settings', null].map(panel => h('button', {
-      key: panel || 'close', onClick: () => result.setPanel(panel)
-    }, panel || 'close')),
-    h('button', { onClick: () => { scope = scope === 'account:two' ? 'account:three' : 'account:two'; render(); } }, 'scope'),
-    h('button', { onClick: () => { opening = !opening; render(); } }, 'opening'),
-    h('button', { onClick: () => window.dispatchEvent(new Event('play100:navigate')) }, 'navigate'),
-    h('button', { onClick: () => window.dispatchEvent(new Event('popstate')) }, 'popstate'),
-    h('button', { onClick: result.dismissPanelMessage }, 'dismiss')
-  );
-}
-function render() { root.render(h(Harness)); }
-render();
-</script></body></html>`;
+<div id="root"></div><script type="module" src="/src/hooks/useAppPanel.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer;
 let browser: Browser;
@@ -157,7 +122,7 @@ describe('secondary panel guard through the real hook', () => {
       await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits…' : 'Opening Settings…');
       if (boundary !== 'held') await page.getByRole('button', { name: boundary, exact: true }).click();
       release();
-      await page.evaluate(about ? 'window.waitForAbout()' : 'window.waitForSettings()');
+      await page.evaluate((isAbout) => (isAbout ? window.waitForAbout() : window.waitForSettings()), about);
       await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
       await browserExpect(page.locator('#message')).toBeEmpty();
       await page.getByRole('button', { name: 'close', exact: true }).click();
@@ -190,7 +155,7 @@ describe('secondary panel guard through the real hook', () => {
         else await page.getByRole('button', { name: cancellation, exact: true }).click();
         expect(new URL(page.url()).searchParams.has('info')).toBe(false);
         release();
-        await page.evaluate('window.waitForAbout()');
+        await page.evaluate(() => window.waitForAbout());
         await browserExpect(page.locator('#panel')).toHaveText('none');
       } finally {
         release();
@@ -248,13 +213,13 @@ describe('secondary panel guard through the real hook', () => {
         await route.continue();
       },
     );
-    const wait = about ? 'window.waitForAbout()' : 'window.waitForSettings()';
+    const wait = () => page.evaluate((isAbout) => (isAbout ? window.waitForAbout() : window.waitForSettings()), about);
     try {
       await page.goto(`${base}/__panel-guard?info=${intent}`);
       await browserExpect(page.locator('#message')).toHaveText(about ? 'Opening credits…' : 'Opening Settings…');
       if (phase === 'open') {
         release();
-        await page.evaluate(wait);
+        await wait();
         await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
       }
       await page.getByRole('button', { name: 'scope', exact: true }).click();
@@ -262,7 +227,7 @@ describe('secondary panel guard through the real hook', () => {
       await page.getByRole('button', { name: 'opening', exact: true }).click();
       await browserExpect(page.locator('#opening')).toHaveText('false');
       release();
-      await page.evaluate(wait);
+      await wait();
       await browserExpect(page.locator('#panel')).toHaveText(about ? 'about' : 'settings');
       expect(new URL(page.url()).searchParams.get('info')).toBe(intent);
       await page.getByRole('button', { name: 'scope', exact: true }).click();
@@ -303,7 +268,7 @@ describe('secondary panel guard through the real hook', () => {
       else await page.getByRole('button', { name: cancellation, exact: true }).click();
       release();
       await browserExpect.poll(() => finished.size).toBe(1);
-      await page.evaluate('window.waitForSettings()');
+      await page.evaluate(() => window.waitForSettings());
       await browserExpect(page.locator('#panel')).toHaveText('none');
       await page.getByRole('button', { name: 'settings', exact: true }).click();
       await browserExpect(page.locator('#panel')).toHaveText('settings');

@@ -43,6 +43,8 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Compare source fixture</title><link rel="icon" href="/favicon.svg">
 <style>
@@ -56,103 +58,7 @@ h1{font-size:24px;margin-bottom:24px}
 #wrapper-source{margin-top:28px;padding:20px;border:1px solid var(--ink)}
 .mobile-nav button{min-width:44px;min-height:44px}
 </style></head><body><main><h1>Compare source fixture</h1><div id="mount"></div></main>
-<script type="module">
-import { createElement as h, StrictMode, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
-import { MotionProvider, useMotionRuntime } from '/src/motion/index.ts';
-import { Dialog } from '/src/components/Dialog.tsx';
-import { CompareTrayProvider } from '/src/components/compare-tray/CompareTrayProvider.tsx';
-import { CompareTray } from '/src/components/compare-tray/CompareTray.tsx';
-import { CompareDragHandle } from '/src/components/compare-tray/CompareDragHandle.tsx';
-import { ComparePinButton } from '/src/components/compare-tray/ComparePinButton.tsx';
-import { CompareDragSource } from '/src/components/compare-tray/CompareDragSource.tsx';
-import { useCompareDragSource } from '/src/components/compare-tray/useCompareDragSource.ts';
-import { useCompareTray } from '/src/components/compare-tray/compare-tray-context.ts';
-import '/src/styles.css';
-
-const record = {
-  id:'manual:drag-fixture', source:'manual', sourceId:'drag-fixture',
-  title:'Manual fixture title', year:2020, studio:null, genre:null,
-  sourceUrl:null, collectionRank:null,
-};
-let scope = 'guest', generation = 0, enabled = true, sourceVisible = true, dockHidden = false, animate = false, modal = false;
-const root = createRoot(document.getElementById('mount'));
-window.compareDragTest = {
-  opens:0, nested:0, transfer:null, items:() => [], status:() => '',
-  setScope(next) { generation += 1; scope = next; render(); },
-  setEnabled(next) { generation += 1; enabled = next; render(); },
-  setSource(next) { sourceVisible = next; render(); },
-  setDockHidden(next) { dockHidden = next; render(); },
-  setMotion(next) { animate = next; render(); },
-  setModal(next) { modal = next; render(); },
-  interrupt() {},
-  unmount() { root.render(null); },
-};
-document.addEventListener('dragstart', event => {
-  if (!event.dataTransfer) return;
-  const types = [...event.dataTransfer.types];
-  window.compareDragTest.transfer = {
-    types, values:Object.fromEntries(types.map(type => [type,event.dataTransfer.getData(type)])),
-  };
-});
-function Inspector() {
-  const tray = useCompareTray();
-  const runtime = useMotionRuntime();
-  window.compareDragTest.items = () => tray.items.map(item => item.id);
-  window.compareDragTest.status = () => tray.status;
-  window.compareDragTest.interrupt = reason => runtime.cancel(reason);
-  return null;
-}
-function Source() {
-  const sourceRef = useRef(null);
-  const binding = useCompareDragSource({record,sourceRef});
-  return h('article',{id:'source',ref:sourceRef,...binding.surfaceProps},
-    h('a',{id:'source-title',href:'#native-title',...binding.titleProps,onClick(event) {
-      if (event.defaultPrevented || binding.consumeClick(event)) return;
-      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-      event.preventDefault(); window.compareDragTest.opens += 1;
-    }},record.title),
-    h('svg',{id:'source-art',width:100,height:48,'aria-hidden':true},
-      h('rect',{width:96,height:44,fill:'currentColor'})),
-    h('p',{id:'selectable'},'Ordinary selectable game facts stay copyable.'),
-    h('div',{id:'source-controls'},
-      h(ComparePinButton,{record}),
-      h(CompareDragHandle,{record,compact:true}),
-      h('button',{id:'nested',type:'button',onClick(){window.compareDragTest.nested += 1;}},'Independent action'),
-      h('input',{id:'rating','aria-label':'Your fixture rating',type:'number',defaultValue:'7'}),
-      h('textarea',{id:'note','aria-label':'Your fixture note',defaultValue:'Keep this private draft'}),
-      h('details',null,h('summary',null,'Actions and source'),h('a',{id:'external',href:'#source-credit'},'Source credit')),
-    ),
-  );
-}
-function WrapperSource() {
-  return h(CompareDragSource,{record,children:binding => h('div',{
-    id:'wrapper-source',className:'existing-inner-row',ref:binding.sourceRef,...binding.surfaceProps,
-  },h('button',{id:'wrapper-title',type:'button',...binding.titleProps,onClick(event){
-    if (!event.defaultPrevented && !binding.consumeClick(event)) window.compareDragTest.opens += 1;
-  }},'Wrapped title'))});
-}
-function render() {
-  const ticket = generation;
-  const currentScope = scope;
-  root.render(h(StrictMode,null,h(MotionProvider,{
-    policy:{animate,reducedMotion:!animate,hidden:false,coarsePointer:matchMedia('(pointer:coarse)').matches,constrained:false},
-    boundary:{scopeKey:scope,generation,blocked:!enabled},
-    location:{viewKey:'fixture',requestedDetailKey:null,displayedDetailKey:null,navigationGeneration:generation,overlayKey:null},
-  },h(CompareTrayProvider,{
-    scope,
-    interaction:{enabled,captureCurrent:()=>({isCurrent:()=>generation === ticket && scope === currentScope && enabled})},
-  },h(Inspector),
-  sourceVisible && h(Source),
-  h(WrapperSource),
-  h(CompareTray,{hidden:dockHidden,animate,onCompare() {}}),
-  h(Dialog,{open:modal,titleId:'fixture-modal-title',motion:false,onClose(){modal = false;render();}},
-    h('h2',{id:'fixture-modal-title','data-autofocus':true,tabIndex:-1},'Blocking fixture')),
-  h('nav',{className:'mobile-nav','aria-label':'Fixture navigation'},h('button',{type:'button'},'Browse')),
-  ))));
-}
-render();
-</script></body></html>`;
+<script type="module" src="/src/components/compare-tray/CompareDragSource.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;

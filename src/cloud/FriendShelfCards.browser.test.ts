@@ -12,27 +12,12 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Friend shelf title fixture</title><link rel="icon" href="/favicon.svg">
-</head><body><div id="mount"></div><script type="module">
-import { createElement as h } from 'react';
-import { createRoot } from 'react-dom/client';
-import { FriendShelfCards } from '/src/cloud/FriendShelfCards.tsx';
-import { parseFriendShelfEntry } from '/src/lib/friend-shelf-types.ts';
-const query = new URLSearchParams(location.search);
-const entry = Object.freeze(parseFriendShelfEntry({
-  id:'manual:fixture', source:'manual', sourceId:'fixture', sourceUrl:null,
-  title:query.get('title'), year:2000,
-}));
-const receipt = window.friendShelfCardFixture = {title:entry.title,saved:[],pinned:[],opened:[]};
-createRoot(document.getElementById('mount')).render(h(FriendShelfCards,{
-  entries:[entry],status:'ready',paged:query.get('paged') === 'true',total:1,
-  onSave:async record => {receipt.saved.push(record.title);},
-  onPin:record => {receipt.pinned.push(record.title);},
-  onOpen:record => {receipt.opened.push(record.title);},
-}));
-</script></body></html>`;
+</head><body><div id="mount"></div><script type="module" src="/src/cloud/FriendShelfCards.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;

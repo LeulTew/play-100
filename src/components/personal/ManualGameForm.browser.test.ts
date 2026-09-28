@@ -12,28 +12,12 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en" data-motion="off"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Manual game form fixture</title><link rel="icon" href="/favicon.svg">
-</head><body><div id="mount"></div><script type="module">
-import { createElement as h } from 'react';
-import { createRoot } from 'react-dom/client';
-import ManualGameForm from '/src/components/personal/ManualGameForm.tsx';
-import '/src/styles.css';
-import '/src/shared-ui.css';
-const added = [], waiting = [];
-window.manualFormFixture = {
-  added, pending: () => waiting.length,
-  finish(result) { const next = waiting.shift(); if (next) next(result); },
-};
-createRoot(document.getElementById('mount')).render(h(ManualGameForm, {
-  busy: false, actionLabel: 'Add to my library',
-  onAdd: record => new Promise((resolve, reject) => {
-    added.push(record.title + '|' + record.year);
-    waiting.push(result => result === 'reject' ? reject(new Error('Synthetic add rejection')) : resolve(result));
-  }),
-}));
-</script></body></html>`;
+</head><body><div id="mount"></div><script type="module" src="/src/components/personal/ManualGameForm.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;

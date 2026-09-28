@@ -13,35 +13,12 @@ declare global {
 }
 
 // Mirrors App: /my-library renders route 'library'; switching tabs navigates to /my-games (route 'games').
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en" data-motion="off"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Route host workspace fixture</title><link rel="icon" href="/favicon.svg">
-</head><body><div id="mount"></div><script type="module">
-import { createElement as h, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { RouteHost } from '/src/components/app/RouteHost.tsx';
-import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
-import '/src/styles.css';
-import '/src/shared-ui.css';
-const record = (id, title, collectionRank) => ({ id, source: 'collection', sourceId: id, title, year: 2020, collectionRank, sourceUrl: null, studio: null, genre: null });
-const alpha = record('alpha', 'Alpha game', 1);
-const state = { ...emptyPersonalLibrary(), records: { alpha }, ranking: [{ id: 'alpha', note: '', score: null, manualPosition: null }] };
-const filters = { q: '', genre: 'all', year: 'all', tier: 'all', list: 'all', sort: 'rank', view: 'grid', direction: 'auto', catalogs: 'on' };
-const routes = [];
-function App() {
-  const [route, setRoute] = useState('library');
-  const [view, setView] = useState('library');
-  routes.push(route);
-  const props = {
-    scope: 'guest', view, onViewChange(next) { setView(next); setRoute('games'); }, state, filters, busy: false, animate: false,
-    persistent: true, availableRecords: [alpha], onOpen() {}, onFilters() {}, onDiscover() {}, onBrowse() {},
-    async onAction() { return true; },
-  };
-  return h(RouteHost, { route, scope: 'guest', online: null, content: { kind: 'personal', props } });
-}
-window.routeHostFixture = { routes };
-createRoot(document.getElementById('mount')).render(h(App));
-</script></body></html>`;
+</head><body><div id="mount"></div><script type="module" src="/src/components/app/RouteHost.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;

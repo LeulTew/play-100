@@ -32,79 +32,12 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en" data-motion="off"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings radio fixture</title><link rel="icon" href="/favicon.svg">
-</head><body><div id="mount"></div><script type="module">
-import { createElement as h, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { SettingsDialog } from '/src/components/SettingsDialog.tsx';
-import { emptyPersonalLibrary } from '/src/lib/personal-library.ts';
-import '/src/styles.css';
-import '/src/shared-ui.css';
-let finish, finishRestore, setExternalBusy, setPersistent;
-let saved = 'auto', inFlight = 0, maxInFlight = 0, frameGeneration = 0;
-const calls = [], frames = [];
-function App() {
-  const [motion, setMotion] = useState('auto');
-  const [busy, setBusy] = useState(false);
-  const [persistent, updatePersistent] = useState(true);
-  setPersistent = updatePersistent;
-  setExternalBusy = setBusy;
-  return h(SettingsDialog, {
-    motion, busy, reducedMotion: false, constrained: false, saved: 0, completed: 0,
-    warning: null, state: { ...emptyPersonalLibrary(), motion }, persistent,
-    status: 'Existing Settings status.',
-    onMotion(value) {
-      calls.push(value);
-      inFlight += 1;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      setBusy(true);
-      return new Promise((resolve, reject) => {
-        finish = result => {
-          inFlight -= 1;
-          if (result === true) { saved = value; setMotion(value); }
-          setBusy(false);
-          if (result === 'reject') reject(new Error('Synthetic motion-save rejection'));
-          else resolve(result);
-        };
-      });
-    },
-    onReset: async () => true,
-    onRestore() {
-      window.settingsRadioFixture.restoreCalls += 1;
-      setBusy(true);
-      return new Promise(resolve => {
-        finishRestore = result => { setBusy(false); resolve(result); };
-      });
-    },
-    onAbout() {}, onClose() {},
-  });
-}
-document.addEventListener('change', event => {
-  if (!(event.target instanceof HTMLInputElement) || event.target.name !== 'visual-experience') return;
-  const generation = ++frameGeneration;
-  frames.length = 0;
-  const sample = () => {
-    if (generation !== frameGeneration) return;
-    frames.push({
-      checked: document.querySelector('input[name="visual-experience"]:checked')?.value,
-      selected: document.querySelector('.motion-option.selected input')?.value,
-      focused: document.activeElement instanceof HTMLInputElement ? document.activeElement.value : undefined,
-      disabled: Boolean(document.querySelector('input[name="visual-experience"]:disabled')),
-    });
-    if (frames.length < 2) requestAnimationFrame(sample);
-  };
-  requestAnimationFrame(sample);
-});
-window.settingsRadioFixture = {
-  calls, frames, finish: result => finish(result), externalBusy: value => setExternalBusy(value),
-  saved: () => saved, inFlight: () => inFlight, maxInFlight: () => maxInFlight,
-  temporary: () => setPersistent(false),
-  restoreCalls: 0, finishRestore: result => finishRestore(result),
-};
-createRoot(document.getElementById('mount')).render(h(App));
-</script></body></html>`;
+</head><body><div id="mount"></div><script type="module" src="/src/components/SettingsDialog.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;

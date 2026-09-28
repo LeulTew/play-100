@@ -30,48 +30,13 @@ declare global {
 }
 
 // Served in memory by the test-only Vite instance; no fixture or route enters the app.
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Avatar component tests</title><link rel="icon" href="/favicon.svg">
 <style>main{width:min(520px,calc(100% - 70px));margin:24px auto}h1{font-size:18px;margin-bottom:24px}</style>
 </head><body><main><h1>Isolated avatar component fixture</h1><div id="mount"></div></main>
-<script type="module">
-import { createElement as h, StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { AvatarPicker } from '/src/components/avatar/AvatarPicker.tsx';
-import '/src/styles.css';
-import '@fontsource/barlow-condensed/latin-700.css';
-import '@fontsource-variable/hanken-grotesk/wght.css';
-let value = { version: 1, seed: '00000000000000000000000000000000', palette: 'lime' };
-let identityKey = 'fixture-a';
-let mode = 'success';
-const pending = [];
-const root = createRoot(document.getElementById('mount'));
-function render() {
-  const identity = identityKey;
-  root.render(h(StrictMode, null, h(AvatarPicker, {
-    value, identityKey, titleId: 'fixture-title',
-    onCancel() { window.avatarTest.cancelCalls += 1; },
-    onSave(next) {
-      window.avatarTest.calls.push({ identityKey: identity, descriptor: structuredClone(next) });
-      if (mode === 'throw') throw new Error('Synthetic synchronous failure.');
-      if (mode === 'failure') return Promise.reject(new Error('Synthetic save failure.'));
-      if (mode === 'opaque') return Promise.reject({ code: 'synthetic-non-error' });
-      if (mode === 'deferred') return new Promise((resolve, reject) => pending.push({ resolve, reject }));
-      return Promise.resolve();
-    }
-  })));
-}
-window.avatarTest = {
-  calls: [], cancelCalls: 0,
-  props(next) { value = next.value ?? value; identityKey = next.identityKey ?? identityKey; render(); },
-  mode(next) { mode = next; },
-  resolve(index) { pending[index].resolve(); },
-  reject(index) { pending[index].reject(new Error('Synthetic old-identity failure.')); },
-  unmount() { root.render(null); },
-  mount() { render(); }
-};
-render();
-</script></body></html>`;
+<script type="module" src="/src/components/avatar/AvatarPicker.browser-fixture.tsx"></script></body></html>`;
 
 const first: AvatarDescriptor = { version: 1, seed: '0'.repeat(32), palette: 'lime' };
 const second: AvatarDescriptor = { version: 1, seed: 'b'.repeat(32), palette: 'sky' };

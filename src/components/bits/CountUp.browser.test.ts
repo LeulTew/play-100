@@ -26,43 +26,11 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg">
 <style>.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}</style></head><body><div id="root"></div>
-<script type="module">
-import React from '/node_modules/.vite-countup-tests/deps/react.js';
-import ReactDom from '/node_modules/.vite-countup-tests/deps/react-dom_client.js';
-import CountUp from '/src/components/bits/CountUp.tsx';
-import { useCapabilities } from '/src/hooks/useCapabilities.ts';
-const nativeFrame = requestAnimationFrame.bind(window);
-const nativeCancel = cancelAnimationFrame.bind(window);
-const pending = new Set();
-let requested = 0, canceled = 0;
-window.requestAnimationFrame = callback => {
-  requested += 1;
-  const id = nativeFrame(time => { pending.delete(id); callback(time); });
-  pending.add(id);
-  return id;
-};
-window.cancelAnimationFrame = id => { canceled += 1; pending.delete(id); nativeCancel(id); };
-const container = document.getElementById('root');
-const root = ReactDom.createRoot(container);
-let controls = { to: 42, preference: 'full', scope: 'guest' };
-function Fixture() {
-  const policy = useCapabilities(controls.preference);
-  return React.createElement(React.Fragment, null,
-    React.createElement('label', null, 'Retained field', React.createElement('input', { 'aria-label': 'Retained field', defaultValue: '' })),
-    React.createElement(CountUp, { key: controls.scope, to: controls.to, animate: policy.animate, className: 'saved-count' }));
-}
-function render() { root.render(React.createElement(React.StrictMode, null, React.createElement(Fixture))); }
-window.counterFixture = {
-  set(patch) { controls = { ...controls, ...patch }; render(); },
-  destroy() { root.unmount(); },
-  detach() { container.remove(); },
-  frames(count) { return new Promise(resolve => { const next = () => { if (--count <= 0) resolve(); else nativeFrame(next); }; nativeFrame(next); }); },
-  stats() { return { pending: pending.size, requested, canceled }; },
-};
-render();
-</script></body></html>`;
+<script type="module" src="/src/components/bits/CountUp.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browserServer: BrowserServer | undefined;

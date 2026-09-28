@@ -21,6 +21,8 @@ declare global {
   }
 }
 
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture module is checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Motion scroll fixture</title></head><body style="min-height:2000px">
 <label>Input <input id="input" style="width:120px" value="${'Long input text '.repeat(30)}"></label>
@@ -29,45 +31,7 @@ const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8">
   <button id="trigger"><span id="origin" style="display:block;width:100px;height:60px">07</span>Open game</button>
   <div style="height:500px">Scrollable public content</div>
 </div>
-<script type="module">
-import { createMotionRuntime } from '/src/motion/runtime.ts';
-const snapshot = {
-  policy: { animate: true, reducedMotion: false, coarsePointer: false, hidden: false, constrained: false },
-  boundary: { scopeKey: 'guest', generation: 0, blocked: false },
-  location: { viewKey: '/', requestedDetailKey: null, displayedDetailKey: null, navigationGeneration: 0, overlayKey: null },
-};
-const runtime = createMotionRuntime(() => snapshot, () => null);
-runtime.mount();
-const events = [];
-window.addEventListener('scroll', event => {
-  events.push({ target: event.target === document ? 'document' : event.target.id, trusted: event.isTrusted });
-}, true);
-let session, lease, animation;
-window.motionScrollFixture = {
-  start() {
-    const source = document.getElementById('origin');
-    const hint = runtime.originHint({
-      surface: 'collection', presentationId: 'game', source,
-      trigger: document.getElementById('trigger'), visual: { kind: 'jacket', rank: 7 },
-    });
-    if (!hint) throw new Error('Visible origin did not produce a hint.');
-    lease = runtime.captureOrigin(hint, { requestedDetailKey: 'game', displayedDetailKey: 'game' });
-    session = runtime.startMotionSession({ channel: 'dialog' });
-    if (!lease || !session) throw new Error('Motion fixture did not start.');
-    animation = session.animate(source, [{ opacity: 1 }, { opacity: .5 }], { duration: 180 });
-    if (!animation) throw new Error('Motion fixture did not animate.');
-    animation.pause();
-    animation.currentTime = 0;
-  },
-  state() {
-    return {
-      active: session.isCurrent(), originAborted: lease.signal.aborted,
-      reason: session.signal.reason ?? null, originReason: lease.signal.reason ?? null,
-      animation: animation.playState, events,
-    };
-  },
-};
-</script></body></html>`;
+<script type="module" src="/src/motion/scroll.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;
