@@ -173,6 +173,11 @@ No key setting was changed. The operator-held receipt is
 `firebase-predeploy-console-20260928.json`; follow the
 [readback runbook](security-release-runbook.md#firebase-browser-key-readback).
 
+**Risk owner: project owner. Review by 2026-10-02 with the planned WAF switch,
+or on any abuse signal, whichever comes first.** This review covers App Check
+off, reCAPTCHA Auth protection not set up and Spark quota denial of service;
+the date is a review commitment, not a claim of enforcement.
+
 App Check remains an **accepted risk with a plan**: Spark quotas bound cost,
 while auth/ownership rules and the proposed caps constrain permitted writes.
 Quota denial of service remains possible. reCAPTCHA would add third-party
