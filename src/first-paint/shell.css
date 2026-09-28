@@ -39,8 +39,20 @@
  * paints in them, so React's h1, painted in Barlow Condensed or in the same fallback, never paints
  * larger and cannot become a later LCP candidate.
  * Impact is preferred (Windows, macOS); Arial Bold metric clones cover Linux and ChromeOS.
- * No font-display: local() faces load synchronously on desktop engines, and where they do not
- * (Android) the probes fail and the shell stays hidden.
+ *
+ * Android ships neither, so the Roboto faces cover it, fitted the same way over the same strings
+ * to two sources: the Android 11 and earlier static files (googlefonts/roboto-2 v2.138
+ * roboto-android.zip: Roboto-Regular, -Medium, -Bold and RobotoCondensed-Bold) and the Android 12+
+ * variable font (googlefonts/roboto-3-classic v3.004 and v3.009 android/Roboto[ital,wdth,wght].ttf,
+ * whose widths agree), at the face's wght and, for the display faces, wdth 75. Each size-adjust is
+ * the geometric mean of the two fits, which differ by 0.5% at most (800 display: 87.04% static,
+ * 86.59% variable). On Android 12+ only the name "Roboto" finds the variable font (the static
+ * RobotoStatic-Regular beside it is named "RobotoStatic"), so every face lists it last, and
+ * Chromium 130 and later apply the face's font-weight and font-stretch to its wght and wdth axes.
+ * An engine that renders the variable font's default instance instead fails the display and bold
+ * probes, and the shell stays hidden.
+ * No font-display: local() faces load synchronously on Chromium, including Android, and wherever
+ * one is not usable at once the probes fail and the shell stays hidden.
  */
 @font-face { font-family: 'P100 DF Impact'; src: local("Impact"); font-weight: 800; size-adjust: 98.19%; ascent-override: 101.84%; descent-override: 20.37%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
 @font-face { font-family: 'P100 DF Impact'; src: local("Impact"); font-weight: 700; size-adjust: 88.52%; ascent-override: 112.97%; descent-override: 22.59%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
@@ -51,6 +63,13 @@
 @font-face { font-family: 'P100 Sans Fallback'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 600; size-adjust: 95.26%; ascent-override: 104.98%; descent-override: 31.81%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
 @font-face { font-family: 'P100 Sans Fallback'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 650; size-adjust: 95.49%; ascent-override: 104.72%; descent-override: 31.73%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
 @font-face { font-family: 'P100 Sans Fallback'; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold"), local("Arimo-Bold"); font-weight: 700; size-adjust: 92.87%; ascent-override: 107.68%; descent-override: 32.63%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 DF Roboto'; src: local("Roboto Condensed Bold"), local("Roboto"); font-weight: 800; font-stretch: 75%; size-adjust: 86.81%; ascent-override: 115.19%; descent-override: 23.04%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 DF Roboto'; src: local("Roboto Condensed Bold"), local("Roboto"); font-weight: 700; font-stretch: 75%; size-adjust: 90.52%; ascent-override: 110.47%; descent-override: 22.09%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Roboto'; src: local("Roboto"); font-weight: 400; size-adjust: 101.34%; ascent-override: 98.68%; descent-override: 29.90%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Roboto'; src: local("Roboto Medium"), local("Roboto"); font-weight: 550; size-adjust: 99.40%; ascent-override: 100.60%; descent-override: 30.48%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Roboto'; src: local("Roboto Bold"), local("Roboto"); font-weight: 600; size-adjust: 99.32%; ascent-override: 100.68%; descent-override: 30.51%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Roboto'; src: local("Roboto Bold"), local("Roboto"); font-weight: 650; size-adjust: 100.81%; ascent-override: 99.20%; descent-override: 30.06%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
+@font-face { font-family: 'P100 Sans Roboto'; src: local("Roboto Bold"), local("Roboto"); font-weight: 700; size-adjust: 102.09%; ascent-override: 97.95%; descent-override: 29.68%; line-gap-override: 0%; unicode-range: U+20-7E, U+B7, U+2026; }
 
 /*
  * Kept after React mounts on purpose: these stacks only add fonts between each web font and the
@@ -59,8 +78,8 @@
  * Until the full stylesheet arrives, the web families have no @font-face and the next face paints.
  */
 html[data-boot=landing] {
-  font-family: 'Hanken Grotesk Variable', 'P100 Sans Fallback', 'Segoe UI', sans-serif;
-  --display: 'Barlow Condensed', 'P100 DF Impact', 'P100 DF Arial', Impact, 'Arial Narrow', sans-serif;
+  font-family: 'Hanken Grotesk Variable', 'P100 Sans Fallback', 'P100 Sans Roboto', 'Segoe UI', sans-serif;
+  --display: 'Barlow Condensed', 'P100 DF Impact', 'P100 DF Arial', 'P100 DF Roboto', Impact, 'Arial Narrow', sans-serif;
 }
 
 /* Hidden by its hidden attribute unless the boot script accepted this document. */
@@ -91,6 +110,6 @@ html[data-boot-art=ready] .first-paint-shell [data-shell-art]:not([data-shell-ar
   text-size-adjust: none;
   -webkit-text-size-adjust: none;
 }
-.p100-probe-display { font: 800 100px 'P100 DF Impact', 'P100 DF Arial', monospace; }
-.p100-probe-sans { font: 400 100px 'P100 Sans Fallback', monospace; }
-.p100-probe-sans-bold { font: 700 100px 'P100 Sans Fallback', monospace; }
+.p100-probe-display { font: 800 100px 'P100 DF Impact', 'P100 DF Arial', 'P100 DF Roboto', monospace; }
+.p100-probe-sans { font: 400 100px 'P100 Sans Fallback', 'P100 Sans Roboto', monospace; }
+.p100-probe-sans-bold { font: 700 100px 'P100 Sans Fallback', 'P100 Sans Roboto', monospace; }
