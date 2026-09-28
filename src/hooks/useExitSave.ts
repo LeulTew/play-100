@@ -1,5 +1,6 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import type { RefObject } from 'react';
+import { useLatest } from './useLatest';
 
 interface PendingEditor {
   pending: () => boolean;
@@ -87,12 +88,9 @@ export function useExitSave(
   pending: boolean,
   focusTarget?: RefObject<HTMLElement | null>,
 ) {
-  const latest = useRef(flush);
-  const dirty = useRef(pending);
-  const target = useRef(focusTarget);
-  latest.current = flush;
-  dirty.current = pending;
-  target.current = focusTarget;
+  const latest = useLatest(flush);
+  const dirty = useLatest(pending);
+  const target = useLatest(focusTarget);
   useEffect(() => {
     const current = latest;
     const status = dirty;
@@ -105,7 +103,7 @@ export function useExitSave(
     return () => {
       void release();
     };
-  }, []);
+  }, [latest, dirty, target]);
   useEffect(() => {
     changed();
   }, [pending]);

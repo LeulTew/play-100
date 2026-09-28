@@ -4,6 +4,7 @@ import { useMotionPolicy, useMotionRuntime } from '../motion';
 import type { MotionSession } from '../motion';
 import { arrivalMotion, playArrival, visibleMotionTarget } from '../lib/route-continuity';
 import type { CommittedCue } from '../lib/route-continuity';
+import { useLatest } from './useLatest';
 
 export function useCommittedCue(
   target: RefObject<HTMLElement | null>,
@@ -14,9 +15,8 @@ export function useCommittedCue(
   const runtime = useMotionRuntime();
   const { animate, coarsePointer } = useMotionPolicy();
   const seen = useRef<number | null>(null);
-  const current = useRef({ cue, active, guard });
+  const current = useLatest({ cue, active, guard });
   const owned = useRef<MotionSession | null>(null);
-  current.current = { cue, active, guard };
   const serial = cue?.serial;
   const kind = cue?.kind;
   const direction = cue?.direction;
@@ -54,5 +54,5 @@ export function useCommittedCue(
       session.cancel();
       if (owned.current === session) owned.current = null;
     };
-  }, [target, runtime, serial, kind, direction, active, animate, coarsePointer]);
+  }, [target, current, runtime, serial, kind, direction, active, animate, coarsePointer]);
 }
