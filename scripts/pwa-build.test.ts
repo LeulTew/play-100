@@ -29,22 +29,6 @@ function manifest(): Manifest {
 }
 
 describe('generated public PWA build closure', () => {
-  it('keeps every co-packed intent and deferred collection view in the core without duplicate paths', () => {
-    const entries = manifest();
-    const file = 'assets/intent-tools-12345678.js';
-    for (const root of [
-      'src/lib/google-intent.ts',
-      'src/lib/comparison-game-filter.ts',
-      'src/lib/friend-comparison-intent.ts',
-    ]) {
-      entries[root] = { file };
-    }
-    const files = pwaCorePaths(entries);
-    expect(files.filter((url) => url === `/${file}`)).toHaveLength(1);
-    expect(files).toContain(`/${entries['src/components/CollectionExtras.tsx']!.file}`);
-    expect(files.length).toBe(pwaCorePaths(manifest()).length - 2);
-  });
-
   it('does not add optional film thumbnail images to the full core even if Vite reports them as entry assets', () => {
     const entries = manifest();
     const root = entries['index.html']!;

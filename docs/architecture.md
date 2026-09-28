@@ -223,14 +223,11 @@ the player can open. Unmount prevents a late import from publishing stale UI.
 Terminal import failures retain a local guarded-reload action rather than
 clearing the collection or retrying cached failed imports.
 
-The named Rolldown `intent-tools` group contains only `google-intent`,
-`comparison-game-filter` and `friend-comparison-intent`; recursive dependency
-capture is disabled. Existing intent entry paths and their offline roots stay
-intact, but share one physical file. The build guard rejects extra group
-members and any eager inclusion of those tools or the deferred collection
-implementations. All moved collection views remain in the explicit PWA core.
-No budget is raised, and source tests are not a substitute for checking the
-actual emitted core count, eager closure and CSS after integration.
+Rolldown's default chunking retains the existing intent entry paths and offline
+roots. No manual group rewrites their manifest identities. The build guard
+rejects eager inclusion of the deferred collection implementations, and all
+moved views remain in the explicit PWA core. No budget is raised; the actual
+emitted core count, eager closure and CSS must be checked after integration.
 
 ```mermaid
 flowchart TD

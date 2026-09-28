@@ -111,19 +111,6 @@ export default defineConfig(({ mode }) => {
       target: 'es2022',
       chunkSizeWarningLimit: 650,
       assetsInlineLimit: 0,
-      rolldownOptions: {
-        output: {
-          advancedChunks: {
-            groups: [
-              {
-                name: 'intent-tools',
-                test: /[\\/]src[\\/]lib[\\/](?:google-intent|comparison-game-filter|friend-comparison-intent)\.ts$/,
-                includeDependenciesRecursively: false,
-              },
-            ],
-          },
-        },
-      },
     },
     test: {
       // Browser files each drive their own Chromium and Vite server.
