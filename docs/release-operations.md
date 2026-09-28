@@ -226,9 +226,17 @@ Remove-Item Env:PLAY100_GOOGLE_LIVE
 ```
 
 The config includes this spec only with `PLAY100_GOOGLE_LIVE=1`, and never while
-`PLAY100_RELEASE_GATE` is set. A failure there means Google's hosts did not
-answer in time; record it, but it doesn't block the release. The real
-sign-in, link and reauthentication smoke on production is a separate owner
+`PLAY100_RELEASE_GATE` is set. Classify a failure from its failed assertion,
+network trace and CSP evidence; a timeout alone does not establish an external
+outage. A verified external-availability failure, where Google's loader or
+hosts did not answer and no application failure caused the block, is recorded
+as an incomplete live check and does not block the deterministic release gate.
+Once Google answers, a failed same-tab return, account UI, library-preservation,
+identity, reauthentication, CSP or deletion assertion is an application or
+compatibility regression to investigate before acceptance, not an availability
+waiver. Unclassified failures also require investigation before acceptance.
+Keep live external dependencies outside the deterministic gate. The real
+sign-in, link and reauthentication smoke on production remains a separate owner
 action (see [releases.md](releases.md#pending-owner-actions)).
 
 Global setup of both configs seeds only the demo emulators and verifies
