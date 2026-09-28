@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { FriendInvitation, FriendSettings } from '../lib/friend-types';
-import { invitationStatus, visibleFriendPairs } from '../lib/friend-manager';
+import type { FriendSettings } from '../lib/friend-types';
+import { visibleFriendPairs } from '../lib/friend-manager';
 import { comparisonScope, initialComparison } from '../lib/friend-comparison-intent';
-import { createInviteUrl } from '../lib/invite-continuation';
 import type { FriendStore } from './friend-store';
 import { cloudAuth, firebaseApp } from './firebase-client';
 import { prepareFriendIdentity } from './friend-page-actions';
@@ -18,6 +17,7 @@ import { FriendListStatus, FriendSelectionBar, FriendsEmptyState, FriendViewCont
 import { subscribeUrl, useFriendsView } from './friends-page-view';
 import { useComparisonSelection } from './friends-page-selection';
 import { useAuxiliaryPages, useFriendManagerFeed, useInvitationClock, useLiveFeed } from './friends-page-data';
+import { useInviteDialog } from './friends-page-invite';
 import { Icon } from '../components/Icon';
 
 export function FriendsPage({
@@ -45,11 +45,6 @@ export function FriendsPage({
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [confirmation, setConfirmation] = useState<FriendChange | null>(null);
-  const [link, setLink] = useState<FriendInvitation | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [creatingInvite, setCreatingInvite] = useState(false);
-  const inviteVisible = useRef(false);
-  const [copyState, setCopyState] = useState('');
   const [refreshRequired, setRefreshRequired] = useState(false);
   const alive = useRef(true);
   const currentView = useRef(view.view);
@@ -61,6 +56,31 @@ export function FriendsPage({
   const navigationVersion = useRef(0);
   const comparisonOperation = useRef<symbol | null>(null);
   const current = useCallback(() => alive.current && cloudAuth.currentUser?.uid === uid, [uid]);
+  const {
+    link,
+    setLink,
+    inviteOpen,
+    creatingInvite,
+    copyState,
+    setCopyState,
+    dismissInvite,
+    createInvitation,
+    closeInvite,
+    shareLink,
+  } = useInviteDialog({
+    store,
+    identity,
+    onSettings,
+    current,
+    refreshRequired,
+    runningRef: running,
+    navigationVersionRef: navigationVersion,
+    currentViewRef: currentView,
+    setWorking,
+    setError,
+    setMessage,
+    setRefreshRequired,
+  });
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -72,18 +92,14 @@ export function FriendsPage({
     () =>
       subscribeUrl(() => {
         navigationVersion.current += 1;
-        if (inviteVisible.current) {
-          inviteVisible.current = false;
-          setInviteOpen(false);
-          setLink(null);
-        }
+        dismissInvite();
         if (comparisonOperation.current) {
           comparisonOperation.current = null;
           running.current = false;
           if (current()) setWorking(false);
         }
       }),
-    [current],
+    [current, dismissInvite],
   );
   const { selected, selectedRef, choose, selectionReady, selectionError, retrySelection } = useComparisonSelection(
     store,
@@ -143,47 +159,6 @@ export function FriendsPage({
       if (current()) setWorking(false);
     }
   };
-  const createInvitation = async () => {
-    if (running.current || refreshRequired || !current()) return;
-    const navigation = navigationVersion.current;
-    running.current = true;
-    inviteVisible.current = true;
-    setInviteOpen(true);
-    setCreatingInvite(true);
-    setLink(null);
-    setCopyState('');
-    setWorking(true);
-    setError('');
-    setMessage('');
-    try {
-      const settings = await prepareFriendIdentity(store, identity);
-      if (!current() || navigationVersion.current !== navigation || !inviteVisible.current) return;
-      onSettings(settings);
-      const invite = await store.createInvite(uid);
-      if (!current() || navigationVersion.current !== navigation) return;
-      if (inviteVisible.current) setLink(invite);
-      else setMessage('Invitation created. Find it in Invite links.');
-      if (currentView.current === 'invites') void loadAux();
-    } catch (cause) {
-      if (!current() || navigationVersion.current !== navigation) return;
-      const committed = committedFriendChange(cause, uid);
-      setError(committed ? committedFriendMessage(committed) : friendMutationError(cause));
-      setRefreshRequired(true);
-    } finally {
-      running.current = false;
-      if (current()) {
-        setWorking(false);
-        setCreatingInvite(false);
-      }
-    }
-  };
-  const closeInvite = () => {
-    inviteVisible.current = false;
-    setInviteOpen(false);
-    setLink(null);
-    setCopyState('');
-    if (creatingInvite) setMessage('Creation may still finish. Check Invite links before making another.');
-  };
   const compare = async (peers: string[]) => {
     if (running.current || !current()) return;
     const operation = Symbol('manager-comparison');
@@ -215,27 +190,6 @@ export function FriendsPage({
         running.current = false;
         if (current()) setWorking(false);
       }
-    }
-  };
-  const shareLink = async (invite: FriendInvitation, native: boolean) => {
-    if (!current()) return;
-    if (invitationStatus(invite, Date.now()) !== 'Active') {
-      setError('This invitation is no longer active. Refresh the links.');
-      return;
-    }
-    const url = createInviteUrl(invite.token);
-    try {
-      if (native && navigator.share) await navigator.share({ title: 'Play 100 invitation', url });
-      else {
-        await navigator.clipboard.writeText(url);
-        if (current()) setCopyState('Link copied.');
-      }
-    } catch (cause) {
-      if (!current() || (cause instanceof Error && cause.name === 'AbortError')) return;
-      setLink(invite);
-      setInviteOpen(true);
-      inviteVisible.current = true;
-      setCopyState('Copy the invitation from the field below.');
     }
   };
   const confirmChange = (confirmation: FriendChange) => {
@@ -284,7 +238,7 @@ export function FriendsPage({
           className="button button-dark"
           disabled={busy || !identity.verified}
           onClick={() => {
-            void createInvitation();
+            void createInvitation(loadAux);
           }}
         >
           {creatingInvite ? 'Creating invite…' : 'Invite someone'}
