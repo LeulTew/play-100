@@ -133,6 +133,40 @@ Keep its complete console/exit receipt as well as `cloud.json` and the rules
 snapshot taken before the run; do not edit rules while it runs. The emulator
 command owns startup/teardown; do not run cloud-UI emulators concurrently.
 
+### Friend-default convergence loop
+
+Review [known intermittents](intermittents.md) before accepting the candidate.
+In addition to the full rules suite and handle-claim race evidence, run this
+20-iteration convergence loop on the same candidate rules, before starting
+cloud-UI emulators. Use the same no-spaces `$evidence` directory and rules
+snapshot from above. Each iteration starts fresh demo emulators and retains
+its own native JSON, exit receipt, console and Firestore debug log. This is a
+required command, not a claim of a completed loop.
+
+```powershell
+$rulesHash = (Get-FileHash "$evidence\tested-firestore.rules" -Algorithm SHA256).Hash
+for ($iteration = 1; $iteration -le 20; $iteration++) {
+  $prefix = "$evidence\friend-default-$iteration"
+  if (Test-Path "$prefix*") { throw 'Use fresh loop evidence paths' }
+  if ((Get-FileHash firestore.rules -Algorithm SHA256).Hash -ne $rulesHash) { throw 'Candidate rules changed' }
+  npx --no-install firebase emulators:exec --project demo-play100 --only auth,firestore "vitest run --config vitest.cloud.config.ts tests-cloud/friend-all.test.ts -t converges.a.first.friend.action.and.the.automatic.default.on.one.default.policy.in.either.order --reporter=default --reporter=json --outputFile=$prefix.json" *> "$prefix.log"
+  $code = $LASTEXITCODE
+  if (Test-Path firestore-debug.log) { Copy-Item firestore-debug.log "$prefix-firestore.log" }
+  $receipt = @{ iteration = $iteration; exitCode = $code; rulesSha256 = $rulesHash }
+  [IO.File]::WriteAllText("$prefix-exit.json", ($receipt | ConvertTo-Json))
+  if ($code -ne 0) { throw "Convergence failed at iteration $iteration; investigate the retained interleaving" }
+  if ((Get-FileHash firestore.rules -Algorithm SHA256).Hash -ne $rulesHash) { throw 'Rules changed during loop' }
+  $result = Get-Content "$prefix.json" -Raw | ConvertFrom-Json
+  if ($result.success -ne $true -or $result.numPassedTests -ne 1 -or $result.numFailedTests -ne 0) {
+    throw 'Expected exactly one passing convergence test, not an empty or skipped run'
+  }
+}
+```
+
+Do not erase failed attempts or silently restart this loop. Section 4 binds
+all 20 native reports using repeated `--vitest` arguments; retain the
+exit/debug receipts and update the register with actual evidence.
+
 ## 3. Configured build, budgets and e2e partitions
 
 Load only the owner's reviewed **public Production** values into the local
@@ -322,7 +356,8 @@ reasoned records defined in [the manifest documentation](../README.md#portable-l
 
 ```powershell
 if (git status --porcelain) { throw 'Commit or investigate source changes before release' }
-npm run release:manifest -- "$evidence\manifest.json" --vitest "$evidence\unit-browser.json" --vitest-cloud "$evidence\cloud.json" --cloud-rules "$evidence\tested-firestore.rules" --playwright "$evidence\e2e-production.json" --playwright "$evidence\e2e-development.json" --playwright "$evidence\cloud-ui.json" --receipt "types=$evidence\types.json" --receipt "functions-types=$evidence\functions-types.json" --receipt "lint=$evidence\lint.json" --receipt "data=$evidence\data.json" --receipt "discovery=$evidence\discovery.json" --receipt "csp=$evidence\csp.json" --receipt "budget-check=$evidence\budget-check.json" --receipt "budgets=$evidence\budgets.json" --decisions "$evidence\decisions.json"
+$loopReports = 1..20 | ForEach-Object { '--vitest'; "$evidence\friend-default-$_.json" }
+npm run release:manifest -- "$evidence\manifest.json" --vitest "$evidence\unit-browser.json" --vitest-cloud "$evidence\cloud.json" --cloud-rules "$evidence\tested-firestore.rules" --playwright "$evidence\e2e-production.json" --playwright "$evidence\e2e-development.json" --playwright "$evidence\cloud-ui.json" --receipt "types=$evidence\types.json" --receipt "functions-types=$evidence\functions-types.json" --receipt "lint=$evidence\lint.json" --receipt "data=$evidence\data.json" --receipt "discovery=$evidence\discovery.json" --receipt "csp=$evidence\csp.json" --receipt "budget-check=$evidence\budget-check.json" --receipt "budgets=$evidence\budgets.json" --decisions "$evidence\decisions.json" @loopReports
 if ($LASTEXITCODE -ne 0) { throw 'Manifest failed' }
 ```
 

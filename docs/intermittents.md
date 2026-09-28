@@ -1,0 +1,28 @@
+# Intermittent test register
+
+Track a failed attempt even when its retry passes. "Host load" is a hypothesis
+unless the receipt establishes the cause; a one-off pass is not loop evidence.
+The release coordinator retains native reports, command exits and debug logs
+outside the repository. Review open rows at every candidate gate, update them
+on recurrence, and investigate rather than retrying until green.
+
+| Test | First seen | Root cause or hypothesis | Status | Loop evidence |
+| --- | --- | --- | --- | --- |
+| `tests-cloud/friend-all.test.ts`: "converges a first friend action and the automatic default on one default policy in either order" | [Release 1, 2026-09-25](releases.md#release-1-2026-09-25), rules run at `2f727389` | Unresolved denial; the test races `startDefault` and `setPolicy` transactions with `Promise.all`. An interleaving defect is a hypothesis, not an established harness fault. | Open; candidate-rules loop required. G8 calls this Release 6 evidence, but the cited receipt is in the Release 1 ledger entry. | Original 248 passed / 1 failed; single-file rerun 38/38. No convergence loop receipt recorded here; run the 20-iteration gate below. |
+| `tests-cloud-ui/review-repairs.spec.ts`: "verified unused Google registration returns from reauthentication without deleting until explicitly confirmed" (historical `:36`, desktop) | [Release 3, 2026-09-26](releases.md#release-3-2026-09-26) | Unreproduced; no root cause established in the ledger. | Open; do not classify as an external Google failure without evidence. | One rerun passed; no loop recorded. The adjacent `friend-all-review` 54/54 receipt covers a different spec. |
+| `tests/compare-tray-context.spec.ts` | [Release 4, 2026-09-26](releases.md#release-4-2026-09-26) | Ledger identifies a test race; exact interleaving is not specified there. | Test-only repair recorded; monitor recurrence. | Whole repaired spec 12/12; no repeated loop recorded. |
+| `tests-cloud-ui/friend-all.spec.ts` | Release 4, 2026-09-26 | Ledger identifies a test race; exact interleaving is not specified there. | Test-only repair recorded; monitor recurrence. | Whole repaired spec 14/14; no repeated loop recorded. |
+| Queue touch-drag (`tests/queue-pagination.spec.ts`) | [Release 5, 2026-09-26](releases.md#release-5-2026-09-26) | Handle aimed at next row's centre; tall mobile rows could drop one row late under load. | Test targets changed to row centres. | No repeated loop recorded. |
+| Native-zoom navigation / secondary Chrome context close | Release 5, 2026-09-26; recurred in Release 6 | Context close exceeded timeout on a busy host after assertions passed. | Timeout raised to 90 s; retain recurrence evidence. | Targeted one-worker rerun passed; no repeated loop recorded. |
+| Browser-restart persistent-profile close | Release 5, 2026-09-26 | Close stalled at recorded 100% host CPU. | Unchanged test; monitor host-related recurrence. | One-worker rerun passed; no repeated loop recorded. |
+| `scripts/check-budgets.test.ts` | [Release 6, 2026-09-27](releases.md#release-6-2026-09-27) | Timeout at recorded 100% host CPU; exact test not identified in ledger. | Open monitoring; retain both attempts. | Pre-authorized single rerun passed; no repeated loop recorded. |
+| `tests/release-review.spec.ts`: cross-tab autosave | Release 6, 2026-09-27 | Ledger attributes a stall to host load; current dirty-draft test pauses autosave while observing remote updates. | Monitor recurrence; do not confuse with the online upload race below. | Targeted one-worker rerun passed; no repeated loop recorded in ledger. |
+| `tests-cloud-ui/identity.spec.ts`: Google script loading | Release 6, 2026-09-27 | Host/load stall recorded; current gate uses a controlled provider fixture. | Monitor recurrence; real Google is a separate check. | Targeted one-worker rerun passed; no repeated loop recorded in ledger. |
+| `tests-cloud-ui/identity.spec.ts`: two-window pending upload | Release 5 reproduced during Release 6 investigation | Both tabs uploaded identical pending content; loser displayed a recoverable conflict. This was a product race, not mere test noise. | Historical waiver; identical-payload convergence is now documented in [online saving](online-saving.md). Retain candidate loop evidence before closing. | Historical failures 2/10 on Release 5, 3/10 on Release 6. G8 reports a later identity 20-iteration run; consult its operator-held receipt rather than inferring the convergence-test outcome. |
+
+## Candidate gate
+
+Run the exact convergence test 20 times against the candidate rules using
+[Release operations: convergence loop](release-operations.md#friend-default-convergence-loop).
+This register adds no executed result. A failure must retain the emulator
+debug log for the transaction interleaving; a later pass does not close it.
