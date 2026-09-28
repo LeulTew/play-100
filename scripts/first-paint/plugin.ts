@@ -4,7 +4,9 @@ import path from 'node:path';
 import Beasties from 'beasties';
 import type { Logger as BeastiesLogger, Options as BeastiesOptions } from 'beasties';
 import { Parser } from 'htmlparser2';
-import ts from 'typescript';
+import { transform } from 'lightningcss';
+import type { CustomAtRules, Declaration, Selector, SelectorComponent, UnicodeRange, Visitor } from 'lightningcss';
+import { minifySync } from 'vite';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { textDigest, writeFirstPaintRecord } from '../build-metadata.ts';
 import type { FirstPaintRecord } from '../build-metadata.ts';
@@ -55,11 +57,20 @@ import type { ShellVariant } from './shell-html.ts';
 export const DEFERRED_TEMPLATE_ID = 'p100-deferred';
 
 /**
- * Attributes and classes that differ between the static shell and React's first commit; src/main.tsx sets
- * data-app-started on <html> just before that commit.
+ * Attributes that differ between the static shell and React's first commit, each with any name that continues it
+ * after a hyphen (data-boot-art). src/main.tsx sets data-app-started on <html> just before that commit.
  */
-const SHELL_DIVERGENT_SELECTOR =
-  /\[\s*(?:inert|style|data-scene-status|data-activation|data-shell-art|data-boot|data-app-started)\b|\.first-paint-shell\b/i;
+const SHELL_DIVERGENT_ATTRIBUTES = [
+  'inert',
+  'style',
+  'data-scene-status',
+  'data-activation',
+  'data-shell-art',
+  'data-boot',
+  'data-app-started',
+];
+/** The class that differs too: only the shell's wrapper carries it. */
+const SHELL_DIVERGENT_CLASS = 'first-paint-shell';
 const CHARSET_DECLARATION = '<meta charset="UTF-8" />';
 
 /**
@@ -89,59 +100,29 @@ export function firstPaintVariant(
   return online.config ? 'online' : 'offline';
 }
 
-/** The tokens whose text can look like a comment: strings, template parts and regular expressions. */
-const LITERAL_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
-  ts.SyntaxKind.StringLiteral,
-  ts.SyntaxKind.NoSubstitutionTemplateLiteral,
-  ts.SyntaxKind.TemplateHead,
-  ts.SyntaxKind.TemplateMiddle,
-  ts.SyntaxKind.TemplateTail,
-  ts.SyntaxKind.RegularExpressionLiteral,
-]);
-
-/** Script text that holds no literal, each comment in it replaced by the whitespace it counts as. */
-function withoutComments(code: string): string {
-  return code.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (comment) =>
-    comment.startsWith('//') ? '' : comment.includes('\n') ? '\n' : ' ',
-  );
-}
+/**
+ * The syntax src/first-paint/boot.js is written in: ES2019, for its optional catch bindings. Minifying must not
+ * introduce later syntax, since the script shows the failure notice where the app's ES2022 modules cannot run.
+ */
+const BOOT_SCRIPT_TARGET = 'es2019';
 
 /**
- * Drops comments and indentation from src/first-paint/boot.js; the result is what the CSP hash covers. TypeScript's
- * parser finds the literals, which stay as written, so text in a string, template or regular expression that only
- * looks like a comment is kept. Outside them a comment is whitespace: a line break if it spans lines, a space
- * otherwise. The script must be valid JavaScript, and a literal that spans lines is refused, as trimming its lines
- * would change its value.
+ * Minifies src/first-paint/boot.js with Oxc, as Vite minifies the build's modules; the result is what the CSP hash
+ * covers, and it is the same for the same Oxc version. Oxc parses the script, so its strings, templates and regular
+ * expressions keep their values, and a script that is not valid JavaScript throws a SyntaxError. Line endings are
+ * normalized first, so a checkout's line endings cannot change the hash.
  */
-export function stripBootScript(source: string): string {
-  const text = source.replace(/\r\n?/g, '\n');
-  // Throws a SyntaxError, so the parser below only ever sees valid JavaScript.
-  new Function(text);
-  const file = ts.createSourceFile('boot.js', text, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
-  const literals: { start: number; end: number }[] = [];
-  const visit = (node: ts.Node): void => {
-    if (LITERAL_KINDS.has(node.kind)) literals.push({ start: node.getStart(file), end: node.end });
-    else ts.forEachChild(node, visit);
-  };
-  visit(file);
-  let code = '';
-  let position = 0;
-  for (const { start, end } of literals.sort((a, b) => a.start - b.start)) {
-    if (text.slice(start, end).includes('\n')) {
-      const line = file.getLineAndCharacterOfPosition(start).line + 1;
-      throw new Error(`The boot script has a literal that spans lines (line ${line}); trimming it would change it.`);
-    }
-    code += withoutComments(text.slice(position, start)) + text.slice(start, end);
-    position = end;
-  }
-  const script = (code + withoutComments(text.slice(position)))
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join('\n');
-  // So must the result.
-  new Function(script);
-  return script;
+export function minifyBootScript(source: string): string {
+  const { code, errors } = minifySync('boot.js', source.replace(/\r\n?/g, '\n'), {
+    compress: { target: BOOT_SCRIPT_TARGET },
+    mangle: true,
+    codegen: { removeWhitespace: true },
+  });
+  if (errors.length)
+    throw new SyntaxError(
+      `The boot script is not valid JavaScript:\n${errors.map((error) => error.codeframe ?? error.message).join('\n')}`,
+    );
+  return code;
 }
 
 export function assertInlineSafe(kind: 'style' | 'script', content: string): void {
@@ -149,93 +130,133 @@ export function assertInlineSafe(kind: 'style' | 'script', content: string): voi
     throw new Error(`The inline first-paint ${kind} contains markup that would end the element early.`);
 }
 
+/**
+ * Reads a stylesheet with Lightning CSS, which also minifies the build's stylesheets, so the checks see it as the
+ * build does: comments, strings and escapes resolved, selectors and declarations parsed. A syntax error throws, and so
+ * does an error the visitor throws.
+ */
+function readCss(filename: string, css: string, visitor: Visitor<CustomAtRules>): void {
+  transform({ filename, code: Buffer.from(css), visitor });
+}
+
+const lowerCase = (name: string) => name.toLowerCase();
+
+/** Whether a name is `base`, or `base` continued after a hyphen, in any case. */
+function namedAfter(name: string, base: string): boolean {
+  const value = lowerCase(name);
+  return value === base || value.startsWith(`${base}-`);
+}
+
+/** The selectors a component takes: those of :is(), :where(), :not(), :has(), :nth-child(… of …) and :host(). */
+function argumentSelectors(component: SelectorComponent): Selector[] {
+  if (component.type !== 'pseudo-class') return [];
+  switch (component.kind) {
+    case 'is':
+    case 'where':
+    case 'any':
+    case 'not':
+    case 'has':
+      return component.selectors;
+    case 'nth-child':
+    case 'nth-last-child':
+      return component.of ?? [];
+    case 'host':
+      return component.selectors ? [component.selectors] : [];
+    default:
+      return [];
+  }
+}
+
+/** A selector and every selector nested in it. */
+function withNestedSelectors(selector: Selector): Selector[] {
+  return [selector, ...selector.flatMap((component) => argumentSelectors(component).flatMap(withNestedSelectors))];
+}
+
 /** The entry stylesheet must not style what the shell and React's first commit render differently. */
 export function assertShellNeutralCss(css: string): void {
-  const match = SHELL_DIVERGENT_SELECTOR.exec(css);
-  if (match)
-    throw new Error(
-      `The entry stylesheet targets "${match[0]}", which differs between the first-paint shell and React's first commit (docs/first-paint-shell.md).`,
-    );
+  readCss('entry.css', css, {
+    Selector(selector) {
+      for (const component of withNestedSelectors(selector).flat()) {
+        const divergent =
+          component.type === 'attribute' && SHELL_DIVERGENT_ATTRIBUTES.some((name) => namedAfter(component.name, name))
+            ? `[${component.name}]`
+            : component.type === 'class' && namedAfter(component.name, SHELL_DIVERGENT_CLASS)
+              ? `.${component.name}`
+              : undefined;
+        if (divergent)
+          throw new Error(
+            `The entry stylesheet targets "${divergent}", which differs between the first-paint shell and React's first commit (docs/first-paint-shell.md).`,
+          );
+      }
+    },
+  });
 }
 
 /** Inlined into index.html, a relative url() would resolve against the document instead of /assets/. */
 export function assertRootRelativeUrls(css: string): void {
-  for (const match of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]*))\s*\)/gi)) {
-    const url = match[1] ?? match[2] ?? match[3] ?? '';
-    if (!/^(?:\/(?!\/)|https:|data:|#)/i.test(url))
-      throw new Error(
-        `The inline first-paint CSS references "${url}", which would resolve against index.html instead of its stylesheet.`,
-      );
-  }
-}
-
-/** CSS with its comments blanked and every string emptied, so only tokens outside strings remain. */
-function cssOutsideStrings(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\[\s\S])*"|'(?:[^'\\\n]|\\[\s\S])*'/g, (match) =>
-    match.startsWith('/*') ? ' ' : '""',
-  );
+  readCss('inline.css', css, {
+    Url({ url }) {
+      if (!/^(?:\/(?!\/)|https:|data:|#)/i.test(url))
+        throw new Error(
+          `The inline first-paint CSS references "${url}", which would resolve against index.html instead of its stylesheet.`,
+        );
+    },
+  });
 }
 
 /**
  * Vite inlines the relative @import partials of the source CSS manifests, so an @import left in an
  * emitted stylesheet loads from outside the build: it bypasses the first-paint template, and a copy
- * in the inline style would request it before the first paint. At-keywords are compared as CSS
- * reads them: escapes resolved, ASCII case ignored.
+ * in the inline style would request it before the first paint. Lightning CSS reads at-keywords as
+ * CSS does (escapes resolved, ASCII case ignored). An @import after other rules is invalid and
+ * browsers ignore it, but it is refused all the same.
  */
 export function assertNoCssImports(file: string, css: string): void {
-  for (const match of cssOutsideStrings(css).matchAll(
-    /@((?:[\w\u0080-\uffff-]|\\[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|\\[^\r\n\f0-9a-fA-F])+)/g,
-  )) {
-    const name = (match[1] ?? '').replace(
-      /\\([0-9a-fA-F]{1,6})(?:\r\n|[ \t\r\n\f])?|\\(.)/gs,
-      (_, hex: string | undefined, char: string | undefined) => {
-        if (hex === undefined) return char ?? '';
-        const code = Number.parseInt(hex, 16);
-        return code < 0x80 ? String.fromCharCode(code) : '\uFFFD';
+  let imports = false;
+  try {
+    readCss(file, css, {
+      Rule: {
+        import() {
+          imports = true;
+        },
       },
+    });
+  } catch (error) {
+    if ((error as { data?: { type?: unknown } }).data?.type !== 'UnexpectedImportRule') throw error;
+    imports = true;
+  }
+  if (imports) {
+    throw new Error(
+      `The emitted stylesheet ${file} contains an @import, which would load outside the first-paint template (and before the first paint if it reached the inline style). Vite inlines only relative imports of source CSS: import that CSS through one, or from a module (docs/first-paint-shell.md).`,
     );
-    if (name.toLowerCase() === 'import') {
-      throw new Error(
-        `The emitted stylesheet ${file} contains an @import, which would load outside the first-paint template (and before the first paint if it reached the inline style). Vite inlines only relative imports of source CSS: import that CSS through one, or from a module (docs/first-paint-shell.md).`,
-      );
-    }
   }
 }
 
-const ROOT_SUBJECT = /^(?::root|html)(?![\w-])/i;
-const BODY_OR_ROOT_DIV = /^(?:body|#root)(?![\w-])/i;
-const MATCHES_ALTERNATIVES = /^(?:is|where|matches|-webkit-any|-moz-any)$/i;
-const INHERITS = /^(?:inherit|unset)(?:\s*!\s*important)?$/i;
+/** The combinators that start a new compound selector. The others attach pseudo-elements and shadow parts. */
+const COMBINATORS: ReadonlySet<string> = new Set([
+  'child',
+  'descendant',
+  'next-sibling',
+  'later-sibling',
+  'deep',
+  'deep-descendant',
+]);
 
-/** The subject compound of a selector: the element its declarations apply to. */
-function subjectCompound(selector: string): string {
-  let depth = 0;
+/** The subject compound of a selector, the element its declarations apply to, without namespace prefixes. */
+function subjectCompound(selector: Selector): SelectorComponent[] {
   let start = 0;
-  for (let index = 0; index < selector.length; index += 1) {
-    const char = selector[index];
-    if (char === '(' || char === '[') depth += 1;
-    else if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
-    else if (depth === 0 && char !== undefined && (char === '>' || char === '+' || char === '~' || /\s/.test(char)))
-      start = index + 1;
-  }
-  return selector.slice(start);
+  selector.forEach((component, index) => {
+    if (component.type === 'combinator' && COMBINATORS.has(component.value)) start = index + 1;
+  });
+  return selector.slice(start).filter((component) => component.type !== 'namespace');
 }
 
-function closingParenthesis(text: string, open: number): number {
-  let depth = 0;
-  for (let index = open; index < text.length; index += 1) {
-    if (text[index] === '(') depth += 1;
-    else if (text[index] === ')') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  return -1;
-}
-
-/** A compound selector without its namespace prefix: svg|a, *|body and |html become a, body and html. */
-function withoutNamespace(compound: string): string {
-  return compound.replace(/^(?:[\w-]+|\*)?\|/, '');
+/** :root or html. */
+function rootElement(component: SelectorComponent | undefined): boolean {
+  return (
+    (component?.type === 'type' && lowerCase(component.name) === 'html') ||
+    (component?.type === 'pseudo-class' && component.kind === 'root')
+  );
 }
 
 /**
@@ -243,44 +264,91 @@ function withoutNamespace(compound: string): string {
  * has another type, a class or another id (the shell's html, body and #root carry none), or an
  * :is() or :where() whose every alternative does. :not(), :has(), attributes and * never qualify.
  */
-function qualified(selector: string): boolean {
-  const compound = withoutNamespace(selector);
-  if (ROOT_SUBJECT.test(compound) || BODY_OR_ROOT_DIV.test(compound)) return false;
-  const type = /^[a-z][\w-]*/i.exec(compound)?.[0];
-  if (type !== undefined && !/^(?:html|body|div)$/i.test(type)) return true;
-  for (let index = 0; index < compound.length; index += 1) {
-    const char = compound[index];
-    if (char === '.' || (char === '#' && !BODY_OR_ROOT_DIV.test(compound.slice(index)))) return true;
-    if (char === '[') {
-      const end = compound.indexOf(']', index);
-      if (end === -1) return false;
-      index = end;
-    } else if (char === ':') {
-      const pseudo = /^::?([\w-]+)(\()?/.exec(compound.slice(index));
-      if (!pseudo) return false;
-      if (pseudo[2] === undefined) {
-        index += pseudo[0].length - 1;
-        continue;
-      }
-      const open = index + pseudo[0].length - 1;
-      const close = closingParenthesis(compound, open);
-      if (close === -1) return false;
-      if (
-        MATCHES_ALTERNATIVES.test(pseudo[1] ?? '') &&
-        splitTopLevel(compound.slice(open + 1, close)).every((alternative) => qualified(subjectCompound(alternative)))
-      )
+function qualified(compound: SelectorComponent[]): boolean {
+  const [first] = compound;
+  if (
+    rootElement(first) ||
+    (first?.type === 'type' && lowerCase(first.name) === 'body') ||
+    (first?.type === 'id' && lowerCase(first.name) === 'root')
+  )
+    return false;
+  return compound.some((component) => {
+    switch (component.type) {
+      case 'type':
+        return !['html', 'body', 'div'].includes(lowerCase(component.name));
+      case 'class':
         return true;
-      index = close;
+      case 'id':
+        return lowerCase(component.name) !== 'root';
+      case 'pseudo-class':
+        return (
+          (component.kind === 'is' || component.kind === 'where' || component.kind === 'any') &&
+          component.selectors.every((alternative) => qualified(subjectCompound(alternative)))
+        );
+      default:
+        return false;
     }
-  }
-  return false;
+  });
 }
 
-function keepsShellFontStacks(property: string, subject: string, value: string): boolean {
-  const compound = withoutNamespace(subject);
-  if (/^(?::root|html)$/i.test(compound)) return !/!\s*important$/i.test(value);
-  if (property === '--display' || ROOT_SUBJECT.test(compound)) return false;
-  return qualified(compound) || INHERITS.test(value);
+type FontProperty = 'font' | 'font-family' | '--display';
+
+function fontProperty(declaration: Declaration): FontProperty | undefined {
+  switch (declaration.property) {
+    case 'font':
+    case 'font-family':
+      return declaration.property;
+    case 'unparsed': {
+      const id = declaration.value.propertyId.property;
+      return id === 'font' || id === 'font-family' ? id : undefined;
+    }
+    case 'custom':
+      return declaration.value.name === '--display' ? '--display' : undefined;
+    default:
+      return undefined;
+  }
+}
+
+const INHERITING_KEYWORDS: ReadonlySet<string> = new Set(['inherit', 'unset']);
+
+/** Whether a font or font-family declaration is inherit or unset, which Lightning CSS reads as a generic family. */
+function inheritsFont(declaration: Declaration): boolean {
+  if (declaration.property === 'font-family')
+    return declaration.value.length === 1 && INHERITING_KEYWORDS.has(declaration.value[0] ?? '');
+  if (declaration.property !== 'unparsed') return false;
+  const tokens = declaration.value.value.filter(
+    (token) => !(token.type === 'token' && token.value.type === 'white-space'),
+  );
+  const [only] = tokens;
+  return (
+    tokens.length === 1 &&
+    only?.type === 'token' &&
+    only.value.type === 'ident' &&
+    INHERITING_KEYWORDS.has(lowerCase(only.value.value))
+  );
+}
+
+function keepsShellFontStacks(
+  property: FontProperty,
+  subject: SelectorComponent[],
+  important: boolean,
+  inherits: boolean,
+): boolean {
+  if (subject.length === 1 && rootElement(subject[0])) return !important;
+  if (property === '--display' || rootElement(subject[0])) return false;
+  return qualified(subject) || inherits;
+}
+
+/** A selector as Lightning CSS prints it, for messages. */
+function selectorText(selector: Selector): string {
+  const block = '{color:red}';
+  const { code } = transform({
+    filename: 'selector.css',
+    code: Buffer.from(`a${block}`),
+    minify: true,
+    visitor: { Rule: { style: (rule) => ({ ...rule, value: { ...rule.value, selectors: [selector] } }) } },
+  });
+  return new TextDecoder().decode(code).slice(0, -block.length);
 }
 
 /**
@@ -292,41 +360,38 @@ function keepsShellFontStacks(property: string, subject: string, value: string):
  * inherit or unset. Each selector is judged by its subject compound, the element it styles.
  */
 export function assertRootFontStacks(file: string, css: string): void {
-  const code = cssOutsideStrings(css);
-  for (const match of code.matchAll(/(?:^|[{;])\s*(font-family|font|--display)\s*:([^;{}]*)/gi)) {
-    const name = match[1] ?? '';
-    // Custom property names are case-sensitive: --Display is another property.
-    const property = name.startsWith('--') ? name : name.toLowerCase();
-    if (property !== 'font' && property !== 'font-family' && property !== '--display') continue;
-    const open = code.lastIndexOf('{', match.index);
-    if (open === -1) continue;
-    const prelude = code
-      .slice(
-        Math.max(code.lastIndexOf('}', open), code.lastIndexOf('{', open - 1), code.lastIndexOf(';', open)) + 1,
-        open,
-      )
-      .trim();
-    // At-rule blocks such as @font-face declare font properties of their own.
-    if (prelude.startsWith('@')) continue;
-    const value = (match[2] ?? '').trim();
-    for (const selector of splitTopLevel(prelude)) {
-      if (!keepsShellFontStacks(property, subjectCompound(selector), value)) {
-        throw new Error(
-          `The entry stylesheet ${file} sets ${property} on "${selector}", where it would outrank or bypass the metric-matched fallbacks src/first-paint/shell.css adds to the root font stacks: keep font-family and --display on :root, without !important (docs/first-paint-shell.md).`,
-        );
-      }
-    }
-  }
+  readCss(file, css, {
+    Rule: {
+      style({ value: { selectors, declarations } }) {
+        const blocks = [
+          [declarations?.declarations ?? [], false],
+          [declarations?.importantDeclarations ?? [], true],
+        ] as const;
+        for (const [list, important] of blocks) {
+          for (const declaration of list) {
+            const property = fontProperty(declaration);
+            if (!property) continue;
+            const inherits = inheritsFont(declaration);
+            for (const selector of selectors) {
+              if (!keepsShellFontStacks(property, subjectCompound(selector), important, inherits))
+                throw new Error(
+                  `The entry stylesheet ${file} sets ${property} on "${selectorText(selector)}", where it would outrank or bypass the metric-matched fallbacks src/first-paint/shell.css adds to the root font stacks: keep font-family and --display on :root, without !important (docs/first-paint-shell.md).`,
+                );
+            }
+          }
+        }
+      },
+    },
+  });
 }
 
-/** Removes comments and optional whitespace from src/first-paint/shell.css, whose strings contain none of {};, */
+/**
+ * Minifies src/first-paint/shell.css with Lightning CSS, as Vite minifies the entry stylesheet. Without browser
+ * targets, its prefixes and syntax stay as written.
+ */
 export function minifyShellCss(css: string): string {
-  return css
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s*([{};,])\s*/g, '$1')
-    .replace(/;\}/g, '}')
-    .trim();
+  const { code } = transform({ filename: 'src/first-paint/shell.css', code: Buffer.from(css), minify: true });
+  return new TextDecoder().decode(code);
 }
 
 export function beastiesOptions(logger: BeastiesLogger): BeastiesOptions {
@@ -389,60 +454,36 @@ export async function criticalAppCss(appCss: string, root: string): Promise<stri
   return style;
 }
 
-interface Declaration {
-  readonly name: string;
-  readonly value: string;
+interface FontFace {
+  readonly family: string | undefined;
+  readonly ranges: readonly UnicodeRange[] | undefined;
+  /** Every URL its src requests, as written. */
+  readonly urls: readonly string[];
 }
 
-function declarations(body: string): Declaration[] {
-  return body
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const colon = part.indexOf(':');
-      const name = part.slice(0, Math.max(colon, 0)).trim().toLowerCase();
-      if (colon < 1 || !/^[a-z-]+$/.test(name)) throw new Error(`Unexpected @font-face declaration "${part}".`);
-      return { name, value: part.slice(colon + 1).trim() };
-    });
-}
-
-function splitTopLevel(value: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let quote = '';
-  let start = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    if (quote) {
-      if (char === '\\') index += 1;
-      else if (char === quote) quote = '';
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '(') depth += 1;
-    else if (char === ')') depth -= 1;
-    else if (char === ',' && depth === 0) {
-      parts.push(value.slice(start, index));
-      start = index + 1;
-    }
-  }
-  parts.push(value.slice(start));
-  return parts.map((part) => part.trim());
-}
-
-function unicodeRanges(value: string): Array<readonly [number, number]> {
-  return splitTopLevel(value).map((part) => {
-    const match = /^U\+([0-9A-F]{1,6}|[0-9A-F]{0,5}\?{1,6})(?:-([0-9A-F]{1,6}))?$/i.exec(part);
-    const first = match?.[1];
-    if (!match || !first || (first.includes('?') && (match[2] !== undefined || first.length > 6)))
-      throw new Error(`Unsupported unicode-range "${value}".`);
-    if (first.includes('?'))
-      return [
-        Number.parseInt(first.replaceAll('?', '0'), 16),
-        Number.parseInt(first.replaceAll('?', 'F'), 16),
-      ] as const;
-    return [Number.parseInt(first, 16), Number.parseInt(match[2] ?? first, 16)] as const;
+/** The @font-face rules of a stylesheet, as Lightning CSS parses them. */
+function fontFaces(filename: string, css: string): FontFace[] {
+  const faces: FontFace[] = [];
+  readCss(filename, css, {
+    Rule: {
+      'font-face'({ value: { properties } }) {
+        let family: string | undefined;
+        let ranges: UnicodeRange[] | undefined;
+        const urls: string[] = [];
+        for (const property of properties) {
+          if (property.type === 'font-family') family = property.value;
+          else if (property.type === 'unicode-range') ranges = property.value;
+          else if (property.type === 'source')
+            for (const source of property.value) if (source.type === 'url') urls.push(source.value.url.url);
+        }
+        faces.push({ family, ranges, urls });
+      },
+    },
   });
+  return faces;
 }
+
+const hexadecimal = (code: number) => code.toString(16).toUpperCase();
 
 /**
  * The shell paints only in the metric-matched local faces of src/first-paint/shell.css (the web
@@ -452,19 +493,17 @@ function unicodeRanges(value: string): Array<readonly [number, number]> {
  */
 export function assertFallbackCoverage(shellCss: string, text: string): void {
   const codepoints = [...new Set(Array.from(text, (char) => char.codePointAt(0) ?? 0))].filter((code) => code >= 0x20);
-  const faces = [...shellCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)].map((match) =>
-    declarations(match[1] ?? ''),
-  );
+  const faces = fontFaces('src/first-paint/shell.css', shellCss);
   if (!faces.length) throw new Error('src/first-paint/shell.css declares no fallback faces for the first-paint shell.');
-  for (const list of faces) {
-    const family = list.find((declaration) => declaration.name === 'font-family')?.value ?? '(unnamed)';
-    const range = list.find((declaration) => declaration.name === 'unicode-range')?.value;
-    if (range === undefined) continue;
-    const ranges = unicodeRanges(range);
-    const missing = codepoints.find((code) => !ranges.some(([from, to]) => code >= from && code <= to));
+  for (const { family, ranges } of faces) {
+    if (ranges === undefined) continue;
+    const missing = codepoints.find((code) => !ranges.some(({ start, end }) => code >= start && code <= end));
     if (missing !== undefined) {
+      const range = ranges
+        .map(({ start, end }) => `U+${hexadecimal(start)}${end === start ? '' : `-${hexadecimal(end)}`}`)
+        .join(', ');
       throw new Error(
-        `The first-paint shell renders "${String.fromCodePoint(missing)}" (U+${missing.toString(16).toUpperCase().padStart(4, '0')}), which the fallback face ${family} (unicode-range ${range}) does not cover; extend it in src/first-paint/shell.css.`,
+        `The first-paint shell renders "${String.fromCodePoint(missing)}" (U+${hexadecimal(missing).padStart(4, '0')}), which the fallback face ${family === undefined ? '(unnamed)' : `'${family}'`} (unicode-range ${range}) does not cover; extend it in src/first-paint/shell.css.`,
       );
     }
   }
@@ -554,12 +593,7 @@ export function startupTags(html: string): StartupTag[] {
 
 /** Every URL the @font-face rules of a stylesheet request, exactly as written. */
 function fontFaceUrls(css: string): Set<string> {
-  const urls = new Set<string>();
-  for (const face of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/@font-face\s*\{([^{}]*)\}/gi)) {
-    for (const url of (face[1] ?? '').matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^'"()\s]*))\s*\)/gi))
-      urls.add(url[1] ?? url[2] ?? url[3] ?? '');
-  }
-  return urls;
+  return new Set(fontFaces('entry.css', css).flatMap((face) => face.urls));
 }
 
 /**
@@ -650,7 +684,7 @@ export async function inlineFirstPaintShell(input: InlineShellInput): Promise<In
   assertFallbackCoverage(input.shellCss, shellText(root));
   const style = (await criticalAppCss(appCss, root)) + minifyShellCss(input.shellCss);
   assertRootRelativeUrls(style);
-  const script = stripBootScript(input.bootScript);
+  const script = minifyBootScript(input.bootScript);
   assertInlineSafe('style', style);
   assertInlineSafe('script', script);
 

@@ -13,10 +13,10 @@ import {
   mainDocumentPolicy,
   sha256Source,
 } from './csp.ts';
-import { stripBootScript } from './plugin.ts';
+import { minifyBootScript } from './plugin.ts';
 
 const vercel: unknown = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
-const bootScript = stripBootScript(readFileSync(new URL('../../src/first-paint/boot.js', import.meta.url), 'utf8'));
+const bootScript = minifyBootScript(readFileSync(new URL('../../src/first-paint/boot.js', import.meta.url), 'utf8'));
 const script = 'window.booted = true;';
 const policy = `default-src 'self'; report-to csp; report-uri /api/csp-report; script-src 'self' ${sha256Source(script)}; style-src 'self' 'unsafe-inline'`;
 const page = `<!doctype html><html><head><style>a{color:red}</style><script>${script}</script><script type="module" crossorigin src="/assets/index-A.js"></script></head><body></body></html>`;

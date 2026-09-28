@@ -74,7 +74,9 @@ In this order:
   after beasties strips pseudo-classes, so they are kept), `safeParser: false`
   (a CSS syntax error fails the build), `keyframes: 'critical'`, `compress: true`.
   Any beasties warning or error, including an unparseable selector, fails the build.
-- **[`src/first-paint/shell.css`](../src/first-paint/shell.css)**, minified: the
+- **[`src/first-paint/shell.css`](../src/first-paint/shell.css)**, minified with
+  Lightning CSS as Vite minifies the entry stylesheet, but without browser targets,
+  so its prefixes and syntax stay as written: the
   metric-matched local fallback faces, the font stacks that add them, the rule
   that shows the shell, the artifact-caption state rules and the font probes. The
   app never imports this file. The inline style declares no web font: the shell
@@ -92,11 +94,15 @@ In this order:
 
 ### The boot script
 
-[`src/first-paint/boot.js`](../src/first-paint/boot.js) ships with its comments
-and indentation removed. The build finds its literals with TypeScript's parser,
-so text in a string, template or regular expression that only looks like a
-comment stays as written, and it refuses a literal that spans lines, whose value
-trimming would change. The script accepts the document only at `/` without
+[`src/first-paint/boot.js`](../src/first-paint/boot.js) ships minified with Oxc,
+as Vite minifies the app's modules (`minifySync`, which Vite exports). Oxc parses
+the script, so strings, templates and regular expressions keep their values, even
+where their text looks like a comment or spans lines, and a script that is not
+valid JavaScript fails the build. It minifies to the source's own ES2019 (optional
+catch bindings) and adds no later syntax, because the script must still show the
+failure notice where the app's ES2022 modules cannot run. Line endings are
+normalized first, so the hash is the same from any checkout. The script accepts
+the document only at `/` without
 `view=table`, `game` or `catalogs=off`, derives the artifact caption state React
 renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
@@ -175,7 +181,7 @@ whose last child is not this notice.
 
 `vercel.json` is the only policy source. Its main-document `script-src` allows
 the boot script by its exact `sha256` hash. The build fails when that hash does
-not match the stripped boot script, when a hash matches no inline script, when
+not match the minified boot script, when a hash matches no inline script, when
 a directive mixes `'unsafe-inline'` with a hash or nonce, or when a document has
 an inline event handler. `style-src` is strict: `'self'` plus the inline style
 hash of each shell variant, with no `'unsafe-inline'`. It must list exactly the
@@ -251,6 +257,10 @@ not a `style=`.
   than `#root`, or an `:is()`/`:where()` whose every alternative does. So `:where(body)`,
   `:not(…)`, `:has(…)`, attribute-only selectors, `div` and `*` may only use `inherit` or `unset`.
   A namespace prefix is ignored, so `*|body` counts as `body`.
+- The build reads the stylesheets for these checks with Lightning CSS, the engine
+  Vite minifies them with, so text in a comment or a string never counts, escapes
+  resolve as CSS resolves them, and a selector nested in `:is()`, `:not()`, `:has()`
+  or `:nth-child(… of …)` counts like any other. A syntax error fails the build.
 - Visible shell text follows the house marks (`…`, `·`, `—`). The fallback faces
   must cover every character the shell renders; the build refuses one they do not
   (`—` is outside their ranges today, so adding it means extending them).

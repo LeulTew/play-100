@@ -20,9 +20,9 @@ import {
   firstPaintShell,
   firstPaintVariant,
   inlineFirstPaintShell,
+  minifyBootScript,
   minifyShellCss,
   startupTags,
-  stripBootScript,
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
@@ -74,50 +74,59 @@ const TEMPLATE_CONTENT =
   '<link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
   '<link rel="preload" href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous">';
 
+/** Runs a script as its own function, as the browser runs a classic script, and returns what it stored on `out`. */
+function run(script: string): unknown {
+  const out: { value?: unknown } = {};
+  new Function('out', script)(out);
+  return out.value;
+}
+
 describe('first-paint boot script', () => {
-  it('drops comments and indentation but keeps every statement', () => {
+  it('minifies with Oxc, dropping comments and whitespace whatever the line endings', () => {
     const source =
-      '/* global window */\r\n// leading note\r\n(function () {\r\n  // inner note\r\n  var a = 1; /* inline */\r\n  return a;\r\n})();\r\n';
-    expect(stripBootScript(source)).toBe('(function () {\nvar a = 1;\nreturn a;\n})();');
-    expect(stripBootScript(source.replaceAll('\r\n', '\n'))).toBe(stripBootScript(source));
+      '/* global window */\r\n// leading note\r\n(function () {\r\n  // inner note\r\n  var total = 1; /* inline */\r\n  out.value = total + 1;\r\n})();\r\n';
+    const script = minifyBootScript(source);
+    expect(script).toBe(minifyBootScript(source.replaceAll('\r\n', '\n')));
+    expect(script).not.toMatch(/\/\*|\/\/|\n/);
+    expect(script.length).toBeLessThan(source.length / 2);
+    expect(run(script)).toBe(2);
   });
 
   it.each([
-    ['a string', 'var label = "before/* literal text */after";'],
-    ['a string holding a line comment marker', "var url = 'https://play.example/';"],
-    ['a template', 'var label = `before/* kept */after // kept too`;'],
-    ['a regular expression', 'var slashes = /\\/*x*/g;'],
-  ])('keeps comment-like text in %s as written', (_, statement) => {
-    expect(stripBootScript(`${statement} /* note */\n// line note\nvar next = 1;`)).toBe(`${statement}\nvar next = 1;`);
+    ['a string', 'var label = "before/* literal text */after";', 'before/* literal text */after'],
+    ['a string holding a line comment marker', "var label = 'https://play.example/';", 'https://play.example/'],
+    ['a template', 'var label = `before/* kept */after // kept too`;', 'before/* kept */after // kept too'],
+    ['a template that spans lines', 'var label = `first\n  second`;', 'first\n  second'],
+    ['a string continued on the next line', "var label = 'first\\\n  second';", 'first  second'],
+  ])('keeps the value of comment-like text and line breaks in %s', (_, statement, value) => {
+    const source = `(function () {\n  ${statement} /* note */\n  // line note\n  out.value = label;\n})();`;
+    expect(run(source)).toBe(value);
+    expect(run(minifyBootScript(source))).toBe(value);
   });
 
-  it('turns a comment into the whitespace it counts as, in a template expression too', () => {
-    expect(stripBootScript('var total = a/* plus */+b;')).toBe('var total = a +b;');
-    expect(stripBootScript('var label = `a${/* one */ 1}b`;')).toBe('var label = `a${  1}b`;');
-    expect(stripBootScript('var a = 1 /* two\nlines */ var b = 2;')).toBe('var a = 1\nvar b = 2;');
-  });
-
-  it.each([
-    ['a template that spans lines', 'var text = `first\n  second`;'],
-    ['a string continued on the next line', "var text = 'first\\\n  second';"],
-  ])('refuses %s, whose value trimming lines would change', (_, script) => {
-    expect(() => stripBootScript(script)).toThrow('spans lines');
+  it('keeps a regular expression that looks like a comment', () => {
+    const source =
+      '(function () {\n  var slashes = /\\/*x*/g; // note\n  out.value = "//**x/".replace(slashes, "-");\n})();';
+    expect(run(minifyBootScript(source))).toBe(run(source));
   });
 
   it('refuses a script that is not valid JavaScript', () => {
-    expect(() => stripBootScript('var a = ;')).toThrow(SyntaxError);
-    expect(() => stripBootScript('var a = 1; /* never closed')).toThrow(SyntaxError);
+    expect(() => minifyBootScript('var a = ;')).toThrow(SyntaxError);
+    expect(() => minifyBootScript('var a = 1; /* never closed')).toThrow('not valid JavaScript');
   });
 
-  it('ships src/first-paint/boot.js as a small comment-free classic script', () => {
-    const script = stripBootScript(bootJs);
-    expect(script.startsWith('(function () {\nvar accept = function () {\n')).toBe(true);
-    expect(script.endsWith('\n})();')).toBe(true);
-    expect(script).not.toMatch(/^\s*\/\/|\/\*/m);
-    expect(script).toContain("root.setAttribute('data-boot', 'landing');");
+  it('ships src/first-paint/boot.js as a small, deterministic classic script', () => {
+    const script = minifyBootScript(bootJs);
+    expect(minifyBootScript(bootJs)).toBe(script);
+    expect(script.startsWith('(function(){')).toBe(true);
+    expect(script.endsWith('})();')).toBe(true);
+    expect(script).not.toMatch(/^\s*\/\/|\/\*|\n/);
+    expect(script).toMatch(/\.setAttribute\((['"`])data-boot\1,(['"`])landing\2\)/);
     // The loader reads the template the build writes.
-    expect(script).toContain(`document.getElementById('${DEFERRED_TEMPLATE_ID}')`);
-    expect(/^[\x20-\x7e\n]*$/.test(script)).toBe(true);
+    expect(script).toMatch(new RegExp(`document\\.getElementById\\((['"\`])${DEFERRED_TEMPLATE_ID}\\1\\)`));
+    // It keeps to the source's ES2019: minifying adds no nullish coalescing or optional chaining.
+    expect(script).not.toMatch(/\?\?|\?\./);
+    expect(/^[\x20-\x7e]*$/.test(script)).toBe(true);
     expect(() => assertInlineSafe('script', script)).not.toThrow();
   });
 });
@@ -148,23 +157,32 @@ describe('inline safety', () => {
       'html[data-boot-art=lite] a{}',
       'html[data-app-started] .hero{}',
       '.first-paint-shell{}',
+      // Lightning CSS parses the selector, so a divergent attribute or class nested in an argument counts too.
+      '.hero:not(.first-paint-shell){}',
+      ':is([INERT],.a) b{}',
+      'li:nth-child(2 of [data-boot]){}',
     ]) {
       expect(() => assertShellNeutralCss(css), css).toThrow('differs between the first-paint shell');
     }
     expect(() =>
       assertShellNeutralCss('.collection-artifact[data-render-mode=webgl] .artifact-canvas{visibility:visible}'),
     ).not.toThrow();
+    // Only selectors count: not strings, comments, or names that merely begin like a divergent one.
+    expect(() =>
+      assertShellNeutralCss('.a::before{content:"[inert] .first-paint-shell"}/* [style] */[data-booted],.styles{}'),
+    ).not.toThrow();
   });
 
   it('allows only URLs that resolve the same from index.html', () => {
     expect(() =>
       assertRootRelativeUrls(
-        'a{background:url(/assets/a.png)}b{mask:url("data:image/svg+xml,%3Csvg%3E")}c{fill:url(#g)}d{b:url(https://example.com/a)}',
+        'a{background:url(/assets/a.png)}b{mask:url("data:image/svg+xml,%3Csvg%3E")}c{fill:url(#g)}d{b:url(https://example.com/a)}e::before{content:"url(a.png)"}',
       ),
     ).not.toThrow();
     for (const url of ['url(a.png)', 'url(../assets/a.png)', "url('./a.png')", 'url(//cdn.example/a.png)']) {
       expect(() => assertRootRelativeUrls(`a{background:${url}}`), url).toThrow('would resolve against index.html');
     }
+    expect(() => assertRootRelativeUrls('a{--image:url(a.png)}')).toThrow('references "a.png"');
   });
 });
 
@@ -335,19 +353,30 @@ describe('first-paint fallback faces', () => {
 });
 
 describe('first-paint shell stylesheet', () => {
-  it('minifies without changing selectors, strings or values', () => {
+  it('minifies with Lightning CSS, keeping what each rule means', () => {
     expect(
       minifyShellCss("/* note */\n.a > b,\n.c {\n  color: red;\n  font: 800 100px 'P100 DF Impact', monospace;\n}\n"),
-    ).toBe(".a > b,.c{color: red;font: 800 100px 'P100 DF Impact',monospace}");
-    const shell = minifyShellCss(shellCss);
-    expect(shell).not.toContain('/*');
-    expect(shell).toContain('html[data-boot=landing] .first-paint-shell{display: contents}');
-    expect(shell).toContain('.first-paint-shell > main{min-height: 100vh}');
-    expect(shell).toContain("font-family: 'Hanken Grotesk Variable','P100 Sans Fallback','Segoe UI',sans-serif");
-    expect(shell).toContain(
-      "--display: 'Barlow Condensed','P100 DF Impact','P100 DF Arial',Impact,'Arial Narrow',sans-serif",
+    ).toBe('.a>b,.c{color:red;font:800 100px P100 DF Impact,monospace}');
+    // A custom property keeps its value's tokens, and without browser targets a prefixed declaration stays beside the
+    // standard one.
+    expect(minifyShellCss(":root {\n  --display: 'Barlow Condensed', Impact, sans-serif;\n}\n")).toBe(
+      ':root{--display:"Barlow Condensed", Impact, sans-serif}',
     );
-    expect(shell.match(/unicode-range: U\+20-7E,U\+B7,U\+2026\}/g)).toHaveLength(9);
+    expect(minifyShellCss('.p {\n  text-size-adjust: none;\n  -webkit-text-size-adjust: none;\n}\n')).toBe(
+      '.p{-webkit-text-size-adjust:none;text-size-adjust:none}',
+    );
+    const shell = minifyShellCss(shellCss);
+    expect(minifyShellCss(shellCss)).toBe(shell);
+    expect(minifyShellCss(shellCss.replaceAll('\n', '\r\n'))).toBe(shell);
+    expect(shell).not.toContain('/*');
+    expect(shell).toContain('html[data-boot=landing] .first-paint-shell{display:contents}');
+    expect(shell).toContain('.first-paint-shell>main{min-height:100vh}');
+    // Every fallback face and its unicode-range survive, however many faces the shell declares.
+    const count = (css: string, pattern: RegExp) => css.match(pattern)?.length ?? 0;
+    const source = shellCss.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(count(source, /@font-face\s*\{/g)).toBeGreaterThan(0);
+    expect(count(shell, /@font-face\{/g)).toBe(count(source, /@font-face\s*\{/g));
+    expect(count(shell, /unicode-range:/g)).toBe(count(source, /unicode-range\s*:/g));
     expect(() => assertInlineSafe('style', shell)).not.toThrow();
   });
 
@@ -361,8 +390,9 @@ describe('first-paint shell stylesheet', () => {
       rules.every(([, state, visible]) => state === visible),
       'each state shows its own caption',
     ).toBe(true);
-    const script = stripBootScript(bootJs);
-    for (const state of states) expect(script, `the boot script sets ${state}`).toContain(`'${state}'`);
+    const script = minifyBootScript(bootJs);
+    for (const state of states)
+      expect(script, `the boot script sets ${state}`).toMatch(new RegExp(`(['"\`])${state}\\1`));
     for (const variant of ['offline', 'online'] as const) {
       const captions = [...shellMarkup(indexHtml, variant).matchAll(/<span data-shell-art="(\w+)">([^<]*)<\/span>/g)];
       expect(captions.map(([, state]) => state).sort(), `one ${variant} caption per state`).toEqual([...states].sort());
@@ -616,7 +646,7 @@ describe('first-paint index.html', () => {
         `default-src 'self'; script-src 'self' ${sha256Source(result.script)}; style-src 'self' 'unsafe-inline'`,
       ),
     ).toEqual([]);
-    expect(result.script).toBe(stripBootScript(bootJs));
+    expect(result.script).toBe(minifyBootScript(bootJs));
     // No web font face reaches the inline style; the only faces are shell.css's local fallbacks.
     expect(result.style.slice(0, -minifyShellCss(shellCss).length)).not.toContain('@font-face');
     expect(result.style).not.toMatch(/P100 Barlow Condensed|P100 Hanken Grotesk/);
@@ -748,7 +778,7 @@ describe('first-paint index.html', () => {
       await writeFile(path.join(root, 'src', 'first-paint', 'shell.css'), shellCss);
       await writeFile(path.join(root, 'src', 'first-paint', 'boot.js'), bootJs);
       const build = async (styleSources: string) => {
-        const csp = `default-src 'self'; script-src 'self' ${sha256Source(stripBootScript(bootJs))}; style-src 'self' ${styleSources}`;
+        const csp = `default-src 'self'; script-src 'self' ${sha256Source(minifyBootScript(bootJs))}; style-src 'self' ${styleSources}`;
         await writeFile(
           path.join(root, 'vercel.json'),
           JSON.stringify({
@@ -788,7 +818,7 @@ describe('first-paint index.html', () => {
         ),
       );
       // check:budgets gates both variants' inline style and the boot script from the record the build retains.
-      const script = stripBootScript(bootJs);
+      const script = minifyBootScript(bootJs);
       const record = await readFirstPaintRecord(path.join(root, 'dist'));
       expect(record).toEqual({
         format: 1,

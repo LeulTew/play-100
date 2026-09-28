@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { stripBootScript } from './plugin.ts';
+import { minifyBootScript } from './plugin.ts';
 import { NOTICE_OPEN, bootNotice, shellMarkup } from './shell-html.ts';
 
 const read = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const bootScript = stripBootScript(read('src/first-paint/boot.js'));
+const bootScript = minifyBootScript(read('src/first-paint/boot.js'));
 const indexHtml = read('index.html');
 const HINT_KEY = 'play100.motion-hint.v1:guest';
 /** The failure notice's watchdog, from the loader's start. */
@@ -689,8 +689,8 @@ describe('first-paint failure notice', () => {
   it.each(['offline', 'online'] as const)('waits hidden after the %s shell in #root', (variant) => {
     const notice = bootNotice(shellMarkup(indexHtml, variant));
     expect(NOTICE_OPEN).toContain(' id="p100-boot-error" hidden>');
-    expect(bootScript).toContain("document.getElementById('p100-boot-error')");
-    expect(bootScript).toContain("document.querySelector('.first-paint-shell')");
+    expect(bootScript).toMatch(/document\.getElementById\((['"`])p100-boot-error\1\)/);
+    expect(bootScript).toMatch(/document\.querySelector\((['"`])\.first-paint-shell\1\)/);
     expect(notice).toContain(`<div role="alert"><h1>The collection couldn't finish loading.</h1><p>`);
     // One Reload button for the loader to wire, and the workbook link, which needs no script.
     expect([...notice.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag)).toEqual([
@@ -706,6 +706,6 @@ describe('first-paint failure notice', () => {
   it('is kept hidden by src/main.tsx, whose last statement marks the app started', () => {
     const mark = "document.documentElement.setAttribute('data-app-started', '');";
     expect(read('src/main.tsx').trimEnd().endsWith(`\n${mark}`)).toBe(true);
-    expect(bootScript.split("hasAttribute('data-app-started')")).toHaveLength(3);
+    expect(bootScript.match(/hasAttribute\((['"`])data-app-started\1\)/g)).toHaveLength(2);
   });
 });

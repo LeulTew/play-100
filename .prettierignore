@@ -35,11 +35,11 @@
 !/tests-cloud-ui/**/*.cjs
 !/*.config.ts
 
-# Immutable boot bytes, frozen sources and generated metadata.
+# Frozen sources and generated metadata. The first-paint boot script and shell stylesheet keep their hand layout
+# (shell.css gives each fallback face one line, to read against the derivation in its header). The build minifies both
+# with Oxc and Lightning CSS before vercel.json pins them by hash (scripts/first-paint/plugin.ts), so their formatting
+# never reaches a hash.
 /src/first-paint/boot.js
-# The first-paint shell stylesheet reaches the inline style with only its comments and whitespace removed
-# (scripts/first-paint/plugin.ts), and vercel.json pins that style by hash. Prettier would requote its strings and
-# attribute values, so it keeps its bytes as written.
 /src/first-paint/shell.css
 /tests/fixtures/
 /tests-cloud/fixtures/live-270f4c7/

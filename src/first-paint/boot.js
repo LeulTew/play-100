@@ -1,6 +1,6 @@
 /* global window, document */
 // Boot gate, app loader and failure notice for the static first-paint shell (docs/first-paint-shell.md).
-// The build strips the comments and inlines this classic script at the end of <head>, right after the
+// The build minifies and inlines this classic script at the end of <head>, right after the
 // <template id="p100-deferred"> that holds the app's startup tags (scripts/first-paint/plugin.ts);
 // vercel.json allows it by hash only. It must stay small and self-contained: it writes no storage,
 // and the only requests it causes are those of the startup tags. It accepts the document only when
