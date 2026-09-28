@@ -183,6 +183,79 @@ describe('native release result summaries', () => {
 });
 
 describe('release manifest collection', () => {
+  it('binds cloud results, tested rules and named JSON or text receipts without copying their contents', async () => {
+    const { root, put, args, environment } = await fixture();
+    await put('cloud.json', JSON.stringify(vitestReport()));
+    await put('firestore.rules', 'rules fixture');
+    await put('tested.rules', 'rules fixture');
+    await put('static.json', '{"exitCode":0,"privateDetail":"not-for-manifest"}');
+    await put('csp.log', 'CSP check passed');
+    const options = parseManifestArguments([
+      ...args,
+      '--vitest-cloud',
+      'cloud.json',
+      '--cloud-rules',
+      'tested.rules',
+      '--receipt',
+      'static=static.json',
+      '--receipt',
+      'csp=csp.log',
+    ]);
+    const manifest = await collectReleaseManifest(root, options, environment);
+    expect(manifest.reports.map((report) => report.kind)).toEqual(['vitest', 'vitest-cloud', 'playwright']);
+    expect(manifest.cloudRules).toEqual({ path: 'tested.rules', sha256: sha256('rules fixture') });
+    expect(manifest.receipts).toEqual([
+      {
+        name: 'static',
+        path: 'static.json',
+        sha256: sha256('{"exitCode":0,"privateDetail":"not-for-manifest"}'),
+        exitCode: 0,
+      },
+      { name: 'csp', path: 'csp.log', sha256: sha256('CSP check passed'), exitCode: null },
+    ]);
+    expect(JSON.stringify(manifest)).not.toContain('not-for-manifest');
+    await put('firestore.rules', 'different rules');
+    await expect(collectReleaseManifest(root, options, environment)).rejects.toThrow('do not match');
+    await put('firestore.rules', 'rules fixture');
+    await put('cloud.json', JSON.stringify({ ...vitestReport(), success: false }));
+    await expect(collectReleaseManifest(root, options, environment)).rejects.toThrow('unsuccessful');
+  });
+
+  it('already accepts multiple distinct Vitest reports', async () => {
+    const { root, put, args, environment } = await fixture();
+    await put('second.json', JSON.stringify(vitestReport()));
+    const manifest = await collectReleaseManifest(
+      root,
+      parseManifestArguments([...args, '--vitest', 'second.json']),
+      environment,
+    );
+    expect(manifest.reports.filter((report) => report.kind === 'vitest')).toHaveLength(2);
+  });
+
+  it.each(['{"exitCode":1}', '{"ExitCode":2}', '{"exitCode":"0"}', '{"exitCode":0,"ExitCode":1}', '{bad'])(
+    'rejects failed or malformed named JSON receipt %s',
+    async (content) => {
+      const { root, put, args, environment } = await fixture();
+      await put('static.json', content);
+      await expect(
+        writeReleaseManifest(root, [...args, '--receipt', 'static=static.json'], environment),
+      ).rejects.toThrow();
+      await expect(readFile(path.join(root, 'receipt.json'))).rejects.toThrow();
+    },
+  );
+
+  it.each([
+    ['--vitest-cloud', 'cloud.json'],
+    ['--cloud-rules', 'tested.rules'],
+    ['--receipt', '=file'],
+    ['--receipt', 'static='],
+    ['--receipt', 'static=file', '--receipt', 'static=another'],
+  ])('rejects incomplete or ambiguous evidence options %j', (...extra) => {
+    expect(() =>
+      parseManifestArguments(['out.json', '--vitest', 'v.json', '--playwright', 'p.json', ...extra]),
+    ).toThrow();
+  });
+
   it('writes portable source, runtime and input hashes without configuration values', async () => {
     const { root, put, args, environment } = await fixture();
     await put('.env.production', 'VITE_FROM_FILE=local-config\nVITE_OVERRIDE=old\n');

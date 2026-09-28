@@ -20,6 +20,9 @@ export interface ManifestOptions {
   output: string;
   mode: string;
   vitest: string[];
+  vitestCloud?: string;
+  cloudRules?: string;
+  receipts: { name: string; file: string }[];
   playwright: string[];
   decisions?: string;
   allowDirty: boolean;
@@ -173,7 +176,14 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
   if (!output || output.startsWith('--')) {
     throw new Error('Usage: release:manifest OUTPUT --vitest FILE --playwright FILE');
   }
-  const options: ManifestOptions = { output, mode: 'production', vitest: [], playwright: [], allowDirty: false };
+  const options: ManifestOptions = {
+    output,
+    mode: 'production',
+    vitest: [],
+    playwright: [],
+    receipts: [],
+    allowDirty: false,
+  };
   const single = new Set<string>();
   for (let index = 1; index < args.length; index += 1) {
     const flag = args[index];
@@ -182,21 +192,38 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
       options.allowDirty = true;
       continue;
     }
-    if (!flag || !['--vitest', '--playwright', '--decisions', '--mode'].includes(flag)) {
+    if (
+      !flag ||
+      !['--vitest', '--vitest-cloud', '--cloud-rules', '--receipt', '--playwright', '--decisions', '--mode'].includes(flag)
+    ) {
       throw new Error('Unknown release-manifest option.');
     }
     const value = args[++index];
     if (!value || value.startsWith('--')) throw new Error('Missing release-manifest option value.');
     if (flag === '--vitest') options.vitest.push(value);
     else if (flag === '--playwright') options.playwright.push(value);
-    else {
+    else if (flag === '--receipt') {
+      const separator = value.indexOf('=');
+      const name = value.slice(0, separator);
+      const file = value.slice(separator + 1);
+      if (separator < 1 || !/^[\w-]+$/.test(name) || !file.trim()) {
+        throw new Error('Receipt must be NAME=FILE.');
+      }
+      if (options.receipts.some((receipt) => receipt.name === name)) throw new Error('Duplicate receipt name.');
+      options.receipts.push({ name, file });
+    } else {
       if (single.has(flag)) throw new Error('Duplicate release-manifest option.');
       single.add(flag);
       if (flag === '--decisions') options.decisions = value;
+      else if (flag === '--vitest-cloud') options.vitestCloud = value;
+      else if (flag === '--cloud-rules') options.cloudRules = value;
       else options.mode = value;
     }
   }
   if (!options.vitest.length || !options.playwright.length) throw new Error('Both native reporter kinds are required.');
+  if (Boolean(options.vitestCloud) !== Boolean(options.cloudRules)) {
+    throw new Error('--vitest-cloud and --cloud-rules must be supplied together.');
+  }
   if (!/^[a-zA-Z0-9_-]+$/.test(options.mode) || options.mode === 'local') throw new Error('Invalid Vite mode.');
   return options;
 }
@@ -309,17 +336,42 @@ export async function collectReleaseManifest(
   );
   const seen = new Set<string>();
   const reports = [];
-  for (const kind of ['vitest', 'playwright'] as const) {
-    for (const input of options[kind]) {
+  for (const kind of ['vitest', 'vitest-cloud', 'playwright'] as const) {
+    const inputs = kind === 'vitest-cloud' ? (options.vitestCloud ? [options.vitestCloud] : []) : options[kind];
+    for (const input of inputs) {
       const file = path.resolve(root, input);
       const identity = await realpath(file);
       if (seen.has(identity)) throw new Error('Duplicate native report input.');
       seen.add(identity);
       const content = await bytes(file, `${kind} report`);
       const parsed = json(content, `${kind} report`);
-      const counts = kind === 'vitest' ? summarizeVitest(parsed) : summarizePlaywright(parsed);
+      const counts = kind === 'playwright' ? summarizePlaywright(parsed) : summarizeVitest(parsed);
       reports.push({ kind, path: portable(file), sha256: sha256(content), counts });
     }
+  }
+  let cloudRules: { path: string; sha256: string } | null = null;
+  if (options.cloudRules) {
+    const file = path.resolve(root, options.cloudRules);
+    cloudRules = { path: portable(file), sha256: sha256(await bytes(file, 'tested Firestore rules')) };
+    if (cloudRules.sha256 !== sha256(await bytes(path.join(root, 'firestore.rules'), 'candidate Firestore rules'))) {
+      throw new Error('Tested Firestore rules do not match the candidate.');
+    }
+  }
+  const receipts = [];
+  for (const { name, file: input } of options.receipts) {
+    const file = path.resolve(root, input);
+    const content = await bytes(file, 'named receipt');
+    let exitCode: number | null = null;
+    if (path.extname(file).toLowerCase() === '.json') {
+      const receipt = object(json(content, 'named receipt'));
+      const codes = [receipt.exitCode, receipt.ExitCode].filter((value) => value !== undefined);
+      if (codes.length) {
+        exitCode = count(codes[0]);
+        if (codes.some((value) => count(value) !== exitCode)) throw new Error('Receipt exit codes disagree.');
+        if (exitCode !== 0) throw new Error('Named receipt records a failed check.');
+      }
+    }
+    receipts.push({ name, path: portable(file), sha256: sha256(content), exitCode });
   }
   let decisions = parseDecisions({ carryForward: [], waivers: [] });
   let decisionInput: { path: string; sha256: string } | null = null;
@@ -344,6 +396,8 @@ export async function collectReleaseManifest(
     configuration,
     artifacts,
     reports,
+    cloudRules,
+    receipts,
     decisionInput,
     ...decisions,
   };

@@ -104,24 +104,34 @@ the first failure. Never use `PLAY100_ALLOW_ONLY` or `PLAY100_REUSE_SERVER`.
 
 ```powershell
 Remove-Item Env:PLAY100_BASE_URL, Env:PLAY100_ALLOW_ONLY, Env:PLAY100_REUSE_SERVER -ErrorAction SilentlyContinue
-npx --no-install tsc -b
-if ($LASTEXITCODE -ne 0) { throw 'Types failed' }
-npm run typecheck:functions
-if ($LASTEXITCODE -ne 0) { throw 'Functions types failed' }
-npm run lint
-if ($LASTEXITCODE -ne 0) { throw 'Lint failed' }
-npm run validate:data
-if ($LASTEXITCODE -ne 0) { throw 'Data validation failed' }
-npm run validate:discovery
-if ($LASTEXITCODE -ne 0) { throw 'Discovery validation failed' }
+function Invoke-RecordedCheck([string]$name, [scriptblock]$check) {
+  $log = Join-Path $evidence "$name.log"
+  $receipt = Join-Path $evidence "$name.json"
+  if ((Test-Path $log) -or (Test-Path $receipt)) { throw "Use fresh evidence paths for $name" }
+  & $check *> $log
+  $code = $LASTEXITCODE
+  $result = @{ exitCode = $code; log = "$name.log"; logSha256 = (Get-FileHash $log -Algorithm SHA256).Hash }
+  [IO.File]::WriteAllText($receipt, ($result | ConvertTo-Json))
+  if ($code -ne 0) { throw "$name failed; retain its log and receipt" }
+}
+Invoke-RecordedCheck types { npx --no-install tsc -b }
+Invoke-RecordedCheck functions-types { npm run typecheck:functions }
+Invoke-RecordedCheck lint { npm run lint }
+Invoke-RecordedCheck data { npm run validate:data }
+Invoke-RecordedCheck discovery { npm run validate:discovery }
 npm test -- --maxWorkers=1 --reporter=default --reporter=json --outputFile="$evidence\unit-browser.json"
 if ($LASTEXITCODE -ne 0) { throw 'Unit/browser gate failed' }
-npm run test:cloud
+Copy-Item firestore.rules "$evidence\tested-firestore.rules" -ErrorAction Stop
+npx --no-install firebase emulators:exec --project demo-play100 --only auth,firestore "vitest run --config vitest.cloud.config.ts --reporter=default --reporter=json --outputFile=$evidence\cloud.json"
 if ($LASTEXITCODE -ne 0) { throw 'Cloud rules gate failed' }
+if ((Get-FileHash firestore.rules).Hash -ne (Get-FileHash "$evidence\tested-firestore.rules").Hash) { throw 'Rules changed during cloud tests' }
 ```
 
-Keep the complete `test:cloud` console receipt. That script owns emulator
-startup/teardown; do not run the cloud-UI emulators concurrently with it.
+Use an evidence path without spaces for the nested emulator command. It is the
+same emulator/Vitest invocation as `test:cloud`, with native JSON reporting.
+Keep its complete console/exit receipt as well as `cloud.json` and the rules
+snapshot taken before the run; do not edit rules while it runs. The emulator
+command owns startup/teardown; do not run cloud-UI emulators concurrently.
 
 ## 3. Configured build, budgets and e2e partitions
 
@@ -137,10 +147,8 @@ Remove-Item Env:VITE_USE_FIREBASE_EMULATORS, Env:PLAY100_TEST_BUILD, Env:DEBUG -
 $env:VITE_FIREBASE_REQUIRED = 'true'
 npm run build
 if ($LASTEXITCODE -ne 0) { throw 'Configured build failed' }
-npm run check:csp
-if ($LASTEXITCODE -ne 0) { throw 'CSP failed' }
-npm run check:budgets -- --json "$evidence\budgets.json"
-if ($LASTEXITCODE -ne 0) { throw 'Budgets failed' }
+Invoke-RecordedCheck csp { npm run check:csp }
+Invoke-RecordedCheck budget-check { npm run check:budgets -- --json "$evidence\budgets.json" }
 $env:PLAY100_TEST_BUILD = 'production'
 $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-production.json"
 npm run test:e2e -- --reporter=list,json
@@ -314,14 +322,22 @@ reasoned records defined in [the manifest documentation](../README.md#portable-l
 
 ```powershell
 if (git status --porcelain) { throw 'Commit or investigate source changes before release' }
-npm run release:manifest -- "$evidence\manifest.json" --vitest "$evidence\unit-browser.json" --playwright "$evidence\e2e-production.json" --playwright "$evidence\e2e-development.json" --playwright "$evidence\cloud-ui.json" --decisions "$evidence\decisions.json"
+npm run release:manifest -- "$evidence\manifest.json" --vitest "$evidence\unit-browser.json" --vitest-cloud "$evidence\cloud.json" --cloud-rules "$evidence\tested-firestore.rules" --playwright "$evidence\e2e-production.json" --playwright "$evidence\e2e-development.json" --playwright "$evidence\cloud-ui.json" --receipt "types=$evidence\types.json" --receipt "functions-types=$evidence\functions-types.json" --receipt "lint=$evidence\lint.json" --receipt "data=$evidence\data.json" --receipt "discovery=$evidence\discovery.json" --receipt "csp=$evidence\csp.json" --receipt "budget-check=$evidence\budget-check.json" --receipt "budgets=$evidence\budgets.json" --decisions "$evidence\decisions.json"
 if ($LASTEXITCODE -ne 0) { throw 'Manifest failed' }
 ```
 
 Label the reports by partition: development/cloud-UI test source modules, not
-the production `dist`. Include cloud rules console/exit receipts, audits,
-types/lint/validators, budgets, CSP, manual decisions and any investigation of
-failed attempts beside the native reports. The manifest records collector
+the production `dist`. The manifest hashes cloud Vitest results and the tested
+rules snapshot, which must match the candidate's `firestore.rules`. Repeated
+`--vitest` already supports additional Vitest reports; `--vitest-cloud` labels
+the rules partition and requires `--cloud-rules`. Named `--receipt NAME=FILE`
+inputs bind static, budget and CSP evidence. JSON receipts record top-level
+`exitCode` or `ExitCode` when present (nonzero or malformed codes are rejected);
+text logs and JSON without a code record `null`, not an inferred pass. Retain
+the hashed logs referenced by the command receipts, audits, manual decisions
+and any investigation of failed attempts beside the native reports. These
+hashes bind operator-supplied evidence, not proof that a runner used a snapshot.
+The manifest records collector
 runtime and current artifact hashes, not retrospective proof of every runner's
 SHA/environment. It neither approves waivers nor certifies full coverage.
 
