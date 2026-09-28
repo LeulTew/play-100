@@ -597,7 +597,7 @@ test('batched desktop and mobile pixels keep games before secondary filters and 
       await expect(pager(page)).toContainText('845 catalog games');
       await page.screenshot({ path: info.outputPath(`discover-${viewport.width}.png`) });
       await page.goto('/?view=table&catalogs=off');
-      const scroll = page.locator('.ratings-scroll');
+      const scroll = page.locator('.ratings-scroll[role="region"]');
       await expect(scroll).toBeVisible();
       await scroll.scrollIntoViewIfNeeded();
       await scroll.evaluate((element) => {
