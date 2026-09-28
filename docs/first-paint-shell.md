@@ -270,9 +270,11 @@ landing shell: every stylesheet stays in `<head>`, the startup stylesheets come
 first and only once, and the lazy chunk stylesheets follow them. On phones, the
 inline style alone lays out the shell's mobile navigation in five equal columns
 at 320 and 393 px, each label inside its own column with its lines centred,
-with the WCAG text spacing too. The shell comparisons need the local fonts the
-probes measure (Windows or macOS Impact/Arial, or Liberation Sans/Arimo on
-Linux).
+with the WCAG text spacing too. Under the inline style alone, at 320, 393, 768
+and 1440 px, the shell's headings keep their text inside their boxes and clear
+of their neighbours, with and without that spacing. The shell comparisons need
+the local fonts the probes measure (Windows or macOS Impact/Arial, or Liberation
+Sans/Arimo on Linux).
 
 [`tests/entry-recovery.spec.ts`](../tests/entry-recovery.spec.ts) loads `/` and
 `/?catalogs=off` under the production CSP. With the module entry refused, and once

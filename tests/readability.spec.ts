@@ -5,7 +5,15 @@ import { canonicalCatalogId } from '../src/lib/catalog-identity';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
-import { closeDialog, expectReadableSurface, openMenu, textSpacingCSS } from './readability-helpers';
+import {
+  adoptTextSpacing,
+  closeDialog,
+  expectHeadingsFit,
+  expectReadableSurface,
+  openMenu,
+  readHeadingFit,
+  textSpacingCSS,
+} from './readability-helpers';
 
 const catalog = parseDiscoveryCatalog(
   JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')),
@@ -132,6 +140,21 @@ test('320px text spacing retains information, targets and single-axis page reflo
   await installGuestLibrary(page, libraryFixture(3));
   await surfaces(page, true);
 });
+
+// G7-QA A11Y-002: the hero title and the workbook title set 0.93 and 0.98 display lines, well under the 1.2em glyphs.
+const TIGHT_HEADINGS = ['hero-title', 'OFFLINE. STILL ON YOUR LIST.'];
+
+for (const width of [320, 393, 768, 1440]) {
+  test(`landing headings fit their boxes with and without the WCAG text spacing at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/?catalogs=off');
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    await page.evaluate(() => document.fonts.ready);
+    expectHeadingsFit(await readHeadingFit(page), `${width}px`, TIGHT_HEADINGS);
+    await adoptTextSpacing(page);
+    expectHeadingsFit(await readHeadingFit(page), `${width}px with text spacing`);
+  });
+}
 
 test('forced colors preserves native focus, selected navigation and comparison controls', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 1000 });

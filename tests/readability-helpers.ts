@@ -15,6 +15,85 @@ export async function adoptTextSpacing(page: Page): Promise<void> {
   }, textSpacingCSS);
 }
 
+export interface HeadingFit {
+  /** The heading's id, or else the start of its text. */
+  name: string;
+  /** How far its content reaches past its own box, in px: its scroll overflow. */
+  overflowX: number;
+  overflowY: number;
+  /** How far its text reaches into the box of an element beside it, in px. */
+  overlap: number;
+}
+
+/**
+ * How every rendered h1, h2 and h3 under `root` fits: its text inside its own box, where a clipping ancestor or a
+ * text-spacing check sees it, and clear of the elements beside it. Sections that `content-visibility: auto` skips
+ * are rendered first, as a visitor who scrolls to them sees them.
+ */
+export async function readHeadingFit(page: Page, root = 'body'): Promise<HeadingFit[]> {
+  await page.evaluate(async () => {
+    for (const element of document.querySelectorAll<HTMLElement>('body *'))
+      if (getComputedStyle(element).getPropertyValue('content-visibility') === 'auto')
+        element.style.setProperty('content-visibility', 'visible');
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+  return page
+    .locator(root)
+    .first()
+    .evaluate((container) => {
+      // Rendered by its computed style, not by attribute: the first-paint shell keeps `hidden` and shows as contents.
+      const rendered = (element: Element) => {
+        for (let current: Element | null = element; current; current = current.parentElement) {
+          const style = getComputedStyle(current);
+          if (style.clip !== 'auto' || style.clipPath === 'inset(50%)') return false;
+        }
+        return element.getClientRects().length > 0;
+      };
+      return [...container.querySelectorAll<HTMLElement>('h1, h2, h3')].filter(rendered).map((heading) => {
+        const text = document.createRange();
+        text.selectNodeContents(heading);
+        const lines = [...text.getClientRects()].filter((line) => line.width > 0 && line.height > 0);
+        let overlap = 0;
+        for (const sibling of heading.parentElement?.children ?? []) {
+          if (sibling === heading || !rendered(sibling)) continue;
+          const box = sibling.getBoundingClientRect();
+          for (const line of lines) {
+            const x = Math.min(line.right, box.right) - Math.max(line.left, box.left);
+            const y = Math.min(line.bottom, box.bottom) - Math.max(line.top, box.top);
+            if (x > 0 && y > 0) overlap = Math.max(overlap, Math.min(x, y));
+          }
+        }
+        return {
+          name: heading.id || heading.innerText.replace(/\s+/g, ' ').trim().slice(0, 40),
+          overflowX: heading.scrollWidth - heading.clientWidth,
+          overflowY: heading.scrollHeight - heading.clientHeight,
+          overlap,
+        };
+      });
+    });
+}
+
+/**
+ * G7-QA A11Y-002, WCAG 1.4.12: every heading keeps its text inside its box, within a pixel of rounding, and clear of
+ * the elements beside it. At the default spacing only the `tight` headings are held to the vertical check: a 1.1
+ * display line lets the 1.2em glyphs reach 0.05em, 2px at most, past the box, which clips nothing.
+ */
+export function expectHeadingsFit(fit: readonly HeadingFit[], when: string, tight?: readonly string[]): void {
+  expect(fit.length, `${when}: headings measured`).toBeGreaterThan(0);
+  for (const name of tight ?? [])
+    expect(
+      fit.some((heading) => heading.name === name),
+      `${when}: ${name} is rendered`,
+    ).toBe(true);
+  for (const heading of fit) {
+    const name = `${when}: ${heading.name}`;
+    if (!tight || tight.includes(heading.name))
+      expect(heading.overflowY, `${name} holds its text vertically`).toBeLessThanOrEqual(1);
+    expect(heading.overflowX, `${name} holds its text horizontally`).toBeLessThanOrEqual(1);
+    expect(heading.overlap, `${name} overlaps nothing beside it`).toBeLessThanOrEqual(0.5);
+  }
+}
+
 export async function expectReadableSurface(page: Page, surface: string, checkClipping = false) {
   await page.evaluate(() => document.fonts.ready);
   const report = await page.evaluate(

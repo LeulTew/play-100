@@ -139,6 +139,10 @@
   letter-spacing: -0.024em;
   line-height: 0.93;
   overflow-wrap: anywhere;
+  /* Barlow Condensed's glyphs are 1.2em tall, so at this line height each line's glyphs reach 0.135em past its line
+     box. The padding keeps them inside the heading's own box, and the equal negative margin moves nothing. */
+  padding-block: 0.135em;
+  margin-block: -0.135em;
 }
 .hero-copy h1 > span {
   color: #697252;

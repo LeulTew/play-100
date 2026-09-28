@@ -5,7 +5,7 @@ import { mainDocumentPolicy } from '../scripts/first-paint/csp';
 import { motionHintKey } from '../src/lib/motion-hint';
 import { emptyCatalogs } from './catalog-helpers';
 import { expectEqualColumns, readNavigationColumns } from './mobile-nav-helpers';
-import { adoptTextSpacing } from './readability-helpers';
+import { adoptTextSpacing, expectHeadingsFit, readHeadingFit } from './readability-helpers';
 
 interface Box {
   key: string;
@@ -484,11 +484,8 @@ test('the startup artifact caption names Lite mode only when the visitor chose i
   expect(errors).toEqual([]);
 });
 
-// G6-QA A11Y-001: the inline style alone lays the shell's navigation out in the app's five equal columns.
-test("the shell's mobile navigation keeps five equal columns under the inline style", async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'The mobile navigation shows only in the phone layout.');
-  await emptyCatalogs(page);
-  await serveWithPolicy(page);
+/** Holds the module entry and the entry stylesheet the template names, so only the inline style lays out the shell. */
+async function holdEntry(page: Page): Promise<() => void> {
   const built = await (await page.request.get('/')).text();
   const deferred = /<template id="p100-deferred">([\s\S]*?)<\/template>/.exec(built)?.[1] ?? '';
   const entryScript = /<script type="module" crossorigin src="(\/assets\/[^"]+\.js)"/.exec(deferred)?.[1];
@@ -497,9 +494,20 @@ test("the shell's mobile navigation keeps five equal columns under the inline st
     throw new Error(
       'Build the app before this check: index.html has no startup template with an entry script and stylesheet.',
     );
-  // Neither the app nor the entry stylesheet arrives, so only the inline style lays out the shell.
   const releaseScript = await hold(page, (url) => url.pathname === entryScript);
   const releaseStylesheet = await hold(page, (url) => url.pathname === entryStylesheet);
+  return () => {
+    releaseScript();
+    releaseStylesheet();
+  };
+}
+
+// G6-QA A11Y-001: the inline style alone lays the shell's navigation out in the app's five equal columns.
+test("the shell's mobile navigation keeps five equal columns under the inline style", async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'The mobile navigation shows only in the phone layout.');
+  await emptyCatalogs(page);
+  await serveWithPolicy(page);
+  const release = await holdEntry(page);
   const selector = '.first-paint-shell .mobile-nav';
   try {
     for (const width of [320, 393]) {
@@ -517,8 +525,34 @@ test("the shell's mobile navigation keeps five equal columns under the inline st
       expectEqualColumns(spaced, `the shell at ${width}px with text spacing`);
     }
   } finally {
-    releaseScript();
-    releaseStylesheet();
+    release();
+  }
+});
+
+// G7-QA A11Y-002: the inline style alone keeps the shell's hero and collection headings inside their boxes.
+test("the shell's headings fit their boxes under the inline style, with and without text spacing", async ({
+  page,
+  isMobile,
+}) => {
+  await emptyCatalogs(page);
+  await serveWithPolicy(page);
+  const release = await holdEntry(page);
+  try {
+    for (const width of isMobile ? [320, 393] : [768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/', { waitUntil: 'commit' });
+      await expect(page.locator('.first-paint-shell #hero-title')).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('data-boot', 'landing');
+      await expect(page.locator('html')).not.toHaveAttribute('data-app-started');
+      await page.evaluate(() => document.fonts.ready);
+      const shell = await readHeadingFit(page, '.first-paint-shell');
+      expect(shell.map((heading) => heading.name)).toEqual(['hero-title', 'collection-title']);
+      expectHeadingsFit(shell, `the shell at ${width}px`, ['hero-title']);
+      await adoptTextSpacing(page);
+      expectHeadingsFit(await readHeadingFit(page, '.first-paint-shell'), `the shell at ${width}px with text spacing`);
+    }
+  } finally {
+    release();
   }
 });
 

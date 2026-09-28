@@ -137,6 +137,8 @@ Barlow Condensed supplies the compact, box-art display voice; Hanken Grotesk Var
 
 Use the extracted display roles rather than an oversized generic hero: desktop tops out at the documented display maximum, mobile uses `display-mobile`, and widths up to 380px use `display-compact`. Intermediate layouts also reduce the headline. The compact role changes size only; it retains the display weight, tracking and line height.
 
+Barlow Condensed's glyphs are 1.2em tall, taller than the 0.93 hero and 0.98 workbook title lines. Those two titles pad their block edges by half the difference and cancel it with an equal negative margin, so their glyphs stay inside the heading's box, where clipping and text-spacing checks see them, without moving a line.
+
 Informative text has a **12px computed minimum**, including metadata, counts,
 credits and operational status. Body and action roles remain 13–17px; use
 weight, spacing and line height rather than smaller type to distinguish utility

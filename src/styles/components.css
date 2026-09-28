@@ -443,6 +443,9 @@
   line-height: 0.98;
   letter-spacing: -0.015em;
   font-weight: 700;
+  /* As for the hero title: the 1.2em glyphs reach 0.11em past each 0.98 line, and stay inside the box. */
+  padding-block: 0.11em;
+  margin-block: -0.11em;
 }
 .workbook-copy > p {
   max-width: 42ch;
