@@ -318,9 +318,14 @@ Escape dismisses only the foreground native dialog. Its keydown cancels the
 browser's grouped close request before closing that layer, and a held key cannot
 dismiss the next layer. Handled child-control keys retain their own behavior.
 The global panel-intent cancellation handles Escape only when no native modal is open.
-Committed Settings and About dialogs use their own tab titles; pending/error
-states, Menu, Compare tray and sign-in retain the underlying route or game title.
-Closing the titled dialog restores that title; URL and history behavior are unchanged.
+Committed Settings, About, Menu, Compare tray and Sign in dialogs use their
+headings as tab titles, ahead of the underlying game and then the resolved route.
+The tray reports its visible state back to the single App title arbiter; sign-in
+uses its existing request and online bridge, including a returning sign-in sheet.
+A cold sign-in dialog keeps the same title as its ready form; an online-tools
+failure with no sheet restores the underlying title. Other pending/error states
+retain the underlying title. Closing restores that title; URL and history
+behavior are unchanged.
 Personal-workspace document titles follow the resolved Library, Queue or Ranking
 tab, including legacy `list=later` links and history navigation.
 Starting a backup export, import or restore clears the superseded reset result

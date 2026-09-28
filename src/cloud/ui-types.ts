@@ -13,6 +13,7 @@ export interface AccountIdentity {
 export interface OnlineBridge {
   loading: boolean;
   identity: AccountIdentity | null;
+  signInOpen?: boolean;
   controller: LibraryController | null;
   scope: LibraryScope;
   enabled: boolean;

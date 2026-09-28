@@ -197,6 +197,19 @@ export default function OnlineController({
   onPinRecord?: (record: LibraryRecord) => boolean;
   artwork?: ReadonlyMap<string, CatalogArtwork>;
 }) {
+  const cloudPage = [
+    'account',
+    'publish',
+    'community',
+    'profile',
+    'creator',
+    'friends',
+    'friend',
+    'invite',
+    'compare',
+    'friend-sharing',
+    'friend-shelf',
+  ].includes(page);
   const invitationNow = useRef(invitation);
   invitationNow.current = invitation;
   const [retiredInvitation, setRetiredInvitation] = useState<typeof invitation | null>(null);
@@ -240,6 +253,7 @@ export default function OnlineController({
     setStartupError,
     handledGoogleReturn,
   } = useAccountSessionState();
+  const signInOpen = !identity && (showSheet || (returnSheet && !cloudPage));
   const deletion = useAccountDeletionState();
   const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
   // Whether this page load returned from a Google redirect that the Compare tray's sign-in started; the ref lets the
@@ -666,6 +680,7 @@ export default function OnlineController({
     () => ({
       loading: restoring,
       identity: identity ?? null,
+      signInOpen,
       controller: protectedController,
       scope: (active || cacheUnavailable) && scope ? scope : 'guest',
       enabled: active && Boolean(account.snapshot?.sync.enabled && identity?.verified),
@@ -683,6 +698,7 @@ export default function OnlineController({
     }),
     [
       identity,
+      signInOpen,
       restoring,
       active,
       protectedController,
@@ -1084,19 +1100,6 @@ export default function OnlineController({
     );
   };
   const authPanel = renderAuthPanel(purposes.page);
-  const cloudPage = [
-    'account',
-    'publish',
-    'community',
-    'profile',
-    'creator',
-    'friends',
-    'friend',
-    'invite',
-    'compare',
-    'friend-sharing',
-    'friend-shelf',
-  ].includes(page);
   if (startupError) throw new Error(startupError);
   return (
     <>
@@ -1432,7 +1435,7 @@ export default function OnlineController({
           )}
         </OnlinePageBoundary>
       )}
-      {(showSheet || (returnSheet && !cloudPage)) && !identity && (
+      {signInOpen && (
         <Dialog
           open
           titleId="account-signin-title"

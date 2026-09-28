@@ -14,6 +14,7 @@ import './compare-tray.css';
 export interface CompareTrayProps {
   onCompare: (records: LibraryRecord[]) => void;
   onPreview?: (record: LibraryRecord) => void;
+  onVisibilityChange?: (visible: boolean) => void;
   resolveArtwork?: (record: LibraryRecord) => GameArtworkProps['artwork'];
   animate?: boolean;
   hidden?: boolean;
@@ -29,6 +30,7 @@ export function CompareTray(props: CompareTrayProps) {
 function ScopedCompareTray({
   onCompare,
   onPreview,
+  onVisibilityChange,
   resolveArtwork,
   animate = false,
   hidden = false,
@@ -39,6 +41,7 @@ function ScopedCompareTray({
   const { items, unpin, clear, dismissError, warning, error, persistent, dragging } = useCompareTray();
   const controller = useContext(CompareDragSourceContext);
   const [open, setOpen] = useState(false);
+  const visible = open && !hidden;
   const [documentVisible, setDocumentVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
   const id = useId();
   const expand = useRef<HTMLButtonElement>(null);
@@ -136,6 +139,10 @@ function ScopedCompareTray({
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
+  useEffect(() => {
+    onVisibilityChange?.(visible);
+    return () => onVisibilityChange?.(false);
+  }, [visible, onVisibilityChange]);
   const close = () => setOpen(false);
   const compare = () => {
     if (!items.length) return;
@@ -242,7 +249,7 @@ function ScopedCompareTray({
         </aside>
       )}
       <Dialog
-        open={open && !hidden}
+        open={visible}
         titleId={`${id}-title`}
         descriptionId={`${id}-description`}
         onClose={close}

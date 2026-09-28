@@ -250,6 +250,7 @@ export default function App() {
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
   const { panel, setPanel, panelMessage, panelMessageError, panelFailure, dismissPanelMessage, panelFromMenu } =
     useAppPanel(libraryScope, onlineOpening);
+  const [compareTrayVisible, setCompareTrayVisible] = useState(false);
   const [offlineSettings, setOfflineSettings] = useState(false);
   const pwaEnabled = import.meta.env.PROD && window.isSecureContext;
   const pwa = usePwa({ enabled: pwaEnabled, wantControls: panel === 'menu' || panel === 'settings' });
@@ -524,9 +525,13 @@ export default function App() {
   useEffect(() => {
     setNotice('');
   }, [libraryScope]);
+  const requestedTitlePanel =
+    panel === 'account' && (!ONLINE_AVAILABLE || onlineFailed || online?.identity) ? null : panel;
+  const titlePanel =
+    requestedTitlePanel ?? (online?.signInOpen ? 'account' : compareTrayVisible ? 'compare-tray' : null);
   useEffect(() => {
-    document.title = appDocumentTitle(page, selectedGame, selectedRecord, panel, gamesView);
-  }, [selectedGame, selectedRecord, page, panel, gamesView]);
+    document.title = appDocumentTitle(page, selectedGame, selectedRecord, titlePanel, gamesView);
+  }, [selectedGame, selectedRecord, page, titlePanel, gamesView]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || document.querySelector('dialog[open]'))
@@ -899,6 +904,7 @@ export default function App() {
                           void compareGames(records);
                         },
                         onPreview: preview,
+                        onVisibilityChange: setCompareTrayVisible,
                         resolveArtwork: (record) => artwork.get(record.id),
                         animate: capabilities.animate,
                         hidden: trayHidden,

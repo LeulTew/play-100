@@ -26,12 +26,19 @@ const workspaceTitles: Record<MyGamesTab, string> = {
   queue: 'My games · Queue',
   ranking: 'My games · Ranking',
 };
+const panelTitles: Record<Exclude<AppPanel, null> | 'compare-tray', string> = {
+  settings: 'Settings & backups',
+  about: 'About & credits',
+  menu: 'Menu',
+  account: 'Sign in',
+  'compare-tray': 'Compare tray',
+};
 
 export function appDocumentTitle(
   page: AppPage,
   game?: Pick<Game, 'title' | 'rank'>,
   record?: Pick<LibraryRecord, 'title'>,
-  panel?: AppPanel,
+  panel?: AppPanel | 'compare-tray',
   gamesView?: MyGamesTab,
 ): string {
   const workspaceTitle =
@@ -39,12 +46,7 @@ export function appDocumentTitle(
       ? workspaceTitles[gamesView ?? (page === 'rankings' ? 'ranking' : 'library')]
       : pageTitles[page];
   const title =
-    panel === 'settings'
-      ? 'Settings & backups'
-      : panel === 'about'
-        ? 'About & credits'
-        : game
-          ? `${game.title} · #${game.rank}`
-          : (record?.title ?? workspaceTitle);
+    (panel ? panelTitles[panel] : undefined) ??
+    (game ? `${game.title} · #${game.rank}` : (record?.title ?? workspaceTitle));
   return `${title} | Play 100`;
 }
