@@ -188,12 +188,7 @@ export function FilmsFallback({ onWatch }: { onWatch: (id: 'the-100' | 'discover
     <ul className="films-list">
       {filmSummaries.map((film) => (
         <li key={film.id}>
-          <button
-            className="film-watch"
-            data-film-id={film.id}
-            aria-haspopup="dialog"
-            onClick={() => onWatch(film.id)}
-          >
+          <button className="film-watch" data-film-id={film.id} aria-haspopup="dialog" onClick={() => onWatch(film.id)}>
             <span className="film-poster">
               <span className="film-play-mark" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 20 20">
