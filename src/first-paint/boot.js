@@ -41,13 +41,13 @@
 
     // The metric-matched fallback faces must be usable right now, or shell text would reflow
     // when the web fonts arrive. Expected boxes come from the derivation in shell.css, and the Impact,
-    // Arial and Roboto faces share them: +-1% for display and regular, as glyphs snap to device
-    // pixels, and +-0.6% for bold, whose string, which the shell renders, measures too narrow in a
-    // Roboto variable font rendered without its wght axis.
+    // Arial and Roboto faces share them, within about 1%, as glyphs snap to device pixels. The bold
+    // string, which the shell renders, stops at -0.85%: a Roboto variable font rendered without its
+    // wght axis measures 1.1% too narrow.
     var probes = [
       ['p100-probe-display', 'GREAT ESCAPES.', 603.5, 615.7, 120],
       ['p100-probe-sans', 'Find your next world.', 923.1, 941.7, 130],
-      ['p100-probe-sans-bold', 'GOOD THINGS, COLLECTED.', 1294.5, 1313.3, 130],
+      ['p100-probe-sans-bold', 'GOOD THINGS, COLLECTED.', 1291, 1313.3, 130],
     ];
     var spans = probes.map(function (probe) {
       var span = document.createElement('span');

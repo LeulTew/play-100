@@ -111,8 +111,8 @@ the document only at `/` without
 renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
 metric-matched fallback faces are usable, the Impact, Arial and Roboto faces
-against the same expected boxes: within 1% for display and regular, where
-glyph edges snap to device pixels, and 0.6% for bold. The bold probe measures "GOOD THINGS, COLLECTED.",
+against the same expected boxes, within about 1% because glyph edges snap to
+device pixels. The bold probe measures "GOOD THINGS, COLLECTED.",
 which a variable Roboto rendered at its default weight draws too narrow, so that
 case, which would reflow, keeps the shell hidden. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.

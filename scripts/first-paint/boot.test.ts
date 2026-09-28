@@ -362,7 +362,7 @@ describe('first-paint boot gate', () => {
   });
 
   // Boxes of the Roboto faces measured in Chromium: the Android 11 static files and the Android 12+
-  // variable font (shell.css), the latter as rendered at a 2.625 device pixel ratio.
+  // variable font (shell.css), the latter as rendered at 2.625 and 1.75 device pixel ratios.
   it.each([
     [
       'static',
@@ -378,6 +378,14 @@ describe('first-paint boot gate', () => {
         'p100-probe-display': { width: 613.33, height: 120 },
         'p100-probe-sans': { width: 934.86, height: 130.3 },
         'p100-probe-sans-bold': { width: 1301.33, height: 130.3 },
+      },
+    ],
+    [
+      'variable, snapped',
+      {
+        'p100-probe-display': { width: 612.57, height: 120 },
+        'p100-probe-sans': { width: 933.71, height: 130.3 },
+        'p100-probe-sans-bold': { width: 1293.71, height: 130.3 },
       },
     ],
   ])('shows the shell with the Roboto fallback faces (%s)', (_, probes) => {
