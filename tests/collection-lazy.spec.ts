@@ -122,18 +122,80 @@ test('approaching saved additions loads their real controls without changing pri
   await installGuestLibrary(page, { ...emptyPersonalLibrary(), records: { [record.id]: record } });
   const before = await readLibrary(page);
   const asset = await extrasAsset();
+  let release = () => {};
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**${asset}`, async (route) => {
+    await waiting;
+    await route.continue();
+  });
   const requests: string[] = [];
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === asset) requests.push(request.url());
   });
-  await page.goto('/?catalogs=off');
-  await expect(page.locator('.game-card')).toHaveCount(24);
-  expect(requests).toEqual([]);
-  await page.getByRole('heading', { name: 'Beyond The 100', exact: true }).scrollIntoViewIfNeeded();
-  const card = page.locator(`[data-catalog-id="${record.id}"]`);
-  await expect(card).toBeVisible();
-  await expect(card.getByRole('button', { name: `In My games: ${record.title}`, exact: true })).toBeDisabled();
-  await expect(card.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true })).toBeEnabled();
-  expect(requests).toHaveLength(1);
-  expect(await readLibrary(page)).toEqual(before);
+  try {
+    await page.goto('/?catalogs=off');
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    expect(requests).toEqual([]);
+    const heading = page.getByRole('heading', { name: 'Beyond The 100', exact: true });
+    await heading.scrollIntoViewIfNeeded();
+    const handle = await heading.elementHandle();
+    if (!handle) throw new Error('The additional-results heading must exist while loading.');
+    release();
+    const card = page.locator(`[data-catalog-id="${record.id}"]`);
+    await expect(card).toBeVisible();
+    expect(
+      await handle.evaluate((node) => node.isConnected && node === document.getElementById('extended-results-title')),
+    ).toBe(true);
+    await handle.dispose();
+    await expect(card.getByRole('button', { name: `In My games: ${record.title}`, exact: true })).toBeDisabled();
+    await expect(card.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true })).toBeEnabled();
+    expect(requests).toHaveLength(1);
+    expect(await readLibrary(page)).toEqual(before);
+  } finally {
+    release();
+  }
+});
+
+test('cold film anchors remain connected across chunk arrival', async ({ page }) => {
+  const asset = await extrasAsset();
+  let release = () => {};
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**${asset}`, async (route) => {
+    await waiting;
+    await route.continue();
+  });
+  try {
+    await page.goto('/?catalogs=off#collection-films');
+    const section = page.locator('#collection-films');
+    const heading = page.locator('#collection-films-title');
+    await expect(section).toHaveAttribute('aria-busy', 'true');
+    await expect(heading).toBeFocused();
+    await page.evaluate(() => document.fonts.ready);
+    const sectionHandle = await section.elementHandle();
+    const headingHandle = await heading.elementHandle();
+    if (!sectionHandle || !headingHandle) throw new Error('Both film anchors must exist before their body loads.');
+    const before = await section.boundingBox();
+    release();
+    await expect(section).toHaveAttribute('aria-busy', 'false');
+    await expect(section.locator('.film-poster img')).toHaveCount(2);
+    expect(
+      await sectionHandle.evaluate((node) => node.isConnected && node === document.getElementById('collection-films')),
+    ).toBe(true);
+    expect(await headingHandle.evaluate((node) => node.isConnected && node === document.activeElement)).toBe(true);
+    await expect(section).toHaveCount(1);
+    await expect(heading).toHaveCount(1);
+    const after = await section.boundingBox();
+    if (!before || !after) throw new Error('The film frame must exist before and after body loading.');
+    expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(1);
+    await sectionHandle.dispose();
+    await headingHandle.dispose();
+    await expect(page.locator('video')).toHaveCount(0);
+  } finally {
+    release();
+  }
 });

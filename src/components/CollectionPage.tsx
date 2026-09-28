@@ -97,6 +97,23 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
         }}
       />
     );
+  const body = failed ? (
+    <div className="data-error">
+      <ChunkRecovery message="These collection tools didn't load." />
+    </div>
+  ) : Loaded ? (
+    <ChunkBoundary fallback={<ChunkRecovery message="These collection tools didn't load." />}>
+      {input.kind === 'films' ? (
+        <Loaded kind="films" props={{ ...input.props, initialFilmId: film, embedded: true }} />
+      ) : input.kind === 'extended' ? (
+        <Loaded kind="extended" props={{ ...input.props, embedded: true }} />
+      ) : (
+        <Loaded {...input} />
+      )}
+    </ChunkBoundary>
+  ) : (
+    fallback
+  );
   return (
     <div
       ref={root}
@@ -109,20 +126,38 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
         setRequested(true);
       }}
     >
-      {failed ? (
-        <div className="data-error">
-          <ChunkRecovery message="These collection tools didn't load." />
-        </div>
-      ) : Loaded ? (
-        <ChunkBoundary fallback={<ChunkRecovery message="These collection tools didn't load." />}>
-          {input.kind === 'films' ? (
-            <Loaded kind="films" props={{ ...input.props, initialFilmId: film }} />
-          ) : (
-            <Loaded {...input} />
-          )}
-        </ChunkBoundary>
+      {input.kind === 'films' ? (
+        <section
+          id="collection-films"
+          className="collection-films"
+          aria-labelledby="collection-films-title"
+          aria-busy={!Loaded && !failed}
+        >
+          <div className="films-heading">
+            <h2 id="collection-films-title" tabIndex={-1}>
+              Watch films
+            </h2>
+            <p>Short tours. Play only when you choose.</p>
+          </div>
+          {body}
+        </section>
+      ) : input.kind === 'extended' ? (
+        <section
+          className="extended-results discovery-extended"
+          aria-labelledby="extended-results-title"
+          aria-busy={!Loaded && !failed}
+        >
+          <div className="extended-heading">
+            <h2 id="extended-results-title">Beyond The 100</h2>
+            <span>
+              {input.props.records.length} {input.props.records.length === 1 ? 'match' : 'matches'}
+              {input.props.online.loading ? ' so far' : ''}
+            </span>
+          </div>
+          {body}
+        </section>
       ) : (
-        fallback
+        body
       )}
     </div>
   );

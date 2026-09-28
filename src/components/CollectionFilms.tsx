@@ -98,21 +98,24 @@ function FilmVideo({ film, onRetry }: { film: CollectionFilm; onRetry: () => voi
 export default function CollectionFilms({
   postersReady,
   initialFilmId,
+  embedded = false,
 }: {
   postersReady: boolean;
   initialFilmId?: CollectionFilm['id'];
+  embedded?: boolean;
 }) {
   const [active, setActive] = useState<CollectionFilm | null>(
     () => collectionFilms.find((film) => film.id === initialFilmId) ?? null,
   );
   const [attempt, setAttempt] = useState(0);
   const [postersEnabled, setPostersEnabled] = useState(false);
-  const section = useRef<HTMLElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
   const close = () => setActive(null);
   useEffect(() => {
-    if (!postersReady || postersEnabled || !section.current) return;
+    const section = list.current?.closest('.collection-films');
+    if (!postersReady || postersEnabled || !section) return;
     if (typeof IntersectionObserver === 'undefined') {
       setPostersEnabled(true);
       return;
@@ -126,7 +129,7 @@ export default function CollectionFilms({
       },
       { rootMargin: '200px 0px' },
     );
-    observer.observe(section.current);
+    observer.observe(section);
     return () => observer.disconnect();
   }, [postersReady, postersEnabled]);
   useEffect(() => {
@@ -143,23 +146,15 @@ export default function CollectionFilms({
       window.removeEventListener('pagehide', leave);
     };
   }, []);
-  return (
-    <section
-      ref={section}
-      id="collection-films"
-      className="collection-films"
-      aria-labelledby="collection-films-title"
-      onFocusCapture={() => {
-        if (postersReady) setPostersEnabled(true);
-      }}
-    >
-      <div className="films-heading">
-        <h2 id="collection-films-title" tabIndex={-1}>
-          Watch films
-        </h2>
-        <p>Short tours. Play only when you choose.</p>
-      </div>
-      <ul className="films-list">
+  const content = (
+    <>
+      <ul
+        ref={list}
+        className="films-list"
+        onFocusCapture={() => {
+          if (postersReady) setPostersEnabled(true);
+        }}
+      >
         {collectionFilms.map((film) => (
           <li key={film.id}>
             <button
@@ -239,6 +234,19 @@ export default function CollectionFilms({
           </details>
         </Dialog>
       )}
+    </>
+  );
+  return embedded ? (
+    content
+  ) : (
+    <section id="collection-films" className="collection-films" aria-labelledby="collection-films-title">
+      <div className="films-heading">
+        <h2 id="collection-films-title" tabIndex={-1}>
+          Watch films
+        </h2>
+        <p>Short tours. Play only when you choose.</p>
+      </div>
+      {content}
     </section>
   );
 }

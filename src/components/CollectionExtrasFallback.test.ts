@@ -7,8 +7,9 @@ import { FilmsFallback } from './CollectionExtrasFallback';
 it('reserves the exact film listing text and frames without loading movies or artwork', () => {
   const onWatch = vi.fn();
   const html = renderToStaticMarkup(createElement(FilmsFallback, { onWatch }));
-  expect(html).toContain('id="collection-films"');
-  expect(html).toContain('id="collection-films-title"');
+  expect(html).not.toContain('id="collection-films"');
+  expect(html).not.toContain('id="collection-films-title"');
+  expect(html).toContain('<ul class="films-list">');
   for (const film of collectionFilms) {
     expect(html).toContain(`data-film-id="${film.id}"`);
     expect(html).toContain(film.title.replaceAll('&', '&amp;'));

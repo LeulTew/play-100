@@ -220,6 +220,11 @@ deep link requests it directly. Additional results and films request it within
 retain the same table content/frame and film listing copy/16:9 frames; loading
 table/result controls are inert, while a film Watch request is retained until
 the player can open. Unmount prevents a late import from publishing stale UI.
+The eager parent permanently owns the film section/heading and the
+additional-results labelled section/heading. Only their bodies swap from
+fallbacks to loaded UI, so fragment targets and focused headings do not detach
+during an import. The table has no linked ID; its existing outer deferred
+container and reserved frame remain mounted.
 Terminal import failures retain a local guarded-reload action rather than
 clearing the collection or retrying cached failed imports.
 

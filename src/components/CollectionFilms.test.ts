@@ -10,6 +10,15 @@ import { isPublicPwaFile } from '../pwa/worker';
 import CollectionFilms, { FilmPoster } from './CollectionFilms';
 
 describe('film listing thumbnail contract', () => {
+  it('renders only the body when the eager collection owns the persistent film anchors', () => {
+    const html = renderToStaticMarkup(createElement(CollectionFilms, { postersReady: false, embedded: true }));
+    expect(html).toContain('<ul class="films-list">');
+    expect(html).not.toContain('id="collection-films"');
+    expect(html).not.toContain('id="collection-films-title"');
+    expect(html).not.toContain('<section');
+    expect(html).not.toContain('<video');
+  });
+
   it('keeps text and Watch available without image or movie sources before the collection settles', () => {
     const html = renderToStaticMarkup(createElement(CollectionFilms, { postersReady: false }));
     expect(html).toContain('id="collection-films"');

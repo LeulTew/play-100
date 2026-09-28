@@ -20,6 +20,7 @@ export default function ExtendedResults({
   pinnedIds,
   renderDragHandle,
   onAction,
+  embedded = false,
 }: {
   records: LibraryRecord[];
   online: ReturnType<typeof useExtendedSearch>;
@@ -34,6 +35,7 @@ export default function ExtendedResults({
   pinnedIds?: ReadonlySet<string>;
   renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
+  embedded?: boolean;
 }) {
   const [localLimit, setLocalLimit] = useState(24);
   useEffect(() => {
@@ -42,15 +44,8 @@ export default function ExtendedResults({
   const failed = online.sources.some((source) => source.status === 'error');
   // Keep mounted rating drafts in place when another provider finishes.
   const limit = localLimit + online.sources.reduce((count, source) => count + source.records.length, 0);
-  return (
-    <section className="extended-results discovery-extended" aria-labelledby="extended-results-title">
-      <div className="extended-heading">
-        <h2 id="extended-results-title">Beyond The 100</h2>
-        <span>
-          {records.length} {records.length === 1 ? 'match' : 'matches'}
-          {online.loading ? ' so far' : ''}
-        </span>
-      </div>
+  const content = (
+    <>
       {records.length > 0 && (
         <ul className="discovery-cards discovery-cards-list" aria-label="Unranked games in this view">
           {records.slice(0, limit).map((record) => (
@@ -108,6 +103,20 @@ export default function ExtendedResults({
               : 'No additional matches. Try a shorter title or broader filters.'}
         </p>
       )}
+    </>
+  );
+  return embedded ? (
+    content
+  ) : (
+    <section className="extended-results discovery-extended" aria-labelledby="extended-results-title">
+      <div className="extended-heading">
+        <h2 id="extended-results-title">Beyond The 100</h2>
+        <span>
+          {records.length} {records.length === 1 ? 'match' : 'matches'}
+          {online.loading ? ' so far' : ''}
+        </span>
+      </div>
+      {content}
     </section>
   );
 }

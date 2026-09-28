@@ -128,14 +128,7 @@ export function TableFallback({
 
 export function ExtendedFallback({ records, online, state, onPin }: ComponentProps<typeof ExtendedResults>) {
   return (
-    <section className="extended-results discovery-extended" aria-busy="true">
-      <div className="extended-heading">
-        <h2>Beyond The 100</h2>
-        <span>
-          {records.length} {records.length === 1 ? 'match' : 'matches'}
-          {online.loading ? ' so far' : ''}
-        </span>
-      </div>
+    <>
       <p className="sr-only" role="status">
         Loading additional games…
       </p>
@@ -177,7 +170,7 @@ export function ExtendedFallback({ records, online, state, onPin }: ComponentPro
         ))}
       </ul>
       {!records.length && <p className="extended-empty">Loading additional games…</p>}
-    </section>
+    </>
   );
 }
 
@@ -192,43 +185,30 @@ const filmSummaries = [
 
 export function FilmsFallback({ onWatch }: { onWatch: (id: 'the-100' | 'discover-compare') => void }) {
   return (
-    <section
-      id="collection-films"
-      className="collection-films"
-      aria-labelledby="collection-films-title"
-      aria-busy="true"
-    >
-      <div className="films-heading">
-        <h2 id="collection-films-title" tabIndex={-1}>
-          Watch films
-        </h2>
-        <p>Short tours. Play only when you choose.</p>
-      </div>
-      <ul className="films-list">
-        {filmSummaries.map((film) => (
-          <li key={film.id}>
-            <button
-              className="film-watch"
-              data-film-id={film.id}
-              aria-haspopup="dialog"
-              onClick={() => onWatch(film.id)}
-            >
-              <span className="film-poster">
-                <span className="film-play-mark" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 20 20">
-                    <path d="M6 3 17 10 6 17Z" fill="currentColor" />
-                  </svg>
-                </span>
+    <ul className="films-list">
+      {filmSummaries.map((film) => (
+        <li key={film.id}>
+          <button
+            className="film-watch"
+            data-film-id={film.id}
+            aria-haspopup="dialog"
+            onClick={() => onWatch(film.id)}
+          >
+            <span className="film-poster">
+              <span className="film-play-mark" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 20 20">
+                  <path d="M6 3 17 10 6 17Z" fill="currentColor" />
+                </svg>
               </span>
-              <span className="film-summary">
-                <strong>{film.title}</strong>
-                <span>{film.description}</span>
-                <small>0:22 · Watch film</small>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
+            </span>
+            <span className="film-summary">
+              <strong>{film.title}</strong>
+              <span>{film.description}</span>
+              <small>0:22 · Watch film</small>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
