@@ -24,8 +24,9 @@ import { navigateFriend, prepareFriendIdentity } from './friend-page-actions';
 import type { OwnFriendIdentity } from './friend-page-actions';
 import { committedFriendChange, committedFriendMessage, friendMutationError } from './friend-outcomes';
 import { onlineError } from './errors';
+import { FriendChangeDialog, InviteLinkDialog } from './FriendsPageDialogs';
+import type { FriendChange } from './FriendsPageDialogs';
 import { Avatar } from '../components/avatar/Avatar';
-import { Dialog } from '../components/Dialog';
 import { Icon } from '../components/Icon';
 
 function subscribeUrl(listener: () => void) {
@@ -44,9 +45,6 @@ const viewLabels: Record<FriendsView, string> = {
   invites: 'Invite links',
   blocked: 'Blocked',
 };
-type Confirmation =
-  | { action: 'remove' | 'block'; peer: string; name: string; epoch: number }
-  | { action: 'revoke'; invite: FriendInvitation };
 interface AuxiliaryPage {
   view: FriendsView;
   invites: FriendInvitation[];
@@ -246,7 +244,7 @@ export function FriendsPage({
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [confirmation, setConfirmation] = useState<FriendChange | null>(null);
   const [link, setLink] = useState<FriendInvitation | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [creatingInvite, setCreatingInvite] = useState(false);
@@ -593,6 +591,29 @@ export function FriendsPage({
       inviteVisible.current = true;
       setCopyState('Copy the invitation from the field below.');
     }
+  };
+  const confirmChange = (confirmation: FriendChange) => {
+    void run(
+      async () => {
+        if (confirmation.action === 'revoke') {
+          await store.revokeInvite(uid, confirmation.invite.token);
+          if (current() && link?.token === confirmation.invite.token) setLink(null);
+        } else {
+          if (confirmation.action === 'block') await store.block(uid, confirmation.peer);
+          else await store.respond(uid, confirmation.peer, 'remove', confirmation.epoch);
+          if (current())
+            choose(
+              selectedRef.current.filter((peer) => peer !== confirmation.peer),
+              true,
+            );
+        }
+      },
+      confirmation.action === 'revoke'
+        ? 'Invitation revoked.'
+        : confirmation.action === 'block'
+          ? 'Player blocked.'
+          : 'Friend removed.',
+    );
   };
   const loading = relationView ? list.loading : aux.loading || aux.view !== view.view;
   const busy = working || loading || refreshRequired || (relationView && !list.active);
@@ -993,153 +1014,34 @@ export function FriendsPage({
         </button>
       )}
       {confirmation && (
-        <Dialog
-          open
-          titleId="friend-change-title"
-          className="info-dialog"
-          onClose={() => {
-            if (!working) setConfirmation(null);
-          }}
-        >
-          <h2 id="friend-change-title">
-            {confirmation.action === 'revoke' ? (
-              'Revoke this invitation?'
-            ) : (
-              <>
-                {confirmation.action === 'block' ? 'Block' : 'Remove'} <bdi>{confirmation.name}</bdi>?
-              </>
-            )}
-          </h2>
-          {confirmation.action === 'revoke' ? (
-            <p>
-              The link created {dateFormat.format(confirmation.invite.createdAt)} will stop working. Existing
-              friendships stay connected.
-            </p>
-          ) : (
-            <p>
-              Friends-only rankings become unavailable in both directions.{' '}
-              {confirmation.action === 'block'
-                ? 'New requests and invitations will be blocked. Unblocking does not restore friendship.'
-                : 'A new request is needed to reconnect.'}
-            </p>
-          )}
-          <div className="button-row">
-            <button
-              data-autofocus
-              className="button button-outline"
-              disabled={working}
-              onClick={() => setConfirmation(null)}
-            >
-              Cancel
-            </button>
-            <button
-              className="button button-danger"
-              disabled={busy}
-              onClick={() => {
-                void run(
-                  async () => {
-                    if (confirmation.action === 'revoke') {
-                      await store.revokeInvite(uid, confirmation.invite.token);
-                      if (current() && link?.token === confirmation.invite.token) setLink(null);
-                    } else {
-                      if (confirmation.action === 'block') await store.block(uid, confirmation.peer);
-                      else await store.respond(uid, confirmation.peer, 'remove', confirmation.epoch);
-                      if (current())
-                        choose(
-                          selectedRef.current.filter((peer) => peer !== confirmation.peer),
-                          true,
-                        );
-                    }
-                  },
-                  confirmation.action === 'revoke'
-                    ? 'Invitation revoked.'
-                    : confirmation.action === 'block'
-                      ? 'Player blocked.'
-                      : 'Friend removed.',
-                );
-              }}
-            >
-              {confirmation.action === 'revoke'
-                ? 'Revoke invitation'
-                : confirmation.action === 'block'
-                  ? 'Block player'
-                  : 'Remove friend'}
-            </button>
-          </div>
-          {error && (
-            <p className="inline-error" role="alert">
-              {error}
-            </p>
-          )}
-        </Dialog>
+        <FriendChangeDialog
+          confirmation={confirmation}
+          working={working}
+          busy={busy}
+          error={error}
+          dateFormat={dateFormat}
+          onCancel={() => setConfirmation(null)}
+          onConfirm={confirmChange}
+        />
       )}
       {inviteOpen && (
-        <Dialog open titleId="invite-link-title" className="info-dialog" onClose={closeInvite}>
-          <h2 id="invite-link-title" data-autofocus tabIndex={-1}>
-            {creatingInvite
-              ? 'Creating invite…'
-              : link
-                ? invitationStatus(link, now) === 'Active'
-                  ? 'Invite link'
-                  : 'Invitation expired'
-                : 'Check invite links'}
-          </h2>
-          {creatingInvite ? (
-            <p role="status">Making your one-use link. It appears after the server confirms it.</p>
-          ) : link ? (
-            invitationStatus(link, now) === 'Active' ? (
-              <>
-                <p>
-                  One use. Expires {dateFormat.format(link.expiresAt)}. Share only with the person you want to invite.
-                </p>
-                <label htmlFor="friend-invite-link">Invitation link</label>
-                <input
-                  id="friend-invite-link"
-                  value={createInviteUrl(link.token)}
-                  readOnly
-                  onFocus={(event) => event.target.select()}
-                />
-                <div className="button-row">
-                  <button
-                    className="button button-dark"
-                    onClick={() => {
-                      void shareLink(link, false);
-                    }}
-                  >
-                    Copy link
-                  </button>
-                  <button
-                    className="text-button"
-                    onClick={() => {
-                      void shareLink(link, true);
-                    }}
-                  >
-                    Share
-                  </button>
-                </div>
-                {copyState && <p role="status">{copyState}</p>}
-              </>
-            ) : (
-              <p>This link is no longer active. Create a new invitation when you need one.</p>
-            )
-          ) : (
-            <>
-              <p className="inline-error" role="alert">
-                {error || 'The result could not be confirmed. Refresh your links before trying again.'}
-              </p>
-              <button
-                className="button button-outline"
-                onClick={() => {
-                  closeInvite();
-                  if (view.view === 'invites') void refresh();
-                  else updateView({ view: 'invites' });
-                }}
-              >
-                Open invite links
-              </button>
-            </>
-          )}
-        </Dialog>
+        <InviteLinkDialog
+          creating={creatingInvite}
+          link={link}
+          now={now}
+          copyState={copyState}
+          error={error}
+          dateFormat={dateFormat}
+          onClose={closeInvite}
+          onShare={(invite, native) => {
+            void shareLink(invite, native);
+          }}
+          onOpenLinks={() => {
+            closeInvite();
+            if (view.view === 'invites') void refresh();
+            else updateView({ view: 'invites' });
+          }}
+        />
       )}
     </section>
   );
