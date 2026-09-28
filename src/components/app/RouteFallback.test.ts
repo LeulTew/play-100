@@ -70,9 +70,7 @@ describe('destination loading anatomy', () => {
     expect(sourceTokens(host, ts.ScriptKind.TSX)).toContain(
       sourceTokens("import CollectionPage from '../CollectionPage'"),
     );
-    expect(sourceTokens(collection, ts.ScriptKind.TSX)).toContain(
-      sourceTokens("import ExtendedResults from './catalog/ExtendedResults'"),
-    );
+    expect(sourceTokens(collection, ts.ScriptKind.TSX)).toContain(sourceTokens("import './catalog/discover.css'"));
     expect(sourceTokens(extended, ts.ScriptKind.TSX)).toContain(
       sourceTokens("import { DiscoveryCard } from './DiscoveryCard'"),
     );
