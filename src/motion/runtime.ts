@@ -629,7 +629,9 @@ export function createMotionRuntime(
         prepareClose() {
           if (closed) return;
           pending?.cancel('unmount');
-          if (entry && canReturn(entry)) {
+          // Layout cleanup precedes the provider's new snapshot. Capture public geometry now;
+          // closed() admits the return only after the committed route and scope are available.
+          if (entry && currentOrigin(entry) && entry.phase !== 'pending') {
             prepared = entry.interrupted ?? (entry.sprite ? measure(entry.sprite) : target ? measure(target) : null);
             if (prepared && !entry.interrupted && !entry.sprite)
               prepared = fitMotionVisual(entry.hint.visual, prepared);
