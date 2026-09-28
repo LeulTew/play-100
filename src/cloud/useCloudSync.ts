@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryScope, ScopedLibrary, SyncHead, SyncStatus } from '../lib/cloud-types';
 import { scopeUid } from '../lib/cloud-types';
 import type { PersonalLibraryState } from '../lib/personal-types';
@@ -26,29 +26,39 @@ interface LifetimeIdentity {
   initialProbe: boolean;
   authGeneration: number;
 }
-interface Lifetime {
-  identity: LifetimeIdentity;
-  active: boolean;
-  block: Block;
-  queue: SyncWorkQueue | null;
-  detach: () => void;
-  restart: () => void;
-  resume: () => void;
-  watchAlive: boolean;
-  initialChecked: boolean;
-}
-function createSyncLifetime(identity: LifetimeIdentity): Lifetime {
-  return {
-    identity,
-    active: false,
-    block: null,
-    queue: null,
-    detach: () => {},
-    restart: () => {},
-    resume: () => {},
-    watchAlive: false,
-    initialChecked: false,
-  };
+// One sync session: the account and consent it serves, and the state its asynchronous work shares. A new one replaces
+// it when ownership or consent changes. Its fields change only through these methods, from effects, callbacks and
+// handlers; render only reads them.
+class SyncLifetime {
+  active = false;
+  block: Block = null;
+  queue: SyncWorkQueue | null = null;
+  detach: () => void = () => {};
+  restart: () => void = () => {};
+  resume: () => void = () => {};
+  watchAlive = false;
+  initialChecked = false;
+  constructor(readonly identity: LifetimeIdentity) {}
+  /** Opens this session with its work queue and listener controls. */
+  open(queue: SyncWorkQueue, controls: { detach: () => void; restart: () => void; resume: () => void }): void {
+    this.active = true;
+    this.queue = queue;
+    this.detach = controls.detach;
+    this.restart = controls.restart;
+    this.resume = controls.resume;
+  }
+  close(): void {
+    this.active = false;
+  }
+  setBlock(block: Block): void {
+    this.block = block;
+  }
+  setWatchAlive(alive: boolean): void {
+    this.watchAlive = alive;
+  }
+  markInitialChecked(): void {
+    this.initialChecked = true;
+  }
 }
 const hardBlocked = (block: Block) => block === 'terminal' || block === 'conflict' || block === 'revoked';
 // A head read can show the state from before another tab or window of this account created or restarted the online
@@ -83,12 +93,14 @@ export function useCloudSync(
   const epoch = snapshot?.sync.epoch ?? 0;
   // A fresh lease invalidates pending work when ownership or consent changes, not on ordinary data edits.
   const lifetime = useMemo(
-    () => createSyncLifetime({ scope, enabled, epoch, verified, initialProbe, authGeneration }),
+    () => new SyncLifetime({ scope, enabled, epoch, verified, initialProbe, authGeneration }),
     [scope, enabled, epoch, verified, initialProbe, authGeneration],
   );
-  const [initialCheck, setInitialCheck] = useState<{ lifetime: Lifetime; pending: boolean } | null>(null);
+  const [initialCheck, setInitialCheck] = useState<{ lifetime: SyncLifetime; pending: boolean } | null>(null);
   const initialWork = useRef(restoreInitial);
-  initialWork.current = restoreInitial;
+  useLayoutEffect(() => {
+    initialWork.current = restoreInitial;
+  }, [restoreInitial]);
   const [status, setStatus] = useState<SyncStatus>('device');
   const [remoteSnapshot, setRemoteSnapshot] = useState<{ scope: LibraryScope | null; value: SyncHead | null }>({
     scope: null,
@@ -99,18 +111,34 @@ export function useCloudSync(
   const [observation, setObservation] = useState({ scope: null as LibraryScope | null, available: false, version: 0 });
   const [error, setError] = useState('');
   const [cleanupWarning, setCleanupWarning] = useState('');
+  // Each lifetime starts without a known head, messages or status of its own.
+  const [started, setStarted] = useState<SyncLifetime | null>(null);
+  if (started !== lifetime) {
+    setStarted(lifetime);
+    setRemoteSnapshot({ scope, value: null });
+    setError('');
+    setCleanupWarning('');
+    setStatus(enabled ? 'loading' : scope ? 'paused' : 'device');
+  }
   const pendingEdits = usePendingEdits();
-  const uploading = useRef<{ lifetime: Lifetime; id: symbol } | null>(null);
+  const uploading = useRef<{ lifetime: SyncLifetime; id: symbol } | null>(null);
   const sequence = useRef(0);
+  // The committed scope, device copy and lifetime. Once a new lifetime commits, the previous one's work stops owning
+  // anything, so it cannot report a status over the new one's.
   const scopeNow = useRef(scope);
   const snapshotNow = useRef(snapshot);
+  const lifetimeNow = useRef(lifetime);
+  useLayoutEffect(() => {
+    scopeNow.current = scope;
+    snapshotNow.current = snapshot;
+    lifetimeNow.current = lifetime;
+  }, [scope, snapshot, lifetime]);
   const latestRemote = useRef<SyncHead | null>(null);
-  scopeNow.current = scope;
-  snapshotNow.current = snapshot;
   const owns = useCallback(
     () =>
       Boolean(
         lifetime.active &&
+        lifetimeNow.current === lifetime &&
         scope &&
         scopeNow.current === lifetime.identity.scope &&
         cloudAuth.currentUser?.uid === scopeUid(scope),
@@ -131,7 +159,7 @@ export function useCloudSync(
         cause instanceof RemoteConflict ||
         (cause instanceof Error && cause.name === 'PersonalLibraryConflictError')
       ) {
-        lifetime.block = 'conflict';
+        lifetime.setBlock('conflict');
         lifetime.queue?.failed('blocked');
         setStatus('conflict');
         if (cause instanceof RemoteConflict) {
@@ -139,7 +167,7 @@ export function useCloudSync(
           latestRemote.current = cause.head;
         }
       } else if (cause instanceof SyncRevoked) {
-        lifetime.block = 'revoked';
+        lifetime.setBlock('revoked');
         lifetime.queue?.failed('blocked');
         lifetime.detach();
         setStatus('paused');
@@ -150,17 +178,12 @@ export function useCloudSync(
       } else {
         const kind = syncFailure(cause);
         if (hardBlocked(lifetime.block)) return;
-        lifetime.block = kind === 'blocked' || (!enabled && !initialProbe) ? 'terminal' : kind;
-        lifetime.queue?.failed(lifetime.block === 'terminal' ? 'blocked' : kind);
+        const block = kind === 'blocked' || (!enabled && !initialProbe) ? 'terminal' : kind;
+        lifetime.setBlock(block);
+        lifetime.queue?.failed(block === 'terminal' ? 'blocked' : kind);
         lifetime.detach();
         setStatus(
-          !navigator.onLine
-            ? 'offline'
-            : lifetime.block === 'transient'
-              ? 'retrying'
-              : lifetime.block === 'quota'
-                ? 'quota'
-                : 'error',
+          !navigator.onLine ? 'offline' : block === 'transient' ? 'retrying' : block === 'quota' ? 'quota' : 'error',
         );
       }
       setError(
@@ -176,7 +199,7 @@ export function useCloudSync(
         setStatus(navigator.onLine ? (lifetime.block === 'quota' ? 'quota' : 'retrying') : 'offline');
         return;
       }
-      lifetime.block = null;
+      lifetime.setBlock(null);
       lifetime.queue?.succeeded(next === 'saved' && !snapshotNow.current?.sync.dirty && !hasPendingEdits());
       setError('');
       setStatus(next);
@@ -263,7 +286,7 @@ export function useCloudSync(
         setInitialCheck({ lifetime, pending: true });
         await initialWork.current(store, owns);
         if (!owns()) return;
-        lifetime.initialChecked = true;
+        lifetime.markInitialChecked();
         setInitialCheck({ lifetime, pending: false });
         succeeded('paused');
         return;
@@ -338,24 +361,20 @@ export function useCloudSync(
     }
   }, [scope, store, verified, enabled, initialProbe, owns, lifetime, epoch, setRemote, receive, succeeded, failed]);
   const syncNow = useRef(sync);
-  syncNow.current = sync;
+  useLayoutEffect(() => {
+    syncNow.current = sync;
+  }, [sync]);
 
   useEffect(() => {
-    lifetime.active = true;
     const queue = new SyncWorkQueue(() => syncNow.current(), failed);
-    lifetime.queue = queue;
     latestRemote.current = null;
-    setRemote(null);
-    setError('');
-    setCleanupWarning('');
-    setStatus(enabled ? 'loading' : scope ? 'paused' : 'device');
     let unsubscribe: (() => void) | undefined;
     let watchVersion = 0;
     const detach = () => {
       watchVersion += 1;
       unsubscribe?.();
       unsubscribe = undefined;
-      lifetime.watchAlive = false;
+      lifetime.setWatchAlive(false);
       if (owns()) setObservation((old) => ({ scope, available: false, version: old.version + 1 }));
     };
     const observe = (recover = false) => {
@@ -383,7 +402,7 @@ export function useCloudSync(
             if (owns() && version === watchVersion) failed(cause);
           },
         );
-        lifetime.watchAlive = true;
+        lifetime.setWatchAlive(true);
         setObservation((old) => ({ scope, available: true, version: old.version + 1 }));
       } else
         setObservation((old) =>
@@ -392,10 +411,8 @@ export function useCloudSync(
       if (!recover && enabled && snapshotNow.current?.sync.dirty && !hasPendingEdits()) queue.wake();
       if (!recover && initialProbe && !lifetime.initialChecked && !hasPendingEdits()) queue.wake();
     };
-    lifetime.detach = detach;
-    lifetime.restart = () => observe(true);
     const wake = () => observe();
-    lifetime.resume = wake;
+    lifetime.open(queue, { detach, restart: () => observe(true), resume: wake });
     observe();
     window.addEventListener('online', wake);
     window.addEventListener('offline', wake);
@@ -403,7 +420,7 @@ export function useCloudSync(
     window.addEventListener('pageshow', wake);
     document.addEventListener('visibilitychange', wake);
     return () => {
-      lifetime.active = false;
+      lifetime.close();
       queue.dispose();
       unsubscribe?.();
       sequence.current += 1;
@@ -413,7 +430,7 @@ export function useCloudSync(
       window.removeEventListener('pageshow', wake);
       document.removeEventListener('visibilitychange', wake);
     };
-  }, [lifetime, failed, setRemote, enabled, initialProbe, scope, owns, verified, store, receive]);
+  }, [lifetime, failed, enabled, initialProbe, scope, owns, verified, store, receive]);
   useEffect(() => {
     if (enabled && !pendingEdits && snapshot?.sync.dirty) lifetime.queue?.request(2500, true);
     if (initialProbe && !pendingEdits && !lifetime.initialChecked) lifetime.queue?.request();
@@ -441,7 +458,7 @@ export function useCloudSync(
       () => owns() && lifetime.block !== 'revoked' && lifetime.block !== 'terminal' && !hasPendingEdits(),
     );
     if (!owns()) return;
-    lifetime.block = null;
+    lifetime.setBlock(null);
     succeeded('saved');
   };
   const useLocal = async (expected: SyncHead, expectedLocalRevision: number) => {
@@ -462,7 +479,7 @@ export function useCloudSync(
       () => owns() && lifetime.block !== 'revoked' && lifetime.block !== 'terminal',
     );
     if (!owns()) return;
-    lifetime.block = null;
+    lifetime.setBlock(null);
     succeeded('pending');
     lifetime.queue?.request();
   };
@@ -471,7 +488,7 @@ export function useCloudSync(
       return Promise.reject(
         new Error('Review the available copies or reconnect explicitly before resuming online saving.'),
       );
-    if (lifetime.block === 'terminal') lifetime.block = null;
+    if (lifetime.block === 'terminal') lifetime.setBlock(null);
     if (!navigator.onLine) setStatus('offline');
     return lifetime.queue?.retry() ?? Promise.resolve();
   };
@@ -480,13 +497,13 @@ export function useCloudSync(
     const suspended = lifetime;
     const prior = { block: lifetime.block, status };
     const release = lifetime.queue?.pause();
-    lifetime.block = 'terminal';
+    lifetime.setBlock('terminal');
     lifetime.detach();
     setStatus('paused');
     // Restores this lifetime only while it is still owned and blocked by this suspension, never after a revocation or conflict.
     return () => {
       if (!suspended.active || suspended.block !== 'terminal' || !owns()) return;
-      suspended.block = prior.block;
+      suspended.setBlock(prior.block);
       release?.();
       setStatus((value) => (value === 'paused' ? prior.status : value));
       suspended.resume();
@@ -529,6 +546,5 @@ export function useCloudSync(
       navigator.onLine &&
       !document.hidden &&
       (initialCheck?.lifetime !== lifetime || initialCheck.pending),
-    syncing: uploading.current?.lifetime === lifetime,
   };
 }
