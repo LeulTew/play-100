@@ -40,11 +40,14 @@
             : 'ready';
 
     // The metric-matched fallback faces must be usable right now, or shell text would reflow
-    // when the web fonts arrive. Expected boxes come from the derivation in shell.css (+-0.6%).
+    // when the web fonts arrive. Each probe lists its box height and the accepted width ranges,
+    // from the derivation in shell.css (+-0.6%). The Impact, Arial and Roboto faces share the
+    // display and regular ranges. The bold string separates Arial Bold, Roboto Bold and a
+    // Roboto variable font rendered without its wght axis, which must fail.
     var probes = [
-      ['p100-probe-display', 'GREAT ESCAPES.', 606, 613.3, 120],
-      ['p100-probe-sans', 'Find your next world.', 926.8, 938, 130],
-      ['p100-probe-sans-bold', 'Find your next world.', 933.4, 944.7, 130],
+      ['p100-probe-display', 'GREAT ESCAPES.', 120, [606, 613.3]],
+      ['p100-probe-sans', 'Find your next world.', 130, [926.8, 938]],
+      ['p100-probe-sans-bold', 'Pick for me', 130, [497.7, 503.7, 523.5, 529.8]],
     ];
     var spans = probes.map(function (probe) {
       var span = document.createElement('span');
@@ -57,7 +60,12 @@
     for (var index = 0; index < probes.length; index += 1) {
       var probe = probes[index];
       var box = boxes[index];
-      if (!(box.width >= probe[2] && box.width <= probe[3] && Math.abs(box.height - probe[4]) <= 2)) return false;
+      var ranges = probe[3];
+      var fits = false;
+      for (var range = 0; range < ranges.length; range += 2) {
+        if (box.width >= ranges[range] && box.width <= ranges[range + 1]) fits = true;
+      }
+      if (!fits || !(Math.abs(box.height - probe[2]) <= 2)) return false;
     }
 
     root.setAttribute('data-boot-art', art);
