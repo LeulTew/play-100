@@ -139,7 +139,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid #b2bca4;
 }
 .personal-row {
   position: relative;
@@ -148,7 +147,7 @@
   align-items: center;
   gap: 12px;
   padding: 17px 0;
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   background: var(--paper);
 }
 .record-order {

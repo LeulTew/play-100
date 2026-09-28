@@ -330,6 +330,9 @@ Personal-workspace document titles follow the resolved Library, Queue or Ranking
 tab, including legacy `list=later` links and history navigation.
 Starting a backup export, import or restore clears the superseded reset result
 in Settings. Backup and reset outcomes retain their polite status regions.
+Adjacent groups use one rule: Settings account context has no trailing border,
+and My games rows own their leading divider, leaving the manual-add group's
+existing top rule as the only separator below the final row.
 Catalog-detail mutations keep their native action focused while saving, using
 guarded `aria-disabled` and one in-flight action rather than disabling the
 focused button. The saved **In My games** button remains focusable and ignores

@@ -47,6 +47,30 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
+for (const total of [0, 1, 2]) {
+  test(`Library uses one divider per row and before manual add with ${total} games`, async ({ page }) => {
+    await installGuestLibrary(page, libraryFixture(total));
+    const editor = page.locator('.my-games-editor:visible');
+    const boundaries = await editor.evaluate((element) => {
+      const list = element.querySelector('.personal-records');
+      const manual = element.querySelector('.manual-add')!;
+      const rules = (node: Element) => {
+        const style = getComputedStyle(node);
+        return { top: style.borderTopWidth, bottom: style.borderBottomWidth };
+      };
+      return {
+        list: list ? rules(list) : null,
+        rows: [...element.querySelectorAll('.personal-row')].map(rules),
+        manual: rules(manual),
+      };
+    });
+    expect(boundaries.rows).toHaveLength(total);
+    for (const row of boundaries.rows) expect(row).toEqual({ top: '1px', bottom: '0px' });
+    if (boundaries.list) expect(boundaries.list).toEqual({ top: '0px', bottom: '0px' });
+    expect(boundaries.manual).toEqual({ top: '1px', bottom: '0px' });
+  });
+}
+
 for (const rejection of ['invalid value', 'rejected storage write'] as const) {
   test(`detail Previous and Next preserve and focus a rating with ${rejection}`, async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 851 });

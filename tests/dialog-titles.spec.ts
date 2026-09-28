@@ -20,9 +20,17 @@ test('Settings exposes Export and Import without scrolling at 1440x900', async (
     if (!backup || !preferences) throw new Error('Both Settings destinations must remain present.');
     const bounds = dialog.getBoundingClientRect();
     const buttons = [...backup.querySelectorAll('button')].slice(0, 2);
+    const account = dialog.querySelector('.settings-account');
     return {
       scrollTop: dialog.scrollTop,
       beforePreferences: Boolean(backup.compareDocumentPosition(preferences) & Node.DOCUMENT_POSITION_FOLLOWING),
+      accountRules: account
+        ? {
+            top: getComputedStyle(account).borderTopWidth,
+            bottom: getComputedStyle(account).borderBottomWidth,
+            nextTop: getComputedStyle(account.nextElementSibling!).borderTopWidth,
+          }
+        : null,
       controls: buttons.map((button) => {
         const rect = button.getBoundingClientRect();
         return {
@@ -39,6 +47,7 @@ test('Settings exposes Export and Import without scrolling at 1440x900', async (
   });
   expect(layout.scrollTop).toBe(0);
   expect(layout.beforePreferences).toBe(true);
+  if (layout.accountRules) expect(layout.accountRules).toEqual({ top: '1px', bottom: '0px', nextTop: '1px' });
   expect(layout.controls.map((button) => button.name)).toEqual(['Export my library', 'Import backup']);
   expect(layout.controls.every((button) => button.visible && button.hit)).toBe(true);
 });

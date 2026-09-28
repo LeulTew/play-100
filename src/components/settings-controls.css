@@ -1,6 +1,6 @@
 .settings-account {
   padding-block: 16px;
-  border-block: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   margin-block: 20px;
 }
 .settings-account strong {
