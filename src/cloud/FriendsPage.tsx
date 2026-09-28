@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendBlock, FriendCursor, FriendInvitation, FriendSettings } from '../lib/friend-types';
 import type { FriendsView, FriendsViewState } from '../lib/friend-manager';
@@ -230,13 +230,17 @@ export function FriendsPage({
     error: null,
   });
   const auxRef = useRef(aux);
-  auxRef.current = aux;
+  useLayoutEffect(() => {
+    auxRef.current = aux;
+  });
   const [selected, setSelected] = useState<string[]>(() => {
     const prior = readComparisonView(scope);
     return prior?.selected.includes(uid) ? prior.selected.filter((peer) => peer !== uid) : [];
   });
   const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  useLayoutEffect(() => {
+    selectedRef.current = selected;
+  });
   const [selectionChecks, setSelectionChecks] = useState<Record<string, SelectionCheck>>({});
   const [selectionRetry, setSelectionRetry] = useState(0);
   const [working, setWorking] = useState(false);
@@ -252,7 +256,9 @@ export function FriendsPage({
   const [now, setNow] = useState(Date.now);
   const alive = useRef(true);
   const currentView = useRef(view.view);
-  currentView.current = view.view;
+  useLayoutEffect(() => {
+    currentView.current = view.view;
+  });
   const auxVersion = useRef(0);
   const running = useRef(false);
   const navigationVersion = useRef(0);
