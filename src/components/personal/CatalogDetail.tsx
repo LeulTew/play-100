@@ -62,6 +62,14 @@ export default function CatalogDetail({
   const blocked = busy || result === 'pending';
   const enrichment = useCatalogEnrichment(record.id, publicLookup);
   const externalArtwork = artwork ? null : (enrichment.data?.artwork ?? null);
+  const displayedArtwork = artwork ?? externalArtwork;
+  const artworkSize =
+    displayedArtwork && (displayedArtwork.width >= 144 || displayedArtwork.height >= 108)
+      ? {
+          width: Math.min(360, displayedArtwork.width),
+          aspectRatio: `${displayedArtwork.width} / ${displayedArtwork.height}`,
+        }
+      : undefined;
   const canAddToLibrary = record.source !== 'collection';
   const mutate = async (action: PersonalAction): Promise<boolean> => {
     // The rating's exit-save cleanup runs after this dialog's UI lifetime ends.
@@ -106,7 +114,7 @@ export default function CatalogDetail({
       </p>
       {CATALOG_EDITION_HINTS.has(record.id) && <p className="section-help">{CATALOG_EDITION_HINTS.get(record.id)}</p>}
       <div className="catalog-detail-visual">
-        <div className="catalog-detail-sleeve" ref={artRef}>
+        <div className="catalog-detail-sleeve" ref={artRef} style={artworkSize}>
           {artwork ? (
             <GameArtwork record={record} artwork={artwork} className="catalog-detail-artwork" />
           ) : externalArtwork ? (

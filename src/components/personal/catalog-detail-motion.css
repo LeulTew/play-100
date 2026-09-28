@@ -89,9 +89,3 @@
   min-width: 0;
   max-width: 100%;
 }
-
-@media (max-width: 680px) {
-  .catalog-detail-sleeve {
-    width: 128px;
-  }
-}

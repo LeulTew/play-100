@@ -57,6 +57,10 @@ separate; no original is enlarged.
   are plain text, not HTML to inject. Most licensed assets are logos: use
   `object-fit: contain` and a light/paper image surface so transparent black
   logos remain legible instead of cropping or inverting them.
+- Provider details use the artwork's own aspect ratio and a sleeve capped by
+  available width, natural width and 360px. Only tiny sources or missing art keep
+  the 144px default frame; images remain at or below native size within it.
+  The existing flight still measures this same sleeve as its destination.
 - Discover artwork wider than 3:1 uses a flat title lockup inside the same 4:3
   tile, selected from the supplied dimensions before the image decodes. The
   native-size wordmark remains above a condensed title; no source is enlarged,

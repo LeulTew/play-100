@@ -128,6 +128,9 @@ test('catalog detail reuses exact licensed artwork, complete credits and native 
   expect(dimensions.width).toBeLessThanOrEqual(dimensions.naturalWidth);
   expect(dimensions.height).toBeLessThanOrEqual(dimensions.naturalHeight);
   expect(dimensions.width / dimensions.height).toBeCloseTo(dimensions.naturalWidth / dimensions.naturalHeight, 1);
+  const cardImage = await card.locator('.discovery-card-art > img').boundingBox();
+  if (!cardImage) throw new Error('The originating card image must have its reserved size.');
+  expect(dimensions.width).toBeGreaterThanOrEqual(Math.min(cardImage.width, 360));
   const credits = dialog.locator('.game-artwork-disclosure');
   await credits.getByText('Artwork credits', { exact: true }).click();
   await expect(credits).toContainText(artwork.credit);
@@ -152,8 +155,10 @@ test('catalog detail keeps a bounded readable artwork frame and credits at 320px
   const { dialog } = await openCatalogDetail(page, illustratedItem);
   const frame = await dialog.locator('.catalog-detail-sleeve').boundingBox();
   expect(frame).not.toBeNull();
-  expect(frame?.width).toBeCloseTo(128, 0);
-  expect(frame?.height).toBeCloseTo(96, 0);
+  const available = await dialog.locator('.catalog-detail-visual').evaluate((element) => element.clientWidth);
+  const tiny = artwork.width < 144 && artwork.height < 108;
+  expect(frame?.width).toBeCloseTo(Math.min(available, tiny ? 144 : Math.min(360, artwork.width)), 0);
+  expect(frame!.width / frame!.height).toBeCloseTo(tiny ? 4 / 3 : artwork.width / artwork.height, 2);
   const summary = dialog.locator('.game-artwork-disclosure > summary');
   const summaryBox = await summary.boundingBox();
   expect(summaryBox?.height).toBeGreaterThanOrEqual(44);

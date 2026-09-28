@@ -134,6 +134,22 @@ describe('catalog detail artwork continuity surface', () => {
     expect(props.onRankings).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [480, 210, 360],
+    [320, 180, 320],
+    [240, 360, 240],
+  ])('bounds the detail sleeve for %ix%i art at %ipx', (width, height, size) => {
+    const { html } = renderDetail({ artwork: { ...artworkFixture, width, height } });
+    expect(html).toContain(`style="width:${size}px;aspect-ratio:${width} / ${height}"`);
+    expect(html).toContain(`width="${width}" height="${height}"`);
+  });
+
+  it('keeps the bounded default frame for tiny originals without changing their intrinsic image dimensions', () => {
+    const { html } = renderDetail({ artwork: { ...artworkFixture, width: 64, height: 32 } });
+    expect(html).toContain('<div class="catalog-detail-sleeve">');
+    expect(html).toContain('width="64" height="32"');
+  });
+
   it('keeps raw provider classifications in a native disclosure below the concise genre', () => {
     const genre = 'role-playing video game / turn-based Japanese role-playing game / time travel video game';
     const { html, props } = renderDetail({ record: { ...discoveryFixture.record, genre } });
