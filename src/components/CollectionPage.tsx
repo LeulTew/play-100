@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { useCollection } from '../hooks/useCollection';
-import type { Filters, MotionPreference } from '../lib/types';
-import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
+import type { Filters, Game, MotionPreference } from '../lib/types';
+import type { LibraryRecord, PersonalAction, PersonalLibraryState, PersonalProgress } from '../lib/personal-types';
 import { recordFromGame } from '../lib/personal-types';
 import { filterGames } from '../lib/collection';
 import { createSearch, defaultFilters } from '../lib/url';
@@ -26,6 +26,8 @@ import './collection-films.css';
 import './catalog/discover.css';
 import { effectiveProgressFilter, pickCandidates, selectionOperation } from '../lib/game-progress';
 import { catalogActionRecord, catalogOwnership, catalogProgress } from '../lib/catalog-identity';
+import type { CatalogOwnership } from '../lib/catalog-identity';
+import { useStableHandler } from '../hooks/useLatest';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
 import { scrollCollectionIntoView } from './collection-landing';
@@ -209,6 +211,82 @@ function DeferredCollection({
   );
 }
 
+type ProgressKey = 'later' | 'completed' | 'played';
+
+interface CollectionCardProps {
+  game: Game;
+  filters: Filters;
+  state: PersonalProgress | undefined;
+  ownership: CatalogOwnership;
+  pinnable: boolean;
+  onOpen: (id: string, origin?: MotionOriginHint) => void;
+  onToggle: (id: string, key: ProgressKey, value?: boolean) => void;
+  onPreview: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  eager: boolean;
+  selecting: boolean;
+  selected: boolean;
+  onSelect: (id: string) => void;
+  busy: boolean;
+  renderDragHandle?: (record: LibraryRecord) => ReactNode;
+}
+
+/** One grid or list card. Memoised with stable element props, so a page render repaints only the cards it changes. */
+const CollectionCard = memo(function CollectionCard({
+  game,
+  filters,
+  state,
+  ownership,
+  pinnable,
+  onOpen,
+  onToggle,
+  onPreview,
+  eager,
+  selecting,
+  selected,
+  onSelect,
+  busy,
+  renderDragHandle,
+}: CollectionCardProps) {
+  const actionRecord = useMemo(() => catalogActionRecord(recordFromGame(game), ownership), [game, ownership]);
+  const copies = ownership.get(game.slug);
+  const onSave = useCallback((id: string) => onToggle(id, 'later'), [onToggle]);
+  const onPlayed = useCallback((id: string, value: boolean) => onToggle(id, 'played', value), [onToggle]);
+  const onCompleted = useCallback((id: string, value: boolean) => onToggle(id, 'completed', value), [onToggle]);
+  const savedCopies = useMemo(
+    () => <SavedCatalogCopies canonicalId={game.slug} copies={copies} onOpen={onPreview} />,
+    [game.slug, copies, onPreview],
+  );
+  const compareActions = useMemo(
+    () =>
+      pinnable && (
+        <>
+          <ComparePinButton record={actionRecord} compact disabled={busy} />
+          {renderDragHandle?.(actionRecord)}
+        </>
+      ),
+    [pinnable, actionRecord, busy, renderDragHandle],
+  );
+  return (
+    <GameCard
+      game={game}
+      filters={filters}
+      state={state}
+      onOpen={onOpen}
+      onSave={onSave}
+      onPlayed={onPlayed}
+      onCompleted={onCompleted}
+      eager={eager}
+      selecting={selecting}
+      selected={selected}
+      onSelect={onSelect}
+      busy={busy}
+      compareRecord={pinnable ? actionRecord : undefined}
+      savedCopies={savedCopies}
+      compareActions={compareActions}
+    />
+  );
+});
+
 interface CollectionPageProps {
   collection: ReturnType<typeof useCollection>;
   state: PersonalLibraryState;
@@ -234,7 +312,7 @@ interface CollectionPageProps {
   comparisonTray?: ReactNode;
 }
 
-export default function CollectionPage({
+function CollectionPage({
   collection,
   state,
   filters,
@@ -339,7 +417,7 @@ export default function CollectionPage({
     scrollCollectionIntoView(animate ? 'smooth' : 'instant');
   }, [browseRequest, animate]);
   const browse = () => setBrowseRequest((request) => request + 1);
-  const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
+  const toggle = useStableHandler((id: string, key: ProgressKey, value?: boolean) => {
     const game = games?.find((candidate) => candidate.slug === id);
     if (game) {
       const record = catalogActionRecord(recordFromGame(game), ownership);
@@ -349,14 +427,17 @@ export default function CollectionPage({
           : { type: 'set-progress', records: [record], key, value },
       );
     }
-  };
-  const toggleSelection = (id: string) =>
-    setSelected((prior) => {
-      const next = new Set(prior);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  });
+  const toggleSelection = useCallback(
+    (id: string) =>
+      setSelected((prior) => {
+        const next = new Set(prior);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
+  );
   const bulk = async (action: SelectionAction) => {
     const records = resultRecords
       .filter((record) => currentSelection.has(record.id))
@@ -525,42 +606,25 @@ export default function CollectionPage({
                     role="list"
                     aria-label="Games in this view"
                   >
-                    {results.slice(0, visibleCount).map((game, index) => {
-                      const actionRecord = catalogActionRecord(recordFromGame(game), ownership);
-                      return (
-                        <GameCard
-                          key={game.slug}
-                          game={game}
-                          filters={filters}
-                          state={progress[game.slug]}
-                          onOpen={onOpen}
-                          onSave={(id) => toggle(id, 'later')}
-                          onPlayed={(id, value) => toggle(id, 'played', value)}
-                          onCompleted={(id, value) => toggle(id, 'completed', value)}
-                          eager={index < 4}
-                          selecting={selecting}
-                          selected={selected.has(game.slug)}
-                          onSelect={toggleSelection}
-                          busy={busy}
-                          compareRecord={onPin ? actionRecord : undefined}
-                          savedCopies={
-                            <SavedCatalogCopies
-                              canonicalId={game.slug}
-                              copies={ownership.get(game.slug)}
-                              onOpen={onPreview}
-                            />
-                          }
-                          compareActions={
-                            onPin && (
-                              <>
-                                <ComparePinButton record={actionRecord} compact disabled={busy} />
-                                {renderDragHandle?.(actionRecord)}
-                              </>
-                            )
-                          }
-                        />
-                      );
-                    })}
+                    {results.slice(0, visibleCount).map((game, index) => (
+                      <CollectionCard
+                        key={game.slug}
+                        game={game}
+                        filters={filters}
+                        state={progress[game.slug]}
+                        ownership={ownership}
+                        pinnable={Boolean(onPin)}
+                        onOpen={onOpen}
+                        onToggle={toggle}
+                        onPreview={onPreview}
+                        eager={index < 4}
+                        selecting={selecting}
+                        selected={selected.has(game.slug)}
+                        onSelect={toggleSelection}
+                        busy={busy}
+                        renderDragHandle={renderDragHandle}
+                      />
+                    ))}
                   </ul>
                 )}
                 <div className="collection-end">
@@ -730,3 +794,6 @@ export default function CollectionPage({
     </>
   );
 }
+
+/** Memoised: App re-renders for dialogs, the tray and notices without changing the collection's props. */
+export default memo(CollectionPage);

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, memo, Suspense } from 'react';
 import type { ComponentProps } from 'react';
 import type { AppPage } from '../../lib/types';
 import CollectionPage from '../CollectionPage';
@@ -45,7 +45,8 @@ function publicContent(content: PublicContent, route: AppPage) {
   }
 }
 
-export function RouteHost({ route, scope, online, content }: RouteHostProps) {
+/** Memoised: App re-renders for dialogs, the tray and notices, and AppRoute keeps these props stable across them. */
+export const RouteHost = memo(function RouteHost({ route, scope, online, content }: RouteHostProps) {
   // The private placeholder is not page content: the lazy page that replaces it mounts a new Suspense
   // boundary, which shows its fallback even when a transition (the opened library) brings the page in.
   const boundary = content?.kind === 'private-library' ? 'private' : 'page';
@@ -84,4 +85,4 @@ export function RouteHost({ route, scope, online, content }: RouteHostProps) {
       )}
     </>
   );
-}
+});

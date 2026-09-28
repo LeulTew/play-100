@@ -1,5 +1,5 @@
 import type { Filters, Game } from '../lib/types';
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { LibraryRecord, PersonalProgress } from '../lib/personal-types';
 import { createSearch } from '../lib/url';
@@ -31,7 +31,7 @@ interface GameCardProps {
   savedCopies?: ReactNode;
 }
 
-export function GameCard({
+export const GameCard = memo(function GameCard({
   game,
   filters,
   state,
@@ -155,4 +155,4 @@ export function GameCard({
       </button>
     </li>
   );
-}
+});
