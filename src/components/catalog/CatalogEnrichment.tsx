@@ -25,7 +25,7 @@ export function ExternalCatalogArtwork({ artwork }: { artwork: Artwork }) {
 export function ExternalCatalogArtworkCredit({ artwork }: { artwork: Artwork }) {
   return (
     <div className="catalog-detail-art-credits">
-      <GameArtworkCredit artwork={artwork} disclosureLabel="Artwork credits for this public catalog image" />
+      <GameArtworkCredit artwork={artwork} disclosureLabel="Artwork credits for this public catalog image" httpsOnly />
       <p className="catalog-enrichment-note">
         <a href={artwork.originalUrl} target="_blank" rel="noreferrer">
           Original file

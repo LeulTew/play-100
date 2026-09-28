@@ -70,9 +70,14 @@ Artwork-credit disclosures in the detail, Compare tray and My games share one
 presentation. Known collector separators and explicit `Original` / `Vector`
 roles produce labelled art, source, conversion and trademark lines; the image
 file and licence retain their own links. Contributor and source URLs become
-HTTP(S)-only links without credentials, with `noopener noreferrer`. Only an
-identical adjacent `URL (URL)` representation is shown once, never different
-URLs or repeated attribution words. The **Full supplied credit** disclosure
+HTTP(S)-only links without credentials, with `noopener noreferrer`; live
+Commons artwork requires HTTPS, leaving HTTP destinations as complete text.
+Named contributor links outside Wikimedia, Wikipedia and Wikidata domains
+show the actual destination hostname beside the supplied name instead of
+hiding it behind a provider-chosen label. Reviewed bundled HTTP credits retain
+their existing attribution links. Only an identical adjacent `URL (URL)`
+representation is shown once, never different URLs or repeated attribution
+words. The **Full supplied credit** disclosure
 retains the exact original string, including every notice and original URL.
 Ambiguous roles, separators or additional notices stay as the full original
 text instead of being partly parsed or truncated. No stored credit is rewritten,

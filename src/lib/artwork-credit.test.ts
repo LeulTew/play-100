@@ -62,24 +62,32 @@ const realStyleCredit =
   `Original: Wildfire Games Vector: VulcanSphere (${contributor}) | ` +
   `Own work based on: ${forum} (${forum}) 0AD | ${conversion} | ${trademark}`;
 
-function creditMarkup(credit: string) {
-  const html = renderToStaticMarkup(createElement(GameArtworkCredit, { artwork: { ...artworkFixture, credit } }));
+function creditMarkup(credit: string, httpsOnly = false) {
+  const html = renderToStaticMarkup(
+    createElement(GameArtworkCredit, { artwork: { ...artworkFixture, credit }, httpsOnly }),
+  );
   const links: Record<string, string>[] = [];
+  let link: (Record<string, string> & { text: string }) | null = null;
   const labels: string[] = [];
   let label: string | null = null;
   let original = '';
   let inOriginal = false;
   new Parser({
     onopentag(name, attributes) {
-      if (name === 'a') links.push(attributes);
+      if (name === 'a') {
+        link = { ...attributes, text: '' };
+        links.push(link);
+      }
       if (name === 'dt') label = '';
       if (attributes.class === 'game-artwork-credit-text') inOriginal = true;
     },
     ontext(value) {
+      if (link) link.text += value;
       if (label !== null) label += value;
       if (inOriginal) original += value;
     },
     onclosetag(name) {
+      if (name === 'a') link = null;
       if (name === 'dt' && label !== null) {
         labels.push(label);
         label = null;
@@ -91,6 +99,52 @@ function creditMarkup(credit: string) {
 }
 
 describe('conservative artwork-credit presentation', () => {
+  it('shows the destination of an attacker-labelled live creator link without changing the credit', () => {
+    const credit = `Nintendo (https://evil.example/login) | ${conversion} | ${trademark}`;
+    const result = creditMarkup(credit, true);
+    expect(result.links.find((entry) => entry.href === 'https://evil.example/login')).toMatchObject({
+      text: 'Nintendo (evil.example)',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    expect(result.original).toBe(credit);
+    expect(result.html).toContain(conversion);
+    expect(result.html).toContain(trademark);
+    expect(result.links.some((entry) => entry.href === artworkFixture.licenseUrl)).toBe(true);
+  });
+
+  it.each([
+    'https://commons.wikimedia.org/wiki/User:Artist',
+    'https://en.wikipedia.org/wiki/Artist',
+    'https://www.wikidata.org/wiki/Q123',
+  ])('retains the named HTTPS Wikimedia contributor link: %s', (url) => {
+    const credit = `Artist (${url}) | ${conversion}`;
+    const result = creditMarkup(credit, true);
+    expect(result.links.find((entry) => entry.href === url)?.text).toBe('Artist');
+    expect(result.original).toBe(credit);
+  });
+
+  it.each(['commons.wikimedia.org.evil.example', 'fakewikipedia.org'])(
+    'exposes a Wikimedia-lookalike destination: %s',
+    (host) => {
+      const credit = `Nintendo (https://${host}/login) | ${conversion}`;
+      const result = creditMarkup(credit, true);
+      expect(result.links.find((entry) => entry.href === `https://${host}/login`)?.text).toBe(`Nintendo (${host})`);
+      expect(result.original).toBe(credit);
+    },
+  );
+
+  it.each([
+    `Nintendo (http://evil.example/login) | ${conversion}`,
+    `Artist | Source: http://evil.example/login | ${conversion}`,
+    `Artist | Own work based on: http://evil.example/login (http://evil.example/login) | ${conversion}`,
+  ])('keeps live HTTP credit destinations as complete unlinked text: %s', (credit) => {
+    const result = creditMarkup(credit, true);
+    expect(result.links.every((entry) => entry.href?.startsWith('https:'))).toBe(true);
+    expect(result.original).toBe(credit);
+    expect(result.html).toContain('http://evil.example/login');
+  });
+
   it('separates a real 0 A.D.-style credit, links contributor/source and retains the exact supplied text', () => {
     const result = creditMarkup(realStyleCredit);
     expect(result.labels).toEqual([

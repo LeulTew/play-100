@@ -98,20 +98,25 @@ function creditLines(credit: string): CreditLine[] | null {
   return lines;
 }
 
-function safeCreditLink(value: string): boolean {
+function safeCreditLink(value: string, httpsOnly: boolean): boolean {
   if (/[\s\\\p{Cc}]/u.test(value)) return false;
   try {
     const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password;
+    return (
+      (url.protocol === 'https:' || (!httpsOnly && url.protocol === 'http:')) &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password
+    );
   } catch {
     return false;
   }
 }
 
-function CreditText({ text }: { text: string }) {
+function CreditText({ text, httpsOnly }: { text: string; httpsOnly: boolean }) {
   // The collector represents links as "label (URL)". Only an identical adjacent URL is redundant.
   const repeated = /^(.*?)(https?:\/\/[^\s()]+) \((https?:\/\/[^\s()]+)\)(.*)$/.exec(text);
-  if (repeated && repeated[2] === repeated[3] && safeCreditLink(repeated[2]!)) {
+  if (repeated && repeated[2] === repeated[3] && safeCreditLink(repeated[2]!, httpsOnly)) {
     const href = repeated[2]!;
     return (
       <>
@@ -124,15 +129,20 @@ function CreditText({ text }: { text: string }) {
     );
   }
   const named = /^([^():]+?) \((https?:\/\/[^\s()]+)\)$/.exec(text);
-  if (named && safeCreditLink(named[2]!)) {
+  if (named && safeCreditLink(named[2]!, httpsOnly)) {
+    const host = new URL(named[2]!).hostname;
+    const wikimedia = ['wikimedia.org', 'wikipedia.org', 'wikidata.org'].some(
+      (domain) => host === domain || host.endsWith(`.${domain}`),
+    );
     return (
       <a href={named[2]} target="_blank" rel="noopener noreferrer">
         {named[1]}
+        {!wikimedia && ` (${host})`}
       </a>
     );
   }
   const single = /^(.*?)(https?:\/\/[^\s()]+)$/.exec(text);
-  if (single && !/https?:\/\//.test(single[1]!) && safeCreditLink(single[2]!)) {
+  if (single && !/https?:\/\//.test(single[1]!) && safeCreditLink(single[2]!, httpsOnly)) {
     const href = single[2]!;
     return (
       <>
@@ -149,7 +159,8 @@ function CreditText({ text }: { text: string }) {
 export function GameArtworkCredit({
   artwork,
   disclosureLabel,
-}: Pick<GameArtworkProps, 'artwork'> & { disclosureLabel?: string }) {
+  httpsOnly = false,
+}: Pick<GameArtworkProps, 'artwork'> & { disclosureLabel?: string; httpsOnly?: boolean }) {
   if (!artwork) return null;
   const lines = creditLines(artwork.credit);
   const credit = (
@@ -160,7 +171,7 @@ export function GameArtworkCredit({
             <div key={label}>
               <dt>{label}</dt>
               <dd>
-                <CreditText text={text} />
+                <CreditText text={text} httpsOnly={httpsOnly} />
               </dd>
             </div>
           ))
@@ -173,7 +184,7 @@ export function GameArtworkCredit({
         <div>
           <dt>Image file</dt>
           <dd>
-            {safeCreditLink(artwork.sourceUrl) ? (
+            {safeCreditLink(artwork.sourceUrl, httpsOnly) ? (
               <a href={artwork.sourceUrl} target="_blank" rel="noopener noreferrer">
                 Source image
               </a>
@@ -185,7 +196,7 @@ export function GameArtworkCredit({
         <div>
           <dt>Licence</dt>
           <dd>
-            {safeCreditLink(artwork.licenseUrl) ? (
+            {safeCreditLink(artwork.licenseUrl, httpsOnly) ? (
               <a href={artwork.licenseUrl} target="_blank" rel="noopener noreferrer">
                 {artwork.license}
               </a>

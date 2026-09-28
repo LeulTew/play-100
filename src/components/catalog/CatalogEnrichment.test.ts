@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { enrichmentFixture } from '../../lib/discovery-test-fixtures';
+import { artworkFixture, enrichmentFixture } from '../../lib/discovery-test-fixtures';
 import type { ExternalCatalogArtwork as Artwork } from '../../lib/catalog-enrichment';
 import { CatalogEnrichment, ExternalCatalogArtworkCredit } from './CatalogEnrichment';
 
@@ -284,5 +284,20 @@ describe('separate public review provenance', () => {
     for (const text of [artwork.credit, artwork.sourceUrl, artwork.originalUrl, artwork.licenseUrl, '2026-09-22'])
       expect(html).toContain(text);
     expect(html).not.toContain('<img');
+  });
+
+  it('requires HTTPS for live artwork credit links without dropping any supplied attribution', () => {
+    const credit =
+      'Nintendo (http://evil.example/login) | Resized and converted to WebP; original license retained. | ' +
+      'Trademark rights are not granted by the copyright license.';
+    const artwork: Artwork = { ...artworkFixture, kind: 'commons-raster', credit };
+    const html = renderToStaticMarkup(createElement(ExternalCatalogArtworkCredit, { artwork }));
+    expect(html).not.toContain('href="http://evil.example/login"');
+    expect(html).toContain(credit);
+    expect(html).toContain('Nintendo (http://evil.example/login)');
+    expect(html).toContain(`href="${artwork.sourceUrl}"`);
+    expect(html).toContain(`href="${artwork.licenseUrl}"`);
+    expect(html).toContain(artwork.license);
+    expect(html).toContain('Full supplied credit');
   });
 });
