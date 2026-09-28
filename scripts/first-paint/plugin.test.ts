@@ -365,7 +365,8 @@ describe('first-paint fallback faces', () => {
     ]);
     // Only "Roboto" finds Android 12+'s variable font, so every face ends with it.
     for (const face of roboto) expect(face).toMatch(/local\("Roboto"\); font-weight/);
-    for (const face of roboto.filter((face) => face.includes('DF Roboto'))) expect(face).toContain('font-stretch: 75%;');
+    for (const face of roboto.filter((face) => face.includes('DF Roboto')))
+      expect(face).toContain('font-stretch: 75%;');
     expect(shellCss).toContain("'P100 DF Impact', 'P100 DF Arial', 'P100 DF Roboto', monospace;");
     expect(shellCss.match(/'P100 Sans Fallback', 'P100 Sans Roboto', monospace;/g)).toHaveLength(2);
   });

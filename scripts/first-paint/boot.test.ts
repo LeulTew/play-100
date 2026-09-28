@@ -12,7 +12,7 @@ const WATCHDOG = 60000;
 const ACCEPTED_PROBES: Readonly<Record<string, { width: number; height: number }>> = {
   'p100-probe-display': { width: 609, height: 120 },
   'p100-probe-sans': { width: 932, height: 130 },
-  'p100-probe-sans-bold': { width: 501, height: 130 },
+  'p100-probe-sans-bold': { width: 1303, height: 130 },
 };
 
 type TagSpec = readonly [tagName: string, attributes: Readonly<Record<string, string>>];
@@ -350,12 +350,11 @@ describe('first-paint boot gate', () => {
   it.each([
     ['display width', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 700, height: 120 } }],
     ['sans width', { ...ACCEPTED_PROBES, 'p100-probe-sans': { width: 900, height: 130 } }],
-    ['bold height', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 501, height: 133 } }],
-    ['bold width between the ranges', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 512, height: 130 } }],
+    ['bold height', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 1303, height: 133 } }],
     // A Roboto variable font rendered at its default instance (engines that do not apply the face's
-    // weight to a local() font) measures 517 for the bold probe string.
-    ['bold Roboto without wght', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 517, height: 130 } }],
-    ['bold width above the ranges', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 531, height: 130 } }],
+    // weight to a local() font) measures 1287.7 for the bold probe string.
+    ['bold Roboto without wght', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 1287.7, height: 130 } }],
+    ['bold width above the range', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 1320, height: 130 } }],
   ])('keeps the shell hidden when the fallback faces do not measure right (%s)', (_, probes) => {
     expect(boot({ probes })).toEqual({});
   });
@@ -368,7 +367,7 @@ describe('first-paint boot gate', () => {
       {
         'p100-probe-display': { width: 608.05, height: 120 },
         'p100-probe-sans': { width: 934.12, height: 130 },
-        'p100-probe-sans-bold': { width: 526.78, height: 130 },
+        'p100-probe-sans-bold': { width: 1300.83, height: 130 },
       },
     ],
     [
@@ -376,7 +375,7 @@ describe('first-paint boot gate', () => {
       {
         'p100-probe-display': { width: 611.17, height: 120 },
         'p100-probe-sans': { width: 934.12, height: 130 },
-        'p100-probe-sans-bold': { width: 526.48, height: 130 },
+        'p100-probe-sans-bold': { width: 1301.14, height: 130 },
       },
     ],
   ])('shows the shell with the Roboto fallback faces (%s)', (_, probes) => {

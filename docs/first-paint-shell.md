@@ -110,10 +110,10 @@ the document only at `/` without
 `view=table`, `game` or `catalogs=off`, derives the artifact caption state React
 renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
-metric-matched fallback faces are usable: each must measure its expected height
-and a width inside one of its accepted ranges. The bold probe's string tells Arial
-Bold, Roboto Bold and a variable Roboto rendered at its default weight apart, so
-the last, which would reflow, keeps the shell hidden. Then it sets `data-boot="landing"` and
+metric-matched fallback faces are usable, the Impact, Arial and Roboto faces
+against the same expected boxes. The bold probe measures "GOOD THINGS, COLLECTED.",
+which a variable Roboto rendered at its default weight draws too narrow, so that
+case, which would reflow, keeps the shell hidden. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.
 Without a valid stored hint, the app knows no visual preference until the
 library opens: it behaves as Lite (no scene, no Fan out), but its caption names
