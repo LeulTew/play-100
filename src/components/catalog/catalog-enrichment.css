@@ -52,6 +52,7 @@
 }
 .catalog-review-heading {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: 16px;
@@ -63,9 +64,9 @@
 }
 .catalog-review-heading > strong {
   font-size: 20px;
-  max-width: 45%;
+  max-width: 100%;
   text-align: right;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .catalog-enrichment .catalog-review-list p {

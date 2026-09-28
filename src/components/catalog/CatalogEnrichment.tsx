@@ -53,6 +53,17 @@ function compactRatingContext(rating: CatalogExternalRating): string {
   ].join(' · ');
 }
 
+function formatExternalScore(text: string): string {
+  const match = /^(\d+)\.(\d{3,})(\s*\/\s*(\d+(?:\.\d+)?))$/.exec(text);
+  if (!match) return text;
+  const value = Number(`${match[1]}.${match[2]}`);
+  const scale = Number(match[4]);
+  if (!Number.isFinite(value) || !Number.isFinite(scale) || scale <= 0 || scale > 1000 || value > scale) return text;
+  const compact = new Intl.NumberFormat('en', { maximumFractionDigits: 2, useGrouping: false }).format(value);
+  const rounded = /[1-9]/.test(match[2]!.slice(2));
+  return `${rounded ? '≈' : ''}${compact}${match[3]}`;
+}
+
 export function CatalogEnrichment({
   enrichment,
   lookup,
@@ -107,11 +118,12 @@ export function CatalogEnrichment({
                 <li key={rating.id}>
                   <div className="catalog-review-heading">
                     <h4>{rating.publisher}</h4>
-                    <strong>{rating.score.text}</strong>
+                    <strong>{formatExternalScore(rating.score.text)}</strong>
                   </div>
                   <p>{compactRatingContext(rating)}</p>
                   <details className="catalog-review-details">
                     <summary>Source details for {rating.publisher}</summary>
+                    <p>Original score: {rating.score.text}</p>
                     <p>
                       {rating.platforms.length ? rating.platforms.join(' / ') : 'Platform not specified'}
                       {rating.method ? ` · ${rating.method}` : ' · Review method not specified'}

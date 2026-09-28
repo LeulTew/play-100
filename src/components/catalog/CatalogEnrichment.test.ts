@@ -16,6 +16,55 @@ const state = () => ({
   retry: vi.fn(),
 });
 
+describe('display-only external score precision', () => {
+  it.each([
+    ['4.44728422164917/5', '≈4.45/5'],
+    ['86/100', '86/100'],
+    ['4.8/5', '4.8/5'],
+    ['4.45/5', '4.45/5'],
+    ['8.94728422164917/10', '≈8.95/10'],
+    ['4.44728422164917 / 5.00', '≈4.45 / 5.00'],
+    ['98.123456789%', '98.123456789%'],
+    ['Recommended', 'Recommended'],
+    ['Four out of five stars', 'Four out of five stars'],
+    ['4.450000/5', '4.45/5'],
+    ['4.000000/5', '4/5'],
+    ['4.999999/5', '≈5/5'],
+    ['1.005/5', '≈1.01/5'],
+    ['0.004/5', '≈0/5'],
+    ['4.447/0', '4.447/0'],
+    ['6.447/5', '6.447/5'],
+    ['4.447/unknown', '4.447/unknown'],
+  ])('displays %s as %s without changing its scale or unrelated text', (original, expected) => {
+    const enrichment = state();
+    enrichment.data.ratings[0]!.score.text = original;
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    expect(html).toContain(`<strong>${expected}</strong>`);
+  });
+
+  it('keeps the exact source value in its disclosure and never mutates source data', () => {
+    const enrichment = state();
+    const score = '4.44728422164917/5';
+    enrichment.data.ratings[0] = {
+      ...enrichment.data.ratings[0]!,
+      publisher: 'Google Play',
+      score: { text: score, value: 4.44728422164917, scale: 5, unit: 'points' },
+    };
+    const before = JSON.stringify(enrichment.data);
+    const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+    const compact = html.slice(html.indexOf('<li>'), html.indexOf('<details class="catalog-review-details">'));
+    expect(compact).toContain('<strong>≈4.45/5</strong>');
+    expect(compact).toContain('<h4>Google Play</h4>');
+    expect(compact).toContain('Reported review score · via Wikidata · PC');
+    expect(compact).not.toContain(score);
+    const details = html.match(/<details class="catalog-review-details">([\s\S]*?)<\/details>/)?.[1];
+    expect(details).toContain(`<p>Original score: ${score}</p>`);
+    expect(details).toContain(enrichment.data.ratings[0]!.sourceUrl);
+    expect(JSON.stringify(enrichment.data)).toBe(before);
+    expect(html).not.toContain('Your rating / 10');
+  });
+});
+
 describe('separate public review provenance', () => {
   it('is absent without the explicit public lookup gate', () => {
     expect(renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment: state() }))).toBe('');

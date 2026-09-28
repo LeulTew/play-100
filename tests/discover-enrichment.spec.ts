@@ -331,3 +331,81 @@ for (const width of [320, 393]) {
     }
   });
 }
+
+test('long external scores stay compact and retain source precision', async ({ page, baseURL, isMobile }) => {
+  if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) {
+    throw new Error('External score fixtures require the owned local preview.');
+  }
+  await page.setViewportSize({ width: isMobile ? 393 : 1440, height: 851 });
+  const data = enrichmentFixture();
+  const rating = data.ratings[0]!;
+  data.ratings = [
+    {
+      ...rating,
+      publisher: 'Google Play',
+      score: { text: '4.44728422164917/5', value: 4.44728422164917, scale: 5, unit: 'points' },
+    },
+    {
+      ...rating,
+      id: 'wikidata:claim-two',
+      publisher: 'Ten-point source',
+      score: { text: '8.9/10', value: 8.9, scale: 10, unit: 'points' },
+    },
+    {
+      ...rating,
+      id: 'wikidata:claim-three',
+      publisher: 'Percentage source',
+      score: { text: '98.123456789%', value: 98.123456789, scale: 100, unit: 'percent' },
+    },
+  ];
+  await page.route('**/*', (route) => {
+    const url = new URL(route.request().url());
+    return url.origin !== new URL(baseURL).origin || url.pathname.startsWith('/api/')
+      ? route.abort('blockedbyclient')
+      : route.continue();
+  });
+  await page.route('**/data/discovery/catalog.v1.json', (route) => route.fulfill({ json: catalogFixture }));
+  await page.route('**/api/catalog-detail?**', (route) => route.fulfill({ json: data }));
+  await page.goto('/discover?q=Kingdomcome&catalogs=off');
+  const before = await readLibrary(page);
+  await page.locator(`[data-catalog-id="${id}"]`).getByRole('button', { name: title, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: title, exact: true });
+  await dialog.getByRole('button', { name: 'Enable online details', exact: true }).click();
+  const scores = dialog.locator('.catalog-review-heading > strong');
+  await expect(scores).toHaveText(['≈4.45/5', '8.9/10', '98.123456789%']);
+  await scores.first().scrollIntoViewIfNeeded();
+  await page.evaluate(() => document.fonts.ready);
+  const geometry = await scores.evaluateAll((elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect();
+      const row = element.closest('li')!.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0);
+      return {
+        text: element.textContent,
+        lines: new Set(fragments.map((rect) => rect.top)).size,
+        inside: box.left >= row.left && box.right <= row.right,
+        fontSize: parseFloat(getComputedStyle(element).fontSize),
+      };
+    }),
+  );
+  for (const score of geometry) {
+    expect(score.lines, `${score.text} must stay on one line`).toBe(1);
+    expect(score.inside).toBe(true);
+    expect(score.fontSize).toBe(20);
+  }
+  const google = dialog
+    .locator('.catalog-review-list > li')
+    .filter({ has: page.getByRole('heading', { name: 'Google Play', exact: true }) });
+  await google.getByText('Source details for Google Play', { exact: true }).click();
+  await expect(google.locator('.catalog-review-details')).toContainText('Original score: 4.44728422164917/5');
+  await expect(google.getByRole('link', { name: 'View Wikidata score claims', exact: true })).toHaveAttribute(
+    'href',
+    rating.sourceUrl,
+  );
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toHaveValue('');
+  expect(await readLibrary(page)).toEqual(before);
+});

@@ -171,9 +171,15 @@ external ratings, matching the original detail's reading and keyboard order.
 An external detail can add only its metadata to My games, without changing
 progress, queue membership or ranking. The action reflects the saved Library
 state; canonical collection details retain their existing actions.
-Each external row keeps its publisher, literal score/scale, score type and known
-platform visible. A native per-source disclosure retains method, counts, exact
-unknowns, score/reference/retrieval dates and active provenance links.
+Each external row keeps its publisher, score on its original scale, score type
+and known platform visible. Long numeric numerators use at most two decimal
+places, with `≈` when nonzero precision is rounded away; denominators are not
+normalized. Integer/short scores, percentages and non-numeric claims retain
+their original display. The compact numeric value stays on one line; the row
+can wrap as a whole instead of splitting a number. A native per-source disclosure
+retains the exact **Original score**, method, counts, unknowns,
+score/reference/retrieval dates and active provenance links. Display formatting
+never rewrites source data or the visitor's rating.
 
 The outside-The-100 default was an autonomous product decision made while the
 user was unavailable, not a separately selected user preference. The reviewed
