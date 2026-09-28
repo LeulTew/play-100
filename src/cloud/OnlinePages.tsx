@@ -115,7 +115,7 @@ export function OnlinePages({
   onShare: (title: string, url: string) => void;
   onPinRecord?: (record: LibraryRecord) => boolean;
 }) {
-  const { identity, authSessionEpoch, busy, openInvitation, resendIn } = session;
+  const { identity, authGeneration, busy, openInvitation, resendIn } = session;
   const { uid, account, sync, social, member, profile, head, headSnapshot, isCreator } = online;
   const { restoring, active, activeController } = online;
   const { avatar, setAvatarOpen, saveName, published } = publication;
@@ -183,10 +183,10 @@ export function OnlinePages({
           onOpen={onOpenRecord}
           sharedGames={
             <FriendSharedGames
-              key={`${uid}:${url.pathname}:${authSessionEpoch.current}`}
+              key={`${uid}:${url.pathname}:${authGeneration}`}
               uid={identity.uid}
               peer={url.peer}
-              authGeneration={authSessionEpoch.current}
+              authGeneration={authGeneration}
               verified={identity.verified}
               store={shelf.store}
               friends={friends.store}

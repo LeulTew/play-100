@@ -28,6 +28,8 @@ interface IdentityPorts<T extends IdentityUser> {
   currentUid: () => string | undefined;
   readToken: (user: T, force: boolean) => Promise<Pick<IdTokenResult, 'claims'>>;
   publish: (identity: AccountIdentity | null | undefined) => void;
+  /** Receives each new auth-session epoch, in the same call that publishes that session's first identity. */
+  publishEpoch: (epoch: number) => void;
   remember: () => unknown;
   clearPrevious: (uid: string) => void;
 }
@@ -35,6 +37,7 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
   let identityRead: { uid: string; promise: Promise<AccountIdentity> } | null = null;
   const refreshedMismatch = new Set<string>();
   let authSessionUid: string | null = null;
+  // The live epoch, which handlers and work that settles later compare against. Renders read the published one.
   const authSessionEpoch = { current: 0 };
   // Whether the controller that owns this lifetime is still mounted (attach, from its effect). A read can outlive it:
   // restoration gives up and the controller unmounts while the same account stays signed in, even before its session
@@ -81,6 +84,7 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
       if (transition.clearUid) ports.clearPrevious(transition.clearUid);
       authSessionUid = transition.uid;
       authSessionEpoch.current = transition.epoch;
+      ports.publishEpoch(transition.epoch);
       if (user) ports.publish(undefined);
     }
     if (!user) {
@@ -123,6 +127,9 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
  */
 export function useAccountIdentity(clearPrevious: (uid: string) => void) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
+  // The auth-session epoch that renders use. It is state, set together with the identity it belongs to, so a render
+  // never reads the live epoch (authSessionEpoch), which may be newer than the identity it renders.
+  const [authGeneration, setAuthGeneration] = useState(0);
   // The committed identity, for handlers and work that settles later.
   const identityRef = useRef(identity);
   useLayoutEffect(() => {
@@ -134,6 +141,7 @@ export function useAccountIdentity(clearPrevious: (uid: string) => void) {
       currentUid: () => cloudAuth.currentUser?.uid,
       readToken: getIdTokenResult,
       publish: setIdentity,
+      publishEpoch: setAuthGeneration,
       remember: () => rememberOnlineRequest(true),
       clearPrevious,
     }),
@@ -141,5 +149,5 @@ export function useAccountIdentity(clearPrevious: (uid: string) => void) {
   // Attached before the controller's session observer starts, and detached as it closes. Both are the controller's
   // passive effects, declared in this order, so they open and close together.
   useEffect(() => lifetime.attach(), [lifetime]);
-  return { identity, identityRef, setIdentity, ...lifetime };
+  return { identity, identityRef, setIdentity, authGeneration, ...lifetime };
 }

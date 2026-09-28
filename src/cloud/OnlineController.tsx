@@ -105,13 +105,14 @@ export default function OnlineController({
     onCloseSheet,
     onNavigate,
   });
-  const { identity, identityRef, authSessionEpoch, busy, signInOpen, openInvitation, googleReturn } = session;
+  const { identity, identityRef, authSessionEpoch, authGeneration, busy, signInOpen, openInvitation, googleReturn } =
+    session;
   const { returnSheet, setReturnSheet, setError, setMessage } = session;
   const online = useOnlineAccount({
     page,
     identity,
     identityRef,
-    authGeneration: authSessionEpoch.current,
+    authGeneration,
     guest,
     busy,
     setError,
@@ -143,7 +144,7 @@ export default function OnlineController({
     snapshot: account.snapshot,
     verified: Boolean(identity?.verified),
     games,
-    authGeneration: authSessionEpoch.current,
+    authGeneration,
     signedIn: Boolean(identity),
     connected: Boolean(identity?.verified && account.snapshot?.sync.enabled),
   });
@@ -212,8 +213,8 @@ export default function OnlineController({
     if (identity) withdrawDeviceLeftovers();
   }, [identity]);
 
-  const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
-  const pageScope = `${scope ?? 'guest'}:${authSessionEpoch.current}`;
+  const identityKey = `${identity?.uid ?? 'guest'}:${authGeneration}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
+  const pageScope = `${scope ?? 'guest'}:${authGeneration}`;
   const pageRouteKey =
     page === 'profile'
       ? publicHandle
@@ -229,7 +230,7 @@ export default function OnlineController({
   const visibleDeletionApproval = currentDeletionApproval(
     online.deletion.approval,
     identity?.uid,
-    authSessionEpoch.current,
+    authGeneration,
     online.accountEpoch,
   );
   const closeSignin = () => {

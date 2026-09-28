@@ -67,6 +67,7 @@ export function useOnlineSession({
     setIdentity,
     identityRef,
     authSessionEpoch,
+    authGeneration,
     reconcileIdentity,
     observeUser,
     controllerLive,
@@ -284,7 +285,10 @@ export function useOnlineSession({
     identity,
     setIdentity,
     identityRef,
+    /** The live auth-session epoch, for handlers and work that settles later. Renders use authGeneration. */
     authSessionEpoch,
+    /** The auth-session epoch of the identity this render shows. */
+    authGeneration,
     reconcileIdentity,
     openInvitation,
     retireInvitation,
@@ -331,17 +335,18 @@ export function useGoogleReturn({
   cacheError: string | null;
   deletion: ReturnType<typeof useAccountDeletionState>;
 }) {
-  const { googleReturn, handledGoogleReturn, setReturnSheet, identity, authSessionEpoch, navigation } = session;
+  const { googleReturn, handledGoogleReturn, setReturnSheet, identity, authGeneration, navigation } = session;
   const { setError, setMessage } = session;
   const { approval, setApproval } = deletion;
   useEffect(() => {
+    // The committed session's epoch, so an approval belongs to the identity this return was applied for.
     applyGoogleReturn({
       state: { googleReturn, handledGoogleReturn, setReturnSheet },
       identity,
       cacheReady: Boolean(snapshot),
       cacheError,
       epoch: snapshot?.sync.epoch ?? 0,
-      sessionEpoch: authSessionEpoch.current,
+      sessionEpoch: authGeneration,
       navigation,
       setDeletionApproval: setApproval,
       setError,
@@ -355,7 +360,7 @@ export function useGoogleReturn({
     setApproval,
     handledGoogleReturn,
     setReturnSheet,
-    authSessionEpoch,
+    authGeneration,
     navigation,
     setError,
     setMessage,

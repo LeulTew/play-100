@@ -31,6 +31,7 @@ function fixture() {
       .fn<(user: IdentityUser, force: boolean) => Promise<Token>>()
       .mockResolvedValue({ claims: { email_verified: true } }),
     publish: vi.fn<(identity: AccountIdentity | null | undefined) => void>(),
+    publishEpoch: vi.fn<(epoch: number) => void>(),
     remember: vi.fn(),
     clearPrevious: vi.fn(),
   };
@@ -210,6 +211,26 @@ describe('identity reconciliation lifetime', () => {
     await flush();
     expect(settled).toHaveBeenCalledTimes(5);
     expect(failed).not.toHaveBeenCalled();
+    // Each new epoch is published once, and a token refresh for the same account publishes none.
+    expect(f.ports.publishEpoch.mock.calls).toEqual([[1], [2], [3], [4]]);
+  });
+  it('publishes a new epoch in the same call as the identity it belongs to, so renders get both at once', () => {
+    const f = fixture();
+    const published: Array<[string, unknown]> = [];
+    f.ports.publish.mockImplementation((identity) => published.push(['identity', identity]));
+    f.ports.publishEpoch.mockImplementation((epoch) => published.push(['epoch', epoch]));
+    f.lifetime.observeUser(user, () => true, vi.fn(), vi.fn());
+    expect(published).toEqual([
+      ['epoch', 1],
+      ['identity', undefined],
+    ]);
+    published.length = 0;
+    f.owner.current = undefined;
+    f.lifetime.observeUser(null, () => true, vi.fn(), vi.fn());
+    expect(published).toEqual([
+      ['epoch', 2],
+      ['identity', null],
+    ]);
   });
   it.each(['current', 'foreign', 'closed'] as const)(
     'reports token failure only for the current live UID: %s',
