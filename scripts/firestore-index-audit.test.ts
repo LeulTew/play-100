@@ -172,7 +172,7 @@ describe('STORAGE-02 exact query/index contract', () => {
     // SocialStore's publishing, moderation, report and public-copy cleanup methods run in SocialPublication, which
     // loads with the pages that use them (social-publication.ts); the queries are the same.
     // FriendStore's methods listed here run the functions of the same names in these modules; the queries are the same.
-    const friendModules: Record<string, string> = { listGroups: 'friend-groups' };
+    const friendModules: Record<string, string> = { listGroups: 'friend-groups', listInvites: 'friend-invites' };
     const current = (owner: string) =>
       owner
         .replace('src/cloud/social-store.ts#SocialStore.', 'src/cloud/social-publication.ts#SocialPublication.')

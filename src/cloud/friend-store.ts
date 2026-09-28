@@ -34,18 +34,15 @@ import {
   friendName,
   friendPairId,
   friendSelection,
-  friendToken,
   friendUid,
   parseFriendBlock,
   parseFriendChunk,
   parseFriendGeneration,
   parseFriendHead,
   parseFriendIdentity,
-  parseFriendInvite,
   parseFriendPair,
   parseFriendRegistry,
   parseFriendSettings,
-  parseFriendSlot,
   parseFriendSource,
   retainsFriendGeneration,
   validateFriendEntries,
@@ -85,6 +82,7 @@ import {
 import type { SlotQuotaKind } from './account-quota';
 import { activeSettings, conflict, errorValue, expectedSettings, online, page } from './friend-store-core';
 import { deleteGroup, getGroup, listGroups, saveGroup } from './friend-groups';
+import { acceptInvite, createInvite, listInvites, previewInvite, revokeInvite } from './friend-invites';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 /** After cancelling, the sender waits this long before requesting again or releasing the pair (rules fPairAction). */
@@ -92,17 +90,6 @@ export const FRIEND_CANCEL_COOLDOWN_MS = 10 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
 const recentlyCancelled = 'You cancelled a request to this person a moment ago. Try again in a few minutes.';
 
-function unavailableInvite(cause: unknown): never {
-  if (
-    cause &&
-    typeof cause === 'object' &&
-    'code' in cause &&
-    (cause.code === 'permission-denied' || cause.code === 'not-found')
-  ) {
-    throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
-  }
-  throw cause;
-}
 async function contentDigest(entries: PublicEntry[]): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify(entries));
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) =>
@@ -132,13 +119,14 @@ async function exportPages<T>(
 
 // A method that delegates runs the function of the same name in its concern's friend-* module. That function calls
 // other store methods through the store, as the method did, so a patched FriendStore.prototype method still
-// intercepts those calls. The helpers such functions need are public for that reason.
+// intercepts those calls. The helpers such functions need are public for that reason; the private methods they need
+// stay private and are called as store['name'](...).
 export class FriendStore {
   constructor(readonly db: Firestore) {}
-  private ref(collectionName: string, uid: string): DocumentReference<DocumentData> {
+  ref(collectionName: string, uid: string): DocumentReference<DocumentData> {
     return doc(this.db, collectionName, friendUid(uid));
   }
-  private pairRef(uid: string, otherUid: string): DocumentReference<DocumentData> {
+  pairRef(uid: string, otherUid: string): DocumentReference<DocumentData> {
     return doc(this.db, 'friendPairs', friendPairId(uid, otherUid));
   }
   async read<T>(ref: DocumentReference<DocumentData>, parse: (data: DocumentData) => T): Promise<T | null> {
@@ -156,7 +144,7 @@ export class FriendStore {
       { maxAttempts: 3 },
     );
   }
-  private async readInvite(ref: DocumentReference<DocumentData>): Promise<DocumentSnapshot<DocumentData>> {
+  async readInvite(ref: DocumentReference<DocumentData>): Promise<DocumentSnapshot<DocumentData>> {
     try {
       return await getDocFromServer(ref);
     } catch (cause) {
@@ -166,7 +154,7 @@ export class FriendStore {
       return runTransaction(this.db, (tx) => tx.get(ref), { maxAttempts: 1 });
     }
   }
-  private async graphReady(uid: string): Promise<void> {
+  async graphReady(uid: string): Promise<void> {
     online();
     // Transaction RPCs bypass disableNetwork(); a server-only read checks the SDK's stream state before any graph write.
     const settings = await this.settings(uid);
@@ -604,249 +592,20 @@ export class FriendStore {
     );
     return page(result.docs, (row) => parseFriendBlock(row.id, row.data()));
   }
-  async createInvite(uid: string): Promise<FriendInvitation> {
-    friendUid(uid);
-    online();
-    await this.graphReady(uid);
-    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) =>
-      byte.toString(16).padStart(2, '0'),
-    ).join('');
-    const ref = doc(this.db, 'friendInvites', token);
-    let retiring = false;
-    const create = (legacy: boolean) =>
-      runTransaction(this.db, async (tx) => {
-        online();
-        const slotRefs = Array.from({ length: 20 }, (_, slot) =>
-          doc(this.db, 'friendInviteSlots', uid, 'slots', String(slot)),
-        );
-        const [identity, ...slots] = await Promise.all([
-          tx.get(this.ref('friendIdentities', uid)),
-          ...slotRefs.map((slot) => tx.get(slot)),
-        ]);
-        if (!identity.exists())
-          throw new FriendStoreError('unavailable', 'Save your friend-facing name and icon before creating a link.');
-        const chosen = parseFriendIdentity(identity.data());
-        if (displayNameProblem(chosen.displayName))
-          throw new FriendStoreError(
-            'invalid',
-            'Your friend-facing name has invisible, control or text-direction characters. Change your name before creating a link.',
-          );
-        const tokens = slots.map((slot) => (slot.exists() ? parseFriendSlot(slot.data()) : null));
-        let index = tokens.indexOf(null);
-        let prior: DocumentSnapshot<DocumentData> | null = null;
-        if (index < 0) {
-          const occupied = await Promise.all(tokens.map((token) => tx.get(doc(this.db, 'friendInvites', token!))));
-          index = occupied.findIndex((invite, slot) => {
-            if (!invite.exists()) return true;
-            if (invite.data().state === 'closed') return true;
-            const value = parseFriendInvite(tokens[slot]!, invite.data());
-            return value.state !== 'active' || value.expiresAt <= Date.now();
-          });
-          prior = occupied[index] ?? null;
-        }
-        if (index < 0)
-          throw new FriendStoreError(
-            'limit',
-            'You already have 20 active invitation links. Revoke one before creating another.',
-          );
-        const slotRef = slotRefs[index];
-        if (!slotRef) throw new FriendStoreError('invalid', 'The invitation slot is invalid.');
-        retiring = Boolean(prior?.exists());
-        if (prior?.exists()) {
-          if (legacy && prior.data().state !== 'closed') tx.set(prior.ref, { ownerUid: uid, state: 'closed' });
-          else if (!legacy) tx.delete(prior.ref);
-        }
-        tx.set(slotRef, { token });
-        tx.set(ref, {
-          format: 1,
-          ownerUid: uid,
-          slot: index,
-          displayName: chosen.displayName,
-          avatar: chosen.avatar,
-          createdAt: serverTimestamp(),
-          state: 'active',
-          acceptedBy: null,
-        });
-      });
-    try {
-      await create(false);
-    } catch (cause) {
-      if (!retiring || !cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied')
-        throw cause;
-      console.info('Invitation deletion is not available yet; this replacement uses the previous slot path.');
-      try {
-        await create(true);
-      } catch (fallback) {
-        if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied')
-          throw cause;
-        throw fallback;
-      }
-    }
-    return this.afterCommit({ operation: 'create-invite', uid }, async () => {
-      const result = await this.readCommitted(ref, (data) => parseFriendInvite(token, data));
-      if (!result) conflict();
-      return result;
-    });
+  createInvite(uid: string): Promise<FriendInvitation> {
+    return createInvite(this, uid);
   }
-  async previewInvite(tokenInput: string): Promise<FriendInvitePreview> {
-    const token = friendToken(tokenInput);
-    try {
-      const snap = await this.readInvite(doc(this.db, 'friendInvites', token));
-      if (!snap.exists() || snap.data().state !== 'active')
-        throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
-      const invite = parseFriendInvite(token, snap.data());
-      if (invite.expiresAt <= Date.now())
-        throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
-      const { ownerUid, displayName, avatar, createdAt, expiresAt, lifetimeDays, singleUse } = invite;
-      return { ownerUid, displayName, avatar, createdAt, expiresAt, lifetimeDays, singleUse };
-    } catch (cause) {
-      return unavailableInvite(cause);
-    }
+  previewInvite(tokenInput: string): Promise<FriendInvitePreview> {
+    return previewInvite(this, tokenInput);
   }
-  async listInvites(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendInvitation>> {
-    const result = await getDocsFromServer(
-      query(
-        collection(this.db, 'friendInvites'),
-        where('ownerUid', '==', friendUid(uid)),
-        where('state', 'in', ['active', 'consumed', 'revoked']),
-        orderBy('createdAt', 'desc'),
-        ...(cursor ? [startAfter(cursor)] : []),
-        limit(20),
-      ),
-    );
-    return page(result.docs, (row) => parseFriendInvite(row.id, row.data()));
+  listInvites(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendInvitation>> {
+    return listInvites(this, uid, cursor);
   }
-  async revokeInvite(uid: string, tokenInput: string): Promise<void> {
-    friendUid(uid);
-    const token = friendToken(tokenInput);
-    online();
-    await this.graphReady(uid);
-    const ref = doc(this.db, 'friendInvites', token);
-    const revoke = (legacy: boolean) =>
-      runTransaction(this.db, async (tx) => {
-        online();
-        const snap = await tx.get(ref);
-        if (!snap.exists() || snap.data().ownerUid !== uid)
-          throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
-        if (snap.data().state === 'closed') {
-          if (!legacy) tx.delete(ref);
-          return;
-        }
-        const invite = parseFriendInvite(token, snap.data());
-        const slotRef = doc(this.db, 'friendInviteSlots', uid, 'slots', String(invite.slot));
-        const slot = await tx.get(slotRef);
-        if (legacy) {
-          if (invite.state === 'active') tx.update(ref, { state: 'revoked' });
-        } else {
-          tx.delete(ref);
-          if (slot.exists() && slot.data().token === token) tx.delete(slotRef);
-        }
-      });
-    try {
-      await revoke(false);
-    } catch (cause) {
-      if (!cause || typeof cause !== 'object' || !('code' in cause) || cause.code !== 'permission-denied') throw cause;
-      console.info('Invitation deletion is not available yet; this change uses the previous revocation path.');
-      try {
-        await revoke(true);
-      } catch (fallback) {
-        if (fallback && typeof fallback === 'object' && 'code' in fallback && fallback.code === 'permission-denied')
-          throw cause;
-        throw fallback;
-      }
-    }
+  revokeInvite(uid: string, tokenInput: string): Promise<void> {
+    return revokeInvite(this, uid, tokenInput);
   }
-  async acceptInvite(uid: string, tokenInput: string): Promise<FriendPair> {
-    friendUid(uid);
-    const token = friendToken(tokenInput);
-    online();
-    await this.graphReady(uid);
-    const counted = await quotaSupported(quotaRef(this.db, uid, 'pairs'));
-    const inviteRef = doc(this.db, 'friendInvites', token);
-    let commitStarted = false;
-    let accepted: { ownerUid: string; epoch: number };
-    try {
-      const snap = await this.readInvite(inviteRef);
-      if (!snap.exists() || snap.data().state !== 'active')
-        throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
-      const invite = parseFriendInvite(token, snap.data());
-      const ownerUid = invite.ownerUid;
-      if (uid === ownerUid) throw new FriendStoreError('invalid', 'You cannot accept your own invitation.');
-      if (invite.expiresAt <= Date.now())
-        throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
-      commitStarted = true;
-      accepted = await this.withPairCapacity(uid, () =>
-        runTransaction(this.db, async (tx) => {
-          online();
-          const ref = this.pairRef(uid, ownerUid);
-          const pair = await tx.get(ref);
-          const current = pair.exists() ? parseFriendPair(pair.data()) : null;
-          if (current?.state === 'accepted') conflict('You are already friends.');
-          const [a, b] = [uid, ownerUid].sort();
-          if (counted) await this.touchPairCount(tx, uid, ref.id, current === null);
-          tx.set(ref, {
-            format: current?.format ?? (counted ? 2 : 1),
-            ...(current?.format === 2
-              ? { creatorUid: current.creatorUid }
-              : !current && counted
-                ? { creatorUid: uid }
-                : {}),
-            a,
-            b,
-            participants: [a, b],
-            from: ownerUid,
-            state: 'accepted',
-            epoch: (current?.epoch ?? 0) + 1,
-            inviteSlot: invite.slot,
-            createdAt: pair.exists() ? pair.data().createdAt : serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-          tx.update(inviteRef, { state: 'consumed', acceptedBy: uid });
-          return { ownerUid, epoch: (current?.epoch ?? 0) + 1 };
-        }),
-      );
-    } catch (cause) {
-      if (
-        !commitStarted ||
-        !cause ||
-        typeof cause !== 'object' ||
-        !('code' in cause) ||
-        (cause.code !== 'permission-denied' && cause.code !== 'not-found')
-      )
-        return unavailableInvite(cause);
-      let latest: DocumentSnapshot<DocumentData>;
-      try {
-        latest = await this.readInvite(inviteRef);
-      } catch (checkError) {
-        if (
-          checkError &&
-          typeof checkError === 'object' &&
-          'code' in checkError &&
-          (checkError.code === 'permission-denied' || checkError.code === 'not-found')
-        )
-          return unavailableInvite(checkError);
-        throw new FriendStoreError('unavailable', 'The invitation could not be checked. Try again later.');
-      }
-      if (
-        !latest.exists() ||
-        latest.data().state !== 'active' ||
-        parseFriendInvite(token, latest.data()).expiresAt <= Date.now()
-      ) {
-        throw new FriendStoreError('invite-unavailable', 'This invite is no longer available.');
-      }
-      throw new FriendStoreError(
-        'unavailable',
-        'The invitation could not be accepted. Refresh the page, then try again.',
-      );
-    }
-    return this.afterCommit(
-      { operation: 'accept-invite', uid, otherUid: accepted.ownerUid, epoch: accepted.epoch },
-      async () => {
-        const result = await this.readCommitted(this.pairRef(uid, accepted.ownerUid), parseFriendPair);
-        if (!result) conflict();
-        return result;
-      },
-    );
+  acceptInvite(uid: string, tokenInput: string): Promise<FriendPair> {
+    return acceptInvite(this, uid, tokenInput);
   }
   shareHead(ownerUid: string): Promise<FriendShareHead | null> {
     return this.read(this.ref('friendShareHeads', ownerUid), parseFriendHead);
