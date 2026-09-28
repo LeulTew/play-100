@@ -64,6 +64,7 @@ export function GameDetail({
   const [navigating, setNavigating] = useState(false);
   const [navigationError, setNavigationError] = useState('');
   const [recovery, setRecovery] = useState<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
+  const recovered = useRef<typeof recovery>(null);
   const { captureFocusGuard } = useNavigationScope(mode.scope);
   useLayoutEffect(() => {
     mounted.current = true;
@@ -72,9 +73,9 @@ export function GameDetail({
     };
   }, []);
   useLayoutEffect(() => {
-    if (busy || navigating || !recovery) return;
+    if (busy || navigating || !recovery || recovered.current === recovery) return;
+    recovered.current = recovery;
     if (recovery.isCurrent()) focusPendingEditor(recovery.target);
-    setRecovery(null);
   }, [busy, navigating, recovery]);
   const changeGame = async (slug: string) => {
     if (changing.current) return;

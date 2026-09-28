@@ -43,10 +43,12 @@ export function Dialog({
   const controller = useMotionController();
   const layer = useContext(DialogLayerContext);
   const latestMotion = useRef(motion);
-  latestMotion.current = motion;
   const motionDisabled = motion === false;
   const returnFocus = useRef(getReturnFocus);
-  returnFocus.current = getReturnFocus;
+  useLayoutEffect(() => {
+    latestMotion.current = motion;
+    returnFocus.current = getReturnFocus;
+  }, [motion, getReturnFocus]);
   useLayoutEffect(() => {
     const current = visual;
     return () => {

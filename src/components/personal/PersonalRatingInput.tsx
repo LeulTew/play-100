@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useExitSave } from '../../hooks/useExitSave';
 
 export function PersonalRatingInput({
@@ -23,10 +23,10 @@ export function PersonalRatingInput({
   const commit = useRef(onCommit);
   const input = useRef<HTMLInputElement>(null);
   const errorId = useId();
-  if (!edited) commit.current = onCommit;
-  useEffect(() => {
-    if (!edited) setDraft(value === null ? '' : String(value));
-  }, [value, edited]);
+  const shown = edited ? draft : value === null ? '' : String(value);
+  useLayoutEffect(() => {
+    if (!edited) commit.current = onCommit;
+  }, [edited, onCommit]);
   useEffect(() => {
     if (!edited) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -95,7 +95,7 @@ export function PersonalRatingInput({
           min="0"
           max="10"
           step="any"
-          value={draft}
+          value={shown}
           placeholder="—"
           disabled={busy}
           aria-label={`Your rating / 10 for ${title}`}
