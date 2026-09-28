@@ -29,7 +29,9 @@ export interface MyGamesPageProps extends Omit<LibraryPageProps, 'onPresentation
 
 export default function MyGamesPage(props: MyGamesPageProps) {
   const currentScope = useRef(props.scope);
-  currentScope.current = props.scope;
+  useLayoutEffect(() => {
+    currentScope.current = props.scope;
+  }, [props.scope]);
   return <MyGamesWorkspace key={props.scope} {...props} isCurrent={() => currentScope.current === props.scope} />;
 }
 
@@ -47,26 +49,29 @@ function MyGamesWorkspace({
   const changing = useRef<number | null>(null);
   const generation = useRef(0);
   const [recovery, setRecovery] = useState<{ target: HTMLElement | null; isCurrent: () => boolean } | null>(null);
+  const recovered = useRef<typeof recovery>(null);
   const marker = useRef<HTMLSpanElement>(null);
   const tabHistory = useRef({ view, serial: 0 });
   const [tabCue, setTabCue] = useState<(CommittedCue & { generation: number }) | null>(null);
   const progressView = effectiveProgressFilter(props.filters);
   const presentation = `${view}:${progressView}`;
   const previousPresentation = useRef(presentation);
-  if (previousPresentation.current !== presentation) {
-    previousPresentation.current = presentation;
-    generation.current += 1;
-  }
+  useLayoutEffect(() => {
+    if (previousPresentation.current !== presentation) {
+      previousPresentation.current = presentation;
+      generation.current += 1;
+    }
+  }, [presentation]);
   const completedOnly = progressView === 'completed';
-  const lastLibraryView = useRef<'library' | 'queue'>(view === 'queue' ? 'queue' : 'library');
-  if (view !== 'ranking') lastLibraryView.current = view;
+  const [lastLibraryView, setLastLibraryView] = useState<'library' | 'queue'>(view === 'queue' ? 'queue' : 'library');
+  if (view !== 'ranking' && lastLibraryView !== view) setLastLibraryView(view);
   // Browser history may change the tab without passing the save guard. Retain only that
   // dirty, bounded editor page until saved; clean Ranking panes release every row.
-  const rankingMounted = useRef(view === 'ranking');
+  const [rankingMounted, setRankingMounted] = useState(view === 'ranking');
   const manualDraft = rankingView?.picker?.manualDraft;
   const hasManualDraft = Boolean(manualDraft?.title.length || manualDraft?.year.length);
-  if (view === 'ranking') rankingMounted.current = true;
-  else if (!pendingEdits && !hasManualDraft) rankingMounted.current = false;
+  const retainRanking = view === 'ranking' || (rankingMounted && (pendingEdits || hasManualDraft));
+  if (rankingMounted !== retainRanking) setRankingMounted(retainRanking);
   useEffect(() => {
     mounted.current = true;
     const invalidate = () => {
@@ -105,9 +110,9 @@ function MyGamesWorkspace({
     () => mounted.current && isCurrent() && generation.current === tabCue?.generation,
   );
   useLayoutEffect(() => {
-    if (props.busy || switching || !recovery) return;
+    if (props.busy || switching || !recovery || recovered.current === recovery) return;
     if (recovery.isCurrent()) focusPendingEditor(recovery.target);
-    setRecovery(null);
+    recovered.current = recovery;
   }, [props.busy, switching, recovery]);
   const change = async (commit: () => void): Promise<boolean> => {
     if (changing.current !== null || !mounted.current || !isCurrent()) return false;
@@ -155,12 +160,18 @@ function MyGamesWorkspace({
     void change(() => props.onFilters(patch, method));
   };
   // Leaving My games unmounts both editors, so it passes the same save guard as a view change.
-  const guarded = (leave: () => void) => () => {
-    void change(leave);
+  const onDiscover = () => {
+    void change(props.onDiscover);
   };
-  const onDiscover = guarded(props.onDiscover);
-  const onBrowse = guarded(props.onBrowse);
-  const onPublish = props.onPublish && guarded(props.onPublish);
+  const onBrowse = () => {
+    void change(props.onBrowse);
+  };
+  const publish = props.onPublish;
+  const onPublish = publish
+    ? () => {
+        void change(publish);
+      }
+    : undefined;
   return (
     <section className="app-page my-games-workspace" aria-labelledby="my-games-title">
       <div className="page-heading">
@@ -184,7 +195,7 @@ function MyGamesWorkspace({
               disabled={switching}
               onClick={() => {
                 if (value === view) return;
-                if (value === 'ranking' && rankingMounted.current) onViewChange(value);
+                if (value === 'ranking' && rankingMounted) onViewChange(value);
                 else void change(() => onViewChange(value));
               }}
             >
@@ -215,7 +226,7 @@ function MyGamesWorkspace({
           busy={editorBusy}
           embedded
           active={view !== 'ranking'}
-          workspaceView={lastLibraryView.current}
+          workspaceView={lastLibraryView}
           progressFilter={progressView}
           completedOnly={completedOnly}
           onFilters={onFilters}
@@ -225,7 +236,7 @@ function MyGamesWorkspace({
         />
       </div>
       <div hidden={view !== 'ranking'}>
-        {rankingMounted.current && (
+        {rankingMounted && (
           <RankingsPage
             {...props}
             busy={editorBusy}
