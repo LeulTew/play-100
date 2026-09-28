@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import type { CompareInteractionGate } from './components/compare-tray/compare-drag-types';
+import { useLatest } from './hooks/useLatest';
+import { createValueStore } from './lib/value-store';
 import { useRouteArrival } from './hooks/useRouteArrival';
 import { routeFamily } from './lib/route-continuity';
 import type { LibraryRecord } from './lib/personal-types';
@@ -29,6 +31,8 @@ interface MotionBindings {
   interaction: CompareInteractionGate;
 }
 
+const createOriginStore = () => createValueStore<OriginTicket | null>(null);
+
 export function AppMotionBindings({
   mainRef,
   page,
@@ -51,9 +55,10 @@ export function AppMotionBindings({
   children: (bindings: MotionBindings) => ReactNode;
 }) {
   const runtime = useMotionRuntime();
-  const current = useRef({ boundary, motionLocation, blocked });
-  current.current = { boundary, motionLocation, blocked };
-  const origin = useRef<OriginTicket | null>(null);
+  const current = useLatest({ boundary, motionLocation, blocked });
+  // The ticket is an external store: the render that commits its navigation reads it, and no render writes it.
+  const [origin] = useState(createOriginStore);
+  const ticket = useSyncExternalStore(origin.subscribe, origin.get);
 
   useRouteArrival(mainRef, {
     family: routeFamily(page),
@@ -79,18 +84,21 @@ export function AppMotionBindings({
       };
       // Continuity owns its upcoming navigation; its guard is authority-only.
       const lease = hint ? runtime.captureOrigin(hint, { ...intent, guard }) : null;
-      if (!lease && origin.current && !origin.current.lease.signal.aborted) runtime.cancel('superseded');
-      origin.current = lease
-        ? {
-            ...intent,
-            lease,
-            scopeKey: snapshot.boundary.scopeKey,
-            boundaryGeneration: snapshot.boundary.generation,
-            expectedNavigation: snapshot.motionLocation.navigationGeneration + 1,
-          }
-        : null;
+      const prior = origin.get();
+      if (!lease && prior && !prior.lease.signal.aborted) runtime.cancel('superseded');
+      origin.set(
+        lease
+          ? {
+              ...intent,
+              lease,
+              scopeKey: snapshot.boundary.scopeKey,
+              boundaryGeneration: snapshot.boundary.generation,
+              expectedNavigation: snapshot.motionLocation.navigationGeneration + 1,
+            }
+          : null,
+      );
     },
-    [runtime],
+    [runtime, current, origin],
   );
 
   const openCollection = useCallback(
@@ -133,10 +141,9 @@ export function AppMotionBindings({
         );
       },
     };
-  }, [navigation]);
+  }, [navigation, current]);
   const enabled = !blocked && !boundary.blocked;
   const interaction = useMemo(() => ({ enabled, captureCurrent }), [enabled, captureCurrent]);
-  const ticket = origin.current;
   const activeOrigin =
     ticket &&
     !ticket.lease.signal.aborted &&
