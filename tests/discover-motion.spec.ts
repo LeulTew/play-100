@@ -150,25 +150,35 @@ test('catalog detail reuses exact licensed artwork, complete credits and native 
   expect(errors).toEqual([]);
 });
 
-test('catalog detail keeps a bounded readable artwork frame and credits at 320px', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 });
-  const { dialog } = await openCatalogDetail(page, illustratedItem);
-  const frame = await dialog.locator('.catalog-detail-sleeve').boundingBox();
-  expect(frame).not.toBeNull();
-  const available = await dialog.locator('.catalog-detail-visual').evaluate((element) => element.clientWidth);
-  const tiny = artwork.width < 144 && artwork.height < 108;
-  expect(frame?.width).toBeCloseTo(Math.min(available, tiny ? 144 : Math.min(360, artwork.width)), 0);
-  expect(frame!.width / frame!.height).toBeCloseTo(tiny ? 4 / 3 : artwork.width / artwork.height, 2);
-  const summary = dialog.locator('.game-artwork-disclosure > summary');
-  const summaryBox = await summary.boundingBox();
-  expect(summaryBox?.height).toBeGreaterThanOrEqual(44);
-  await summary.click();
-  await expect(dialog.locator('.game-artwork-credit')).toContainText(artwork.credit);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-});
+for (const [width, height] of [
+  [320, 568],
+  [393, 851],
+] as const) {
+  test(`catalog detail keeps a bounded readable artwork frame and credits at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    const { dialog } = await openCatalogDetail(page, illustratedItem);
+    const frame = await dialog.locator('.catalog-detail-sleeve').boundingBox();
+    expect(frame).not.toBeNull();
+    const visual = dialog.locator('.catalog-detail-visual');
+    const available = await visual.evaluate((element) => element.clientWidth);
+    const bounds = await visual.boundingBox();
+    expect(bounds).not.toBeNull();
+    const tiny = artwork.width < 144 && artwork.height < 108;
+    expect(frame?.width).toBeCloseTo(Math.min(available, tiny ? 144 : Math.min(360, artwork.width)), 0);
+    expect(frame!.width / frame!.height).toBeCloseTo(tiny ? 4 / 3 : artwork.width / artwork.height, 2);
+    expect(frame!.x).toBeGreaterThanOrEqual(bounds!.x);
+    expect(frame!.x + frame!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+    const summary = dialog.locator('.game-artwork-disclosure > summary');
+    const summaryBox = await summary.boundingBox();
+    expect(summaryBox?.height).toBeGreaterThanOrEqual(44);
+    await summary.click();
+    await expect(dialog.locator('.game-artwork-credit')).toContainText(artwork.credit);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  });
+}
 
 test('missing art preserves the public metadata, working controls and honest fallback', async ({ page }) => {
   const { dialog, opener } = await openCatalogDetail(page, withoutArtItem);
@@ -373,6 +383,14 @@ test('provider entry hands off opacity without changing the settled artwork', as
     await expect(dialog.locator('.catalog-detail-art-credits')).toHaveCSS('opacity', '1');
     await expect(dialog.locator('#catalog-game-title')).toBeFocused();
     await expect(dialog.getByRole('spinbutton')).toBeEnabled();
+    // The paused 99% sample is already in the transform-free opacity handoff.
+    const destination = await page.locator('[data-motion-visual="catalog-art"][data-motion-phase="enter"]').boundingBox();
+    const settled = await dialog.locator('.catalog-detail-sleeve img').boundingBox();
+    expect(destination).not.toBeNull();
+    expect(settled).not.toBeNull();
+    for (const dimension of ['x', 'y', 'width', 'height'] as const) {
+      expect(destination![dimension]).toBeCloseTo(settled![dimension], 0);
+    }
     await probe.evaluate((proof) => proof.finish());
     await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
     await expect(dialog.locator('.catalog-detail-sleeve')).toHaveCSS('opacity', '1');

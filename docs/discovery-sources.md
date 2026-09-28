@@ -60,7 +60,8 @@ separate; no original is enlarged.
 - Provider details use the artwork's own aspect ratio and a sleeve capped by
   available width, natural width and 360px. Only tiny sources or missing art keep
   the 144px default frame; images remain at or below native size within it.
-  The existing flight still measures this same sleeve as its destination.
+  A zero-minimum grid track keeps the sleeve inside the dialog on narrow screens.
+  The existing flight still measures this same settled sleeve as its destination.
 - Successful Discover logos are not paired with a duplicate in-art title.
   Only an image-failure fallback repeats the title, alongside the unavailable
   notice. Pin and the fine-pointer grip share one action row; the Grid/List

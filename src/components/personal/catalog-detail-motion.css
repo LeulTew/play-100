@@ -36,6 +36,7 @@
 }
 .catalog-detail-visual {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 8px;
   margin-block: 20px;
