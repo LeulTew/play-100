@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
+import { countShownFrames, countStillPoseChanges } from './artifact-helpers';
 import { motionHintKey } from '../src/lib/motion-hint';
 
 declare global {
@@ -155,10 +156,16 @@ for (const quality of ['auto', 'full'] as const) {
     }
     expect(sceneRequests).toEqual([]);
     await expect(artifact.locator('canvas')).toHaveCount(0);
+    const poseChanges = await countStillPoseChanges(artifact);
+    const shownFrames = await countShownFrames(artifact);
     await page.getByRole('button', { name: 'Fan out the collection sleeves', exact: true }).click();
     await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
     await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
     await expect(artifact).toHaveAttribute('data-fanned', 'true');
+    // The illustration kept its pose while 3D loaded, and the scene started from it and folded, rather than being
+    // built already fanned (MOT-002).
+    await expect.poll(shownFrames).toBeGreaterThan(4);
+    expect(await poseChanges()).toBe(0);
     expect(sceneRequests).toHaveLength(1);
     expect(await page.evaluate(() => window.unboundedArtifactIdle())).toBe(0);
     expect(await page.evaluate(() => window.firedArtifactIdleTimeouts.filter((timeout) => timeout === 150))).toEqual([

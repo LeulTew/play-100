@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { expectReadableSurface } from './readability-helpers';
+import { countShownFrames, countStillPoseChanges } from './artifact-helpers';
 
 async function selectQuality(page: Page, name: 'Auto' | 'Full' | 'Lite') {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -44,10 +45,16 @@ test('Auto offers a real on-demand fan on touch and a working loaded fan on desk
     await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
     await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   }
+  const poseChanges = await countStillPoseChanges(artifact);
+  const shownFrames = await countShownFrames(artifact);
   await fan.click();
   await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
   await expect(artifact).toHaveAttribute('data-render-mode', 'webgl');
   await expect(artifact).toHaveAttribute('data-fanned', 'true');
+  // Touch's first Fan out folds in 3D as a fine pointer's does: the scene starts from the illustration's pose, which
+  // never jumps to the fan, rather than being built already fanned (MOT-002).
+  await expect.poll(shownFrames).toBeGreaterThan(4);
+  expect(await poseChanges()).toBe(0);
   await page.getByRole('button', { name: 'Stack up the collection sleeves', exact: true }).click();
   await expect(artifact).toHaveAttribute('data-fanned', 'false');
 });

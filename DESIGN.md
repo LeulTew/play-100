@@ -206,6 +206,10 @@ angles and layer spacing, with the same shallow printed ground guide. There is
 no startup lift. A 180ms opacity handoff begins only after a rendered frame,
 with allowed motion on a fine pointer; static and coarse-pointer modes retain
 their immediate representation switch. Input and idle activation never wait.
+A Fan out or Stack up made before the scene is on screen leaves the
+illustration's pose as it is: the scene first renders that pose, then animates
+to the request, so the first Fan out on touch Auto folds as a fine pointer's
+does.
 
 ## Shapes
 

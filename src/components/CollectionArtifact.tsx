@@ -56,6 +56,11 @@ export default function CollectionArtifact({
   const sceneRef = useRef<CollectionSceneHandle | null>(null);
   const [fanned, setFanned] = useState(false);
   const fannedRef = useRef(false);
+  // The pose the illustration shows and a new scene first renders. A request made before a scene is on screen is left
+  // to that scene, which starts in this pose and then animates to the request, so the first Fan out on touch Auto fans
+  // rather than snapping (MOT-002). A scene that is taken down leaves the illustration in the pose it was headed for.
+  const [stillFanned, setStillFanned] = useState(false);
+  const stillFannedRef = useRef(false);
   const [systemReduced, setSystemReduced] = useState(systemReducesMotion);
   const [coarsePointer, setCoarsePointer] = useState(hasCoarsePointer);
   const [requested, setRequested] = useState(false);
@@ -67,6 +72,7 @@ export default function CollectionArtifact({
   const needsInteraction = quality === 'auto' && coarsePointer && !requested;
   const canRender = motionAllowed && !needsInteraction;
   const canInteract = motionAllowed && state.status !== 'fallback';
+  const showing = canRender && state.ready;
   const sceneQuality = quality === 'full' ? 'full' : 'auto';
 
   useEffect(() => {
@@ -88,8 +94,9 @@ export default function CollectionArtifact({
 
   useEffect(() => {
     fannedRef.current = fanned;
-    sceneRef.current?.setFanned(fanned);
-  }, [fanned]);
+    // Only once its first frame is on screen, so the fold starts from the pose that frame shares with the illustration.
+    if (showing) sceneRef.current?.setFanned(fanned);
+  }, [fanned, showing]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -166,7 +173,7 @@ export default function CollectionArtifact({
         }
         scene = createScene(host, {
           quality: sceneQuality,
-          fanned: fannedRef.current,
+          fanned: stillFannedRef.current,
           active: isActive(),
           onFirstFrame() {
             if (cancelled || failed) return;
@@ -260,10 +267,14 @@ export default function CollectionArtifact({
       window.removeEventListener('resize', checkPosition);
       scene?.dispose();
       if (sceneRef.current === scene) sceneRef.current = null;
+      if (hasFrame) {
+        stillFannedRef.current = fannedRef.current;
+        setStillFanned(fannedRef.current);
+      }
     };
   }, [canRender, sceneQuality]);
 
-  const renderMode = canRender && state.ready ? 'webgl' : 'static';
+  const renderMode = showing ? 'webgl' : 'static';
   const status = !canRender ? 'static' : state.status;
   const explanation = motionReduced
     ? 'Illustrated view · reduced motion'
@@ -293,7 +304,7 @@ export default function CollectionArtifact({
       aria-describedby={captionId}
     >
       <div ref={stageRef} className="artifact-stage" aria-hidden="true">
-        <ArtifactStill fanned={canInteract && fanned} />
+        <ArtifactStill fanned={canInteract && stillFanned} />
         <div ref={hostRef} className="artifact-canvas" />
       </div>
       <figcaption ref={footerRef} className="artifact-footer">
