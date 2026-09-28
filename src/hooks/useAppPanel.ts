@@ -15,8 +15,20 @@ function clearPanelIntent() {
   history.replaceState(history.state, '', url);
 }
 
+/** A Credits or Settings link opens its dialog as the Menu would, so closing it returns focus to the Menu button. */
+function panelIntentFromUrl() {
+  const info = new URLSearchParams(location.search).get('info');
+  return info === 'credits' ? 'about' : info === 'settings' ? 'settings' : null;
+}
+
+/** A linked dialog whose module is already loaded opens with the first render. */
+function readyPanelFromUrl(): AppPanel {
+  const intent = panelIntentFromUrl();
+  return intent && secondaryDialogReady(intent) ? intent : null;
+}
+
 export function useAppPanel(scope: string, opening: boolean) {
-  const [panel, commit] = useState<AppPanel>(null);
+  const [panel, commit] = useState<AppPanel>(readyPanelFromUrl);
   const [message, setMessage] = useState({ text: '', error: false });
   const [panelFailure, setPanelFailure] = useState<'about' | 'settings' | null>(null);
   const generation = useRef(0);
@@ -24,7 +36,7 @@ export function useAppPanel(scope: string, opening: boolean) {
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prefetchStop = useRef<(() => void) | undefined>(undefined);
   const settledScope = useRef<string | null>(opening ? null : scope);
-  const [panelFromMenu, setPanelFromMenu] = useState(false);
+  const [panelFromMenu, setPanelFromMenu] = useState(() => panelIntentFromUrl() !== null);
   const urlIntentActive = useRef(false);
   const dismissPanelMessage = useCallback(() => {
     if (panelFailure) {
@@ -39,17 +51,7 @@ export function useAppPanel(scope: string, opening: boolean) {
     prefetchStop.current?.();
     prefetchStop.current = scheduleIdlePrefetch(loadSecondaryDialogs, 150, 'intent');
   }, []);
-  const openPanel = useCallback((next: AppPanel) => {
-    const request = ++generation.current;
-    clearTimeout(noticeTimer.current);
-    setMessage({ text: '', error: false });
-    setPanelFailure(null);
-    if (secondaryDialogReady(next)) {
-      urlIntentActive.current = false;
-      commit(next);
-      return;
-    }
-    if (next !== 'about' && next !== 'settings') return;
+  const loadPanel = useCallback((next: 'about' | 'settings', request: number) => {
     const title = next === 'about' ? 'credits' : 'Settings';
     noticeTimer.current = setTimeout(() => {
       if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}…`, error: false });
@@ -74,6 +76,22 @@ export function useAppPanel(scope: string, opening: boolean) {
         }
       });
   }, []);
+  const openPanel = useCallback(
+    (next: AppPanel) => {
+      const request = ++generation.current;
+      clearTimeout(noticeTimer.current);
+      setMessage({ text: '', error: false });
+      setPanelFailure(null);
+      if (secondaryDialogReady(next)) {
+        urlIntentActive.current = false;
+        commit(next);
+        return;
+      }
+      if (next !== 'about' && next !== 'settings') return;
+      loadPanel(next, request);
+    },
+    [loadPanel],
+  );
   const setPanel = useCallback(
     (next: AppPanel) => {
       setPanelFromMenu(next === 'menu' || Boolean(next && panel && panelFromMenu));
@@ -112,11 +130,11 @@ export function useAppPanel(scope: string, opening: boolean) {
     window.addEventListener('popstate', cancel);
     window.addEventListener('play100:navigate', cancel);
     window.addEventListener('keydown', escape);
-    const info = new URLSearchParams(location.search).get('info');
-    if (info === 'credits' || info === 'settings') {
-      setPanelFromMenu(true);
+    // panel and panelFromMenu start from this intent (readyPanelFromUrl, panelIntentFromUrl); a dialog that isn't loaded yet loads now.
+    const linked = panelIntentFromUrl();
+    if (linked && !secondaryDialogReady(linked)) {
       urlIntentActive.current = true;
-      openPanel(info === 'credits' ? 'about' : 'settings');
+      loadPanel(linked, ++generation.current);
     }
     return () => {
       alive.current = false;
@@ -128,7 +146,7 @@ export function useAppPanel(scope: string, opening: boolean) {
       window.removeEventListener('play100:navigate', cancel);
       window.removeEventListener('keydown', escape);
     };
-  }, [cancel, openPanel, warm]);
+  }, [cancel, loadPanel, warm]);
   useEffect(() => {
     if (opening || settledScope.current === scope) return;
     const previous = settledScope.current;
