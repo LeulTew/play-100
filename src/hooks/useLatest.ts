@@ -2,8 +2,9 @@ import { useCallback, useInsertionEffect, useRef, useState } from 'react';
 
 /**
  * The value of the last committed render, for code that runs after render: events, timers, effects and async work.
- * Render must not read it. The insertion effect runs before every layout effect of its commit, so a child's layout
- * effect already sees this commit's value, and a render React discards never changes it.
+ * Render must not read it. The insertion effect runs before the layout effects of its commit mount, so a child's
+ * layout effect setup already sees this commit's value, and a render React discards never changes it. Cleanups in the
+ * same commit's mutation phase (a child's insertion or layout cleanup) may still run first and see the previous value.
  */
 export function useLatest<T>(value: T): { readonly current: T } {
   const latest = useRef(value);
