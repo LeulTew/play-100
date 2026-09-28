@@ -566,6 +566,8 @@ touch and pen no longer enter that grip-capture path.
 The six-game comparison tray keeps identities and actions ahead of long artwork
 attribution. The tray and catalog detail use the native Artwork credits
 disclosure; their full source credit and license/source links remain unchanged.
+Limit feedback spans the list column with its prose capped at 42ch. Its dismissal
+aligns with the row-removal column; the list's rule supplies the section boundary.
 The resting chip shows the Pin action's stack symbol and exact pinned count; its
 accessible name is **N games in Compare tray**, starting with its visible count,
 and its tooltip is **Open Compare tray**. The table strip retains its direct

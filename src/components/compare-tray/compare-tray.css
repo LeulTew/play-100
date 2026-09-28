@@ -256,16 +256,15 @@ button.compare-drag-handle[hidden] {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  max-width: 42ch;
   padding: 8px 0 0;
-  border-top: 1px solid var(--line);
-  color: var(--ink);
   font-size: 13px;
   line-height: 1.5;
 }
 .compare-tray-error p {
   flex: 1;
+  max-width: 42ch;
   min-width: 0;
   overflow-wrap: anywhere;
 }

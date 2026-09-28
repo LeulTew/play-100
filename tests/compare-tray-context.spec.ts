@@ -7,6 +7,44 @@ import { emptyCatalogs } from './catalog-helpers';
 const browsingTargets =
   ':is(.game-card, .discovery-card, .personal-row-static) :is(h3, button, a[href], input, select, textarea, summary)';
 
+test('the tray limit message spans the list and aligns its dismissal with row actions', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await installGuestLibrary(page, libraryFixture(0));
+  await page.goto('/?catalogs=off');
+  for (const record of libraryRecords.slice(0, 7))
+    await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
+  await expect(page.locator('.toast-visible')).toContainText('six games');
+  await page.getByRole('button', { name: '6 games in Compare tray', exact: true }).click();
+  const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
+  await expect(tray.locator('.compare-tray-error')).toContainText('six games');
+  const alignment = await tray.evaluate((dialog) => {
+    const error = dialog.querySelector('.compare-tray-error')!;
+    const text = error.querySelector('p')!;
+    const dismiss = error.querySelector('button')!.getBoundingClientRect();
+    return {
+      error: error.getBoundingClientRect().toJSON(),
+      list: dialog.querySelector('.compare-tray-games')!.getBoundingClientRect().toJSON(),
+      rule: getComputedStyle(error).borderTopWidth,
+      textFits: text.getBoundingClientRect().width <= parseFloat(getComputedStyle(text).maxWidth) + 1,
+      dismiss: dismiss.toJSON(),
+      rows: [...dialog.querySelectorAll('[data-unpin]')].map((button) => button.getBoundingClientRect().right),
+    };
+  });
+  expect(alignment.rule).toBe('0px');
+  expect(alignment.textFits).toBe(true);
+  expect(alignment.error.left).toBeCloseTo(alignment.list.left, 1);
+  expect(alignment.error.right).toBeCloseTo(alignment.list.right, 1);
+  expect(alignment.rows).toHaveLength(6);
+  for (const right of alignment.rows) expect(right).toBeCloseTo(alignment.dismiss.right, 1);
+  expect(Math.min(alignment.dismiss.width, alignment.dismiss.height)).toBeGreaterThanOrEqual(44);
+  const dismiss = tray.getByRole('button', { name: 'Dismiss Compare tray message', exact: true });
+  await dismiss.focus();
+  await page.keyboard.press('Enter');
+  await expect(tray.locator('.compare-tray-error')).toHaveCount(0);
+  await expect(tray.getByRole('heading', { name: 'Compare tray', exact: true })).toBeFocused();
+  await expect(tray.locator('[data-unpin]')).toHaveCount(6);
+});
+
 for (const viewport of [
   { width: 320, height: 568 },
   { width: 360, height: 800 },
