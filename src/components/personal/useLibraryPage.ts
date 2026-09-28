@@ -21,6 +21,7 @@ import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
 import { useLibraryMode } from '../../lib/library-mode';
 import { focusPendingEditor } from '../../lib/dialog-focus';
 import { useRetainedRecords } from './useRetainedRecords';
+import { resolveLibraryPageCursor } from './library-page-cursor';
 
 export const LIBRARY_PAGE_SIZE = 25;
 
@@ -118,10 +119,15 @@ export function useLibraryPage({
     setMoveError('');
   }
   const [cursor, setCursor] = useState({ definition, query, input: libraryPage, target: libraryPage });
-  const resetPage = cursor.query !== query || (!usesUrlPage && cursor.definition !== definition);
-  const requestedPage = resetPage ? 1 : cursor.input !== libraryPage ? libraryPage : cursor.target;
-  const page = getLocalPage(records.length, LIBRARY_PAGE_SIZE, (requestedPage - 1) * LIBRARY_PAGE_SIZE);
-  const boundedPage = Math.max(1, page.page);
+  const { page, cursor: nextCursor } = resolveLibraryPageCursor(cursor, {
+    definition,
+    query,
+    input: libraryPage,
+    usesUrlPage,
+    total: records.length,
+    pageSize: LIBRARY_PAGE_SIZE,
+  });
+  const boundedPage = nextCursor.target;
   if (!(tab === 'later' && pendingEdits)) {
     if (
       cursor.definition !== definition ||
@@ -129,7 +135,7 @@ export function useLibraryPage({
       cursor.input !== libraryPage ||
       cursor.target !== boundedPage
     ) {
-      setCursor({ definition, query, input: libraryPage, target: boundedPage });
+      setCursor(nextCursor);
     }
     if (active && !usesUrlPage && libraryPage !== boundedPage) {
       if (tab === 'later') setQueuePage(boundedPage);
