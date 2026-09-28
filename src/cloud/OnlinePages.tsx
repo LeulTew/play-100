@@ -18,6 +18,7 @@ import type { OnlinePublication } from './useOnlinePublication';
 import type { OnlineSharing } from './useOnlineSharing';
 import type { OnlineFriends } from './useOnlineFriends';
 import type { AccountActions } from './useAccountActions';
+import type { OnlineLocation } from './online-location';
 
 const AccountPage = lazy(
   createMemoizedModule(() => import('./AccountPage').then((module) => ({ default: module.AccountPage }))).load,
@@ -65,6 +66,7 @@ const FriendSharedGames = lazy(
 /** The online page App routed to, each loaded with its own module, inside the boundary that recovers a failed one. */
 export function OnlinePages({
   page,
+  url,
   publicHandle,
   games,
   artwork,
@@ -88,6 +90,8 @@ export function OnlinePages({
   onPinRecord,
 }: {
   page: AppPage;
+  /** The URL the pages are keyed by, which the controller reads through its navigation subscription. */
+  url: OnlineLocation;
   publicHandle: string;
   games: Game[];
   artwork?: ReadonlyMap<string, CatalogArtwork>;
@@ -167,10 +171,10 @@ export function OnlinePages({
         />
       ) : page === 'friend' && friendIdentity ? (
         <FriendDetailPage
-          key={`${uid}:${location.pathname}`}
+          key={`${uid}:${url.pathname}`}
           store={friends.store}
           uid={identity.uid}
-          peer={location.pathname.split('/')[2] ?? ''}
+          peer={url.peer}
           identity={friendIdentity}
           onSettings={friends.acceptSettings}
           onFriends={() => onNavigate('friends')}
@@ -179,9 +183,9 @@ export function OnlinePages({
           onOpen={onOpenRecord}
           sharedGames={
             <FriendSharedGames
-              key={`${uid}:${location.pathname}:${authSessionEpoch.current}`}
+              key={`${uid}:${url.pathname}:${authSessionEpoch.current}`}
               uid={identity.uid}
-              peer={location.pathname.split('/')[2] ?? ''}
+              peer={url.peer}
               authGeneration={authSessionEpoch.current}
               verified={identity.verified}
               store={shelf.store}
@@ -208,6 +212,7 @@ export function OnlinePages({
           store={friends.store}
           uid={identity.uid}
           identity={friendIdentity}
+          urlGroup={url.group}
           ownState={activeController.state}
           games={games}
           onOpen={onOpenRecord}

@@ -23,6 +23,7 @@ export function FriendComparisonPage({
   store,
   uid,
   identity,
+  urlGroup,
   ownState,
   games,
   onOpen,
@@ -32,6 +33,8 @@ export function FriendComparisonPage({
   store: FriendStore;
   uid: string;
   identity: { displayName: string; avatar: FriendIdentity['avatar'] };
+  /** The group the URL names, or ''. The page opens the one it named at mount; the parent remounts it for another. */
+  urlGroup: string;
   ownState: PersonalLibraryState;
   games: Game[];
   onOpen: (record: LibraryRecord) => void;
@@ -42,7 +45,7 @@ export function FriendComparisonPage({
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
   const filteredGames = useComparisonGameFilter(accountScope(uid, firebaseApp.options.projectId));
   const [restored] = useState(() => readComparisonView(scope));
-  const [requestedGroup] = useState(() => new URLSearchParams(location.search).get('group'));
+  const [requestedGroup] = useState(() => urlGroup || null);
   const [viewReady, setViewReady] = useState(!requestedGroup);
   const [choices, setChoices] = useState<FriendPair[]>([]);
   const [identities, setIdentities] = useState<Record<string, FriendIdentity>>({});

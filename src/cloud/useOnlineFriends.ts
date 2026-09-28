@@ -21,6 +21,7 @@ import { compareRouteFor, initialCompareRoute, keepCompareRouteGroup } from './c
  */
 export function useOnlineFriends({
   page,
+  urlGroup,
   identity,
   name,
   avatar,
@@ -32,6 +33,8 @@ export function useOnlineFriends({
   onNavigate,
 }: {
   page: AppPage;
+  /** The Compare group the URL names, or '' when it names none. */
+  urlGroup: string;
   identity: AccountIdentity | null | undefined;
   /** The name the header shows, or null while signed out. */
   name: string | null;
@@ -87,11 +90,10 @@ export function useOnlineFriends({
     if (selected) rememberComparisonView(selected, true);
   };
   // Compare opens the group its URL names, and a navigation to another group opens that group afresh. The page changes
-  // ?group= in place (replaceState) when the user picks, saves or clears a group, and reports it here, because every
-  // render reads the URL again: it must not take the page's own change for a navigation, remount the page and lose its
-  // unsaved name and selection at whatever unrelated render comes next.
+  // ?group= in place (replaceState, which notifies no one) when the user picks, saves or clears a group, and reports it
+  // here: the controller's next render, whatever its cause, reads that URL, and must not take the page's own change for
+  // a navigation, remount the page and lose its unsaved name and selection.
   const [compareRoute, setCompareRoute] = useState(initialCompareRoute);
-  const urlGroup = new URLSearchParams(location.search).get('group') ?? '';
   const nextCompareRoute = compareRouteFor(compareRoute, page, urlGroup);
   if (nextCompareRoute !== compareRoute) setCompareRoute(nextCompareRoute);
   const keepCompareGroup = useCallback(

@@ -325,8 +325,9 @@ async function sixReady(page: Page) {
   await expect(page.locator('.friend-matrix thead th')).toHaveCount(8);
   await expect(page.locator('.compare-coverage-summary')).toHaveText('Loaded games only. Overall totals are unknown.');
 }
-// Makes the app render and read the URL again now, as its next unrelated render would: the URL state reads the
-// location on every render. React commits the store change in a microtask, before the next frame.
+// Makes the app and the online controller read the URL again now, as their next navigation or unrelated render would:
+// both read it through a subscription to navigations, and again at every render. React commits the store change in a
+// microtask, before the next frame.
 async function rereadUrl(page: Page) {
   await page.evaluate(async () => {
     window.dispatchEvent(new Event('play100:navigate'));
@@ -522,6 +523,47 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
   await expect(page.getByLabel('Group name', { exact: true })).toHaveValue('');
   await expect(page.locator('.compare-chosen-people')).toContainText(fixture().peers[0]!.displayName);
   await expect(page.locator('.compare-chosen-people')).not.toContainText(fixture().owner.displayName);
+  expectGuarded(blocked);
+});
+
+test('Compare and a friend page follow the URL at every navigation, not only when App renders', async ({
+  page,
+  context,
+}) => {
+  const blocked = await guard(context);
+  await login(page);
+  await installProbe(page);
+  const sixId = new URL(fixture().routes.compareSix, origin).searchParams.get('group')!;
+  const [first, second] = fixture().peers;
+  // Each Compare mount lists the groups, so the count shows each time the page opened afresh.
+  const mounts = () => page.evaluate(() => window.compareOrientationProbe.counts.groupLists ?? 0);
+  const groupName = page.getByLabel('Group name', { exact: true });
+  await navigate(page, fixture().routes.compareSix);
+  await sixReady(page);
+  const sixName = await groupName.inputValue();
+  expect(sixName).not.toBe('');
+  const opened = await mounts();
+  // The tray's Choose friends keeps Compare and replaces its query, which names no group: Compare opens afresh without
+  // one. Back names the group again, and Compare opens it.
+  await navigate(page, '/compare?catalogs=off');
+  await expect.poll(mounts).toBe(opened + 1);
+  await expect(groupName).toHaveValue('');
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/compare\\?group=${sixId}$`));
+  await expect.poll(mounts).toBe(opened + 2);
+  await sixReady(page);
+  await expect(groupName).toHaveValue(sixName);
+  // A friend link opens that friend's page in place of the last one, and Back opens the last one again.
+  const heading = page.locator('.friend-detail-page h1');
+  await navigate(page, `/friends/${first!.uid}`);
+  await expect(heading).toHaveText(first!.displayName);
+  await page.evaluate((uid) => {
+    history.pushState(null, '', `/friends/${uid}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, second!.uid);
+  await expect(heading).toHaveText(second!.displayName);
+  await page.goBack();
+  await expect(heading).toHaveText(first!.displayName);
   expectGuarded(blocked);
 });
 

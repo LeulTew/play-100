@@ -21,6 +21,7 @@ import { useOnlineSharing } from './useOnlineSharing';
 import { useOnlineFriends } from './useOnlineFriends';
 import { useAccountActions } from './useAccountActions';
 import { onlineBridge } from './online-bridge';
+import { useOnlineLocation } from './online-location';
 import { OnlinePages } from './OnlinePages';
 import './cloud-ui.css';
 import './friends-ui.css';
@@ -94,6 +95,7 @@ export default function OnlineController({
     'friend-sharing',
     'friend-shelf',
   ].includes(page);
+  const url = useOnlineLocation();
   const session = useOnlineSession({
     page,
     invitation,
@@ -147,6 +149,7 @@ export default function OnlineController({
   });
   const friendControls = useOnlineFriends({
     page,
+    urlGroup: url.group,
     identity,
     name: headerIdentity?.name ?? null,
     avatar,
@@ -217,7 +220,7 @@ export default function OnlineController({
     page === 'profile'
       ? publicHandle
       : page === 'friend'
-        ? location.pathname
+        ? url.pathname
         : page === 'compare'
           ? friendControls.compareKey
           : page === 'invite'
@@ -292,6 +295,7 @@ export default function OnlineController({
       {cloudPage && (
         <OnlinePages
           page={page}
+          url={url}
           publicHandle={publicHandle}
           games={games}
           artwork={artwork}
