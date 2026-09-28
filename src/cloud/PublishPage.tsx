@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { Member, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { normalizeHandle, projectPublicRanking, PUBLIC_LIMIT } from '../lib/community';
@@ -10,6 +10,7 @@ import type { SocialStore } from './social-store';
 // The store's publication methods it calls (social-publication.ts) load with this page.
 import './social-publication';
 import { onlineError } from './errors';
+import { usePublishFields } from './publish-fields';
 import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
 import { Dialog } from '../components/Dialog';
@@ -45,15 +46,10 @@ function PublishDraft({
 }: PublishPageProps) {
   const member = incomingMember?.uid === identity.uid ? incomingMember : null;
   const existing = incomingProfile?.uid === identity.uid ? incomingProfile : null;
-  const publicIdentity = useRef(existing);
-  const edited = useRef({ name: false, handle: false, title: false, listed: false });
+  const { name, handle, title, listed, edit } = usePublishFields(existing, member?.displayName, identity.displayName);
   const [selected, setSelected] = useState<Set<string>>(() =>
     state.ranking.length <= PUBLIC_LIMIT ? new Set(state.ranking.map((entry) => entry.id)) : new Set(),
   );
-  const [name, setName] = useState(existing?.displayName || member?.displayName || identity.displayName || '');
-  const [handle, setHandle] = useState(existing?.handle ?? '');
-  const [title, setTitle] = useState(existing?.title ?? 'My games, my order');
-  const [listed, setListed] = useState(existing?.listed ?? false);
   const [consent, setConsent] = useState(false);
   const [control, setControl] = useState<PublicControl | null>(null);
   const [busy, setBusy] = useState(false);
@@ -77,16 +73,6 @@ function PublishDraft({
       handleIssue = onlineError(cause);
     }
   }
-  useEffect(() => {
-    if (existing) publicIdentity.current = existing;
-    const published = publicIdentity.current;
-    if (!edited.current.name) setName(published?.displayName || member?.displayName || identity.displayName || '');
-    if (published) {
-      if (!edited.current.handle) setHandle(published.handle);
-      if (!edited.current.title) setTitle(published.title);
-      if (!edited.current.listed) setListed(published.listed);
-    }
-  }, [existing, member?.displayName, identity.displayName]);
   useEffect(() => {
     let active = true;
     if (identity.verified)
@@ -203,10 +189,7 @@ function PublishDraft({
                 required
                 maxLength={60}
                 value={name}
-                onChange={(event) => {
-                  edited.current.name = true;
-                  setName(event.target.value);
-                }}
+                onChange={(event) => edit('name', event.target.value)}
                 disabled={busy}
               />
             </label>
@@ -221,10 +204,7 @@ function PublishDraft({
                 value={handle}
                 aria-invalid={Boolean(handleIssue)}
                 aria-describedby={handleIssue ? 'publication-handle-error' : undefined}
-                onChange={(event) => {
-                  edited.current.handle = true;
-                  setHandle(event.target.value);
-                }}
+                onChange={(event) => edit('handle', event.target.value)}
                 disabled={busy}
                 placeholder="your_handle"
               />
@@ -237,10 +217,7 @@ function PublishDraft({
                 required
                 maxLength={80}
                 value={title}
-                onChange={(event) => {
-                  edited.current.title = true;
-                  setTitle(event.target.value);
-                }}
+                onChange={(event) => edit('title', event.target.value)}
                 disabled={busy}
               />
             </label>
@@ -307,10 +284,7 @@ function PublishDraft({
             <input
               type="checkbox"
               checked={listed}
-              onChange={(event) => {
-                edited.current.listed = true;
-                setListed(event.target.checked);
-              }}
+              onChange={(event) => edit('listed', event.target.checked)}
               disabled={busy}
             />
             Show in Community
