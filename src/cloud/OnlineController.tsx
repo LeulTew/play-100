@@ -1,69 +1,42 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { getIdTokenResult, signOut } from 'firebase/auth';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import type { AppPage, Game } from '../lib/types';
 import type { LibraryRecord } from '../lib/personal-types';
 import type { CatalogArtwork } from '../lib/discovery-catalog';
 import type { PreviewAuthority } from '../lib/preview-authority';
 import type { LibraryController } from '../lib/library-controller';
-import type { Member, PublicProfile } from '../lib/community';
-import type { SyncHead } from '../lib/cloud-types';
-import { accountScope } from '../lib/cloud-types';
-import {
-  cacheScopedProfile,
-  connectScopedLibrary,
-  deleteScopedLibrary,
-  isInitialAccountCache,
-  loadScopedLibrary,
-  pauseScopedLibrary,
-  restoreConsentedAccount,
-} from '../lib/scoped-library';
-import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-library';
-import { createAvatarDescriptor, generateAvatarDataUri } from '../lib/avatar';
-import type { AvatarDescriptor } from '../lib/avatar';
-import { EMULATOR_MODE, rememberOnlineRequest } from '../lib/online-availability';
+import { EMULATOR_MODE } from '../lib/online-availability';
 import { authPanelPurposes } from '../lib/sign-in-purpose';
 import type { SignInPurpose } from '../lib/sign-in-purpose';
-import { useAccountLibrary } from '../hooks/useAccountLibrary';
-import { flushPendingEdits, hasPendingEdits } from '../hooks/useExitSave';
+import { emptyPersonalLibrary } from '../lib/personal-library';
 import { Avatar } from '../components/avatar/Avatar';
 import { Dialog } from '../components/Dialog';
 import { ChunkBoundary } from '../components/ChunkBoundary';
 import { ChunkRecovery } from '../components/ChunkRecovery';
+import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { createMemoizedModule } from '../lib/memoized-module';
 import { OnlinePageBoundary } from './OnlinePageBoundary';
-import { cloudAuth, cloudDb, firebaseApp } from './firebase-client';
-import { creatorAccess } from './cloud-store';
-import type { CloudStore } from './cloud-store';
-import { SocialStore } from './social-store';
-import { useCloudSync } from './useCloudSync';
-import { onlineError } from './errors';
-import { syncFailure } from '../lib/sync-retry';
-import { startGoogleRedirect } from './google-auth';
-import { comparisonScope, initialComparison, rememberComparisonView } from '../lib/friend-comparison-intent';
-import { readAccountLifecycle } from './account-lifecycle';
-import { currentDeletionApproval, useAccountDeletionState, useDeletionProbe } from './account-deletion';
-import type { AccountDeletionContext } from './account-deletion-action';
-import type { ConnectionChoice } from './AccountPage';
+import { navigateFriend } from './friend-page-actions';
+import { currentDeletionApproval } from './account-deletion';
 import type { OnlineBridge } from './ui-types';
+import { withdrawDeviceLeftovers } from './device-leftovers';
 import { useGoogleReturn, useOnlineSession } from './useOnlineSession';
-import { useFriendSharing } from './useFriendSharing';
-import { useFriendAll } from './useFriendAll';
-import { friendSharingView } from '../lib/friend-all';
-import { FriendSharingSummary } from '../components/FriendSharingSummary';
-import { navigateFriend, prepareFriendIdentity } from './friend-page-actions';
-import { useFriendShelf } from './useFriendShelf';
-import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
-import { signOutTransition } from './sign-out-transition';
-import { reportDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
-import { libraryBackupText } from './backup-download';
+import { useOnlineAccount } from './useOnlineAccount';
+import { useOnlinePublication } from './useOnlinePublication';
+import { useOnlineSharing } from './useOnlineSharing';
+import { useOnlineFriends } from './useOnlineFriends';
+import { useAccountActions } from './useAccountActions';
 import { onlineBridge } from './online-bridge';
-import { compareRouteFor, initialCompareRoute, keepCompareRouteGroup } from './compare-route';
 import './cloud-ui.css';
 import './friends-ui.css';
 import './friend-shelf.css';
 
 const AuthPanel = lazy(
   createMemoizedModule(() => import('./AuthPanel').then((module) => ({ default: module.AuthPanel }))).load,
+);
+const AvatarPicker = lazy(
+  createMemoizedModule(() =>
+    import('../components/avatar/AvatarPicker').then((module) => ({ default: module.AvatarPicker })),
+  ).load,
 );
 const AccountPage = lazy(
   createMemoizedModule(() => import('./AccountPage').then((module) => ({ default: module.AccountPage }))).load,
@@ -107,25 +80,9 @@ const FriendSharedGames = lazy(
   createMemoizedModule(() => import('./FriendSharedGames').then((module) => ({ default: module.FriendSharedGames })))
     .load,
 );
-const AvatarPicker = lazy(
-  createMemoizedModule(() =>
-    import('../components/avatar/AvatarPicker').then((module) => ({ default: module.AvatarPicker })),
-  ).load,
-);
 
-const loadingAvatar: AvatarDescriptor = { version: 1, seed: '00000000000000000000000000000000', palette: 'moss' };
-
-// Every download is compact JSON; library backups also carry the Backup import's byte budget (libraryBackupText).
-function download(text: string, name: string) {
-  const blob = new Blob([text], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
+// The online bridge: it composes the identity/session, account, publication, sharing and friends controllers, reports
+// the online state to App, and renders the online page App routed to with the sign-in and creature dialogs.
 export default function OnlineController({
   page,
   publicHandle,
@@ -192,389 +149,77 @@ export default function OnlineController({
     onCloseSheet,
     onNavigate,
   });
-  const { identity, setIdentity, identityRef, authSessionEpoch, reconcileIdentity } = session;
-  const { openInvitation, retireInvitation, busy, error, message, setError, setMessage, run } = session;
-  const { googleReturn, returnSheet, setReturnSheet, startupError, sessionUnconfirmed, signInOpen } = session;
-  const { googleCompare, resendIn, google, email, sendVerification, resetEmail, refreshIdentity } = session;
-  const [memberSnapshot, setMember] = useState<Member | null>(null);
-  const memberReadVersion = useRef(0);
-  const [profileSnapshot, setProfile] = useState<PublicProfile | null>(null);
-  const [headSnapshot, setHeadSnapshot] = useState<{ uid: string; value: SyncHead | null } | null>(null);
-  const [creatorUid, setCreatorUid] = useState<string | null>(null);
-  const [cancelledUid, setCancelledUid] = useState<string | null>(null);
-  const member = memberSnapshot?.uid === identity?.uid ? memberSnapshot : null;
-  const profile = profileSnapshot?.uid === identity?.uid ? profileSnapshot : null;
-  const head = headSnapshot?.uid === identity?.uid ? (headSnapshot?.value ?? null) : null;
-  const isCreator = Boolean(identity?.verified && creatorUid === identity.uid);
-  const deletion = useAccountDeletionState();
-  const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
-  const [avatarOpen, setAvatarOpen] = useState(false);
-  // A fresh default creature for each account, until the member has one of its own.
-  const [defaultAvatar, setDefaultAvatar] = useState(() => createAvatarDescriptor());
-  const uid = identity?.uid;
-  // Each account starts afresh: nothing the previous one loaded or had open carries over, its registration state is
-  // unknown until it is read, and it has a new default creature.
-  const [accountUid, setAccountUid] = useState(uid);
-  if (accountUid !== uid) {
-    setAccountUid(uid);
-    setMember(null);
-    setProfile(null);
-    setHeadSnapshot(null);
-    setCreatorUid(null);
-    setCancelledUid(null);
-    setAvatarOpen(false);
-    setDeletionApproval(null);
-    setDefaultAvatar(createAvatarDescriptor());
-  }
-  useEffect(() => {
-    let current = true;
-    if (uid)
-      void readAccountLifecycle(cloudDb, uid)
-        .then((state) => {
-          if (current && cloudAuth.currentUser?.uid === uid) setCancelledUid(state === 'cancelled' ? uid : null);
-        })
-        .catch((cause) => {
-          if (current && cloudAuth.currentUser?.uid === uid) setError(onlineError(cause));
-        });
-    return () => {
-      current = false;
-    };
-  }, [uid, setError]);
-  const scope = useMemo(() => (uid ? accountScope(uid, firebaseApp.options.projectId) : null), [uid]);
-  const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
-  const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
-  const refreshAccount = account.refresh;
-  const social = useMemo(() => new SocialStore(cloudDb), []);
-  const friendToolsVisible = [
-    'account',
-    'friends',
-    'friend',
-    'invite',
-    'compare',
-    'friend-sharing',
-    'friend-shelf',
-  ].includes(page);
-  const automatic = useFriendAll(
-    uid,
-    scope,
-    account.snapshot,
-    Boolean(identity?.verified),
-    games,
-    authSessionEpoch.current,
-  );
-  const friends = useFriendSharing(
-    uid,
-    scope,
-    account.snapshot,
-    Boolean(identity?.verified),
-    games,
-    friendToolsVisible,
-    authSessionEpoch.current,
-    !automatic.ready || automatic.controlsAll,
-  );
-  const shelf = useFriendShelf(
-    uid,
-    scope,
-    account.snapshot,
-    Boolean(identity?.verified),
-    games,
-    friendToolsVisible,
-    authSessionEpoch.current,
-    friendShelfJournal,
-    !automatic.ready || automatic.controlsAll,
-  );
-  const restoreInitial = useCallback(
-    async (store: CloudStore, isCurrent: () => boolean) => {
-      if (!scope || !uid || !isCurrent()) return;
-      const local = await loadScopedLibrary(scope);
-      if (!isCurrent() || !isInitialAccountCache(local)) return;
-      const [savedMember, savedHead] = await Promise.all([social.member(uid), store.head()]);
-      if (!isCurrent()) return;
-      setMember(savedMember);
-      setHeadSnapshot({ uid, value: savedHead });
-      if (
-        !savedMember ||
-        savedMember.consentVersion !== 1 ||
-        !savedHead?.enabled ||
-        savedHead.deleted ||
-        !savedHead.current
-      )
-        return;
-      const incoming = await store.download(savedHead, false, isCurrent);
-      if (!incoming) throw new Error('The online copy is incomplete. Choose a copy or try again.');
-      const fresh = await store.head();
-      if (!isCurrent()) return;
-      if (
-        !fresh?.enabled ||
-        fresh.deleted ||
-        fresh.epoch !== savedHead.epoch ||
-        fresh.revision !== savedHead.revision ||
-        fresh.current?.digest !== savedHead.current.digest
-      ) {
-        setHeadSnapshot({ uid, value: fresh });
-        if (!fresh?.enabled || fresh.deleted) return;
-        throw Object.assign(new Error('The online copy changed during restoration. Checking again automatically.'), {
-          code: 'aborted',
-        });
-      }
-      await restoreConsentedAccount(scope, incoming, fresh, savedMember, () => isCurrent() && !hasPendingEdits());
-      if (isCurrent()) {
-        setMessage('Online library restored.');
-        await refreshAccount();
-      }
-    },
-    [scope, uid, social, refreshAccount, setMessage],
-  );
-  const sync = useCloudSync(
-    scope,
-    account.snapshot,
-    Boolean(identity?.verified),
-    restoreInitial,
-    authSessionEpoch.current,
-  );
-  const reportProfileError = sync.reportProfileError;
-  const active = Boolean(scope && account.snapshot && account.snapshot.sync.epoch > 0);
-  const restoring =
-    identity === undefined || Boolean(identity && !account.snapshot && !account.error) || sync.restoringInitial;
-  const cacheUnavailable = Boolean(identity && account.error && !account.snapshot);
-  const canCacheProfile = Boolean(account.snapshot && !account.error);
-  const accountEpoch = account.snapshot?.sync.epoch ?? 0;
-  // The committed device copy and whether its profile can be cached, which member reads compare with, and the committed
-  // consent epoch, which an action checks is still current after each step.
-  const cacheNow = useRef(account.snapshot);
-  const cacheReady = useRef(canCacheProfile);
-  const currentEpoch = useRef(accountEpoch);
-  useLayoutEffect(() => {
-    cacheNow.current = account.snapshot;
-    cacheReady.current = canCacheProfile;
-    currentEpoch.current = accountEpoch;
-  }, [account.snapshot, canCacheProfile, accountEpoch]);
-  const protectedController = useMemo(
-    () => (cacheUnavailable ? { ...account.controller, busy: true } : active ? account.controller : null),
-    [cacheUnavailable, active, account.controller],
-  );
-  const activeController = protectedController ?? guest;
-  useGoogleReturn({ page, session, snapshot: account.snapshot, cacheError: account.error, deletion });
-  const refresh = useCallback(
-    async (includeMember = true) => {
-      const user = identityRef.current;
-      if (!user?.verified || !sync.store) return;
-      const version = memberReadVersion.current;
-      const [nextMember, nextProfile, nextHead, allowed] = await Promise.all([
-        includeMember ? social.member(user.uid) : Promise.resolve(undefined),
-        social.ownProfile(user.uid),
-        cacheNow.current?.sync.enabled || isInitialAccountCache(cacheNow.current)
-          ? Promise.resolve(undefined)
-          : sync.store.head(),
-        creatorAccess(cloudDb),
-      ]);
-      if (identityRef.current?.uid !== user.uid) return;
-      if (nextMember !== undefined && version === memberReadVersion.current) setMember(nextMember);
-      setProfile(nextProfile);
-      if (nextHead !== undefined) setHeadSnapshot({ uid: user.uid, value: nextHead });
-      setCreatorUid(allowed ? user.uid : null);
-      if (nextMember && scope && cacheReady.current && version === memberReadVersion.current) {
-        try {
-          await cacheScopedProfile(
-            scope,
-            nextMember,
-            () => cloudAuth.currentUser?.uid === user.uid && version === memberReadVersion.current,
-          );
-        } catch (cause) {
-          if (identityRef.current?.uid === user.uid)
-            setError(`Online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`);
-        }
-      }
-    },
-    [social, sync.store, scope, identityRef, setError],
-  );
-  const accountReady = Boolean(account.snapshot || account.error);
-  useEffect(() => {
-    if (!identity?.verified || !accountReady || !sync.profileAvailable) return;
-    let alive = true;
-    const uid = identity.uid;
-    void refresh(false).catch((cause) => {
-      if (!alive || cloudAuth.currentUser?.uid !== uid) return;
-      if (syncFailure(cause) !== 'blocked') reportProfileError(cause);
-      else setError(onlineError(cause));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [
-    identity?.uid,
-    identity?.verified,
-    accountReady,
-    refresh,
-    sync.profileAvailable,
-    sync.profileConnection,
-    reportProfileError,
-    setError,
-  ]);
-  // Each head the sync session sees replaces the one Account previews, until a read or an action here replaces it.
-  const [seenRemote, setSeenRemote] = useState<{ uid: string | undefined; head: SyncHead | null }>({
-    uid: undefined,
-    head: null,
-  });
-  if (seenRemote.head !== sync.remote || seenRemote.uid !== uid) {
-    setSeenRemote({ uid, head: sync.remote });
-    if (sync.remote && uid) setHeadSnapshot({ uid, value: sync.remote });
-  }
-  const deletionState = useDeletionProbe({
+  const { identity, identityRef, authSessionEpoch, busy, signInOpen, openInvitation, googleReturn } = session;
+  const { returnSheet, setReturnSheet, setError, setMessage } = session;
+  const online = useOnlineAccount({
     page,
     identity,
-    sessionEpoch: authSessionEpoch.current,
-    head,
+    identityRef,
+    authGeneration: authSessionEpoch.current,
+    guest,
     busy,
-    store: sync.store,
-    state: deletion,
+    setError,
+    setMessage,
   });
-  useEffect(() => {
-    if (!uid || !scope || !identity?.verified || !sync.profileAvailable) return;
-    let alive = true;
-    let caching = '';
-    const unsubscribe = social.watchMember(
-      uid,
-      (next) => {
-        if (!alive || cloudAuth.currentUser?.uid !== uid) return;
-        memberReadVersion.current += 1;
-        setMember((previous) =>
-          previous?.uid === uid && next && previous.updatedAt > next.updatedAt ? previous : next,
-        );
-        if (!next || !cacheReady.current) return;
-        const cached = cacheNow.current?.profile;
-        const fingerprint = `${next.displayName}:${next.avatar.version}:${next.avatar.seed}:${next.avatar.palette}`;
-        if (
-          caching === fingerprint ||
-          (cached?.displayName === next.displayName &&
-            cached.avatar.version === next.avatar.version &&
-            cached.avatar.seed === next.avatar.seed &&
-            cached.avatar.palette === next.avatar.palette)
-        )
-          return;
-        caching = fingerprint;
-        void cacheScopedProfile(scope, next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
-          if (alive && cloudAuth.currentUser?.uid === uid) {
-            caching = '';
-            setError(`Your online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`);
-          }
-        });
-      },
-      (cause) => {
-        if (alive && cloudAuth.currentUser?.uid === uid) reportProfileError(cause);
-      },
-    );
-    return () => {
-      alive = false;
-      unsubscribe();
-    };
-  }, [
+  const { uid, scope, account, sync, member } = online;
+  useGoogleReturn({ page, session, snapshot: account.snapshot, cacheError: account.error, deletion: online.deletion });
+  const publication = useOnlinePublication({
+    identity,
+    identityRef,
+    authSessionEpoch,
+    currentEpoch: online.currentEpoch,
+    member,
+    cachedProfile: account.snapshot?.profile,
+    social: online.social,
+    setMember: online.setMember,
+    setProfile: online.setProfile,
+    refresh: online.refresh,
+    verifiedIdentity: online.verifiedIdentity,
+    run: session.run,
+    setMessage,
+    onProfile,
+  });
+  const { avatar, headerIdentity } = publication;
+  const sharing = useOnlineSharing({
+    page,
     uid,
     scope,
-    identity?.verified,
-    sync.profileAvailable,
-    sync.profileConnection,
-    reportProfileError,
-    social,
-    setError,
-  ]);
-
-  const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? (uid ? defaultAvatar : loadingAvatar);
-  const headerIdentity = useMemo(
-    () =>
-      identity
-        ? {
-            uid: identity.uid,
-            name: member?.displayName || account.snapshot?.profile?.displayName || identity.displayName || 'Player',
-            avatarSrc: generateAvatarDataUri(avatar),
-          }
-        : null,
-    [identity, member?.displayName, account.snapshot?.profile?.displayName, avatar],
-  );
-  const friendIdentity =
-    identity && headerIdentity
-      ? { uid: identity.uid, verified: identity.verified, displayName: headerIdentity.name, avatar }
-      : null;
-  // The friend identity last committed, which a friend profile update checks it still matches before it saves.
-  const committedFriendIdentity = useRef(friendIdentity);
-  useLayoutEffect(() => {
-    committedFriendIdentity.current = friendIdentity;
-  });
-  const friendIdentityReady = Boolean(friends.settings && !friends.settings.deleted);
-  const memberName = member?.displayName;
-  const memberAvatar = member?.avatar;
-  useEffect(() => {
-    if (!uid || !identity?.verified || !friendIdentityReady || memberName === undefined || !memberAvatar) return;
-    let alive = true;
-    const source = `${memberName}:${JSON.stringify(memberAvatar)}`;
-    void (async () => {
-      const old = await friends.store.identity(uid);
-      if (!alive || !old || cloudAuth.currentUser?.uid !== uid) return;
-      if (old.displayName === memberName && JSON.stringify(old.avatar) === JSON.stringify(memberAvatar)) return;
-      const current = committedFriendIdentity.current;
-      if (!current || `${current.displayName}:${JSON.stringify(current.avatar)}` !== source) return;
-      await friends.store.saveIdentity(uid, { displayName: memberName, avatar: memberAvatar }, old.revision);
-    })().catch((cause) => {
-      if (alive && cloudAuth.currentUser?.uid === uid) setError(`Friend profile update pending. ${onlineError(cause)}`);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [uid, identity?.verified, friendIdentityReady, friends.store, memberName, memberAvatar, setError]);
-  const canEnableAll = 'canEnable' in automatic.eligibility && automatic.eligibility.canEnable;
-  const sharingView = friendSharingView({
-    controlsAll: automatic.controlsAll,
+    snapshot: account.snapshot,
+    verified: Boolean(identity?.verified),
+    games,
+    authGeneration: authSessionEpoch.current,
+    signedIn: Boolean(identity),
     connected: Boolean(identity?.verified && account.snapshot?.sync.enabled),
-    ready: automatic.ready,
-    eligibility: automatic.eligibility,
   });
-  const hasIdentity = Boolean(identity);
-  const automaticSummary = useMemo(
-    () =>
-      hasIdentity ? (
-        <FriendSharingSummary
-          mode={automatic.eligibility.kind}
-          status={automatic.status}
-          canEnable={canEnableAll}
-          enabled={Boolean(automatic.policy?.enabled)}
-          error={automatic.error}
-          onEnable={automatic.enable}
-          onStop={automatic.stopSharing}
-          onRefresh={automatic.refresh}
-          progress={
-            automatic.progress && automatic.status !== 'saved' ? (
-              <p className="section-help" role="status">
-                {(['games', 'ranking'] as const).map((kind) => {
-                  const progress = automatic.progress?.[kind];
-                  return progress ? (
-                    <span key={kind}>
-                      {kind === 'games' ? 'Saved games' : 'Rankings'}:{' '}
-                      {progress.ready
-                        ? `${progress.targetCount} ready`
-                        : `${progress.applied} / ${progress.total} changes confirmed`}
-                      .{' '}
-                    </span>
-                  ) : null;
-                })}
-              </p>
-            ) : null
-          }
-        />
-      ) : null,
-    [
-      hasIdentity,
-      automatic.eligibility.kind,
-      automatic.status,
-      canEnableAll,
-      automatic.policy?.enabled,
-      automatic.error,
-      automatic.enable,
-      automatic.stopSharing,
-      automatic.refresh,
-      automatic.progress,
-    ],
-  );
+  const friendControls = useOnlineFriends({
+    page,
+    identity,
+    name: headerIdentity?.name ?? null,
+    avatar,
+    member,
+    friends: sharing.friends,
+    shelf: sharing.shelf,
+    authSessionEpoch,
+    setError,
+    onNavigate,
+  });
+  const actions = useAccountActions({
+    session,
+    online,
+    sharing,
+    guest,
+    defaultAvatar: publication.defaultAvatar,
+    onCloseSheet,
+    onNavigate,
+  });
+  const { restoring, protectedController, active, cacheUnavailable, isCreator } = online;
+  const { social, profile, head, headSnapshot, activeController } = online;
+  const { setAvatarOpen, saveName, published } = publication;
+  const { automatic, friends, shelf, sharingView } = sharing;
+  const { friendIdentity, openComparison, compareKey, keepCompareGroup, prepareShelf } = friendControls;
+  const { resendIn } = session;
   const syncEnabled = account.snapshot?.sync.enabled;
+  const automaticSummary = sharing.automaticSummary;
   const bridge = useMemo(
     () =>
       onlineBridge({
@@ -617,267 +262,32 @@ export default function OnlineController({
     if (identity) withdrawDeviceLeftovers();
   }, [identity]);
 
-  const linkGoogle = () =>
-    run(async () => {
-      const { user } = verifiedIdentity();
-      const session = authSessionEpoch.current;
-      if (!(await flushPendingEdits())) throw new Error('Finish or correct the open edit before linking Google.');
-      await account.waitForWrites();
-      if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session)
-        throw new Error('The account changed. No other account was linked.');
-      await startGoogleRedirect(cloudAuth, { kind: 'link', uid: user.uid });
-    });
-  const verifiedIdentity = () => {
-    const user = cloudAuth.currentUser;
-    if (
-      !user ||
-      !identityRef.current?.verified ||
-      !scope ||
-      !sync.store ||
-      !account.snapshot ||
-      user.uid !== identityRef.current?.uid
-    )
-      throw new Error('Verify this account and wait for its local cache before continuing.');
-    return { user, scope, store: sync.store, local: account.snapshot };
-  };
-  const connect = (choice: ConnectionChoice, name: string) =>
-    run(async () => {
-      if (!(await flushPendingEdits())) throw new Error('Finish or correct the open edit before connecting.');
-      const { user, scope: target, store, local } = verifiedIdentity();
-      const expected = { localRevision: local.state.revision, epoch: local.sync.epoch, enabled: local.sync.enabled };
-      const before = await store.head();
-      if (
-        headSnapshot?.uid !== user.uid ||
-        (before?.revision ?? 0) !== (head?.revision ?? 0) ||
-        (before?.epoch ?? 0) !== (head?.epoch ?? 0)
-      ) {
-        setHeadSnapshot({ uid: user.uid, value: before });
-        throw new Error(
-          'The online library changed since this preview. Review the available copies before connecting.',
-        );
-      }
-      if (choice === 'empty' && before?.current)
-        throw new Error(
-          'An online library already exists. Choose it or explicitly choose a replacement; an empty start is not available.',
-        );
-      if (choice === 'guest' && Object.keys(guest.state.records).length === 0)
-        throw new Error('The guest copy changed and is now empty. Review the available starting copies.');
-      if (choice === 'cached' && local.sync.epoch === 0 && Object.keys(local.state.records).length === 0)
-        throw new Error('This account has no previous device copy to use.');
-      if (before?.deleted) {
-        const token = await getIdTokenResult(user, true);
-        if (typeof token.claims.auth_time !== 'number' || token.claims.auth_time * 1000 <= before.updatedAt)
-          throw new Error(
-            'This online copy was deleted. Sign out and sign in again before creating a new online copy.',
-          );
-      }
-      const remoteCopy = before?.current ? await store.download(before) : null;
-      const chosen =
-        choice === 'online'
-          ? remoteCopy
-          : choice === 'guest'
-            ? guest.state
-            : choice === 'cached'
-              ? local.state
-              : emptyPersonalLibrary();
-      if (!chosen) throw new Error('There is no complete online copy to adopt. Choose another starting library.');
-      if (identityRef.current?.uid !== user.uid)
-        throw new Error('The signed-in account changed. No device copy was imported.');
-      const enabledHead = before?.deleted ? await store.enable(before) : before;
-      await social.saveMemberName(user.uid, name, member?.avatar ?? defaultAvatar);
-      const connectedHead = before?.deleted && enabledHead ? enabledHead : await store.enable(before);
-      await connectScopedLibrary(target, chosen, connectedHead, name.trim(), choice !== 'online', expected);
-      await social.restorePublicationPermission(user.uid);
-      await account.refresh();
-      await refresh();
-      setMessage('Online saving enabled.');
-    });
-  const signOutAccount = (removeDeviceCopy = false) =>
-    run(async () => {
-      const user = cloudAuth.currentUser;
-      const target = scope;
-      const session = authSessionEpoch.current;
-      if (!(await flushPendingEdits())) throw new Error('Correct the pending edit before signing out.');
-      const current = () =>
-        Boolean(user && cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
-      if (!user || !target || !current())
-        throw new Error('The signed-in account changed. Review Account before signing out.');
-      const removal = await signOutTransition(removeDeviceCopy, {
-        current,
-        waitForWrites: account.waitForWrites,
-        readDeviceCopy: () => loadScopedLibrary(target),
-        suspend: () => [sync.suspend(), friends.stop(), shelf.stop(), automatic.suspend()],
-        signOut: () => signOut(cloudAuth),
-        removeDeviceCopy: (revision) => deleteScopedLibrary(target, revision),
-      });
-      retireInvitation();
-      await rememberOnlineRequest(false);
-      setIdentity(null);
-      onCloseSheet();
-      // Only a complete removal leaves Account, which otherwise, now signed out, says what stayed and retries it.
-      if (removal.complete) onNavigate('collection');
-      else reportDeviceLeftovers('sign-out', removal.retry);
-    }, true);
-  const openComparison = (peers?: string[]) => {
-    if (!identity || cloudAuth.currentUser?.uid !== identity.uid) return;
-    const selected = peers
-      ? initialComparison(comparisonScope(firebaseApp.options.projectId ?? '', identity.uid), identity.uid, peers)
-      : null;
-    if (selected) rememberComparisonView(selected, false);
-    onNavigate('compare');
-    if (selected) rememberComparisonView(selected, true);
-  };
-  const pause = () =>
-    run(async () => {
-      const { scope: target, store } = verifiedIdentity();
-      if (!navigator.onLine)
-        throw new Error('Connect before stopping online saving on all devices. Offline edits are retained here.');
-      sync.suspend();
-      friends.stop();
-      shelf.stop();
-      automatic.suspend();
-      const current = await store.head();
-      if (current) await store.revoke(current);
-      await pauseScopedLibrary(target);
-      await account.refresh();
-      await refresh();
-      setMessage(
-        "Online saving is stopped. The online copy and this account's copy on this device are kept; your guest library is separate.",
-      );
-    });
-  const downloadData = (source: 'local' | 'online' | 'guest' | 'all') =>
-    run(async () => {
-      if (!(await flushPendingEdits())) throw new Error('Correct the pending edit before exporting.');
-      if (source === 'guest') {
-        download(libraryBackupText(guest.state), 'Play-100-guest-backup.json');
-        return;
-      }
-      if (!scope || !sync.store || !identity) throw new Error('Sign in before exporting account data.');
-      let local = account.snapshot;
-      let cacheError: string | null = null;
-      try {
-        local = await loadScopedLibrary(scope);
-      } catch (cause) {
-        if (source === 'local') throw cause;
-        cacheError = onlineError(cause);
-      }
-      if (source === 'local') {
-        if (!local) throw new Error('The account device copy is unavailable. Export the online copy instead.');
-        download(libraryBackupText(local.state), 'Play-100-account-device-backup.json');
-        return;
-      }
-      const remoteHead = await sync.store.head();
-      const remoteLibrary = remoteHead?.current ? await sync.store.download(remoteHead) : null;
-      if (source === 'online') {
-        if (!remoteLibrary) throw new Error('There is no complete online copy to export yet.');
-        download(
-          libraryBackupText({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion }),
-          'Play-100-online-backup.json',
-        );
-        return;
-      }
-      const publicCopy = await social.ownProfile(identity.uid);
-      const entries = publicCopy ? await social.entries(publicCopy) : [];
-      const ownSocial = await friends.store.exportAll(identity.uid, () => cloudAuth.currentUser?.uid === identity.uid);
-      const sharedGames = await shelf.store.exportOwn(identity.uid);
-      const automaticSharing = await automatic.store.exportOwn(identity.uid);
-      if (cloudAuth.currentUser?.uid !== identity.uid) throw new Error('The account changed before export completed.');
-      download(
-        JSON.stringify({
-          app: 'Play 100',
-          formatVersion: 1,
-          exportedAt: new Date().toISOString(),
-          identity,
-          member,
-          deviceLibrary: local ? createLibraryBackup(local.state) : null,
-          deviceCacheError: cacheError,
-          onlineLibrary: remoteLibrary
-            ? createLibraryBackup({ ...remoteLibrary, motion: local?.state.motion ?? guest.state.motion })
-            : null,
-          recovery: local?.recovery ?? null,
-          publication: publicCopy,
-          publishedEntries: entries,
-          friends: {
-            identity: ownSocial.identity,
-            settings: ownSocial.settings,
-            relationships: ownSocial.relations,
-            groups: ownSocial.groups,
-            blocks: ownSocial.blocks,
-            sharedGames,
-            automaticSharing,
-          },
-        }),
-        'Play-100-account-export.json',
-      );
-      if (cacheError)
-        setMessage(
-          'Online account data was exported. The unreadable copy on this device is marked unavailable in the export; it was not replaced or deleted.',
-        );
-    });
-  // Account runs the deletion itself (account-deletion-action.ts), so its code loads with that page only.
-  const deletionContext: AccountDeletionContext = {
-    identity,
-    identityRef,
-    scope,
-    currentEpoch,
-    authSessionEpoch,
-    state: deletion,
-    account,
-    sync,
-    friends,
-    shelf,
-    automatic,
-    social,
-    run,
-    reconcileIdentity,
-    setIdentity,
-    setHeadSnapshot,
-    setError,
-    setMessage,
-    refresh,
-    onCloseSheet,
-    onNavigate,
-  };
-
   const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
   const pageScope = `${scope ?? 'guest'}:${authSessionEpoch.current}`;
-  // Compare opens the group its URL names, and a navigation to another group opens that group afresh. The page changes
-  // ?group= in place (replaceState) when the user picks, saves or clears a group, and reports it here, because every
-  // render reads the URL again: it must not take the page's own change for a navigation, remount the page and lose its
-  // unsaved name and selection at whatever unrelated render comes next.
-  const [compareRoute, setCompareRoute] = useState(initialCompareRoute);
-  const urlGroup = new URLSearchParams(location.search).get('group') ?? '';
-  const nextCompareRoute = compareRouteFor(compareRoute, page, urlGroup);
-  if (nextCompareRoute !== compareRoute) setCompareRoute(nextCompareRoute);
-  const compareKey = String(compareRoute.generation);
-  const keepCompareGroup = useCallback(
-    (group: string) => setCompareRoute((route) => keepCompareRouteGroup(route, group)),
-    [],
-  );
   const pageRouteKey =
     page === 'profile'
       ? publicHandle
       : page === 'friend'
         ? location.pathname
         : page === 'compare'
-          ? compareKey
+          ? friendControls.compareKey
           : page === 'invite'
             ? (openInvitation.capability ?? '')
             : '';
-  const visibleError = error || googleReturn?.error || '';
-  const visibleMessage = message || googleReturn?.message || '';
+  const visibleError = session.error || googleReturn?.error || '';
+  const visibleMessage = session.message || googleReturn?.message || '';
   const visibleDeletionApproval = currentDeletionApproval(
-    deletionApproval,
+    online.deletion.approval,
     identity?.uid,
     authSessionEpoch.current,
-    accountEpoch,
+    online.accountEpoch,
   );
   const closeSignin = () => {
     setReturnSheet(false);
     onCloseSheet();
   };
   // The sheet the Compare tray opened, and the sheet its Google return reopens, name the pins and continue to Compare.
-  const compareSheet = signInPurpose === 'compare' || (googleCompare && returnSheet);
+  const compareSheet = signInPurpose === 'compare' || (session.googleCompare && returnSheet);
   const purposes = authPanelPurposes(page, compareSheet ? 'compare' : signInPurpose);
   const renderAuthPanel = (purpose: SignInPurpose | undefined, sheet = false) => {
     const compare = sheet && compareSheet;
@@ -888,9 +298,9 @@ export default function OnlineController({
         busy={busy}
         error={visibleError}
         message={visibleMessage}
-        onGoogle={() => google(compare)}
-        onEmail={(address, password, create) => email(address, password, create, compare)}
-        onReset={resetEmail}
+        onGoogle={() => session.google(compare)}
+        onEmail={(address, password, create) => session.email(address, password, create, compare)}
+        onReset={session.resetEmail}
         onDevice={() => {
           closeSignin();
           if (
@@ -912,7 +322,7 @@ export default function OnlineController({
     );
   };
   const authPanel = renderAuthPanel(purposes.page);
-  if (startupError) throw new Error(startupError);
+  if (session.startupError) throw new Error(session.startupError);
   return (
     <>
       {page === 'invite' && openInvitation.error && (
@@ -925,7 +335,7 @@ export default function OnlineController({
           Local emulator preview — no production account or cloud data connection.
         </p>
       )}
-      {cloudPage && identity && sessionUnconfirmed && (
+      {cloudPage && identity && session.sessionUnconfirmed && (
         <p className="account-notice" role="status">
           Signed in. Persistence across refresh has not yet been confirmed.
         </p>
@@ -944,7 +354,7 @@ export default function OnlineController({
               handle={publicHandle}
               games={games}
               library={activeController}
-              identity={identity}
+              identity={identity ?? null}
               onOpenRecord={onOpenRecord}
               onShare={onShare}
               onAccount={() => onNavigate('account')}
@@ -1079,17 +489,7 @@ export default function OnlineController({
                 connected: Boolean(identity.verified && account.snapshot?.sync.enabled),
                 status: shelf.status,
                 error: shelf.error,
-                onPrepare: async () => {
-                  const session = authSessionEpoch.current;
-                  const settings = await prepareFriendIdentity(friends.store, friendIdentity);
-                  if (cloudAuth.currentUser?.uid !== friendIdentity.uid || authSessionEpoch.current !== session)
-                    throw new Error('The account changed. Preview these games again.');
-                  friends.acceptSettings(settings);
-                  const config = await shelf.store.initialize(friendIdentity.uid);
-                  if (cloudAuth.currentUser?.uid !== friendIdentity.uid || authSessionEpoch.current !== session)
-                    throw new Error('The account changed. Preview these games again.');
-                  return config;
-                },
+                onPrepare: () => prepareShelf(friendIdentity),
                 onSave: shelf.saveSelection,
                 onStop: shelf.stopSharing,
                 onRetry: shelf.retry,
@@ -1115,19 +515,14 @@ export default function OnlineController({
               existing={profile}
               isCreator={isCreator}
               onAccount={() => onNavigate('account')}
-              onPublished={(next) => {
-                if (cloudAuth.currentUser?.uid === next.uid) {
-                  setProfile(next);
-                  onProfile(next.handle);
-                }
-              }}
+              onPublished={published}
             />
           ) : (
             <AccountPage
               key={`${identity.uid}:${Boolean(account.snapshot?.sync.enabled)}`}
               identity={identity}
-              cancelledRegistration={cancelledUid === identity.uid}
-              deletionState={deletionState}
+              cancelledRegistration={online.cancelledRegistration}
+              deletionState={online.deletionState}
               member={member}
               cache={account.snapshot}
               guest={guest.state}
@@ -1142,59 +537,21 @@ export default function OnlineController({
               isCreator={isCreator}
               avatar={<Avatar descriptor={avatar} size={80} label="Your creature" />}
               onAvatar={() => setAvatarOpen(true)}
-              onName={(name) =>
-                run(async () => {
-                  const { user } = verifiedIdentity();
-                  await social.saveMemberName(user.uid, name, avatar);
-                  if (cloudAuth.currentUser?.uid !== user.uid) return;
-                  setMember((current) => (current?.uid === user.uid ? { ...current, displayName: name } : current));
-                  setMessage('Name saved.');
-                  try {
-                    await refresh();
-                  } catch (cause) {
-                    if (cloudAuth.currentUser?.uid === user.uid)
-                      setMessage(`Name saved. Reconnect to refresh the profile. ${onlineError(cause)}`);
-                  }
-                })
-              }
-              onConnect={connect}
-              onVerify={sendVerification}
-              onRefreshIdentity={refreshIdentity}
-              onSignOut={signOutAccount}
-              onSignOutAndRemove={() => signOutAccount(true)}
-              onLinkGoogle={linkGoogle}
-              onRetry={() =>
-                run(async () => {
-                  await sync.retry();
-                  await automatic.refresh();
-                  await friends.retry();
-                  await shelf.retry();
-                })
-              }
-              onCleanup={() =>
-                run(async () => {
-                  const { store, user } = verifiedIdentity();
-                  await store.cleanup();
-                  await social.cleanup(user.uid);
-                  await shelf.store.prune(user.uid);
-                  setMessage('Eligible old snapshots were cleaned. Current and previous private copies remain intact.');
-                })
-              }
-              onPause={pause}
-              onDownload={downloadData}
-              onUseRemote={(reviewed, revision) =>
-                run(async () => {
-                  await sync.useRemote(reviewed, revision);
-                  await account.refresh();
-                })
-              }
-              onUseLocal={(reviewed, revision) =>
-                run(async () => {
-                  await sync.useLocal(reviewed, revision);
-                })
-              }
+              onName={saveName}
+              onConnect={actions.connect}
+              onVerify={session.sendVerification}
+              onRefreshIdentity={session.refreshIdentity}
+              onSignOut={actions.signOut}
+              onSignOutAndRemove={() => actions.signOut(true)}
+              onLinkGoogle={actions.linkGoogle}
+              onRetry={actions.retry}
+              onCleanup={actions.cleanup}
+              onPause={actions.pause}
+              onDownload={actions.downloadData}
+              onUseRemote={actions.chooseRemote}
+              onUseLocal={actions.chooseLocal}
               googleDeletion={visibleDeletionApproval}
-              onDismissDeletion={() => setDeletionApproval(null)}
+              onDismissDeletion={() => online.deletion.setApproval(null)}
               onFriends={() => onNavigate('friends')}
               onCompare={() => onNavigate('compare')}
               sharedGames={automaticSummary}
@@ -1213,10 +570,7 @@ export default function OnlineController({
                         <button
                           className="text-button"
                           onClick={() => {
-                            void run(async () => {
-                              await friends.retry();
-                              await shelf.retry();
-                            });
+                            void actions.retrySelectedSharing();
                           }}
                         >
                           Refresh selected sharing
@@ -1226,7 +580,7 @@ export default function OnlineController({
                   </>
                 )
               }
-              deletion={deletionContext}
+              deletion={actions.deletionContext}
               onPublish={() => onNavigate('publish')}
               onCommunity={() => onNavigate('community')}
               onCreator={() => onNavigate('creator')}
@@ -1253,13 +607,13 @@ export default function OnlineController({
           </ChunkBoundary>
         </Dialog>
       )}
-      {avatarOpen && identity && (
+      {publication.avatarOpen && identity && (
         <Dialog
           open
           titleId="account-avatar-title"
           className="info-dialog"
           onClose={() => {
-            if (!busy) setAvatarOpen(false);
+            if (!busy) publication.setAvatarOpen(false);
           }}
         >
           <ChunkBoundary
@@ -1283,43 +637,8 @@ export default function OnlineController({
                 value={avatar}
                 identityKey={identityKey}
                 titleId="account-avatar-title"
-                onCancel={() => setAvatarOpen(false)}
-                onSave={async (next) => {
-                  const uid = identity.uid;
-                  const epoch = currentEpoch.current;
-                  const sessionEpoch = authSessionEpoch.current;
-                  const saved = await run(async () => {
-                    if (
-                      cloudAuth.currentUser?.uid !== uid ||
-                      !identityRef.current?.verified ||
-                      currentEpoch.current !== epoch ||
-                      authSessionEpoch.current !== sessionEpoch
-                    )
-                      throw new Error('The account changed. Your new account was not modified.');
-                    await social.saveMemberAvatar(uid, next, member?.displayName || identity.displayName || 'Player');
-                    if (
-                      identityRef.current?.uid === uid &&
-                      currentEpoch.current === epoch &&
-                      authSessionEpoch.current === sessionEpoch
-                    ) {
-                      setDefaultAvatar(next);
-                      setMember((current) => (current?.uid === uid ? { ...current, avatar: next } : current));
-                      try {
-                        await refresh();
-                      } catch (cause) {
-                        if (cloudAuth.currentUser?.uid === uid)
-                          setMessage(`Icon saved. Reconnect to refresh the profile. ${onlineError(cause)}`);
-                      }
-                    }
-                  });
-                  if (!saved) throw new Error('The creature could not be saved. Your previous choice is unchanged.');
-                  if (
-                    identityRef.current?.uid === uid &&
-                    currentEpoch.current === epoch &&
-                    authSessionEpoch.current === sessionEpoch
-                  )
-                    setAvatarOpen(false);
-                }}
+                onCancel={() => publication.setAvatarOpen(false)}
+                onSave={(next) => publication.saveAvatar(identity, next)}
               />
             </Suspense>
           </ChunkBoundary>
