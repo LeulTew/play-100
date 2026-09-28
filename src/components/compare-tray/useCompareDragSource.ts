@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { MouseEvent } from 'react';
 import type { CompareSourceBinding, CompareSourceOptions, CompareSurfaceProps } from './compare-drag-types';
 import type { CompareSource } from './compare-drag-controller';
@@ -7,7 +7,9 @@ import { CompareDragSourceContext } from './compare-drag-source-context';
 export function useCompareDragSource<T extends HTMLElement>(options: CompareSourceOptions<T>): CompareSourceBinding<T> {
   const controller = useContext(CompareDragSourceContext);
   const latest = useRef(options);
-  latest.current = options;
+  useLayoutEffect(() => {
+    latest.current = options;
+  });
   const source = useMemo<CompareSource>(
     () => ({
       read: () => ({

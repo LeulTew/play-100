@@ -1,41 +1,21 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import { compareTrayStorageKey, createCompareDragSession, createCompareTrayStore } from '../../lib/compare-tray';
+import { useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
+import { compareTrayStorageKey } from '../../lib/compare-tray';
 import { useMotionRuntime } from '../../motion';
 import type { CompareTrayProviderProps } from './compare-drag-types';
-import { createCompareDragController } from './compare-drag-controller';
+import { createCompareTrayBinding } from './compare-tray-binding';
 import { CompareDragSourceContext } from './compare-drag-source-context';
 import { CompareTrayContext } from './compare-tray-context';
 
 export function CompareTrayProvider({ scope, children, interaction }: CompareTrayProviderProps) {
   const runtime = useMotionRuntime();
-  const input = useRef(interaction);
-  input.current = interaction;
-  const mounted = useRef(true);
-  const currentLease = useRef<object | null>(null);
-  const { store, controller, lease } = useMemo(() => {
-    const lease = {};
-    const isCurrent = () => mounted.current && currentLease.current === lease;
-    const store = createCompareTrayStore(scope, () => window.localStorage, isCurrent);
-    const drag = createCompareDragSession(scope, store, isCurrent);
-    const controller = createCompareDragController({
-      store,
-      drag,
-      runtime,
-      isCurrent,
-      interaction: () => input.current,
-    });
-    return { store, controller, lease };
-  }, [scope, runtime]);
-  currentLease.current = lease;
+  const binding = useMemo(() => createCompareTrayBinding(scope, runtime), [scope, runtime]);
+  const { store, controller } = binding;
+  useLayoutEffect(() => {
+    binding.setInteraction(interaction);
+  }, [binding, interaction]);
+  useLayoutEffect(() => binding.activate(), [binding]);
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  useEffect(() => {
-    controller.resume();
     store.reload();
     const onStorage = (event: StorageEvent) => {
       if (event.key === compareTrayStorageKey(scope) || event.key === null) store.reload();
@@ -43,9 +23,8 @@ export function CompareTrayProvider({ scope, children, interaction }: CompareTra
     window.addEventListener('storage', onStorage);
     return () => {
       window.removeEventListener('storage', onStorage);
-      controller.dispose();
     };
-  }, [scope, store, controller]);
+  }, [scope, store]);
   useEffect(() => {
     controller.refresh();
   }, [controller, interaction]);
