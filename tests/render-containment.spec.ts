@@ -128,3 +128,35 @@ test('offscreen content remains findable, focusable and printable without contai
     expect(await target.evaluate((node) => getComputedStyle(node).contentVisibility)).toBe('visible');
   }
 });
+
+// G7-UI UI-002: a full-page capture or a fast scroll finds the landing's films, workbook and footer drawn, not blank
+// panels. Only the long card lists stay contained, and the film artwork still waits for the section.
+test('the landing renders its below-fold showcase before any scroll, and contains only the card lists', async ({
+  page,
+}) => {
+  await page.goto('/?catalogs=off');
+  const cards = page.locator('.game-card');
+  await expect(cards).toHaveCount(24);
+  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
+  expect(await page.evaluate(() => scrollY), 'nothing below the fold has been scrolled to').toBe(0);
+  const skipped = (selector: string) =>
+    page.locator(selector).evaluateAll((elements) =>
+      elements.map((element) => !element.checkVisibility({ contentVisibilityAuto: true })),
+    );
+  for (const [selector, count] of [
+    ['#collection-films-title', 1],
+    ['.film-watch .film-summary', 2],
+    ['.film-poster .film-play-mark', 2],
+    ['.workbook-copy h2', 1],
+    ['.workbook-copy .button', 1],
+    ['.workbook-art .workbook-sheet', 2],
+    ['.site-footer a', 3],
+  ] as const) {
+    const states = await skipped(selector);
+    expect(states.length, selector).toBeGreaterThanOrEqual(count);
+    expect(states, `${selector} is drawn`).not.toContain(true);
+  }
+  expect(await skipped('.game-card:nth-child(21) h3'), 'the card list stays contained').toEqual([true]);
+  await expect(page.locator('.film-poster img'), 'the film artwork waits for its section').toHaveCount(0);
+});

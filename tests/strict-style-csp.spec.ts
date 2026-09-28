@@ -111,7 +111,7 @@ test('landing dialogs, detail and the collection scene run under the production 
  * A `loading="lazy"` image loads whenever the network and viewport distance allow, independently in each
  * tab, so its box is left out on both sides (its resolved styles still count). Every other image is
  * loaded and decoded first. The lazy images are absolutely positioned in fixed aspect-ratio frames, so
- * no other box depends on them. `content-visibility: auto` sections (the footer, below-fold cards) are
+ * no other box depends on them. `content-visibility: auto` sections (the below-fold cards) are
  * forced visible on both sides first: a skipped section takes its remembered or intrinsic placeholder
  * size, which depends on whether that tab ever rendered it, not on the policy. The override goes
  * through the CSSOM, which the strict policy allows.
