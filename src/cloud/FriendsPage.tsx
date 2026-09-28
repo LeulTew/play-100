@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { FriendBlock, FriendCursor, FriendInvitation, FriendSettings } from '../lib/friend-types';
-import type { FriendsView } from '../lib/friend-manager';
+import type { FriendInvitation, FriendSettings } from '../lib/friend-types';
 import { invitationStatus, nextInvitationExpiry, visibleFriendPairs } from '../lib/friend-manager';
 import { comparisonScope, initialComparison } from '../lib/friend-comparison-intent';
 import { createInviteUrl } from '../lib/invite-continuation';
@@ -18,19 +17,8 @@ import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
 import { FriendListStatus, FriendSelectionBar, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
 import { subscribeUrl, useFriendsView } from './friends-page-view';
 import { useComparisonSelection } from './friends-page-selection';
-import { useFriendManagerFeed, useLiveFeed } from './friends-page-data';
+import { useAuxiliaryPages, useFriendManagerFeed, useLiveFeed } from './friends-page-data';
 import { Icon } from '../components/Icon';
-
-interface AuxiliaryPage {
-  view: FriendsView;
-  invites: FriendInvitation[];
-  blocks: FriendBlock[];
-  cursor: FriendCursor | undefined;
-  pages: number;
-  loading: boolean;
-  ready: boolean;
-  error: unknown | null;
-}
 
 export function FriendsPage({
   store,
@@ -53,20 +41,6 @@ export function FriendsPage({
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
   const { view, relationView, updateView } = useFriendsView();
   const { feed, list } = useFriendManagerFeed(store, uid, view.view);
-  const [aux, setAux] = useState<AuxiliaryPage>({
-    view: view.view,
-    invites: [],
-    blocks: [],
-    cursor: undefined,
-    pages: 0,
-    loading: false,
-    ready: false,
-    error: null,
-  });
-  const auxRef = useRef(aux);
-  useLayoutEffect(() => {
-    auxRef.current = aux;
-  });
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -120,74 +94,16 @@ export function FriendsPage({
     setMessage,
   );
   useLiveFeed(feed, relationView);
-  const loadAux = useCallback(
-    async (append = false): Promise<boolean> => {
-      const target = view.view;
-      if (target !== 'invites' && target !== 'blocked') return false;
-      const operation = ++auxVersion.current;
-      const old = auxRef.current;
-      setAux((state) => ({ ...state, view: target, loading: true, error: null }));
-      const count = append ? 1 : Math.max(1, old.view === target ? old.pages : 1);
-      let cursor = append ? old.cursor : undefined;
-      let pages = 0;
-      let invites = append ? old.invites : [];
-      let blocks = append ? old.blocks : [];
-      try {
-        for (; pages < count; pages += 1) {
-          if (target === 'invites') {
-            const result = await store.listInvites(uid, cursor);
-            invites = [...new Map([...invites, ...result.items].map((item) => [item.token, item])).values()];
-            cursor = result.cursor;
-          } else {
-            const result = await store.listBlocks(uid, cursor);
-            blocks = [...new Map([...blocks, ...result.items].map((item) => [item.uid, item])).values()];
-            cursor = result.cursor;
-          }
-          if (!current() || operation !== auxVersion.current) return false;
-          if (!cursor) {
-            pages += 1;
-            break;
-          }
-        }
-        setAux({
-          view: target,
-          invites,
-          blocks,
-          cursor,
-          pages: (append ? old.pages : 0) + pages,
-          ready: true,
-          loading: false,
-          error: null,
-        });
-        setRefreshRequired(false);
-        setError('');
-        return true;
-      } catch (cause) {
-        if (current() && operation === auxVersion.current)
-          setAux((state) => ({ ...state, loading: false, error: cause }));
-        return false;
-      }
-    },
-    [view.view, store, uid, current],
+  const { aux, loadAux } = useAuxiliaryPages(
+    store,
+    uid,
+    view,
+    relationView,
+    current,
+    auxVersion,
+    setRefreshRequired,
+    setError,
   );
-  useEffect(() => {
-    if (!relationView) {
-      setAux({
-        view: view.view,
-        invites: [],
-        blocks: [],
-        cursor: undefined,
-        pages: 0,
-        loading: true,
-        ready: false,
-        error: null,
-      });
-      void loadAux();
-    }
-    return () => {
-      auxVersion.current += 1;
-    };
-  }, [relationView, view.view, loadAux]);
   const currentInvites = aux.view === 'invites' ? aux.invites : [];
   const timerInvites = useMemo(() => [...aux.invites, ...(link ? [link] : [])], [aux.invites, link]);
   useEffect(() => {
