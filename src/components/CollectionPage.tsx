@@ -51,12 +51,10 @@ function DeferredCollection({
   const focusedFilm = useRef<string | null>(null);
   const pendingSearch = useRef<{ queryKey: string; trigger: HTMLButtonElement; activate: boolean } | null>(null);
   const ready = input.kind !== 'films' || input.props.postersReady;
+  // Without IntersectionObserver a nearby section cannot wait to be near, so it asks for its tools once it is ready.
+  if (ready && !requested && !module && typeof IntersectionObserver === 'undefined') setRequested(true);
   useEffect(() => {
     if (!ready || requested || module || !root.current) return;
-    if (!near || typeof IntersectionObserver === 'undefined') {
-      setRequested(true);
-      return;
-    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -294,10 +292,13 @@ export default function CollectionPage({
   const showExtended = extraResults.length > 0 || online.eligible;
   const additions = useMemo(() => unrankedRecords(games ?? [], state.records, []), [games, state.records]);
   const signature = createSearch(filters);
-  useEffect(() => {
+  // A new view starts at its first page with nothing selected.
+  const [viewSignature, setViewSignature] = useState(signature);
+  if (viewSignature !== signature) {
+    setViewSignature(signature);
     setVisibleCount(PAGE_SIZE);
     setSelected(new Set());
-  }, [signature]);
+  }
   useLayoutEffect(() => {
     const requested = appendedFocus.current;
     if (!requested) return;
