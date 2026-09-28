@@ -16,7 +16,7 @@ import type { PreviewAuthority } from '../lib/preview-authority';
 import type { LibraryController } from '../lib/library-controller';
 import type { Member, PublicProfile } from '../lib/community';
 import type { SyncHead } from '../lib/cloud-types';
-import { accountScope, SYNC_LABELS } from '../lib/cloud-types';
+import { accountScope } from '../lib/cloud-types';
 import {
   cacheScopedProfile,
   connectScopedLibrary,
@@ -86,6 +86,8 @@ import { committedFriendChange, committedFriendMessage } from './friend-outcomes
 import { signOutTransition } from './sign-out-transition';
 import { reportDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
 import { libraryBackupText } from './backup-download';
+import { onlineBridge } from './online-bridge';
+import { compareRouteFor, initialCompareRoute, keepCompareRouteGroup } from './compare-route';
 import './cloud-ui.css';
 import './friends-ui.css';
 import './friend-shelf.css';
@@ -705,35 +707,33 @@ export default function OnlineController({
       automatic.progress,
     ],
   );
-  const bridge = useMemo<OnlineBridge>(
-    () => ({
-      loading: restoring,
-      identity: identity ?? null,
-      signInOpen,
-      controller: protectedController,
-      scope: (active || cacheUnavailable) && scope ? scope : 'guest',
-      enabled: active && Boolean(account.snapshot?.sync.enabled && identity?.verified),
-      status: cacheUnavailable ? 'error' : active ? sync.status : 'device',
-      label: cacheUnavailable
-        ? 'Device copy unavailable'
-        : active
-          ? sync.pendingEdits
-            ? 'Finishing local edits…'
-            : SYNC_LABELS[sync.status]
-          : 'Device only',
-      creator: isCreator,
-      headerIdentity,
-      friendSharing: automaticSummary,
-    }),
+  const syncEnabled = account.snapshot?.sync.enabled;
+  const bridge = useMemo(
+    () =>
+      onlineBridge({
+        restoring,
+        identity,
+        signInOpen,
+        controller: protectedController,
+        scope,
+        active,
+        cacheUnavailable,
+        syncEnabled,
+        status: sync.status,
+        pendingEdits: sync.pendingEdits,
+        creator: isCreator,
+        headerIdentity,
+        friendSharing: automaticSummary,
+      }),
     [
+      restoring,
       identity,
       signInOpen,
-      restoring,
-      active,
       protectedController,
-      cacheUnavailable,
-      account.snapshot?.sync.enabled,
       scope,
+      active,
+      cacheUnavailable,
+      syncEnabled,
       sync.status,
       sync.pendingEdits,
       isCreator,
@@ -1072,13 +1072,13 @@ export default function OnlineController({
   // ?group= in place (replaceState) when the user picks, saves or clears a group, and reports it here, because every
   // render reads the URL again: it must not take the page's own change for a navigation, remount the page and lose its
   // unsaved name and selection at whatever unrelated render comes next.
-  const [compareRoute, setCompareRoute] = useState({ group: '', generation: 0 });
+  const [compareRoute, setCompareRoute] = useState(initialCompareRoute);
   const urlGroup = new URLSearchParams(location.search).get('group') ?? '';
-  if (page === 'compare' && urlGroup !== compareRoute.group)
-    setCompareRoute({ group: urlGroup, generation: compareRoute.generation + 1 });
+  const nextCompareRoute = compareRouteFor(compareRoute, page, urlGroup);
+  if (nextCompareRoute !== compareRoute) setCompareRoute(nextCompareRoute);
   const compareKey = String(compareRoute.generation);
   const keepCompareGroup = useCallback(
-    (group: string) => setCompareRoute((route) => (route.group === group ? route : { ...route, group })),
+    (group: string) => setCompareRoute((route) => keepCompareRouteGroup(route, group)),
     [],
   );
   const pageRouteKey =
