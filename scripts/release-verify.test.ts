@@ -33,7 +33,7 @@ describe('deployed release verification, without network', () => {
     expect(csp?.pass).toBe(false);
   });
 
-  it.each(['x-frame-options', 'strict-transport-security', 'cross-origin-opener-policy'])(
+  it.each(['x-frame-options', 'strict-transport-security', 'cross-origin-opener-policy', 'reporting-endpoints'])(
     'fails a missing %s header',
     (name) => {
       const headers = new Headers(policy);

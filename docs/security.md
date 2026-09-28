@@ -1,5 +1,36 @@
 # Security hardening and release gates
 
+## Anonymous operational signals
+
+The main document policy reports to the first-party `/api/csp-report` endpoint
+using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback. Existing
+inline script/style hashes are unchanged. Only POSTs with CSP report media types
+are accepted, with a 16 KiB body cap, a three-second read deadline, at most 16
+reports per batch and per-instance admission (4 active / 30 per minute). The
+handler emits one structured counts line containing only a known directive,
+blocked HTTP(S) origin (or `inline`/`eval`/`other`) and a fixed route template.
+Paths, queries, fragments, samples, IP literals, user agents and account/visitor
+identifiers are not logged. Raw reports are discarded, not persisted. Browsers
+and hosting infrastructure necessarily handle the original network request;
+this does not change the provider's own request logging or retention policy.
+
+A credential-free daily Vercel cron (06:00 UTC, subject to the hosting plan's
+scheduling precision) calls `/api/operational-probe`. Its fixed destinations are
+the production auth handler twice, Wikidata site information and FreeToGame game
+1. It requires HTTP 200 and a single fresh nonce CSP on each auth response, using
+the same nonce checks as `release:verify`, and bounded valid catalog responses.
+It logs one structured OK/FAIL result, never response bodies, URLs or credentials.
+Public callers cannot choose destinations or query parameters. Both success and
+failure are cached for 15 minutes per instance; concurrent calls share a probe,
+and admission caps active requests at 4 / 12 per minute. Per-instance limits do
+not replace the global WAF control. No client error beacon or visitor analytics
+is shipped. These checks report faults, not successful real-user sign-in.
+
+The project owner reviews these signals on a fault or abuse signal and by
+2026-10-02 with the WAF decision. Endpoint code and the cron definition are
+pending the ordinary release/deployment gate; their presence is not evidence
+that production reporting or a scheduled run has occurred.
+
 These rules and client changes are a prototype pending the integrator's actual
 emulator, type, browser and rollout checks. Source assertions are not proof of
 production protection or a numerical security score.

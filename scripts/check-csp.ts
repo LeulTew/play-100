@@ -1,8 +1,19 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cspProblems, inlineBlocks, mainDocumentPolicy } from './first-paint/csp.ts';
+import { cspProblems, directiveSources, inlineBlocks, mainDocumentPolicy } from './first-paint/csp.ts';
 import type { CspDocument } from './first-paint/csp.ts';
+import { expectedDocumentHeaders } from './release-verify.ts';
+
+export function reportingProblems(configuration: unknown): string[] {
+  const headers = expectedDocumentHeaders(configuration);
+  const policy = headers['content-security-policy']!;
+  return headers['reporting-endpoints'] === 'csp="/api/csp-report"' &&
+    JSON.stringify(directiveSources(policy, 'report-to')) === '["csp"]' &&
+    JSON.stringify(directiveSources(policy, 'report-uri')) === '["/api/csp-report"]'
+    ? []
+    : ['CSP reports must use the first-party csp endpoint and report-uri fallback.'];
+}
 
 /**
  * Read-only acceptance gate for a finished build (docs/first-paint-shell.md): every HTML document
@@ -42,6 +53,7 @@ export async function checkCsp(root: string, configuration: unknown): Promise<{ 
     throw new Error(`No index.html in ${root}. Build before checking the CSP.`);
   // One build holds one shell variant, so stale style hashes are left to the build, which knows both.
   const problems = cspProblems(documents, policy, { otherVariantStyles: 'unchecked' });
+  problems.push(...reportingProblems(configuration));
   const emitted = emittedDocumentPolicy(JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8')));
   if (emitted !== policy)
     problems.push(

@@ -51,7 +51,11 @@ original genre and entered critic-score snapshot.
 
 ## Operating Context
 
-Public and device-only by default, with no analytics or Supabase. A read-only,
+Public and device-only by default, with no analytics or Supabase. Anonymous
+operational fault counts without identifiers are allowed: first-party CSP
+reports retain only directive, blocked origin and route template, and scheduled
+credential-free probes record service health. They do not track people or sessions.
+A read-only,
 stateless Vercel function looks up public catalog metadata. Optional Firebase
 Google or verified email accounts enable explicitly consented cross-device
 saving, while keeping the original guest library intact and separate.

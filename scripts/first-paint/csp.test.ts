@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkCsp, emittedDocumentPolicy } from '../check-csp.ts';
+import { checkCsp, emittedDocumentPolicy, reportingProblems } from '../check-csp.ts';
+import { expectedDocumentHeaders } from '../release-verify.ts';
 import {
   allowsInlineStyles,
   cspProblems,
@@ -17,7 +18,7 @@ import { stripBootScript } from './plugin.ts';
 const vercel: unknown = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
 const bootScript = stripBootScript(readFileSync(new URL('../../src/first-paint/boot.js', import.meta.url), 'utf8'));
 const script = 'window.booted = true;';
-const policy = `default-src 'self'; script-src 'self' ${sha256Source(script)}; style-src 'self' 'unsafe-inline'`;
+const policy = `default-src 'self'; report-to csp; report-uri /api/csp-report; script-src 'self' ${sha256Source(script)}; style-src 'self' 'unsafe-inline'`;
 const page = `<!doctype html><html><head><style>a{color:red}</style><script>${script}</script><script type="module" crossorigin src="/assets/index-A.js"></script></head><body></body></html>`;
 const folders: string[] = [];
 
@@ -229,9 +230,18 @@ describe('check:csp', () => {
     }
     return root;
   }
-  const configuration = {
-    headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: policy }] }],
-  };
+  const configured = (value: string) => ({
+    headers: [
+      {
+        source: '/((?!__/auth/).*)',
+        headers: Object.entries({
+          ...expectedDocumentHeaders(vercel),
+          'content-security-policy': value,
+        }).map(([key, value]) => ({ key, value })),
+      },
+    ],
+  });
+  const configuration = configured(policy);
   const manifest = (value: string) =>
     JSON.stringify({
       documentPolicy: { headers: [{ name: 'content-security-policy', value }], sha256: '0'.repeat(64) },
@@ -254,9 +264,7 @@ describe('check:csp', () => {
 
   it('accepts a strict style-src that also lists the other shell variant, but not a missing style hash', async () => {
     const strict = policy.replace("'unsafe-inline'", `${sha256Source('a{color:red}')} ${sha256Source('other{}')}`);
-    const strictConfiguration = {
-      headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: strict }] }],
-    };
+    const strictConfiguration = configured(strict);
     const root = await dist({ 'index.html': page, 'pwa-assets.json': manifest(strict) });
     expect((await checkCsp(root, strictConfiguration)).problems).toEqual([]);
     const changed = await dist({
@@ -281,5 +289,16 @@ describe('check:csp', () => {
       emittedDocumentPolicy({ documentPolicy: { headers: [{ name: 'x-frame-options', value: 'DENY' }] } }),
     ).toBeNull();
     expect(emittedDocumentPolicy(JSON.parse(manifest(policy)))).toBe(policy);
+  });
+
+  it('requires first-party reporting with both modern and fallback directives', () => {
+    expect(reportingProblems(vercel)).toEqual([]);
+    expect(reportingProblems(configured(policy.replace('report-to csp', 'report-to elsewhere')))).toHaveLength(1);
+    expect(reportingProblems(configured(policy.replace('/api/csp-report', 'https://third.test/report')))).toHaveLength(
+      1,
+    );
+    const missing = configured(policy);
+    missing.headers[0]!.headers = missing.headers[0]!.headers.filter((entry) => entry.key !== 'reporting-endpoints');
+    expect(() => reportingProblems(missing)).toThrow('required security header');
   });
 });

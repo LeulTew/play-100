@@ -133,6 +133,13 @@ export default function DataUseContent() {
         stay attached to their records.
       </p>
       <p>
+        Browsers may send security-policy failure reports to this site. Play 100 records only counts by blocked origin,
+        security directive and page type, not full URLs, queries, IP addresses, browser details or account identifiers.
+        A scheduled check also records whether sign-in helpers and public catalogs respond correctly; it uses no account
+        credentials. These operational signals are not visitor analytics. Hosting providers still process normal network
+        requests under their own policies.
+      </p>
+      <p>
         Opening an eligible Discover game with online lookup enabled can request public ratings and licensed artwork by
         its exact public identifier. Wikidata supplies attributed score claims; Steam may supply user-recommendation
         totals through an unambiguous public app identifier. Wikimedia Commons artwork is reused only after license,
