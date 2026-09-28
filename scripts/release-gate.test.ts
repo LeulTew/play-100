@@ -7,7 +7,9 @@ describe('candidate release gate planning', () => {
     const plan = gatePlan();
     const names = plan.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
-    expect(names.slice(0, 7)).toEqual([
+    expect(names.slice(0, 9)).toEqual([
+      'configured-audit-signatures',
+      'offline-audit-signatures',
       'types',
       'lint',
       'typecheck-functions',

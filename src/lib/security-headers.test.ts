@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import configuration from '../../vercel.json';
 import { AUTH_HELPER_UPSTREAM } from '../../api/auth-helper';
+import { gatePlan } from '../../scripts/release-gate';
 
 const HELPER_SCRIPTS = '/__/auth/(handler|iframe|experiments)\\.js';
 
@@ -97,12 +97,18 @@ describe('S3 header and supply-chain boundaries', () => {
       expect(matching(other)).not.toContain(HELPER_SCRIPTS);
     expect(matching('/')).toContain(main.source);
   });
-  it('verifies registry signatures immediately after every dependency install in CI', () => {
-    const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
-    const installs = workflow.match(/- run: npm ci --no-audit --no-fund/g) ?? [];
-    expect(installs).toHaveLength(3);
-    expect(workflow.match(/- run: npm ci --no-audit --no-fund\r?\n\s+- run: npm audit signatures/g)).toHaveLength(
-      installs.length,
+  it('verifies installed registry signatures in both gate checkouts before trusting tests or builds', () => {
+    const plan = gatePlan();
+    expect(plan.slice(0, 2)).toEqual(
+      ['configured', 'offline'].map((profile) => ({
+        name: `${profile}-audit-signatures`,
+        profile,
+        tool: 'npm',
+        args: ['audit', 'signatures'],
+      })),
     );
+    expect(plan.filter((step) => step.args[0] === 'audit')).toHaveLength(2);
+    expect(plan.slice(0, 2).every((step) => step.report === undefined)).toBe(true);
+    expect(plan.findIndex((step) => step.report !== undefined)).toBeGreaterThan(1);
   });
 });

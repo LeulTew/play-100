@@ -30,6 +30,14 @@ export function gatePlan(): GateStep[] {
     args: ['run', script],
   }));
   steps.unshift({ name: 'types', profile: 'configured', tool: 'npm', args: ['exec', '--no', '--', 'tsc', '-b'] });
+  steps.unshift(
+    ...(['configured', 'offline'] as const).map((profile): GateStep => ({
+      name: `${profile}-audit-signatures`,
+      profile,
+      tool: 'npm',
+      args: ['audit', 'signatures'],
+    })),
+  );
   steps.push({
     name: 'unit-browser',
     profile: 'configured',

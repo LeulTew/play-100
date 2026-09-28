@@ -119,7 +119,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Gate stopped; investigate retained evidence be
 
 The evidence directory must not exist and must be outside both checkouts.
 Dry-run prints the entire plan without starting servers, tests or builds.
-Execution runs static checks, unit/browser tests, cloud rules and the handle
+Execution first runs `npm audit signatures` against the installed tree in each
+checkout, before any static check or test. Each audit must succeed; its log hash
+and exit receipt are bound into that checkout's release manifest. It then runs
+static checks, unit/browser tests, cloud rules and the handle
 race x5 / convergence x20, both independent builds with CSP/budget checks,
 production/development e2e, cloud-UI with freshly allocated comparison actors,
 the cross-tab identity case x20 on both projects, and offline navigation plus
