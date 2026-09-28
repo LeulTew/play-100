@@ -17,9 +17,35 @@ const flush = async () => {
   await Promise.resolve();
   await Promise.resolve();
 };
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('per-query online request lifecycle', () => {
+  it.each([null, '', 'Slow down', '<html>Slow down</html>'])(
+    'installs the HTTP 429 cooldown through the real transport with body %s',
+    async (body) => {
+      let now = 1000;
+      vi.spyOn(Date, 'now').mockImplementation(() => now);
+      const fetcher = vi.fn().mockImplementation(() => {
+        return Promise.resolve(new Response(body, { status: 429, headers: { 'Retry-After': '17' } }));
+      });
+      vi.stubGlobal('fetch', fetcher);
+      const session = new CatalogSearchSession();
+      session.start('KCD', 'KCD', ['wikidata']);
+      await vi.waitFor(() => expect(session.getSnapshot().sources[0]?.failure).toBe('rate-limited'));
+      now += 16_999;
+      session.retry('wikidata');
+      expect(fetcher).toHaveBeenCalledOnce();
+      now += 1;
+      session.retry('wikidata');
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(session.getSnapshot().sources[0]?.status).toBe('error'));
+      session.cancel();
+    },
+  );
   it('rejects out-of-order old responses even when the upstream ignores abort', async () => {
     let old: (value: CatalogPage) => void = () => undefined;
     const fetcher = vi

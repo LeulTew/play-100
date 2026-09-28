@@ -18,6 +18,28 @@ afterEach(() => {
 });
 
 describe('public detail lookup eligibility and lifecycle', () => {
+  it.each([null, '', 'Slow down', '<html>Slow down</html>'])(
+    'installs the HTTP 429 cooldown through the real transport with body %s',
+    async (body) => {
+      let now = 1000;
+      const fetcher = vi.fn().mockImplementation(() => {
+        return Promise.resolve(new Response(body, { status: 429, headers: { 'Retry-After': '17' } }));
+      });
+      vi.stubGlobal('fetch', fetcher);
+      const session = new CatalogEnrichmentSession(fetchCatalogEnrichment, () => now, new Map());
+      session.start(request());
+      await vi.waitFor(() => expect(session.getSnapshot().status).toBe('error'));
+      now += 16_999;
+      session.retry();
+      expect(fetcher).toHaveBeenCalledOnce();
+      expect(session.getSnapshot().error).toContain('rate-limiting');
+      now += 1;
+      session.retry();
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(session.getSnapshot().status).toBe('error'));
+      session.cancel();
+    },
+  );
   it.each(['disabled', 'offline', 'ready', 'error', 'loading'] as const)(
     'peeks the exact first %s snapshot without requests, publication or cache mutation',
     async (status) => {

@@ -7,6 +7,55 @@ afterEach(() => {
 });
 
 describe('bounded catalog transport failures', () => {
+  for (const status of [429, 504]) {
+    it.each([null, '', 'Proxy failure', '<html>Proxy failure</html>'])(
+      `preserves HTTP ${status} and Retry-After with body %s`,
+      async (body) => {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(new Response(body, { status, headers: { 'Retry-After': '17' } })),
+        );
+        await expect(fetchCatalogJson('/api/catalog', signal(), 1024)).rejects.toMatchObject({
+          kind: status === 429 ? 'rate-limited' : 'timeout',
+          retryAfter: 17,
+          message: 'The public catalog is temporarily unavailable.',
+        });
+      },
+    );
+  }
+  it.each([null, '', '<html>Not JSON</html>'])('rejects malformed successful bodies: %s', async (body) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body)));
+    await expect(fetchCatalogJson('/api/catalog', signal(), 1024)).rejects.toMatchObject({ kind: 'invalid' });
+  });
+  it('keeps the HTTP failure when its bounded error body is too large', async () => {
+    let cancelled = false;
+    const stream = new ReadableStream({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(10));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(stream, { status: 429, headers: { 'Retry-After': '12' } })),
+    );
+    await expect(fetchCatalogJson('/api/catalog', signal(), 8)).rejects.toMatchObject({
+      kind: 'rate-limited',
+      retryAfter: 12,
+    });
+    expect(cancelled).toBe(true);
+  });
+  it('keeps HTTP meaning when the error stream fails', async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.error(new TypeError('Broken proxy body'));
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status: 504 })));
+    await expect(fetchCatalogJson('/api/catalog', signal(), 1024)).rejects.toMatchObject({ kind: 'timeout' });
+  });
   it('bounds bytes while streaming, not only Content-Length', async () => {
     let cancelled = false;
     const stream = new ReadableStream({

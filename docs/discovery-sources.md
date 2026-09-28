@@ -231,6 +231,10 @@ coverage are not evidence of current, complete or independent review quality.
   Known scales retain zero; missing scores never become zero.
 - No automatic retry loop. A bounded retry honors rate-limit cooldowns.
   Upstream 429, timeout, invalid media and unsupported rights remain explicit.
+  Client HTTP 429/504 failures retain their rate-limit/timeout meaning and bounded
+  `Retry-After` even when an edge response has no body or returns text/HTML.
+  Unreadable error bodies use generic copy, never the raw response; successful
+  responses still require valid JSON within the existing byte and time limits.
   Partial source errors have `no-store`; only public complete/known-unavailable
   responses may use the short shared cache.
 - Interactive search (`/api/catalog`) and detail (`/api/catalog-detail`)
