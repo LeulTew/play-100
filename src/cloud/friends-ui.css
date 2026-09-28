@@ -227,6 +227,7 @@
 .comparison-scroll {
   overflow: auto;
   max-width: 100%;
+  max-height: min(62vh, 620px);
   max-height: min(62dvh, 620px);
   border-block: 1px solid var(--ink);
   margin-block: 12px 20px;
@@ -538,6 +539,7 @@
     font-size: 13px;
   }
   .friend-compare-page .comparison-scroll {
+    max-height: 58vh;
     max-height: 58dvh;
     margin-top: 6px;
   }

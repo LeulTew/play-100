@@ -540,6 +540,7 @@
   background: var(--paper);
   width: min(100% - 36px, 620px);
   max-width: none;
+  max-height: calc(100vh - 48px);
   max-height: calc(100dvh - 48px);
   border-radius: 7px;
   overscroll-behavior: contain;
@@ -701,7 +702,9 @@
 .game-dialog {
   inset: 0 0 0 auto;
   margin: 0;
+  height: 100vh;
   height: 100dvh;
+  max-height: 100vh;
   max-height: 100dvh;
   width: min(100%, 660px);
   border-radius: 0;
