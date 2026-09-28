@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FriendShelfEntry } from '../lib/friend-shelf-types';
 import { createFriendReadGuard } from '../lib/friend-read-guard';
 import type { FriendShelfStore } from './friend-shelf-store';
@@ -16,8 +16,11 @@ export function useFriendShelfRead(
   accessRevision = 0,
 ) {
   const key = `${uid}:${peer}:${authGeneration}:${active}:${accessRevision}`;
+  // The key of the last committed render: a read that settles after its key changed is discarded.
   const current = useRef(key);
-  current.current = key;
+  useLayoutEffect(() => {
+    current.current = key;
+  }, [key]);
   const [value, setValue] = useState<{
     key: string;
     entries: FriendShelfEntry[];

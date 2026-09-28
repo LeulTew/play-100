@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { accountScope } from '../lib/cloud-types';
 import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import type { Game } from '../lib/types';
@@ -52,12 +52,18 @@ export function useFriendShelf(
   const [status, setStatus] = useState<FriendShelfStatus>('checking');
   const [reload, setReload] = useState(0);
   const config = value?.key === key ? value.config : null;
+  // The last committed inputs, which work that settles later checks it still belongs to.
   const current = useRef({ key, uid, scope, snapshot, verified, games, config });
-  current.current = { key, uid, scope, snapshot, verified, games, config };
+  useLayoutEffect(() => {
+    current.current = { key, uid, scope, snapshot, verified, games, config };
+  }, [key, uid, scope, snapshot, verified, games, config]);
+  // acceptConfig also sets it at once, before the render that commits the same config.
   const controlNow = useRef(config);
-  controlNow.current = config;
-  const generation = useMemo(createFriendWorkGeneration, []);
-  const mutations = useMemo(createFriendWorkGeneration, []);
+  useLayoutEffect(() => {
+    controlNow.current = config;
+  }, [config]);
+  const generation = useMemo(() => createFriendWorkGeneration(), []);
+  const mutations = useMemo(() => createFriendWorkGeneration(), []);
   const mutationActive = useRef<symbol | null>(null);
   const queue = useRef<SyncWorkQueue | null>(null);
   const recovery = useRef<Recovery | null>(null);

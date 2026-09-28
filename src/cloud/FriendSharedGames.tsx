@@ -59,8 +59,11 @@ export function FriendSharedGames({
   }, [preview, view.entries, view.status]);
   useLayoutEffect(() => () => preview.update([]), [preview]);
   const live = useRef(true);
+  // The committed view: a card's action reads the entries and status it was drawn from.
   const latest = useRef(view);
-  latest.current = view;
+  useLayoutEffect(() => {
+    latest.current = view;
+  }, [view]);
   useEffect(() => {
     live.current = true;
     return () => {

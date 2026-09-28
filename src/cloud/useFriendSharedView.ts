@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FriendAllEntry, FriendAllKind } from '../lib/friend-all';
 import type { FriendCursor } from '../lib/friend-types';
 import type { FriendAllHead } from '../lib/friend-all-transport';
@@ -38,10 +38,14 @@ export function useFriendSharedView(
   const key = `${uid}:${peer}:${kind}:${authGeneration}:${active}:${exactKey}`;
   const [value, setValue] = useState<FriendSharedView | null>(null);
   const [reload, setReload] = useState(0);
+  // The last committed view and key: Load more extends that view, and a read that settles after its key changed is
+  // discarded.
   const latest = useRef(value);
-  latest.current = value;
   const current = useRef(key);
-  current.current = key;
+  useLayoutEffect(() => {
+    latest.current = value;
+    current.current = key;
+  }, [value, key]);
   const more = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     let alive = true;

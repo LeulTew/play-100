@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
@@ -35,18 +35,24 @@ export function useFriendSharing(
   const [failure, setFailure] = useState<{ uid: string; message: string } | null>(null);
   const [status, setStatus] = useState<FriendSharingStatus>('checking');
   const [reload, setReload] = useState(0);
+  // The last committed inputs, which work that settles later checks it still belongs to.
   const current = useRef({ uid, scope, snapshot, verified, games, authGeneration });
-  current.current = { uid, scope, snapshot, verified, games, authGeneration };
+  useLayoutEffect(() => {
+    current.current = { uid, scope, snapshot, verified, games, authGeneration };
+  }, [uid, scope, snapshot, verified, games, authGeneration]);
   const settings = value && value.uid === uid ? value.settings : null;
   const settingsRevision = settings?.revision;
   const selectedIds = settings?.selectedIds;
   const snapshotReady = Boolean(snapshot);
   const ready = Boolean(uid && value?.uid === uid);
+  // acceptSettings also sets it at once, before the render that commits the same settings.
   const settingsNow = useRef(settings);
-  settingsNow.current = settings;
+  useLayoutEffect(() => {
+    settingsNow.current = settings;
+  }, [settings]);
   const pendingEdits = usePendingEdits();
   const queue = useRef<SyncWorkQueue | null>(null);
-  const cancellationGeneration = useMemo(createFriendWorkGeneration, []);
+  const cancellationGeneration = useMemo(() => createFriendWorkGeneration(), []);
   const reconnectSettings = useRef<() => void>(() => {});
   const acceptSettings = useCallback((next: FriendSettings | null, owner: string, explicitThroughRevision?: number) => {
     if (current.current.uid !== owner || cloudAuth.currentUser?.uid !== owner) return;

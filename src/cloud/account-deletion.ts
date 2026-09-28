@@ -108,7 +108,7 @@ export function useDeletionProbe({
   head,
   busy,
   store,
-  state: { probe: deletionProbe, notice, setNotice },
+  state: { probe: deletionProbeRef, notice, setNotice },
 }: {
   page: AppPage;
   identity: AccountIdentity | null | undefined;
@@ -124,20 +124,20 @@ export function useDeletionProbe({
       : null;
   useEffect(() => {
     if (!key) {
-      deletionProbe.current = null;
+      deletionProbeRef.current = null;
       setNotice(null);
       return;
     }
     if (busy || !store || (head?.deleted && head.cleanupEpoch === head.epoch)) return;
     let alive = true;
-    const probe = deletionProbeFor(deletionProbe.current, key, () => store.probeDeletedCopy());
-    deletionProbe.current = probe;
+    const probe = deletionProbeFor(deletionProbeRef.current, key, () => store.probeDeletedCopy());
+    deletionProbeRef.current = probe;
     void probe.result.then((state) => {
-      if (alive && deletionProbe.current === probe) setNotice({ key, state });
+      if (alive && deletionProbeRef.current === probe) setNotice({ key, state });
     });
     return () => {
       alive = false;
     };
-  }, [key, busy, store, head?.cleanupEpoch, head?.epoch, head?.deleted, deletionProbe, setNotice]);
+  }, [key, busy, store, head?.cleanupEpoch, head?.epoch, head?.deleted, deletionProbeRef, setNotice]);
   return deletionCopyState(head, notice, key);
 }

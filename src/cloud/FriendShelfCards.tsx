@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendShelfEntry } from '../lib/friend-shelf-types';
 import { FriendShelfCommittedError } from '../lib/friend-shelf-types';
@@ -39,8 +39,11 @@ export function FriendShelfCards({
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<{ entries: FriendShelfEntry[]; text: string } | null>(null);
+  // The committed entries: a save that settles after the list changed reports nothing.
   const current = useRef(entries);
-  current.current = entries;
+  useLayoutEffect(() => {
+    current.current = entries;
+  }, [entries]);
   const save = async (entry: FriendShelfEntry) => {
     if (saving) return;
     const request = entries;
