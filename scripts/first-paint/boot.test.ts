@@ -349,6 +349,8 @@ describe('first-paint boot gate', () => {
 
   it.each([
     ['display width', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 700, height: 120 } }],
+    ['display width above the range', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 616, height: 120 } }],
+    ['sans width above the range', { ...ACCEPTED_PROBES, 'p100-probe-sans': { width: 942, height: 130 } }],
     ['sans width', { ...ACCEPTED_PROBES, 'p100-probe-sans': { width: 900, height: 130 } }],
     ['bold height', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 1303, height: 133 } }],
     // A Roboto variable font rendered at its default instance (engines that do not apply the face's
@@ -360,7 +362,7 @@ describe('first-paint boot gate', () => {
   });
 
   // Boxes of the Roboto faces measured in Chromium: the Android 11 static files and the Android 12+
-  // variable font (shell.css).
+  // variable font (shell.css), the latter as rendered at a 2.625 device pixel ratio.
   it.each([
     [
       'static',
@@ -373,9 +375,9 @@ describe('first-paint boot gate', () => {
     [
       'variable',
       {
-        'p100-probe-display': { width: 611.17, height: 120 },
-        'p100-probe-sans': { width: 934.12, height: 130 },
-        'p100-probe-sans-bold': { width: 1301.14, height: 130 },
+        'p100-probe-display': { width: 613.33, height: 120 },
+        'p100-probe-sans': { width: 934.86, height: 130.3 },
+        'p100-probe-sans-bold': { width: 1301.33, height: 130.3 },
       },
     ],
   ])('shows the shell with the Roboto fallback faces (%s)', (_, probes) => {
