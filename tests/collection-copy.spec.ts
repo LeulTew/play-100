@@ -28,7 +28,11 @@ for (const width of [320, 393, 768, 1440]) {
     for (const view of ['grid', 'list', 'table']) {
       await page.goto(`/?catalogs=off&view=${view}&q=Red%20Dead%20Redemption%202`);
       await expect(page.locator('.result-summary [role="status"]')).toHaveText('1 in The 100 · 4 beyond The 100');
-      await expect(page.getByRole('heading', { name: 'The collection, 100', exact: true })).toBeVisible();
+      const heading = page.getByRole('heading', { name: 'The collection, 100', exact: true });
+      await expect(heading).toBeVisible();
+      // G7-UX COPY-001: the count reads as a phrase; narrow layouts set it as the title's caption.
+      await expect(heading).toHaveText('The collection · 100 games');
+      expect(await heading.innerText()).toBe(width <= 760 ? 'The collection\n100 games' : 'The collection · 100 games');
       const summary = page.locator('.collection-filters > summary');
       if (width <= 760) {
         await expect(summary).toBeVisible();

@@ -281,6 +281,14 @@ html[data-motion='off']
   .collection-title-line h2 {
     font-size: 34px;
   }
+  /* Too narrow to keep the count beside the title and the share action, so it becomes the title's caption. */
+  .collection-title-line h2 > span {
+    display: block;
+    margin: 2px 0 0;
+  }
+  .collection-title-line .title-separator {
+    display: none;
+  }
   .share-view {
     font-size: 12px;
     gap: 7px;
@@ -752,7 +760,6 @@ html[data-motion='off']
     font-size: 31px;
   }
   .collection-title-line h2 > span {
-    margin-left: 7px;
     font-size: 12px;
   }
   .share-view {

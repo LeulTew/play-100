@@ -227,6 +227,8 @@ Keep search, original-data filters, sorting and device-list controls legible and
 
 The Display layout switch draws its inactive icons in `muted` (5.4:1 at rest, 4.8:1 under the pointer's hover fill). The active view keeps its ink icon and pale fill, and adds a 2px ink underline, as the collection tabs mark theirs, so it stays distinct from a hovered neighbour.
 
+The collection heading reads "The collection · 100 games": the count is a small muted phrase on the title's baseline, not a superscript token. Up to 760px it becomes the title's caption line, without the separator. Its accessible name stays "The collection, 100".
+
 Discover's four primary filters share SelectField's existing progress-filter
 treatment: 12px labels, 48px native selects, `control-border` edges and
 soft-white fill. The mobile filter disclosure and optional exact-source-genre

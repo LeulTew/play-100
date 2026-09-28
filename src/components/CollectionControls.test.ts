@@ -64,6 +64,8 @@ describe('collection result scope and accessible names', () => {
     if (beyond) expect(html).toContain(` · ${beyond} beyond The 100`);
     expect(html).not.toContain('games found');
     expect(html).toContain('aria-label="The collection, 100"');
+    // G7-UX COPY-001: the count reads as a phrase, not a token attached to the title.
+    expect(html).toContain('>The collection <span><span class="title-separator">·</span> 100 games</span></h2>');
     expect(html).toContain(`aria-label="All games, ${beyond}"`);
     expect(html).toContain('aria-label="Play later, 0"');
     expect(html).toContain('aria-label="Completed, 0"');

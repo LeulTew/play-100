@@ -109,7 +109,10 @@ export function CollectionControls({
     <>
       <div className="collection-title-line">
         <Heading id="collection-title" tabIndex={-1} aria-label="The collection, 100">
-          The collection<span>100</span>
+          The collection{' '}
+          <span>
+            <span className="title-separator">·</span> 100 games
+          </span>
         </Heading>
         <button className="text-button share-view" onClick={onShare}>
           <Icon name="share" />
