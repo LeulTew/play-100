@@ -18,6 +18,7 @@ import { accountScope } from '../lib/cloud-types';
 import { useComparisonGameFilter } from '../hooks/useComparisonGameFilter';
 import { COMPARISON_GAMES_EVENT } from '../lib/comparison-game-filter';
 import { FriendComparisonLoader } from './FriendComparisonLoader';
+import { initialPeopleDisclosure, usePeopleDisclosure } from './compare-disclosures';
 
 export function FriendComparisonPage({
   store,
@@ -63,11 +64,6 @@ export function FriendComparisonPage({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [refreshGroupId, setRefreshGroupId] = useState<string | null>(null);
-  const [peopleDisclosure, setPeopleDisclosure] = useState(() => ({
-    initialized: !requestedGroup,
-    touched: false,
-    open: !requestedGroup && (restored?.selected.length ?? 1) < 2,
-  }));
   const [coverageOpen, setCoverageOpen] = useState(false);
   const coverageDisclosure = useRef<HTMLDetailsElement>(null);
   const groupCreationId = useRef<string | null>(null);
@@ -186,18 +182,14 @@ export function FriendComparisonPage({
     return () => window.removeEventListener(COMPARISON_GAMES_EVENT, transition);
   }, [scope, uid]);
   // The people chooser opens itself once the view is known, and again whenever fewer than two people are chosen.
-  const [disclosed, setDisclosed] = useState<{ viewReady: boolean; count: number } | null>(null);
-  if (disclosed?.viewReady !== viewReady || disclosed.count !== selected.length) {
-    setDisclosed({ viewReady, count: selected.length });
-    if (viewReady)
-      setPeopleDisclosure((current) =>
-        !current.initialized
-          ? { ...current, initialized: true, open: current.touched ? current.open : selected.length < 2 }
-          : selected.length < 2 && !current.open
-            ? { ...current, open: true }
-            : current,
-      );
-  }
+  const {
+    open: peopleOpen,
+    chooserRef: peopleRef,
+    onToggle: onPeopleToggle,
+    chooseGroup: choosePeopleForGroup,
+  } = usePeopleDisclosure(viewReady, selected.length, () =>
+    initialPeopleDisclosure(!requestedGroup, !requestedGroup && (restored?.selected.length ?? 1) < 2),
+  );
   useEffect(() => {
     if (viewReady && currentUid.current === uid && cloudAuth.currentUser?.uid === uid) {
       rememberComparisonView({ version: 1, scope, selected, mode, query, page, groupId: group?.id ?? null });
@@ -309,7 +301,7 @@ export function FriendComparisonPage({
     setSelected(value.participantUids);
     setPage(1);
     setViewReady(true);
-    setPeopleDisclosure({ initialized: true, touched: false, open: value.participantUids.length < 2 });
+    choosePeopleForGroup(value.participantUids.length);
     routeGroup(value.id);
   };
   const run = async (operation: () => Promise<void>) => {
@@ -365,14 +357,7 @@ export function FriendComparisonPage({
           Opening comparison group…
         </p>
       )}
-      <details
-        className="compare-people-disclosure"
-        open={peopleDisclosure.open}
-        onToggle={(event) => {
-          const open = event.currentTarget.open;
-          setPeopleDisclosure((current) => (current.open === open ? current : { ...current, open, touched: true }));
-        }}
-      >
+      <details ref={peopleRef} className="compare-people-disclosure" open={peopleOpen} onToggle={onPeopleToggle}>
         <summary>Change people</summary>
         {!viewReady ? (
           <p>Wait for this group to finish opening before changing people.</p>
