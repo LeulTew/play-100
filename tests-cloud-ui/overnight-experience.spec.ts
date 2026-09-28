@@ -275,12 +275,9 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
   await card(page, ids[6]!)
     .getByRole('button', { name: /^Pin for comparison: / })
     .click();
-  // The closed tray sheet also renders the dismissible message; assert the visible dock copy.
-  await expect(
-    page
-      .getByRole('complementary', { name: 'Pinned games for comparison', exact: true })
-      .locator('.compare-tray-error'),
-  ).toContainText('six games');
+  const refusal = page.locator('.toast-visible');
+  await expect(refusal).toBeVisible();
+  await expect(refusal).toContainText('The Compare tray holds six games.');
   expect((await readLibrary(page)).records).toEqual({});
   await page.reload();
   await expect(page.getByRole('button', { name: '6 games in Compare tray', exact: true })).toBeVisible();
