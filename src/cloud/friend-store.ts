@@ -82,8 +82,8 @@ export { FRIEND_CANCEL_COOLDOWN_MS, FRIEND_REQUEST_COOLDOWN_MS } from './friend-
 
 // A method that delegates runs the function of the same name in its concern's friend-* module. That function calls
 // other store methods through the store, as the method did, so a patched FriendStore.prototype method still
-// intercepts those calls. The helpers such functions need are public for that reason; the private methods they need
-// stay private and are called as store['name'](...).
+// intercepts those calls. The helpers and internal steps those functions call are public for that reason, though only
+// those modules and the store itself call them.
 export class FriendStore {
   constructor(readonly db: Firestore) {}
   ref(collectionName: string, uid: string): DocumentReference<DocumentData> {
@@ -203,7 +203,7 @@ export class FriendStore {
   ): () => void {
     return this.watch(this.pairRef(uid, otherUid), parseFriendPair, next, error);
   }
-  private relationsQuery(uid: string, state?: FriendPairState, cursor?: FriendCursor): Query<DocumentData> {
+  relationsQuery(uid: string, state?: FriendPairState, cursor?: FriendCursor): Query<DocumentData> {
     return relationsQuery(this, uid, state, cursor);
   }
   listRelations(uid: string, state?: FriendPairState, cursor?: FriendCursor): Promise<FriendPage<FriendPair>> {
@@ -217,7 +217,7 @@ export class FriendStore {
   ): () => void {
     return watchRelations(this, uid, state, next, error);
   }
-  private touchPairCount(tx: Transaction, uid: string, id: string, created: boolean) {
+  touchPairCount(tx: Transaction, uid: string, id: string, created: boolean) {
     return touchPairCount(this, tx, uid, id, created);
   }
   releasePair(uid: string, otherUid: string, expectedEpoch?: number): Promise<boolean> {
@@ -254,7 +254,7 @@ export class FriendStore {
       cursor = rows.docs.at(-1);
     }
   }
-  private async withPairCapacity<T>(uid: string, operation: () => Promise<T>): Promise<T> {
+  async withPairCapacity<T>(uid: string, operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();
     } catch (cause) {
@@ -280,7 +280,7 @@ export class FriendStore {
   unblock(uid: string, otherUid: string): Promise<void> {
     return unblock(this, uid, otherUid);
   }
-  private releaseBlock(uid: string, otherUid: string, quotaAvailable?: boolean): Promise<void> {
+  releaseBlock(uid: string, otherUid: string, quotaAvailable?: boolean): Promise<void> {
     return releaseBlock(this, uid, otherUid, quotaAvailable);
   }
   listBlocks(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendBlock>> {
@@ -356,7 +356,7 @@ export class FriendStore {
   private cleanupGenerations(uid: string, preserveHead: boolean): Promise<number> {
     return cleanupGenerations(this, uid, preserveHead);
   }
-  private releaseMissingQuotaIds(uid: string, kind: SlotQuotaKind): Promise<'empty' | 'more' | 'blocked'> {
+  releaseMissingQuotaIds(uid: string, kind: SlotQuotaKind): Promise<'empty' | 'more' | 'blocked'> {
     return releaseMissingQuotaIds(this, uid, kind);
   }
   cleanupDeleted(uid: string): Promise<FriendCleanupResult> {

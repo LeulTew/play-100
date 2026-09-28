@@ -32,9 +32,8 @@ import { conflict, errorValue, online, page } from './friend-store-core';
 
 // Friendship pairs and blocks, which FriendStore's methods of the same names run: listing and watching relations,
 // sending and answering requests, releasing a pair, and blocking. A call to another store method goes through the
-// store, as when these were its own methods, so a patched FriendStore.prototype method still intercepts it. The store's
-// private methods are called as store['name'](...), which TypeScript allows, so they stay private. friend-store.ts
-// re-exports the cooldowns.
+// store, as when these were its own methods, so a patched FriendStore.prototype method still intercepts it.
+// friend-store.ts re-exports the cooldowns.
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 /** After cancelling, the sender waits this long before requesting again or releasing the pair (rules fPairAction). */
@@ -63,7 +62,7 @@ export async function listRelations(
   state?: FriendPairState,
   cursor?: FriendCursor,
 ): Promise<FriendPage<FriendPair>> {
-  const result = await getDocsFromServer(store['relationsQuery'](uid, state, cursor));
+  const result = await getDocsFromServer(store.relationsQuery(uid, state, cursor));
   return page(result.docs, (row) => parseFriendPair(row.data()));
 }
 export function watchRelations(
@@ -74,7 +73,7 @@ export function watchRelations(
   error: (cause: Error) => void,
 ): () => void {
   return onSnapshot(
-    store['relationsQuery'](uid, state),
+    store.relationsQuery(uid, state),
     { includeMetadataChanges: true },
     (result) => {
       if (result.metadata.fromCache || result.metadata.hasPendingWrites) return;
@@ -129,7 +128,7 @@ export async function sendRequest(store: FriendStore, uid: string, otherUid: str
   online();
   await store.graphReady(uid);
   const counted = await quotaSupported(quotaRef(store.db, uid, 'pairs'));
-  const epoch = await store['withPairCapacity'](uid, () =>
+  const epoch = await store.withPairCapacity(uid, () =>
     runTransaction(store.db, async (tx) => {
       online();
       const snap = await tx.get(ref);
@@ -156,7 +155,7 @@ export async function sendRequest(store: FriendStore, uid: string, otherUid: str
         throw new FriendStoreError('request-unavailable', recentlyCancelled);
       }
       const [a, b] = [uid, otherUid].sort();
-      if (counted) await store['touchPairCount'](tx, uid, ref.id, current === null);
+      if (counted) await store.touchPairCount(tx, uid, ref.id, current === null);
       tx.set(ref, {
         format: current?.format ?? (counted ? 2 : 1),
         ...(current?.format === 2
@@ -212,7 +211,7 @@ export async function respond(
           : action === 'cancel'
             ? 'cancelled'
             : 'removed';
-    if (counted) await store['touchPairCount'](tx, uid, ref.id, false);
+    if (counted) await store.touchPairCount(tx, uid, ref.id, false);
     tx.update(ref, { state, epoch: current.epoch + 1, inviteSlot: null, updatedAt: serverTimestamp() });
   });
   return store.afterCommit({ operation: 'respond', uid, otherUid, epoch: expectedEpoch + 1 }, async () => {
@@ -255,7 +254,7 @@ export async function unblock(store: FriendStore, uid: string, otherUid: string)
   friendPairId(uid, otherUid);
   online();
   await store.graphReady(uid);
-  await store['releaseBlock'](uid, otherUid);
+  await store.releaseBlock(uid, otherUid);
 }
 export async function releaseBlock(
   store: FriendStore,

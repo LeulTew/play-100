@@ -28,8 +28,7 @@ import { conflict, online, page } from './friend-store-core';
 
 // Invitation links, which FriendStore's methods of the same names run: creating, previewing, listing, revoking and
 // accepting them. A call to another store method goes through the store, as when these were its own methods, so a
-// patched FriendStore.prototype method still intercepts it. The store's private methods are called as
-// store['name'](...), which TypeScript allows, so they stay private.
+// patched FriendStore.prototype method still intercepts it.
 
 function unavailableInvite(cause: unknown): never {
   if (
@@ -217,7 +216,7 @@ export async function acceptInvite(store: FriendStore, uid: string, tokenInput: 
     if (invite.expiresAt <= Date.now())
       throw new FriendStoreError('invite-unavailable', 'This invitation has expired. Ask for a new link.');
     commitStarted = true;
-    accepted = await store['withPairCapacity'](uid, () =>
+    accepted = await store.withPairCapacity(uid, () =>
       runTransaction(store.db, async (tx) => {
         online();
         const ref = store.pairRef(uid, ownerUid);
@@ -225,7 +224,7 @@ export async function acceptInvite(store: FriendStore, uid: string, tokenInput: 
         const current = pair.exists() ? parseFriendPair(pair.data()) : null;
         if (current?.state === 'accepted') conflict('You are already friends.');
         const [a, b] = [uid, ownerUid].sort();
-        if (counted) await store['touchPairCount'](tx, uid, ref.id, current === null);
+        if (counted) await store.touchPairCount(tx, uid, ref.id, current === null);
         tx.set(ref, {
           format: current?.format ?? (counted ? 2 : 1),
           ...(current?.format === 2

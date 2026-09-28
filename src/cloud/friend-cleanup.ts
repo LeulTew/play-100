@@ -33,8 +33,7 @@ import { conflict, online } from './friend-store-core';
 
 // Exporting a member's friend data and deleting it with the account, which FriendStore's methods of the same names
 // run, and the shared-copy cleanup behind cleanupSharing and pruneSharing. A call to another store method goes through
-// the store, as when these were its own methods, so a patched FriendStore.prototype method still intercepts it. The
-// store's private methods are called as store['name'](...), which TypeScript allows, so they stay private.
+// the store, as when these were its own methods, so a patched FriendStore.prototype method still intercepts it.
 
 const EXPORT_PAGE_LIMIT = 100;
 // Pages one collection only until its own last page; a failed sibling stream stops further reads.
@@ -191,7 +190,7 @@ export async function cleanupDeleted(store: FriendStore, uid: string): Promise<F
     quotaSupported(pairQuota),
   ]);
   const [relations, groups, blocks, invites] = await Promise.all([
-    getDocsFromServer(store['relationsQuery'](uid)),
+    getDocsFromServer(store.relationsQuery(uid)),
     store.listGroups(uid),
     store.listBlocks(uid),
     getDocsFromServer(
@@ -208,7 +207,7 @@ export async function cleanupDeleted(store: FriendStore, uid: string): Promise<F
     deleted += 1;
   }
   for (const block of blocks.items) {
-    await store['releaseBlock'](uid, block.uid, blocksCounted);
+    await store.releaseBlock(uid, block.uid, blocksCounted);
     deleted += 1;
   }
   let inviteCount = invites.size;
@@ -251,7 +250,7 @@ export async function cleanupDeleted(store: FriendStore, uid: string): Promise<F
         ['blocks', blocksCounted],
       ] as const) {
         if (!counted) continue;
-        const result = await store['releaseMissingQuotaIds'](uid, kind);
+        const result = await store.releaseMissingQuotaIds(uid, kind);
         if (result === 'blocked')
           return {
             deleted,
