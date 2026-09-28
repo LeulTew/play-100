@@ -35,7 +35,7 @@ export interface MotionLocation {
 }
 
 export type PublicMotionVisual =
-  | { readonly kind: 'jacket'; readonly rank: number }
+  | { readonly kind: 'jacket'; readonly rank: number; readonly variant?: number }
   | {
       readonly kind: 'catalog-art';
       readonly src: `/images/discovery/${string}.webp`;
@@ -73,6 +73,7 @@ export interface MotionDetailIntent {
 
 export interface MotionFrame {
   readonly transform?: string;
+  readonly clipPath?: string;
   readonly opacity?: number;
   readonly offset?: number;
 }

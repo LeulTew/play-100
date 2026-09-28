@@ -35,8 +35,14 @@ export function createCatalogMotionVisual(
 
 export function copyPublicMotionVisual(visual: PublicMotionVisual): PublicMotionVisual | null {
   if (visual.kind === 'catalog-art') return createCatalogMotionVisual(visual);
-  return Number.isInteger(visual.rank) && visual.rank >= 1 && visual.rank <= 100
-    ? { kind: 'jacket', rank: visual.rank }
+  const variant = visual.variant ?? visual.rank % 5;
+  return Number.isInteger(visual.rank) &&
+    visual.rank >= 1 &&
+    visual.rank <= 100 &&
+    Number.isInteger(variant) &&
+    variant >= 0 &&
+    variant <= 4
+    ? { kind: 'jacket', rank: visual.rank, variant }
     : null;
 }
 
@@ -67,14 +73,52 @@ export function fitMotionVisual(visual: PublicMotionVisual, rect: MotionRect): M
   return { x: rect.x + (rect.width - width) / 2, y: rect.y + (rect.height - height) / 2, width, height };
 }
 
-export function motionTransform(from: MotionRect, to: MotionRect): string {
-  return `translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${from.width / to.width}, ${from.height / to.height})`;
+export function motionTransform(from: MotionRect, to: MotionRect, jacket = false): string {
+  const x = from.width / to.width;
+  const y = from.height / to.height;
+  const scale = Math.max(x, y);
+  return jacket
+    ? `translate(${from.x - to.x}px, ${from.y - to.y + from.height - to.height * scale}px) scale(${scale}, ${scale})`
+    : `translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${x}, ${y})`;
+}
+
+export function jacketMotionClip(from: MotionRect, to: MotionRect): string {
+  const scale = Math.max(from.width / to.width, from.height / to.height);
+  // Crop the top/right surplus so the printed badge remains at the lower-left corner.
+  const top = Math.max(0, to.height - from.height / scale);
+  const right = Math.max(0, to.width - from.width / scale);
+  return `inset(${top}px ${right}px 0px 0px)`;
+}
+
+function copyJacketDrawing(source: HTMLElement | undefined): SVGSVGElement | null {
+  const original = source?.querySelector('svg.jacket-drawing');
+  if (!original || original.textContent?.trim()) return null;
+  const drawing = original.cloneNode(true);
+  if (!(drawing instanceof SVGSVGElement)) return null;
+  // Copy authored vector geometry only, never image links, handlers or arbitrary source content.
+  for (const element of [drawing, ...drawing.querySelectorAll('*')]) {
+    if (!['svg', 'g', 'path', 'circle', 'ellipse'].includes(element.localName)) {
+      element.remove();
+      continue;
+    }
+    for (const attribute of [...element.attributes]) {
+      if (
+        !/^(viewBox|fill|stroke|stroke-width|d|cx|cy|r|rx|ry|transform|opacity)$/.test(attribute.name) ||
+        (/^(fill|stroke)$/.test(attribute.name) && !/^(none|currentColor)$/.test(attribute.value))
+      )
+        element.removeAttribute(attribute.name);
+    }
+  }
+  drawing.setAttribute('class', 'jacket-drawing');
+  drawing.setAttribute('aria-hidden', 'true');
+  return drawing;
 }
 
 export function createPublicMotionElement(
   visual: PublicMotionVisual,
   rect: MotionRect,
   phase: 'enter' | 'return',
+  source?: HTMLElement,
 ): HTMLElement {
   const element = document.createElement('div');
   element.className = 'motion-public-visual';
@@ -89,10 +133,13 @@ export function createPublicMotionElement(
     height: `${rect.height}px`,
   });
   if (visual.kind === 'jacket') {
+    element.classList.add(`jacket-${visual.variant ?? visual.rank % 5}`);
+    if (source?.matches('.has-cover') || source?.querySelector('.has-cover')) element.classList.add('has-cover');
+    const drawing = copyJacketDrawing(source);
+    if (drawing) element.append(drawing);
     const rank = document.createElement('span');
-    rank.className = 'motion-public-rank';
+    rank.className = 'cover-rank';
     rank.textContent = String(visual.rank).padStart(2, '0');
-    rank.style.fontSize = `${Math.min(rect.width, rect.height) * 0.65}px`;
     element.append(rank);
   } else {
     const image = document.createElement('img');

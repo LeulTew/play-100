@@ -3,6 +3,7 @@ import {
   copyPublicMotionVisual,
   createCatalogMotionVisual,
   fitMotionVisual,
+  jacketMotionClip,
   MOTION_TIMINGS,
   motionTransform,
   visibleMotionRect,
@@ -40,9 +41,17 @@ describe('public-only motion descriptors', () => {
     expect(createCatalogMotionVisual({ src, width: 320, height: value })).toBeNull();
   });
 
-  it('allows only a public canonical rank for the first-party sleeve', () => {
-    expect(copyPublicMotionVisual({ kind: 'jacket', rank: 7 })).toEqual({ kind: 'jacket', rank: 7 });
+  it('keeps the canonical rank and bounded jacket variant, without unrelated metadata', () => {
+    expect(copyPublicMotionVisual({ kind: 'jacket', rank: 7 })).toEqual({ kind: 'jacket', rank: 7, variant: 2 });
+    for (let variant = 0; variant < 5; variant++)
+      expect(copyPublicMotionVisual({ kind: 'jacket', rank: 7, variant })).toEqual({
+        kind: 'jacket',
+        rank: 7,
+        variant,
+      });
     for (const rank of [0, 101, 1.5, NaN]) expect(copyPublicMotionVisual({ kind: 'jacket', rank })).toBeNull();
+    for (const variant of [-1, 5, 1.5, NaN])
+      expect(copyPublicMotionVisual({ kind: 'jacket', rank: 7, variant })).toBeNull();
   });
 
   it('does not enlarge a catalog bitmap beyond its supplied native dimensions', () => {
@@ -88,5 +97,14 @@ describe('public-only motion descriptors', () => {
     expect(motionTransform({ x: 20, y: 30, width: 100, height: 80 }, { x: 320, y: 130, width: 200, height: 160 })).toBe(
       'translate(-300px, -100px) scale(0.5, 0.5)',
     );
+  });
+
+  it('uses uniform sleeve scale and crops surplus above or right of the corner badge', () => {
+    const from = { x: 20, y: 30, width: 100, height: 40 };
+    const to = { x: 320, y: 130, width: 200, height: 160 };
+    expect(motionTransform(from, to, true)).toBe('translate(-300px, -140px) scale(0.5, 0.5)');
+    expect(jacketMotionClip(from, to)).toBe('inset(80px 0px 0px 0px)');
+    expect(jacketMotionClip({ ...from, height: 80 }, { ...to, height: 100 })).toBe('inset(0px 75px 0px 0px)');
+    expect(jacketMotionClip(to, to)).toBe('inset(0px 0px 0px 0px)');
   });
 });

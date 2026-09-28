@@ -247,6 +247,46 @@ async function readyMotionCatalog(page: Page) {
   return { card, opener };
 }
 
+test('a canonical Discover flight retains its authored sleeve instead of catalog bitmap treatment', async ({
+  page,
+}) => {
+  await readyMotionCatalog(page);
+  await page.goto('/discover?q=mass%20effect%202&include100=on&catalogs=off');
+  const card = page.locator('[data-catalog-id="mass-effect-2"]');
+  const source = card.locator('.game-cover');
+  await expect(source).toBeVisible();
+  const background = await source.evaluate((node) => getComputedStyle(node).backgroundColor);
+  await page.evaluate(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (frames, options) {
+      const animation = animate.call(this, frames, options);
+      if (this.matches('[data-motion-visual="jacket"][data-motion-phase="enter"]')) {
+        animation.pause();
+        animation.currentTime = 0;
+      }
+      return animation;
+    };
+  });
+  await card.getByRole('button', { name: 'Mass Effect 2', exact: true }).click();
+  const sprite = page.locator('[data-motion-visual="jacket"][data-motion-phase="enter"]');
+  await expect(sprite).toHaveCount(1);
+  await expect(sprite).toHaveClass(/\bjacket-2\b/);
+  await expect(sprite).toHaveCSS('background-color', background);
+  await expect(sprite.locator('.jacket-drawing')).toHaveCount(1);
+  await expect(sprite.locator('.cover-rank')).toHaveText('02');
+  await expect(sprite.locator('img, image')).toHaveCount(0);
+  const scale = await sprite.evaluate((element) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
+    return { x: matrix.a, y: matrix.d };
+  });
+  expect(scale.x).toBeCloseTo(scale.y, 5);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(sprite).toHaveCount(0);
+  await expect(page.locator('#game-title')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+});
+
 test('motion-enabled pointer and keyboard previews retain immediate native close and rapid reopen', async ({
   page,
   isMobile,
@@ -332,9 +372,14 @@ async function pauseArtworkEntry(page: Page, isMobile: boolean, failMovement = f
         const sprite = document.querySelector(movement);
         const destination = document.querySelector('.catalog-detail-sleeve');
         if (!sprite || !destination) throw new Error('Both decorative surfaces must be present during the handoff.');
+        const style = getComputedStyle(sprite);
+        const matrix = new DOMMatrixReadOnly(style.transform);
         return {
-          sprite: Number(getComputedStyle(sprite).opacity),
+          sprite: Number(style.opacity),
           destination: Number(getComputedStyle(destination).opacity),
+          scaleX: matrix.a,
+          scaleY: matrix.d,
+          clip: style.clipPath,
         };
       },
       async finish() {
@@ -378,6 +423,10 @@ test('provider entry hands off opacity without changing the settled artwork', as
     expect(samples.some((sample) => sample.destination > 0.5)).toBe(true);
     expect(samples.every((sample) => sample.sprite <= 0.5 || sample.destination <= 0.5)).toBe(true);
     expect(samples.every((sample) => sample.sprite + sample.destination >= 0.95)).toBe(true);
+    for (const sample of samples) {
+      expect(sample.scaleX).toBeCloseTo(sample.scaleY, 5);
+      expect(sample.clip).toBe('none');
+    }
     await expect(dialog.locator('.dialog-inner')).toHaveCSS('opacity', '1');
     await expect(dialog.locator('.detail-actions')).toHaveCSS('opacity', '1');
     await expect(dialog.locator('.catalog-detail-art-credits')).toHaveCSS('opacity', '1');

@@ -74,8 +74,8 @@ test.afterEach(async ({ page }, info) => {
   expect(await page.evaluate(() => window.__collectionMotionProbe.errors)).toEqual([]);
 });
 
-async function prepareSource(page: Page) {
-  const link = page.locator(`${firstCard} .game-link`);
+async function prepareSource(page: Page, card = firstCard) {
+  const link = page.locator(`${card} .game-link`);
   await expect(link).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'on');
   await page.evaluate(() => document.fonts.ready);
@@ -109,8 +109,14 @@ async function expectStationaryEditor(input: Locator) {
 }
 
 async function expectBounds(element: Locator, expected: { x: number; y: number; width: number; height: number }) {
-  const actual = await element.boundingBox();
-  if (!actual) throw new Error('The public sleeve has no measurable bounds');
+  const actual = await element.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const [top = 0, right = 0] = style.clipPath.match(/[\d.]+(?=px)/g)?.map(Number) ?? [];
+    const scaleX = box.width / parseFloat(style.width);
+    const scaleY = box.height / parseFloat(style.height);
+    return { x: box.x, y: box.y + top * scaleY, width: box.width - right * scaleX, height: box.height - top * scaleY };
+  });
   for (const key of ['x', 'y', 'width', 'height'] as const) {
     expect(Math.abs(actual[key] - expected[key]), `Public sleeve ${key}`).toBeLessThanOrEqual(2);
   }
@@ -182,6 +188,73 @@ test('one public sleeve connects measured endpoints and returns only after nativ
   await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
   await expect(link).toBeFocused();
 });
+
+for (const rank of [1, 2, 3, 4, 5]) {
+  test(`rank ${rank} keeps its sleeve colour, drawing and corner badge through flight`, async ({ page }) => {
+    await page.goto('/?catalogs=off');
+    const card = `.game-card:nth-child(${rank})`;
+    const link = await prepareSource(page, card);
+    const source = link.locator('.game-cover');
+    const identity = await source.evaluate((node) => ({
+      background: getComputedStyle(node).backgroundColor,
+      ink: getComputedStyle(node).color,
+      drawing: node.querySelector('.jacket-drawing')!.innerHTML,
+    }));
+    await page.evaluate(() => {
+      window.__collectionMotionProbe.hold = true;
+      window.__collectionMotionProbe.holdReturn = true;
+    });
+    await link.click();
+    const sprite = page.locator('[data-motion-visual="jacket"][data-motion-phase="enter"]');
+    await expect(sprite).toHaveCount(1);
+    await expect(sprite).toHaveClass(new RegExp(`\\bjacket-${rank % 5}\\b`));
+    await expect(sprite).toHaveCSS('background-color', identity.background);
+    await expect(sprite).toHaveCSS('color', identity.ink);
+    expect(await sprite.locator('.jacket-drawing').innerHTML()).toBe(identity.drawing);
+    await expect(sprite.locator('img, image, foreignObject, script, [href], [id], input, button')).toHaveCount(0);
+    await expect(sprite.locator('.cover-rank')).toHaveText(String(rank).padStart(2, '0'));
+    const frames = await sprite.evaluate((node) => {
+      const animation = node.getAnimations()[0];
+      const duration = animation?.effect?.getTiming().duration;
+      if (!animation || typeof duration !== 'number') throw new Error('The sleeve must have a timed flight.');
+      return [0, 0.4, 0.8].map((progress) => {
+        animation.currentTime = duration * progress;
+        const style = getComputedStyle(node);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const sleeve = node.getBoundingClientRect();
+        const badge = node.querySelector('.cover-rank')!.getBoundingClientRect();
+        return {
+          scaleX: matrix.a,
+          scaleY: matrix.d,
+          left: badge.left - sleeve.left,
+          bottom: badge.bottom - sleeve.bottom,
+          clip: style.clipPath,
+        };
+      });
+    });
+    for (const frame of frames) {
+      expect(frame.scaleX).toBeCloseTo(frame.scaleY, 5);
+      expect(Math.abs(frame.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(frame.bottom)).toBeLessThanOrEqual(1);
+      expect(frame.clip).toMatch(/^inset\(/);
+    }
+    await sprite.evaluate((node) => node.getAnimations()[0]!.finish());
+    await expect(sprite).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    const returning = page.locator('[data-motion-visual="jacket"][data-motion-phase="return"]');
+    await expect(returning).toHaveCount(1);
+    await expect(returning).toHaveCSS('background-color', identity.background);
+    expect(await returning.locator('.jacket-drawing').innerHTML()).toBe(identity.drawing);
+    await returning.evaluate((node) => node.getAnimations()[0]!.finish());
+    await expect(returning).toHaveCount(0);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
+    await link.click();
+    await expect(page.locator('.game-dialog')).toBeVisible();
+    await expect(page.locator('[data-motion-visual]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+  });
+}
 
 for (const view of ['grid', 'list'] as const) {
   test(`${view} public continuity never makes the live editor wait for animation`, async ({ page }) => {

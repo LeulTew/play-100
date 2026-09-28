@@ -2,6 +2,7 @@ import {
   copyPublicMotionVisual,
   createPublicMotionElement,
   fitMotionVisual,
+  jacketMotionClip,
   MOTION_EASING,
   MOTION_ORIGIN_TTL,
   MOTION_TIMINGS,
@@ -101,9 +102,17 @@ function publicTarget(element: HTMLElement | null): element is HTMLElement {
 }
 
 function measure(element: HTMLElement): MotionRect | null {
-  if (!element.isConnected || getComputedStyle(element).visibility !== 'visible') return null;
+  if (!element.isConnected) return null;
+  const style = getComputedStyle(element);
+  if (style.visibility !== 'visible') return null;
   const { x, y, width, height } = element.getBoundingClientRect();
-  const rect = { x, y, width, height };
+  let rect = { x, y, width, height };
+  if (element.dataset.motionVisual === 'jacket') {
+    const [top = 0, right = 0] = style.clipPath.match(/[\d.]+(?=px)/g)?.map(Number) ?? [];
+    const cropTop = (top * height) / parseFloat(style.height);
+    const cropRight = (right * width) / parseFloat(style.width);
+    rect = { x, y: y + cropTop, width: width - cropRight, height: height - cropTop };
+  }
   return visibleMotionRect(rect, window.innerWidth, window.innerHeight) ? rect : null;
 }
 
@@ -690,7 +699,8 @@ export function createMotionRuntime(
       finishOrigin(entry);
       return null;
     }
-    const sprite = createPublicMotionElement(entry.hint.visual, to, phase);
+    const jacket = entry.hint.visual.kind === 'jacket';
+    const sprite = createPublicMotionElement(entry.hint.visual, to, phase, entry.hint.source.deref());
     entry.sprite = sprite;
     entry.interrupted = undefined;
     host.append(sprite);
@@ -709,9 +719,13 @@ export function createMotionRuntime(
     const movement = session.animate(
       sprite,
       [
-        { transform: motionTransform(from, to), opacity: 0.96 },
-        { transform: 'none', opacity: 0.96, offset: handoff },
-        { transform: 'none', opacity: 0 },
+        {
+          transform: motionTransform(from, to, jacket),
+          ...(jacket ? { clipPath: jacketMotionClip(from, to) } : {}),
+          opacity: 0.96,
+        },
+        { transform: 'none', ...(jacket ? { clipPath: 'inset(0px)' } : {}), opacity: 0.96, offset: handoff },
+        { transform: 'none', ...(jacket ? { clipPath: 'inset(0px)' } : {}), opacity: 0 },
       ],
       timing,
     );

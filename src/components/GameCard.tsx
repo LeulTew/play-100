@@ -73,7 +73,7 @@ export function GameCard({
                 presentationId: game.slug,
                 source,
                 trigger: event.currentTarget,
-                visual: { kind: 'jacket', rank: game.rank },
+                visual: { kind: 'jacket', rank: game.rank, variant: game.rank % 5 },
               })
             : null;
           onOpen(game.slug, origin ?? undefined);

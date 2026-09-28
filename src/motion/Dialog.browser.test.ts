@@ -100,7 +100,7 @@ function prepare() {
   const hint = runtime.originHint({
     surface: 'collection', presentationId: 'game-one',
     source: document.getElementById('source-art'), trigger: document.getElementById('source-trigger'),
-    visual: { kind: 'jacket', rank: 7 },
+    visual: { kind: 'jacket', rank: 7, variant: 1 },
   });
   lease = hint ? runtime.captureOrigin(hint, {
     requestedDetailKey: 'game-one', displayedDetailKey: 'game-one',
@@ -197,7 +197,7 @@ window.motionFixture = {
     const hint = runtime.originHint({
       surface: 'collection', presentationId: 'game-one',
       source: document.getElementById('source-art'), trigger: document.getElementById('source-trigger'),
-      visual: { kind: 'jacket', rank: 7 },
+      visual: { kind: 'jacket', rank: 7, variant: 1 },
     });
     return hint !== null && runtime.captureOrigin(hint, {
       requestedDetailKey: 'game-one', displayedDetailKey: 'game-one',
@@ -229,7 +229,7 @@ window.motionFixture = {
     const trigger = document.getElementById('source-trigger');
     const hint = isolated.originHint({
       surface: 'collection', presentationId: 'isolated-game', source, trigger,
-      visual: { kind: 'jacket', rank: 7 },
+      visual: { kind: 'jacket', rank: 7, variant: 1 },
     });
     if (!hint) throw new Error('The isolated visible source could not supply a motion hint.');
     const captured = isolated.captureOrigin(hint, {

@@ -526,8 +526,14 @@ rating panel, before the unchanged jacket and rationale. The row remains in
 normal flow; its native actions and focus guards do not depend on scrolling.
 
 The signature interaction is one public game sleeve moving from its source
-into the existing native detail, with the actual form stationary. Fine-pointer
-entry/return limits are 240/160ms; coarse-pointer limits are 220/160ms. Use the
+into the existing native detail, with the actual form stationary and with its
+authored jacket colour, vector drawing and lower-left rank badge.
+Only the allowlisted SVG geometry is copied; no workbook bitmap, source title,
+editor or event handler enters the proxy. A uniform scale with a top/right crop
+preserves the sleeve's proportions and badge corner; interrupted flights retain
+their visible clipped bounds. Catalog bitmaps retain their native-size fit and
+existing complementary-opacity handoff. Fine-pointer entry/return limits are
+240/160ms; coarse-pointer limits are 220/160ms. Use the
 original numbered geometry or an existing exact-ID licensed catalog image,
 never an enlarged workbook bitmap, editor clone or private-content snapshot.
 Missing or stale origins take the immediate path; an eligible no-origin catalog

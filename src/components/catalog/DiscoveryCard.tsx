@@ -82,7 +82,7 @@ export function DiscoveryCard({
       !event.shiftKey
     ) {
       let visual: PublicMotionVisual | null = null;
-      if (game) visual = { kind: 'jacket', rank: game.rank };
+      if (game) visual = { kind: 'jacket', rank: game.rank, variant: game.rank % 5 };
       else if (artwork && failedSrc !== artwork.src) {
         const image = source.querySelector('img');
         if (image?.complete && image.naturalWidth > 0 && image.getAttribute('src') === artwork.src) {
