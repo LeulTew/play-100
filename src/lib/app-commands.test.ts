@@ -108,11 +108,12 @@ describe('startComparison', () => {
 
 describe('enableOnlineDetails', () => {
   it('turns on online lookup in place once the open edit saves', async () => {
+    location.search = '?catalogs=off&game=hades';
     const commands = context();
     await enableOnlineDetails(commands);
     expect(replaceState).toHaveBeenCalledTimes(1);
-    expect(location.search).toContain('catalogs=on');
-    expect(location.search).toContain('game=hades');
+    // On is the default, so the patched URL drops catalogs=off and keeps the open game.
+    expect(location.search).toBe('?game=hades');
     expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'play100:navigate' }));
     expect(commands.notify).not.toHaveBeenCalled();
   });

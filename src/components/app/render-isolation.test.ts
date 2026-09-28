@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { advanceGeneration, useCommittedGeneration } from '../../hooks/useCommittedGeneration';
+import type { HeldGeneration } from '../../hooks/useCommittedGeneration';
 import { useAppCapabilities } from '../../hooks/useAppCapabilities';
 import { sameFields, useEquivalentValue } from '../../hooks/useEquivalentValue';
 import { useStableHandlers } from '../../hooks/useLatest';
@@ -58,9 +59,7 @@ describe('App render isolation (PERF-03)', () => {
   it('holds one guest library for a spread of the same parts', () => {
     const perform = () => true;
     const snapshot = { status: 'ready', error: null };
-    const libraries = passes(3, (pass) =>
-      useEquivalentValue({ ...snapshot, busy: pass === 2, perform }, sameFields),
-    );
+    const libraries = passes(3, (pass) => useEquivalentValue({ ...snapshot, busy: pass === 2, perform }, sameFields));
     expect(libraries[0]).toBe(libraries[1]);
     expect(libraries[2]?.busy).toBe(true);
     expect(sameFields({ a: 1 }, { a: 1, b: 2 } as { a: number })).toBe(false);
@@ -86,16 +85,14 @@ describe('App render isolation (PERF-03)', () => {
   });
 
   it('counts generations from the values a render saw, not from how often it rendered', () => {
-    const first = { values: ['guest', false] as const, generation: 0 };
-    expect(advanceGeneration(first, ['guest', false] as const)).toBe(first);
-    expect(advanceGeneration(first, ['guest', true] as const)).toEqual({
+    const first: HeldGeneration<readonly [string, boolean]> = { values: ['guest', false], generation: 0 };
+    expect(advanceGeneration(first, ['guest', false])).toBe(first);
+    expect(advanceGeneration(first, ['guest', true])).toEqual({
       values: ['guest', true],
       generation: 1,
     });
     expect(passes(3, () => useCommittedGeneration(['guest']))).toEqual([0, 0, 0]);
-    expect(passes(3, (pass) => useCommittedGeneration([pass < 2 ? 'guest' : 'account']))).toEqual([
-      0, 0, 1, 1,
-    ]);
+    expect(passes(3, (pass) => useCommittedGeneration([pass < 2 ? 'guest' : 'account']))).toEqual([0, 0, 1, 1]);
   });
 
   it('notifies only the notice subscribers, so a notice renders nothing else', () => {
