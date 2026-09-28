@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { enrichmentFixture } from '../src/lib/discovery-test-fixtures';
+import { catalogFixture, enrichmentFixture } from '../src/lib/discovery-test-fixtures';
 import { readLibrary } from './library-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
 
@@ -242,3 +242,92 @@ test('a per-source failure stays visible while successful scores remain usable',
   await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeEnabled();
   expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
 });
+
+for (const width of [320, 393]) {
+  test(`catalog detail wraps whole action buttons before and after saving at ${width}px`, async ({
+    page,
+    baseURL,
+  }, info) => {
+    if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) {
+      throw new Error('Catalog action fixtures require the owned local preview.');
+    }
+    await page.setViewportSize({ width, height: 851 });
+    await page.route('**/*', (route) => {
+      const url = new URL(route.request().url());
+      return url.origin !== new URL(baseURL).origin || url.pathname.startsWith('/api/')
+        ? route.abort('blockedbyclient')
+        : route.continue();
+    });
+    await page.route('**/data/discovery/catalog.v1.json', (route) => route.fulfill({ json: catalogFixture }));
+    await page.goto('/discover?q=Kingdomcome&catalogs=off');
+    await page.locator(`[data-catalog-id="${id}"]`).getByRole('button', { name: title, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: title, exact: true });
+    for (const saved of [false, true]) {
+      if (saved) {
+        await dialog.getByRole('button', { name: `Add to My games: ${title}`, exact: true }).click();
+        await expect.poll(async () => (await readLibrary(page)).records[id]).toEqual(catalogFixture.items[0]!.record);
+        await page.reload();
+      }
+      const save = dialog.getByRole('button', {
+        name: `${saved ? 'In My games' : 'Add to My games'}: ${title}`,
+        exact: true,
+      });
+      if (saved) await expect(save).toBeDisabled();
+      else await expect(save).toBeEnabled();
+      const actions = dialog.locator('.detail-actions');
+      await expect(actions.locator(':scope > .button')).toHaveCount(3);
+      await actions.scrollIntoViewIfNeeded();
+      await page.evaluate(() => document.fonts.ready);
+      const geometry = await actions.evaluate((element) => ({
+        overflow: element.scrollWidth > element.clientWidth,
+        dialogOverflow: element.closest('dialog')!.scrollWidth > element.closest('dialog')!.clientWidth,
+        pageOverflow: document.documentElement.scrollWidth > innerWidth,
+        buttons: [...element.querySelectorAll<HTMLButtonElement>(':scope > .button')].map((button) => {
+          const box = button.getBoundingClientRect();
+          const words: { word: string; lines: number; inside: boolean }[] = [];
+          const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            for (const word of (walker.currentNode.textContent ?? '').matchAll(/\S+/g)) {
+              const range = document.createRange();
+              range.setStart(walker.currentNode, word.index);
+              range.setEnd(walker.currentNode, word.index + word[0].length);
+              const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0);
+              words.push({
+                word: word[0],
+                lines: new Set(fragments.map((rect) => Math.round(rect.top))).size,
+                inside: fragments.every((rect) => rect.left >= box.left && rect.right <= box.right),
+              });
+            }
+          }
+          return {
+            text: button.textContent?.trim(),
+            width: box.width,
+            height: box.height,
+            fontSize: parseFloat(getComputedStyle(button).fontSize),
+            words,
+          };
+        }),
+      }));
+      expect(geometry).toMatchObject({ overflow: false, dialogOverflow: false, pageOverflow: false });
+      expect(geometry.buttons.map((button) => button.text)).toEqual([
+        saved ? 'In My games' : 'Add to My games',
+        'Play later',
+        'Completed',
+      ]);
+      for (const button of geometry.buttons) {
+        expect(button.width).toBeGreaterThanOrEqual(44);
+        expect(button.height).toBeGreaterThanOrEqual(44);
+        expect(button.fontSize).toBeGreaterThanOrEqual(12);
+        expect(button.words.length).toBeGreaterThan(0);
+        for (const word of button.words) {
+          expect(word.lines, `${button.text}: ${word.word} must not break inside the word`).toBe(1);
+          expect(word.inside).toBe(true);
+        }
+      }
+      await info.attach(`catalog-actions-${saved ? 'saved' : 'unsaved'}`, {
+        contentType: 'application/json',
+        body: JSON.stringify({ viewport: page.viewportSize(), saved, ...geometry }),
+      });
+    }
+  });
+}

@@ -29,6 +29,10 @@
     grid-template-columns: 75px 1fr;
     font-size: 13px;
   }
+  .catalog-detail-dialog .detail-actions > .button {
+    flex: 1 0 auto;
+    overflow-wrap: normal;
+  }
 }
 .catalog-detail-visual {
   display: grid;

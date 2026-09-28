@@ -80,6 +80,11 @@ and no HTML supplied by a provider is injected.
 
 ## Canonical-first browsing contract
 
+At narrow widths, catalog-detail Save, Play later and Completed actions wrap
+as content-sized buttons rather than sharing one compressed row. Labels retain
+whole words, the existing text size and touch-target height. This override is
+local to the catalog detail; authored-game detail layouts remain unchanged.
+
 User request (2026-09-20): searching Discover for a game in The 100 should bring
 the entry from The 100, not another saveable provider copy. This is an identity
 correction, not a new collection or a private-library migration.
