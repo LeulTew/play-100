@@ -124,13 +124,20 @@ Extracted from `src\styles.css`, `src\components\scene\artifact.css`, the visual
 
 ### CSS ownership and order
 
-`src\styles.css` imports the eager `src\styles\` tokens, base, layout, components and utilities partials in that order. `src\shared-ui.css` follows with shared-layout, shared-controls and shared-responsive partials for shell/navigation, Collection, cross-route controls and their overrides. These are CSS-only source imports, not additional JavaScript entry points. Keep responsive and accessibility overrides in their existing sequence rather than regrouping selectors across sections.
+The entry stylesheet follows the module graph from `src\main.tsx`, which imports `App` before the global partials, so the build emits, in this order:
+1. the web font faces (`@fontsource`);
+2. the stylesheets of App's eager components, in the order the module graph reaches them (currently game artwork, compare tray, motion, artifact, browse filters, collection films, discover and route fallback);
+3. `src\styles.css`: the `src\styles\` tokens, base, layout, components and utilities partials, in that order;
+4. `src\shared-ui.css`: the shared-layout, shared-controls and shared-responsive partials for shell/navigation, Collection, cross-route controls and their overrides;
+5. `src\render-containment.css`.
+
+Lazy routes and features append their chunk stylesheets after it as they load: My games, the online controller, Settings, catalog detail, catalog enrichment and the local pager. So at equal specificity the partials beat eager component stylesheets, shared-* beats utilities, and a loaded lazy stylesheet beats everything eager. These are CSS-only source imports, not additional JavaScript entry points. Keep responsive and accessibility overrides in their existing sequence rather than regrouping selectors across sections.
 
 My games-only rules live in the existing lazy `src\components\personal\my-games.css`; cloud-only catalog form rules live in `src\cloud\cloud-ui.css`. Shared tabs, inputs, card controls, route skeletons and first-paint shell rules remain eager. Before moving another rule, check every consumer and its import path, including constructed class names and the static Collection/DiscoveryCard path.
 
 The ranking picker belongs to my-games.css, catalog facts/links to catalog-detail-motion.css, and Settings/backup layout to settings-controls.css (the existing offline-controls sheet, renamed). Settings typography that ties with generic dialog rules stays eager to preserve the winner even when legacy builds place entry CSS after lazy links. Personal rating styles stay shared because GameDetail is eager. Manual-add styles also stay shared: Discover and My games have no existing common lazy CSS owner, and splitting one out requires a separately budgeted asset decision.
 
-Feature overrides must beat shared defaults by specificity, not by stylesheet arrival order. Use existing co-occurring classes or a feature ancestor (for example, `.app-page.auth-page` and `.personal-tabs.my-games-motion-tabs`) and keep responsive/forced-colors variants at the same specificity. Check generic dialog and page-heading rules before moving or adding a feature override.
+Feature overrides must beat shared defaults by specificity, not by stylesheet arrival order: an eager feature stylesheet arrives before the shared partials, and a lazy one after them. Use existing co-occurring classes or a feature ancestor (for example, `.app-page.auth-page` and `.personal-tabs.my-games-motion-tabs`) and keep responsive/forced-colors variants at the same specificity. Check generic dialog and page-heading rules before moving or adding a feature override.
 
 ## Colors
 
