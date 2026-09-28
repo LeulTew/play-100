@@ -513,14 +513,25 @@ Spark-compatible with the reCAPTCHA v3 provider (no Firebase billing).
 ### Firebase browser-key readback
 
 Google Cloud console → APIs & Services → Credentials → the browser key used by
-`VITE_FIREBASE_API_KEY`. Record that **API restrictions** list exactly Identity
-Toolkit API, Token Service API and Cloud Firestore API (plus Firebase App Check
-API once App Check is enabled), the one list `security.md` and `online-saving.md`
-also state, and that **Application restrictions** are HTTP referrers covering
-the production origin (and any intentionally tested preview origin). Record any
-other API the console lists as found; the client calls none, and removing one is
-a separate owner decision. Record the readback time; do not paste the key into
-receipts.
+`VITE_FIREBASE_API_KEY`. Record the actual API and application restrictions,
+not an assumed match to policy. The intended least-privilege API list is Identity
+Toolkit, Token Service and Cloud Firestore (Firebase App Check is added only once
+App Check is enabled). Record the readback time; never paste the key into receipts.
+
+**Observed 2026-09-28, approximately 07:15Z:** the owner-authorised
+`firebase-predeploy-console-20260928.json` readback found **Browser key (auto
+created by Firebase)** restricted to four APIs: Cloud Firestore, Firebase
+Installations, Identity Toolkit and Token Service. Its **Websites (HTTP
+referrers)** entries were `https://play-100-collection.vercel.app/*`,
+`https://play100-online-48823b32.firebaseapp.com/*`, and
+`https://play100-online-48823b32.web.app/*`. No key setting was changed.
+
+**Owner decisions pending:** remove Firebase Installations, which the client
+does not call, or retain it as a justified, documented exception; separately
+decide whether to remove the `web.app` referrer, Firebase's default hosting
+domain not used by the app's production origin. Do not edit either automatically.
+Preview/candidate origins remain excluded. The HTTP-referrer restriction is
+distinct from Firebase Auth's authorized domains; the key is not unrestricted.
 
 This console readback is the only proof of the allowlist. Black-box probes
 answer narrower questions: `SERVICE_DISABLED` shows only that a service is off

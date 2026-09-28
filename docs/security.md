@@ -144,11 +144,19 @@ production origin as Referer, Books and Generative Language both returned
 `403 SERVICE_DISABLED`: those services are disabled in the project. That neither
 renews nor contradicts the 2026-09-23 result, and a black-box `SERVICE_DISABLED`
 is not evidence of the key's API allowlist. The intended allowlist is Identity
-Toolkit API, Token Service API and Cloud Firestore API, plus Firebase App Check
-API once App Check is enabled; the client calls no other API with the key and
-does not use Firebase Installations. Only the owner's console readback
-([runbook](security-release-runbook.md#firebase-browser-key-readback)) establishes
-the configured list, and none is recorded yet.
+Toolkit API, Token Service API and Cloud Firestore API; Firebase App Check API
+would be added only once App Check is enabled. The client calls no Installations
+endpoint.
+
+**2026-09-28 console readback (G8 supplement 2, approximately 07:15Z).** The
+owner-authorised readback of **Browser key (auto created by Firebase)** recorded
+**Restrict key, 4 APIs**: Cloud Firestore, Firebase Installations, Identity
+Toolkit and Token Service. The key is restricted, not unrestricted. The intended
+least-privilege list remains the three APIs above. **Owner decision pending:**
+remove Firebase Installations or retain it as a justified, documented exception.
+No key setting was changed. The operator-held receipt is
+`firebase-predeploy-console-20260928.json`; follow the
+[readback runbook](security-release-runbook.md#firebase-browser-key-readback).
 
 App Check remains an **accepted risk with a plan**: Spark quotas bound cost,
 while auth/ownership rules and the proposed caps constrain permitted writes.
@@ -197,9 +205,14 @@ remain with the parent/integrator.
 ### Preview referrers and production smoke
 
 Preview and candidate origins are intentionally excluded from the browser
-API-key referrer allowlist. The allowed referrers are the production origin
-`https://play-100-collection.vercel.app/` and the existing
-`https://play100-online-48823b32.firebaseapp.com/` helper origin. This is distinct
+API-key referrer allowlist. The 2026-09-28 console readback recorded a
+**Websites (HTTP referrers)** restriction with three entries:
+`https://play-100-collection.vercel.app/*`,
+`https://play100-online-48823b32.firebaseapp.com/*`, and
+`https://play100-online-48823b32.web.app/*`. The first is the production origin;
+the second is the existing Firebase helper origin. The third is Firebase's
+default hosting domain, not used by the app's production origin; removing it is
+an **owner decision pending**, not an automatic edit. This restriction is distinct
 from the Auth authorized-domain list above. A blocked preview request is expected,
 not a reason to broaden the key's restrictions or record an online/Auth pass.
 Real online and Auth smoke tests therefore run on production only, after

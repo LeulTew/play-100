@@ -271,13 +271,19 @@ access stored data; the privacy copy does not promise otherwise.
 
 The Firebase browser key is public routing configuration, not an authorization
 secret. Its intended API restrictions are Identity Toolkit API, Token Service
-API and Cloud Firestore API (plus Firebase App Check API once App Check is
-enabled); the client calls no other API with it and does not use Firebase
-Installations. Only the owner's console readback establishes the configured
-list; a black-box `SERVICE_DISABLED` answer shows only that a service is off in
-the project ([dated evidence](security.md#dated-h14-black-box-evidence-and-accepted-risks)).
-Its application restriction is an HTTP-referrer list for the approved
-production and helper origins.
+API and Cloud Firestore API (plus Firebase App Check API only once App Check is
+enabled). The owner-authorised console readback on **2026-09-28** found four
+allowed APIs: those three plus **Firebase Installations**, which the client
+does not call. **Owner decision pending:** remove Installations or retain it as
+a justified, documented exception. The key is restricted: its Websites
+(HTTP referrers) list contains `https://play-100-collection.vercel.app/*`,
+`https://play100-online-48823b32.firebaseapp.com/*`, and
+`https://play100-online-48823b32.web.app/*`. The last is Firebase's default hosting
+domain, not used by the app's production origin; its removal is also an owner
+decision. No key restriction was changed automatically.
+A black-box `SERVICE_DISABLED` answer establishes only that a service is off
+in the project, not the key's API list
+([dated evidence](security.md#dated-h14-black-box-evidence-and-accepted-risks)).
 Google refresh tokens, administrative credentials and Vercel credentials never
 belong in source, browser bundles or public configuration.
 
