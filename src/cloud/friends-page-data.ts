@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import type { RefObject } from 'react';
 import type { FriendBlock, FriendCursor, FriendInvitation } from '../lib/friend-types';
 import type { FriendsView, FriendsViewState } from '../lib/friend-manager';
+import { nextInvitationExpiry } from '../lib/friend-manager';
 import { FriendManagerFeed } from '../lib/friend-manager-feed';
 import type { FriendStore } from './friend-store';
 import { cloudAuth } from './firebase-client';
@@ -147,4 +148,33 @@ export function useAuxiliaryPages(
     };
   }, [relationView, view.view, loadAux, auxVersionRef]);
   return { aux, loadAux };
+}
+
+/**
+ * The time that invitation statuses are shown at. It updates when the invitations change, when the next one expires,
+ * and when the page becomes visible or is focused again.
+ */
+export function useInvitationClock(invites: FriendInvitation[], link: FriendInvitation | null) {
+  const [now, setNow] = useState(Date.now);
+  const timerInvites = useMemo(() => [...invites, ...(link ? [link] : [])], [invites, link]);
+  useEffect(() => {
+    let timer: number | undefined;
+    const update = () => {
+      window.clearTimeout(timer);
+      if (document.hidden) return;
+      const time = Date.now();
+      setNow(time);
+      const expiry = nextInvitationExpiry(timerInvites, time);
+      if (expiry !== null) timer = window.setTimeout(update, Math.max(1, expiry - time));
+    };
+    update();
+    document.addEventListener('visibilitychange', update);
+    window.addEventListener('focus', update);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', update);
+      window.removeEventListener('focus', update);
+    };
+  }, [timerInvites]);
+  return now;
 }

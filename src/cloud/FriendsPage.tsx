@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendInvitation, FriendSettings } from '../lib/friend-types';
-import { invitationStatus, nextInvitationExpiry, visibleFriendPairs } from '../lib/friend-manager';
+import { invitationStatus, visibleFriendPairs } from '../lib/friend-manager';
 import { comparisonScope, initialComparison } from '../lib/friend-comparison-intent';
 import { createInviteUrl } from '../lib/invite-continuation';
 import type { FriendStore } from './friend-store';
@@ -17,7 +17,7 @@ import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
 import { FriendListStatus, FriendSelectionBar, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
 import { subscribeUrl, useFriendsView } from './friends-page-view';
 import { useComparisonSelection } from './friends-page-selection';
-import { useAuxiliaryPages, useFriendManagerFeed, useLiveFeed } from './friends-page-data';
+import { useAuxiliaryPages, useFriendManagerFeed, useInvitationClock, useLiveFeed } from './friends-page-data';
 import { Icon } from '../components/Icon';
 
 export function FriendsPage({
@@ -51,7 +51,6 @@ export function FriendsPage({
   const inviteVisible = useRef(false);
   const [copyState, setCopyState] = useState('');
   const [refreshRequired, setRefreshRequired] = useState(false);
-  const [now, setNow] = useState(Date.now);
   const alive = useRef(true);
   const currentView = useRef(view.view);
   useLayoutEffect(() => {
@@ -105,26 +104,7 @@ export function FriendsPage({
     setError,
   );
   const currentInvites = aux.view === 'invites' ? aux.invites : [];
-  const timerInvites = useMemo(() => [...aux.invites, ...(link ? [link] : [])], [aux.invites, link]);
-  useEffect(() => {
-    let timer: number | undefined;
-    const update = () => {
-      window.clearTimeout(timer);
-      if (document.hidden) return;
-      const time = Date.now();
-      setNow(time);
-      const expiry = nextInvitationExpiry(timerInvites, time);
-      if (expiry !== null) timer = window.setTimeout(update, Math.max(1, expiry - time));
-    };
-    update();
-    document.addEventListener('visibilitychange', update);
-    window.addEventListener('focus', update);
-    return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener('visibilitychange', update);
-      window.removeEventListener('focus', update);
-    };
-  }, [timerInvites]);
+  const now = useInvitationClock(aux.invites, link);
   const refresh = async () => {
     const refreshed = relationView ? await feed.refresh() : await loadAux();
     if (current() && refreshed) {
