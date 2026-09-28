@@ -367,6 +367,7 @@ test('long external scores stay compact and retain source precision', async ({ p
   await page.route('**/data/discovery/catalog.v1.json', (route) => route.fulfill({ json: catalogFixture }));
   await page.route('**/api/catalog-detail?**', (route) => route.fulfill({ json: data }));
   await page.goto('/discover?q=Kingdomcome&catalogs=off');
+  await expect(page.locator(`[data-catalog-id="${id}"]`)).toBeVisible();
   const before = await readLibrary(page);
   await page.locator(`[data-catalog-id="${id}"]`).getByRole('button', { name: title, exact: true }).click();
   const dialog = page.getByRole('dialog', { name: title, exact: true });
