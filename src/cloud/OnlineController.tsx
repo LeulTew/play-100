@@ -84,6 +84,7 @@ import { useFriendShelf } from './useFriendShelf';
 import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
 import { signOutTransition } from './sign-out-transition';
+import { reportDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
 import { libraryBackupText } from './backup-download';
 import './cloud-ui.css';
 import './friends-ui.css';
@@ -716,6 +717,11 @@ export default function OnlineController({
   useLayoutEffect(() => {
     onBridge(bridge);
   }, [bridge, onBridge]);
+  // A sign-in withdraws any offer to finish removing an earlier account's device data: that account's next copy is not
+  // what the removal left behind.
+  useEffect(() => {
+    if (identity) withdrawDeviceLeftovers();
+  }, [identity]);
 
   const run = async (operation: () => Promise<void>, identityChange = false): Promise<boolean> => {
     if (running.current) return false;
@@ -895,7 +901,7 @@ export default function OnlineController({
         Boolean(user && cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
       if (!user || !target || !current())
         throw new Error('The signed-in account changed. Review Account before signing out.');
-      await signOutTransition(removeDeviceCopy, {
+      const removal = await signOutTransition(removeDeviceCopy, {
         current,
         waitForWrites: account.waitForWrites,
         readDeviceCopy: () => loadScopedLibrary(target),
@@ -908,7 +914,9 @@ export default function OnlineController({
       await rememberOnlineRequest(false);
       setIdentity(null);
       onCloseSheet();
-      onNavigate('collection');
+      // Only a complete removal leaves Account, which otherwise, now signed out, says what stayed and retries it.
+      if (removal.complete) onNavigate('collection');
+      else reportDeviceLeftovers('sign-out', removal.retry);
     }, true);
   const openComparison = (peers?: string[]) => {
     if (!identity || cloudAuth.currentUser?.uid !== identity.uid) return;

@@ -3,6 +3,37 @@ import { Icon } from '../components/Icon';
 import { EMULATOR_MODE } from '../lib/online-availability';
 import { DataUseLink } from '../components/DataUseLink';
 import { GoogleMark } from './GoogleMark';
+import { deviceLeftovers, retryDeviceLeftovers, useDeviceLeftovers } from './device-leftovers';
+
+/** After a sign-out and removal, or an account deletion, that left some of the account's data on this device. */
+function DeviceLeftoverNotice() {
+  const leftovers = useDeviceLeftovers();
+  const notice = useRef<HTMLElement>(null);
+  if (!leftovers) return null;
+  const retry = () => {
+    retryDeviceLeftovers();
+    // Once a retry works its button goes: focus stays on the notice, which now confirms the removal.
+    if (deviceLeftovers()?.state === 'removed') notice.current?.focus();
+  };
+  return (
+    <section ref={notice} className="account-notice" role="alert" tabIndex={-1}>
+      <p>
+        {leftovers.state === 'removed'
+          ? "That account's data is now removed from this device."
+          : leftovers.after === 'sign-out'
+            ? "Signed out, but some of this account's data is still on this device."
+            : 'Your account is deleted, but some of its data is still on this device.'}
+        {leftovers.state === 'still-left' &&
+          " Trying again didn't work. To remove it, clear this site's data in your browser settings."}
+      </p>
+      {leftovers.state !== 'removed' && (
+        <button className="button button-outline" type="button" onClick={retry}>
+          Try again
+        </button>
+      )}
+    </section>
+  );
+}
 
 export function AuthPanel({
   busy,
@@ -36,6 +67,7 @@ export function AuthPanel({
   const id = useId();
   return (
     <div className="auth-panel">
+      <DeviceLeftoverNotice />
       {purpose === 'compare' && (
         <section className="auth-purpose" aria-labelledby={`${id}-purpose`}>
           <h2 id={`${id}-purpose`}>Compare friends' rankings</h2>

@@ -8,7 +8,7 @@ import { removeCancelledRegistration, readAccountLifecycle, CANCELLED_REGISTRATI
 const calls = vi.hoisted(() => ({
   read: vi.fn(),
   transaction: vi.fn(),
-  deleteDevice: vi.fn(async () => {}),
+  deleteDevice: vi.fn(async () => ({ complete: true as const })),
 }));
 vi.mock('firebase/firestore', async (original) => ({
   ...(await original<typeof import('firebase/firestore')>()),
@@ -38,7 +38,7 @@ describe('cancelled verified sign-in recovery', () => {
   it('removes Auth and the exact account copy without a content transaction or cleanup write', async () => {
     const identity = user();
     const scope = accountScope(identity.uid, 'demo-play100');
-    expect(await removeCancelledRegistration(db, identity, scope, () => true)).toBe(true);
+    expect(await removeCancelledRegistration(db, identity, scope, () => true)).toEqual({ complete: true });
     expect(identity.getIdTokenResult).toHaveBeenCalledWith(true);
     expect(identity.delete).toHaveBeenCalledOnce();
     expect(calls.deleteDevice).toHaveBeenCalledExactlyOnceWith(scope);

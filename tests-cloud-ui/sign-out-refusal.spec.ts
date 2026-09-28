@@ -216,3 +216,57 @@ test('a copy that cannot be read before or after suspension is kept while sync a
   await otherTabEdit(page, uid, 'second');
   await expectLive(page, uid, 2);
 });
+
+// G8-SEC-AUDIT F1: a removal that localStorage refuses in part is reported once signed out, not swallowed, and its
+// retry removes only that account's data.
+test('a sign-out whose device removal leaves the Compare pins says so and retries only that account', async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(150000);
+  const { uid } = await connectedAccount(page, request, 'removal-leftover');
+  const guest = await readLibrary(page);
+  const account = `account:demo-play100:${uid}`;
+  const other = 'account:demo-play100:another-account';
+  for (const scope of [account, other, 'guest']) await savePins(page, scope);
+  const kept = { other: await savedPins(page, other), guest: await savedPins(page, 'guest') };
+  // Refuses this account's pins as a browser that blocks the site's storage would, until the test allows it.
+  await page.evaluate((key) => {
+    const remove = Storage.prototype.removeItem;
+    Reflect.set(window, 'p100RefusePins', true);
+    Storage.prototype.removeItem = function (this: Storage, name: string) {
+      if (name === key && Reflect.get(window, 'p100RefusePins'))
+        throw new DOMException('Synthetic storage refusal', 'SecurityError');
+      return remove.call(this, name);
+    };
+  }, `play100:compare-tray:v1:${account}`);
+
+  await openRemoval(page);
+  await page.getByRole('button', { name: 'Sign out and remove copy', exact: true }).click();
+  const notice = page
+    .getByRole('alert')
+    .filter({ hasText: "Signed out, but some of this account's data is still on this device." });
+  await expect(notice).toBeVisible();
+  await expect(page).toHaveURL('http://127.0.0.1:4187/account');
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(readAccount(page, uid)).rejects.toThrow('missing');
+  expect(await readLibrary(page)).toEqual(guest);
+  expect(await savedPins(page, account)).not.toBeNull();
+
+  await notice.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(notice).toContainText(
+    "Trying again didn't work. To remove it, clear this site's data in your browser settings.",
+  );
+  expect(await savedPins(page, account)).not.toBeNull();
+  await page.evaluate(() => Reflect.set(window, 'p100RefusePins', false));
+  await notice.getByRole('button', { name: 'Try again', exact: true }).click();
+  // The same alert confirms the removal and keeps focus once its button goes.
+  const removed = page.getByRole('alert').filter({ hasText: "That account's data is now removed from this device." });
+  await expect(removed).toBeVisible();
+  await expect(removed).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
+  expect(await savedPins(page, account)).toBeNull();
+  expect(await savedPins(page, other)).toBe(kept.other);
+  expect(await savedPins(page, 'guest')).toBe(kept.guest);
+  expect(await readLibrary(page)).toEqual(guest);
+});

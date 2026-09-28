@@ -711,6 +711,14 @@ Compare tray pins (`play100:compare-tray:v1:<scope>`), which can hold manual
 titles, so this action and account deletion, which share `deleteScopedLibrary`,
 leave none of that account's local data behind, as Data use says. A refused
 removal keeps them with the copy.
+Since G8-SEC-AUDIT F1, localStorage refusing those keys after the transaction is
+reported rather than swallowed: `deleteScopedLibrary` still removes the other
+key and returns an incomplete result, and the sign-out or deletion stands
+without being undone. The signed-out Account page then says some of the
+account's data is still on this device and offers Try again, bound to that
+account's scope. A refused retry points to clearing the site's data in the
+browser settings. Any sign-in withdraws the offer, and the retry removes only
+that account's pins and motion hint, never guest or another account's data.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
 ## Ordered parent-only rollout

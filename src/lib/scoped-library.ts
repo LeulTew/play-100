@@ -9,7 +9,7 @@ import type { Member } from './community';
 import { recordFriendRemovals } from './friend-selection-cache';
 import { recordFriendShelfRemovals } from './friend-shelf-selection-cache';
 import { friendShelfSelectionKey } from './friend-shelf-selection';
-import { clearMotionHint, rememberMotionHint } from './motion-hint';
+import { motionHintKey, rememberMotionHint } from './motion-hint';
 
 function conflict(message: string): Error {
   const error = new Error(message);
@@ -376,17 +376,31 @@ export function rebaseScopedLibrary(
   });
 }
 
-// The account's saved Compare tray pins are its local data too. The key is compareTrayStorageKey's, spelled out so that
-// this lazy module needs nothing more from the eager tray code; the unit test pins the two together.
-function removeSavedCompareTray(scope: LibraryScope): void {
-  try {
-    localStorage.removeItem(`play100:compare-tray:v1:${scope}`);
-  } catch {
-    console.warn("The Compare tray's saved pins could not be removed from this device.");
+/**
+ * Whether removing an account's device copy removed all of it. Its library, recovery data and sharing caches go in one
+ * database transaction, which commits or throws. Its motion hint and saved Compare tray pins, which can hold manual
+ * titles, live in localStorage, which can still refuse afterwards; `retry` removes them again for the same account.
+ */
+export type DeviceCopyRemoval =
+  { readonly complete: true } | { readonly complete: false; readonly retry: () => DeviceCopyRemoval };
+
+// The tray key is compareTrayStorageKey's, spelled out so that this lazy module needs nothing more from the eager tray
+// code; the unit test pins the two together. Each key is removed even if the other is refused. A runtime without Web
+// Storage, or with it switched off, keeps nothing there; one whose storage refuses access cannot confirm the removal.
+function removeLocalCopy(scope: LibraryScope): DeviceCopyRemoval {
+  let complete = true;
+  for (const key of [motionHintKey(scope), `play100:compare-tray:v1:${scope}`]) {
+    try {
+      const storage = globalThis.localStorage;
+      if (storage != null) storage.removeItem(key);
+    } catch {
+      complete = false;
+    }
   }
+  return complete ? { complete: true } : { complete: false, retry: () => removeLocalCopy(scope) };
 }
 
-export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?: number): Promise<void> {
+export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?: number): Promise<DeviceCopyRemoval> {
   scopeUid(scope);
   await accountStorageTransaction(scope, (value, store) => {
     if (expectedRevision !== undefined && value !== undefined) {
@@ -402,9 +416,9 @@ export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?
     store.delete(friendShelfSelectionKey(scope));
     store.delete(`friends-all-work:v2:${scope}`);
   });
-  clearMotionHint(scope);
-  removeSavedCompareTray(scope);
+  const removal = removeLocalCopy(scope);
   publishLibraryChange(scope);
+  return removal;
 }
 
 export function cacheScopedProfile(

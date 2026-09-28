@@ -6,6 +6,7 @@ import type { LibraryScope, ScopedLibrary, SyncHead } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import type { FriendShelfConfig } from '../lib/friend-shelf-types';
 import { deleteScopedLibrary, pauseScopedLibrary } from '../lib/scoped-library';
+import type { DeviceCopyRemoval } from '../lib/scoped-library';
 import { rememberOnlineRequest } from '../lib/online-availability';
 import { hasPendingEdits } from '../hooks/useExitSave';
 import { cloudAuth, cloudDb } from './firebase-client';
@@ -19,6 +20,7 @@ import type { AccountIdentity } from './ui-types';
 import { hasProvider } from './account-providers';
 import { startGoogleRedirect } from './google-auth';
 import { cancelUnusedRegistration, ensureAccountActivity, removeCancelledRegistration } from './account-lifecycle';
+import { reportDeviceLeftovers } from './device-leftovers';
 import { deletionApprovalMatches, deletionOwnerMatches, deletionProbeKey } from './account-deletion';
 import type { useAccountDeletionState } from './account-deletion';
 
@@ -86,6 +88,12 @@ export function createAccountDeletion({
   onCloseSheet,
   onNavigate,
 }: AccountDeletionContext) {
+  // The account is gone either way. Only a complete removal leaves Account, which otherwise, now signed out, says what
+  // stayed on this device and retries it.
+  const leave = (removal: DeviceCopyRemoval) => {
+    if (removal.complete) onNavigate('collection');
+    else reportDeviceLeftovers('deletion', removal.retry);
+  };
   return (removeAccount: boolean, password: string) => {
     if (hasPendingEdits()) {
       setError('Finish the open edit before deleting online data.');
@@ -142,11 +150,12 @@ export function createAccountDeletion({
             session,
             authSessionEpoch.current,
           );
-        if (await removeCancelledRegistration(cloudDb, signedIn, scope, current)) {
+        const cancelled = await removeCancelledRegistration(cloudDb, signedIn, scope, current);
+        if (cancelled) {
           await rememberOnlineRequest(false);
           setIdentity(null);
           onCloseSheet();
-          onNavigate('collection');
+          leave(cancelled);
           return;
         }
       }
@@ -158,10 +167,10 @@ export function createAccountDeletion({
         }
         await cancelUnusedRegistration(cloudDb, signedIn.uid);
         await deleteUser(signedIn);
-        await deleteScopedLibrary(scope);
+        const removal = await deleteScopedLibrary(scope);
         await rememberOnlineRequest(false);
         setIdentity(null);
-        onNavigate('collection');
+        leave(removal);
         return;
       }
       if (!identityRef.current?.verified || !sync.store)
@@ -295,10 +304,10 @@ export function createAccountDeletion({
           }
           throw cause;
         }
-        await deleteScopedLibrary(target);
+        const removal = await deleteScopedLibrary(target);
         await rememberOnlineRequest(false);
         setIdentity(null);
-        onNavigate('collection');
+        leave(removal);
       } else {
         const marked = await store.markCleanupComplete(deleting.epoch, ownsDeletion);
         deletionMarked = true;

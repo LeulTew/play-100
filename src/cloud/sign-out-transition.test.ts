@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ScopedLibrary } from '../lib/cloud-types';
+import type { DeviceCopyRemoval } from '../lib/scoped-library';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import { CHANGED_ACCOUNT, signOutTransition, UNSYNCED_DEVICE_COPY } from './sign-out-transition';
 import type { SignOutSteps } from './sign-out-transition';
@@ -50,8 +51,9 @@ function harness(reads: Array<ScopedLibrary | Error>, patch: Partial<SignOutStep
     signOut: vi.fn(async () => {
       events.push('sign-out');
     }),
-    removeDeviceCopy: vi.fn(async (revision: number) => {
+    removeDeviceCopy: vi.fn(async (revision: number): Promise<DeviceCopyRemoval> => {
       events.push(`remove:${revision}`);
+      return { complete: true };
     }),
     ...patch,
   };
@@ -150,14 +152,26 @@ describe('sign-out transition', () => {
 
   it('keeps the successful removal and ordinary sign-out paths', async () => {
     const removal = harness([copy(false, 9), copy(false, 9)]);
-    await signOutTransition(true, removal.steps);
+    expect(await signOutTransition(true, removal.steps)).toEqual({ complete: true });
     expect(removal.events).toEqual(['drain', 'read', 'suspend', 'drain', 'read', 'sign-out', 'remove:9']);
     for (const resume of removal.resumes) expect(resume).not.toHaveBeenCalled();
     const ordinary = harness([]);
-    await signOutTransition(false, ordinary.steps);
+    expect(await signOutTransition(false, ordinary.steps)).toEqual({ complete: true });
     expect(ordinary.events).toEqual(['suspend', 'drain', 'sign-out']);
     expect(ordinary.steps.readDeviceCopy).not.toHaveBeenCalled();
     expect(ordinary.steps.removeDeviceCopy).not.toHaveBeenCalled();
     for (const resume of ordinary.resumes) expect(resume).not.toHaveBeenCalled();
+  });
+
+  it('returns a removal that left part of the copy, once signed out, and neither resumes nor retries it', async () => {
+    const retry = vi.fn((): DeviceCopyRemoval => ({ complete: true }));
+    const partial = harness([copy(false, 9), copy(false, 9)], {
+      removeDeviceCopy: vi.fn(async (): Promise<DeviceCopyRemoval> => ({ complete: false, retry })),
+    });
+    expect(await signOutTransition(true, partial.steps)).toEqual({ complete: false, retry });
+    expect(partial.steps.signOut).toHaveBeenCalledOnce();
+    expect(partial.steps.removeDeviceCopy).toHaveBeenCalledExactlyOnceWith(9);
+    for (const resume of partial.resumes) expect(resume).not.toHaveBeenCalled();
+    expect(retry).not.toHaveBeenCalled();
   });
 });

@@ -16,6 +16,8 @@ import {
 import type { GoogleDeletionApproval } from './account-deletion';
 import { createAccountDeletion } from './account-deletion-action';
 import type { AccountDeletionContext } from './account-deletion-action';
+import { deviceLeftovers, retryDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
+import type { DeviceCopyRemoval } from '../lib/scoped-library';
 
 const calls = vi.hoisted(() => ({
   auth: { currentUser: null as { uid: string; email: string } | null },
@@ -23,11 +25,11 @@ const calls = vi.hoisted(() => ({
   reauthenticate: vi.fn(async () => {}),
   token: vi.fn(async () => ({ claims: { auth_time: 100, email_verified: false } })),
   redirect: vi.fn(async () => {}),
-  cancelled: vi.fn(async () => false),
+  cancelled: vi.fn(async (): Promise<DeviceCopyRemoval | false> => false),
   cancel: vi.fn(async () => {}),
   activity: vi.fn(async () => {}),
   deleteUser: vi.fn(async () => {}),
-  deleteDevice: vi.fn(async () => {}),
+  deleteDevice: vi.fn(async (): Promise<DeviceCopyRemoval> => ({ complete: true })),
   deleteMember: vi.fn(async () => {}),
   pause: vi.fn(async () => {}),
   remember: vi.fn(async () => true),
@@ -103,6 +105,7 @@ const policy: FriendAllPolicy = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  withdrawDeviceLeftovers();
   calls.auth.currentUser = { uid: 'alpha', email: identity.email };
   calls.pending.mockReturnValue(false);
   calls.reauthenticate.mockResolvedValue();
@@ -299,13 +302,39 @@ describe('ordered account deletion orchestration', () => {
   });
   it('removes a cancelled registration without running content cleanup', async () => {
     const f = fixture();
-    calls.cancelled.mockResolvedValue(true);
+    calls.cancelled.mockResolvedValue({ complete: true });
     expect(await f.remove()).toBe(true);
     expect(f.context.automatic.store.revokeForDeletion).not.toHaveBeenCalled();
     expect(f.context.sync.store.cleanup).not.toHaveBeenCalled();
     expect(f.context.onCloseSheet).toHaveBeenCalledOnce();
     expect(f.context.onNavigate).toHaveBeenCalledWith('collection');
+    expect(deviceLeftovers()).toBeNull();
   });
+  // G8-SEC-AUDIT F1: once the account is gone, data localStorage kept is reported on Account, with a retry for that
+  // account, instead of a silent success.
+  it.each(['verified', 'unverified', 'cancelled'] as const)(
+    'keeps a %s deletion that left some device data on Account, where its retry removes the rest',
+    async (kind) => {
+      const f = fixture();
+      let removed = false;
+      const retry = vi.fn<() => DeviceCopyRemoval>();
+      retry.mockImplementation(() => (removed ? { complete: true } : { complete: false, retry }));
+      if (kind === 'cancelled') calls.cancelled.mockResolvedValueOnce({ complete: false, retry });
+      else calls.deleteDevice.mockResolvedValueOnce({ complete: false, retry });
+      if (kind === 'unverified') f.context.identityRef.current = { ...identity, verified: false };
+      expect(await f.remove()).toBe(true);
+      expect(calls.deleteUser).toHaveBeenCalledTimes(kind === 'cancelled' ? 0 : 1);
+      expect(f.context.setIdentity).toHaveBeenCalledWith(null);
+      expect(f.context.onNavigate, 'Account stays open to say what stayed').not.toHaveBeenCalled();
+      expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'left' });
+      retryDeviceLeftovers();
+      expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'still-left' });
+      removed = true;
+      retryDeviceLeftovers();
+      expect(retry).toHaveBeenCalledTimes(2);
+      expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'removed' });
+    },
+  );
   it.each([false, true])('rechecks an unverified registration token, now verified=%s', async (verified) => {
     const f = fixture();
     f.context.identityRef.current = { ...identity, verified: false };

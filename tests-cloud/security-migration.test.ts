@@ -270,7 +270,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
       const friendCleanup = vi.spyOn(FriendStore.prototype, 'cleanupSharing');
       expect(
         await removeCancelledRegistration(owner.db, owner.user, scope, () => owner.auth.currentUser?.uid === owner.uid),
-      ).toBe(true);
+      ).toEqual({ complete: true });
       expect(removeIdentity).toHaveBeenCalledOnce();
       expect(privateCleanup).not.toHaveBeenCalled();
       expect(publicCleanup).not.toHaveBeenCalled();

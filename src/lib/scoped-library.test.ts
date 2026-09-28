@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import type { SyncHead } from './cloud-types';
 import {
+  accountStorageTransaction,
   closePersonalLibrary,
   loadPersonalLibrary,
   commitPersonalAction,
@@ -23,6 +24,7 @@ import {
 import { emptyPersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 import { compareTrayStorageKey, serializeCompareTray } from './compare-tray';
+import { motionHintKey } from './motion-hint';
 
 const alice = accountScope('alice');
 const bob = accountScope('bob');
@@ -99,8 +101,55 @@ describe('explicit account scopes in the existing local database', () => {
     const clean = await connect();
     await expect(deleteScopedLibrary(alice, clean.state.revision - 1)).rejects.toThrow(/kept/);
     expect(trays.has(compareTrayStorageKey(alice))).toBe(true);
-    await deleteScopedLibrary(alice);
+    expect(await deleteScopedLibrary(alice)).toEqual({ complete: true });
     expect([...trays.keys()]).toEqual([compareTrayStorageKey(bob), compareTrayStorageKey('guest')]);
+  });
+  it.each([
+    ['Compare tray pins', compareTrayStorageKey(alice), motionHintKey(alice)],
+    ['motion hint', motionHintKey(alice), compareTrayStorageKey(alice)],
+  ])(
+    "reports the account's %s that localStorage refuses to remove, and its retry removes only that account's data",
+    async (_, refused, other) => {
+      const stored = new Map<string, string>();
+      for (const scope of [alice, bob, 'guest'] as const) {
+        stored.set(compareTrayStorageKey(scope), serializeCompareTray(scope, [game]));
+        stored.set(motionHintKey(scope), 'full');
+      }
+      let refuse = false;
+      vi.stubGlobal('localStorage', {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          stored.set(key, value);
+        },
+        removeItem: (key: string) => {
+          if (refuse && key === refused) throw new DOMException('Synthetic storage refusal', 'SecurityError');
+          stored.delete(key);
+        },
+      });
+      await loadPersonalLibrary([game]);
+      const guest = await commitPersonalAction({ type: 'rate-game', record: game, score: 9 });
+      const bobCopy = await loadScopedLibrary(bob);
+      const clean = await connect();
+      const before = new Map(stored);
+      refuse = true;
+      const removal = await deleteScopedLibrary(alice, clean.state.revision);
+      if (removal.complete) throw new Error('The refused removal must be reported.');
+      // The transaction's part of the copy is gone, and so is the key localStorage did not refuse.
+      expect(await accountStorageTransaction(alice, (value) => value)).toBeUndefined();
+      expect(stored.get(refused)).toBe(before.get(refused));
+      expect(stored.has(other)).toBe(false);
+      expect(removal.retry().complete, 'a retry refused again is reported again').toBe(false);
+      refuse = false;
+      expect(removal.retry()).toEqual({ complete: true });
+      expect(stored).toEqual(new Map([...before].filter(([key]) => key !== refused && key !== other)));
+      expect((await loadPersonalLibrary([game])).state).toEqual(guest);
+      expect(await loadScopedLibrary(bob)).toEqual(bobCopy);
+    },
+  );
+  it.each([undefined, null])('finds nothing left behind where Web Storage is %s', async (storage) => {
+    vi.stubGlobal('localStorage', storage);
+    const clean = await connect();
+    expect(await deleteScopedLibrary(alice, clean.state.revision)).toEqual({ complete: true });
   });
   it('retains the original guest record and separates every account namespace', async () => {
     await loadPersonalLibrary([game]);

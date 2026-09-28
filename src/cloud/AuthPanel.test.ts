@@ -2,6 +2,8 @@ import { createElement, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthPanel } from './AuthPanel';
+import { reportDeviceLeftovers, retryDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
+import type { DeviceCopyRemoval } from '../lib/scoped-library';
 
 vi.mock('react', async (importOriginal) => {
   const react = await importOriginal<typeof import('react')>();
@@ -10,6 +12,7 @@ vi.mock('react', async (importOriginal) => {
 
 afterEach(() => {
   vi.mocked(useState).mockReset();
+  withdrawDeviceLeftovers();
 });
 
 function render(purpose?: 'compare', busy = false, games?: number) {
@@ -84,5 +87,41 @@ describe('AuthPanel purpose', () => {
     for (const color of ['#4285F4', '#34A853', '#FBBC05', '#EA4335']) expect(button).toContain(`fill="${color}"`);
     expect(button).not.toMatch(/<img\b|<style\b|<script\b|\bstyle=|\b(?:href|src)=/);
     expect(button?.replace(/<[^>]+>/g, '').trim()).toBe('Continue with Google');
+  });
+});
+
+// G8-SEC-AUDIT F1: after an account's sign-out or deletion left some of its data on this device.
+describe('AuthPanel device leftovers', () => {
+  it.each([
+    ['sign-out', 'Signed out, but some of this account&#x27;s data is still on this device.'],
+    ['deletion', 'Your account is deleted, but some of its data is still on this device.'],
+  ] as const)('says what a %s left, retries that account, then confirms it or explains', (after, text) => {
+    let removed = false;
+    const retry = vi.fn<() => DeviceCopyRemoval>();
+    retry.mockImplementation(() => (removed ? { complete: true } : { complete: false, retry }));
+    expect(render().html).not.toContain('account-notice');
+    reportDeviceLeftovers(after, retry);
+    const left = render().html;
+    expect(left).toContain(
+      `<section class="account-notice" role="alert" tabindex="-1"><p>${text}</p><button class="button button-outline" type="button">Try again</button></section>`,
+    );
+    expect(left.indexOf('Try again')).toBeLessThan(left.indexOf('Continue with Google'));
+    expect(retry).not.toHaveBeenCalled();
+    retryDeviceLeftovers();
+    expect(render().html).toContain(
+      `<p>${text} Trying again didn&#x27;t work. To remove it, clear this site&#x27;s data in your browser settings.</p><button class="button button-outline" type="button">Try again</button>`,
+    );
+    removed = true;
+    retryDeviceLeftovers();
+    const done = render().html;
+    // The same live region confirms the removal, so focus has somewhere to stay once its button goes.
+    expect(done).toContain(
+      '<section class="account-notice" role="alert" tabindex="-1"><p>That account&#x27;s data is now removed from this device.</p></section>',
+    );
+    expect(done).not.toContain('Try again');
+    retryDeviceLeftovers();
+    expect(retry).toHaveBeenCalledTimes(2);
+    withdrawDeviceLeftovers();
+    expect(render().html).not.toContain('account-notice');
   });
 });

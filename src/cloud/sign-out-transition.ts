@@ -1,4 +1,5 @@
 import type { ScopedLibrary } from '../lib/cloud-types';
+import type { DeviceCopyRemoval } from '../lib/scoped-library';
 
 export const UNSYNCED_DEVICE_COPY =
   'This device has unsynced changes. Save or export them before removing its copy. Ordinary Sign out keeps them.';
@@ -12,10 +13,11 @@ export interface SignOutSteps {
   /** Stops every automatic writer and returns how to restore each still-owned lifetime. */
   suspend: () => ReadonlyArray<() => void>;
   signOut: () => Promise<void>;
-  removeDeviceCopy: (revision: number) => Promise<void>;
+  removeDeviceCopy: (revision: number) => Promise<DeviceCopyRemoval>;
 }
 
-export async function signOutTransition(removeCopy: boolean, steps: SignOutSteps): Promise<void> {
+/** Signs out, and with `removeCopy` then removes the account's device copy, reporting whether any of it stayed. */
+export async function signOutTransition(removeCopy: boolean, steps: SignOutSteps): Promise<DeviceCopyRemoval> {
   const removable = async () => {
     const local = await steps.readDeviceCopy();
     if (local.sync.dirty) throw new Error(UNSYNCED_DEVICE_COPY);
@@ -39,5 +41,6 @@ export async function signOutTransition(removeCopy: boolean, steps: SignOutSteps
     if (steps.current()) for (const resume of restore) resume();
     throw cause;
   }
-  if (local) await steps.removeDeviceCopy(local.state.revision);
+  // Signed out now: a removal that leaves part of the copy behind is reported, not undone.
+  return local ? steps.removeDeviceCopy(local.state.revision) : { complete: true };
 }
