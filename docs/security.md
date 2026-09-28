@@ -591,6 +591,10 @@ characters, so the refusal reaches only manual, imported or provider titles
 that do. Friend-only shelf and All rows keep their C0/DEL rule: they mirror the
 whole library automatically, so a stricter rule would stop all automatic
 sharing for a library holding one such title.
+Friend shelf and All-row Save/Pin announcements and Pin accessible names use
+the existing `stripControlOrFormat` display helper, so a title's bidi or format
+characters cannot reorder the surrounding action text. The standalone `<h3>`
+title, stored entry and metadata sent to Save/Pin remain unchanged.
 
 **Forced line breaks and blank entry titles (R13).** The shared class also
 refuses the line and paragraph separators U+2028 and U+2029 (`\p{Zl}`,

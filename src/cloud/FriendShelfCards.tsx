@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendShelfEntry } from '../lib/friend-shelf-types';
 import { FriendShelfCommittedError } from '../lib/friend-shelf-types';
+import { stripControlOrFormat } from '../lib/text-controls';
 import { onlineError } from './errors';
 import { ShelfMetadata } from './ShelfMetadata';
 
@@ -48,7 +49,8 @@ export function FriendShelfCards({
     setNotice(null);
     try {
       await onSave(entry);
-      if (current.current === request) setNotice({ entries: request, text: `${entry.title} saved to your library.` });
+      if (current.current === request)
+        setNotice({ entries: request, text: `${stripControlOrFormat(entry.title)} saved to your library.` });
     } catch (cause) {
       if (current.current === request) setError(shelfError(cause));
     } finally {
@@ -115,11 +117,11 @@ export function FriendShelfCards({
                     </button>
                     <button
                       className="text-button"
-                      aria-label={`Pin ${entry.title}`}
+                      aria-label={`Pin ${stripControlOrFormat(entry.title)}`}
                       onClick={() => {
                         try {
                           onPin(entry);
-                          setNotice({ entries, text: `${entry.title} pinned.` });
+                          setNotice({ entries, text: `${stripControlOrFormat(entry.title)} pinned.` });
                         } catch (cause) {
                           setError(shelfError(cause));
                         }
