@@ -274,6 +274,8 @@ async function runInner(step: GateStep, evidence: string) {
     return;
   }
   await refuseBusyPorts([4187]);
+  // Firebase itself owns the isolated log directory; Vite config resolves project inputs from cwd.
+  process.chdir(root);
   const server = await createServer({
     root,
     mode: 'cloud-test',
@@ -474,6 +476,14 @@ export async function releaseGate(evidence: string, offline: string) {
       else if (step.report)
         args.push(step.report === 'vitest' ? '--vitest' : '--playwright', path.join(evidence, `${step.name}.json`));
       args.push('--receipt', `${step.name}=${path.join(evidence, `${step.name}-exit.json`)}`);
+      if (step.tool === 'emulators')
+        args.push('--receipt', `${step.name}-tests=${path.join(evidence, `${step.name}-tests-exit.json`)}`);
+      if (step.name === 'cloud-ui') {
+        for (const name of ['compare-fixture', 'compare-fixture-report', 'compare-fixture-exit'])
+          args.push('--receipt', `${name}=${path.join(evidence, `${name}.json`)}`);
+      }
+      if (step.name.endsWith('-build'))
+        args.push('--receipt', `${step.name}-identity=${path.join(evidence, `${step.name}-identity.json`)}`);
       if (step.name.endsWith('check-budgets'))
         args.push('--receipt', `${step.name}-data=${path.join(evidence, `${step.name}.json`)}`);
     }
