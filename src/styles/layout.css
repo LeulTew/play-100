@@ -453,11 +453,14 @@
   gap: 2px;
 }
 .view-switch .icon-button {
-  color: #747866;
+  color: var(--muted);
 }
+/* The fill and ink alone would sit too close to the darker inactive icons, so the active view also takes an ink
+   underline, as the collection tabs above it do. */
 .view-switch .is-active {
   background: #e3e8d6;
   color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--ink);
 }
 .sort-note {
   color: var(--muted);

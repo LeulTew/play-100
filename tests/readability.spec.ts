@@ -287,6 +287,67 @@ test('resting search and select edges keep 3:1 against the page and their own fi
   }
 });
 
+// G7-QA A11Y-001: the display layout switch keeps its icons at 4.5:1, at rest and under the pointer, and marks the
+// active view with an ink underline as well as its fill.
+for (const width of [393, 1440]) {
+  test(`the display layout switch keeps its icons at 4.5:1 and the active view distinct at ${width}px`, async ({
+    page,
+    isMobile,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/?catalogs=off');
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    const layout = page.getByRole('group', { name: 'Display layout', exact: true });
+    const icons = () =>
+      layout.getByRole('button').evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const layers: string[] = [];
+          for (let node = button.parentElement; node; node = node.parentElement) {
+            const background = getComputedStyle(node).backgroundColor;
+            layers.push(background);
+            if (!background.startsWith('rgba')) break;
+          }
+          const style = getComputedStyle(button);
+          return {
+            name: button.getAttribute('aria-label') ?? '',
+            pressed: button.getAttribute('aria-pressed') === 'true',
+            color: style.color,
+            fill: style.backgroundColor,
+            shadow: style.boxShadow,
+            layers,
+          };
+        }),
+      );
+    const expectReadable = (icon: Awaited<ReturnType<typeof icons>>[number], when: string) => {
+      const backdrop = icon.layers.reduceRight((below, layer) => over(rgba(layer), below), rgba('rgb(255, 255, 255)'));
+      const fill = over(rgba(icon.fill), backdrop);
+      expect(contrast(over(rgba(icon.color), fill), fill), `${when}: ${icon.name}`).toBeGreaterThanOrEqual(4.5);
+      if (!icon.pressed) {
+        expect(icon.shadow, `${when}: ${icon.name} has no active underline`).toBe('none');
+        return;
+      }
+      const underline = /rgba?\([^)]*\)/.exec(icon.shadow)?.[0];
+      expect(underline && icon.shadow.includes('inset'), `${when}: ${icon.name} is underlined`).toBeTruthy();
+      expect(contrast(over(rgba(underline!), fill), fill), `${when}: ${icon.name} underline`).toBeGreaterThanOrEqual(3);
+    };
+    for (const view of ['Grid view', 'List view']) {
+      await layout.getByRole('button', { name: view, exact: true }).click();
+      await expect(layout.getByRole('button', { name: view, exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await page.mouse.move(0, 0);
+      const resting = await icons();
+      expect(resting.filter((icon) => icon.pressed).map((icon) => icon.name)).toEqual([view]);
+      for (const icon of resting) expectReadable(icon, `${view} at rest`);
+      if (isMobile) continue;
+      for (const icon of resting.filter((entry) => !entry.pressed)) {
+        await layout.getByRole('button', { name: icon.name, exact: true }).hover();
+        const hovered = (await icons()).find((entry) => entry.name === icon.name)!;
+        expect(hovered.fill, `${icon.name} takes the hover fill`).not.toBe(icon.fill);
+        expectReadable(hovered, `${view} with the pointer on ${icon.name}`);
+      }
+    }
+  });
+}
+
 test('empty and failed local views retain readable recovery at 320px with text spacing', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 852 });
   await installGuestLibrary(page, libraryFixture(0));

@@ -225,6 +225,8 @@ Dark, lime, outline, quiet and destructive variants use the extracted assignment
 
 Keep search, original-data filters, sorting and device-list controls legible and directly operable. Do not imply that changing the view changes authored ranks. Desktop navigation is direct; mobile prioritizes reachable controls rather than decorative navigation chrome.
 
+The Display layout switch draws its inactive icons in `muted` (5.4:1 at rest, 4.8:1 under the pointer's hover fill). The active view keeps its ink icon and pale fill, and adds a 2px ink underline, as the collection tabs mark theirs, so it stays distinct from a hovered neighbour.
+
 Discover's four primary filters share SelectField's existing progress-filter
 treatment: 12px labels, 48px native selects, `control-border` edges and
 soft-white fill. The mobile filter disclosure and optional exact-source-genre
