@@ -86,6 +86,9 @@ owns a separate scoped pin store backed by localStorage, not the library queue.
 Its binding becomes active in a layout effect and is revoked during cleanup:
 constructing an abandoned replacement does not invalidate the displayed tray.
 Neither binding construction nor an inactive binding can read or write storage.
+Grip readiness renders from the current interaction prop through a separate
+context; the mutable controller still checks committed ownership when an event
+runs. Rendering does not query the previous commit's controller readiness.
 Panel state belongs to [useAppPanel](../src/hooks/useAppPanel.ts); notification,
 manual-share and offline-settings state are separate from the selected URL detail.
 Visible toast surfaces pass pointer input through to the page except at their
@@ -289,6 +292,10 @@ and route arrival to the motion runtime. App updates scope and URL motion
 generations during render, so stale origins are not accepted while waiting for
 passive history effects. Native dialog close and focus restoration do not wait
 for animation completion.
+The motion runtime captures only public return geometry during dialog layout
+cleanup, before the provider commits its next snapshot. Return authorization
+waits until native close, when the committed route, scope and origin guards are
+checked again; capturing geometry alone cannot authorize a return flight.
 
 ## Event flow
 
