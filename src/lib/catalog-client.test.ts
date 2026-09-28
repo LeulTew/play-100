@@ -46,6 +46,11 @@ describe('shared catalog transport', () => {
 
   it('explains non-JSON responses and rejects invalid result structures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>Unavailable</html>', { status: 503 })));
+    await expect(fetchCatalogPage('wikidata', 'Atlas', 0, signal())).rejects.toMatchObject({
+      kind: 'unavailable',
+      message: 'The public catalog is temporarily unavailable.',
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>Welcome</html>')));
     await expect(fetchCatalogPage('wikidata', 'Atlas', 0, signal())).rejects.toThrow(/unreadable response/);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...page, total: -1 }))));
     await expect(fetchCatalogPage('wikidata', 'Atlas', 0, signal())).rejects.toThrow(/invalid pagination/);
