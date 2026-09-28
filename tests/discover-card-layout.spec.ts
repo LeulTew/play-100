@@ -65,8 +65,21 @@ for (const width of [320, 393, 768, 1024, 1440, 1920]) {
       const before = await geometry();
       for (const targets of before) {
         for (let index = 2; index < targets.length; index++) {
-          expect(targets[index]!.y).toBeGreaterThanOrEqual(targets[index - 1]!.y + targets[index - 1]!.height);
+          const previous = targets[index - 1]!;
+          const current = targets[index]!;
+          expect(
+            current.y >= previous.y + previous.height || current.x >= previous.x + previous.width,
+            'Consecutive action targets may share a row but must not overlap.',
+          ).toBe(true);
         }
+      }
+      const grip = card.locator('[data-compare-drag-grip]');
+      if (await grip.isVisible()) {
+        const gripBox = await grip.boundingBox();
+        const pinBox = await pin.boundingBox();
+        if (!gripBox || !pinBox) throw new Error('Pin and the fine-pointer grip must have real target boxes.');
+        expect(Math.abs(gripBox.y - pinBox.y)).toBeLessThanOrEqual(1);
+        expect(gripBox.x).toBeGreaterThanOrEqual(pinBox.x + pinBox.width);
       }
       const pinBefore = await pin.boundingBox();
       if (!pinBefore) throw new Error('The unpinned action must have a visible box.');
@@ -154,6 +167,29 @@ test('Discover primary filters share aligned native select styling at 1440px', a
     expect(control.border).toBe('rgb(127, 129, 121)');
     expect(control.fill).toBe('rgb(253, 253, 246)');
     expect(control.labelSize).toBe('12px');
+  }
+});
+
+test('Discover reuses the collection view switch active fill, ink and underline', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await emptyCatalogs(page);
+  const appearance = () =>
+    page.locator('.view-switch .is-active').evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color, shadow: style.boxShadow };
+    });
+  await page.goto('/?catalogs=off');
+  await expect(page.getByRole('button', { name: 'Grid view', exact: true })).toHaveClass(/is-active/);
+  const expected = await appearance();
+  expect(expected.shadow).not.toBe('none');
+  await page.goto('/discover?catalogs=off');
+  const controls = page.getByRole('group', { name: 'Catalog view', exact: true });
+  for (const name of ['Grid view', 'List view']) {
+    const button = controls.getByRole('button', { name, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await expect(button).toHaveClass(/is-active/);
+    expect(await appearance()).toEqual(expected);
   }
 });
 

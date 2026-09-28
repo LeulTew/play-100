@@ -349,9 +349,9 @@ export default function DiscoverPage({
             {catalogStatus}
           </p>
         </div>
-        <div className="discovery-view" role="group" aria-label="Catalog view">
+        <div className="view-switch discovery-view" role="group" aria-label="Catalog view">
           <button
-            className="icon-button"
+            className={`icon-button ${filters.view === 'grid' ? 'is-active' : ''}`}
             aria-label="Grid view"
             aria-pressed={filters.view === 'grid'}
             onClick={() => change({ view: 'grid' })}
@@ -359,7 +359,7 @@ export default function DiscoverPage({
             <Icon name="grid" />
           </button>
           <button
-            className="icon-button"
+            className={`icon-button ${filters.view === 'list' ? 'is-active' : ''}`}
             aria-label="List view"
             aria-pressed={filters.view === 'list'}
             onClick={() => change({ view: 'list' })}

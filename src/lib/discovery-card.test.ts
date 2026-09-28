@@ -6,12 +6,7 @@ import { emptyPersonalLibrary } from './personal-library';
 import { artworkFixture, discoveryFixture } from './discovery-test-fixtures';
 
 describe('compact catalog card markup', () => {
-  it.each([
-    [56, true],
-    [159, true],
-    [160, false],
-    [360, false],
-  ] as const)('uses a pre-sized wordmark plate only above a 3:1 aspect ratio (480 x %i)', (height, wordmark) => {
+  it.each([56, 159, 160, 360])('does not duplicate a successful artwork title at 480 x %i', (height) => {
     const html = renderToStaticMarkup(
       createElement(DiscoveryCard, {
         record: discoveryFixture.record,
@@ -22,8 +17,8 @@ describe('compact catalog card markup', () => {
         onPin: vi.fn(),
       }),
     );
-    expect(html.includes('data-wordmark=""')).toBe(wordmark);
-    expect(html.includes(`<strong aria-hidden="true">${discoveryFixture.record.title}</strong>`)).toBe(wordmark);
+    expect(html).not.toContain('data-wordmark');
+    expect(html).not.toContain(`<strong aria-hidden="true">${discoveryFixture.record.title}</strong>`);
     expect(html).toContain(`width="480" height="${height}"`);
     expect(html).toContain(artworkFixture.src);
     expect(html).toContain(artworkFixture.credit);

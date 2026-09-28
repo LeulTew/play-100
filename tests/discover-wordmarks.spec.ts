@@ -26,8 +26,7 @@ async function wordmarkGeometry(art: Locator) {
     const card = element.closest('.discovery-card');
     const grid = card?.closest('.discovery-cards');
     const image = element.querySelector('img');
-    const title = element.querySelector('strong');
-    if (!card || !grid || !image || !title) throw new Error('The complete wordmark plate must be mounted.');
+    if (!card || !grid || !image) throw new Error('The wordmark image and its card must be mounted.');
     const frame = element.getBoundingClientRect();
     const cardBox = card.getBoundingClientRect();
     const gridBox = grid.getBoundingClientRect();
@@ -40,7 +39,6 @@ async function wordmarkGeometry(art: Locator) {
     return {
       relativeToCard: relative(frame, cardBox),
       image: relative(image.getBoundingClientRect(), frame),
-      title: relative(title.getBoundingClientRect(), frame),
       viewport: { x: frame.x, y: frame.y },
       scroll: { x: scrollX, y: scrollY },
       document: { x: frame.x + scrollX, y: frame.y + scrollY },
@@ -50,7 +48,7 @@ async function wordmarkGeometry(art: Locator) {
   });
 }
 
-test('extreme-ratio artwork has a stable native-size title plate without changing normal tiles or controls', async ({
+test('extreme-ratio artwork stays native-size without repeating its title or shifting the tile', async ({
   page,
   baseURL,
   isMobile,
@@ -72,9 +70,8 @@ test('extreme-ratio artwork has a stable native-size title plate without changin
     await page.goto('/discover?catalogs=off', { waitUntil: 'domcontentloaded' });
     const card = page.locator(`[data-catalog-id="${wideItem.record.id}"]`);
     const art = card.locator('.discovery-card-art');
-    await expect(art).toHaveAttribute('data-wordmark', '');
-    await expect(art.locator('strong')).toHaveText(wideItem.record.title);
-    await expect(art.locator('strong')).toHaveAttribute('aria-hidden', 'true');
+    await expect(art.locator('strong')).toHaveCount(0);
+    await expect(art.locator('img')).toHaveAttribute('alt', wideArtwork.alt);
     await expect(page.locator(`[data-catalog-id="${normalItem.record.id}"] .discovery-card-art`)).not.toHaveAttribute(
       'data-wordmark',
     );
@@ -116,16 +113,14 @@ test('extreme-ratio artwork has a stable native-size title plate without changin
     // Offscreen row estimates can resolve and trigger scroll anchoring; the plate must not shift within its card.
     expect(after.relativeToCard).toEqual(before.relativeToCard);
     expect(await page.evaluate(() => window.wordmarkLayoutShifts.reduce((sum, value) => sum + value, 0))).toBe(0);
-    const { image: imageBox, title: titleBox } = after;
+    const { image: imageBox } = after;
     expect(imageBox.width).toBeLessThanOrEqual(wideArtwork.width);
     expect(imageBox.height).toBeLessThanOrEqual(wideArtwork.height);
     expect(imageBox.width / imageBox.height).toBeCloseTo(wideArtwork.width / wideArtwork.height, 1);
-    expect(imageBox.y + imageBox.height).toBeLessThanOrEqual(titleBox.y);
     expect(imageBox.width).toBeGreaterThan(0);
     expect(imageBox.height).toBeGreaterThan(0);
-    expect(titleBox.height).toBeGreaterThan(0);
     expect(imageBox.y).toBeGreaterThanOrEqual(0);
-    expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(after.relativeToCard.height);
+    expect(imageBox.y + imageBox.height).toBeLessThanOrEqual(after.relativeToCard.height);
     await expect(
       card.getByRole('button', { name: `Add to My games: ${wideItem.record.title}`, exact: true }),
     ).toBeEnabled();
@@ -145,4 +140,18 @@ test('extreme-ratio artwork has a stable native-size title plate without changin
   } finally {
     release();
   }
+});
+
+test('a failed logo shows the title only in its honest artwork fallback and keeps attribution', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route(`**${wideArtwork.src}`, (route) => route.abort('failed'));
+  await page.goto('/discover?catalogs=off');
+  const card = page.locator(`[data-catalog-id="${wideItem.record.id}"]`);
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.locator('.discovery-no-art strong')).toHaveText(wideItem.record.title);
+  await expect(card.locator('.discovery-no-art')).toContainText('Artwork unavailable');
+  await expect(card.locator('.discovery-card-art img')).toHaveCount(0);
+  await expect(card.locator('h3')).toHaveText(wideItem.record.title);
+  await card.locator('.discovery-card-details > summary').click();
+  await expect(card.locator('.discovery-card-source')).toContainText(wideArtwork.credit);
 });

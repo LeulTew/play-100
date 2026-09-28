@@ -65,7 +65,6 @@ export function DiscoveryCard({
   const motion = useMotionRuntime();
   const policy = useMotionPolicy();
   const [failedSrc, setFailedSrc] = useState('');
-  const wordmark = Boolean(!game && artwork && artwork.width > artwork.height * 3 && failedSrc !== artwork.src);
   const saved = Boolean(state.records[actionRecord.id]);
   const progress = state.progress[actionRecord.id];
   const ranking = state.ranking.find((entry) => entry.id === actionRecord.id);
@@ -110,7 +109,7 @@ export function DiscoveryCard({
       data-catalog-id={record.id}
       data-unranked-id={game ? undefined : record.id}
     >
-      <div className="discovery-card-art" ref={artRef} data-wordmark={wordmark ? '' : undefined}>
+      <div className="discovery-card-art" ref={artRef}>
         {game ? (
           <GameCover game={game} eager={eager} />
         ) : artwork && failedSrc !== artwork.src ? (
@@ -126,10 +125,10 @@ export function DiscoveryCard({
         ) : (
           <div className="discovery-no-art">
             <span>{record.year ?? 'Game'}</span>
+            {artwork && failedSrc === artwork.src && <strong aria-hidden="true">{record.title}</strong>}
             <span>Artwork unavailable</span>
           </div>
         )}
-        {wordmark && <strong aria-hidden="true">{record.title}</strong>}
         {selecting && onSelect && (
           <label className="discovery-select">
             <input
