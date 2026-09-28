@@ -316,6 +316,10 @@ Discover keeps its heading and search while the catalog loads, with one polite
 loading status instead of an incomplete count. Static, noninteractive placeholders
 share the grid/list artwork, title, metadata and action anatomy; known collection
 cards remain usable. Errors replace the loading state with the existing recovery.
+Concurrent catalog consumers share one fetch and parse per loader. Aborting a
+consumer cancels only its wait; even with no waiters, the shared fetch retains
+its 8-second timeout and metadata byte limit. Success fills the public cache;
+failure permits a fresh data request without masking parser-module failures.
 
 Lazy-route fallbacks use destination headings with static card, ruled-list or
 form anatomy from eager styles, never zero counts or guessed private content.

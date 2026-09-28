@@ -5,17 +5,37 @@ import { loadDiscoveryParser } from './discovery-parser-preload';
 
 export function createDiscoveryLoader() {
   let cached: DiscoveryCatalog | null = null;
+  let pending: Promise<DiscoveryCatalog> | null = null;
   return async (signal: AbortSignal): Promise<DiscoveryCatalog> => {
     signal.throwIfAborted();
     if (cached) return cached;
-    const payload = await fetchCatalogJson(DISCOVERY_CATALOG_URL, signal, DISCOVERY_LIMITS.metadataBytes, 8000);
-    signal.throwIfAborted();
-    const { parseDiscoveryCatalog } = await loadDiscoveryParser();
-    signal.throwIfAborted();
-    const catalog = parseDiscoveryCatalog(payload);
-    signal.throwIfAborted();
-    cached = catalog;
-    return catalog;
+    pending ??= (async () => {
+      // Callers cancel their wait, not this shared, size-limited and timed transport.
+      const payload = await fetchCatalogJson(
+        DISCOVERY_CATALOG_URL,
+        new AbortController().signal,
+        DISCOVERY_LIMITS.metadataBytes,
+        8000,
+      );
+      const { parseDiscoveryCatalog } = await loadDiscoveryParser();
+      cached = parseDiscoveryCatalog(payload);
+      return cached;
+    })().finally(() => {
+      pending = null;
+    });
+    let abort: () => void = () => undefined;
+    const canceled = new Promise<never>((_, reject) => {
+      abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+    });
+    try {
+      const catalog = await Promise.race([pending, canceled]);
+      signal.throwIfAborted();
+      return catalog;
+    } finally {
+      signal.removeEventListener('abort', abort);
+    }
   };
 }
 

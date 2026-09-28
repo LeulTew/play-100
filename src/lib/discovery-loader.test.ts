@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDiscoveryLoader } from './discovery-loader';
-import { DISCOVERY_CATALOG_URL } from './discovery-catalog';
+import { DISCOVERY_CATALOG_URL, DISCOVERY_LIMITS } from './discovery-catalog';
 import { catalogFixture } from './discovery-test-fixtures';
 import { searchDiscoveryItems, defaultDiscoveryFilters } from './discovery-search';
 import * as parserPreload from './discovery-parser-preload';
@@ -14,7 +14,69 @@ afterEach(() => {
 });
 const signal = () => new AbortController().signal;
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('lazy bounded public seed loading', () => {
+  it('shares one fetch and parse across concurrent first callers and then uses the cache', async () => {
+    const response = deferred<Response>();
+    const parser = await import('./discovery-catalog');
+    const parse = vi.spyOn(parser, 'parseDiscoveryCatalog');
+    const fetcher = vi.fn().mockReturnValue(response.promise);
+    vi.stubGlobal('fetch', fetcher);
+    const load = createDiscoveryLoader();
+    const first = load(signal());
+    const second = load(signal());
+    const third = load(signal());
+    expect(fetcher).toHaveBeenCalledOnce();
+    response.resolve(new Response(JSON.stringify(catalogFixture)));
+    const catalogs = await Promise.all([first, second, third]);
+    expect(catalogs[0]).toEqual(catalogFixture);
+    expect(catalogs.every((catalog) => catalog === catalogs[0])).toBe(true);
+    expect(await load(signal())).toBe(catalogs[0]);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(parse).toHaveBeenCalledOnce();
+  });
+
+  it.each([false, true])('rejects a pre-aborted caller before fetching, cached=%s', async (cached) => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(catalogFixture)));
+    vi.stubGlobal('fetch', fetcher);
+    const load = createDiscoveryLoader();
+    if (cached) await load(signal());
+    const controller = new AbortController();
+    const reason = { obsolete: true };
+    controller.abort(reason);
+    await expect(load(controller.signal)).rejects.toBe(reason);
+    expect(fetcher).toHaveBeenCalledTimes(cached ? 1 : 0);
+  });
+
+  it('shares a transport failure and refetches on the next concurrent retry', async () => {
+    const response = deferred<Response>();
+    const fetcher = vi
+      .fn()
+      .mockReturnValueOnce(response.promise)
+      .mockResolvedValueOnce(new Response(JSON.stringify(catalogFixture)));
+    vi.stubGlobal('fetch', fetcher);
+    const load = createDiscoveryLoader();
+    const failed = Promise.allSettled([load(signal()), load(signal())]);
+    response.reject(new TypeError('offline'));
+    const results = await failed;
+    expect(results[0]?.status).toBe('rejected');
+    expect(results[1]).toEqual(results[0]);
+    expect(fetcher).toHaveBeenCalledOnce();
+    const [first, second] = await Promise.all([load(signal()), load(signal())]);
+    expect(first).toEqual(catalogFixture);
+    expect(second).toBe(first);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it.each(['fresh', 'returning', 'restricted'] as const)(
     'loads and searches without auth or personal storage: %s profile',
     async (profile) => {
@@ -59,31 +121,41 @@ describe('lazy bounded public seed loading', () => {
     const load = createDiscoveryLoader();
     await expect(load(signal())).rejects.toThrow();
     expect(await load(signal())).toEqual(catalogFixture);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it('rejects an absent manifest rather than caching an empty success', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"missing"}', { status: 404 })));
     await expect(createDiscoveryLoader()(signal())).rejects.toThrow('missing');
   });
-  it('cancels a obsolete manifest request and does not cache it', async () => {
-    const fetcher = vi
-      .fn()
-      .mockImplementationOnce(
-        (_url, options: RequestInit) =>
-          new Promise((_, reject) => {
-            options.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true });
-          }),
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify(catalogFixture)));
+  it('aborts only one caller while the other still receives and caches the shared catalog', async () => {
+    const response = deferred<Response>();
+    let transport: AbortSignal | null | undefined;
+    const fetcher = vi.fn((_url: string, options: RequestInit) => {
+      transport = options.signal;
+      return response.promise;
+    });
     vi.stubGlobal('fetch', fetcher);
     const load = createDiscoveryLoader();
     const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, 'removeEventListener');
     const first = load(controller.signal);
-    controller.abort(new Error('obsolete'));
-    await expect(first).rejects.toThrow('obsolete');
-    expect(await load(signal())).toEqual(catalogFixture);
+    const waiting = new AbortController();
+    const removeWaiting = vi.spyOn(waiting.signal, 'removeEventListener');
+    const second = load(waiting.signal);
+    const reason = new Error('obsolete');
+    controller.abort(reason);
+    await expect(first).rejects.toBe(reason);
+    expect(transport?.aborted).toBe(false);
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+    response.resolve(new Response(JSON.stringify(catalogFixture)));
+    const catalog = await second;
+    expect(removeWaiting).toHaveBeenCalledWith('abort', expect.any(Function));
+    expect(catalog).toEqual(catalogFixture);
+    expect(await load(signal())).toBe(catalog);
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it('does not parse or cache a request canceled while its parser module loads', async () => {
+  it('lets an abandoned parser load finish and serve a later caller without fetching or parsing twice', async () => {
     const parser = await import('./discovery-catalog');
     let release: (module: typeof parser) => void = () => {
       throw new Error('Parser was not requested');
@@ -102,12 +174,49 @@ describe('lazy bounded public seed loading', () => {
     const first = load(controller.signal);
     await vi.waitFor(() => expect(preload).toHaveBeenCalledOnce());
     controller.abort(new Error('obsolete parser load'));
-    release(parser);
     await expect(first).rejects.toThrow('obsolete parser load');
     expect(parse).not.toHaveBeenCalled();
-    expect(await load(signal())).toEqual(catalogFixture);
+    const later = load(signal());
+    release(parser);
+    const catalog = await later;
+    expect(catalog).toEqual(catalogFixture);
+    expect(await load(signal())).toBe(catalog);
     expect(parse).toHaveBeenCalledOnce();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it('bounds an abandoned shared fetch to 8000 ms and then permits a fresh load', async () => {
+    vi.useFakeTimers();
+    let transport: AbortSignal | undefined;
+    const fetcher = vi
+      .fn()
+      .mockImplementationOnce((_url, options: RequestInit) => {
+        transport = options.signal ?? undefined;
+        return new Promise<Response>(() => undefined);
+      })
+      .mockResolvedValueOnce(new Response(JSON.stringify(catalogFixture)));
+    vi.stubGlobal('fetch', fetcher);
+    const load = createDiscoveryLoader();
+    const controller = new AbortController();
+    const abandoned = load(controller.signal);
+    controller.abort();
+    await expect(abandoned).rejects.toBe(controller.signal.reason);
+    await vi.advanceTimersByTimeAsync(7999);
+    expect(transport?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(transport?.aborted).toBe(true);
+    expect(transport?.reason.kind).toBe('timeout');
+    expect(await load(signal())).toEqual(catalogFixture);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the metadata byte limit on the shared transport', async () => {
+    const response = new Response('{}', { headers: { 'content-length': String(DISCOVERY_LIMITS.metadataBytes + 1) } });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    const load = createDiscoveryLoader();
+    const results = await Promise.allSettled([load(signal()), load(signal())]);
+    expect(results[0]).toMatchObject({ status: 'rejected', reason: { kind: 'invalid' } });
+    expect(results[1]).toEqual(results[0]);
   });
 
   it('distinguishes a terminal parser import from a retryable data request', async () => {
@@ -121,7 +230,9 @@ describe('lazy bounded public seed loading', () => {
       vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(catalogFixture)))),
     );
     const load = createDiscoveryLoader();
-    const error = await load(signal()).catch((error) => error);
+    const errors = await Promise.all([load(signal()).catch((error) => error), load(signal()).catch((error) => error)]);
+    const error = errors[0];
+    expect(errors[1]).toBe(error);
     expect(error).toBeInstanceOf(ModuleLoadFailure);
     expect(isModuleLoadFailure(error)).toBe(true);
     await expect(load(signal())).rejects.toBe(error);
