@@ -6,11 +6,6 @@
 .settings-account strong {
   color: var(--ink);
 }
-.backup-panel {
-  margin-top: 28px;
-  padding-top: 23px;
-  border-top: 1px solid var(--line);
-}
 .backup-panel .button {
   font-size: 13px;
   padding-inline: 16px;

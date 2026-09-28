@@ -333,6 +333,8 @@ in Settings. Backup and reset outcomes retain their polite status regions.
 Adjacent groups use one rule: Settings account context has no trailing border,
 and My games rows own their leading divider, leaving the manual-add group's
 existing top rule as the only separator below the final row.
+Backups, Visual experience and the device-library section share a 28px leading
+gap, one hairline and 25px top padding; the fieldset is not part of the backup actions.
 Catalog-detail mutations keep their native action focused while saving, using
 guarded `aria-disabled` and one in-flight action rather than disabling the
 focused button. The saved **In My games** button remains focusable and ignores

@@ -31,6 +31,13 @@ test('Settings exposes Export and Import without scrolling at 1440x900', async (
             nextTop: getComputedStyle(account.nextElementSibling!).borderTopWidth,
           }
         : null,
+      preferenceGap: preferences.getBoundingClientRect().top - backup.getBoundingClientRect().bottom,
+      sectionRhythm: [...dialog.querySelectorAll('.backup-panel, .motion-options, section.device-settings')].map(
+        (section) => {
+          const style = getComputedStyle(section);
+          return { margin: style.marginTop, padding: style.paddingTop, rule: style.borderTopWidth };
+        },
+      ),
       controls: buttons.map((button) => {
         const rect = button.getBoundingClientRect();
         return {
@@ -48,6 +55,10 @@ test('Settings exposes Export and Import without scrolling at 1440x900', async (
   expect(layout.scrollTop).toBe(0);
   expect(layout.beforePreferences).toBe(true);
   if (layout.accountRules) expect(layout.accountRules).toEqual({ top: '1px', bottom: '0px', nextTop: '1px' });
+  expect(layout.preferenceGap).toBeGreaterThanOrEqual(28);
+  expect(layout.sectionRhythm).toHaveLength(3);
+  for (const rhythm of layout.sectionRhythm)
+    expect(rhythm).toEqual({ margin: '28px', padding: '25px', rule: '1px' });
   expect(layout.controls.map((button) => button.name)).toEqual(['Export my library', 'Import backup']);
   expect(layout.controls.every((button) => button.visible && button.hit)).toBe(true);
 });
