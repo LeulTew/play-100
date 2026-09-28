@@ -221,8 +221,8 @@ accepted abuse risk.
 
 **Sign-up enumeration (accepted risk, R9).** Creating an account with an email
 that is already registered fails with `auth/email-already-in-use`, which
-`src/cloud/errors.ts` maps to its own message and `OnlineController`'s email
-sign-up (`createUserWithEmailAndPassword`) shows, so the sign-up form reveals whether an email is registered. Firebase
+`src/cloud/errors.ts` maps to its own message and the online session's email
+sign-up (`useOnlineSession`, `createUserWithEmailAndPassword`) shows, so the sign-up form reveals whether an email is registered. Firebase
 email enumeration protection covers sign-in and `createAuthUri`, not account
 creation, so it does not hide this. The copy is deliberately unchanged: a
 generic message would leave real users unable to tell they should sign in
@@ -548,7 +548,8 @@ Missing publicProfiles documents are readable only by the verified owner.
 Hidden/unpublished and missing profiles look unavailable to other readers.
 `SocialStore.ownProfile` maps permission-denied to null; `SocialStore.profile`
 already maps denied handle/resolved-profile reads to null. Other errors surface.
-Call sites: OnlineController profile refresh and export; CreatorPage inspection;
+Call sites: the online account's profile refresh (useOnlineAccount) and the
+account export (useAccountActions); CreatorPage inspection;
 FriendStore.publicIdentity (used by outgoing FriendManagerFeed and FriendDetailPage);
 and PublicProfilePage's handle lookup. Owner-only mutation transactions do not
 swallow authorization failures.

@@ -7,7 +7,8 @@ application. Do not treat a relationship-list row as authorization to load data.
 
 ## Client API
 
-`new FriendStore(db: Firestore)` from `src/cloud/friend-store.ts`. Exported value
+`new FriendStore(db: Firestore)` from `src/cloud/friend-store.ts`, whose methods
+delegate to the friend-*.ts operation modules beside it. Exported value
 types and strict parsers live in `src/lib/friend-types.ts`. All timestamps returned
 by the store are server-acknowledged milliseconds, never optimistic client times.
 `FriendCursor` is an opaque SDK document cursor. Pages always contain at most 20

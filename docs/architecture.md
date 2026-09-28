@@ -135,11 +135,47 @@ release ran the campaign.
 
 ## Boundaries
 
-[OnlineController](../src/cloud/OnlineController.tsx) combines account state and
-[useCloudSync](../src/cloud/useCloudSync.ts), then publishes an `OnlineBridge`
-to App in a layout effect. The bridge carries the protected controller, scope,
-identity and status. App blocks library actions while account resolution is pending.
+[OnlineController](../src/cloud/OnlineController.tsx) composes the online
+controllers, then publishes an `OnlineBridge` to App in a layout effect;
+[online-bridge](../src/cloud/online-bridge.ts) builds it. The bridge carries the
+protected controller, scope, identity and status. App blocks library actions
+while account resolution is pending. The controllers are hooks, which the
+controller calls in this order:
+
+- [useOnlineSession](../src/cloud/useOnlineSession.ts) is the identity/session
+  controller: the identity lifetime and session observer, sign-in by Google or
+  email, verification and password reset, the Compare tray's sign-in
+  continuation, the invitation this tab has open, and the runner every online
+  action reports through, with its busy flag and messages.
+- [useOnlineAccount](../src/cloud/useOnlineAccount.ts) holds the account's
+  device copy and private online saving through
+  [useCloudSync](../src/cloud/useCloudSync.ts), the initial restoration, the
+  member, profile, head and creator records Account previews with their refresh
+  and member watch, and the registration and deletion state.
+- `useGoogleReturn` (in useOnlineSession.ts) applies this page load's Google
+  return, then expires a deletion approval it grants.
+- [useOnlinePublication](../src/cloud/useOnlinePublication.ts) holds the
+  creature, the name, the header's public identity and what publishing opens.
+- [useOnlineSharing](../src/cloud/useOnlineSharing.tsx) holds automatic and
+  selected sharing with friends, with the automatic-sharing summary.
+- [useOnlineFriends](../src/cloud/useOnlineFriends.ts) holds the identity
+  friends see, opening Compare and its route, and the shared-games list's
+  preparation.
+- [useAccountActions](../src/cloud/useAccountActions.ts) connects, pauses,
+  links Google, signs out, exports, cleans up and chooses copies, and builds the
+  context Account's deletion runs in.
+
+[OnlinePages](../src/cloud/OnlinePages.tsx) renders the online page App routed
+to. Each controller resets its own state in the render that sees a new account,
+so the new account's first render shows none of the previous one's records,
+messages or dialogs. The controllers write latest-value refs in layout effects,
+and render reads none of them.
+
 Sync work has a lifetime tied to account ownership, verification and consent.
+The lifetime's state changes only through its own methods, from effects,
+callbacks and handlers. A new lifetime's status, messages and known head reset
+in the render that creates it, and work from an earlier lifetime stops owning
+anything once the new one commits.
 Security policy and release procedures are defined in [Security](security.md)
 and the [security release runbook](security-release-runbook.md).
 
@@ -151,9 +187,9 @@ Account runs and which therefore loads with that page. Its pure selectors
 keep approval ownership, saving epochs, auth-session generations and completed
 cleanup receipts distinct. The controller passes its existing stores and callbacks
 as the operation's context;
-approval-expiry and probe hooks stay at their original positions relative to
-identity reset, Google-return handling and member subscriptions. No page body,
-UI text or backend authorization policy is owned by this unit.
+the deletion probe runs before the member subscription, and approval expiry
+runs right after the Google-return transition that can grant an approval. No
+page body, UI text or backend authorization policy is owned by this unit.
 
 The [account-session](../src/cloud/account-session.ts) unit owns the Google-return
 and initial-session handshake, the restoration deadline and persisted-page
@@ -162,8 +198,10 @@ an incomplete or foreign return, cache-waiting reauthentication, changed saving
 epochs, successful sign-in/link and a fresh deletion approval. The bootstrap
 observer delegates identity reconciliation to its supplied owner; it does not
 create a second auth observer, clear libraries or perform deletion on return.
-The controller invokes bootstrap and return handling at their original effect
-positions, leaving the existing navigation and pending-edit contract intact.
+The session controller starts the bootstrap observer after the identity
+lifetime attaches, and takes a return's Compare flag as the return arrives.
+useGoogleReturn applies the return once its account and device copy are ready.
+The existing navigation and pending-edit contract is unchanged.
 
 The [account-identity](../src/cloud/account-identity.ts) lifetime owns token-read
 coalescing, verification-mismatch refresh suppression and auth-session epochs.
@@ -179,7 +217,9 @@ StrictMode or Fast Refresh mounts again still publishes it. Token refresh for
 the same UID keeps its epoch, while account changes and sign-out advance it and
 clear the previous comparison scope. The controller still passes that stable
 epoch holder to sync/sharing/deletion. Successful reads are gated on the UID and
-the mounted controller, and observer errors on the observer's lifetime.
+the mounted controller, and observer errors on the observer's lifetime. The
+lifetime tracks that mount itself: `attach`, from the controller's first
+passive effect, marks it mounted, so no render writes it.
 Member/profile snapshots and page rendering remain composition concerns, not
 state inside the token reconciler.
 
@@ -197,17 +237,34 @@ The creature picker and sign-in form load only when rendered. The selected-shelf
 editor and friend-facing shelf cards are separate modules so reading a friend's
 games does not pull in the owner's editor.
 
+[FriendStore](../src/cloud/friend-store.ts) keeps its methods, names and
+exports. Its operations live in modules it delegates to on the same instance:
+friend-store-core (shared checks), friend-profile, friend-pairs,
+friend-invites, friend-ranking-share, friend-groups and friend-cleanup. A test
+that patches its prototype still intercepts every call. FriendsPage's dialogs,
+relation rows, invite and blocked lists and controls are components
+(FriendsPageDialogs, FriendRelationList, FriendInvitesAndBlocks,
+FriendsPageControls), and its URL-backed view, comparison selection, relation
+feed, invite and blocked pages, invitation clock and invite dialog are hooks
+(friends-page-view, friends-page-selection, friends-page-data,
+friends-page-invite). None is imported by another route, so they load with
+their route.
+
 [OnlinePageBoundary](../src/cloud/OnlinePageBoundary.tsx) reuses
 `createMemoizedModule`, `ChunkBoundary`, `Suspense`, `RouteFallback` and
 `ChunkRecovery`; it does not introduce a second import/reload protocol.
 The module helper retains a rejected import until reload, rather than retrying it.
 Its identity includes the account scope, auth-session generation, page and the
-page's target (public handle, friend, comparison group or invitation). For
-Compare, the target is the group a navigation opened. The page changes
-`?group=` in place when the user picks, saves or clears a group and reports
-that change, so a later render that reads the new URL does not remount the page
-or drop its unsaved group name and selection. Private save revisions do not
-remount forms. A page-module failure leaves the controller
+page's target (public handle, friend, comparison group or invitation). The
+controller reads the URL for these targets through
+[online-location](../src/cloud/online-location.ts), a subscription to
+`popstate` and `play100:navigate`, not by reading `location` during render, so
+a navigation renders it again even when App does not. For Compare, the target
+is the group a navigation opened. The page changes `?group=` in place when the
+user picks, saves or clears a group and reports that change, so the next render,
+which reads the new URL, does not remount the page or drop its unsaved group
+name and selection. Private save revisions do not remount forms. A page-module
+failure leaves the controller
 and its `OnlineBridge` mounted; changing pages or account scope clears only the
 failed page boundary. Native sign-in and picker dialogs keep their own closeable,
 scope-bound loading/recovery states. Existing navigation flush, account-transition
@@ -264,6 +321,7 @@ flowchart TD
   Guest["useLibrary"] --> App
   Account["useAccountLibrary"] --> Online["OnlineController"]
   Sync["useCloudSync"] <--> Online
+  Controllers["session, account, publication, sharing and friends controllers"] --> Online
   Online -->|"OnlineBridge (layout effect)"| App
   App --> Routes["RouteHost"]
   App --> Dialogs["DialogHost"]
