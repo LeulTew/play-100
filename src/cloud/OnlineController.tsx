@@ -220,6 +220,7 @@ export default function OnlineController({
     authSessionEpoch,
     reconcileIdentity,
     observeUser,
+    controllerLive,
     clearVerificationMismatch,
   } = useAccountIdentity((previousUid) => {
     clearComparisonView(comparisonScope(firebaseApp.options.projectId ?? '', previousUid));
@@ -743,7 +744,8 @@ export default function OnlineController({
   };
   const afterSignIn = async (user: User, compare: boolean) => {
     await reconcileIdentity(user);
-    if (cloudAuth.currentUser?.uid !== user.uid) return;
+    // A sign-in that finishes after this controller unmounted remembers nothing: the user may have chosen this device.
+    if (cloudAuth.currentUser?.uid !== user.uid || !controllerLive()) return;
     rememberOnlineRequest(true);
     // A sign-in uses the sheet a cancelled Google return reopened: neither it nor its Compare purpose reopens after a
     // later sign-out.

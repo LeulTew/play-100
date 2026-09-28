@@ -155,12 +155,20 @@ positions, leaving the existing navigation and pending-edit contract intact.
 The [account-identity](../src/cloud/account-identity.ts) lifetime owns token-read
 coalescing, verification-mismatch refresh suppression and auth-session epochs.
 Only the exact pending read may clear its slot; a foreign UID cannot publish
-identity or update the remembered-session hint. Token refresh for the same UID
-keeps its epoch, while account changes and sign-out advance it and clear the
-previous comparison scope. The controller still passes that stable epoch holder
-to sync/sharing/deletion and leaves successful-token UID gating and observer
-error lifetime gating unchanged. Member/profile snapshots and page rendering
-remain composition concerns, not state inside the token reconciler.
+identity or update the remembered-session hint. Neither can a read that outlives
+its controller: when restoration gives up and the controller unmounts (even
+before its session observer first hears from Firebase), the same account stays
+signed in and the user may choose this device, so a late successful read still
+settles for its callers but publishes nothing and leaves the online choice as it
+is. An email sign-in that finishes after that controller unmounted remembers
+nothing either. The check runs when the read completes, so a controller that
+StrictMode or Fast Refresh mounts again still publishes it. Token refresh for
+the same UID keeps its epoch, while account changes and sign-out advance it and
+clear the previous comparison scope. The controller still passes that stable
+epoch holder to sync/sharing/deletion. Successful reads are gated on the UID and
+the mounted controller, and observer errors on the observer's lifetime.
+Member/profile snapshots and page rendering remain composition concerns, not
+state inside the token reconciler.
 
 These three units are static dependencies only of the already-lazy online graph.
 They add no eager entry import, new route root, stylesheet, storage format or

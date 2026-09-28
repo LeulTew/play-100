@@ -24,9 +24,10 @@ const user: IdentityUser = {
 };
 type Token = Pick<IdTokenResult, 'claims'>;
 function fixture() {
-  const owner = { current: 'alpha' as string | undefined };
+  const owner = { current: 'alpha' as string | undefined, live: true };
   const ports = {
     currentUid: () => owner.current,
+    controllerLive: () => owner.live,
     readToken: vi
       .fn<(user: IdentityUser, force: boolean) => Promise<Token>>()
       .mockResolvedValue({ claims: { email_verified: true } }),
@@ -231,6 +232,57 @@ describe('identity reconciliation lifetime', () => {
       }
     },
   );
+  it('publishes and remembers nothing when its controller unmounts before a same-UID read succeeds', async () => {
+    const f = fixture();
+    const gate = deferred();
+    const settled = vi.fn();
+    const failed = vi.fn();
+    let live = true;
+    f.ports.readToken.mockReturnValueOnce(gate.promise);
+    f.lifetime.observeUser(user, () => live, settled, failed);
+    // Restoration gives up and the controller unmounts, closing its observer, while the same account stays signed
+    // in; the user may then choose this device. The read that was still pending succeeds afterwards.
+    live = false;
+    f.owner.live = false;
+    const late = f.lifetime.reconcileIdentity(user);
+    gate.resolve({ claims: { email_verified: true } });
+    await expect(late).resolves.toEqual(identityOf(user, true));
+    await flush();
+    expect(f.ports.readToken).toHaveBeenCalledOnce();
+    expect(settled).toHaveBeenCalledOnce();
+    expect(f.ports.publish).toHaveBeenCalledExactlyOnceWith(undefined);
+    expect(f.ports.remember).not.toHaveBeenCalled();
+    expect(failed).not.toHaveBeenCalled();
+    expect(f.lifetime.controllerLive()).toBe(false);
+  });
+  it('publishes and remembers nothing for a sign-in read if its controller unmounts before observing', async () => {
+    const f = fixture();
+    const gate = deferred();
+    f.ports.readToken.mockReturnValueOnce(gate.promise);
+    // An email sign-in submitted while the session is still restoring; the controller unmounts before its observer
+    // first hears from Firebase.
+    const read = f.lifetime.reconcileIdentity(user);
+    f.owner.live = false;
+    gate.resolve({ claims: { email_verified: true } });
+    await expect(read).resolves.toEqual(identityOf(user, true));
+    expect(f.ports.publish).not.toHaveBeenCalled();
+    expect(f.ports.remember).not.toHaveBeenCalled();
+    expect(f.lifetime.controllerLive()).toBe(false);
+  });
+  it('checks the controller when the read completes, not when it starts', async () => {
+    const f = fixture();
+    const gate = deferred();
+    f.ports.readToken.mockReturnValueOnce(gate.promise);
+    // StrictMode and Fast Refresh unmount and mount the same controller again; what counts is whether it is mounted
+    // when the read finishes.
+    f.owner.live = false;
+    const read = f.lifetime.reconcileIdentity(user);
+    f.owner.live = true;
+    gate.resolve({ claims: { email_verified: true } });
+    await read;
+    expect(f.ports.publish).toHaveBeenCalledExactlyOnceWith(identityOf(user, true));
+    expect(f.ports.remember).toHaveBeenCalledOnce();
+  });
   it('sign-out forgets the pending slot and prevents a late signed-out read from publishing', async () => {
     const f = fixture();
     const gate = deferred();
