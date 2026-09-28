@@ -65,6 +65,9 @@ separate; no original is enlarged.
   Only an image-failure fallback repeats the title, alongside the unavailable
   notice. Pin and the fine-pointer grip share one action row; the Grid/List
   switch uses The 100's existing active-view fill and underline.
+- Redundant jacket-year print is hidden through 1150px, including the
+  three-column tablet grid. The adjacent metadata year and canonical rank stay
+  visible; the original workbook image dimensions are unchanged.
 - Load the manifest lazily in discovery/search. Serve visible/nearby images
   lazily with the supplied intrinsic dimensions; missing or failed art needs an
   honest fallback. Artwork and provenance never enter personal/cloud records.

@@ -186,6 +186,23 @@ for (const width of [320, 393, 1440]) {
   });
 }
 
+for (const width of [768, 1024, 1150, 1151, 1440]) {
+  test(`jacket year print follows the tablet collision boundary at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1024 });
+    await page.goto('/?catalogs=off');
+    const card = page.locator(`.games-grid > .game-card[data-game="${first.id}"]`);
+    await expect(card).toBeVisible();
+    const cover = card.locator('.game-cover');
+    await expectNativeCover(cover, 1.52);
+    if (width <= 1150) await expect(cover.locator('.jacket-year')).toBeHidden();
+    else await expect(cover.locator('.jacket-year')).toBeVisible();
+    await expect(cover.locator('.jacket-series')).toBeVisible();
+    await expect(cover.locator('.cover-rank')).toHaveText('01');
+    await expect(card.locator('.game-meta')).toContainText(first.year);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
 for (const view of ['grid', 'list'] as const) {
   test(`collection ${view} uses a valid native list without overriding article semantics`, async ({ page }) => {
     await page.goto(`/?view=${view}&catalogs=off`);

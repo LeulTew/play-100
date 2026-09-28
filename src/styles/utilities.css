@@ -120,7 +120,8 @@ html[data-motion='off']
   .workbook-copy .button {
     padding-inline: 17px;
   }
-  .file-badge {
+  .file-badge,
+  .game-cover .jacket-year {
     display: none;
   }
 }
@@ -428,8 +429,7 @@ html[data-motion='off']
     font-size: 12px;
     margin-top: 6px;
   }
-  .game-cover .jacket-series,
-  .game-cover .jacket-year {
+  .game-cover .jacket-series {
     display: none;
   }
   .collection-end {
