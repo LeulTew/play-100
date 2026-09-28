@@ -32,6 +32,7 @@ const publicSources = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.install();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('**/api/catalog?**', (route) =>
     route.fulfill({ status: 503, json: { error: 'Controlled offline provider.' } }),
@@ -60,7 +61,8 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
     if (cdp) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
       held = true;
-      await page.waitForTimeout(310);
+      // Cross the 280ms broad-source hold without starting a drag until movement.
+      await page.clock.runFor(310);
       await expect(page.locator('.compare-tray-dock,.compare-drag-ghost')).toHaveCount(0);
       // The 8px tolerance is pre-hold; this deliberate move reaches the UA's touchmove delivery threshold.
       await cdp.send('Input.dispatchTouchEvent', {
@@ -152,7 +154,7 @@ async function reorderWithDedicatedGrip(
     if (cdp) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
       held = true;
-      await page.waitForTimeout(220);
+      await expect(page.locator('.drag-preview')).toBeVisible();
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x, y: start.y + 4 }] });
     } else {
       await page.mouse.move(start.x, start.y);

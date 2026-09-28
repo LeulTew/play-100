@@ -212,7 +212,7 @@ test('mouse and touch Queue sorting work within page 2', async ({ page, isMobile
     const cdp = await context.newCDPSession(page);
     try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-      await page.waitForTimeout(220);
+      await expect(page.locator('.drag-preview')).toBeVisible();
       for (let step = 1; step <= 8; step += 1) {
         await cdp.send('Input.dispatchTouchEvent', {
           type: 'touchMove',

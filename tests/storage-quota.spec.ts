@@ -160,6 +160,7 @@ test('a quota-refused large import preserves the durable library and retries aft
   let settings = await openSettings(page);
   await selectBackup(settings, backup);
   await withQuota(page, new URL(baseURL!).origin, 1024, info, async ({ lift }) => {
+    // Real Chromium backend TTL: page.clock cannot advance IndexedDB's cached disk-space estimate.
     await page.waitForTimeout(indexedDbSpaceCacheMs);
     await settings.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
     await expect(settings.locator('.backup-panel').getByRole('alert')).toHaveText(restoreFailed);
@@ -207,6 +208,7 @@ test('a quota-refused manual save keeps the open form and every typed field unti
   await manual.getByLabel('Year (optional)', { exact: true }).fill(year);
   const document = await page.evaluate(() => performance.timeOrigin);
   await withQuota(page, new URL(baseURL!).origin, 0, info, async ({ lift }) => {
+    // Real Chromium backend TTL: page.clock cannot advance IndexedDB's cached disk-space estimate.
     await page.waitForTimeout(indexedDbSpaceCacheMs);
     await manual.getByRole('button', { name: 'Add to my library', exact: true }).click();
     await expect(manual.getByRole('alert')).toHaveText(manualFailed);

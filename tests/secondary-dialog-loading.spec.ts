@@ -21,10 +21,16 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('an 800ms Settings chunk retains the Menu and its focus, then opens the real native dialog', async ({ page }) => {
+test('a held Settings chunk retains the Menu and its focus, then opens the real native dialog', async ({ page }) => {
   const asset = await dialogAsset();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
   await page.route(`**${asset}`, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    requested = true;
+    await held;
     await route.continue();
   });
   await page.goto('/?catalogs=off');
@@ -54,6 +60,7 @@ test('an 800ms Settings chunk retains the Menu and its focus, then opens the rea
   });
   try {
     await trigger.click();
+    await expect.poll(() => requested).toBe(true);
     await expect(menu).toBeVisible();
     await expect(trigger).toBeFocused();
     await expect
@@ -64,6 +71,7 @@ test('an 800ms Settings chunk retains the Menu and its focus, then opens the rea
         pageToast: false,
       });
   } finally {
+    release();
     await notice.evaluate((probe) => probe.stop());
     await notice.dispose();
   }

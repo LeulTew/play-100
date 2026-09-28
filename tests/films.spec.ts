@@ -38,11 +38,25 @@ test('the public film fragment lands at the section after delayed collection loa
   page.on('request', (request) => {
     if (/\.mp4(?:$|\?)/.test(request.url())) mediaRequests.push(request.url());
   });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
   await page.route('**/data/collection.json', async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    requested = true;
+    await held;
     await route.continue();
   });
-  await page.goto('/#collection-films');
+  try {
+    await page.goto('/#collection-films', { waitUntil: 'domcontentloaded' });
+    await expect.poll(() => requested).toBe(true);
+    await expect(page.locator('.collection-loading')).toBeVisible();
+    await expect(page.locator('#collection-films')).toBeAttached();
+    expect(mediaRequests).toHaveLength(0);
+  } finally {
+    release();
+  }
   await expect(page.locator('.game-card')).toHaveCount(24);
   await page.evaluate(() => document.fonts.ready);
   await expect(page.getByRole('heading', { name: 'Watch films', exact: true })).toBeInViewport();

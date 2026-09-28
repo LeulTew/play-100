@@ -51,6 +51,7 @@ async function loadedPosters(page: Page) {
 for (const delayed of [false, true]) {
   const entry = delayed ? 'delayed data and keyboard entry' : 'pointer scrolling';
   test(`cold landing film-transfer budget: ${entry}`, async ({ page, isMobile }, info) => {
+    await page.clock.install();
     await page.setViewportSize({ width: isMobile ? 393 : 1440, height: isMobile ? 851 : 1000 });
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Network.enable');
@@ -76,14 +77,30 @@ for (const delayed of [false, true]) {
       if (delayed) {
         await expect(page.locator('.collection-loading')).toBeVisible();
         await expect(page.locator('#collection-films')).toBeAttached();
-        await page.waitForTimeout(800);
+        await page.clock.runFor(800);
         expect(requested).toHaveLength(0);
         await expect(page.locator('.film-poster img')).toHaveCount(0);
         collectionGate.release();
       }
       await expect(page.locator('.game-card')).toHaveCount(24);
       await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(800);
+      // Native intersection delivery is not clock-controlled; confirm the real 200px poster preload boundary.
+      expect(
+        await page.locator('#collection-films').evaluate(
+          (section) =>
+            new Promise<boolean>((resolve) => {
+              const observer = new IntersectionObserver(
+                ([entry]) => {
+                  observer.disconnect();
+                  resolve(entry!.isIntersecting);
+                },
+                { rootMargin: '200px 0px' },
+              );
+              observer.observe(section);
+            }),
+        ),
+      ).toBe(false);
+      await page.clock.runFor(800);
       expect(requested).toHaveLength(0);
       await expect(page.locator('video')).toHaveCount(0);
       await expect(page.locator('.film-poster img')).toHaveCount(0);

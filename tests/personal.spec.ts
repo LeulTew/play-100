@@ -156,7 +156,7 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
   if (isMobile) {
     const cdp = await context.newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    await page.waitForTimeout(220);
+    await expect(page.locator('.drag-preview')).toBeVisible();
     for (let step = 1; step <= 8; step++) {
       await cdp.send('Input.dispatchTouchEvent', {
         type: 'touchMove',

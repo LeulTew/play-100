@@ -140,6 +140,7 @@ test('Community keeps its URL in step with the directory it shows, through Show 
   await expect.poll(search).toBe('?catalogs=off&q=9zz');
   // Try again repeats the failed search that the URL and the field name, not the directory shown before it.
   await invalid.getByRole('button', { name: 'Try again', exact: true }).click();
+  // Yield one macrotask for the immediate validation rejection and React retry commit, not an elapsed-time window.
   await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
   await expect(invalid).toBeVisible();
   expect(search()).toBe('?catalogs=off&q=9zz');

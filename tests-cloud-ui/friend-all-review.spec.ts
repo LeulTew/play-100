@@ -284,6 +284,7 @@ async function mount(
   await expect(page.locator('#all-review-harness')).toContainText('sharing');
 }
 test.beforeEach(async ({ page, request }) => {
+  await page.clock.install();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const email = emailFor('all-corners');
   await createAccount(page, email);
@@ -401,7 +402,10 @@ test('failed Stop refreshes the same active policy and resumes work without repl
 });
 test('late canonical games wake publication without another user event', async ({ page }) => {
   await mount(page, { lateGames: true });
-  await page.waitForTimeout(400);
+  await expect.poll(() => page.evaluate(() => window.allReview.kinds().at(-1))).toBe('all');
+  await page.evaluate(() => window.allReview.settle());
+  // Cover the 200ms queue wake and full 1200ms publication debounce with canonical games still absent.
+  await page.clock.runFor(1200);
   expect((await page.evaluate(() => window.allReview.stats())).publishes).toBe(0);
   await page.evaluate(() => window.allReview.deliverGames());
   await expect(page.locator('#all-review-harness')).toContainText('Up to date', { timeout: 30000 });
@@ -409,7 +413,10 @@ test('late canonical games wake publication without another user event', async (
 });
 test('late canonical games do not bypass the persisted quota deadline', async ({ page }) => {
   await mount(page, { lateGames: true, quota: true });
-  await page.waitForTimeout(400);
+  await expect.poll(() => page.evaluate(() => window.allReview.kinds().at(-1))).toBe('all');
+  await page.evaluate(() => window.allReview.settle());
+  await page.clock.runFor(1200);
+  expect((await page.evaluate(() => window.allReview.stats())).publishes).toBe(0);
   await page.evaluate(() => window.allReview.deliverGames());
   const surface = page.locator('#all-review-harness');
   await expect(surface).toContainText('Continuing later');

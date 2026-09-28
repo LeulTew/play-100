@@ -116,6 +116,7 @@ test('Escape from an unranked preview commits a pending rating and metadata with
 test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({
   page,
 }) => {
+  await page.clock.install();
   await prepareRanking(page);
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
@@ -134,7 +135,8 @@ test('leaving after a failed autosave does not retry the rejected edit or overwr
   const attempts = await page.evaluate(() => document.documentElement.dataset.exitWriteAttempts);
   await page.goBack();
   await expect(page.locator('.storage-banner')).toBeVisible();
-  await page.waitForTimeout(1000);
+  // Cover the full 650ms autosave debounce after leaving the failed edit.
+  await page.clock.runFor(1000);
   expect(await page.evaluate(() => document.documentElement.dataset.exitWriteAttempts)).toBe(attempts);
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.score).toBe(5);
 });

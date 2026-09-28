@@ -232,6 +232,7 @@ test('catalog played state follows the saved game into its library, detail and p
 });
 
 test('failed rating autosave keeps the prior score and does not retry in a background loop', async ({ page }) => {
+  await page.clock.install();
   await prepare(page);
   await rate(page, a, '7');
   await page.evaluate(() => {
@@ -250,7 +251,8 @@ test('failed rating autosave keeps the prior score and does not retry in a backg
   await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9');
   await expect(page.locator(`[data-record-id="${a.id}"] .inline-error`)).toContainText('could not be saved');
   const attempts = await page.evaluate(() => document.documentElement.dataset.ratingSaveAttempts);
-  await page.waitForTimeout(1600);
+  // Cover more than two 650ms autosave debounce windows without another attempt.
+  await page.clock.runFor(1600);
   expect(await page.evaluate(() => document.documentElement.dataset.ratingSaveAttempts)).toBe(attempts);
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.score).toBe(7);
   await page.evaluate(() => {

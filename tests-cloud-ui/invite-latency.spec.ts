@@ -61,6 +61,7 @@ test('measures first and warm invitation feedback and confirmed links with a 300
     };
   });
   await page.route('http://127.0.0.1:8188/**', async (route) => {
+    // Inject real network latency for the wall-clock measurements below, not a wait for application readiness.
     await new Promise((resolve) => setTimeout(resolve, 300));
     await route.continue();
   });

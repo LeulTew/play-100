@@ -180,6 +180,7 @@ test('search ratings preserve manual ranking slots and notes while played and ra
 test('saved additions remain searchable after provider failure and an online opt-out survives reload', async ({
   page,
 }) => {
+  await page.clock.install();
   let unavailable = false;
   let requests = 0;
   await page.route('**/api/catalog?**', (route) => {
@@ -211,7 +212,8 @@ test('saved additions remain searchable after provider failure and an online opt
   await expect(row(page, a)).toBeVisible();
   await openBrowsingFilters(page);
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).not.toBeChecked();
-  await page.waitForTimeout(1000);
+  // Opt-out must suppress requests across two full 500ms catalog debounce windows.
+  await page.clock.runFor(1000);
   expect(requests).toBe(requestCount);
   await expect(page.locator('.discovery-source-status')).toHaveCount(0);
 });
@@ -339,6 +341,7 @@ test('failed load-more retries the failed page without losing prior records or d
 test('a quota failure keeps an unranked rating draft without partially importing or endlessly retrying', async ({
   page,
 }) => {
+  await page.clock.install();
   await mockGames(page);
   await page.goto('/?q=mass&view=table');
   await searchOnline(page);
@@ -363,7 +366,8 @@ test('a quota failure keeps an unranked rating draft without partially importing
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('7');
   expect(await readLibrary(page)).toEqual(before);
   const attempts = await page.evaluate(() => document.documentElement.dataset.importAttempts);
-  await page.waitForTimeout(1600);
+  // Cover more than two 650ms autosave debounce windows without another attempt.
+  await page.clock.runFor(1600);
   expect(await page.evaluate(() => document.documentElement.dataset.importAttempts)).toBe(attempts);
   await page.evaluate(() => {
     document.documentElement.dataset.failImport = 'no';
