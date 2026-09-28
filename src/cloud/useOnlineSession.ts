@@ -66,7 +66,7 @@ export function useOnlineSession({
     identity,
     setIdentity,
     identityRef,
-    authSessionEpoch,
+    authSessionEpochRef,
     authGeneration,
     reconcileIdentity,
     observeUser,
@@ -210,9 +210,9 @@ export function useOnlineSession({
   };
   const google = (compare = false) =>
     run(async () => {
-      const session = authSessionEpoch.current;
+      const session = authSessionEpochRef.current;
       if (!(await flushPendingEdits())) throw new Error('Finish or correct the open rating/note before signing in.');
-      if (authSessionEpoch.current !== session || cloudAuth.currentUser)
+      if (authSessionEpochRef.current !== session || cloudAuth.currentUser)
         throw new Error('The signed-in account changed. Review Account before continuing.');
       // Only a redirect the Compare tray's sign-in starts has its return continue to Compare.
       if (compare) rememberCompareSignIn();
@@ -286,7 +286,7 @@ export function useOnlineSession({
     setIdentity,
     identityRef,
     /** The live auth-session epoch, for handlers and work that settles later. Renders use authGeneration. */
-    authSessionEpoch,
+    authSessionEpochRef,
     /** The auth-session epoch of the identity this render shows. */
     authGeneration,
     reconcileIdentity,

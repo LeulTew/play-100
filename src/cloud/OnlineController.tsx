@@ -105,7 +105,7 @@ export default function OnlineController({
     onCloseSheet,
     onNavigate,
   });
-  const { identity, identityRef, authSessionEpoch, authGeneration, busy, signInOpen, openInvitation, googleReturn } =
+  const { identity, identityRef, authSessionEpochRef, authGeneration, busy, signInOpen, openInvitation, googleReturn } =
     session;
   const { returnSheet, setReturnSheet, setError, setMessage } = session;
   const online = useOnlineAccount({
@@ -123,7 +123,7 @@ export default function OnlineController({
   const publication = useOnlinePublication({
     identity,
     identityRef,
-    authSessionEpoch,
+    authSessionEpochRef,
     currentEpoch: online.currentEpoch,
     member,
     cachedProfile: account.snapshot?.profile,
@@ -155,7 +155,7 @@ export default function OnlineController({
     member,
     friends: sharing.friends,
     shelf: sharing.shelf,
-    authSessionEpoch,
+    authSessionEpochRef,
     setError,
     onNavigate,
   });

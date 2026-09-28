@@ -38,7 +38,7 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
   const refreshedMismatch = new Set<string>();
   let authSessionUid: string | null = null;
   // The live epoch, which handlers and work that settles later compare against. Renders read the published one.
-  const authSessionEpoch = { current: 0 };
+  const authSessionEpochRef = { current: 0 };
   // Whether the controller that owns this lifetime is still mounted (attach, from its effect). A read can outlive it:
   // restoration gives up and the controller unmounts while the same account stays signed in, even before its session
   // observer first hears from Firebase, and the user may then choose this device.
@@ -79,11 +79,11 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
     settled: () => void,
     onError: (cause: unknown) => void,
   ) => {
-    const transition = authSessionTransition(authSessionUid, authSessionEpoch.current, user?.uid ?? null);
+    const transition = authSessionTransition(authSessionUid, authSessionEpochRef.current, user?.uid ?? null);
     if (transition.changed) {
       if (transition.clearUid) ports.clearPrevious(transition.clearUid);
       authSessionUid = transition.uid;
-      authSessionEpoch.current = transition.epoch;
+      authSessionEpochRef.current = transition.epoch;
       ports.publishEpoch(transition.epoch);
       if (user) ports.publish(undefined);
     }
@@ -104,7 +104,7 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
       .finally(settled);
   };
   return {
-    authSessionEpoch,
+    authSessionEpochRef,
     reconcileIdentity,
     observeUser,
     controllerLive,
@@ -128,7 +128,7 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
 export function useAccountIdentity(clearPrevious: (uid: string) => void) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
   // The auth-session epoch that renders use. It is state, set together with the identity it belongs to, so a render
-  // never reads the live epoch (authSessionEpoch), which may be newer than the identity it renders.
+  // never reads the live epoch (authSessionEpochRef), which may be newer than the identity it renders.
   const [authGeneration, setAuthGeneration] = useState(0);
   // The committed identity, for handlers and work that settles later.
   const identityRef = useRef(identity);

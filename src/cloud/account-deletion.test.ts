@@ -126,7 +126,7 @@ function fixture() {
     identityRef: { current: identity as AccountIdentity | null | undefined },
     scope: 'account:demo-play100:alpha',
     currentEpoch: { current: 2 },
-    authSessionEpoch: { current: 4 },
+    authSessionEpochRef: { current: 4 },
     state: {
       approval: null as GoogleDeletionApproval | null,
       setApproval: vi.fn(),
@@ -271,7 +271,7 @@ describe('ordered account deletion orchestration', () => {
     calls.reauthenticate.mockImplementationOnce(async () => {
       if (changed === 'auth') calls.auth.currentUser = { uid: 'beta', email: 'beta@example.test' };
       if (changed === 'identity') f.context.identityRef.current = { ...identity, uid: 'beta' };
-      if (changed === 'epoch') f.context.authSessionEpoch.current += 1;
+      if (changed === 'epoch') f.context.authSessionEpochRef.current += 1;
     });
     expect(await f.remove()).toBe(false);
     expect(f.context.sync.suspend).not.toHaveBeenCalled();
@@ -401,7 +401,7 @@ describe('ordered account deletion orchestration', () => {
   it('does not continue after the account generation changes while writes drain', async () => {
     const f = fixture();
     f.context.account.waitForWrites.mockImplementationOnce(async () => {
-      f.context.authSessionEpoch.current += 1;
+      f.context.authSessionEpochRef.current += 1;
     });
     expect(await f.remove(false)).toBe(false);
     expect(f.context.social.unpublish).not.toHaveBeenCalled();

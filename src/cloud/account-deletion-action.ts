@@ -32,7 +32,7 @@ export interface AccountDeletionContext {
   identityRef: RefObject<AccountIdentity | null | undefined>;
   scope: LibraryScope | null;
   currentEpoch: RefObject<number>;
-  authSessionEpoch: RefObject<number>;
+  authSessionEpochRef: RefObject<number>;
   state: ReturnType<typeof useAccountDeletionState>;
   account: { snapshot: ScopedLibrary | null; waitForWrites: () => Promise<unknown>; refresh: () => Promise<void> };
   sync: {
@@ -70,7 +70,7 @@ export function createAccountDeletion({
   identityRef,
   scope,
   currentEpoch,
-  authSessionEpoch,
+  authSessionEpochRef,
   state: { approval: deletionApproval, setApproval: setDeletionApproval, probe: deletionProbe, setNotice },
   account,
   sync,
@@ -107,7 +107,7 @@ export function createAccountDeletion({
         throw new Error('Sign in to the account you want to delete.');
       deletionProbe.current = null;
       setNotice(null);
-      const session = authSessionEpoch.current;
+      const session = authSessionEpochRef.current;
       const targetKind = removeAccount ? 'account' : 'copy';
       if (!navigator.onLine) throw new Error('Connect to the internet before deleting online data.');
       if (hasProvider(identity, EmailAuthProvider.PROVIDER_ID)) {
@@ -133,7 +133,7 @@ export function createAccountDeletion({
       if (
         cloudAuth.currentUser?.uid !== signedIn.uid ||
         identityRef.current?.uid !== signedIn.uid ||
-        authSessionEpoch.current !== session
+        authSessionEpochRef.current !== session
       )
         throw new Error('The signed-in account changed. Return to the same account before continuing.');
       sync.suspend();
@@ -148,7 +148,7 @@ export function createAccountDeletion({
             cloudAuth.currentUser?.uid,
             identityRef.current?.uid,
             session,
-            authSessionEpoch.current,
+            authSessionEpochRef.current,
           );
         const cancelled = await removeCancelledRegistration(cloudDb, signedIn, scope, current);
         if (cancelled) {
@@ -193,7 +193,7 @@ export function createAccountDeletion({
             false,
             'explicit',
             allControls,
-            () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session,
+            () => cloudAuth.currentUser?.uid === user.uid && authSessionEpochRef.current === session,
           );
         } else {
           const settings = allControls.ranking;
@@ -207,7 +207,7 @@ export function createAccountDeletion({
               user.uid,
               { enabled: false, selectedIds: [], consentSyncEpoch: null },
               config,
-              () => cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session,
+              () => cloudAuth.currentUser?.uid === user.uid && authSessionEpochRef.current === session,
             );
             await shelf.acceptConfig(stopped);
           }
@@ -220,7 +220,7 @@ export function createAccountDeletion({
           cloudAuth.currentUser?.uid,
           identityRef.current?.uid,
           session,
-          authSessionEpoch.current,
+          authSessionEpochRef.current,
         )
       )
         throw new Error('The signed-in account changed. Return to the same account before continuing.');
@@ -236,7 +236,7 @@ export function createAccountDeletion({
           cloudAuth.currentUser?.uid,
           identityRef.current?.uid,
           session,
-          authSessionEpoch.current,
+          authSessionEpochRef.current,
         );
       setMessage('Deleting your online library…');
       await store.cleanup(true, {
@@ -258,7 +258,7 @@ export function createAccountDeletion({
       if (await automatic.store.policy(user.uid))
         for (const kind of ['games', 'ranking'] as const) {
           for (let index = 0; index < 250; index += 1) {
-            if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session)
+            if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpochRef.current !== session)
               throw new Error('The signed-in account changed. Return to the same account before continuing.');
             const result = await automatic.store.cleanupPage(user.uid, kind);
             if (result.done) break;

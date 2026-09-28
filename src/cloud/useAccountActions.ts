@@ -57,7 +57,7 @@ export function useAccountActions({
   onCloseSheet: () => void;
   onNavigate: (page: AppPage) => void;
 }) {
-  const { identity, identityRef, authSessionEpoch, reconcileIdentity, run } = session;
+  const { identity, identityRef, authSessionEpochRef, reconcileIdentity, run } = session;
   const { setIdentity, setError, setMessage, retireInvitation } = session;
   const { scope, account, sync, social, member, head, headSnapshot, setHeadSnapshot, refresh } = online;
   const { verifiedIdentity } = online;
@@ -117,10 +117,10 @@ export function useAccountActions({
   const linkGoogle = () =>
     run(async () => {
       const { user } = verifiedIdentity();
-      const session = authSessionEpoch.current;
+      const session = authSessionEpochRef.current;
       if (!(await flushPendingEdits())) throw new Error('Finish or correct the open edit before linking Google.');
       await account.waitForWrites();
-      if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpoch.current !== session)
+      if (cloudAuth.currentUser?.uid !== user.uid || authSessionEpochRef.current !== session)
         throw new Error('The account changed. No other account was linked.');
       await startGoogleRedirect(cloudAuth, { kind: 'link', uid: user.uid });
     });
@@ -128,10 +128,10 @@ export function useAccountActions({
     run(async () => {
       const user = cloudAuth.currentUser;
       const target = scope;
-      const session = authSessionEpoch.current;
+      const session = authSessionEpochRef.current;
       if (!(await flushPendingEdits())) throw new Error('Correct the pending edit before signing out.');
       const current = () =>
-        Boolean(user && cloudAuth.currentUser?.uid === user.uid && authSessionEpoch.current === session);
+        Boolean(user && cloudAuth.currentUser?.uid === user.uid && authSessionEpochRef.current === session);
       if (!user || !target || !current())
         throw new Error('The signed-in account changed. Review Account before signing out.');
       const removal = await signOutTransition(removeDeviceCopy, {
@@ -272,7 +272,7 @@ export function useAccountActions({
     identityRef,
     scope,
     currentEpoch: online.currentEpoch,
-    authSessionEpoch,
+    authSessionEpochRef,
     state: online.deletion,
     account,
     sync,

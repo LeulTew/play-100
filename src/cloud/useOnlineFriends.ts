@@ -26,7 +26,7 @@ export function useOnlineFriends({
   member,
   friends,
   shelf,
-  authSessionEpoch,
+  authSessionEpochRef,
   setError,
   onNavigate,
 }: {
@@ -41,7 +41,7 @@ export function useOnlineFriends({
     acceptSettings: (settings: FriendSettings) => void;
   };
   shelf: { store: Pick<FriendShelfStore, 'initialize'> };
-  authSessionEpoch: RefObject<number>;
+  authSessionEpochRef: RefObject<number>;
   setError: (message: string) => void;
   onNavigate: (page: AppPage) => void;
 }) {
@@ -89,13 +89,13 @@ export function useOnlineFriends({
   const compareRoute = useCompareRoute();
   // Prepares the friend identity and the shared-games list before the first preview of the games to share.
   const prepareShelf = async (owner: OwnFriendIdentity): Promise<FriendShelfConfig> => {
-    const session = authSessionEpoch.current;
+    const session = authSessionEpochRef.current;
     const settings = await prepareFriendIdentity(friends.store, owner);
-    if (cloudAuth.currentUser?.uid !== owner.uid || authSessionEpoch.current !== session)
+    if (cloudAuth.currentUser?.uid !== owner.uid || authSessionEpochRef.current !== session)
       throw new Error('The account changed. Preview these games again.');
     friends.acceptSettings(settings);
     const config = await shelf.store.initialize(owner.uid);
-    if (cloudAuth.currentUser?.uid !== owner.uid || authSessionEpoch.current !== session)
+    if (cloudAuth.currentUser?.uid !== owner.uid || authSessionEpochRef.current !== session)
       throw new Error('The account changed. Preview these games again.');
     return config;
   };

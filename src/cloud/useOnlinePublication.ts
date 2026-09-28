@@ -18,7 +18,7 @@ const loadingAvatar: AvatarDescriptor = { version: 1, seed: '0000000000000000000
 export function useOnlinePublication({
   identity,
   identityRef,
-  authSessionEpoch,
+  authSessionEpochRef,
   currentEpoch,
   member,
   cachedProfile,
@@ -33,7 +33,7 @@ export function useOnlinePublication({
 }: {
   identity: AccountIdentity | null | undefined;
   identityRef: RefObject<AccountIdentity | null | undefined>;
-  authSessionEpoch: RefObject<number>;
+  authSessionEpochRef: RefObject<number>;
   currentEpoch: RefObject<number>;
   member: Member | null;
   /** The profile the account's device copy holds, shown until the member record is read. */
@@ -87,20 +87,20 @@ export function useOnlinePublication({
   const saveAvatar = async (owner: AccountIdentity, next: AvatarDescriptor) => {
     const uid = owner.uid;
     const epoch = currentEpoch.current;
-    const sessionEpoch = authSessionEpoch.current;
+    const sessionEpoch = authSessionEpochRef.current;
     const saved = await run(async () => {
       if (
         cloudAuth.currentUser?.uid !== uid ||
         !identityRef.current?.verified ||
         currentEpoch.current !== epoch ||
-        authSessionEpoch.current !== sessionEpoch
+        authSessionEpochRef.current !== sessionEpoch
       )
         throw new Error('The account changed. Your new account was not modified.');
       await social.saveMemberAvatar(uid, next, member?.displayName || owner.displayName || 'Player');
       if (
         identityRef.current?.uid === uid &&
         currentEpoch.current === epoch &&
-        authSessionEpoch.current === sessionEpoch
+        authSessionEpochRef.current === sessionEpoch
       ) {
         setDefaultAvatar(next);
         setMember((current) => (current?.uid === uid ? { ...current, avatar: next } : current));
@@ -113,7 +113,11 @@ export function useOnlinePublication({
       }
     });
     if (!saved) throw new Error('The creature could not be saved. Your previous choice is unchanged.');
-    if (identityRef.current?.uid === uid && currentEpoch.current === epoch && authSessionEpoch.current === sessionEpoch)
+    if (
+      identityRef.current?.uid === uid &&
+      currentEpoch.current === epoch &&
+      authSessionEpochRef.current === sessionEpoch
+    )
       setAvatarOpen(false);
   };
   // A ranking published by the account still signed in opens as its public profile.
