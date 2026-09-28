@@ -338,10 +338,7 @@ describe('offline built-output budgets', () => {
     it.each(['', ' M src/example.ts'])('records local HEAD and tracked dirty state %j', (status) => {
       const runGit = vi.fn((args: string[]) => (args[0] === 'rev-parse' ? 'a'.repeat(40) + '\n' : status));
       expect(readBudgetSource({}, runGit)).toEqual({ sourceCommit: 'a'.repeat(40), dirty: status !== '' });
-      expect(runGit.mock.calls).toEqual([
-        [['rev-parse', 'HEAD']],
-        [['status', '--porcelain', '--untracked-files=no']],
-      ]);
+      expect(runGit.mock.calls).toEqual([[['rev-parse', 'HEAD']], [['status', '--porcelain', '--untracked-files=no']]]);
     });
 
     it('prefers the CI commit while still reading tracked dirty state', () => {

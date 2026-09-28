@@ -194,7 +194,9 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
     }
     if (
       !flag ||
-      !['--vitest', '--vitest-cloud', '--cloud-rules', '--receipt', '--playwright', '--decisions', '--mode'].includes(flag)
+      !['--vitest', '--vitest-cloud', '--cloud-rules', '--receipt', '--playwright', '--decisions', '--mode'].includes(
+        flag,
+      )
     ) {
       throw new Error('Unknown release-manifest option.');
     }
