@@ -218,8 +218,9 @@ the same UID keeps its epoch, while account changes and sign-out advance it and
 clear the previous comparison scope. The controller still passes that stable
 epoch holder to sync/sharing/deletion. Successful reads are gated on the UID and
 the mounted controller, and observer errors on the observer's lifetime. The
-lifetime tracks that mount itself: `attach`, from the controller's first
-passive effect, marks it mounted, so no render writes it.
+lifetime tracks that mount itself: `attach`, from the controller's passive
+effect that runs just before the session observer's, marks it mounted, so no
+render writes it.
 Member/profile snapshots and page rendering remain composition concerns, not
 state inside the token reconciler.
 
