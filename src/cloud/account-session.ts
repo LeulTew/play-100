@@ -95,7 +95,10 @@ export function observeAccountSession({
   onError,
   hasGoogleIntent,
 }: {
-  state: Pick<SessionState, 'setSessionUnconfirmed' | 'setGoogleReturn' | 'setReturnSheet' | 'setStartupError'>;
+  state: Pick<SessionState, 'setSessionUnconfirmed' | 'setReturnSheet' | 'setStartupError'> & {
+    /** Receives the page load's Google redirect return, once, when a redirect was attempted. */
+    setGoogleReturn: (outcome: GoogleReturn) => void;
+  };
   onUser: (user: User | null, isCurrent: () => boolean, settled: () => void) => void;
   onError: (cause: Error) => void;
   /** Whether a Google redirect is still pending, which makes a restored back/forward page reload. */

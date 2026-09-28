@@ -211,8 +211,11 @@ export default function OnlineController({
     'friend-sharing',
     'friend-shelf',
   ].includes(page);
+  // The committed invitation: signing out or changing accounts retires the one this tab had open.
   const invitationNow = useRef(invitation);
-  invitationNow.current = invitation;
+  useLayoutEffect(() => {
+    invitationNow.current = invitation;
+  }, [invitation]);
   const [retiredInvitation, setRetiredInvitation] = useState<typeof invitation | null>(null);
   const {
     identity,
@@ -258,8 +261,8 @@ export default function OnlineController({
   const signInOpen = !identity && (showSheet || (returnSheet && !cloudPage));
   const deletion = useAccountDeletionState();
   const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
-  // Whether this page load returned from a Google redirect that the Compare tray's sign-in started; the ref lets the
-  // return's own transition see it in the same effects pass.
+  // Whether this page load returned from a Google redirect that the Compare tray's sign-in started. The return's own
+  // transition reads the ref, which a sign-in that completes here clears at once.
   const [googleCompare, setGoogleCompare] = useState(false);
   const googleCompareNow = useRef(false);
   // A sign-in the Compare tray started continues to Compare with the device's pins once its account has opened. App
@@ -278,18 +281,37 @@ export default function OnlineController({
     onNavigate,
     continueSignIn: (uid: string) => googleCompareNow.current && continueToCompare(uid),
   };
+  // The committed page and handlers, which a Google return's transition (an effect) navigates with.
   const navigation = useRef(signInNavigation);
-  navigation.current = signInNavigation;
+  useLayoutEffect(() => {
+    navigation.current = signInNavigation;
+  });
   const [avatarOpen, setAvatarOpen] = useState(false);
+  // A fresh default creature for each account, until the member has one of its own.
   const [defaultAvatar, setDefaultAvatar] = useState(() => createAvatarDescriptor());
-  const defaultAvatarUid = useRef<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-  const [now, setNow] = useState(Date.now());
+  // Only compared with a cooldown, which starts at 0, so its first value is never shown.
+  const [now, setNow] = useState(0);
   const running = useRef(false);
   const uid = identity?.uid;
+  // Each account starts afresh: nothing the previous one loaded, was told or had open carries over, its registration
+  // state is unknown until it is read, and it has a new default creature.
+  const [accountUid, setAccountUid] = useState(uid);
+  if (accountUid !== uid) {
+    setAccountUid(uid);
+    setMember(null);
+    setProfile(null);
+    setHeadSnapshot(null);
+    setCreatorUid(null);
+    setCancelledUid(null);
+    setError('');
+    setMessage('');
+    setAvatarOpen(false);
+    setDeletionApproval(null);
+    setDefaultAvatar(createAvatarDescriptor());
+  }
   useEffect(() => {
     let current = true;
-    setCancelledUid(null);
     if (uid)
       void readAccountLifecycle(cloudDb, uid)
         .then((state) => {
@@ -400,22 +422,40 @@ export default function OnlineController({
     identity === undefined || Boolean(identity && !account.snapshot && !account.error) || sync.restoringInitial;
   const cacheUnavailable = Boolean(identity && account.error && !account.snapshot);
   const canCacheProfile = Boolean(account.snapshot && !account.error);
+  const accountEpoch = account.snapshot?.sync.epoch ?? 0;
+  // The committed device copy and whether its profile can be cached, which member reads compare with, and the committed
+  // consent epoch, which an action checks is still current after each step.
   const cacheNow = useRef(account.snapshot);
-  cacheNow.current = account.snapshot;
   const cacheReady = useRef(canCacheProfile);
-  cacheReady.current = canCacheProfile;
+  const currentEpoch = useRef(accountEpoch);
+  useLayoutEffect(() => {
+    cacheNow.current = account.snapshot;
+    cacheReady.current = canCacheProfile;
+    currentEpoch.current = accountEpoch;
+  }, [account.snapshot, canCacheProfile, accountEpoch]);
   const protectedController = useMemo(
     () => (cacheUnavailable ? { ...account.controller, busy: true } : active ? account.controller : null),
     [cacheUnavailable, active, account.controller],
   );
   const activeController = protectedController ?? guest;
-  const currentEpoch = useRef(account.snapshot?.sync.epoch ?? 0);
-  currentEpoch.current = account.snapshot?.sync.epoch ?? 0;
 
   useEffect(
     () =>
       observeAccountSession({
-        state: { setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError },
+        state: {
+          setSessionUnconfirmed,
+          // A return from a redirect the Compare tray's sign-in started continues to Compare. Its flag is taken as the
+          // return arrives, so the return's own transition and the sheet it reopens both see it.
+          setGoogleReturn: (outcome) => {
+            if (takeCompareSignIn()) {
+              googleCompareNow.current = true;
+              setGoogleCompare(true);
+            }
+            setGoogleReturn(outcome);
+          },
+          setReturnSheet,
+          setStartupError,
+        },
         onUser: (user, isCurrent, settled) => {
           observeUser(user, isCurrent, settled, (cause) => setError(onlineError(cause)));
         },
@@ -427,25 +467,6 @@ export default function OnlineController({
       }),
     [observeUser, setIdentity, setSessionUnconfirmed, setGoogleReturn, setReturnSheet, setStartupError],
   );
-  useEffect(() => {
-    setMember(null);
-    setProfile(null);
-    setHeadSnapshot(null);
-    setCreatorUid(null);
-    setError('');
-    setMessage('');
-    setAvatarOpen(false);
-    setDeletionApproval(null);
-  }, [identity?.uid, setDeletionApproval]);
-  useLayoutEffect(() => {
-    defaultAvatarUid.current = uid ?? null;
-    setDefaultAvatar(createAvatarDescriptor());
-  }, [uid]);
-  useEffect(() => {
-    if (!googleReturn?.attempted || !takeCompareSignIn()) return;
-    googleCompareNow.current = true;
-    setGoogleCompare(true);
-  }, [googleReturn]);
   useEffect(() => {
     applyGoogleReturn({
       state: { googleReturn, handledGoogleReturn, setReturnSheet },
@@ -530,9 +551,15 @@ export default function OnlineController({
     sync.profileConnection,
     reportProfileError,
   ]);
-  useEffect(() => {
+  // Each head the sync session sees replaces the one Account previews, until a read or an action here replaces it.
+  const [seenRemote, setSeenRemote] = useState<{ uid: string | undefined; head: SyncHead | null }>({
+    uid: undefined,
+    head: null,
+  });
+  if (seenRemote.head !== sync.remote || seenRemote.uid !== uid) {
+    setSeenRemote({ uid, head: sync.remote });
     if (sync.remote && uid) setHeadSnapshot({ uid, value: sync.remote });
-  }, [sync.remote, uid]);
+  }
   const deletionState = useDeletionProbe({
     page,
     identity,
@@ -583,10 +610,7 @@ export default function OnlineController({
     };
   }, [uid, scope, identity?.verified, sync.profileAvailable, sync.profileConnection, reportProfileError, social]);
 
-  const avatar =
-    member?.avatar ??
-    account.snapshot?.profile?.avatar ??
-    (defaultAvatarUid.current === uid ? defaultAvatar : loadingAvatar);
+  const avatar = member?.avatar ?? account.snapshot?.profile?.avatar ?? (uid ? defaultAvatar : loadingAvatar);
   const headerIdentity = useMemo(
     () =>
       identity
@@ -602,8 +626,11 @@ export default function OnlineController({
     identity && headerIdentity
       ? { uid: identity.uid, verified: identity.verified, displayName: headerIdentity.name, avatar }
       : null;
+  // The friend identity last committed, which a friend profile update checks it still matches before it saves.
   const committedFriendIdentity = useRef(friendIdentity);
-  committedFriendIdentity.current = friendIdentity;
+  useLayoutEffect(() => {
+    committedFriendIdentity.current = friendIdentity;
+  });
   const friendIdentityReady = Boolean(friends.settings && !friends.settings.deleted);
   const memberName = member?.displayName;
   const memberAvatar = member?.avatar;
@@ -1045,14 +1072,15 @@ export default function OnlineController({
   // ?group= in place (replaceState) when the user picks, saves or clears a group, and reports it here, because every
   // render reads the URL again: it must not take the page's own change for a navigation, remount the page and lose its
   // unsaved name and selection at whatever unrelated render comes next.
-  const compareRoute = useRef({ group: '', generation: 0 });
+  const [compareRoute, setCompareRoute] = useState({ group: '', generation: 0 });
   const urlGroup = new URLSearchParams(location.search).get('group') ?? '';
-  if (page === 'compare' && urlGroup !== compareRoute.current.group)
-    compareRoute.current = { group: urlGroup, generation: compareRoute.current.generation + 1 };
-  const compareKey = String(compareRoute.current.generation);
-  const keepCompareGroup = useCallback((group: string) => {
-    compareRoute.current = { ...compareRoute.current, group };
-  }, []);
+  if (page === 'compare' && urlGroup !== compareRoute.group)
+    setCompareRoute({ group: urlGroup, generation: compareRoute.generation + 1 });
+  const compareKey = String(compareRoute.generation);
+  const keepCompareGroup = useCallback(
+    (group: string) => setCompareRoute((route) => (route.group === group ? route : { ...route, group })),
+    [],
+  );
   const pageRouteKey =
     page === 'profile'
       ? publicHandle
@@ -1069,7 +1097,7 @@ export default function OnlineController({
     deletionApproval,
     identity?.uid,
     authSessionEpoch.current,
-    currentEpoch.current,
+    accountEpoch,
   );
   const closeSignin = () => {
     setReturnSheet(false);
