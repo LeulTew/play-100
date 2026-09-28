@@ -97,6 +97,43 @@ redacted JSON report and command log, not only a summary of its result.
 
 ## 2. Candidate-bound local gate
 
+The committed runner is the default entry point. It follows the integrator's
+ordered local partitions, pins **Node 24.21.0**, refuses occupied suite ports
+(including IPv6), and stops on the first failure without retries or cleanup of
+evidence. The old, disabled hosted workflow was removed rather than kept as a
+second, incomplete definition. No CI, push or deployment is performed.
+
+Prepare a separate clean offline checkout at the **same full candidate SHA**,
+with matching installed dependencies, as described in section 3. The runner
+never installs dependencies or creates worktrees. Both checkouts must have no
+`.env` files; load only the reviewed public Production configuration into the
+calling environment. Java 21 and the installed browsers must already be available.
+Use the pinned runtime's bundled npm. Do not invoke this full gate during another
+lane's bounded-check or quiet window.
+
+```powershell
+npm run release:gate -- --dry-run
+npm run release:gate -- --evidence C:\release\evidence-NEW --offline-checkout C:\release\offline-CANDIDATE
+if ($LASTEXITCODE -ne 0) { throw 'Gate stopped; investigate retained evidence before any new attempt' }
+```
+
+The evidence directory must not exist and must be outside both checkouts.
+Dry-run prints the entire plan without starting servers, tests or builds.
+Execution runs static checks, unit/browser tests, cloud rules and the handle
+race x5 / convergence x20, both independent builds with CSP/budget checks,
+production/development e2e, cloud-UI with freshly allocated comparison actors,
+the cross-tab identity case x20 on both projects, and offline navigation plus
+offline unit/browser tests. Every emulator partition owns a fresh config/log
+directory. Native reports, exact-count loop checks, log hashes, exit receipts,
+tested rules and both build fingerprints are retained; separate configured and
+offline release manifests bind the results. No automatic carry-forward is used.
+`gate-complete.json` exists only after both manifests succeed. The two-version
+service-worker campaign and owner/live-provider checks remain separately
+commissioned evidence, not something this single-candidate runner claims.
+
+The explicit commands below document the partitions for diagnosis; running the
+runner does not require copying them into additional terminals.
+
 Keep a command/exit-code log in the private evidence directory; do not use a
 transcript when loading credentials. Use a fresh report filename for every
 partition or failed attempt. Investigate failures; a green retry does not erase
