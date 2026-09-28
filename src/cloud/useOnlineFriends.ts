@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { AppPage } from '../lib/types';
 import type { Member } from '../lib/community';
@@ -13,15 +13,13 @@ import type { OwnFriendIdentity } from './friend-page-actions';
 import type { FriendStore } from './friend-store';
 import type { FriendShelfStore } from './friend-shelf-store';
 import type { AccountIdentity } from './ui-types';
-import { compareRouteFor, initialCompareRoute, keepCompareRouteGroup } from './compare-route';
+import { useCompareRoute } from './online-location';
 
 /**
  * The friends controller: the identity friends see, kept in step with the member's name and creature, and the way to
  * Compare and to the games shared with friends.
  */
 export function useOnlineFriends({
-  page,
-  urlGroup,
   identity,
   name,
   avatar,
@@ -32,9 +30,6 @@ export function useOnlineFriends({
   setError,
   onNavigate,
 }: {
-  page: AppPage;
-  /** The Compare group the URL names, or '' when it names none. */
-  urlGroup: string;
   identity: AccountIdentity | null | undefined;
   /** The name the header shows, or null while signed out. */
   name: string | null;
@@ -89,17 +84,9 @@ export function useOnlineFriends({
     onNavigate('compare');
     if (selected) rememberComparisonView(selected, true);
   };
-  // Compare opens the group its URL names, and a navigation to another group opens that group afresh. The page changes
-  // ?group= in place (replaceState, which notifies no one) when the user picks, saves or clears a group, and reports it
-  // here: the controller's next render, whatever its cause, reads that URL, and must not take the page's own change for
-  // a navigation, remount the page and lose its unsaved name and selection.
-  const [compareRoute, setCompareRoute] = useState(initialCompareRoute);
-  const nextCompareRoute = compareRouteFor(compareRoute, page, urlGroup);
-  if (nextCompareRoute !== compareRoute) setCompareRoute(nextCompareRoute);
-  const keepCompareGroup = useCallback(
-    (group: string) => setCompareRoute((route) => keepCompareRouteGroup(route, group)),
-    [],
-  );
+  // Compare opens the group its URL names, and a navigation to another group opens it afresh; the page's own ?group=
+  // changes, which it reports with keepCompareGroup, do not (online-location.ts).
+  const compareRoute = useCompareRoute();
   // Prepares the friend identity and the shared-games list before the first preview of the games to share.
   const prepareShelf = async (owner: OwnFriendIdentity): Promise<FriendShelfConfig> => {
     const session = authSessionEpoch.current;
@@ -117,7 +104,7 @@ export function useOnlineFriends({
     friendIdentity,
     openComparison,
     compareKey: String(compareRoute.generation),
-    keepCompareGroup,
+    keepCompareGroup: compareRoute.keep,
     prepareShelf,
   };
 }

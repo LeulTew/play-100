@@ -148,8 +148,6 @@ export default function OnlineController({
     connected: Boolean(identity?.verified && account.snapshot?.sync.enabled),
   });
   const friendControls = useOnlineFriends({
-    page,
-    urlGroup: url.group,
     identity,
     name: headerIdentity?.name ?? null,
     avatar,

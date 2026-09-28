@@ -260,10 +260,14 @@ controller reads the URL for these targets through
 [online-location](../src/cloud/online-location.ts), a subscription to
 `popstate` and `play100:navigate`, not by reading `location` during render, so
 a navigation renders it again even when App does not. For Compare, the target
-is the group a navigation opened. The page changes `?group=` in place when the
-user picks, saves or clears a group and reports that change, so the next render,
-which reads the new URL, does not remount the page or drop its unsaved group
-name and selection. Private save revisions do not remount forms. A page-module
+is the opening a navigation made: a navigation that changes the group the URL
+names opens Compare afresh. The page changes `?group=` in place when the user
+picks, saves or clears a group and reports that change, so the next navigation
+compares with the page's own group and does not remount the page or drop its
+unsaved group name and selection. Both are recorded at once, outside render, in
+the controller's Compare route, which renders read through a subscription, so
+no render at any priority can see the page's new URL before the route knows it
+is the page's own. Private save revisions do not remount forms. A page-module
 failure leaves the controller
 and its `OnlineBridge` mounted; changing pages or account scope clears only the
 failed page boundary. Native sign-in and picker dialogs keep their own closeable,
