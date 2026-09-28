@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
 
 const catalog = parseDiscoveryCatalog(
@@ -20,11 +21,40 @@ declare global {
   }
 }
 
+async function wordmarkGeometry(art: Locator) {
+  return art.evaluate((element) => {
+    const card = element.closest('.discovery-card');
+    const grid = card?.closest('.discovery-cards');
+    const image = element.querySelector('img');
+    const title = element.querySelector('strong');
+    if (!card || !grid || !image || !title) throw new Error('The complete wordmark plate must be mounted.');
+    const frame = element.getBoundingClientRect();
+    const cardBox = card.getBoundingClientRect();
+    const gridBox = grid.getBoundingClientRect();
+    const relative = (box: DOMRect, origin: DOMRect) => ({
+      x: box.x - origin.x,
+      y: box.y - origin.y,
+      width: box.width,
+      height: box.height,
+    });
+    return {
+      relativeToCard: relative(frame, cardBox),
+      image: relative(image.getBoundingClientRect(), frame),
+      title: relative(title.getBoundingClientRect(), frame),
+      viewport: { x: frame.x, y: frame.y },
+      scroll: { x: scrollX, y: scrollY },
+      document: { x: frame.x + scrollX, y: frame.y + scrollY },
+      cardTopInGrid: cardBox.top - gridBox.top,
+      gridDocumentTop: gridBox.top + scrollY,
+    };
+  });
+}
+
 test('extreme-ratio artwork has a stable native-size title plate without changing normal tiles or controls', async ({
   page,
   baseURL,
   isMobile,
-}) => {
+}, info) => {
   if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) {
     throw new Error('Wordmark fixtures require the owned local preview.');
   }
@@ -50,9 +80,8 @@ test('extreme-ratio artwork has a stable native-size title plate without changin
     );
     await art.scrollIntoViewIfNeeded();
     await page.evaluate(() => document.fonts.ready);
-    const before = await art.boundingBox();
-    if (!before) throw new Error('The wordmark plate must be visible before the image loads.');
-    expect(before.width / before.height).toBeCloseTo(4 / 3, 2);
+    const before = await wordmarkGeometry(art);
+    expect(before.relativeToCard.width / before.relativeToCard.height).toBeCloseTo(4 / 3, 2);
     await page.evaluate(() => {
       window.wordmarkLayoutShifts = [];
       new PerformanceObserver((list) => {
@@ -68,16 +97,35 @@ test('extreme-ratio artwork has a stable native-size title plate without changin
     await page.evaluate(
       () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
     );
-    expect(await art.boundingBox()).toEqual(before);
+    const after = await wordmarkGeometry(art);
+    await info.attach('wordmark-geometry', {
+      contentType: 'application/json',
+      body: JSON.stringify({
+        before,
+        after,
+        delta: {
+          viewportY: after.viewport.y - before.viewport.y,
+          scrollY: after.scroll.y - before.scroll.y,
+          documentY: after.document.y - before.document.y,
+          cardTopInGrid: after.cardTopInGrid - before.cardTopInGrid,
+          gridDocumentTop: after.gridDocumentTop - before.gridDocumentTop,
+        },
+        layoutShifts: await page.evaluate(() => window.wordmarkLayoutShifts),
+      }),
+    });
+    // Offscreen row estimates can resolve and trigger scroll anchoring; the plate must not shift within its card.
+    expect(after.relativeToCard).toEqual(before.relativeToCard);
     expect(await page.evaluate(() => window.wordmarkLayoutShifts.reduce((sum, value) => sum + value, 0))).toBe(0);
-    const imageBox = await image.boundingBox();
-    const titleBox = await art.locator('strong').boundingBox();
-    if (!imageBox || !titleBox) throw new Error('The wordmark and its title must both be visible.');
+    const { image: imageBox, title: titleBox } = after;
     expect(imageBox.width).toBeLessThanOrEqual(wideArtwork.width);
     expect(imageBox.height).toBeLessThanOrEqual(wideArtwork.height);
     expect(imageBox.width / imageBox.height).toBeCloseTo(wideArtwork.width / wideArtwork.height, 1);
     expect(imageBox.y + imageBox.height).toBeLessThanOrEqual(titleBox.y);
-    expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(before.y + before.height);
+    expect(imageBox.width).toBeGreaterThan(0);
+    expect(imageBox.height).toBeGreaterThan(0);
+    expect(titleBox.height).toBeGreaterThan(0);
+    expect(imageBox.y).toBeGreaterThanOrEqual(0);
+    expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(after.relativeToCard.height);
     await expect(
       card.getByRole('button', { name: `Add to My games: ${wideItem.record.title}`, exact: true }),
     ).toBeEnabled();
