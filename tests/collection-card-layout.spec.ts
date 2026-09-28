@@ -226,3 +226,73 @@ for (const view of ['grid', 'list'] as const) {
     expect(result.violations).toEqual([]);
   });
 }
+
+// A control's computed type, as "<font-size> <font-weight>".
+async function actionType(control: Locator) {
+  return control.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return `${style.fontSize} ${style.fontWeight}`;
+  });
+}
+
+// Where a card's action row places Played, Completed and the Compare controls.
+async function actionRow(card: Locator) {
+  return card.evaluate((item) => {
+    const box = (selector: string) => item.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+    const middle = (rect: DOMRect) => rect.top + rect.height / 2;
+    const row = box('.card-played');
+    const played = box('.played-toggle');
+    const completed = box('.completed-toggle');
+    const compare = box('.card-compare-actions');
+    const middles = [played, completed, compare].map(middle);
+    return {
+      pairGap: completed.left - played.right,
+      compareEnd: row.right - compare.right,
+      lineSpread: Math.max(...middles) - Math.min(...middles),
+      targets: Math.min(played.height, completed.height),
+    };
+  });
+}
+
+test('List view keeps Played and Completed together, ends with Compare, and types the pair alike', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/?view=list&catalogs=off');
+  const rows = page.locator('.games-list > .game-card');
+  await expect(rows).toHaveCount(24);
+  await page.evaluate(() => document.fonts.ready);
+  const layout = await actionRow(rows.first());
+  expect(layout.pairGap).toBeCloseTo(16, 0);
+  expect(Math.abs(layout.compareEnd)).toBeLessThanOrEqual(1);
+  expect(layout.lineSpread).toBeLessThanOrEqual(1);
+  expect(layout.targets).toBeGreaterThanOrEqual(44);
+  expect(await actionType(rows.first().locator('.played-toggle'))).toBe('14px 600');
+  expect(await actionType(rows.first().locator('.completed-toggle'))).toBe('14px 600');
+});
+
+test('the Played label shares its partner action type in the grid, the table and the game details', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/?catalogs=off');
+  const card = page.locator('.games-grid > .game-card').first();
+  await expect(card).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const grid = await actionRow(card);
+  expect(grid.pairGap).toBeCloseTo(4, 0);
+  expect(Math.abs(grid.compareEnd)).toBeLessThanOrEqual(1);
+  expect(await actionType(card.locator('.played-toggle'))).toBe(await actionType(card.locator('.completed-toggle')));
+  await card.locator('.game-link').click();
+  const details = page.getByRole('dialog').locator('.personal-detail-actions');
+  await expect(details).toBeVisible();
+  expect(await actionType(details.locator('.played-toggle'))).toBe(
+    await actionType(details.getByRole('button', { name: 'Add to my ranking', exact: true })),
+  );
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.goto('/?view=table&catalogs=off');
+  await expect(page.getByRole('table')).toBeVisible();
+  const progress = page.locator('.ratings-table tbody .table-progress').first();
+  expect(await actionType(progress.locator('.played-toggle'))).toBe(
+    await actionType(progress.locator('.completed-toggle')),
+  );
+});

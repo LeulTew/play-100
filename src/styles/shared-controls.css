@@ -45,23 +45,30 @@
 .card-played {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
   gap: 4px;
   padding: 3px 0 5px;
 }
+/* Played and Completed stay together at the start of the row; the Compare controls end it. */
 .card-compare-actions {
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-left: auto;
 }
-.card-played .played-toggle {
-  font-size: 12px;
+/* The Played label takes the same text-action type as its partner: Completed on cards and in the table, Add to my
+   ranking in the details. */
+.card-played .played-toggle,
+.table-progress .played-toggle,
+.personal-detail-actions .check-control {
+  font-size: 14px;
+  font-weight: 600;
 }
 .games-list .card-played {
   margin-left: 150px;
   margin-top: -13px;
   padding-bottom: 10px;
+  gap: 4px 16px;
 }
 .played-toggle {
   position: relative;
@@ -71,10 +78,6 @@
   display: flex;
   align-items: center;
   gap: 2px;
-}
-.table-progress .played-toggle {
-  padding-inline: 4px;
-  font-size: 12px;
 }
 .author-rating-card {
   margin-top: 8px;
@@ -610,9 +613,6 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-}
-.personal-detail-actions .check-control {
-  font-size: 12px;
 }
 .catalog-art {
   height: 110px;

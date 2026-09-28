@@ -467,12 +467,16 @@ Buttons, links, inputs, selects and summaries use a visible **3px `#426515` outl
 Use the supplied cover files at native resolution: mostly about 96 × 120px, with nine 150px-wide images. Keep them inside the original numbered SVG jackets where used; they are not material for oversized cinematic backgrounds. Rank, title and collection facts stay readable independently of imagery or WebGL.
 
 Collection grid and list entries are native list items, with the existing title
-link and independent progress/Compare controls. Grid copy absorbs differing
-title and genre heights so dividers and action rows align. A failed cover's
-12px caption occupies its own row above the canonical rank; the placeholder can
-grow to keep the full message clear of the badge and overlaid controls. At narrow
-widths, redundant decorative series/year print is hidden, while the real metadata,
-rank, successful sleeve aspect ratio and native-size image limit are unchanged.
+link and independent progress/Compare controls. Played and Completed start the
+action row as a pair, 16px apart in List view (4px up to 760px, as in the grid),
+and the Compare controls end it. The Played label uses the same 14px semibold
+text-action type as Completed, in the ratings table too, and as Add to my
+ranking in the game details. Grid copy absorbs differing title and genre heights
+so dividers and action rows align. A failed cover's 12px caption occupies its own
+row above the canonical rank; the placeholder can grow to keep the full message
+clear of the badge and overlaid controls. At narrow widths, redundant decorative
+series/year print is hidden, while the real metadata, rank, successful sleeve
+aspect ratio and native-size image limit are unchanged.
 Failed list thumbnails use content-driven height without a preferred aspect ratio
 or overlaid-control headroom; their unchanged full caption and rank set the height.
 

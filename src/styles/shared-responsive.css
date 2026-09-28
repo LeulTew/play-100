@@ -47,6 +47,7 @@
   }
   .games-list .card-played {
     margin-left: 95px;
+    gap: 4px;
   }
   .site-header .header-actions {
     gap: 7px;
