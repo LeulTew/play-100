@@ -1,7 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#f3f3e9"/>
   <path d="M60 110h1080M60 561h1080" stroke="#20231e" stroke-width="2"/>
-  <text x="60" y="80" font-family="'Barlow Condensed', sans-serif" font-weight="700" font-size="44" letter-spacing="-.88" fill="#20231e">PLAY 100.</text>
+  <g id="play-tile" transform="translate(60 40)">
+    <path d="M3.5 6.319 36.5 1.681v34L3.5 40.319Z" fill="#d3f36b"/>
+    <path d="m15.5 12 12 9-12 9Z" fill="#20231e"/>
+  </g>
+  <text x="110" y="80" font-family="'Barlow Condensed', sans-serif" font-weight="700" font-size="44" letter-spacing="-.88" fill="#20231e">PLAY 100.</text>
   <text x="60" y="257" font-family="'Barlow Condensed', sans-serif" font-weight="800" font-size="100" letter-spacing="-2.4" fill="#20231e">GOOD GAMES.</text>
   <text x="60" y="350" font-family="'Barlow Condensed', sans-serif" font-weight="800" font-size="100" letter-spacing="-2.4" fill="#65714e">GREAT ESCAPES.</text>
   <text x="64" y="427" font-family="'Hanken Grotesk Variable', sans-serif" font-weight="400" font-size="26" fill="#414b35">One hundred games worth making time for.</text>

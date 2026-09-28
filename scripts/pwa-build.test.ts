@@ -286,9 +286,9 @@ describe('generated public PWA build closure', () => {
           if (
             icon.maskable &&
             radius > icon.size * 0.4 &&
-            (Math.abs(data[offset]! - 211) > 2 ||
+            (Math.abs(data[offset]! - 243) > 2 ||
               Math.abs(data[offset + 1]! - 243) > 2 ||
-              Math.abs(data[offset + 2]! - 107) > 2)
+              Math.abs(data[offset + 2]! - 233) > 2)
           ) {
             unsafeMaskablePixels += 1;
           }
@@ -298,9 +298,30 @@ describe('generated public PWA build closure', () => {
           }
         }
       expect(ink).toBeGreaterThan(100);
+      expect(icon.bytes.length).toBeLessThanOrEqual(24 * 1024);
       expect(transparentPixels).toBe(0);
       expect(unsafeMaskablePixels).toBe(0);
       if (icon.maskable) expect(furthestInk).toBeLessThanOrEqual(icon.size * 0.4);
     }
+  });
+
+  it('uses the same skewed play tile in tab, maskable and social SVG sources', async () => {
+    const sources = await Promise.all(
+      ['favicon.svg', 'pwa/icon-source.svg', 'social-card.svg'].map((file) =>
+        readFile(new URL(`../public/${file}`, import.meta.url), 'utf8'),
+      ),
+    );
+    const shapes = sources.map((source) =>
+      /<g id="play-tile"[^>]*>([\s\S]*?)<\/g>/.exec(source)?.[1]?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(shapes[0]).toBeTruthy();
+    expect(shapes[1]).toBe(shapes[0]);
+    expect(shapes[2]).toBe(shapes[0]);
+    expect(shapes[0]).toContain('M3.5 6.319 36.5 1.681v34L3.5 40.319Z');
+    expect(shapes[0]).toContain('m15.5 12 12 9-12 9Z');
+    const headerCss = await readFile(new URL('../src/styles/layout.css', import.meta.url), 'utf8');
+    expect(headerCss).toContain('transform: skewY(-8deg)');
+    expect(headerCss).toContain('border-left: 12px solid var(--ink)');
+    expect(headerCss).toContain('border-top: 9px solid transparent');
   });
 });

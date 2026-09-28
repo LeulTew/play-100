@@ -30,6 +30,15 @@ through the existing pending-edit guard, not another import or offline preparati
 The manifest, brand icons,
 offline explanation and local collection/Discover metadata complete the core.
 
+The tab, installed-app, apple-touch and social-card icons share the header's
+33-by-34 skewed lime tile and upright 12-by-18 ink play triangle. The maskable
+source scales the complete tile inside the central 80% safe circle, on opaque
+chalk. Regenerate the five existing public PNGs with
+`npx --no-install tsx scripts\pwa-icons.ts`, then regenerate the social card with
+`npm run assets:social-card`. The icon command reports dimensions, byte counts
+and SHA-256 values, and refuses a PNG over 24 KiB. The build uses the same icon
+renderer; no extra core entries or runtime modules are added.
+
 The core has hard build/install limits of 51 entries, including the online split's
 shared chunks, 2 MiB decoded total and 1 MiB per file. Two entries and 32 KiB of
 that total are reserved for bounded
