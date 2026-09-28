@@ -165,7 +165,7 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
           id="collection-films"
           className="collection-films"
           aria-labelledby="collection-films-title"
-          aria-busy={!Loaded && !failed}
+          aria-busy={requested && !Loaded && !failed}
         >
           <div className="films-heading">
             <h2 id="collection-films-title" tabIndex={-1}>
@@ -179,7 +179,7 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
         <section
           className="extended-results discovery-extended"
           aria-labelledby="extended-results-title"
-          aria-busy={!Loaded && !failed}
+          aria-busy={requested && !Loaded && !failed}
         >
           <div className="extended-heading">
             <h2 id="extended-results-title" tabIndex={-1}>
