@@ -88,9 +88,7 @@ export function findUnusedRules(styles: SourceText[], sources: SourceText[]): Un
         }
         const selectors = prelude.split(',');
         const missing = selectors.map((selector) =>
-          [...selector.matchAll(/[.#](-?[_a-zA-Z][\w-]*)/g)]
-            .map((match) => match[1]!)
-            .filter((token) => !used(token)),
+          [...selector.matchAll(/[.#](-?[_a-zA-Z][\w-]*)/g)].map((match) => match[1]!).filter((token) => !used(token)),
         );
         // Every comma branch must require an absent positive token. A used
         // sibling prevents deleting the whole rule, even if another is absent.
