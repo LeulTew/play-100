@@ -71,6 +71,29 @@ describe('what the online bridge loads with it', () => {
     expect(bridge).not.toContain('account-deletion-action.ts');
   });
 
+  // The offline core precaches each module the idle preload imports dynamically as its own entry chunk
+  // (scripts/pwa-build.ts). Rolldown keeps that chunk for a module the controller also loads only while the
+  // controller's own module imports it; imported only from deeper in the controller's chunk, it lost its entry.
+  it("imports from the controller's own module each preloaded module the controller also loads", () => {
+    const preload = path.join(cloud, '../lib/app-tool-preload.ts');
+    const preloaded = [...readFileSync(preload, 'utf8').matchAll(/import\('(\.{1,2}\/[^']+)'\)/g)].map((match) =>
+      relative(resolveModule(preload, match[1]!)),
+    );
+    const controller = path.join(cloud, 'OnlineController.tsx');
+    const own = edges(readFileSync(controller, 'utf8')).map((specifier) =>
+      relative(resolveModule(controller, specifier)),
+    );
+    const shared = preloaded.filter((file) => staticClosure('OnlineController.tsx').includes(file));
+    expect(shared).toEqual(
+      expect.arrayContaining([
+        '../lib/comparison-game-filter.ts',
+        '../lib/friend-comparison-intent.ts',
+        '../lib/google-intent.ts',
+      ]),
+    );
+    expect(shared.filter((file) => !own.includes(file))).toEqual([]);
+  });
+
   it.each(['CommunityPage.tsx', 'PublicProfilePage.tsx', 'PublishPage.tsx', 'CreatorPage.tsx', 'AccountPage.tsx'])(
     'loads the publication methods with %s',
     (page) => {
