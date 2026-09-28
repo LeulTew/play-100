@@ -393,7 +393,6 @@ export default async function handler(request: IncomingMessage, response: Server
   const disconnect = () => {
     if (!response.writableEnded) controller.abort();
   };
-  request.once('aborted', disconnect);
   response.once('close', disconnect);
   try {
     const result = await getCatalogDetail(id, controller.signal);
@@ -414,7 +413,6 @@ export default async function handler(request: IncomingMessage, response: Server
     response.writeHead(error.status).end(JSON.stringify({ error: error.message, code: error.code }));
   } finally {
     clearTimeout(timeout);
-    request.removeListener('aborted', disconnect);
     response.removeListener('close', disconnect);
   }
 }

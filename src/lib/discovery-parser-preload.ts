@@ -1,3 +1,3 @@
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 
-export const loadDiscoveryParser = createRetryableModule(() => import('./discovery-catalog')).load;
+export const loadDiscoveryParser = createMemoizedModule(() => import('./discovery-catalog')).load;

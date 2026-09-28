@@ -5,7 +5,7 @@ import { catalogFixture } from './discovery-test-fixtures';
 import { searchDiscoveryItems, defaultDiscoveryFilters } from './discovery-search';
 import * as parserPreload from './discovery-parser-preload';
 import { ModuleLoadFailure, isModuleLoadFailure } from './chunk-recovery';
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -223,7 +223,7 @@ describe('lazy bounded public seed loading', () => {
     const importer = vi
       .fn<() => ReturnType<typeof parserPreload.loadDiscoveryParser>>()
       .mockRejectedValue(new Error('Parser module unavailable'));
-    const resource = createRetryableModule(importer);
+    const resource = createMemoizedModule(importer);
     vi.spyOn(parserPreload, 'loadDiscoveryParser').mockImplementation(resource.load);
     vi.stubGlobal(
       'fetch',

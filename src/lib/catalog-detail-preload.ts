@@ -1,3 +1,3 @@
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 
-export const loadCatalogDetail = createRetryableModule(() => import('../components/personal/CatalogDetail')).load;
+export const loadCatalogDetail = createMemoizedModule(() => import('../components/personal/CatalogDetail')).load;

@@ -38,7 +38,7 @@ import { Avatar } from '../components/avatar/Avatar';
 import { Dialog } from '../components/Dialog';
 import { ChunkBoundary } from '../components/ChunkBoundary';
 import { ChunkRecovery } from '../components/ChunkRecovery';
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 import { OnlinePageBoundary } from './OnlinePageBoundary';
 import { cloudAuth, cloudDb, firebaseApp } from './firebase-client';
 import { creatorAccess } from './cloud-store';
@@ -90,52 +90,52 @@ import './friends-ui.css';
 import './friend-shelf.css';
 
 const AuthPanel = lazy(
-  createRetryableModule(() => import('./AuthPanel').then((module) => ({ default: module.AuthPanel }))).load,
+  createMemoizedModule(() => import('./AuthPanel').then((module) => ({ default: module.AuthPanel }))).load,
 );
 const AccountPage = lazy(
-  createRetryableModule(() => import('./AccountPage').then((module) => ({ default: module.AccountPage }))).load,
+  createMemoizedModule(() => import('./AccountPage').then((module) => ({ default: module.AccountPage }))).load,
 );
 const CommunityPage = lazy(
-  createRetryableModule(() => import('./CommunityPage').then((module) => ({ default: module.CommunityPage }))).load,
+  createMemoizedModule(() => import('./CommunityPage').then((module) => ({ default: module.CommunityPage }))).load,
 );
 const PublicProfilePage = lazy(
-  createRetryableModule(() => import('./PublicProfilePage').then((module) => ({ default: module.PublicProfilePage })))
+  createMemoizedModule(() => import('./PublicProfilePage').then((module) => ({ default: module.PublicProfilePage })))
     .load,
 );
 const PublishPage = lazy(
-  createRetryableModule(() => import('./PublishPage').then((module) => ({ default: module.PublishPage }))).load,
+  createMemoizedModule(() => import('./PublishPage').then((module) => ({ default: module.PublishPage }))).load,
 );
 const CreatorPage = lazy(
-  createRetryableModule(() => import('./CreatorPage').then((module) => ({ default: module.CreatorPage }))).load,
+  createMemoizedModule(() => import('./CreatorPage').then((module) => ({ default: module.CreatorPage }))).load,
 );
 const FriendsPage = lazy(
-  createRetryableModule(() => import('./FriendsPage').then((module) => ({ default: module.FriendsPage }))).load,
+  createMemoizedModule(() => import('./FriendsPage').then((module) => ({ default: module.FriendsPage }))).load,
 );
 const FriendDetailPage = lazy(
-  createRetryableModule(() => import('./FriendDetailPage').then((module) => ({ default: module.FriendDetailPage })))
+  createMemoizedModule(() => import('./FriendDetailPage').then((module) => ({ default: module.FriendDetailPage })))
     .load,
 );
 const InvitationPage = lazy(
-  createRetryableModule(() => import('./InvitationPage').then((module) => ({ default: module.InvitationPage }))).load,
+  createMemoizedModule(() => import('./InvitationPage').then((module) => ({ default: module.InvitationPage }))).load,
 );
 const FriendComparisonPage = lazy(
-  createRetryableModule(() =>
+  createMemoizedModule(() =>
     import('./FriendComparisonPage').then((module) => ({ default: module.FriendComparisonPage })),
   ).load,
 );
 const FriendSharingPage = lazy(
-  createRetryableModule(() => import('./FriendSharingPage').then((module) => ({ default: module.FriendSharingPage })))
+  createMemoizedModule(() => import('./FriendSharingPage').then((module) => ({ default: module.FriendSharingPage })))
     .load,
 );
 const FriendShelfPage = lazy(
-  createRetryableModule(() => import('./FriendShelfPage').then((module) => ({ default: module.FriendShelfPage }))).load,
+  createMemoizedModule(() => import('./FriendShelfPage').then((module) => ({ default: module.FriendShelfPage }))).load,
 );
 const FriendSharedGames = lazy(
-  createRetryableModule(() => import('./FriendSharedGames').then((module) => ({ default: module.FriendSharedGames })))
+  createMemoizedModule(() => import('./FriendSharedGames').then((module) => ({ default: module.FriendSharedGames })))
     .load,
 );
 const AvatarPicker = lazy(
-  createRetryableModule(() =>
+  createMemoizedModule(() =>
     import('../components/avatar/AvatarPicker').then((module) => ({ default: module.AvatarPicker })),
   ).load,
 );

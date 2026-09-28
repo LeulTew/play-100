@@ -2,12 +2,12 @@ import type { AppPage } from './types';
 import { isConstrainedDevice } from './device-capabilities';
 import { loadCatalogDetail } from './catalog-detail-preload';
 import { loadDiscoveryParser } from './discovery-parser-preload';
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 
-const comparisonFilter = createRetryableModule(() => import('./comparison-game-filter'));
-const comparisonIntent = createRetryableModule(() => import('./friend-comparison-intent'));
+const comparisonFilter = createMemoizedModule(() => import('./comparison-game-filter'));
+const comparisonIntent = createMemoizedModule(() => import('./friend-comparison-intent'));
 export const loadComparisonTools = () => Promise.all([comparisonFilter.load(), comparisonIntent.load()]);
-const loadGoogleIntent = createRetryableModule(() => import('./google-intent')).load;
+const loadGoogleIntent = createMemoizedModule(() => import('./google-intent')).load;
 
 /**
  * The idle warm-up of every page (App.tsx, on capable devices only): what a page opens without navigating, a catalog

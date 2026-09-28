@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 import { isModuleLoadFailure } from './chunk-recovery';
 
-describe('retryable modules used by credits, Settings and offline controls', () => {
+describe('memoized modules used by credits, Settings and offline controls', () => {
   it('coalesces concurrent intents and exposes the resolved module synchronously', async () => {
     let resolve!: (value: { ready: boolean }) => void;
     const importer = vi.fn(
@@ -11,7 +11,7 @@ describe('retryable modules used by credits, Settings and offline controls', () 
           resolve = done;
         }),
     );
-    const resource = createRetryableModule(importer);
+    const resource = createMemoizedModule(importer);
     expect(resource.started()).toBe(false);
     const first = resource.load();
     expect(resource.started()).toBe(true);
@@ -38,7 +38,7 @@ describe('retryable modules used by credits, Settings and offline controls', () 
           .fn<() => Promise<{ ready: boolean }>>()
           .mockRejectedValueOnce(new TypeError('Failed to fetch dynamically imported module'))
           .mockResolvedValue({ ready: true });
-        const resource = createRetryableModule(importer);
+        const resource = createMemoizedModule(importer);
         const failure = vi.fn();
         const rejected = resource.load();
         await rejected.catch(failure);
@@ -64,7 +64,7 @@ describe('retryable modules used by credits, Settings and offline controls', () 
         throw new Error('import shim failed');
       })
       .mockResolvedValue('ready');
-    const resource = createRetryableModule(importer);
+    const resource = createMemoizedModule(importer);
     const rejected = resource.load();
     await expect(rejected).rejects.toMatchObject({ cause: new Error('import shim failed') });
     expect(resource.load()).toBe(rejected);

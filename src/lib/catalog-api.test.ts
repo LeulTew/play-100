@@ -1,5 +1,5 @@
-import { ServerResponse, createServer } from 'node:http';
-import type { Server } from 'node:http';
+import { ServerResponse, createServer, request as createRequest } from 'node:http';
+import type { IncomingMessage, Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../api/catalog';
 import { listenOnFetchSafePort } from './test-server-ports';
@@ -171,9 +171,11 @@ describe('same-origin catalog API boundary', () => {
     expect(await response.json()).toMatchObject({ code: 'unavailable' });
     expect(response.headers.get('cache-control')).toBe('no-store');
   });
-  it('aborts the held upstream search when the client disconnects and writes nothing to the closed response', async () => {
+  it.each([false, true])('aborts upstream without writing on disconnect (incomplete GET: %s)', async (incomplete) => {
     let handled: Promise<void> | undefined;
+    let received: IncomingMessage | undefined;
     const local = createServer((request, response) => {
+      received = request;
       handled = handler(request, response);
     });
     await listenOnFetchSafePort(local);
@@ -196,23 +198,33 @@ describe('same-origin catalog API boundary', () => {
       ),
     );
     const writeHead = vi.spyOn(ServerResponse.prototype, 'writeHead');
+    const url = `http://127.0.0.1:${address.port}/api/catalog?q=Superseded`;
+    const raw = incomplete ? createRequest(url, { headers: { 'Content-Length': '1' } }) : undefined;
+    const client = new AbortController();
     try {
-      const client = new AbortController();
-      const pending = nativeFetch(`http://127.0.0.1:${address.port}/api/catalog?q=Superseded`, {
-        signal: client.signal,
-      });
+      const pending = raw
+        ? new Promise<void>((resolve, reject) => {
+            raw.on('response', () => resolve());
+            raw.on('error', reject);
+            raw.flushHeaders();
+          })
+        : nativeFetch(url, { signal: client.signal });
       await start;
+      expect(received?.complete).toBe(!incomplete);
       expect(upstreamSignal?.aborted).toBe(false);
       const upstreamAborted = new Promise<void>((resolve) =>
         upstreamSignal?.addEventListener('abort', () => resolve(), { once: true }),
       );
-      client.abort();
+      if (raw) raw.destroy(new Error('client left before completing its GET body'));
+      else client.abort();
       await expect(pending).rejects.toThrow();
       await upstreamAborted;
       await handled;
       expect(upstreamSignal?.aborted).toBe(true);
       expect(writeHead).not.toHaveBeenCalled();
     } finally {
+      raw?.destroy();
+      client.abort();
       local.closeAllConnections();
       await new Promise<void>((resolve, reject) => local.close((error) => (error ? reject(error) : resolve())));
     }

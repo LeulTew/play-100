@@ -185,8 +185,9 @@ editor and friend-facing shelf cards are separate modules so reading a friend's
 games does not pull in the owner's editor.
 
 [OnlinePageBoundary](../src/cloud/OnlinePageBoundary.tsx) reuses
-`createRetryableModule`, `ChunkBoundary`, `Suspense`, `RouteFallback` and
+`createMemoizedModule`, `ChunkBoundary`, `Suspense`, `RouteFallback` and
 `ChunkRecovery`; it does not introduce a second import/reload protocol.
+The module helper retains a rejected import until reload, rather than retrying it.
 Its identity includes the account scope, auth-session generation, page and the
 page's target (public handle, friend, comparison group or invitation). For
 Compare, the target is the group a navigation opened. The page changes

@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import ArtifactStill from './scene/ArtifactStill';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 import './scene/artifact.css';
 
-const sceneModule = createRetryableModule(() => import('./scene/CollectionScene'));
+const sceneModule = createMemoizedModule(() => import('./scene/CollectionScene'));
 const REQUESTED_SCENE_IDLE_TIMEOUT_MS = 150;
 
 export interface CollectionArtifactProps {

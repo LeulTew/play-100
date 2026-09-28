@@ -1,11 +1,13 @@
-import { createServer } from 'node:http';
-import type { Server } from 'node:http';
+import { ServerResponse, createServer, request as createRequest } from 'node:http';
+import type { IncomingMessage, Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { listenOnFetchSafePort } from './test-server-ports';
 
 const nativeFetch = globalThis.fetch;
 let server: Server;
 let base: string;
+let handled: Promise<void> | undefined;
+let received: IncomingMessage | undefined;
 const snak = (value: unknown) => ({ snaktype: 'value', datavalue: { value } });
 const claim = (value: unknown, qualifiers = {}) => ({ rank: 'normal', mainsnak: snak(value), qualifiers });
 const entity = (id = 'Q90000001', extra = {}) => ({
@@ -20,10 +22,13 @@ function json(data: unknown, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 }
 beforeEach(async () => {
+  handled = undefined;
+  received = undefined;
   vi.resetModules();
   const { default: handler } = await import('../../api/catalog-detail');
   server = createServer((request, response) => {
-    void handler(request, response);
+    received = request;
+    handled = handler(request, response);
   });
   await listenOnFetchSafePort(server);
   const address = server.address();
@@ -259,6 +264,39 @@ describe('shared cold detail lookups', () => {
     vi.stubGlobal('fetch', upstream);
     return { held, upstream };
   };
+  it.each([false, true])('aborts upstream without writing on disconnect (incomplete GET: %s)', async (incomplete) => {
+    const { held } = hold();
+    const writeHead = vi.spyOn(ServerResponse.prototype, 'writeHead');
+    const client = new AbortController();
+    const url = `${base}/api/catalog-detail?id=wikidata%3AQ90000029`;
+    const raw = incomplete ? createRequest(url, { headers: { 'Content-Length': '1' } }) : undefined;
+    try {
+      const pending = raw
+        ? new Promise<void>((resolve, reject) => {
+            raw.on('response', () => resolve());
+            raw.on('error', reject);
+            raw.flushHeaders();
+          })
+        : nativeFetch(url, { signal: client.signal });
+      await vi.waitFor(() => expect(held).toHaveLength(1));
+      expect(received?.complete).toBe(!incomplete);
+      expect(held[0]!.signal.aborted).toBe(false);
+      const upstreamAborted = new Promise<void>((resolve) =>
+        held[0]!.signal.addEventListener('abort', () => resolve(), { once: true }),
+      );
+      if (raw) raw.destroy(new Error('client left before completing its GET body'));
+      else client.abort();
+      await expect(pending).rejects.toThrow();
+      await upstreamAborted;
+      await handled;
+      expect(held[0]!.signal.aborted).toBe(true);
+      expect(writeHead).not.toHaveBeenCalled();
+    } finally {
+      raw?.destroy();
+      client.abort();
+    }
+  });
+
   it('runs one upstream pipeline for simultaneous requests of the same ID', async () => {
     const { getCatalogDetail } = await import('../../api/catalog-detail');
     const { held, upstream } = hold();

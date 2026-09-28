@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as client from './client';
 import { createDeferredPwaController, initialDeferredPwaState } from './deferred-controller';
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 
 function fixture() {
   const serviceWorker = Object.assign(new EventTarget(), {
@@ -203,7 +203,7 @@ describe('after-load PWA controller', () => {
       .fn<() => Promise<typeof client>>()
       .mockRejectedValueOnce(new Error('chunk unavailable'))
       .mockResolvedValue(client);
-    const controller = createDeferredPwaController(createRetryableModule(load).load);
+    const controller = createDeferredPwaController(createMemoizedModule(load).load);
     const stop = controller.connect();
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);

@@ -1,4 +1,4 @@
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
 import {
   guardedReload,
@@ -18,7 +18,7 @@ export const initialDeferredPwaState: PwaState = {
   error: '',
 };
 
-export const pwaClientModule = createRetryableModule(() => import('./client-entry'));
+export const pwaClientModule = createMemoizedModule(() => import('./client-entry'));
 
 interface DeferredPwaController extends PwaController {
   isConnected(): boolean;

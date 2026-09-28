@@ -342,7 +342,6 @@ export default async function handler(request: IncomingMessage, response: Server
   const disconnect = () => {
     if (!response.writableEnded) controller.abort();
   };
-  request.once('aborted', disconnect);
   response.once('close', disconnect);
   try {
     const page = await getCatalogPage(source, query, offset, controller.signal);
@@ -365,7 +364,6 @@ export default async function handler(request: IncomingMessage, response: Server
     );
   } finally {
     clearTimeout(timeout);
-    request.removeListener('aborted', disconnect);
     response.removeListener('close', disconnect);
   }
 }

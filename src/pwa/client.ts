@@ -1,5 +1,5 @@
 import type { BeforeInstallPromptEvent, PwaController, PwaState, PwaUpdateGuard } from './types';
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 import {
   guardedReload,
   isModuleLoadFailure,
@@ -7,7 +7,7 @@ import {
   unavailableRecoveryMessage,
 } from '../lib/chunk-recovery';
 
-const updateModule = createRetryableModule(() => import('./apply-update'));
+const updateModule = createMemoizedModule(() => import('./apply-update'));
 
 const channel = 'play100-pwa-v1';
 const versionPattern = /^[a-f0-9]{64}$/;

@@ -1,7 +1,7 @@
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 
-export const aboutDialogModule = createRetryableModule(() => import('../components/AboutDialog'));
-export const settingsDialogModule = createRetryableModule(() => import('../components/app/SettingsPanel'));
+export const aboutDialogModule = createMemoizedModule(() => import('../components/AboutDialog'));
+export const settingsDialogModule = createMemoizedModule(() => import('../components/app/SettingsPanel'));
 
 export type AppPanel = 'menu' | 'about' | 'settings' | 'account' | null;
 

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { SiteFooter } from './SiteFooter';
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 import { ChunkBoundary } from './ChunkBoundary';
 import { ChunkRecovery } from './ChunkRecovery';
 
-const DataUseContent = lazy(createRetryableModule(() => import('./DataUseContent')).load);
+const DataUseContent = lazy(createMemoizedModule(() => import('./DataUseContent')).load);
 
 export default function DataUsePage() {
   useEffect(() => {

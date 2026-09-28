@@ -5,14 +5,14 @@ import CollectionPage from '../CollectionPage';
 import { OnlineBoundary } from '../OnlineBoundary';
 import { RouteFallback } from './RouteFallback';
 import type { RouteFallbackProps } from './RouteFallback';
-import { createRetryableModule } from '../../lib/retryable-module';
+import { createMemoizedModule } from '../../lib/memoized-module';
 import { ChunkBoundary } from '../ChunkBoundary';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { routeBoundaryKey } from './route-boundary';
 
-const MyGamesPage = lazy(createRetryableModule(() => import('../personal/MyGamesPage')).load);
-const DiscoverPage = lazy(createRetryableModule(() => import('../catalog/DiscoverPage')).load);
-const OnlineController = lazy(createRetryableModule(() => import('../../cloud/OnlineController')).load);
+const MyGamesPage = lazy(createMemoizedModule(() => import('../personal/MyGamesPage')).load);
+const DiscoverPage = lazy(createMemoizedModule(() => import('../catalog/DiscoverPage')).load);
+const OnlineController = lazy(createMemoizedModule(() => import('../../cloud/OnlineController')).load);
 
 type PublicContent =
   | { kind: 'private-library' }
