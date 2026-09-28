@@ -40,3 +40,30 @@ for (const view of ['grid', 'list', 'table'] as const) {
     await expect(rows.nth(24).locator(view === 'table' ? '.table-game a' : '.game-link')).not.toBeFocused();
   });
 }
+
+test('keyboard Show more lands on the first new table game once the table tools finish loading', async ({ page }) => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let requested = false;
+  await page.route(/\/assets\/CollectionExtras-[\w-]+\.js$/, async (route) => {
+    requested = true;
+    await held;
+    await route.continue();
+  });
+  await page.goto('/?catalogs=off&view=table');
+  const rows = page.locator('.ratings-table tbody > tr');
+  await expect(rows).toHaveCount(24);
+  await expect.poll(() => requested).toBe(true);
+  await expect(page.locator('.ratings-scroll[inert]')).toHaveCount(1);
+  const more = page.getByRole('button', { name: 'Show 24 more', exact: true });
+  await more.focus();
+  await more.press('Enter');
+  await expect(rows).toHaveCount(48);
+  await expect(more).toBeFocused();
+  release();
+  const appended = rows.nth(24);
+  await expect(appended).toHaveAttribute('data-game', libraryRecords[24].id);
+  const title = appended.locator('.table-game a');
+  await expect(title).toBeFocused();
+  await expect(title).toBeInViewport();
+});

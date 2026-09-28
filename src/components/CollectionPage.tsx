@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { useCollection } from '../hooks/useCollection';
 import type { Filters, MotionPreference } from '../lib/types';
@@ -34,7 +34,15 @@ import { formatResultRange } from '../lib/local-pagination';
 
 const PAGE_SIZE = 24;
 
-function DeferredCollection({ input, near = false }: { input: CollectionExtrasProps; near?: boolean }) {
+function DeferredCollection({
+  input,
+  near = false,
+  onReady,
+}: {
+  input: CollectionExtrasProps;
+  near?: boolean;
+  onReady?: () => void;
+}) {
   const [module, setModule] = useState(collectionExtrasModule.peek);
   const [requested, setRequested] = useState(!near);
   const [failed, setFailed] = useState(false);
@@ -107,6 +115,10 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
     }
   }, [input, module]);
   const Loaded = module?.default;
+  // The loaded tools are committed by now, so a keyboard append made while the placeholder showed can land.
+  useLayoutEffect(() => {
+    if (Loaded) onReady?.();
+  }, [Loaded, onReady]);
   const fallback =
     input.kind === 'table' ? (
       <TableFallback {...input.props} />
@@ -254,6 +266,8 @@ export default function CollectionPage({
   const handledBrowseRequest = useRef(0);
   const collectionRef = useRef<HTMLElement>(null);
   const appendedFocus = useRef<{ id: string; signature: string; trigger: HTMLButtonElement } | null>(null);
+  const [extrasReady, setExtrasReady] = useState(() => collectionExtrasModule.peek() !== null);
+  const markExtrasReady = useCallback(() => setExtrasReady(true), []);
   const games = collection.data?.games;
   const ownership = useMemo(() => catalogOwnership(state.records), [state.records]);
   const progress = useMemo(() => catalogProgress(state, ownership), [state, ownership]);
@@ -287,19 +301,22 @@ export default function CollectionPage({
   useLayoutEffect(() => {
     const requested = appendedFocus.current;
     if (!requested) return;
-    appendedFocus.current = null;
     if (
       requested.signature !== signature ||
       (document.activeElement !== requested.trigger && document.activeElement !== document.body)
-    )
+    ) {
+      appendedFocus.current = null;
       return;
+    }
     const title = collectionRef.current?.querySelector<HTMLAnchorElement>(
       `[data-game="${CSS.escape(requested.id)}"] ${filters.view === 'table' ? '.table-game a' : '.game-link'}`,
     );
+    // The table's placeholder rows carry no data-game: keep the request until the loaded table commits.
     if (!title) return;
+    appendedFocus.current = null;
     title.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
     title.focus({ preventScroll: true });
-  }, [visibleCount, signature, filters.view]);
+  }, [visibleCount, signature, filters.view, extrasReady]);
   useEffect(() => {
     if (collection.status === 'loading' || location.hash !== '#collection-films') return;
     const frame = requestAnimationFrame(() => {
@@ -473,6 +490,7 @@ export default function CollectionPage({
               <>
                 {filters.view === 'table' ? (
                   <DeferredCollection
+                    onReady={markExtrasReady}
                     input={{
                       kind: 'table',
                       props: {
