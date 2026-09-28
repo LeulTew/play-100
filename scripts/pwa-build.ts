@@ -29,6 +29,7 @@ export const PWA_ROOTS = [
   'src/components/AboutDialog.tsx',
   'src/components/app/SettingsPanel.tsx',
   'src/pwa/client-entry.ts',
+  'src/components/CollectionExtras.tsx',
 ] as const;
 const publicCore = [
   '/index.html',

@@ -13,6 +13,20 @@ function chunk(
 }
 
 describe('build-only exact eager module guard', () => {
+  it('keeps the coalesced lazy intent group limited to its three approved modules', () => {
+    const root = process.cwd();
+    const modules = Object.fromEntries(
+      ['google-intent', 'comparison-game-filter', 'friend-comparison-intent'].map((name) => [
+        path.join(root, 'src', 'lib', `${name}.ts`),
+        { renderedLength: 20 },
+      ]),
+    );
+    const file = 'assets/intent-tools-test.js';
+    expect(() => assertDeferredBundleModules(root, { [file]: chunk(file, modules) }, [])).not.toThrow();
+    modules[path.join(root, 'src', 'lib', 'url.ts')] = { renderedLength: 20 };
+    expect(() => assertDeferredBundleModules(root, { [file]: chunk(file, modules) }, [])).toThrow(/Unexpected module/);
+  });
+
   it.each(DEFERRED_SOURCE_MODULES)('rejects rendered %s inside an entry or shared static chunk', (module) => {
     const root = process.cwd();
     const modules = { [path.join(root, ...module.split('/'))]: { renderedLength: 1 } };

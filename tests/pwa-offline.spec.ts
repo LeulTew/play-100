@@ -178,6 +178,15 @@ test('explicit offline preparation preserves guest data and serves fresh local r
     }
     expect(await readLibrary(page)).toEqual(beforeOffline);
 
+    await page.goto('/?view=table&catalogs=off');
+    await expect(page.getByRole('table')).toBeVisible();
+    await expect(page.locator('.ratings-table tbody tr')).toHaveCount(24);
+    await page.getByRole('button', { name: 'Grid view', exact: true }).click();
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
+    await expect(page.getByRole('table')).toBeVisible();
+    expect(await readLibrary(page)).toEqual(beforeOffline);
+
     await page.goto('/discover?catalogs=off');
     await expect(page.getByRole('heading', { name: 'Discover', exact: true })).toBeVisible();
     await expect(page.locator('.discovery-cards > li').first()).toBeVisible();

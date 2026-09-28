@@ -212,6 +212,26 @@ for animation completion.
 
 ## Event flow
 
+Collection-only table, additional-result and film implementations share the
+guarded `CollectionExtras` entry. The default grid does not import those
+implementations. Table hover, focus or pointer-down preloads the entry; a table
+deep link requests it directly. Additional results and films request it within
+800px of their section, after collection metadata settles for films. Fallbacks
+retain the same table content/frame and film listing copy/16:9 frames; loading
+table/result controls are inert, while a film Watch request is retained until
+the player can open. Unmount prevents a late import from publishing stale UI.
+Terminal import failures retain a local guarded-reload action rather than
+clearing the collection or retrying cached failed imports.
+
+The named Rolldown `intent-tools` group contains only `google-intent`,
+`comparison-game-filter` and `friend-comparison-intent`; recursive dependency
+capture is disabled. Existing intent entry paths and their offline roots stay
+intact, but share one physical file. The build guard rejects extra group
+members and any eager inclusion of those tools or the deferred collection
+implementations. All moved collection views remain in the explicit PWA core.
+No budget is raised, and source tests are not a substitute for checking the
+actual emitted core count, eager closure and CSS after integration.
+
 ```mermaid
 flowchart TD
   URL["useUrlState"] --> App["App"]

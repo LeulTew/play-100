@@ -75,6 +75,14 @@ Videos, spreadsheets, 3D and the online controller are not precached. Existing
 media/download behavior is unchanged. The public Data use page bypasses PWA
 registration; it still does not bootstrap an account.
 
+The conditional collection table, additional results and film UI share an
+explicitly precached `CollectionExtras` entry. A prepared offline
+`/?view=table` deep link and subsequent grid/table toggles can therefore load
+without a network. The three existing sign-in/comparison intent roots resolve
+to the co-packed `intent-tools` file, counted once; no offline root is removed.
+Movie/poster files remain outside the core. The 51-file limit, including the
+two metadata entries, remains unchanged and is enforced against emitted output.
+
 Ordinary `/covers/` image responses use `public, max-age=86400,
 stale-while-revalidate=604800`: one day fresh, then at most seven days of
 stale-while-revalidate. Slug-based cover paths are not immutable, so a newly

@@ -95,8 +95,16 @@ function FilmVideo({ film, onRetry }: { film: CollectionFilm; onRetry: () => voi
   );
 }
 
-export default function CollectionFilms({ postersReady }: { postersReady: boolean }) {
-  const [active, setActive] = useState<CollectionFilm | null>(null);
+export default function CollectionFilms({
+  postersReady,
+  initialFilmId,
+}: {
+  postersReady: boolean;
+  initialFilmId?: CollectionFilm['id'];
+}) {
+  const [active, setActive] = useState<CollectionFilm | null>(
+    () => collectionFilms.find((film) => film.id === initialFilmId) ?? null,
+  );
   const [attempt, setAttempt] = useState(0);
   const [postersEnabled, setPostersEnabled] = useState(false);
   const section = useRef<HTMLElement>(null);
@@ -156,6 +164,7 @@ export default function CollectionFilms({ postersReady }: { postersReady: boolea
           <li key={film.id}>
             <button
               className="film-watch"
+              data-film-id={film.id}
               aria-haspopup="dialog"
               onClick={() => {
                 setAttempt(0);

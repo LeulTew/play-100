@@ -31,6 +31,17 @@ export function assertDeferredBundleModules(
     for (const imported of chunk.imports) visit(imported);
   };
   for (const chunk of Object.values(bundle)) {
+    if (chunk.type === 'chunk' && /^assets\/intent-tools-/.test(chunk.fileName)) {
+      for (const [id, module] of Object.entries(chunk.modules)) {
+        const source = path.relative(root, id.split('?')[0]!).split(path.sep).join('/');
+        if (
+          module.renderedLength > 0 &&
+          !/^src\/lib\/(?:google-intent|comparison-game-filter|friend-comparison-intent)\.ts$/.test(source)
+        ) {
+          throw new Error(`Unexpected module in the lazy intent-tools group: ${source}`);
+        }
+      }
+    }
     if (chunk.type === 'chunk' && chunk.isEntry) visit(chunk.fileName);
   }
   for (const file of htmlFiles) visit(file);

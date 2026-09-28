@@ -9,7 +9,6 @@ import { createSearch, defaultFilters } from '../lib/url';
 import CollectionArtifact from './CollectionArtifact';
 import { CollectionControls } from './CollectionControls';
 import { GameCard } from './GameCard';
-import RatingsTable from './RatingsTable';
 import { SelectionBar } from './SelectionBar';
 import type { SelectionAction } from './SelectionBar';
 import { Icon } from './Icon';
@@ -18,8 +17,13 @@ import AnimatedContent from './bits/AnimatedContent';
 import { author } from '../lib/author';
 import { useExtendedSearch } from '../hooks/useExtendedSearch';
 import { filterUnranked, unrankedRecords } from '../lib/extended-search';
-import ExtendedResults from './catalog/ExtendedResults';
-import CollectionFilms from './CollectionFilms';
+import type { CollectionExtrasProps } from './CollectionExtras';
+import { TableFallback, ExtendedFallback, FilmsFallback } from './CollectionExtrasFallback';
+import { collectionExtrasModule, preloadCollectionExtras } from '../lib/collection-extras-preload';
+import { ChunkRecovery } from './ChunkRecovery';
+import { ChunkBoundary } from './ChunkBoundary';
+import './collection-films.css';
+import './catalog/discover.css';
 import { effectiveProgressFilter, pickCandidates, selectionOperation } from '../lib/game-progress';
 import { catalogActionRecord, catalogOwnership, catalogProgress } from '../lib/catalog-identity';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
@@ -29,6 +33,100 @@ import { ComparePinButton } from './compare-tray/ComparePinButton';
 import { formatResultRange } from '../lib/local-pagination';
 
 const PAGE_SIZE = 24;
+
+function DeferredCollection({ input, near = false }: { input: CollectionExtrasProps; near?: boolean }) {
+  const [module, setModule] = useState(collectionExtrasModule.peek);
+  const [requested, setRequested] = useState(!near);
+  const [failed, setFailed] = useState(false);
+  const [film, setFilm] = useState<'the-100' | 'discover-compare'>();
+  const root = useRef<HTMLDivElement>(null);
+  const focusedFilm = useRef<string | null>(null);
+  const ready = input.kind !== 'films' || input.props.postersReady;
+  useEffect(() => {
+    if (!ready || requested || module || !root.current) return;
+    if (!near || typeof IntersectionObserver === 'undefined') {
+      setRequested(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setRequested(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '800px 0px' },
+    );
+    observer.observe(root.current);
+    return () => observer.disconnect();
+  }, [ready, requested, module, near]);
+  useEffect(() => {
+    if (!requested || module) return;
+    let current = true;
+    void collectionExtrasModule.load().then(
+      (loaded) => {
+        if (current) setModule(loaded);
+      },
+      (cause) => {
+        console.error('The requested collection tools did not load.', cause);
+        if (current) setFailed(true);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [requested, module]);
+  useLayoutEffect(() => {
+    if (module && focusedFilm.current && document.activeElement === document.body) {
+      const selector =
+        focusedFilm.current === 'heading' ? '#collection-films-title' : `button[data-film-id="${focusedFilm.current}"]`;
+      root.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+    }
+  }, [module]);
+  const Loaded = module?.default;
+  const fallback =
+    input.kind === 'table' ? (
+      <TableFallback {...input.props} />
+    ) : input.kind === 'extended' ? (
+      <ExtendedFallback {...input.props} />
+    ) : (
+      <FilmsFallback
+        onWatch={(id) => {
+          setFilm(id);
+          setRequested(true);
+        }}
+      />
+    );
+  return (
+    <div
+      ref={root}
+      data-collection-extras={input.kind}
+      onFocusCapture={(event) => {
+        if (event.target instanceof HTMLElement) {
+          focusedFilm.current =
+            event.target.id === 'collection-films-title' ? 'heading' : event.target.dataset.filmId ?? null;
+        }
+        setRequested(true);
+      }}
+    >
+      {failed ? (
+        <div className="data-error">
+          <ChunkRecovery message="These collection tools didn't load." />
+        </div>
+      ) : Loaded ? (
+        <ChunkBoundary fallback={<ChunkRecovery message="These collection tools didn't load." />}>
+          {input.kind === 'films' ? (
+            <Loaded kind="films" props={{ ...input.props, initialFilmId: film }} />
+          ) : (
+            <Loaded {...input} />
+          )}
+        </ChunkBoundary>
+      ) : (
+        fallback
+      )}
+    </div>
+  );
+}
 
 interface CollectionPageProps {
   collection: ReturnType<typeof useCollection>;
@@ -282,6 +380,7 @@ export default function CollectionPage({
                 setSelected(new Set());
               }}
               onFullLibrary={onFullLibrary}
+              onTableIntent={preloadCollectionExtras}
             />
             {selecting && (
               <SelectionBar
@@ -302,28 +401,33 @@ export default function CollectionPage({
             {results.length ? (
               <>
                 {filters.view === 'table' ? (
-                  <RatingsTable
-                    games={results.slice(0, visibleCount)}
-                    filters={filters}
-                    progress={progress}
-                    selecting={selecting}
-                    selected={selected}
-                    busy={busy}
-                    onSelect={toggleSelection}
-                    onOpen={onOpen}
-                    onToggle={toggle}
-                    onSort={onFilters}
-                    comparisonTray={comparisonTray}
-                    getCompareRecord={
-                      onPin ? (game) => catalogActionRecord(recordFromGame(game), ownership) : undefined
-                    }
-                    savedCopies={(game) => (
-                      <SavedCatalogCopies
-                        canonicalId={game.slug}
-                        copies={ownership.get(game.slug)}
-                        onOpen={onPreview}
-                      />
-                    )}
+                  <DeferredCollection
+                    input={{
+                      kind: 'table',
+                      props: {
+                        games: results.slice(0, visibleCount),
+                        filters,
+                        progress,
+                        selecting,
+                        selected,
+                        busy,
+                        onSelect: toggleSelection,
+                        onOpen,
+                        onToggle: toggle,
+                        onSort: onFilters,
+                        comparisonTray,
+                        getCompareRecord: onPin
+                          ? (game) => catalogActionRecord(recordFromGame(game), ownership)
+                          : undefined,
+                        savedCopies: (game) => (
+                          <SavedCatalogCopies
+                            canonicalId={game.slug}
+                            copies={ownership.get(game.slug)}
+                            onOpen={onPreview}
+                          />
+                        ),
+                      },
+                    }}
                   />
                 ) : (
                   <ul
@@ -429,20 +533,26 @@ export default function CollectionPage({
             )}
             {!results.length && comparisonTray}
             {showExtended && (
-              <ExtendedResults
-                records={extraResults}
-                online={online}
-                state={state}
-                queryKey={signature}
-                busy={busy}
-                selecting={selecting}
-                selected={currentSelection}
-                onSelect={toggleSelection}
-                onPreview={onPreview}
-                onAction={onAction}
-                onPin={onPin}
-                pinnedIds={pinnedIds}
-                renderDragHandle={renderDragHandle}
+              <DeferredCollection
+                near={results.length > 0}
+                input={{
+                  kind: 'extended',
+                  props: {
+                    records: extraResults,
+                    online,
+                    state,
+                    queryKey: signature,
+                    busy,
+                    selecting,
+                    selected: currentSelection,
+                    onSelect: toggleSelection,
+                    onPreview,
+                    onAction,
+                    onPin,
+                    pinnedIds,
+                    renderDragHandle,
+                  },
+                }}
               />
             )}
           </>
@@ -473,7 +583,7 @@ export default function CollectionPage({
           </div>
         )}
       </section>
-      <CollectionFilms postersReady={collection.status !== 'loading'} />
+      <DeferredCollection near input={{ kind: 'films', props: { postersReady: collection.status !== 'loading' } }} />
       <AnimatedContent animate={animate} className="workbook-section">
         <div className="workbook-art" aria-hidden="true">
           <div className="workbook-sheet sheet-back" />

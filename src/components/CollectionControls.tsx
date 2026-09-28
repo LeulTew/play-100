@@ -26,6 +26,7 @@ interface CollectionControlsProps {
   selecting?: boolean;
   onSelectMode?: () => void;
   onFullLibrary?: () => void;
+  onTableIntent?: () => void;
 }
 
 export function CollectionControls({
@@ -44,6 +45,7 @@ export function CollectionControls({
   selecting,
   onSelectMode,
   onFullLibrary,
+  onTableIntent,
 }: CollectionControlsProps) {
   const searchSession = useRef(false);
   const viewAnchor = useRef<{ control: HTMLButtonElement; top: number; view: Filters['view'] } | null>(null);
@@ -320,6 +322,9 @@ export function CollectionControls({
               className={`icon-button ${filters.view === 'table' ? 'is-active' : ''}`}
               aria-label="Ratings table view"
               aria-pressed={filters.view === 'table'}
+              onPointerEnter={onTableIntent}
+              onFocus={onTableIntent}
+              onPointerDown={onTableIntent}
               onClick={(event) => changeView('table', event.currentTarget)}
             >
               <Icon name="table" width="21" height="21" />

@@ -39,6 +39,7 @@ export type BudgetLimits = Record<Metric, number>;
  * bodies, the online bridge and its pages. check:budgets measures what each fetches beyond the eager set.
  */
 export const ROUTE_ROOTS = [
+  'src/components/CollectionExtras.tsx',
   'src/components/personal/MyGamesPage.tsx',
   'src/components/catalog/DiscoverPage.tsx',
   'src/components/personal/CatalogDetail.tsx',

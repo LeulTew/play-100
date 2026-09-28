@@ -1,4 +1,11 @@
 export const DEFERRED_SOURCE_MODULES = [
+  'src/components/CollectionExtras.tsx',
+  'src/components/RatingsTable.tsx',
+  'src/components/catalog/ExtendedResults.tsx',
+  'src/components/CollectionFilms.tsx',
+  'src/lib/google-intent.ts',
+  'src/lib/comparison-game-filter.ts',
+  'src/lib/friend-comparison-intent.ts',
   'src/components/AboutDialog.tsx',
   'src/components/SettingsDialog.tsx',
   'src/components/personal/BackupPanel.tsx',
