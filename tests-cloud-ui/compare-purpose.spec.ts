@@ -3,13 +3,17 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createAccount, emailFor, enableSync, googleRedirect, password, uidFor, verifyEmail } from './helpers';
 import { routeGoogleProvider } from './google-provider-fixture';
 
-// Signs out an account that can compare, then, as the device, pins two games on The 100 and chooses Compare. With
-// `from`, it opens that page first and reaches The 100 through the site navigation, so `from` stays in this document's
-// history.
-async function compareSignedOut(page: Page, from?: { path: string; isMobile: boolean }) {
+// Signs out an account that can compare, then, as the device, pins two games on The 100 and chooses Compare. The tray
+// is a count chip whose sheet holds the Compare action, Choose friends; the Table view (`table`) keeps its strip with
+// the action itself. With `from`, it opens that page first and reaches The 100 through the site navigation, so `from`
+// stays in this document's history.
+async function compareSignedOut(
+  page: Page,
+  { from, table = false }: { from?: { path: string; isMobile: boolean }; table?: boolean } = {},
+) {
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await page.goto(from?.path ?? '/?catalogs=off');
+  await page.goto(from?.path ?? (table ? '/?view=table&catalogs=off' : '/?catalogs=off'));
   if (from) {
     await page
       .getByRole('navigation', { name: from.isMobile ? 'Mobile navigation' : 'Main navigation', exact: true })
@@ -17,15 +21,22 @@ async function compareSignedOut(page: Page, from?: { path: string; isMobile: boo
       .click();
     await expect(page).toHaveURL((url) => url.pathname === '/');
   }
+  const games = table ? page.locator('.ratings-table') : page;
   const titles: string[] = [];
   for (let index = 0; index < 2; index += 1) {
-    const pin = page.getByRole('button', { name: /^Pin for comparison: / }).first();
+    const pin = games.getByRole('button', { name: /^Pin for comparison: / }).first();
     const title = ((await pin.getAttribute('aria-label')) ?? '').replace('Pin for comparison: ', '');
     await pin.click();
-    await expect(page.getByRole('button', { name: `Unpin from comparison: ${title}`, exact: true })).toBeVisible();
+    await expect(games.getByRole('button', { name: `Unpin from comparison: ${title}`, exact: true })).toBeVisible();
     titles.push(title);
   }
-  await page.getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
+  if (table) await page.getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
+  else {
+    await page.getByRole('button', { name: '2 games in Compare tray', exact: true }).click();
+    const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
+    await tray.getByRole('button', { name: 'Choose friends', exact: true }).click();
+    await expect(tray).toHaveCount(0);
+  }
   const sheet = page.getByRole('dialog', { name: 'Sign in', exact: true });
   await expect(sheet.locator('.auth-purpose')).toContainText(
     'Sign in to compare your 2 pinned games with friends. Pins select games for comparison; they do not share your library.',
@@ -111,19 +122,21 @@ test('signed-out Compare explains friends rankings before authentication and pre
   await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeVisible();
 });
 
-test('a Compare tray sign-in names its pins and continues to Compare with them after email sign-in', async ({
-  page,
-  request,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  const email = emailFor('compare-continue');
-  await createAccount(page, email);
-  await verifyEmail(page, request, email);
-  await enableSync(page, 'empty');
-  const { sheet, titles } = await compareSignedOut(page);
-  await (await fillEmailSignIn(sheet, email)).click();
-  await expectContinued(page, request, email, titles);
-});
+for (const table of [false, true]) {
+  test(`a Compare tray sign-in names its pins and continues to Compare with them after email sign-in${table ? ', from the Table strip' : ''}`, async ({
+    page,
+    request,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const email = emailFor(table ? 'compare-table' : 'compare-continue');
+    await createAccount(page, email);
+    await verifyEmail(page, request, email);
+    await enableSync(page, 'empty');
+    const { sheet, titles } = await compareSignedOut(page, { table });
+    await (await fillEmailSignIn(sheet, email)).click();
+    await expectContinued(page, request, email, titles);
+  });
+}
 
 test('a Compare tray sign-in does not continue once Back leaves its page while the account is opening', async ({
   page,
@@ -135,7 +148,7 @@ test('a Compare tray sign-in does not continue once Back leaves its page while t
   await createAccount(page, email);
   await verifyEmail(page, request, email);
   await enableSync(page, 'empty');
-  const { sheet } = await compareSignedOut(page, { path: '/discover?catalogs=off', isMobile });
+  const { sheet } = await compareSignedOut(page, { from: { path: '/discover?catalogs=off', isMobile } });
   const submit = await fillEmailSignIn(sheet, email);
   const release = await holdDeviceLibraries(page);
   try {
