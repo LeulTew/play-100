@@ -23,16 +23,12 @@ import type {
   Query,
   Transaction,
 } from 'firebase/firestore';
-import { parseAvatar } from '../lib/community';
 import type { AvatarValue, PublicEntry } from '../lib/community';
-import { displayNameProblem } from '../lib/text-controls';
 import {
   FRIEND_CHUNK_LIMIT,
   FriendCommittedError,
   FriendStoreError,
-  friendName,
   friendPairId,
-  friendSelection,
   friendUid,
   parseFriendBlock,
   parseFriendGeneration,
@@ -62,7 +58,6 @@ import type {
   FriendSourceRevision,
 } from '../lib/friend-types';
 import { ensureAccountActivity } from './account-lifecycle';
-import { SocialStore } from './social-store';
 import { releaseIndexedPayload } from './generation-cleanup';
 import {
   ACCOUNT_LIMITS,
@@ -75,9 +70,10 @@ import {
   requireVisibleCapacity,
 } from './account-quota';
 import type { SlotQuotaKind } from './account-quota';
-import { activeSettings, conflict, errorValue, expectedSettings, online, page } from './friend-store-core';
+import { activeSettings, conflict, errorValue, online, page } from './friend-store-core';
 import { deleteGroup, getGroup, listGroups, saveGroup } from './friend-groups';
 import { acceptInvite, createInvite, listInvites, previewInvite, revokeInvite } from './friend-invites';
+import { initialize, publicIdentity, saveIdentity, saveSettings } from './friend-profile';
 import { publishRanking, ranking } from './friend-ranking-share';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
@@ -182,30 +178,8 @@ export class FriendStore {
       error,
     );
   }
-  async initialize(uid: string): Promise<FriendSettings> {
-    friendUid(uid);
-    online();
-    await ensureAccountActivity(this.db, uid);
-    const ref = this.ref('friendSettings', uid);
-    await runTransaction(this.db, async (tx) => {
-      const snap = await tx.get(ref);
-      if (snap.exists()) {
-        activeSettings(parseFriendSettings(snap.data()));
-        return;
-      }
-      tx.set(ref, {
-        format: 1,
-        enabled: false,
-        deleted: false,
-        selection: '',
-        epoch: 1,
-        revision: 1,
-        updatedAt: serverTimestamp(),
-      });
-    });
-    return this.afterCommit({ operation: 'initialize', uid }, async () =>
-      activeSettings(await this.readCommitted(ref, parseFriendSettings)),
-    );
+  initialize(uid: string): Promise<FriendSettings> {
+    return initialize(this, uid);
   }
   settings(uid: string): Promise<FriendSettings | null> {
     return this.read(this.ref('friendSettings', uid), parseFriendSettings);
@@ -213,32 +187,12 @@ export class FriendStore {
   watchSettings(uid: string, next: (value: FriendSettings | null) => void, error: (cause: Error) => void): () => void {
     return this.watch(this.ref('friendSettings', uid), parseFriendSettings, next, error);
   }
-  async saveSettings(
+  saveSettings(
     uid: string,
     input: { enabled: boolean; selectedIds: string[] },
     expected: FriendSettings,
   ): Promise<FriendSettings> {
-    const selectedIds = friendSelection(input.selectedIds);
-    if (typeof input.enabled !== 'boolean')
-      throw new FriendStoreError('invalid', 'Choose whether friends-only sharing is enabled.');
-    online();
-    const ref = this.ref('friendSettings', uid);
-    await runTransaction(this.db, async (tx) => {
-      const snap = await tx.get(ref);
-      const current = activeSettings(snap.exists() ? parseFriendSettings(snap.data()) : null);
-      expectedSettings(current, expected);
-      if (current.enabled === input.enabled && current.selectedIds.join('|') === selectedIds.join('|')) return;
-      tx.update(ref, {
-        enabled: input.enabled,
-        selection: selectedIds.join('|'),
-        epoch: current.epoch + 1,
-        revision: current.revision + 1,
-        updatedAt: serverTimestamp(),
-      });
-    });
-    return this.afterCommit({ operation: 'save-settings', uid }, async () =>
-      activeSettings(await this.readCommitted(ref, parseFriendSettings)),
-    );
+    return saveSettings(this, uid, input, expected);
   }
   identity(uid: string): Promise<FriendIdentity | null> {
     return this.read(this.ref('friendIdentities', uid), (data) => {
@@ -248,61 +202,18 @@ export class FriendStore {
       return identity;
     });
   }
-  async publicIdentity(uid: string): Promise<FriendIdentity | null> {
-    friendUid(uid);
-    try {
-      const profile = await new SocialStore(this.db).ownProfile(uid);
-      return profile?.published && !profile.hidden
-        ? {
-            format: 1,
-            uid,
-            displayName: profile.displayName,
-            avatar: profile.avatar,
-            revision: 1,
-            updatedAt: profile.updatedAt,
-          }
-        : null;
-    } catch (cause) {
-      if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') return null;
-      throw cause;
-    }
+  publicIdentity(uid: string): Promise<FriendIdentity | null> {
+    return publicIdentity(this, uid);
   }
   watchIdentity(uid: string, next: (value: FriendIdentity | null) => void, error: (cause: Error) => void): () => void {
     return this.watch(this.ref('friendIdentities', uid), parseFriendIdentity, next, error);
   }
-  async saveIdentity(
+  saveIdentity(
     uid: string,
     input: { displayName: string; avatar: AvatarValue },
     expectedRevision: number,
   ): Promise<FriendIdentity> {
-    const displayName = friendName(input.displayName);
-    const avatar = parseAvatar(input.avatar);
-    online();
-    const ref = this.ref('friendIdentities', uid);
-    await runTransaction(this.db, async (tx) => {
-      const snap = await tx.get(ref);
-      const current = snap.exists() ? parseFriendIdentity(snap.data()) : null;
-      if ((current?.revision ?? 0) !== expectedRevision)
-        conflict('Your friend profile changed. Reload before saving its name or icon.');
-      if (current && current.displayName === displayName && JSON.stringify(current.avatar) === JSON.stringify(avatar))
-        return;
-      // Rules accept an unchanged legacy name; a new or changed name must pass the display-name rule.
-      const nameProblem = current?.displayName === displayName ? null : displayNameProblem(displayName);
-      if (nameProblem) throw new FriendStoreError('invalid', nameProblem);
-      tx.set(ref, {
-        format: 1,
-        uid,
-        displayName,
-        avatar,
-        revision: expectedRevision + 1,
-        updatedAt: serverTimestamp(),
-      });
-    });
-    return this.afterCommit({ operation: 'save-identity', uid }, async () => {
-      const result = await this.readCommitted(ref, parseFriendIdentity);
-      if (!result || result.uid !== uid) conflict();
-      return result;
-    });
+    return saveIdentity(this, uid, input, expectedRevision);
   }
   pair(uid: string, otherUid: string): Promise<FriendPair | null> {
     return this.read(this.pairRef(uid, otherUid), parseFriendPair);
