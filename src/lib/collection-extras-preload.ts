@@ -1,6 +1,6 @@
-import { createRetryableModule } from './retryable-module';
+import { createMemoizedModule } from './memoized-module';
 
-export const collectionExtrasModule = createRetryableModule(() => import('../components/CollectionExtras'));
+export const collectionExtrasModule = createMemoizedModule(() => import('../components/CollectionExtras'));
 
 export function preloadCollectionExtras(): void {
   void collectionExtrasModule.load().catch(() => {

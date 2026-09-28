@@ -3,7 +3,7 @@ import type { DocumentData, Firestore, QueryDocumentSnapshot } from 'firebase/fi
 import { parseHandle, parseAvatar, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { displayNameProblem } from '../lib/text-controls';
-import { createRetryableModule } from '../lib/retryable-module';
+import { createMemoizedModule } from '../lib/memoized-module';
 import { ensureAccountActivity } from './account-lifecycle';
 import type { SocialPublication } from './social-publication';
 
@@ -94,7 +94,7 @@ let registeredPublication: typeof SocialPublication | null = null;
 export function registerSocialPublication(implementation: typeof SocialPublication): void {
   registeredPublication = implementation;
 }
-const publicationModule = createRetryableModule(() => import('./social-publication'));
+const publicationModule = createMemoizedModule(() => import('./social-publication'));
 
 export class SocialStore {
   constructor(readonly db: Firestore) {}
