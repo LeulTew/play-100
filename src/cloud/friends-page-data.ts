@@ -50,9 +50,58 @@ interface AuxiliaryPage {
   error: unknown | null;
 }
 
+function clearedAux(view: FriendsView, loading: boolean): AuxiliaryPage {
+  return { view, invites: [], blocks: [], cursor: undefined, pages: 0, loading, ready: false, error: null };
+}
+
 /**
- * The loaded Invite links or Blocked list. loadAux() reloads as many pages as the list last held for the same view (at
- * least one), and loadAux(true) appends the next page. Opening either view clears the list and reloads it. Bumping
+ * Reads count pages of Invite links or Blocked: afresh, or after the list in `after` to append to it. It sets no state,
+ * and returns null once isCurrent() says a newer load, view or account replaced it.
+ */
+async function readAuxPages(
+  store: FriendStore,
+  uid: string,
+  target: 'invites' | 'blocked',
+  after: AuxiliaryPage | null,
+  count: number,
+  isCurrent: () => boolean,
+): Promise<AuxiliaryPage | null> {
+  let cursor = after?.cursor;
+  let pages = 0;
+  let invites = after?.invites ?? [];
+  let blocks = after?.blocks ?? [];
+  for (; pages < count; pages += 1) {
+    if (target === 'invites') {
+      const result = await store.listInvites(uid, cursor);
+      invites = [...new Map([...invites, ...result.items].map((item) => [item.token, item])).values()];
+      cursor = result.cursor;
+    } else {
+      const result = await store.listBlocks(uid, cursor);
+      blocks = [...new Map([...blocks, ...result.items].map((item) => [item.uid, item])).values()];
+      cursor = result.cursor;
+    }
+    if (!isCurrent()) return null;
+    if (!cursor) {
+      pages += 1;
+      break;
+    }
+  }
+  return {
+    view: target,
+    invites,
+    blocks,
+    cursor,
+    pages: (after?.pages ?? 0) + pages,
+    ready: true,
+    loading: false,
+    error: null,
+  };
+}
+
+/**
+ * The loaded Invite links or Blocked list. Opening either view clears the list in that same render, so its first frame
+ * shows loading, and reloads as many pages as the list last held for that view (at least one). loadAux() reloads the
+ * open view the same way but keeps the list until the reload lands, and loadAux(true) appends the next page. Bumping
  * auxVersionRef cancels a load in progress.
  */
 export function useAuxiliaryPages(
@@ -65,88 +114,67 @@ export function useAuxiliaryPages(
   setRefreshRequired: (value: boolean) => void,
   setError: (value: string) => void,
 ) {
-  const [aux, setAux] = useState<AuxiliaryPage>({
-    view: view.view,
-    invites: [],
-    blocks: [],
-    cursor: undefined,
-    pages: 0,
-    loading: false,
-    ready: false,
-    error: null,
-  });
+  const [aux, setAux] = useState<AuxiliaryPage>(() => clearedAux(view.view, false));
   const auxRef = useRef(aux);
   useLayoutEffect(() => {
     auxRef.current = aux;
   });
-  const loadAux = useCallback(
-    async (append = false): Promise<boolean> => {
-      const target = view.view;
-      if (target !== 'invites' && target !== 'blocked') return false;
+  // Sets state only once the read settles, so an effect can start one without setting state synchronously.
+  const readAux = useCallback(
+    (target: 'invites' | 'blocked', after: AuxiliaryPage | null, count: number) => {
       const operation = ++auxVersionRef.current;
-      const old = auxRef.current;
-      setAux((state) => ({ ...state, view: target, loading: true, error: null }));
-      const count = append ? 1 : Math.max(1, old.view === target ? old.pages : 1);
-      let cursor = append ? old.cursor : undefined;
-      let pages = 0;
-      let invites = append ? old.invites : [];
-      let blocks = append ? old.blocks : [];
-      try {
-        for (; pages < count; pages += 1) {
-          if (target === 'invites') {
-            const result = await store.listInvites(uid, cursor);
-            invites = [...new Map([...invites, ...result.items].map((item) => [item.token, item])).values()];
-            cursor = result.cursor;
-          } else {
-            const result = await store.listBlocks(uid, cursor);
-            blocks = [...new Map([...blocks, ...result.items].map((item) => [item.uid, item])).values()];
-            cursor = result.cursor;
-          }
-          if (!current() || operation !== auxVersionRef.current) return false;
-          if (!cursor) {
-            pages += 1;
-            break;
-          }
-        }
-        setAux({
-          view: target,
-          invites,
-          blocks,
-          cursor,
-          pages: (append ? old.pages : 0) + pages,
-          ready: true,
-          loading: false,
-          error: null,
-        });
-        setRefreshRequired(false);
-        setError('');
-        return true;
-      } catch (cause) {
-        if (current() && operation === auxVersionRef.current)
-          setAux((state) => ({ ...state, loading: false, error: cause }));
-        return false;
-      }
+      const isCurrent = () => current() && operation === auxVersionRef.current;
+      return readAuxPages(store, uid, target, after, count, isCurrent).then(
+        (next) => {
+          if (!next || !isCurrent()) return false;
+          setAux(next);
+          setRefreshRequired(false);
+          setError('');
+          return true;
+        },
+        (cause: unknown) => {
+          if (isCurrent()) setAux((state) => ({ ...state, loading: false, error: cause }));
+          return false;
+        },
+      );
     },
-    [view.view, store, uid, current, auxVersionRef, setRefreshRequired, setError],
+    [store, uid, current, auxVersionRef, setRefreshRequired, setError],
   );
+  // Opening a view, or a new account or store, clears the list during render and notes how many pages to reload.
+  const [opened, setOpened] = useState<{
+    view: FriendsView;
+    relationView: boolean;
+    store: FriendStore;
+    uid: string;
+    pages: number;
+  } | null>(null);
+  if (
+    opened?.view !== view.view ||
+    opened.relationView !== relationView ||
+    opened.store !== store ||
+    opened.uid !== uid
+  ) {
+    setOpened({ view: view.view, relationView, store, uid, pages: aux.view === view.view ? aux.pages : 0 });
+    if (!relationView) setAux(clearedAux(view.view, true));
+  }
+  const reloadPages = opened?.pages ?? 0;
   useEffect(() => {
-    if (!relationView) {
-      setAux({
-        view: view.view,
-        invites: [],
-        blocks: [],
-        cursor: undefined,
-        pages: 0,
-        loading: true,
-        ready: false,
-        error: null,
-      });
-      void loadAux();
-    }
+    if (!relationView && (view.view === 'invites' || view.view === 'blocked'))
+      void readAux(view.view, null, Math.max(1, reloadPages));
     return () => {
       auxVersionRef.current += 1;
     };
-  }, [relationView, view.view, loadAux, auxVersionRef]);
+  }, [relationView, view.view, reloadPages, readAux, auxVersionRef]);
+  const loadAux = useCallback(
+    (append = false): Promise<boolean> => {
+      const target = view.view;
+      if (target !== 'invites' && target !== 'blocked') return Promise.resolve(false);
+      const old = auxRef.current;
+      setAux((state) => ({ ...state, view: target, loading: true, error: null }));
+      return readAux(target, append ? old : null, append ? 1 : Math.max(1, old.view === target ? old.pages : 1));
+    },
+    [view.view, readAux],
+  );
   return { aux, loadAux };
 }
 
