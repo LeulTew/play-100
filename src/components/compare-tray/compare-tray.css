@@ -1,13 +1,13 @@
 :root {
   --compare-tray-bottom: 20px;
 }
-html:has(.compare-tray-dock[data-layout='dock']) {
+html:has(.compare-tray-chip) {
   scroll-padding-bottom: calc(var(--mobile-nav-height, 0px) + 16px);
 }
 html:has(.toast-visible) {
   scroll-padding-bottom: calc(25px + var(--toast-height, 64px) + 16px);
 }
-html:has(.compare-tray-dock[data-layout='dock']):has(.toast-visible) {
+html:has(.compare-tray-chip):has(.toast-visible) {
   scroll-padding-bottom: calc(var(--mobile-nav-height, 0px) + var(--toast-height, 64px) + 36px);
 }
 .compare-tray-reserve {
@@ -16,7 +16,7 @@ html:has(.compare-tray-dock[data-layout='dock']):has(.toast-visible) {
 body:has(.compare-tray-reserve) {
   padding-bottom: 0;
 }
-body:has(.compare-tray-dock[data-layout='dock']) .toast {
+body:has(.compare-tray-chip) .toast {
   bottom: calc(var(--mobile-nav-height, 0px) + 20px);
 }
 button.compare-drag-handle {
@@ -32,10 +32,12 @@ button.compare-drag-handle[hidden] {
   }
 }
 .compare-tray-dock[data-dragging='true'] {
+  width: min(320px, calc(100vw - 16px));
+  height: 88px;
   background: var(--lime);
 }
-.compare-tray-dock[data-dragging='true'] > :is(.compare-tray-expand, .compare-tray-action) {
-  visibility: hidden;
+.compare-tray-dock[data-dragging='true'] > :not(.compare-tray-drop-label) {
+  display: none;
 }
 .compare-tray-drop-label {
   position: absolute;
@@ -60,46 +62,32 @@ button.compare-drag-handle[hidden] {
 .compare-tray-dock {
   position: fixed;
   z-index: 34;
-  inset-inline-end: var(--gutter);
+  inset-inline-end: 8px;
   bottom: var(--compare-tray-bottom);
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  gap: 8px 16px;
-  max-width: calc(100% - 2 * var(--gutter));
-  padding: 8px 12px 8px 8px;
+  width: 46px;
+  height: 46px;
   color: var(--ink);
   background: var(--white);
   border: 1px solid var(--ink);
   border-radius: 4px;
-  box-shadow: 0 8px 24px #20231e24;
 }
-.compare-tray-dock[data-layout='inline']:not([data-dragging='true']) {
+.compare-tray-inline:not([data-dragging='true']) {
   position: relative;
   inset: auto;
   width: fit-content;
+  height: auto;
   max-width: 100%;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+  padding: 8px 12px 8px 8px;
   margin-block: 12px;
 }
 .compare-tray-anchor {
   display: contents;
 }
-.compare-tray-dock[data-layout='dock'] {
-  --tray-extra: none;
-  --tray-label: none;
-  grid-template-columns: 1fr;
-  inset-inline: auto 8px;
-  width: 46px;
-  height: 46px;
-  max-width: none;
-  padding: 0;
-  box-shadow: none;
-}
-.compare-tray-dock[data-layout='dock'][data-dragging='true'] {
-  width: min(320px, calc(100vw - 16px));
-  height: 88px;
-}
-.compare-tray-dock[data-layout='dock'] .compare-tray-expand {
+.compare-tray-chip .compare-tray-expand {
   flex-direction: column-reverse;
   min-width: 0;
   min-height: 44px;
@@ -107,15 +95,14 @@ button.compare-drag-handle[hidden] {
   justify-content: center;
   gap: 0;
 }
-.compare-tray-dock[data-layout='dock'] .compare-tray-expand > span > span {
+.compare-tray-chip :is(.compare-tray-stack, .compare-tray-action, .compare-tray-count > span) {
   display: none;
 }
 @media (min-width: 761px) {
-  .site-header .compare-tray-anchor:has(> .compare-tray-dock) {
+  [data-compare-chip] .compare-tray-anchor {
     display: block;
     position: relative;
     flex: 0 0 46px;
-    width: 46px;
     height: 46px;
   }
   .site-header .compare-tray-dock {
@@ -124,19 +111,19 @@ button.compare-drag-handle[hidden] {
   }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
-  .site-header:has(.compare-tray-dock) {
+  .site-header[data-compare-chip] {
     gap: 12px;
   }
 }
 @media (min-width: 761px) and (max-height: 520px) {
   .games-grid .game-cover:not(:has(> .art-fallback-note)) {
-    max-height: 100px;
+    max-height: 80px;
   }
 }
 .ratings-tray-strip:has(.compare-tray-dock[data-has-content='true']) {
   min-height: calc(var(--compare-tray-height, 88px) + 24px);
 }
-.ratings-mode:has(.compare-tray-dock[data-layout='inline']) > .ratings-scroll {
+.ratings-mode:has(.compare-tray-inline) > .ratings-scroll {
   max-height: min(
     75vh,
     780px,
@@ -157,7 +144,7 @@ button.compare-drag-handle[hidden] {
   text-align: left;
   overflow-wrap: normal;
 }
-.compare-tray-expand > span:not(.compare-tray-stack) {
+.compare-tray-count {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
@@ -169,12 +156,12 @@ button.compare-drag-handle[hidden] {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.compare-tray-expand > span > span {
+.compare-tray-count > span {
   color: var(--muted);
   font-size: 12px;
 }
 .compare-tray-stack {
-  display: var(--tray-extra, flex);
+  display: flex;
   flex-shrink: 0;
   align-items: center;
   padding-inline-end: 5px;
@@ -193,7 +180,7 @@ button.compare-drag-handle[hidden] {
   margin-inline-start: -20px;
   transform: rotate(0deg);
 }
-.compare-tray-jacket + .compare-tray-jacket + .compare-tray-jacket {
+.compare-tray-jacket:nth-child(3) {
   transform: rotate(7deg);
 }
 .compare-tray-jacket .game-artwork {
@@ -226,7 +213,6 @@ button.compare-drag-handle[hidden] {
   border-radius: 4px;
   color: var(--ink);
   background: var(--paper);
-  font-family: inherit;
   font-size: 15px;
   font-weight: 650;
   line-height: 1.25;
@@ -245,11 +231,8 @@ button.compare-drag-handle[hidden] {
 .compare-drag-ghost[data-native] {
   left: -10000px;
 }
-button.compare-tray-action {
-  display: var(--tray-extra, inline-flex);
-  min-width: 0;
+.compare-tray-action {
   overflow-wrap: normal;
-  word-break: normal;
 }
 .compare-tray-action-context {
   display: block;
@@ -345,9 +328,6 @@ button.compare-tray-action {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.compare-tray-games .icon-button {
-  flex-shrink: 0;
-}
 .compare-tray-sheet-actions {
   display: flex;
   flex-wrap: wrap;
@@ -378,7 +358,7 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
   html:has(.toast-visible) {
     scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--toast-height, 64px) + 16px);
   }
-  body:has(.toast-visible) .ratings-mode:has(.compare-tray-dock[data-layout='inline']) {
+  body:has(.toast-visible) .ratings-mode:has(.compare-tray-inline) {
     /* The dismiss target supplies the first-frame minimum before the toast's height observer runs. */
     --inline-toast-clearance: calc(max(44px, var(--toast-height, 64px)) + 28px);
   }
@@ -390,21 +370,17 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
     min-width: 44px;
     overflow-wrap: normal;
   }
-  .site-header:has(.compare-tray-dock) {
+  .site-header[data-compare-chip] {
     z-index: 36;
   }
-  .compare-tray-dock[data-layout='dock'][data-dragging='false'] {
-    z-index: 35;
+  .compare-tray-chip[data-dragging='false'] {
     bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   }
-  .compare-tray-dock[data-layout='dock'][data-dragging='true'] {
+  .compare-tray-dock[data-dragging='true'] {
     inset-inline: 10px;
     width: auto;
   }
-  .compare-tray-dock {
-    inset-inline: 10px;
-    max-width: none;
-    justify-content: space-between;
+  .compare-tray-inline:not([data-dragging='true']) {
     gap: 8px;
     padding: 5px 8px;
   }
@@ -419,8 +395,8 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
   .compare-tray-expand strong {
     font-size: 14px;
   }
-  .compare-tray-expand > span > span {
-    display: var(--tray-label, none);
+  .compare-tray-count > span {
+    display: none;
   }
   /* Outranks the shared mobile .dialog inset so the bottom sheet spans the viewport. */
   .dialog.compare-tray-sheet {
@@ -459,15 +435,12 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
     border-color: CanvasText;
     box-shadow: none;
   }
-  .compare-tray-dock:is([data-dragging='true'], [data-compare-drop-ready='true']) {
+  .compare-tray-dock:is([data-dragging='true'], [data-compare-drop-ready='true']),
+  .compare-tray-expand:focus {
     outline: 3px solid Highlight;
     outline-offset: 2px;
   }
   .compare-tray-action {
     border-color: ButtonText;
-  }
-  .compare-tray-expand:focus {
-    outline: 3px solid Highlight;
-    outline-offset: 2px;
   }
 }

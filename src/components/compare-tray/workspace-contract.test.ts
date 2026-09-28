@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement as h } from 'react';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import { criticalAppCss } from '../../../scripts/first-paint/plugin';
+import { shellMarkup } from '../../../scripts/first-paint/shell-html';
 import { emptyPersonalLibrary } from '../../lib/personal-library';
 import type { PersonalLibraryState, LibraryRecord } from '../../lib/personal-types';
 import type { Filters } from '../../lib/types';
@@ -65,6 +68,23 @@ const props = {
   availableRecords: [alpha, beta],
   persistent: true,
 };
+
+describe('tray first-paint isolation', () => {
+  it.each(['online', 'offline'] as const)('keeps only the existing root tokens in the %s shell', async (variant) => {
+    const root = shellMarkup(readFileSync(new URL('../../../index.html', import.meta.url), 'utf8'), variant);
+    const css = readFileSync(new URL('./compare-tray.css', import.meta.url), 'utf8');
+    const rootTokens = `
+      :root { --compare-tray-bottom: 20px; }
+      @media (max-width: 760px) {
+        :root {
+          --compare-tray-bottom: calc(var(--mobile-nav-height, calc(66px + env(safe-area-inset-bottom, 0px))) + 12px);
+        }
+      }`;
+    expect(root).not.toMatch(/data-compare-chip|class="[^"]*\b(?:games-grid|game-cover)\b/);
+    const [actual, expected] = await Promise.all([criticalAppCss(css, root), criticalAppCss(rootTokens, root)]);
+    expect(actual).toBe(expected);
+  });
+});
 
 describe('workspace embedding contract', () => {
   it.each([false, true])('keeps editor Pin names stable with pressed=%s', (selected) => {

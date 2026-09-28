@@ -850,6 +850,8 @@ export default function App() {
                   const dragHandle = (record: LibraryRecord) =>
                     !onlineOpening && <CompareDragHandle record={record} compact />;
                   const inlineTray = page === 'collection' && filters.view === 'table' && collection.status === 'ready';
+                  const trayHidden = onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
+                  const trayHasContent = tray.items.length > 0 || Boolean(tray.warning) || Boolean(tray.error);
                   const trayError = !motionBlocked ? tray.error : null;
                   // Tray errors use the existing polite provider status; the toast supplies their visible copy.
                   const currentNotice = trayError || visibleNotice;
@@ -864,7 +866,7 @@ export default function App() {
                         onPreview: preview,
                         resolveArtwork: (record) => artwork.get(record.id),
                         animate: capabilities.animate,
-                        hidden: onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink),
+                        hidden: trayHidden,
                       }}
                     />
                   );
@@ -882,6 +884,7 @@ export default function App() {
                         headerIdentity={headerIdentity}
                         savedCount={savedCount}
                         comparisonTray={!inlineTray && comparisonTray}
+                        compareChip={!inlineTray && !trayHidden && (trayHasContent || tray.dragging)}
                         animate={capabilities.animate}
                         menuOpen={panel === 'menu'}
                         pageHref={pageHref}
@@ -1071,7 +1074,7 @@ export default function App() {
                         onMenu={() => setPanel('menu')}
                         onIntent={prefetchAppTools}
                       />
-                      {!inlineTray && (tray.items.length > 0 || tray.warning || tray.error) && (
+                      {!inlineTray && trayHasContent && (
                         <div className="compare-tray-reserve" data-error={Boolean(tray.error)} aria-hidden="true" />
                       )}
                       <DialogHost

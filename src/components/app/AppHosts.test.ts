@@ -263,6 +263,7 @@ describe('navigation and dialog hosts', () => {
       `>Play later</span> <span class="saved-count"><span class="sr-only">${savedCount}</span><span aria-hidden="true">${savedCount}</span></span></button>`,
     );
     expect(html).not.toContain('in your queue');
+    expect(html).not.toContain('data-compare-chip');
   });
 
   it('retains header selectors, navigation order and verified display inputs', () => {
@@ -276,6 +277,7 @@ describe('navigation and dialog hosts', () => {
         headerIdentity: null,
         savedCount: 3,
         comparisonTray: createElement('button', { type: 'button' }, '3 games in Compare tray'),
+        compareChip: true,
         animate: false,
         menuOpen: true,
         pageHref: (page) => `/${page}`,
@@ -285,7 +287,7 @@ describe('navigation and dialog hosts', () => {
         onAccount: vi.fn(),
       }),
     );
-    expect(html).toMatch(/^<header class="site-header site-header-online">/);
+    expect(html).toMatch(/^<header class="site-header site-header-online" data-compare-chip="">/);
     expect(html).toContain('class="menu-nav" aria-haspopup="dialog" aria-expanded="true"');
     expect(html).toContain('href="/discover" aria-current="page"');
     expect(html.indexOf('>The 100</a>')).toBeLessThan(html.indexOf('>Discover</a>'));

@@ -245,6 +245,8 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
   const watch = (gesture: Gesture) => {
     const interrupt = runtime.subscribeInterrupt((reason) => {
       if (active !== gesture || reason === 'drag' || reason === 'superseded') return;
+      // Mouse drags can scroll to a target; authority and hit-testing use the current nodes, not old geometry.
+      if (reason === 'scroll' && gesture.kind === 'mouse' && current(gesture)) return;
       if (reason !== 'policy' || !current(gesture)) cancel();
     });
     if (active === gesture) gesture.cleanups.push(interrupt);

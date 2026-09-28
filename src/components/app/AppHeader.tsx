@@ -12,6 +12,7 @@ export interface AppHeaderProps {
   headerIdentity: { name: string; avatarSrc: string } | null;
   savedCount: number;
   comparisonTray?: ReactNode;
+  compareChip?: boolean;
   animate: boolean;
   menuOpen: boolean;
   pageHref: (page: AppPage) => string;
@@ -31,6 +32,7 @@ export function AppHeader({
   headerIdentity,
   savedCount,
   comparisonTray,
+  compareChip,
   animate,
   menuOpen,
   pageHref,
@@ -46,7 +48,10 @@ export function AppHeader({
     onPointerDown: () => onIntent?.(destination),
   });
   return (
-    <header className={`site-header ${onlineAvailable ? 'site-header-online' : ''}`}>
+    <header
+      className={`site-header ${onlineAvailable ? 'site-header-online' : ''}`}
+      data-compare-chip={compareChip ? '' : undefined}
+    >
       <a className="wordmark" href={pageHref('collection')} onClick={(event) => onNavigateLink(event, 'collection')}>
         <span className="logo-symbol" aria-hidden="true">
           <span />

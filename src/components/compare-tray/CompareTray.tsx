@@ -155,7 +155,7 @@ function ScopedCompareTray({
       {hasTray && !hidden && (
         <aside
           ref={dockRef}
-          className="compare-tray-dock"
+          className={`compare-tray-dock compare-tray-${layout === 'dock' ? 'chip' : 'inline'}`}
           aria-label="Pinned games for comparison"
           data-compact={compact}
           data-animate={animate && documentVisible ? 'true' : 'false'}
@@ -190,7 +190,7 @@ function ScopedCompareTray({
                 </span>
               ))}
             </span>
-            <span>
+            <span className="compare-tray-count">
               <strong>
                 {items.length}{' '}
                 <span className={layout === 'dock' ? 'sr-only' : undefined}>

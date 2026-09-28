@@ -403,6 +403,32 @@ describe('Compare source browser contract', () => {
     expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(2);
   });
 
+  it.each([false, true])('keeps a mouse drag across real scrolling (already active: %s)', async (started) => {
+    const source = page.locator('#source');
+    const title = await page.locator('#source-title').boundingBox();
+    if (!title) throw new Error('The native drag title is not laid out.');
+    const x = title.x + 24;
+    const y = title.y + title.height / 2;
+    if (started) await nativeStart();
+    else {
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+    }
+    await browserExpect(source).toHaveAttribute('draggable', 'true');
+    await page.evaluate(() => window.scrollTo({ top: 32, behavior: 'instant' }));
+    await browserExpect.poll(() => page.evaluate(() => scrollY)).toBe(32);
+    await browserExpect(source).toHaveAttribute('draggable', 'true');
+    if (!started) await page.mouse.move(x + 24, y - 16, { steps: 8 });
+    await browserExpect(page.locator('.compare-tray-dock')).toHaveAttribute('data-dragging', 'true');
+    await nativeDrop();
+    await browserExpect
+      .poll(() => page.evaluate(() => window.compareDragTest.items()))
+      .toEqual(['manual:drag-fixture']);
+    expect(await page.evaluate(() => window.compareDragTest.transfer?.types)).toEqual([COMPARE_DRAG_TYPE]);
+    expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
+    await browserExpect(page.locator('.compare-drag-ghost,[data-compare-dragging]')).toHaveCount(0);
+  });
+
   it('keeps native grip and zero-DOM wrapper title sources, with one slot for repeated pin', async () => {
     await nativeStart('.compare-drag-handle');
     await nativeDrop();

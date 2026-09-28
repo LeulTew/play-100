@@ -245,6 +245,10 @@ same header slot to 320px by 88px, retaining the original hit area and header he
 The touch drop target stays above navigation. Overlap during that explicit gesture
 is not a resting browsing state. Pin refusals appear in the existing viewport
 notification. The tray's polite status announces them once.
+Chip-specific header spacing and stacking use the runtime-only
+`data-compare-chip` attribute, not a `:has()` condition that the critical-CSS
+extractor strips. The table strip is in normal flow with a flat border, not
+the old floating dock's shadow and positioning.
 On narrow windows, a visible toast reserves its measured height and entrance
 clearance in the table's height limit, keeping the inline strip clear without
 changing the desktop layout or moving it into the table scrollport.
@@ -511,6 +515,9 @@ the optional 150ms settle. Temporary empty drop targets must not compact the
 collection toolbar or change the source layout; real pins and storage messages
 retain their existing mobile clearance, including while another drag is active.
 Normal scrolling and selection win before broad card/title touch ownership.
+Fine-mouse drags can scroll while armed or active without losing their token.
+They still check the current source, scope, navigation, visibility and modal
+state, and hit-test the current drop target; no stale coordinates authorize a drop.
 Coarse layouts expose the separate 44px Pin action and hide the redundant
 mouse-drag handle from layout, keyboard focus and assistive technology. On
 mixed-pointer devices the visible handle remains Pin-only for touch and pen;
@@ -542,9 +549,10 @@ The reserve stays while a modal hides the chip, so underlying content never
 reflows during native open/close. Ratings-table rows retain the same Pin path.
 If limit feedback grows over its focused source, one immediate native scroll
 reveals it without moving focus. Native focus scrolling uses the measured root
-scroll padding. In wide windows at most 520px tall, grid jackets have a 100px
+scroll padding. In wide windows at most 520px tall, grid jackets have an 80px
 height cap so the full identity link can fit the short reading viewport; artwork
-keeps its native contain behavior.
+keeps its native contain behavior. This applies to the loaded grid, not the
+first-paint loading jackets; no real game cover is resized at hydration.
 Explicit Explore and same-page The 100 navigation use one
 native scroll based on the current first identity and visible dock/nav/toast
 bounds, ignoring the comparison control when it is inside the header. Never
