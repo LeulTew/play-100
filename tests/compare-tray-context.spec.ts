@@ -242,19 +242,34 @@ test('header Compare keeps its slot and expansion edge across wide breakpoints',
       position: getComputedStyle(element).position,
       header: element.closest('.site-header')!.getBoundingClientRect().toJSON(),
     }));
-  const expectSlot = async () => {
-    const bounds = await slot();
-    expect(bounds.position).toBe('fixed');
-    expect(bounds.anchor.width).toBe(46);
-    expect(bounds.anchor.height).toBe(46);
-    expect(bounds.dock.width).toBe(46);
-    expect(bounds.dock.height).toBe(46);
-    expect(Math.abs(bounds.dock.left - bounds.anchor.left)).toBeLessThanOrEqual(1);
-    expect(Math.abs(bounds.dock.top - bounds.anchor.top)).toBeLessThanOrEqual(1);
-    expect(bounds.dock.top).toBeGreaterThanOrEqual(bounds.header.top);
-    expect(bounds.dock.bottom).toBeLessThanOrEqual(bounds.header.bottom);
-    return bounds;
+  type Slot = Awaited<ReturnType<typeof slot>>;
+  // After a resize, a drag or a dialog, the fixed dock can reach its anchor a frame or a transition later, and a
+  // single read once caught the pair 1.58px apart in a full run. So each check waits until two reads a frame apart
+  // agree, then holds that settled geometry to the same tolerance.
+  const settledSlot = async (check: (bounds: Slot) => void): Promise<Slot> => {
+    let settled: Slot | undefined;
+    await expect(async () => {
+      const first = await slot();
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      const second = await slot();
+      expect(second, 'the slot has settled').toEqual(first);
+      check(second);
+      settled = second;
+    }).toPass({ timeout: 10_000 });
+    return settled!;
   };
+  const expectSlot = () =>
+    settledSlot((bounds) => {
+      expect(bounds.position).toBe('fixed');
+      expect(bounds.anchor.width).toBe(46);
+      expect(bounds.anchor.height).toBe(46);
+      expect(bounds.dock.width).toBe(46);
+      expect(bounds.dock.height).toBe(46);
+      expect(Math.abs(bounds.dock.left - bounds.anchor.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(bounds.dock.top - bounds.anchor.top)).toBeLessThanOrEqual(1);
+      expect(bounds.dock.top).toBeGreaterThanOrEqual(bounds.header.top);
+      expect(bounds.dock.bottom).toBeLessThanOrEqual(bounds.header.bottom);
+    });
   await expect(chip).toBeVisible();
   await expectSlot();
   await page.reload();
@@ -279,13 +294,14 @@ test('header Compare keeps its slot and expansion edge across wide breakpoints',
     try {
       await page.mouse.move(x + 26, y + 18, { steps: 8 });
       await expect(dock).toHaveAttribute('data-dragging', 'true');
-      const expanded = await slot();
-      expect(expanded.dock.width).toBe(320);
-      expect(expanded.dock.height).toBe(88);
-      expect(Math.abs(expanded.dock.right - resting.dock.right)).toBeLessThanOrEqual(1);
-      expect(Math.abs(expanded.dock.top - resting.dock.top)).toBeLessThanOrEqual(1);
-      expect(expanded.anchor).toEqual(resting.anchor);
-      expect(expanded.header).toEqual(resting.header);
+      await settledSlot((expanded) => {
+        expect(expanded.dock.width).toBe(320);
+        expect(expanded.dock.height).toBe(88);
+        expect(Math.abs(expanded.dock.right - resting.dock.right)).toBeLessThanOrEqual(1);
+        expect(Math.abs(expanded.dock.top - resting.dock.top)).toBeLessThanOrEqual(1);
+        expect(expanded.anchor).toEqual(resting.anchor);
+        expect(expanded.header).toEqual(resting.header);
+      });
       await page.keyboard.press('Escape');
     } finally {
       await page.mouse.up();
