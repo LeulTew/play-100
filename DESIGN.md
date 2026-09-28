@@ -377,6 +377,11 @@ failure permits a fresh data request without masking parser-module failures.
 
 Lazy-route fallbacks use destination headings with static card, ruled-list or
 form anatomy from eager styles, never zero counts or guessed private content.
+Discover's and My games' fallbacks also reserve the controls their pages settle
+with, as inert placeholders at the settled heights (the search, filters and
+results heading; the views, Progress and search rows), so results do not jump
+when the page arrives. A fallback is at least one viewport tall, so the footer
+stays out of the first view while it loads.
 The cold sign-in placeholder remains a static native dialog with its original
 close and return-focus contract; loading a route never enables an unfinished form.
 Cancelling comparison sign-in can temporarily focus Account while readiness hides

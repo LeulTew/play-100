@@ -2,9 +2,26 @@ import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 
 for (const destination of [
-  { path: '/discover?catalogs=off', chunk: 'DiscoverPage', title: 'Discover', heading: '#discover-title' },
-  { path: '/my-games?catalogs=off', chunk: 'MyGamesPage', title: 'My games', heading: '#my-games-title' },
-]) {
+  {
+    path: '/discover?catalogs=off',
+    chunk: 'DiscoverPage',
+    title: 'Discover',
+    heading: '#discover-title',
+    // The cards start where the page's results do. At 393px the status takes one line where the search note wraps.
+    reserved: { fallback: '.route-skeleton', page: '[role="region"][aria-labelledby="discovery-results-title"]' },
+    edge: 'top',
+    slack: { desktop: 1, mobile: 24 },
+  },
+  {
+    path: '/my-games?catalogs=off',
+    chunk: 'MyGamesPage',
+    title: 'My games',
+    heading: '#my-games-title',
+    reserved: { fallback: '.route-fallback-tabs', page: '.my-games-navigation' },
+    edge: 'bottom',
+    slack: { desktop: 1, mobile: 1 },
+  },
+] as const) {
   test(`cold ${destination.title} keeps its header footprint before the lazy module and styles`, async ({
     page,
     isMobile,
@@ -45,6 +62,11 @@ for (const destination of [
       expect(await fallback.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
       const before = await fallback.locator('h1').boundingBox();
       if (!before) throw new Error('The destination loading heading is not laid out.');
+      // The skeleton reserves the controls above the results, and the footer stays below the first view (UI-004).
+      const reserved = await fallback.locator(destination.reserved.fallback).boundingBox();
+      if (!reserved) throw new Error('The reserved destination controls are not laid out.');
+      const footer = await page.locator('#site-credits').boundingBox();
+      expect(footer?.y ?? Number.POSITIVE_INFINITY, 'footer during loading').toBeGreaterThanOrEqual(1000);
       release();
       await expect(fallback).toHaveCount(0);
       await expect(page.locator(destination.heading)).toHaveText(destination.title);
@@ -54,6 +76,13 @@ for (const destination of [
       for (const key of ['x', 'y', 'width', 'height'] as const) {
         expect(Math.abs(after[key] - before[key]), `${destination.title} heading ${key}`).toBeLessThanOrEqual(0.5);
       }
+      const settled = await page.locator(destination.reserved.page).boundingBox();
+      if (!settled) throw new Error('The settled destination controls are not laid out.');
+      const edge = (box: { y: number; height: number }) => (destination.edge === 'top' ? box.y : box.y + box.height);
+      expect(
+        Math.abs(edge(settled) - edge(reserved)),
+        `${destination.title} results start where the skeleton reserved them`,
+      ).toBeLessThanOrEqual(destination.slack[isMobile ? 'mobile' : 'desktop']);
     } finally {
       release();
     }

@@ -65,6 +65,8 @@ describe('destination loading anatomy', () => {
   it('reuses only placeholder rules that the existing public entry already loads eagerly', () => {
     const host = readFileSync(new URL('./RouteHost.tsx', import.meta.url), 'utf8');
     const collection = readFileSync(new URL('../CollectionPage.tsx', import.meta.url), 'utf8');
+    const controls = readFileSync(new URL('../CollectionControls.tsx', import.meta.url), 'utf8');
+    const filters = readFileSync(new URL('../BrowseFilters.tsx', import.meta.url), 'utf8');
     const extended = readFileSync(new URL('../catalog/ExtendedResults.tsx', import.meta.url), 'utf8');
     const card = readFileSync(new URL('../catalog/DiscoveryCard.tsx', import.meta.url), 'utf8');
     expect(sourceTokens(host, ts.ScriptKind.TSX)).toContain(
@@ -75,5 +77,41 @@ describe('destination loading anatomy', () => {
       sourceTokens("import { DiscoveryCard } from './DiscoveryCard'"),
     );
     expect(sourceTokens(card, ts.ScriptKind.TSX)).toContain(sourceTokens("import './discover.css'"));
+    // The filter placeholders' rules (browse-filters.css) load with The 100's own filters.
+    expect(sourceTokens(collection, ts.ScriptKind.TSX)).toContain(
+      sourceTokens("import { CollectionControls } from './CollectionControls'"),
+    );
+    expect(sourceTokens(controls, ts.ScriptKind.TSX)).toContain(
+      sourceTokens("import { BrowseFilters } from './BrowseFilters'"),
+    );
+    expect(sourceTokens(filters, ts.ScriptKind.TSX)).toContain(sourceTokens("import './browse-filters.css'"));
+  });
+
+  it("reserves Discover's and My games' settled controls as inert placeholders above their results", () => {
+    const discover = renderToStaticMarkup(createElement(RouteFallback, { route: 'discover', kind: 'public-page' }));
+    expect(discover).toContain('class="app-page route-fallback discovery-page" aria-busy="true"');
+    // The search, then the status on the search note's line, then the filters and results heading, then the cards.
+    const order = [
+      '<div class="discovery-search" aria-hidden="true" inert=""><label>\u00a0</label><div class="search-field"></div></div>',
+      '<p class="section-help" role="status">Loading Discover…</p>',
+      '<div aria-hidden="true" inert=""><div class="browse-filters discovery-filters"><div class="browse-filters-content">',
+      '<div class="discovery-results-heading">',
+      '<div class="route-skeleton discovery-skeleton discovery-cards-grid" aria-hidden="true" inert="">',
+    ].map((part) => discover.indexOf(part));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(discover.match(/class="filter-select progress-filter"/g)).toHaveLength(4);
+    expect(discover.match(/class="discovery-card-skeleton"/g)).toHaveLength(10);
+    for (const route of ['games', 'library', 'rankings'] as const) {
+      const games = renderToStaticMarkup(createElement(RouteFallback, { route, kind: 'public-page' }));
+      expect(games).toContain('class="app-page route-fallback" aria-busy="true"');
+      expect(games).toContain(
+        '<div aria-hidden="true" inert=""><div class="route-fallback-tabs"><div class="filter-select progress-filter"><label>\u00a0</label><span class="button button-outline"></span></div></div><div class="search-field route-fallback-tools"></div></div><p class="section-help route-fallback-results" role="status">Loading My games…</p>',
+      );
+    }
+    for (const route of ['collection', 'account', 'friends'] as const) {
+      const other = renderToStaticMarkup(createElement(RouteFallback, { route, kind: 'public-page' }));
+      expect(other).not.toMatch(/discovery-page|discovery-search|browse-filters|route-fallback-(tabs|tools|results)/);
+    }
   });
 });

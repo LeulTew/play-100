@@ -1,3 +1,7 @@
+/* A viewport tall, so the footer never shows while a destination loads. */
+.app-page.route-fallback {
+  min-height: 100vh;
+}
 .route-fallback > .page-heading {
   flex-direction: row;
   align-items: center;
@@ -7,11 +11,40 @@
 .route-fallback > .discovery-heading {
   min-height: 44px;
 }
-.route-skeleton {
+/* Discover's results follow its results heading; other destinations have no controls above theirs. */
+.route-skeleton:not(.discovery-cards-grid) {
   margin-top: 24px;
+}
+/* My games' views and Progress row, search row and results heading keep their settled heights (my-games.css). */
+.route-fallback-tabs {
+  min-height: 89px;
+  margin-bottom: 20px;
+  padding-top: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.route-fallback-tabs > .filter-select {
+  width: 250px;
+  margin-left: auto;
+}
+.search-field.route-fallback-tools {
+  max-width: 560px;
+  height: 52px;
+  margin-bottom: 20px;
+}
+.route-fallback-results {
+  min-height: 45px;
 }
 @media (max-width: 760px) {
   .route-fallback > .page-heading {
     min-height: 48px;
+  }
+  .search-field.route-fallback-tools {
+    max-width: none;
+    height: 49px;
+  }
+}
+@media (max-width: 640px) {
+  .route-fallback-tabs {
+    min-height: 138px;
   }
 }
