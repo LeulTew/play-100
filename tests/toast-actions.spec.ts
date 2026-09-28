@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { readLibrary } from './library-helpers';
 
+const trayName = (count: number, label = 'Compare tray') => `${count} ${count === 1 ? 'game' : 'games'} in ${label}`;
+
 test('a visible success toast passes a rapid second card action through while its dismiss control works', async ({
   page,
   baseURL,
@@ -79,7 +81,7 @@ test('a visible success toast passes a rapid second card action through while it
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
   await expect(toast).toBeVisible();
   expect((await readLibrary(page)).progress['red-dead-redemption-2']?.completed).toBe(true);
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: trayName(1), exact: true })).toBeVisible();
   const dismiss = toast.getByRole('button', { name: 'Dismiss notification', exact: true });
   await expect(dismiss).toHaveCSS('pointer-events', 'auto');
   await dismiss.click();
