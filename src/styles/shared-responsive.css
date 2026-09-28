@@ -48,9 +48,6 @@
   .games-list .card-played {
     margin-left: 95px;
   }
-  .catalog-record-actions .played-toggle {
-    flex-basis: 100%;
-  }
   .site-header .header-actions {
     gap: 7px;
   }
@@ -238,18 +235,6 @@
   .app-page .empty-state .button {
     font-size: 13px;
   }
-  .catalog-results > li {
-    gap: 11px;
-    flex-wrap: wrap;
-    padding-block: 17px;
-  }
-  .catalog-record-actions {
-    width: 100%;
-    gap: 9px;
-  }
-  .catalog-record-actions .button {
-    flex: 1;
-  }
   .catalog-error {
     flex-wrap: wrap;
     padding: 14px;
@@ -259,14 +244,6 @@
   }
   .catalog-error > .text-button {
     margin-left: 35px;
-  }
-  .unranked-list > li {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .source-searches {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
   }
   .extended-heading {
     align-items: baseline;

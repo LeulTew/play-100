@@ -300,6 +300,15 @@ file list. Unavailable Git fields are `null`, with a warning, rather than a
 false clean claim; untracked evidence files do not mark the report dirty. Failures before
 measurements complete may leave no report, which is not a budget pass.
 
+For a conservative, read-only unused CSS review, run
+`npx --no-install tsx scripts/css-unused.ts`. It scans class/id rule selectors
+against all source text (including tests, string literals, dynamic string
+families, `index.html` and first-paint sources). It leaves attributes,
+functional pseudos, escapes, nesting and shell/root rules alone. Results are
+review candidates, not automatic deletion or proof against externally supplied
+class names; trace dynamic usage before removing anything. First-paint styles
+and their extracted shell hashes must remain unchanged.
+
 Any Gitleaks history finding must be reviewed before landing; confirmed false
 positives use narrowly scoped fingerprints, not disabled detection rules. For
 private vulnerability reports and advisory triage, see [SECURITY.md](SECURITY.md).
