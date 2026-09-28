@@ -23,7 +23,6 @@
   border-bottom: 1px solid var(--line);
 }
 .route-fallback-tabs > .filter-select {
-  width: 250px;
   margin-left: auto;
 }
 .search-field.route-fallback-tools {
