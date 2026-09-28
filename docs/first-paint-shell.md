@@ -87,10 +87,14 @@ In this order:
   normally land before React's first commit. Without that, React lays its new text
   out in the fallbacks, at about twice the cost, and again as each font arrives.
   The build fails if the shell renders a character outside the faces' `unicode-range`.
-  `P100 DF Impact`, `P100 DF Arial` and
-  `P100 Sans Fallback` are metric-adjusted aliases of widely installed local fonts
-  (Impact, Arial and their Liberation or Arimo clones), not new typefaces; the
-  design linter reports them as fonts outside DESIGN.md, which is expected.
+  `P100 DF Impact`, `P100 DF Arial`, `P100 DF Roboto`, `P100 Sans Fallback` and
+  `P100 Sans Roboto` are metric-adjusted aliases of widely installed local fonts
+  (Impact, Arial and its Liberation or Arimo clones, and Android's Roboto), not new
+  typefaces; the design linter reports them as fonts outside DESIGN.md, which is expected.
+  The Roboto faces are fitted to both Android's static Roboto files (Android 11 and
+  earlier) and its variable Roboto (Android 12 and later), whose `wght` and `wdth`
+  axes Chromium 130 and later set from each face's `font-weight` and `font-stretch`;
+  shell.css lists the sources and the fit.
 
 ### The boot script
 
@@ -106,7 +110,10 @@ the document only at `/` without
 `view=table`, `game` or `catalogs=off`, derives the artifact caption state React
 renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
-metric-matched fallback faces are usable. Then it sets `data-boot="landing"` and
+metric-matched fallback faces are usable: each must measure its expected height
+and a width inside one of its accepted ranges. The bold probe's string tells Arial
+Bold, Roboto Bold and a variable Roboto rendered at its default weight apart, so
+the last, which would reflow, keeps the shell hidden. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.
 Without a valid stored hint, the app knows no visual preference until the
 library opens: it behaves as Lite (no scene, no Fan out), but its caption names
@@ -283,8 +290,9 @@ at 320 and 393 px, each label inside its own column with its lines centred,
 with the WCAG text spacing too. Under the inline style alone, at 320, 393, 768
 and 1440 px, the shell's headings keep their text inside their boxes and clear
 of their neighbours, with and without that spacing. The shell comparisons need
-the local fonts the probes measure (Windows or macOS Impact/Arial, or Liberation
-Sans/Arimo on Linux).
+the local fonts the probes measure (Windows or macOS Impact/Arial, Liberation
+Sans/Arimo on Linux, or Android's Roboto: on Linux, a fontconfig with only
+Roboto and DejaVu stands in for Android).
 
 [`tests/entry-recovery.spec.ts`](../tests/entry-recovery.spec.ts) loads `/` and
 `/?catalogs=off` under the production CSP. With the module entry refused, and once
