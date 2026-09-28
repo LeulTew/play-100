@@ -4,7 +4,7 @@ import { installGuestLibrary, libraryFixture, libraryRecords } from './library-p
 import { readLibrary } from './library-helpers';
 
 const compare = (page: Page) => page.locator('.compare-tray-expand');
-const chip = (page: Page) => page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true });
+const chip = (page: Page) => page.getByRole('button', { name: '1 game in Compare tray', exact: true });
 const signIn = (page: Page) => page.getByRole('dialog', { name: 'Sign in', exact: true });
 const account = (page: Page) => page.locator('.account-nav');
 const comparePurpose = (page: Page) =>
@@ -203,7 +203,7 @@ test('cold comparison cancellation returns from Account to Compare when its acti
   const original = page.url();
   const held = await holdAccountModule(page);
   try {
-    await page.getByRole('button', { name: 'Open Compare tray, 6 games', exact: true }).click();
+    await page.getByRole('button', { name: '6 games in Compare tray', exact: true }).click();
     await page
       .getByRole('dialog', { name: 'Compare tray', exact: true })
       .getByRole('button', { name: 'Choose friends', exact: true })

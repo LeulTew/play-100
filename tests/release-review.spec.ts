@@ -191,7 +191,7 @@ test('every primary surface keeps visible labels inside accessible names', async
   await expect(page.locator('.game-card')).toHaveCount(24);
   await page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
   const opener = page.locator('.compare-tray-expand');
-  await expect(opener).toHaveAccessibleName('Open Compare tray, 1 game');
+  await expect(opener).toHaveAccessibleName('1 game in Compare tray');
   await expectLabelInName(page, 'collection grid');
   await page.goto('/?view=list&catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
@@ -220,7 +220,7 @@ test('every primary surface keeps visible labels inside accessible names', async
     await page.goto(`/my-games?tab=${tab}&catalogs=off`);
     const views = page.getByRole('navigation', { name: 'My games views', exact: true });
     await expect(views.getByRole('button', { name })).toHaveAttribute('aria-current', 'page');
-    await expect(opener).toHaveAccessibleName('Open Compare tray, 1 game');
+    await expect(opener).toHaveAccessibleName('1 game in Compare tray');
     await expectLabelInName(page, `my games ${tab}`);
   }
 

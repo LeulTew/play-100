@@ -83,14 +83,14 @@ for (const surface of ['Discover', 'Collection'] as const) {
     }
     await expect(pin).not.toHaveAttribute('disabled');
     const tray = page.locator('.compare-tray-expand');
-    await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
+    await expect(tray).toHaveAccessibleName('1 game in Compare tray');
     await page.keyboard.press('Enter');
     await expect(pin).toBeFocused();
     if (surface === 'Collection') {
       await expect(pin).toHaveAttribute('aria-pressed', 'false');
       await expect(pin).toHaveAccessibleName(`Pin for comparison: ${rdr.title}`);
       await expect(tray).toHaveCount(0);
-    } else await expect(tray).toHaveAccessibleName('Open Compare tray, 1 game');
+    } else await expect(tray).toHaveAccessibleName('1 game in Compare tray');
     await page.keyboard.press('Tab');
     const next =
       surface === 'Discover'

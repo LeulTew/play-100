@@ -149,11 +149,9 @@ function ScopedCompareTray({
     const buttons = list.current?.querySelectorAll<HTMLButtonElement>('[data-unpin]');
     (buttons?.[index + 1] ?? buttons?.[index - 1] ?? sheetTitle.current)?.focus({ preventScroll: true });
   };
+  const label = persistent ? 'Compare tray' : 'Temporary tray';
   return (
-    <>
-      {layout === 'dock' && hasContent && (
-        <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />
-      )}
+    <div className="compare-tray-anchor">
       {hasTray && !hidden && (
         <aside
           ref={dockRef}
@@ -177,7 +175,8 @@ function ScopedCompareTray({
             ref={expand}
             type="button"
             className="compare-tray-expand"
-            aria-label={`Open ${persistent ? 'Compare tray' : 'Temporary tray'}, ${items.length} ${items.length === 1 ? 'game' : 'games'}`}
+            aria-label={`${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label}`}
+            title={`Open ${label}`}
             aria-haspopup="dialog"
             aria-expanded={open}
             onClick={() => setOpen(true)}
@@ -192,31 +191,15 @@ function ScopedCompareTray({
               ))}
             </span>
             <span>
-              <span>
-                {layout === 'dock' ? (
-                  persistent ? (
-                    <>
-                      Compare<span className="sr-only"> tray</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="sr-only">Temporary </span>tray
-                    </>
-                  )
-                ) : persistent ? (
-                  'Compare tray'
-                ) : (
-                  'Temporary tray'
-                )}
-              </span>{' '}
               <strong>
                 {items.length}{' '}
                 <span className={layout === 'dock' ? 'sr-only' : undefined}>
                   {items.length === 1 ? 'game' : 'games'}
                 </span>
-              </strong>
+              </strong>{' '}
+              <span>in {label}</span>
             </span>
-            <Icon name="up" width="16" height="16" />
+            <Icon name={layout === 'dock' ? 'stack' : 'up'} width="16" height="16" />
           </button>
           <button
             type="button"
@@ -363,6 +346,6 @@ function ScopedCompareTray({
           </button>
         </div>
       </Dialog>
-    </>
+    </div>
   );
 }

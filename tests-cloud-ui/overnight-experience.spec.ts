@@ -283,8 +283,8 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
   ).toContainText('six games');
   expect((await readLibrary(page)).records).toEqual({});
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 6 games', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Open Compare tray, 6 games', exact: true }).click();
+  await expect(page.getByRole('button', { name: '6 games in Compare tray', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '6 games in Compare tray', exact: true }).click();
   await expect(page.getByRole('dialog').locator('.compare-tray-games > li')).toHaveCount(6);
   await page
     .getByRole('dialog')
@@ -293,7 +293,7 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
     .click();
   await expect(page.getByRole('dialog').locator('.compare-tray-games > li')).toHaveCount(5);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 5 games', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: '5 games in Compare tray', exact: true })).toBeFocused();
   if (isMobile) {
     const rectangles = await page.evaluate(() => ({
       tray: document.querySelector('.compare-tray-dock')!.getBoundingClientRect().bottom,
@@ -303,7 +303,7 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
   }
   await geometryAndAxe(page, '.compare-tray-dock');
   await page.screenshot({ path: testInfo.outputPath('real-floating-tray.png') });
-  await page.getByRole('button', { name: 'Open Compare tray, 5 games', exact: true }).click();
+  await page.getByRole('button', { name: '5 games in Compare tray', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Clear all', exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('.compare-tray-dock')).toHaveCount(0);

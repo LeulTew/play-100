@@ -119,7 +119,7 @@ test('0 A.D. credits are labelled, complete, linked and wrap-safe in detail, tra
   await expect.poll(async () => (await readLibrary(page)).records[record.id]).toEqual(record);
   const before = await readLibrary(page);
   await card.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
-  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
   const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expectCredits(page, tray.locator('.game-artwork-disclosure'));
   await tray.getByRole('button', { name: 'Close dialog', exact: true }).click();

@@ -197,7 +197,7 @@ describe('contextual tray host', () => {
         ),
       );
       expect(html).toContain(`data-compact="${page !== 'collection'}"`);
-      expect(html).toContain('Open Compare tray, 1 game');
+      expect(html).toContain('1 game in Compare tray');
       expect(onCompare).not.toHaveBeenCalled();
       expect(value.pin).not.toHaveBeenCalled();
     },
@@ -275,6 +275,7 @@ describe('navigation and dialog hosts', () => {
         syncStatus: 'device',
         headerIdentity: null,
         savedCount: 3,
+        comparisonTray: createElement('button', { type: 'button' }, '3 games in Compare tray'),
         animate: false,
         menuOpen: true,
         pageHref: (page) => `/${page}`,
@@ -295,6 +296,8 @@ describe('navigation and dialog hosts', () => {
     expect(html).not.toContain('title="Download Excel"');
     expect(html).toContain('aria-label="Play later, 3 games"');
     expect(html).toContain('class="saved-count"><span class="sr-only">3</span>');
+    expect(html.indexOf('class="saved-nav"')).toBeLessThan(html.indexOf('>3 games in Compare tray</button>'));
+    expect(html.indexOf('>3 games in Compare tray</button>')).toBeLessThan(html.indexOf('header-download'));
   });
 
   it.each([false, true])('retains mobile online navigation choice (online=%s)', (onlineAvailable) => {

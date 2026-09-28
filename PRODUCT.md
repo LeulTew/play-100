@@ -127,10 +127,12 @@ until one explicit, inline **Share all with friends** action.
 - The comparison tray leads to friends' rankings, not an anonymous game-spec
   comparison. Its per-game Artwork credits disclosure retains the full original
   credit, license/source links, conversion notices and caveats.
-  A pinned-count chip opens the tray in one action, outside the browsing column
-  on wider screens or in a separate slot of the mobile navigation band. It does
-  not float over mid-page cards. The empty tray retains ordinary page spacing;
-  the larger transient drop target appears only during an explicit drag.
+  A pinned-count chip opens the tray in one action beside Play later in the
+  desktop header, or in a separate slot of the mobile navigation band. Pinning
+  never changes browsing-column width. The chip uses the Pin action's stack
+  symbol and exact count; its accessible name starts with that count. The empty
+  tray retains ordinary page spacing; the larger transient drop target appears
+  only during an explicit drag.
 - Discover starts with 810 verified provider records and 220 illustrated
   records using licensed local images; unavailable art is labelled honestly.
   Seed browsing/search is public and independent of account/storage/provider

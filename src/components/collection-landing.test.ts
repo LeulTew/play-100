@@ -7,6 +7,7 @@ function fixture({
   titleTop = 900,
   titleBottom = 940,
   obstacleTop = 571.5,
+  obstacleBottom = 700,
   hidden = false,
   identity = true,
   nestedLink = false,
@@ -29,7 +30,7 @@ function fixture({
   };
   const section = { getBoundingClientRect: () => ({ top: 600 }), querySelector: () => (identity ? title : null) };
   const obstacle = {
-    getBoundingClientRect: () => ({ top: obstacleTop }),
+    getBoundingClientRect: () => ({ top: obstacleTop, bottom: obstacleBottom }),
     getClientRects: () => (hidden ? [] : [{}]),
     matches: (selector: string) => dock && selector === '.compare-tray-dock',
   };
@@ -117,6 +118,14 @@ describe('explicit collection landing', () => {
 
   it('keeps the ordinary heading landing when the compact dock is hidden', () => {
     const { scrollTo, heading, link } = fixture({ viewportWidth: 320, dock: true, hidden: true });
+    scrollCollectionIntoView('instant');
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 615, behavior: 'instant' });
+    expect(heading.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    expect(link.focus).not.toHaveBeenCalled();
+  });
+
+  it('does not mistake the header comparison action for a bottom obstruction', () => {
+    const { scrollTo, heading, link } = fixture({ dock: true, obstacleTop: 12, obstacleBottom: 58 });
     scrollCollectionIntoView('instant');
     expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 615, behavior: 'instant' });
     expect(heading.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });

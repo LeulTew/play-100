@@ -32,7 +32,7 @@ test('a real emulator identity transition invalidates the guest Compare focus or
     .click();
   const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
   // Away from The 100 the tray is a compact chip, so Compare starts from its sheet's Choose friends action.
-  const compare = page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true });
+  const compare = page.getByRole('button', { name: '1 game in Compare tray', exact: true });
   await expect(page.locator('.compare-tray-action')).toBeHidden();
   await compare.focus();
   await page.keyboard.press('Enter');

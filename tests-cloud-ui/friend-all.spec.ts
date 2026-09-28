@@ -294,7 +294,7 @@ test('friends read paginated All data, compare exact tray games, receive score u
         return full.call(this, uid);
       };
     });
-    await friend.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+    await friend.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
     await friend.getByRole('dialog').getByRole('button', { name: 'Choose friends', exact: true }).click();
     await expect(friend.locator('.compare-freshness')).toContainText('1 chosen game checked');
     await expect(friend.locator('.friend-matrix tbody tr')).toHaveCount(1);

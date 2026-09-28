@@ -76,7 +76,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
   await expect(rating(page)).toHaveValue('5');
   await expect(rating(page)).toBeEnabled();
   await page.getByRole('button', { name: `Pin for comparison: ${target.title}`, exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
   // Warm the actual comparison tools, not a replacement callback, so Compare reaches the held editor directly.
   await page.evaluate(async () => {
     const toolsPath = '/src/lib/app-tool-preload.ts';
@@ -87,7 +87,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
 }
 
 async function chooseCompare(page: Page) {
-  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
   await expect(tray(page)).toBeVisible();
   await tray(page).getByRole('button', { name: 'Choose friends', exact: true }).click();
   await expect(tray(page)).toHaveCount(0);

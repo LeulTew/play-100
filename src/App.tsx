@@ -881,6 +881,7 @@ export default function App() {
                         syncStatus={online?.status ?? 'device'}
                         headerIdentity={headerIdentity}
                         savedCount={savedCount}
+                        comparisonTray={!inlineTray && comparisonTray}
                         animate={capabilities.animate}
                         menuOpen={panel === 'menu'}
                         pageHref={pageHref}
@@ -1070,7 +1071,9 @@ export default function App() {
                         onMenu={() => setPanel('menu')}
                         onIntent={prefetchAppTools}
                       />
-                      {!inlineTray && comparisonTray}
+                      {!inlineTray && (tray.items.length > 0 || tray.warning || tray.error) && (
+                        <div className="compare-tray-reserve" data-error={Boolean(tray.error)} aria-hidden="true" />
+                      )}
                       <DialogHost
                         page={page}
                         game={

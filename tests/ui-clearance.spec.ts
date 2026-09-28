@@ -46,7 +46,7 @@ async function prepare(page: Page, total: number, motion: MotionPreference) {
   await page.goto('/?catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
   await expect(page.locator('.result-summary [role="status"]')).toContainText('100 in The 100');
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 5 games', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '5 games in Compare tray', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
 

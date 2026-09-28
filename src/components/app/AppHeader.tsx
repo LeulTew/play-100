@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import type { AppPage } from '../../lib/types';
 import { Icon } from '../Icon';
 import CountUp from '../bits/CountUp';
@@ -11,6 +11,7 @@ export interface AppHeaderProps {
   syncStatus: string;
   headerIdentity: { name: string; avatarSrc: string } | null;
   savedCount: number;
+  comparisonTray?: ReactNode;
   animate: boolean;
   menuOpen: boolean;
   pageHref: (page: AppPage) => string;
@@ -29,6 +30,7 @@ export function AppHeader({
   syncStatus,
   headerIdentity,
   savedCount,
+  comparisonTray,
   animate,
   menuOpen,
   pageHref,
@@ -100,6 +102,7 @@ export function AppHeader({
           <span className="saved-nav-label">Play later</span>{' '}
           <CountUp key={libraryScope} to={savedCount} animate={animate} className="saved-count" />
         </button>
+        {comparisonTray}
         <a
           className="icon-button header-download"
           href="/downloads/Play-100-Collection.xlsx"

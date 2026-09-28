@@ -32,8 +32,24 @@ async function readNavigation(page: Page) {
         const rect = item.getBoundingClientRect();
         const label = item.querySelector('span')!;
         const text = label.getBoundingClientRect();
+        const words: { word: string; lines: number; inside: boolean }[] = [];
+        const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          for (const word of (walker.currentNode.textContent ?? '').matchAll(/\S+/g)) {
+            const range = document.createRange();
+            range.setStart(walker.currentNode, word.index);
+            range.setEnd(walker.currentNode, word.index + word[0].length);
+            const fragments = [...range.getClientRects()].filter((box) => box.width > 0);
+            words.push({
+              word: word[0],
+              lines: new Set(fragments.map((box) => Math.round(box.top))).size,
+              inside: fragments.every((box) => box.left >= rect.left - 1 && box.right <= rect.right + 1),
+            });
+          }
+        }
         return {
           label: label.textContent,
+          words,
           font: Number.parseFloat(getComputedStyle(label).fontSize),
           width: rect.width,
           height: rect.height,
@@ -65,6 +81,10 @@ async function assertNavigation(page: Page) {
     expect(item.labelHeight).toBeLessThanOrEqual(actual.compareReserved ? 44 : 22);
     expect(item.inside).toBe(true);
     expect(item.hit).toBe(true);
+    for (const word of item.words) {
+      expect(word.lines, `${item.label}: ${word.word} must not break mid-word`).toBe(1);
+      expect(word.inside, `${item.label}: ${word.word} must stay inside its target`).toBe(true);
+    }
   }
   if (actual.dockBottom !== null) {
     expect(actual.dockTop).toBeGreaterThanOrEqual(actual.nav.top);
@@ -118,7 +138,7 @@ test.beforeEach(async ({ page, baseURL }) => {
   );
 });
 
-for (const width of [320, 393]) {
+for (const width of [320, 360, 393]) {
   test(`all five mobile navigation labels stay readable and reachable at ${width}px without changing dock clearance`, async ({
     page,
     isMobile,
@@ -140,13 +160,16 @@ for (const width of [320, 393]) {
     await expect(pinned).toBeEnabled();
     await expect(page.locator('.compare-tray-dock')).toBeVisible();
     await expect(
-      page.locator('.compare-tray-dock').getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }),
+      page.locator('.compare-tray-dock').getByRole('button', { name: '1 game in Compare tray', exact: true }),
     ).toBeVisible();
     const actual = await readNavigation(page);
     await info.attach('navigation-labels', { contentType: 'application/json', body: JSON.stringify(actual) });
     await assertNavigation(page);
     await activateAll(page, true);
     await assertNavigation(page);
+    await adoptTextSpacing(page);
+    const spaced = await assertNavigation(page);
+    await info.attach('navigation-labels-spaced', { contentType: 'application/json', body: JSON.stringify(spaced) });
   });
 }
 

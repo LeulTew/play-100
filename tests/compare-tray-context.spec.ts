@@ -40,7 +40,7 @@ for (const viewport of [
       const rows = page.locator(route.rows);
       await expect(rows).toHaveCount(route.url.startsWith('/my-games') ? 25 : 24);
       await page.evaluate(() => document.fonts.ready);
-      const chip = page.getByRole('button', { name: 'Open Compare tray, 3 games', exact: true });
+      const chip = page.getByRole('button', { name: '3 games in Compare tray', exact: true });
       await expect(chip).toBeVisible();
       const before = await readLibrary(page);
       for (const index of [0, 12, 23]) {
@@ -80,8 +80,15 @@ for (const viewport of [
               .filter((element) => element.checkVisibility())
               .map((element) => element.getBoundingClientRect())
               .filter(intersects).length,
+            headerCollisions: [...document.querySelectorAll('.site-header :is(a, button)')]
+              .filter((element) => !element.closest('.compare-tray-anchor') && element.checkVisibility())
+              .map((element) => element.getBoundingClientRect())
+              .filter(intersects).length,
             chipFits:
-              dock.left >= 0 && dock.right <= innerWidth && dock.bottom <= innerHeight && dock.top >= header.bottom,
+              dock.left >= 0 &&
+              dock.right <= innerWidth &&
+              dock.bottom <= innerHeight &&
+              (nav.height ? dock.top >= header.bottom : dock.top >= header.top && dock.bottom <= header.bottom),
             sharesNavBand: !nav.height || dock.top >= nav.top,
             overflow: document.documentElement.scrollWidth > innerWidth,
             padding: parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom),
@@ -91,6 +98,7 @@ for (const viewport of [
         expect(geometry.inspected).toBeGreaterThan(0);
         expect(geometry.collisions).toEqual([]);
         expect(geometry.navigationCollisions).toBe(0);
+        expect(geometry.headerCollisions).toBe(0);
         expect(geometry.chipFits).toBe(true);
         expect(geometry.sharesNavBand).toBe(true);
         expect(geometry.overflow).toBe(false);
@@ -123,6 +131,10 @@ for (const viewport of [
             const header = document.querySelector('.site-header')!.getBoundingClientRect();
             return {
               browsing: Boolean(target.closest('.game-card, .discovery-card, .personal-row-static')),
+              name: target.getAttribute('aria-label') || target.textContent?.trim(),
+              bounds: box.toJSON(),
+              headerBottom: header.bottom,
+              floor: nav.height ? nav.top : innerHeight,
               visible:
                 box.top >= header.bottom &&
                 box.bottom <= (nav.height ? nav.top : innerHeight) &&
@@ -134,7 +146,7 @@ for (const viewport of [
             };
           });
           if (!focused.browsing) break;
-          expect(focused.visible).toBe(true);
+          expect(focused.visible, JSON.stringify(focused)).toBe(true);
           expect(focused.clear).toBe(true);
           expect(focused.hit).toBe(true);
           checkedFocus += 1;

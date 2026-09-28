@@ -234,14 +234,17 @@ and Table; pointer activation keeps its existing focus behavior.
 Table view places the Compare tray in its own strip below the table scrollport,
 not over the cells. With pins present, the table and strip fit the usable window;
 the first pin reveals both the tray and the next row action. Other views use a
-64px count chip: above 760px it sits in a reserved right gutter; below that it
-occupies its own slot in the existing bottom-navigation band, not above the cards.
-The five navigation targets retain at least 44px each. One activation opens the
-existing native tray and its Choose friends action. No scroll-driven hiding,
-resize loop or automatic expansion changes the chip while reading.
-An active drag alone retains the larger fixed drop target; overlap during that
-explicit gesture is not a resting browsing state. Pin refusals appear in the
-existing viewport notification. The tray's polite status announces them once.
+46px count chip with a 44px control: above 760px it sits beside Play later in the
+sticky header; below that it occupies its own slot in the bottom-navigation band.
+No pin-dependent gutter or content width changes. The five navigation targets
+retain at least 44px each, with intrinsic word widths protected when pins need a
+slot. One activation opens the existing native tray and its Choose friends action.
+No scroll-driven hiding, resize loop or automatic expansion changes the resting
+chip. During an explicit desktop drag, its target expands left and down from the
+same header slot to 320px by 88px, retaining the original hit area and header height.
+The touch drop target stays above navigation. Overlap during that explicit gesture
+is not a resting browsing state. Pin refusals appear in the existing viewport
+notification. The tray's polite status announces them once.
 On narrow windows, a visible toast reserves its measured height and entrance
 clearance in the table's height limit, keeping the inline strip clear without
 changing the desktop layout or moving it into the table scrollport.
@@ -520,26 +523,32 @@ touch and pen no longer enter that grip-capture path.
 The six-game comparison tray keeps identities and actions ahead of long artwork
 attribution. The tray and catalog detail use the native Artwork credits
 disclosure; their full source credit and license/source links remain unchanged.
-The resting chip shows **Compare** and the exact pinned count; its accessible
-name remains **Open Compare tray, N games**. The table strip retains its direct
+The resting chip shows the Pin action's stack symbol and exact pinned count; its
+accessible name is **N games in Compare tray**, starting with its visible count,
+and its tooltip is **Open Compare tray**. The table strip retains its direct
 **Compare rankings with friends** action. Sheet actions may wrap without changing
 their purpose or order. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
 Primary mobile navigation labels use 12px while retaining the existing
 44px minimum target width, navigation height and safe-area padding.
 Its five destinations share one box model (the Menu button adds no padding of
-its own) in five equal columns. A label that needs more room, as under the
-user's text spacing, wraps centred within its own column.
+its own) in five equal columns without pins. With the pinned-count slot occupied,
+columns retain each word's intrinsic width. Labels can wrap at spaces, not inside
+Discover, games or Friends, including under the user's text spacing.
 An active notification clears the measured navigation band instead of covering
 Compare. Empty transient drag targets add no page spacer. The page-end reserve
 and focus scroll padding include the real navigation height and clearance.
 The reserve stays while a modal hides the chip, so underlying content never
 reflows during native open/close. Ratings-table rows retain the same Pin path.
 If limit feedback grows over its focused source, one immediate native scroll
-reveals that control without moving focus.
+reveals it without moving focus. Native focus scrolling uses the measured root
+scroll padding. In wide windows at most 520px tall, grid jackets have a 100px
+height cap so the full identity link can fit the short reading viewport; artwork
+keeps its native contain behavior.
 Explicit Explore and same-page The 100 navigation use one
 native scroll based on the current first identity and visible dock/nav/toast
-bounds; never correct a user's scrolling on later frames or shrink the artwork.
+bounds, ignoring the comparison control when it is inside the header. Never
+correct a user's scrolling on later frames or resize artwork during scrolling.
 Sign-in invoked by Compare returns to its current remounted action only while
 the same view, navigation and scope still apply. Loading-to-ready handoff keeps
 that logical origin; ordinary Account entry and invalidated origins cannot

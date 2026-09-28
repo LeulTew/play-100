@@ -397,7 +397,8 @@ describe('tray and image rendering contract', () => {
     );
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-pressed="true" aria-label="Unpin from comparison: Alpha game"');
-    expect(html).toContain('compare-tray-reserve');
+    expect(html).toContain('compare-tray-anchor');
+    expect(html).not.toContain('compare-tray-reserve');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('Choose friends');
     expect(html).toContain('>Compare rankings <span class="compare-tray-action-context">with friends</span>');
@@ -414,7 +415,22 @@ describe('tray and image rendering contract', () => {
         ),
       );
       expect(html).not.toContain('<aside');
-      expect(html.includes('compare-tray-reserve')).toBe(hidden);
+      expect(html).not.toContain('compare-tray-reserve');
+    }
+  });
+  it.each(['dock', 'inline'] as const)('starts the %s accessible name with its visible count', (layout) => {
+    for (const persistent of [false, true]) {
+      const label = persistent ? 'Compare tray' : 'Temporary tray';
+      const html = renderToStaticMarkup(
+        h(
+          CompareTrayContext.Provider,
+          { value: { ...value, items: [alpha], persistent } },
+          h(CompareTray, { layout, onCompare: vi.fn() }),
+        ),
+      );
+      expect(html).toContain(`aria-label="1 game in ${label}" title="Open ${label}"`);
+      expect(html).toContain('<strong>1 ');
+      expect(html.indexOf('<strong>1 ')).toBeLessThan(html.indexOf(`<span>in ${label}</span>`));
     }
   });
   it('uses one inline table surface without the fixed-dock end reserve', () => {
@@ -491,14 +507,16 @@ describe('tray and image rendering contract', () => {
       expect(html).not.toContain('to the Compare tray');
     }
   });
-  it.each([true, false])('includes the visible tray label in the opener name (persistent=%s)', (persistent) => {
+  it.each([true, false])('names the visible two-game tray count (persistent=%s)', (persistent) => {
     const html = renderToStaticMarkup(
-      h(CompareTrayContext.Provider, { value: { ...value, persistent } }, h(CompareTray, { onCompare: vi.fn() })),
+      h(
+        CompareTrayContext.Provider,
+        { value: { ...value, items: [alpha, beta], persistent } },
+        h(CompareTray, { onCompare: vi.fn() }),
+      ),
     );
-    expect(html).toContain(`aria-label="Open ${persistent ? 'Compare tray' : 'Temporary tray'}, 1 game"`);
-    // Label in Name (WCAG 2.5.3): visible label, a real space, then the count, in the same order as the name.
-    expect(html).toContain(persistent ? 'Compare<span class="sr-only"> tray</span>' : 'Temporary </span>tray');
-    expect(html).toContain('1 <span class="sr-only">game</span>');
+    expect(html).toContain(`aria-label="2 games in ${persistent ? 'Compare tray' : 'Temporary tray'}"`);
+    expect(html).toContain('2 <span class="sr-only">games</span>');
   });
   it('retains the compact collection state for real pins and storage messages while dragging', () => {
     for (const content of [

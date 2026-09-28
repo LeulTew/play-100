@@ -84,6 +84,8 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
     expect(await trayRaw(page)).toBeNull();
     const target = await dock.boundingBox();
     if (!target) throw new Error('The first empty Compare dock did not produce a real drop target.');
+    expect(target.width).toBeGreaterThanOrEqual(300);
+    expect(target.height).toBeGreaterThanOrEqual(72);
     const end = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
     expect(
       await dock.evaluate((element, point) => {
@@ -113,7 +115,7 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
       await page.mouse.up();
     }
     held = false;
-    await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
     await expect(page.locator('.compare-drag-ghost,.drag-preview,dialog[open]')).toHaveCount(0);
     expect(page.url()).toBe(url);
   } finally {
@@ -221,7 +223,7 @@ for (const scenario of publicSources) {
     if (!target) throw new Error('The actual Compare target is not laid out.');
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
     await page.mouse.up();
-    await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
     await expect(page.locator('dialog[open],.compare-drag-ghost')).toHaveCount(0);
     const raw = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
     if (!raw) throw new Error('The accepted pin was not persisted in the guest tray.');
@@ -338,7 +340,7 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
   expect(bounds.height).toBeGreaterThanOrEqual(44);
   const before = await readLibrary(page);
   await pin.tap();
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open],.compare-drag-ghost')).toHaveCount(0);
   const geometry = await page.evaluate(() => ({
     dock: document.querySelector('.compare-tray-dock')!.getBoundingClientRect().toJSON(),

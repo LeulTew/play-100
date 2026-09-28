@@ -81,8 +81,8 @@ test('known no-art dense Library preview and Pin need no complete catalog reques
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(opener).toBeFocused();
   await row.getByRole('button', { name: `Pin for comparison: ${ownedTitle}`, exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Compare tray', exact: true })).toContainText(ownedTitle);
   expect(await readLibrary(page)).toEqual(before);
   expect(requests).toEqual([]);
@@ -125,7 +125,7 @@ for (const intent of ['preview', 'pin'] as const) {
       await row
         .getByRole('button', { name: `Pin for comparison: ${illustratedItem.record.title}`, exact: true })
         .click();
-      await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+      await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
     }
     const dialog = page.getByRole('dialog', {
       name: intent === 'preview' ? illustratedItem.record.title : 'Compare tray',

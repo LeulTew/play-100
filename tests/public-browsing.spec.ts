@@ -320,12 +320,12 @@ test('the tray preserves complete art provenance behind a labelled disclosure an
     credited.record,
   );
   await page.goto('/?catalogs=off');
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
   await expect(page.locator('.compare-tray-action')).toBeHidden();
   await page.goto('/discover?catalogs=off');
   await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'true');
   await expect(page.locator('.compare-tray-action')).toBeHidden();
-  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expect(dialog).toContainText('Choose friends to compare their rankings of these games.');
   const disclosure = dialog.locator('.game-artwork-disclosure');
@@ -480,7 +480,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   await card.getByRole('button', { name: `Pin for comparison: ${pinnedGame.title}`, exact: true }).click();
   await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'true');
   await expect(page.locator('.compare-tray-action')).toBeHidden();
-  await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+  await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Compare tray', exact: true })
     .getByRole('button', { name: 'Close dialog', exact: true })
@@ -488,7 +488,7 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).click();
   await expect(page.locator('.game-card')).toHaveCount(24);
   await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'false');
-  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const targetsBefore = await page.locator('.compare-tray-dock button:visible').evaluateAll((buttons) =>
     buttons.map((button) => ({
@@ -613,9 +613,9 @@ test('batched desktop and mobile pixels keep games before secondary filters and 
         credited.record,
       );
       await page.goto('/discover?catalogs=off');
-      await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
+      await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
       const credits = page.locator('.compare-tray-sheet .game-artwork-disclosure');
       await expect(credits).toBeVisible();
       await page.screenshot({ path: info.outputPath(`tray-${viewport.width}.png`) });
