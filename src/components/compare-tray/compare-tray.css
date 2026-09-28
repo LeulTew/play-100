@@ -110,22 +110,20 @@ button.compare-drag-handle[hidden] {
     inset: auto;
     transform: translateX(calc(46px - 100%));
   }
-  /* The chip's slot widens the actions by 55px (46px and their 9px gap). As wide a spacer after the wordmark, first to
-     give way, keeps the centred navigation where it stands without the chip; its end margin cancels the gap it adds. */
+  /* The chip's slot widens the actions by 55px (46px and their 9px gap). As wide a spacer after the wordmark keeps the
+     centred navigation where it stands without the chip wherever the header has room for both. Where it has less, the
+     spacer gives way before anything else does (the navigation's share of its shrink rounds to nothing), so the
+     navigation moves only as far as the chip needs; its labels shrink only once the spacer is gone, as before. Its end
+     margin cancels the 12px chip gap. */
+  .site-header[data-compare-chip] {
+    gap: 12px;
+  }
   .site-header[data-compare-chip] > .wordmark {
     order: -1;
   }
   .site-header[data-compare-chip]::before {
     content: '';
-    flex: 0 1000 55px;
-    margin-inline-end: -24px;
-  }
-}
-@media (min-width: 761px) and (max-width: 1150px) {
-  .site-header[data-compare-chip] {
-    gap: 12px;
-  }
-  .site-header[data-compare-chip]::before {
+    flex: 0 1000000 55px;
     margin-inline-end: -12px;
   }
 }

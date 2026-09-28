@@ -305,7 +305,10 @@ test('header Compare keeps its slot and expansion edge across wide breakpoints',
   expect(await readLibrary(page)).toEqual(before);
 });
 
-test('the header navigation stays put as the Compare chip arrives and leaves', async ({ page, isMobile }) => {
+test('the header navigation stays put as the Compare chip comes and goes, yielding only what a tight header lacks', async ({
+  page,
+  isMobile,
+}) => {
   test.skip(isMobile, 'Below 761px the navigation is the bottom band, whose pinned slot has its own rules.');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await emptyCatalogs(page);
@@ -315,22 +318,56 @@ test('the header navigation stays put as the Compare chip arrives and leaves', a
   await page.evaluate(() => document.fonts.ready);
   const header = page.locator('.site-header');
   const widths = [768, 1024, 1150, 1151, 1440, 1920];
-  const links = () =>
-    page.locator('.desktop-nav a').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().left));
-  const resting = new Map<number, number[]>();
+  // Both builds' headers have room for the chip beside the resting navigation at these widths. At 768 and 1151 the
+  // configured build's, with Friends and Account, does not: its navigation rests 41.6px and 47.2px from the actions,
+  // and the chip needs its 55px slot and a 12px gap, so there it moves 25.4px and 19.8px, to just clear the actions.
+  const roomy = [1024, 1150, 1440, 1920];
+  const measure = () =>
+    header.evaluate((element) => {
+      const nav = element.querySelector('.desktop-nav')!.getBoundingClientRect();
+      const actions = element.querySelector('.header-actions')!.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        links: [...element.querySelectorAll('.desktop-nav a')].map((link) => link.getBoundingClientRect().left),
+        // A wrapped label, in the navigation or the actions, makes its control taller.
+        heights: [...element.querySelectorAll('.desktop-nav a, .header-actions > :not(.compare-tray-anchor)')].map(
+          (control) => control.getBoundingClientRect().height,
+        ),
+        room: actions.left - nav.right,
+        actions: actions.left,
+        gap: parseFloat(style.columnGap),
+        fits:
+          actions.right <= element.getBoundingClientRect().right - parseFloat(style.paddingRight) + 0.5 &&
+          document.documentElement.scrollWidth <= innerWidth,
+      };
+    });
+  const rest = new Map<number, Awaited<ReturnType<typeof measure>>>();
   for (const width of widths) {
     await page.setViewportSize({ width, height: 1000 });
-    resting.set(width, await links());
+    rest.set(width, await measure());
   }
   // UI-008: the chip's slot used to push the centred navigation 27.5px left, and back when Table view took the tray.
-  const expectResting = async (state: string) => {
+  const expectHeader = async (state: string, chip: boolean) => {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 1000 });
-      const expected = resting.get(width)!;
-      const actual = await links();
-      expect(actual, `navigation links ${state} at ${width}px`).toHaveLength(expected.length);
-      actual.forEach((left, index) =>
-        expect(Math.abs(left - expected[index]!), `link ${index} ${state} at ${width}px`).toBeLessThanOrEqual(0.5),
+      const before = rest.get(width)!;
+      const now = await measure();
+      const at = `${state} at ${width}px`;
+      expect(now.fits, `header contents ${at}`).toBe(true);
+      now.heights.forEach((height, index) =>
+        expect(Math.abs(height - before.heights[index]!), `control ${index} height ${at}`).toBeLessThanOrEqual(0.5),
+      );
+      // The chip's slot is its 46px anchor and the actions' 9px gap, and header items then keep 12px apart.
+      expect(Math.abs(before.actions - now.actions - (chip ? 55 : 0)), `chip slot ${at}`).toBeLessThanOrEqual(0.5);
+      if (chip) expect(now.gap, `chip gap ${at}`).toBe(12);
+      // The resting navigation keeps its place wherever that slot and gap fit beside it. Elsewhere it yields only the
+      // shortfall, which leaves it 12px from the actions.
+      const shortfall = chip ? Math.max(0, 55 + 12 - before.room) : 0;
+      if (roomy.includes(width)) expect(shortfall, `room for the chip ${at}`).toBe(0);
+      if (shortfall > 0) expect(Math.abs(now.room - 12), `gap to the actions ${at}`).toBeLessThanOrEqual(0.5);
+      expect(now.links, `navigation links ${at}`).toHaveLength(before.links.length);
+      now.links.forEach((left, index) =>
+        expect(Math.abs(before.links[index]! - shortfall - left), `link ${index} ${at}`).toBeLessThanOrEqual(0.5),
       );
     }
   };
@@ -340,11 +377,11 @@ test('the header navigation stays put as the Compare chip arrives and leaves', a
     .getByRole('button', { name: /^Pin for comparison:/ })
     .click();
   await expect(header).toHaveAttribute('data-compare-chip', '');
-  await expectResting('with the chip');
+  await expectHeader('with the chip', true);
   await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
   await expect(page.locator('.ratings-tray-strip .compare-tray-dock')).toHaveCount(1);
   await expect(header).not.toHaveAttribute('data-compare-chip');
-  await expectResting('after Table view moves the tray');
+  await expectHeader('after Table view moves the tray', false);
 });
 
 for (const narrow of [false, true]) {
