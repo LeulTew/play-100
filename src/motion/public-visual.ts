@@ -90,6 +90,12 @@ export function jacketMotionClip(from: MotionRect, to: MotionRect): string {
   return `inset(${top}px ${right}px 0px 0px)`;
 }
 
+export function jacketMotionInsets(clipPath: string): [number, number] {
+  // Computed subpixel lengths can use scientific notation, especially at a return endpoint.
+  const [top = 0, right = 0] = clipPath.match(/[+-]?\d*\.?\d+(?:e[+-]?\d+)?(?=px)/gi)?.map(Number) ?? [];
+  return [top, right];
+}
+
 function copyJacketDrawing(source: HTMLElement | undefined): SVGSVGElement | null {
   const original = source?.querySelector('svg.jacket-drawing');
   if (!original || original.textContent?.trim()) return null;

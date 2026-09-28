@@ -112,7 +112,9 @@ async function expectBounds(element: Locator, expected: { x: number; y: number; 
   const actual = await element.evaluate((node) => {
     const box = node.getBoundingClientRect();
     const style = getComputedStyle(node);
-    const [top = 0, right = 0] = style.clipPath.match(/[\d.]+(?=px)/g)?.map(Number) ?? [];
+    const [top = 0, right = 0] = style.clipPath.startsWith('inset(')
+      ? style.clipPath.slice(6, -1).trim().split(/\s+/).map(parseFloat)
+      : [];
     const scaleX = box.width / parseFloat(style.width);
     const scaleY = box.height / parseFloat(style.height);
     return { x: box.x, y: box.y + top * scaleY, width: box.width - right * scaleX, height: box.height - top * scaleY };

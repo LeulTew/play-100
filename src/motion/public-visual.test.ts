@@ -4,6 +4,7 @@ import {
   createCatalogMotionVisual,
   fitMotionVisual,
   jacketMotionClip,
+  jacketMotionInsets,
   MOTION_TIMINGS,
   motionTransform,
   visibleMotionRect,
@@ -106,5 +107,24 @@ describe('public-only motion descriptors', () => {
     expect(jacketMotionClip(from, to)).toBe('inset(80px 0px 0px 0px)');
     expect(jacketMotionClip({ ...from, height: 80 }, { ...to, height: 100 })).toBe('inset(0px 75px 0px 0px)');
     expect(jacketMotionClip(to, to)).toBe('inset(0px 0px 0px 0px)');
+  });
+
+  it.each([
+    ['none', [0, 0]],
+    ['inset(0px)', [0, 0]],
+    ['inset(12.5px 2.842170943040401e-14px 0px 0px)', [12.5, 2.842170943040401e-14]],
+    ['inset(4E-7px 3.25px 0px 0px)', [4e-7, 3.25]],
+  ] as const)('reads complete CSS pixel numbers from %s', (clip, expected) => {
+    expect(jacketMotionInsets(clip)).toEqual(expected);
+  });
+
+  it('retains the recorded coarse return bounds despite a floating-point remainder', () => {
+    const from = { x: 23, y: 439.4375, width: 347, height: 231.328125 };
+    const to = { x: 22, y: 355.921875, width: 168, height: 135.46875 };
+    const scale = Math.max(from.width / to.width, from.height / to.height);
+    const [top, right] = jacketMotionInsets(jacketMotionClip(from, to));
+    expect(right).toBeLessThan(1e-10);
+    expect((to.width - right) * scale).toBeCloseTo(from.width, 10);
+    expect((to.height - top) * scale).toBeCloseTo(from.height, 10);
   });
 });

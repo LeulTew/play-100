@@ -3,6 +3,7 @@ import {
   createPublicMotionElement,
   fitMotionVisual,
   jacketMotionClip,
+  jacketMotionInsets,
   MOTION_EASING,
   MOTION_ORIGIN_TTL,
   MOTION_TIMINGS,
@@ -108,7 +109,7 @@ function measure(element: HTMLElement): MotionRect | null {
   const { x, y, width, height } = element.getBoundingClientRect();
   let rect = { x, y, width, height };
   if (element.dataset.motionVisual === 'jacket') {
-    const [top = 0, right = 0] = style.clipPath.match(/[\d.]+(?=px)/g)?.map(Number) ?? [];
+    const [top, right] = jacketMotionInsets(style.clipPath);
     const cropTop = (top * height) / parseFloat(style.height);
     const cropRight = (right * width) / parseFloat(style.width);
     rect = { x, y: y + cropTop, width: width - cropRight, height: height - cropTop };
