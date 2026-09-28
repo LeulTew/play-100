@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 
-// Compare's "Change people" chooser is a <details> element that opens itself as well as at the user's hand. The
-// element is the truth. A user's close changes it at once, but reaches React state only through its toggle event, which
-// the browser delivers in a later task. If the page opened the chooser by state alone in between, the state would still
-// say open, nothing would change, and the late event would then record the close. So when the page opens it, it opens
-// the element too: the late event then reports it open and cannot close it again, while a close after that sticks.
+// Compare's "Change people" chooser and its coverage details are <details> elements that open themselves as well as at
+// the user's hand. The element is the truth. A user's close changes it at once, but reaches React state only through
+// its toggle event, which the browser delivers in a later task. If the page opened a disclosure by state alone in
+// between, the state would still say open, nothing would change, and the late event would then record the close. So
+// when the page opens one, it opens the element too: the late event then reports it open and cannot close it again,
+// while a close after that sticks.
 
 /** The chooser: whether it is open, and why. */
 export interface PeopleDisclosure {
@@ -74,5 +75,39 @@ export function usePeopleDisclosure(viewReady: boolean, count: number, initial: 
       setDisclosure((current) => (current.open === open ? current : { ...current, open, touched: true }));
     },
     chooseGroup: (groupCount: number) => setDisclosure((current) => peopleDisclosureForGroup(current, groupCount)),
+  };
+}
+
+/** The coverage details: whether they are open, and how many times the page opened them itself. */
+interface CoverageDisclosure {
+  open: boolean;
+  reopened: number;
+}
+const openCoverage = (current: CoverageDisclosure): CoverageDisclosure => ({
+  open: true,
+  reopened: current.reopened + 1,
+});
+
+/**
+ * The coverage details: their state, the ref for their <details> element and that element's toggle handler. They open
+ * for each new set of people whose rankings could not be read (`problems`, empty when there are none), and when the
+ * user asks to review them (`review`).
+ */
+export function useCoverageDisclosure(problems: string) {
+  const [coverage, setCoverage] = useState<CoverageDisclosure>({ open: false, reopened: 0 });
+  const [problemsSeen, setProblemsSeen] = useState<string | null>(null);
+  if (problemsSeen !== problems) {
+    setProblemsSeen(problems);
+    if (problems) setCoverage(openCoverage);
+  }
+  const coverageRef = useReopenedElement(coverage.reopened);
+  return {
+    open: coverage.open,
+    coverageRef,
+    onToggle: (event: SyntheticEvent<HTMLDetailsElement>) => {
+      const open = event.currentTarget.open;
+      setCoverage((current) => (current.open === open ? current : { ...current, open }));
+    },
+    review: () => setCoverage(openCoverage),
   };
 }

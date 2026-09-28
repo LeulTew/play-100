@@ -18,7 +18,7 @@ import { accountScope } from '../lib/cloud-types';
 import { useComparisonGameFilter } from '../hooks/useComparisonGameFilter';
 import { COMPARISON_GAMES_EVENT } from '../lib/comparison-game-filter';
 import { FriendComparisonLoader } from './FriendComparisonLoader';
-import { initialPeopleDisclosure, usePeopleDisclosure } from './compare-disclosures';
+import { initialPeopleDisclosure, useCoverageDisclosure, usePeopleDisclosure } from './compare-disclosures';
 
 export function FriendComparisonPage({
   store,
@@ -64,8 +64,6 @@ export function FriendComparisonPage({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [refreshGroupId, setRefreshGroupId] = useState<string | null>(null);
-  const [coverageOpen, setCoverageOpen] = useState(false);
-  const coverageDisclosure = useRef<HTMLDetailsElement>(null);
   const groupCreationId = useRef<string | null>(null);
   const generation = useRef(0);
   const running = useRef(false);
@@ -278,14 +276,15 @@ export function FriendComparisonPage({
     .map((person) => person.id)
     .join('|');
   // A person whose ranking couldn't be read opens the coverage details, once per set of such people.
-  const [problemsSeen, setProblemsSeen] = useState<string | null>(null);
-  if (problemsSeen !== availabilityProblems) {
-    setProblemsSeen(availabilityProblems);
-    if (availabilityProblems) setCoverageOpen(true);
-  }
+  const {
+    open: coverageOpen,
+    coverageRef,
+    onToggle: onCoverageToggle,
+    review: showCoverage,
+  } = useCoverageDisclosure(availabilityProblems);
   const reviewCoverage = () => {
-    setCoverageOpen(true);
-    coverageDisclosure.current?.querySelector('summary')?.focus();
+    showCoverage();
+    coverageRef.current?.querySelector('summary')?.focus();
   };
   // Picking, saving or clearing a group changes ?group= in place, which is not a navigation: this page stays mounted,
   // with its unsaved name and selection. A save or delete that settles after the page closed leaves the URL alone.
@@ -492,10 +491,10 @@ export function FriendComparisonPage({
         </div>
       )}
       <details
-        ref={coverageDisclosure}
+        ref={coverageRef}
         className="compare-coverage-disclosure"
         open={coverageOpen}
-        onToggle={(event) => setCoverageOpen(event.currentTarget.open)}
+        onToggle={onCoverageToggle}
       >
         <summary>
           Coverage &amp; loading
