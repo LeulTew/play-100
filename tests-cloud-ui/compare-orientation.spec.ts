@@ -532,25 +532,28 @@ test('Compare and a friend page follow the URL at every navigation, not only whe
 }) => {
   const blocked = await guard(context);
   await login(page);
-  await installProbe(page);
   const sixId = new URL(fixture().routes.compareSix, origin).searchParams.get('group')!;
   const [first, second] = fixture().peers;
-  // Each Compare mount lists the groups, so the count shows each time the page opened afresh.
-  const mounts = () => page.evaluate(() => window.compareOrientationProbe.counts.groupLists ?? 0);
+  // Marks the Compare page on screen, so a check can tell when a new page replaced it. (Counting the page's reads would
+  // count twice under the development server's StrictMode.)
+  const mark = () => page.locator('.friend-compare-page').evaluate((section) => section.setAttribute('data-seen', ''));
+  const marked = page.locator('.friend-compare-page[data-seen]');
   const groupName = page.getByLabel('Group name', { exact: true });
   await navigate(page, fixture().routes.compareSix);
   await sixReady(page);
   const sixName = await groupName.inputValue();
   expect(sixName).not.toBe('');
-  const opened = await mounts();
   // The tray's Choose friends keeps Compare and replaces its query, which names no group: Compare opens afresh without
   // one. Back names the group again, and Compare opens it.
+  await mark();
   await navigate(page, '/compare?catalogs=off');
-  await expect.poll(mounts).toBe(opened + 1);
+  await expect(marked).toHaveCount(0);
+  await expect(page.locator('.friend-compare-page')).toHaveCount(1);
   await expect(groupName).toHaveValue('');
+  await mark();
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/compare\\?group=${sixId}$`));
-  await expect.poll(mounts).toBe(opened + 2);
+  await expect(marked).toHaveCount(0);
   await sixReady(page);
   await expect(groupName).toHaveValue(sixName);
   // A friend link opens that friend's page in place of the last one, and Back opens the last one again.
