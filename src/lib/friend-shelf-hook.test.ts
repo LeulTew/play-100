@@ -11,13 +11,14 @@ const harness = vi.hoisted(() => {
     cursor: 0,
     slots: [] as unknown[],
     effects: new Map<number, { dependencies: readonly unknown[]; cleanup: (() => void) | void }>(),
+    layout: [] as Array<() => void>,
     pending: [] as Array<() => void>,
     app,
     config: vi.fn().mockResolvedValue(null),
     watchConfig: vi.fn(() => vi.fn()),
   };
 });
-// Run the real hook's dependency-driven effects without starting a browser or Firebase.
+// Run the real hook's dependency-driven effects, layout effects first, without starting a browser or Firebase.
 vi.mock('react', () => {
   const same = (a: readonly unknown[], b: readonly unknown[]) =>
     a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
@@ -58,6 +59,15 @@ vi.mock('react', () => {
           harness.effects.set(index, { dependencies, cleanup: effect() });
         });
     },
+    useLayoutEffect: (effect: Effect, dependencies: readonly unknown[]) => {
+      const index = harness.cursor++;
+      const previous = harness.effects.get(index);
+      if (!previous || !same(previous.dependencies, dependencies))
+        harness.layout.push(() => {
+          previous?.cleanup?.();
+          harness.effects.set(index, { dependencies, cleanup: effect() });
+        });
+    },
   };
 });
 vi.mock('../cloud/firebase-client', () => ({
@@ -78,6 +88,7 @@ beforeEach(() => {
   harness.cursor = 0;
   harness.slots = [];
   harness.effects.clear();
+  harness.layout = [];
   harness.pending = [];
   vi.clearAllMocks();
   harness.config.mockReset().mockResolvedValue(null);
@@ -115,6 +126,7 @@ function HookProbe(value: ScopedLibrary | null, visibleTools: boolean) {
 async function render(value: ScopedLibrary | null, visibleTools = false) {
   harness.cursor = 0;
   const result = HookProbe(value, visibleTools);
+  for (const run of harness.layout.splice(0)) run();
   for (const run of harness.pending.splice(0)) run();
   await Promise.resolve();
   await Promise.resolve();
