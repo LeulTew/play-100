@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import { visibleMenuTrigger } from '../../lib/dialog-focus';
@@ -30,7 +31,8 @@ export function AppDialogs({
   const { selectedGame, selectedRecord, selectedPersonalRecord, collection, awaitingCanonicalPreview } = app;
   const { panelMessage, panelMessageError, panelFailure, panelFromMenu, pwaEnabled, capabilities } = app;
   const { openGame, closeGame, rankingPosition, libraryBusy } = app;
-  const closePanel = () => commands.setPanel(null);
+  // Stable, so the open Menu's navigation listener stays subscribed across the commits its other props cause.
+  const closePanel = useCallback(() => commands.setPanel(null), [commands]);
   const gameOpen = Boolean(selectedGame && selectedPersonalRecord && !onlineOpening);
   const catalogOpen = Boolean(!selectedGame && selectedRecord && !onlineOpening);
   const notice = useNotice(app.notices, gameOpen || catalogOpen);
