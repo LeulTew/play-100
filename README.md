@@ -223,6 +223,47 @@ and full media/source credits are available in the player. Demo interfaces are
 editorial illustrations, not recordings of real accounts. See the
 [playback and publication contract](docs/films.md).
 
+## Browser support
+
+The floor is the oldest browser that renders and runs the whole app:
+
+| Browser | Floor | Why |
+| --- | --- | --- |
+| Chrome/Edge | 94 | The ES2022 build (`build.target`), whose syntax Chromium runs from 94. |
+| Opera | 80 | Chromium 94. |
+| Firefox | 98 | Native modal `<dialog>` (`showModal()`), which every dialog and sheet uses. |
+| Safari/iOS | 16.4 | The ES2022 build (`build.target`), whose syntax Safari runs from 16.4. |
+
+`vite.config.ts` gives Lightning CSS exactly these browsers as `build.cssTarget`, so the stylesheets
+are minified for the floor; the JavaScript target stays `es2022`.
+
+Above the floor, these are progressive enhancements. Each browser below its version gets the result
+described:
+
+- **Dynamic viewport units** (`dvh`: Chrome 108, Firefox 101, Safari 15.4). Every `dvh` height
+  follows a `vh` fallback, so the game drawer, dialogs, sheets and scrollers keep their bounds,
+  measured against the large viewport.
+- **`inert`** (Chrome 102, Firefox 112). Only placeholders and motion hosts use it, and they are
+  `aria-hidden` and hold no controls, so nothing changes.
+- **`:has()`** (Chrome 105, Firefox 121). Its 36 rules are dropped. Most adjust spacing, scroll
+  padding or a state, but these carry layout or focus: the bottom navigation does not reserve the
+  Compare chip's slot, so with pins the chip covers Menu on narrow screens; list-view selection
+  boxes overlap titles; a jacket whose artwork failed keeps its fixed shape around the fallback
+  note; My games' ranking move buttons stay in flow; Discover's genre filter keeps a single grid
+  column; and the avatar picker draws no focus ring.
+- **The Popover API** (Chrome 114, Firefox 125, Safari 17). The friend actions menu needs it and
+  does not open without it.
+- **`text-wrap: balance` and `pretty`** (Chrome 114 and 117, Firefox 121, Safari 17.5). Typography
+  only: headings and titles wrap greedily instead.
+- **`content-visibility`** (Firefox 125, Safari 18). Long card lists render in full: slower, with
+  the same result.
+- **`scrollbar-gutter`** (Safari 18.2). The ratings table does not reserve its scrollbar's width.
+- **`AbortSignal.timeout()`** and **`requestIdleCallback()`** are feature-detected and fall back to
+  timers.
+
+[DESIGN.md](DESIGN.md) takes this policy as given: a new feature above the floor needs a fallback, or
+an entry here saying what the older browsers get.
+
 ## Run locally
 
 Use Node.js 24 LTS, the major pinned in `package.json` `engines` and used by Vercel.

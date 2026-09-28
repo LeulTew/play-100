@@ -139,6 +139,10 @@ The ranking picker belongs to my-games.css, catalog facts/links to catalog-detai
 
 Feature overrides must beat shared defaults by specificity, not by stylesheet arrival order: an eager feature stylesheet arrives before the shared partials, and a lazy one after them. Use existing co-occurring classes or a feature ancestor (for example, `.app-page.auth-page` and `.personal-tabs.my-games-motion-tabs`) and keep responsive/forced-colors variants at the same specificity. Check generic dialog and page-heading rules before moving or adding a feature override.
 
+### Browser floor
+
+Styles and scripts target the browser floor in [README "Browser support"](README.md#browser-support): Chrome and Edge 94, Firefox 98, Safari and iOS 16.4. A feature above the floor needs a fallback, or an entry there saying what older browsers get; a `dvh` height, for example, follows its `vh` fallback.
+
 ## Colors
 
 ### Primary
