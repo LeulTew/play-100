@@ -27,7 +27,9 @@ export default function ManualGameForm({
   const draft = controlledDraft ?? localDraft;
   const { title, year } = draft;
   const latestDraft = useRef(draft);
-  latestDraft.current = draft;
+  useLayoutEffect(() => {
+    latestDraft.current = draft;
+  }, [draft]);
   const changeDraft = (next: ManualGameDraft) => {
     latestDraft.current = next;
     if (onDraftChange) onDraftChange(next);

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { flushPendingEdits } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
@@ -21,7 +21,9 @@ export function RemoveRankingDialog({
   const { scope } = useLibraryMode();
   const reviewedScope = useRef(scope);
   const current = useRef({ scope, state, busy, onClose });
-  current.current = { scope, state, busy, onClose };
+  useLayoutEffect(() => {
+    current.current = { scope, state, busy, onClose };
+  }, [scope, state, busy, onClose]);
   const active = useRef(true);
   const submitting = useRef<'checking' | 'removing' | null>(null);
   const [stage, setStage] = useState<'checking' | 'removing' | null>(null);

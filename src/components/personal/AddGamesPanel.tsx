@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { searchText } from '../../lib/collection';
@@ -42,7 +42,9 @@ export default function AddGamesPanel({
   const view = viewState ?? localView;
   const { query, expanded, manualDraft } = view;
   const latestView = useRef(view);
-  latestView.current = view;
+  useLayoutEffect(() => {
+    latestView.current = view;
+  }, [view]);
   const updateView = (patch: Partial<AddGamesPanelState>) => {
     const next = { ...latestView.current, ...patch };
     latestView.current = next;
