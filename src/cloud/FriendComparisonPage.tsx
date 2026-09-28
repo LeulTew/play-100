@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { PersonalLibraryState, LibraryRecord } from '../lib/personal-types';
 import { compareFriendRankings, getComparisonPage, unrankedCellLabel } from '../lib/friend-comparison';
@@ -71,8 +71,11 @@ export function FriendComparisonPage({
   const generation = useRef(0);
   const running = useRef(false);
   const ownEntries = useMemo(() => projectOwnRanking(ownState, games), [ownState, games]);
+  // The committed account: a read that settles after it changed is discarded.
   const currentUid = useRef<string | null>(uid);
-  currentUid.current = uid;
+  useLayoutEffect(() => {
+    currentUid.current = uid;
+  }, [uid]);
   const addChoices = useCallback(
     async (next?: FriendCursor) => {
       const found = await store.listRelations(uid, 'accepted', next);
@@ -95,10 +98,20 @@ export function FriendComparisonPage({
     },
     [store, uid],
   );
-  useEffect(() => {
-    let alive = true;
-    const request = ++generation.current;
-    currentUid.current = uid;
+  // Each account starts from its own friends, groups and remembered view.
+  const [loaded, setLoaded] = useState<{
+    uid: string;
+    store: FriendStore;
+    scope: string;
+    requestedGroup: string | null;
+  } | null>(null);
+  if (
+    loaded?.uid !== uid ||
+    loaded.store !== store ||
+    loaded.scope !== scope ||
+    loaded.requestedGroup !== requestedGroup
+  ) {
+    setLoaded({ uid, store, scope, requestedGroup });
     setChoices([]);
     setIdentities({});
     setParticipants({});
@@ -110,6 +123,12 @@ export function FriendComparisonPage({
       setQuery(prior.query);
       setPage(prior.page);
     }
+  }
+  useEffect(() => {
+    let alive = true;
+    const request = ++generation.current;
+    currentUid.current = uid;
+    const prior = readComparisonView(scope);
     void addChoices().catch((cause) => {
       if (alive) setError(onlineError(cause));
     });
@@ -163,16 +182,19 @@ export function FriendComparisonPage({
     window.addEventListener(COMPARISON_GAMES_EVENT, transition);
     return () => window.removeEventListener(COMPARISON_GAMES_EVENT, transition);
   }, [scope, uid]);
-  useEffect(() => {
-    if (!viewReady) return;
-    setPeopleDisclosure((current) =>
-      !current.initialized
-        ? { ...current, initialized: true, open: current.touched ? current.open : selected.length < 2 }
-        : selected.length < 2 && !current.open
-          ? { ...current, open: true }
-          : current,
-    );
-  }, [viewReady, selected.length]);
+  // The people chooser opens itself once the view is known, and again whenever fewer than two people are chosen.
+  const [disclosed, setDisclosed] = useState<{ viewReady: boolean; count: number } | null>(null);
+  if (disclosed?.viewReady !== viewReady || disclosed.count !== selected.length) {
+    setDisclosed({ viewReady, count: selected.length });
+    if (viewReady)
+      setPeopleDisclosure((current) =>
+        !current.initialized
+          ? { ...current, initialized: true, open: current.touched ? current.open : selected.length < 2 }
+          : selected.length < 2 && !current.open
+            ? { ...current, open: true }
+            : current,
+      );
+  }
   useEffect(() => {
     if (viewReady && currentUid.current === uid && cloudAuth.currentUser?.uid === uid) {
       rememberComparisonView({ version: 1, scope, selected, mode, query, page, groupId: group?.id ?? null });
@@ -260,9 +282,12 @@ export function FriendComparisonPage({
     .filter((person) => person.availability === 'error')
     .map((person) => person.id)
     .join('|');
-  useEffect(() => {
+  // A person whose ranking couldn't be read opens the coverage details, once per set of such people.
+  const [problemsSeen, setProblemsSeen] = useState<string | null>(null);
+  if (problemsSeen !== availabilityProblems) {
+    setProblemsSeen(availabilityProblems);
     if (availabilityProblems) setCoverageOpen(true);
-  }, [availabilityProblems]);
+  }
   const reviewCoverage = () => {
     setCoverageOpen(true);
     coverageDisclosure.current?.querySelector('summary')?.focus();

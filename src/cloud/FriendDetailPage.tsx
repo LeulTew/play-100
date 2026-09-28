@@ -60,7 +60,6 @@ export function FriendDetailPage({
   );
   const entries = useMemo(() => rankingView.entries.map(parseFriendAllRankingEntry), [rankingView.entries]);
   const version = useRef(0);
-  const access = useMemo(createFriendReadGuard, [uid, peer]);
   const requestInFlight = useRef(false);
   useEffect(() => {
     const update = () => setVisible(!document.hidden && navigator.onLine);
@@ -73,19 +72,25 @@ export function FriendDetailPage({
       window.removeEventListener('offline', update);
     };
   }, []);
+  // Another player, or a change in visibility or connection, starts over: offline, the page says so instead of loading.
+  const [watched, setWatched] = useState<{ uid: string; peer: string; store: FriendStore; visible: boolean } | null>(
+    null,
+  );
+  if (watched?.uid !== uid || watched.peer !== peer || watched.store !== store || watched.visible !== visible) {
+    setWatched({ uid, peer, store, visible });
+    setPerson(null);
+    setPair(null);
+    setBusy(visible);
+    setError('');
+    setRequestNeedsRefresh(false);
+    if (!visible) setNotice('Connect to view this player.');
+  }
   useEffect(() => {
     let alive = true;
     const generation = ++version.current;
-    setPerson(null);
-    setPair(null);
-    setBusy(true);
-    setError('');
-    setRequestNeedsRefresh(false);
-    if (!visible) {
-      setBusy(false);
-      setNotice('Connect to view this player.');
-      return;
-    }
+    if (!visible) return;
+    // This watch's read guard: a pair's accepted epoch never carries over to another person or watch.
+    const access = createFriendReadGuard();
     void (async () => {
       const connection = await store.pair(uid, peer);
       const privateIdentity =
@@ -142,7 +147,7 @@ export function FriendDetailPage({
       access.revoke();
       release();
     };
-  }, [uid, peer, store, visible, access]);
+  }, [uid, peer, store, visible]);
   const requestFriend = async () => {
     if (requestInFlight.current || busy || !person) return;
     requestInFlight.current = true;

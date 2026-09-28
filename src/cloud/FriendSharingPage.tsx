@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FriendSettings } from '../lib/friend-types';
 import type { Game } from '../lib/types';
 import type { PersonalLibraryState } from '../lib/personal-types';
@@ -50,9 +50,16 @@ export function FriendSharingPage({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const rows = projectOwnRanking(ownState, games);
-  useEffect(() => {
+  // Until the user edits it, the selection follows the saved settings as they change, and again once an edit is saved.
+  const [followed, setFollowed] = useState({ revision: settings?.revision, ids: settings?.selectedIds, edited });
+  if (
+    followed.revision !== settings?.revision ||
+    followed.ids !== settings?.selectedIds ||
+    followed.edited !== edited
+  ) {
+    setFollowed({ revision: settings?.revision, ids: settings?.selectedIds, edited });
     if (!edited) setSelected(new Set(settings?.selectedIds ?? []));
-  }, [settings?.revision, settings?.selectedIds, edited]);
+  }
   const [refreshRequired, setRefreshRequired] = useState(false);
   const confirmedSelection = useRef<{ revision: number; epoch: number; ids: string[]; sourceRevision: number } | null>(
     null,

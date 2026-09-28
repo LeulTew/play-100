@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendInvitePreview, FriendSettings } from '../lib/friend-types';
 import { clearInviteContinuation, saveInviteContinuation } from '../lib/invite-continuation';
@@ -35,33 +35,55 @@ export function InvitationPage({
   const [accepting, setAccepting] = useState(false);
   const [done, setDone] = useState(false);
   const [retry, setRetry] = useState(0);
+  // The committed account and invitation, which an acceptance that settles later checks it still belongs to.
   const activeUid = useRef(identity?.uid);
-  activeUid.current = identity?.uid;
   const activeCapability = useRef(invitation.capability);
-  activeCapability.current = invitation.capability;
+  useLayoutEffect(() => {
+    activeUid.current = identity?.uid;
+    activeCapability.current = invitation.capability;
+  }, [identity?.uid, invitation.capability]);
   const acceptanceLease = useRef<symbol | null>(null);
+  // Another account or invitation ends any acceptance in progress.
+  const [owner, setOwner] = useState({ uid: identity?.uid, capability: invitation.capability });
+  if (owner.uid !== identity?.uid || owner.capability !== invitation.capability) {
+    setOwner({ uid: identity?.uid, capability: invitation.capability });
+    setAccepting(false);
+    setDone(false);
+  }
   useEffect(() => {
     acceptanceLease.current = null;
     activeUid.current = identity?.uid;
     activeCapability.current = invitation.capability;
-    setAccepting(false);
-    setDone(false);
     return () => {
       acceptanceLease.current = null;
       activeUid.current = undefined;
       activeCapability.current = null;
     };
   }, [identity?.uid, invitation.capability]);
-  useEffect(() => {
-    let alive = true;
+  // Each invitation, account or retry previews the invitation afresh.
+  const [previewing, setPreviewing] = useState<{
+    store: FriendStore;
+    capability: string | null;
+    error: string;
+    uid: string | undefined;
+    retry: number;
+  } | null>(null);
+  if (
+    previewing?.store !== store ||
+    previewing.capability !== invitation.capability ||
+    previewing.error !== invitation.error ||
+    previewing.uid !== identity?.uid ||
+    previewing.retry !== retry
+  ) {
+    setPreviewing({ store, capability: invitation.capability, error: invitation.error, uid: identity?.uid, retry });
     setPreview(null);
-    setBusy(true);
+    setBusy(Boolean(invitation.capability));
     setDone(false);
     setError(invitation.error);
-    if (!invitation.capability) {
-      setBusy(false);
-      return;
-    }
+  }
+  useEffect(() => {
+    let alive = true;
+    if (!invitation.capability) return;
     void store
       .previewInvite(invitation.capability)
       .then((value) => {

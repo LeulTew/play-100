@@ -57,14 +57,19 @@ export function PublicProfilePage({
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
   const [retry, setRetry] = useState(0);
-  useEffect(() => {
-    let canceled = false;
+  // Another profile, or a retry, starts over from its loading state.
+  const [requested, setRequested] = useState({ social, handle, retry });
+  if (requested.social !== social || requested.handle !== handle || requested.retry !== retry) {
+    setRequested({ social, handle, retry });
     setBusy(true);
     setError('');
     setSelected(new Set());
     setVisible(30);
     setEntries([]);
     setProfile(null);
+  }
+  useEffect(() => {
+    let canceled = false;
     void (async () => {
       const value = await social.profile(handle);
       const ranking = value ? await social.entries(value) : [];

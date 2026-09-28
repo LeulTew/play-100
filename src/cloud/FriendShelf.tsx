@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendIdentity } from '../lib/friend-types';
 import type { FriendShelfConfig, FriendShelfEntry } from '../lib/friend-shelf-types';
@@ -63,12 +63,18 @@ export function FriendShelfEditor({
     [state.records],
   );
   const visible = rows.filter((row) => row.title.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()));
-  useEffect(() => {
+  // Until the user edits it, the selection follows the saved shelf as it changes, and again once an edit is saved.
+  const [followed, setFollowed] = useState({ revision: config?.revision, ids: config?.selectedIds, edited });
+  if (followed.revision !== config?.revision || followed.ids !== config?.selectedIds || followed.edited !== edited) {
+    setFollowed({ revision: config?.revision, ids: config?.selectedIds, edited });
     if (!edited) setSelected(new Set(config?.selectedIds ?? []));
-  }, [config?.revision, config?.selectedIds, edited]);
-  useEffect(() => {
+  }
+  // A library change closes an open preview; it may no longer match.
+  const [previewedRevision, setPreviewedRevision] = useState(state.revision);
+  if (previewedRevision !== state.revision) {
+    setPreviewedRevision(state.revision);
     setPreview(null);
-  }, [state.revision]);
+  }
   const run = async (work: () => Promise<void>) => {
     if (running.current) return;
     running.current = true;

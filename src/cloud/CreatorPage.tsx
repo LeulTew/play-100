@@ -40,12 +40,19 @@ export function CreatorPage({
   const [limit, setLimit] = useState(30);
   const [confirmHide, setConfirmHide] = useState(false);
   const selectedRequest = useRef(0);
+  // A new list (another tab, or access granted) starts loading from its first page.
+  const [listed, setListed] = useState<{ social: typeof social; allowed: boolean; tab: typeof tab } | null>(null);
+  if (listed?.social !== social || listed.allowed !== allowed || listed.tab !== tab) {
+    setListed({ social, allowed, tab });
+    if (allowed) {
+      setBusy(true);
+      setError('');
+      setCursor(undefined);
+    }
+  }
   useEffect(() => {
     let canceled = false;
     if (!allowed) return;
-    setBusy(true);
-    setError('');
-    setCursor(undefined);
     void (
       tab === 'members'
         ? social.members().then((page) => {

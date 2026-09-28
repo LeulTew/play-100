@@ -108,8 +108,10 @@ export function AccountPage(props: AccountPageProps) {
   } = props;
   const onDelete = createAccountDeletion(deletion);
   const currentName = member?.displayName || cache?.profile?.displayName || identity.displayName || 'Player';
-  const [name, setName] = useState(currentName);
+  const [draftName, setDraftName] = useState(currentName);
   const [nameEdited, setNameEdited] = useState(false);
+  // The field shows the account's name until the user edits it, and again once that edit is saved.
+  const name = nameEdited ? draftName : currentName;
   const [nameError, setNameError] = useState('');
   const nameInput = useRef<HTMLInputElement>(null);
   const [choice, setChoice] = useState<ConnectionChoice | null>(null);
@@ -148,9 +150,6 @@ export function AccountPage(props: AccountPageProps) {
   const selected = choice ?? choices[0]?.value ?? 'empty';
   const validChoice = choices.some((item) => item.value === selected);
   const replacing = Boolean(head?.current && selected !== 'online');
-  useEffect(() => {
-    if (!nameEdited) setName(currentName);
-  }, [currentName, nameEdited]);
   useEffect(() => {
     if (googleDeletion && resumedDeletion.current !== googleDeletion.requestId) {
       resumedDeletion.current = googleDeletion.requestId;
@@ -568,7 +567,7 @@ export function AccountPage(props: AccountPageProps) {
                 aria-describedby={nameError ? 'account-name-error' : undefined}
                 onChange={(event) => {
                   setNameEdited(true);
-                  setName(event.target.value);
+                  setDraftName(event.target.value);
                   setNameError('');
                 }}
               />
