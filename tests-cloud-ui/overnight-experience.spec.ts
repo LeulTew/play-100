@@ -292,11 +292,39 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: '5 games in Compare tray', exact: true })).toBeFocused();
   if (isMobile) {
-    const rectangles = await page.evaluate(() => ({
-      tray: document.querySelector('.compare-tray-dock')!.getBoundingClientRect().bottom,
-      nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().top,
-    }));
-    expect(rectangles.tray).toBeLessThanOrEqual(rectangles.nav);
+    await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-dragging', 'false');
+    const rectangles = await page.locator('.mobile-nav').evaluate((nav) => {
+      const tray = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
+      const band = nav.getBoundingClientRect();
+      const style = getComputedStyle(nav);
+      const padding = parseFloat(style.paddingInlineEnd);
+      const border = parseFloat(style.borderInlineEndWidth);
+      const slotLeft = style.direction === 'rtl' ? band.left + border : band.right - border - padding;
+      return {
+        tray: tray.toJSON(),
+        band: band.toJSON(),
+        slotLeft,
+        slotRight: slotLeft + padding,
+        items: [...nav.children].map((item) => {
+          const box = item.getBoundingClientRect();
+          return {
+            label: item.textContent?.trim(),
+            width: box.width,
+            height: box.height,
+            overlaps: box.left < tray.right && box.right > tray.left && box.top < tray.bottom && box.bottom > tray.top,
+          };
+        }),
+      };
+    });
+    expect(rectangles.tray.top).toBeGreaterThanOrEqual(rectangles.band.top);
+    expect(rectangles.tray.bottom).toBeLessThanOrEqual(rectangles.band.bottom);
+    expect(rectangles.tray.left).toBeGreaterThanOrEqual(rectangles.slotLeft);
+    expect(rectangles.tray.right).toBeLessThanOrEqual(rectangles.slotRight);
+    expect(rectangles.items).toHaveLength(5);
+    for (const item of rectangles.items) {
+      expect(item.overlaps, item.label).toBe(false);
+      expect(Math.min(item.width, item.height), item.label).toBeGreaterThanOrEqual(44);
+    }
   }
   await geometryAndAxe(page, '.compare-tray-dock');
   await page.screenshot({ path: testInfo.outputPath('real-floating-tray.png') });
