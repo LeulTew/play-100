@@ -3,8 +3,11 @@ import type { Page } from '@playwright/test';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
-// Whether each visible row's Your list cell lies whole inside the table's scrollport (inside its border and
-// scrollbar gutter), and whether the first row's pin is the control drawn at its centre.
+// Whether each visible row's Your list cell lies whole inside the table's scrollport and is drawn at both inner edges,
+// and whether the first row's pin is the control drawn at its centre. The scrollport is the padding box, not
+// `clientWidth`: `scrollbar-gutter: stable` keeps a scrollbar's width out of clientWidth even where none is drawn
+// (headless Chromium hides scrollbars). That empty gutter stays visible, and the frozen cell then reaches the padding
+// edge. Where a scrollbar is drawn, it covers the gutter, and a cell under it fails the edge hit test.
 async function yourListInView(page: Page) {
   // Bring the first rows below the sticky header by scrolling the page only; the table keeps its own scroll.
   await page
@@ -13,15 +16,22 @@ async function yourListInView(page: Page) {
     .evaluate((row) => window.scrollBy({ top: row.getBoundingClientRect().top - 300, behavior: 'instant' }));
   return page.locator('.ratings-scroll').evaluate((port) => {
     const bounds = port.getBoundingClientRect();
-    const left = bounds.left + port.clientLeft;
-    const right = left + port.clientWidth;
+    const style = getComputedStyle(port);
+    const left = bounds.left + parseFloat(style.borderLeftWidth);
+    const right = bounds.right - parseFloat(style.borderRightWidth);
     const rows = Array.from(port.querySelectorAll('.ratings-table tr')).slice(0, 4);
     const pin = port.querySelector<HTMLElement>('tbody tr .table-progress button[aria-label*="comparison:"]')!;
     const box = pin.getBoundingClientRect();
     return {
       whole: rows.every((row) => {
-        const cell = row.lastElementChild!.getBoundingClientRect();
-        return cell.left >= left - 0.5 && cell.right <= right + 0.5;
+        const cell = row.lastElementChild!;
+        const rect = cell.getBoundingClientRect();
+        const middle = rect.top + rect.height / 2;
+        return (
+          rect.left >= left - 0.5 &&
+          rect.right <= right + 0.5 &&
+          [rect.left + 1, rect.right - 1].every((x) => cell.contains(document.elementFromPoint(x, middle)))
+        );
       }),
       pinOnTop: pin.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
     };
