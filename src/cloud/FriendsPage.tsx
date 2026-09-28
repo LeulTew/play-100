@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FriendBlock, FriendCursor, FriendInvitation, FriendSettings } from '../lib/friend-types';
 import type { FriendsView } from '../lib/friend-manager';
 import { invitationStatus, nextInvitationExpiry, visibleFriendPairs } from '../lib/friend-manager';
-import { FriendManagerFeed } from '../lib/friend-manager-feed';
 import { comparisonScope, initialComparison } from '../lib/friend-comparison-intent';
 import { createInviteUrl } from '../lib/invite-continuation';
 import type { FriendStore } from './friend-store';
@@ -19,6 +18,7 @@ import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
 import { FriendListStatus, FriendSelectionBar, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
 import { subscribeUrl, useFriendsView } from './friends-page-view';
 import { useComparisonSelection } from './friends-page-selection';
+import { useFriendManagerFeed, useLiveFeed } from './friends-page-data';
 import { Icon } from '../components/Icon';
 
 interface AuxiliaryPage {
@@ -52,12 +52,7 @@ export function FriendsPage({
   const uid = identity.uid;
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
   const { view, relationView, updateView } = useFriendsView();
-  const kind = view.view === 'friends' ? 'accepted' : 'pending';
-  const feed = useMemo(
-    () => new FriendManagerFeed(store, uid, kind, () => cloudAuth.currentUser?.uid === uid),
-    [store, uid, kind],
-  );
-  const list = useSyncExternalStore(feed.subscribe, feed.getSnapshot, feed.getSnapshot);
+  const { feed, list } = useFriendManagerFeed(store, uid, view.view);
   const [aux, setAux] = useState<AuxiliaryPage>({
     view: view.view,
     invites: [],
@@ -124,23 +119,7 @@ export function FriendsPage({
     current,
     setMessage,
   );
-  useEffect(() => {
-    if (!relationView) return;
-    const bind = () => {
-      if (document.hidden || navigator.onLine === false) feed.stop();
-      else feed.start();
-    };
-    bind();
-    document.addEventListener('visibilitychange', bind);
-    window.addEventListener('online', bind);
-    window.addEventListener('offline', bind);
-    return () => {
-      feed.stop();
-      document.removeEventListener('visibilitychange', bind);
-      window.removeEventListener('online', bind);
-      window.removeEventListener('offline', bind);
-    };
-  }, [feed, relationView]);
+  useLiveFeed(feed, relationView);
   const loadAux = useCallback(
     async (append = false): Promise<boolean> => {
       const target = view.view;
