@@ -384,7 +384,9 @@ test('provider entry hands off opacity without changing the settled artwork', as
     await expect(dialog.locator('#catalog-game-title')).toBeFocused();
     await expect(dialog.getByRole('spinbutton')).toBeEnabled();
     // The paused 99% sample is already in the transform-free opacity handoff.
-    const destination = await page.locator('[data-motion-visual="catalog-art"][data-motion-phase="enter"]').boundingBox();
+    const destination = await page
+      .locator('[data-motion-visual="catalog-art"][data-motion-phase="enter"]')
+      .boundingBox();
     const settled = await dialog.locator('.catalog-detail-sleeve img').boundingBox();
     expect(destination).not.toBeNull();
     expect(settled).not.toBeNull();
