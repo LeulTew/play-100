@@ -491,8 +491,26 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
         await scope.caches.delete(coreName);
         try {
           const cache = await scope.caches.open(coreName);
-          // A failed fetch never leaves a ready marker or replaces the working version.
-          for (const asset of manifest.core) await cache.put(request(asset.url), await fetchAsset(asset));
+          let next = 0;
+          let failed = false;
+          const downloads = await Promise.allSettled(
+            Array.from({ length: Math.min(4, manifest.core.length) }, async () => {
+              try {
+                while (!failed) {
+                  const asset = manifest.core[next++];
+                  if (!asset) return;
+                  const response = await fetchAsset(asset);
+                  if (!failed) await cache.put(request(asset.url), response);
+                }
+              } catch (cause) {
+                failed = true;
+                throw cause;
+              }
+            }),
+          );
+          // Drain every started writer before cleanup so none can repopulate a failed core.
+          const failure = downloads.find((download) => download.status === 'rejected');
+          if (failure) throw failure.reason;
           await cache.put(
             readyUrl,
             new Response(
@@ -569,10 +587,10 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       if (match) return match;
     }
   };
-  const imageResponse = async (asset: PwaAsset): Promise<Response> => {
+  const imageResponse = async (asset: PwaAsset): Promise<{ response: Response; saved: Promise<void> }> => {
     const cache = await scope.caches.open(imageName);
     const hit = await cache.match(request(asset.url));
-    if (hit) return hit;
+    if (hit) return { response: hit, saved: Promise.resolve() };
     const response = await fetchAsset(asset);
     const copy = response.clone();
     const update = writes.then(async () => {
@@ -592,8 +610,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       console.error('The bounded public image cache could not be saved.');
       await tell('warning', 'Public artwork could not be saved offline. Your library is unchanged.');
     });
-    await writes;
-    return response;
+    return { response, saved: writes };
   };
 
   scope.addEventListener('fetch', (event) => {
@@ -748,13 +765,14 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       );
     } else if (images.has(url.pathname)) {
       const image = images.get(url.pathname);
-      if (image)
-        event.respondWith(
-          imageResponse(image).catch(async () => {
-            await tell('warning', 'This public artwork is not available offline.');
-            return new Response(null, { status: 503 });
-          }),
-        );
+      if (image) {
+        const result = imageResponse(image).catch(async () => {
+          await tell('warning', 'This public artwork is not available offline.');
+          return { response: new Response(null, { status: 503 }), saved: Promise.resolve() };
+        });
+        event.waitUntil(result.then(({ saved }) => saved));
+        event.respondWith(result.then(({ response }) => response));
+      }
     } else if (/^\/assets\/.*\.(?:js|css|woff2)$/.test(url.pathname)) {
       event.respondWith((async () => (await previousChunk(url)) ?? scope.fetch(input))());
     }

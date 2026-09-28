@@ -39,6 +39,19 @@ Response type, byte length and SHA-256 are checked. Redirects, login pages,
 private/no-store responses, authorization-bearing requests and unexpected data
 cannot become offline public assets.
 
+Core preparation runs at most four fetch/verify/store lanes at once. Readiness
+is written only after all lanes succeed. On failure, no new assets are started;
+already-started downloads retain their asset deadlines, and all started work
+settles before the incomplete core is removed, so a late writer cannot escape
+cleanup. Existing ready versions and their document-policy bindings are unchanged.
+
+An uncached allowlisted image returns as soon as its response is verified;
+its cache update runs under the fetch event's `waitUntil` lifetime rather than
+holding the response behind earlier writes. Deletes, quota accounting, eviction
+and puts still share one ordered queue. A failed write warns the app without
+turning a verified image into a failed response, and later writes may proceed.
+The cache's count/byte limits and hit behavior are unchanged.
+
 Each verified asset download has one deadline covering headers, the entire body
 and verification: `min(360 seconds, 60 seconds + ceil(declared bytes / 4096) seconds)`.
 This allows a minute of startup time plus transfer at 4 KiB/s (316 seconds for

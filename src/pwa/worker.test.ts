@@ -1,4 +1,5 @@
 import { createHash, webcrypto } from 'node:crypto';
+import { setImmediate } from 'node:timers/promises';
 import { describe, expect, it, vi } from 'vitest';
 import { libraryPageSearch, myGamesSearch, parseLibraryPage } from '../lib/my-games-navigation';
 import { defaultFilters } from '../lib/url';
@@ -141,6 +142,10 @@ function workerFixture(active = false, chosen: PwaBuildManifest = manifest) {
     });
     await task;
   };
+  const fetchTasks: Promise<unknown>[] = [];
+  const settleFetches = async () => {
+    await Promise.all(fetchTasks.splice(0));
+  };
   const response = (input: Request, clientId = 'one', resultingClientId = clientId) => {
     let result: Promise<Response> | undefined;
     const event: PwaFetchEvent = {
@@ -151,7 +156,7 @@ function workerFixture(active = false, chosen: PwaBuildManifest = manifest) {
         result = value;
       },
       waitUntil: (work) => {
-        void work;
+        fetchTasks.push(work);
       },
     };
     call('fetch', event);
@@ -180,7 +185,7 @@ function workerFixture(active = false, chosen: PwaBuildManifest = manifest) {
       ports.port2.close();
     }
   };
-  return { host, fetch, on, clients, stores, lifetime, response, call, caches, message };
+  return { host, fetch, on, clients, stores, lifetime, response, call, caches, message, settleFetches, fetchTasks };
 }
 
 describe('PWA positive cache boundaries', () => {
@@ -438,6 +443,16 @@ describe('native worker install, offline and update lifetime', () => {
     async (phase) => {
       vi.useFakeTimers();
       const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const cached = deferred();
+      const save = MemoryCache.prototype.put;
+      const saved = vi.spyOn(MemoryCache.prototype, 'put').mockImplementation(async function (
+        this: MemoryCache,
+        input,
+        response,
+      ) {
+        await save.call(this, input, response);
+        if (this.entries.size === assets.length - 1) cached.resolve();
+      });
       try {
         const fixture = workerFixture(true);
         const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
@@ -466,7 +481,7 @@ describe('native worker install, offline and update lifetime', () => {
         const normalFetch = fixture.fetch.getMockImplementation()!;
         let stalledRequest: Request | undefined;
         fixture.fetch.mockImplementation(async (input) => {
-          // Let the first asset be cached to prove that failed preparation removes partial work.
+          // Hold one asset while the other install lanes cache their verified responses.
           if (input.url !== `${origin}${assets[1]!.url}`) return normalFetch(input);
           stalledRequest = input;
           started.resolve();
@@ -474,6 +489,8 @@ describe('native worker install, offline and update lifetime', () => {
         });
         const outcome = expect(fixture.lifetime('install')).rejects.toThrow('Offline download took too long');
         await started.promise;
+        await cached.promise;
+        saved.mockRestore();
         const partial = fixture.stores.get(`${PWA_CACHE_PREFIX}core-${version}`)!;
         expect(partial.entries.has(`${origin}/index.html`)).toBe(true);
         const put = vi.spyOn(partial, 'put');
@@ -507,6 +524,7 @@ describe('native worker install, offline and update lifetime', () => {
         expect(await (await old.match(`${origin}/index.html`))?.text()).toBe('working old shell');
         expect(vi.getTimerCount()).toBe(0);
       } finally {
+        saved.mockRestore();
         error.mockRestore();
         vi.useRealTimers();
       }
@@ -563,6 +581,107 @@ describe('native worker install, offline and update lifetime', () => {
     expect(fixture.stores.get(`${PWA_CACHE_PREFIX}core-${version}`)?.entries.has(`${origin}/pwa/__ready__`)).toBe(true);
   });
 
+  it('prepares at most four core assets at once and marks ready only after every verified put', async () => {
+    const fixture = workerFixture();
+    const fetch = fixture.fetch.getMockImplementation()!;
+    const held: Array<() => Promise<void>> = [];
+    let active = 0;
+    let peak = 0;
+    fixture.fetch.mockImplementation(
+      (input) =>
+        new Promise<Response>((resolve) => {
+          peak = Math.max(peak, ++active);
+          held.push(async () => {
+            const response = await fetch(input);
+            active--;
+            resolve(response);
+          });
+        }),
+    );
+    const install = fixture.lifetime('install');
+    await vi.waitFor(() => expect(held).toHaveLength(4));
+    const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`);
+    expect(cache.entries.has(`${origin}/pwa/__ready__`)).toBe(false);
+    await held[0]!();
+    await vi.waitFor(() => expect(held).toHaveLength(5));
+    await Promise.all(held.slice(1, 4).map((release) => release()));
+    await vi.waitFor(() => expect(cache.entries.size).toBe(4));
+    expect(cache.entries.has(`${origin}/pwa/__ready__`)).toBe(false);
+    await held[4]!();
+    await install;
+    expect(peak).toBe(4);
+    expect(active).toBe(0);
+    expect(cache.entries.size).toBe(assets.length + 1);
+    expect(cache.entries.has(`${origin}/pwa/__ready__`)).toBe(true);
+  });
+
+  it('drains started core writes before cleaning up a concurrent checksum failure', async () => {
+    const fixture = workerFixture(true);
+    const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
+    await old.put(`${origin}/index.html`, new Response('old verified shell'));
+    const writing = deferred();
+    const finishWrite = deferred();
+    const checked = deferred();
+    const corrupt = new Uint8Array(fixtureBytes.length);
+    const corruptHash = createHash('sha256').update(corrupt).digest('hex');
+    const digest = webcrypto.subtle.digest.bind(webcrypto.subtle);
+    const hashed = vi.spyOn(webcrypto.subtle, 'digest').mockImplementation(async (algorithm, data) => {
+      const result = await digest(algorithm, data);
+      if (Buffer.from(result).toString('hex') === corruptHash) checked.resolve();
+      return result;
+    });
+    const order: string[] = [];
+    const remove = fixture.caches.delete.bind(fixture.caches);
+    vi.spyOn(fixture.caches, 'delete').mockImplementation(async (key) => {
+      order.push('delete');
+      return remove(key);
+    });
+    const fetch = fixture.fetch.getMockImplementation()!;
+    const save = MemoryCache.prototype.put;
+    const saved = vi.spyOn(MemoryCache.prototype, 'put').mockImplementation(async function (
+      this: MemoryCache,
+      input,
+      response,
+    ) {
+      if (cacheKey(input) === `${origin}/index.html`) {
+        writing.resolve();
+        await finishWrite.promise;
+      }
+      await save.call(this, input, response);
+      if (cacheKey(input) === `${origin}/index.html`) order.push('put');
+    });
+    fixture.fetch.mockImplementation(async (input) => {
+      if (input.url !== `${origin}/index.html`) {
+        await writing.promise;
+        if (input.url === `${origin}/pwa/offline.html`) {
+          return new Response(corrupt, { headers: { 'Content-Type': 'text/html' } });
+        }
+      }
+      return fetch(input);
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const outcome = expect(fixture.lifetime('install')).rejects.toThrow('did not match this release');
+    try {
+      await checked.promise;
+      // The corrupt digest has completed; drain its rejection microtasks while the put stays held.
+      await setImmediate();
+      expect(order).toEqual(['delete']);
+      expect(fixture.stores.has(`${PWA_CACHE_PREFIX}core-${version}`)).toBe(true);
+      finishWrite.resolve();
+      await outcome;
+      expect(order).toEqual(['delete', 'put', 'delete']);
+      expect(fixture.stores.has(`${PWA_CACHE_PREFIX}core-${version}`)).toBe(false);
+      expect(await (await old.match(`${origin}/index.html`))?.text()).toBe('old verified shell');
+      expect(fixture.host.skipWaiting).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalledOnce();
+    } finally {
+      finishWrite.resolve();
+      hashed.mockRestore();
+      saved.mockRestore();
+      error.mockRestore();
+    }
+  });
+
   it('preserves the working version and unrelated caches after failed precache', async () => {
     const fixture = workerFixture(true);
     const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
@@ -578,6 +697,23 @@ describe('native worker install, offline and update lifetime', () => {
       expect(fixture.host.skipWaiting).not.toHaveBeenCalled();
       expect(error).toHaveBeenCalledOnce();
     } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('fails parallel preparation closed when a core cache put fails', async () => {
+    const fixture = workerFixture(true);
+    const old = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${nextVersion}`);
+    await old.put(`${origin}/index.html`, new Response('working old shell'));
+    const put = vi.spyOn(MemoryCache.prototype, 'put').mockRejectedValueOnce(new Error('Synthetic quota failure.'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(fixture.lifetime('install')).rejects.toThrow('Synthetic quota failure.');
+      expect(fixture.stores.has(`${PWA_CACHE_PREFIX}core-${version}`)).toBe(false);
+      expect(await (await old.match(`${origin}/index.html`))?.text()).toBe('working old shell');
+      expect(fixture.host.skipWaiting).not.toHaveBeenCalled();
+    } finally {
+      put.mockRestore();
       error.mockRestore();
     }
   });
@@ -669,6 +805,7 @@ describe('native worker install, offline and update lifetime', () => {
     expect(fixture.fetch).toHaveBeenCalledTimes(assets.length);
     for (const image of imageAssets)
       expect((await fixture.response(new Request(`${origin}${image.url}`)))?.ok).toBe(true);
+    await fixture.settleFetches();
     expect((await fixture.caches.open(`${PWA_CACHE_PREFIX}images-${version}`)).entries.size).toBe(48);
 
     const largeBytes = new Uint8Array(PWA_BUDGET.imageFileBytes);
@@ -682,9 +819,98 @@ describe('native worker install, offline and update lifetime', () => {
       async () => new Response(largeBytes.slice(), { headers: { 'Content-Type': 'image/webp' } }),
     );
     for (const image of largeImages) await large.response(new Request(`${origin}${image.url}`));
+    await large.settleFetches();
     const count = (await large.caches.open(`${PWA_CACHE_PREFIX}images-${version}`)).entries.size;
     expect(count).toBe(Math.floor(PWA_BUDGET.imageBytes / largeBytes.length));
     expect(count * largeBytes.length).toBeLessThanOrEqual(PWA_BUDGET.imageBytes);
+  });
+
+  it('returns verified artwork before serialized persistence finishes and keeps writes alive', async () => {
+    const imageAssets: PwaAsset[] = [1, 2].map((value) => ({
+      url: `/images/discovery/${String(value).repeat(64)}.webp`,
+      bytes: fixtureBytes.length,
+      sha256: hash,
+      type: 'image',
+    }));
+    const fixture = workerFixture(false, { ...manifest, images: imageAssets });
+    const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}images-${version}`);
+    const entered = deferred();
+    const resume = deferred();
+    const keys = cache.keys.bind(cache);
+    const inspect = vi.spyOn(cache, 'keys').mockImplementationOnce(async () => {
+      entered.resolve();
+      await resume.promise;
+      return keys();
+    });
+    try {
+      const first = fixture.response(new Request(`${origin}${imageAssets[0]!.url}`));
+      expect(fixture.fetchTasks).toHaveLength(1);
+      await entered.promise;
+      expect(await (await first)?.text()).toBe(new TextDecoder().decode(fixtureBytes));
+      const second = await fixture.response(new Request(`${origin}${imageAssets[1]!.url}`));
+      expect(await second?.text()).toBe(new TextDecoder().decode(fixtureBytes));
+      expect(fixture.fetchTasks).toHaveLength(2);
+      expect(inspect).toHaveBeenCalledOnce();
+      expect(cache.entries.size).toBe(0);
+      resume.resolve();
+      await fixture.settleFetches();
+      expect([...cache.entries.keys()]).toEqual(imageAssets.map((asset) => `${origin}${asset.url}`));
+      const calls = fixture.fetch.mock.calls.length;
+      expect((await fixture.response(new Request(`${origin}${imageAssets[0]!.url}`)))?.ok).toBe(true);
+      await fixture.settleFetches();
+      expect(fixture.fetch).toHaveBeenCalledTimes(calls);
+    } finally {
+      resume.resolve();
+      inspect.mockRestore();
+    }
+  });
+
+  it('reports deferred artwork storage failure without failing its response or poisoning later writes', async () => {
+    const image: PwaAsset = {
+      url: `/images/discovery/${'1'.repeat(64)}.webp`,
+      bytes: fixtureBytes.length,
+      sha256: hash,
+      type: 'image',
+    };
+    const fixture = workerFixture(false, { ...manifest, images: [image] });
+    const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}images-${version}`);
+    cache.fail = true;
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect((await fixture.response(new Request(`${origin}${image.url}`)))?.ok).toBe(true);
+      await fixture.settleFetches();
+      expect(cache.entries.size).toBe(0);
+      expect(error).toHaveBeenCalledOnce();
+      expect(fixture.clients[0]!.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'warning', message: expect.stringContaining('could not be saved offline') }),
+      );
+      cache.fail = false;
+      expect((await fixture.response(new Request(`${origin}${image.url}`)))?.ok).toBe(true);
+      await fixture.settleFetches();
+      expect(cache.entries.size).toBe(1);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('never responds with or persists artwork that fails verification', async () => {
+    const image: PwaAsset = {
+      url: `/images/discovery/${'1'.repeat(64)}.webp`,
+      bytes: fixtureBytes.length,
+      sha256: hash,
+      type: 'image',
+    };
+    const fixture = workerFixture(false, { ...manifest, images: [image] });
+    fixture.fetch.mockResolvedValue(
+      new Response(new Uint8Array(fixtureBytes.length), { headers: { 'Content-Type': 'image/webp' } }),
+    );
+    expect((await fixture.response(new Request(`${origin}${image.url}`)))?.status).toBe(503);
+    await fixture.settleFetches();
+    const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}images-${version}`);
+    expect(cache.entries.size).toBe(0);
+    expect(fixture.clients[0]!.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'warning', message: 'This public artwork is not available offline.' }),
+    );
   });
 
   it('keeps one previous ready core and never deletes unrelated storage or serves old navigation HTML', async () => {
