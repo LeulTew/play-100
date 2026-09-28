@@ -4,12 +4,7 @@ import type { FriendBlock, FriendCursor, FriendInvitation, FriendSettings } from
 import type { FriendsView } from '../lib/friend-manager';
 import { invitationStatus, nextInvitationExpiry, visibleFriendPairs } from '../lib/friend-manager';
 import { FriendManagerFeed } from '../lib/friend-manager-feed';
-import {
-  comparisonScope,
-  initialComparison,
-  readComparisonView,
-  rememberComparisonView,
-} from '../lib/friend-comparison-intent';
+import { comparisonScope, initialComparison } from '../lib/friend-comparison-intent';
 import { createInviteUrl } from '../lib/invite-continuation';
 import type { FriendStore } from './friend-store';
 import { cloudAuth, firebaseApp } from './firebase-client';
@@ -21,8 +16,9 @@ import { FriendChangeDialog, InviteLinkDialog } from './FriendsPageDialogs';
 import type { FriendChange } from './FriendsPageDialogs';
 import { FriendRelationList } from './FriendRelationList';
 import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
-import { FriendListStatus, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
+import { FriendListStatus, FriendSelectionBar, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
 import { subscribeUrl, useFriendsView } from './friends-page-view';
+import { useComparisonSelection } from './friends-page-selection';
 import { Icon } from '../components/Icon';
 
 interface AuxiliaryPage {
@@ -35,7 +31,6 @@ interface AuxiliaryPage {
   ready: boolean;
   error: unknown | null;
 }
-type SelectionCheck = { status: 'checking' | 'ready' } | { status: 'error'; cause: unknown };
 
 export function FriendsPage({
   store,
@@ -77,16 +72,6 @@ export function FriendsPage({
   useLayoutEffect(() => {
     auxRef.current = aux;
   });
-  const [selected, setSelected] = useState<string[]>(() => {
-    const prior = readComparisonView(scope);
-    return prior?.selected.includes(uid) ? prior.selected.filter((peer) => peer !== uid) : [];
-  });
-  const selectedRef = useRef(selected);
-  useLayoutEffect(() => {
-    selectedRef.current = selected;
-  });
-  const [selectionChecks, setSelectionChecks] = useState<Record<string, SelectionCheck>>({});
-  const [selectionRetry, setSelectionRetry] = useState(0);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -132,69 +117,13 @@ export function FriendsPage({
       }),
     [current],
   );
-  const choose = useCallback(
-    (peers: string[], preserveView = false) => {
-      if (!current()) return;
-      const initial = initialComparison(scope, uid, peers);
-      const prior = preserveView ? readComparisonView(scope) : null;
-      const intent = prior ? { ...prior, selected: initial.selected } : initial;
-      selectedRef.current = peers;
-      setSelected(peers);
-      rememberComparisonView(intent, false);
-    },
-    [current, scope, uid],
+  const { selected, selectedRef, choose, selectionReady, selectionError, retrySelection } = useComparisonSelection(
+    store,
+    uid,
+    scope,
+    current,
+    setMessage,
   );
-  useEffect(() => {
-    let active = true;
-    let generation = 0;
-    const releases: Array<() => void> = [];
-    const bind = () => {
-      const version = ++generation;
-      releases.splice(0).forEach((release) => release());
-      setSelectionChecks(Object.fromEntries(selected.map((peer) => [peer, { status: 'checking' as const }])));
-      if (document.hidden || navigator.onLine === false) return;
-      const valid = () => active && current() && version === generation;
-      for (const peer of selected)
-        releases.push(
-          store.watchPair(
-            uid,
-            peer,
-            (pair) => {
-              if (!valid()) return;
-              if (pair?.state !== 'accepted') {
-                choose(
-                  selectedRef.current.filter((value) => value !== peer),
-                  true,
-                );
-                setMessage('A connection changed. Your comparison selection was updated.');
-              } else setSelectionChecks((old) => ({ ...old, [peer]: { status: 'ready' } }));
-            },
-            (cause) => {
-              if (!valid()) return;
-              if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied') {
-                choose(
-                  selectedRef.current.filter((value) => value !== peer),
-                  true,
-                );
-                setMessage('A selected connection is no longer available.');
-              } else setSelectionChecks((old) => ({ ...old, [peer]: { status: 'error', cause } }));
-            },
-          ),
-        );
-    };
-    bind();
-    window.addEventListener('online', bind);
-    window.addEventListener('offline', bind);
-    document.addEventListener('visibilitychange', bind);
-    return () => {
-      active = false;
-      generation += 1;
-      releases.forEach((release) => release());
-      window.removeEventListener('online', bind);
-      window.removeEventListener('offline', bind);
-      document.removeEventListener('visibilitychange', bind);
-    };
-  }, [store, uid, selected, current, choose, selectionRetry]);
   useEffect(() => {
     if (!relationView) return;
     const bind = () => {
@@ -470,8 +399,6 @@ export function FriendsPage({
   const ready = relationView ? list.ready : aux.ready && aux.view === view.view;
   const loaded = relationView ? list.pairs.length : view.view === 'invites' ? currentInvites.length : aux.blocks.length;
   const empty = relationView ? !rows.length : !loaded;
-  const selectionReady = selected.every((peer) => selectionChecks[peer]?.status === 'ready');
-  const selectionError = Object.values(selectionChecks).find((check) => check.status === 'error');
   return (
     <section className="app-page friends-page">
       <div className="page-heading">
@@ -507,49 +434,20 @@ export function FriendsPage({
           void refresh();
         }}
       />
-      {selected.length > 0 && (
-        <div className="friend-selection-bar">
-          <span>{selected.length} / 5 friends selected</span>
-          <div className="button-row">
-            <button
-              className="button button-dark"
-              disabled={busy || !selectionReady}
-              onClick={() => {
-                void compare(selected);
-              }}
-            >
-              Compare selected
-            </button>
-            <button className="text-button" disabled={working} onClick={() => choose([])}>
-              Clear
-            </button>
-          </div>
-          {!selectionReady && (
-            <p className="section-help" role="status">
-              {selectionError?.status === 'error'
-                ? `A selected connection could not be confirmed. ${onlineError(selectionError.cause)}`
-                : 'Checking selected connections…'}
-              {selectionError && (
-                <button
-                  className="text-button"
-                  disabled={working}
-                  onClick={() => setSelectionRetry((value) => value + 1)}
-                >
-                  Retry selected connections
-                </button>
-              )}
-            </p>
-          )}
-        </div>
-      )}
-      {view.view === 'friends' && !selected.length && (
-        <p className="section-help">
-          Choose up to five friends to compare with you.{' '}
-          <button className="text-button" onClick={() => onCompare()}>
-            Open comparisons & groups
-          </button>
-        </p>
-      )}
+      <FriendSelectionBar
+        selected={selected}
+        busy={busy}
+        working={working}
+        selectionReady={selectionReady}
+        selectionError={selectionError}
+        friendsView={view.view === 'friends'}
+        onCompareSelected={() => {
+          void compare(selected);
+        }}
+        onClear={() => choose([])}
+        onRetry={retrySelection}
+        onOpenComparisons={() => onCompare()}
+      />
       {view.view === 'friends' && onSharedGames && (
         <button className="text-button" onClick={onSharedGames}>
           Sharing details

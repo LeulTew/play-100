@@ -1,5 +1,7 @@
 import type { FriendCursor } from '../lib/friend-types';
 import type { FriendsView, FriendsViewState } from '../lib/friend-manager';
+import { onlineError } from './errors';
+import type { SelectionCheck } from './friends-page-selection';
 
 const viewLabels: Record<FriendsView, string> = {
   friends: 'Friends',
@@ -118,6 +120,68 @@ export function FriendListStatus({
         </p>
       )}
       {message && <p role="status">{message}</p>}
+    </>
+  );
+}
+
+export function FriendSelectionBar({
+  selected,
+  busy,
+  working,
+  selectionReady,
+  selectionError,
+  friendsView,
+  onCompareSelected,
+  onClear,
+  onRetry,
+  onOpenComparisons,
+}: {
+  selected: string[];
+  busy: boolean;
+  working: boolean;
+  selectionReady: boolean;
+  selectionError: SelectionCheck | undefined;
+  friendsView: boolean;
+  onCompareSelected: () => void;
+  onClear: () => void;
+  onRetry: () => void;
+  onOpenComparisons: () => void;
+}) {
+  return (
+    <>
+      {selected.length > 0 && (
+        <div className="friend-selection-bar">
+          <span>{selected.length} / 5 friends selected</span>
+          <div className="button-row">
+            <button className="button button-dark" disabled={busy || !selectionReady} onClick={onCompareSelected}>
+              Compare selected
+            </button>
+            <button className="text-button" disabled={working} onClick={onClear}>
+              Clear
+            </button>
+          </div>
+          {!selectionReady && (
+            <p className="section-help" role="status">
+              {selectionError?.status === 'error'
+                ? `A selected connection could not be confirmed. ${onlineError(selectionError.cause)}`
+                : 'Checking selected connections…'}
+              {selectionError && (
+                <button className="text-button" disabled={working} onClick={onRetry}>
+                  Retry selected connections
+                </button>
+              )}
+            </p>
+          )}
+        </div>
+      )}
+      {friendsView && !selected.length && (
+        <p className="section-help">
+          Choose up to five friends to compare with you.{' '}
+          <button className="text-button" onClick={onOpenComparisons}>
+            Open comparisons & groups
+          </button>
+        </p>
+      )}
     </>
   );
 }
