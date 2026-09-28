@@ -45,9 +45,9 @@ test('extreme-ratio artwork has a stable native-size title plate without changin
     await expect(art).toHaveAttribute('data-wordmark', '');
     await expect(art.locator('strong')).toHaveText(wideItem.record.title);
     await expect(art.locator('strong')).toHaveAttribute('aria-hidden', 'true');
-    await expect(
-      page.locator(`[data-catalog-id="${normalItem.record.id}"] .discovery-card-art`),
-    ).not.toHaveAttribute('data-wordmark');
+    await expect(page.locator(`[data-catalog-id="${normalItem.record.id}"] .discovery-card-art`)).not.toHaveAttribute(
+      'data-wordmark',
+    );
     await art.scrollIntoViewIfNeeded();
     await page.evaluate(() => document.fonts.ready);
     const before = await art.boundingBox();
