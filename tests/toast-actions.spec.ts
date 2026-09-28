@@ -5,7 +5,7 @@ test('a visible success toast passes a rapid second card action through while it
   page,
   baseURL,
   isMobile,
-}) => {
+}, info) => {
   if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) {
     throw new Error('Toast action fixtures require the owned local preview.');
   }
@@ -24,33 +24,55 @@ test('a visible success toast passes a rapid second card action through while it
   await expect(toast).toHaveAttribute('aria-atomic', 'true');
   await expect(completed).toBeFocused();
 
-  // Put the second real action beneath the non-interactive part of the live toast, without moving the toast.
-  await pin.evaluate((element) => {
+  // Align with the measured toast, then search its whole overlap: mobile may leave space after Dismiss.
+  const point = await pin.evaluate(async (element) => {
     const overlay = document.querySelector('.toast-visible')!.getBoundingClientRect();
     const target = element.getBoundingClientRect();
     window.scrollBy({
       top: target.top + target.height / 2 - (overlay.top + overlay.height / 2),
       behavior: 'instant',
     });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const toast = document.querySelector('.toast-visible');
+    if (!toast) throw new Error('The success toast must still be visible before the second action.');
+    const bounds = toast.getBoundingClientRect();
+    const action = element.getBoundingClientRect();
+    const controls = [...toast.querySelectorAll('button, a[href]')].map((control) => control.getBoundingClientRect());
+    const left = Math.max(action.left, bounds.left, 0) + 2;
+    const right = Math.min(action.right, bounds.right, innerWidth) - 2;
+    const top = Math.max(action.top, bounds.top, 0) + 2;
+    const bottom = Math.min(action.bottom, bounds.bottom, innerHeight) - 2;
+    const xs = [left, right, ...controls.flatMap((box) => [box.left - 2, box.right + 2])]
+      .filter((value) => value >= left && value <= right)
+      .sort((a, b) => a - b);
+    const ys = [top, bottom, ...controls.flatMap((box) => [box.top - 2, box.bottom + 2])]
+      .filter((value) => value >= top && value <= bottom)
+      .sort((a, b) => a - b);
+    const receipt = { toast: bounds.toJSON(), pin: action.toJSON(), controls: controls.map((box) => box.toJSON()) };
+    for (let column = 1; column < xs.length; column++) {
+      for (let row = 1; row < ys.length; row++) {
+        const x = (xs[column - 1]! + xs[column]!) / 2;
+        const y = (ys[row - 1]! + ys[row]!) / 2;
+        if (
+          xs[column]! - xs[column - 1]! < 2 ||
+          ys[row]! - ys[row - 1]! < 2 ||
+          controls.some((box) => x >= box.left - 2 && x <= box.right + 2 && y >= box.top - 2 && y <= box.bottom + 2)
+        ) {
+          continue;
+        }
+        return {
+          x,
+          y,
+          overlaps: x > bounds.left && x < bounds.right && y > bounds.top && y < bounds.bottom,
+          receivesPointer: element.contains(document.elementFromPoint(x, y)),
+          visible: toast.classList.contains('toast-visible'),
+          ...receipt,
+        };
+      }
+    }
+    throw new Error(`No non-interactive toast area overlaps the second action: ${JSON.stringify(receipt)}`);
   });
-  const point = await pin.evaluate((element) => {
-    const overlay = document.querySelector('.toast-visible')!;
-    const bounds = overlay.getBoundingClientRect();
-    const dismiss = overlay.querySelector('button')!.getBoundingClientRect();
-    const target = element.getBoundingClientRect();
-    const left = Math.max(target.left + 2, bounds.left + 2);
-    const right = Math.min(target.right - 2, dismiss.left - 2);
-    if (right <= left) throw new Error('The second action must overlap the non-button portion of the real toast.');
-    const x = (left + right) / 2;
-    const y = target.top + target.height / 2;
-    return {
-      x,
-      y,
-      overlaps: y > bounds.top && y < bounds.bottom,
-      receivesPointer: element.contains(document.elementFromPoint(x, y)),
-      visible: overlay.classList.contains('toast-visible'),
-    };
-  });
+  await info.attach('toast-action-hit-point', { contentType: 'application/json', body: JSON.stringify(point) });
   expect(point).toMatchObject({ overlaps: true, receivesPointer: true, visible: true });
   if (isMobile) await page.touchscreen.tap(point.x, point.y);
   else await page.mouse.click(point.x, point.y);
