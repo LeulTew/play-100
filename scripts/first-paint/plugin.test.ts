@@ -350,6 +350,25 @@ describe('first-paint fallback faces', () => {
       'declares no fallback faces',
     );
   });
+
+  it("include Android's Roboto in the shell's stacks and probes, after the Impact and Arial faces", () => {
+    const faces = shellCss.match(/^@font-face \{[^}]*\}/gm) ?? [];
+    const roboto = faces.filter((face) => face.includes('Roboto'));
+    expect(roboto.map((face) => /font-family: '([^']+)'.*font-weight: (\d+);/.exec(face)?.slice(1).join(' '))).toEqual([
+      'P100 DF Roboto 800',
+      'P100 DF Roboto 700',
+      'P100 Sans Roboto 400',
+      'P100 Sans Roboto 550',
+      'P100 Sans Roboto 600',
+      'P100 Sans Roboto 650',
+      'P100 Sans Roboto 700',
+    ]);
+    // Only "Roboto" finds Android 12+'s variable font, so every face ends with it.
+    for (const face of roboto) expect(face).toMatch(/local\("Roboto"\); font-weight/);
+    for (const face of roboto.filter((face) => face.includes('DF Roboto'))) expect(face).toContain('font-stretch: 75%;');
+    expect(shellCss).toContain("'P100 DF Impact', 'P100 DF Arial', 'P100 DF Roboto', monospace;");
+    expect(shellCss.match(/'P100 Sans Fallback', 'P100 Sans Roboto', monospace;/g)).toHaveLength(2);
+  });
 });
 
 describe('first-paint shell stylesheet', () => {
