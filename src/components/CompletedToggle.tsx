@@ -15,10 +15,12 @@ export function CompletedToggle({
     <button
       type="button"
       className="text-button completed-toggle"
-      disabled={busy}
+      aria-disabled={busy || undefined}
       aria-pressed={completed}
       aria-label={`Completed: ${title}`}
-      onClick={() => onChange(!completed)}
+      onClick={() => {
+        if (!busy) onChange(!completed);
+      }}
     >
       <Icon name={completed ? 'check' : 'plus'} width="17" height="17" />
       Completed

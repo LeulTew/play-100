@@ -78,6 +78,9 @@ manual-share and offline-settings state are separate from the selected URL detai
 Visible toast surfaces pass pointer input through to the page except at their
 actual buttons and links. Dismissal and nested recovery actions remain interactive;
 the existing live-region announcements, focus handling and timeout are unchanged.
+Played and Completed remain focusable during pending saves, using `aria-disabled`
+and guarded activation instead of native disabling. Completing a save does not
+move focus to the document body or permit repeated writes while it is pending.
 
 ## Storage failures
 
