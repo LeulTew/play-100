@@ -64,9 +64,10 @@ export default function CatalogDetail({
   const externalArtwork = artwork ? null : (enrichment.data?.artwork ?? null);
   const canAddToLibrary = record.source !== 'collection';
   const mutate = async (action: PersonalAction): Promise<boolean> => {
-    if (!active.current || busy || saving.current) return false;
+    // The rating's exit-save cleanup runs after this dialog's UI lifetime ends.
+    if ((!active.current && action.type !== 'rate-game') || busy || saving.current) return false;
     saving.current = true;
-    setResult('pending');
+    if (active.current) setResult('pending');
     // The rating field already owns its retryable error announcement.
     const failed = action.type === 'rate-game' ? 'idle' : 'failed';
     try {

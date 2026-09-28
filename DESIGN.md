@@ -339,6 +339,9 @@ exterior toast while that catalog dialog is open. A fresh detail does not replay
 another detail's result, and no completion handler moves the visitor's focus.
 The saved-ranking shortcut still invokes the existing pending-editor guard, and
 rating failures retain their field-owned alert rather than announcing twice.
+Closing a catalog detail still flushes its pending rating through the captured
+record and library action. The dialog's lifetime only gates its local feedback,
+not that exit-save; a closed instance never updates or focuses a newer dialog.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the

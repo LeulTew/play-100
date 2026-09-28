@@ -288,6 +288,46 @@ test('a closed catalog save does not steal focus or replay feedback in a fresh d
   }
 });
 
+for (const close of ['Escape', 'Back', 'Close'] as const) {
+  test(`${close} flushes a catalog rating exactly once with autosave paused`, async ({ page }) => {
+    await page.goto('/discover?catalogs=off');
+    const opener = page
+      .locator(`[data-catalog-id="${record.id}"]`)
+      .getByRole('button', { name: record.title, exact: true });
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name: record.title, exact: true });
+    const input = dialog.getByRole('spinbutton');
+    await expect(input).toBeEnabled();
+    const before = await readLibrary(page);
+    expect(before.records[record.id]).toBeUndefined();
+    await page.clock.install({ time: new Date('2026-09-28T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-09-28T00:00:10Z'));
+    try {
+      await input.fill('7.75');
+      await expect(input).toBeFocused();
+      expect(await readLibrary(page)).toEqual(before);
+      if (close === 'Escape') await page.keyboard.press('Escape');
+      else if (close === 'Back') await page.goBack();
+      else await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect
+        .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score)
+        .toBe(7.75);
+      const expected = applyPersonalAction(before, { type: 'rate-game', record, score: 7.75 });
+      expect(await readLibrary(page)).toEqual(expected);
+      await expect(opener).toBeFocused();
+      await page.clock.runFor(1500);
+      expect(await readLibrary(page)).toEqual(expected);
+      await opener.click();
+      await expect(input).toHaveValue('7.75');
+      await expect(dialog.locator('#catalog-game-title')).toBeFocused();
+      await expect(dialog.locator('.detail-share-notice')).toHaveCount(0);
+    } finally {
+      await page.clock.resume();
+    }
+  });
+}
+
 test('canonical Discover details keep the original collection actions', async ({ page }) => {
   await page.goto('/discover?q=red%20dead%20redemption%202&include100=on&catalogs=off');
   await page
