@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useInsertionEffect, useRef } from 'react';
 import type { LibraryScope } from '../lib/cloud-types';
 
 export function captureScopeNavigation(
@@ -13,10 +13,13 @@ export function captureScopeNavigation(
 export function useNavigationScope(libraryScope: LibraryScope) {
   const activeScope = useRef(libraryScope);
   const scopeGeneration = useRef(0);
-  if (activeScope.current !== libraryScope) {
+  // The generation counts committed scope changes, so a render React discards invalidates no pending work.
+  // Insertion effects run before every layout effect of the commit, so every guard already sees the new scope.
+  useInsertionEffect(() => {
+    if (activeScope.current === libraryScope) return;
     activeScope.current = libraryScope;
     scopeGeneration.current += 1;
-  }
+  }, [libraryScope]);
   const navigationGeneration = useRef(0);
   useEffect(() => {
     const changed = () => {
