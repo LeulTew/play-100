@@ -27,6 +27,7 @@ import { FriendChangeDialog, InviteLinkDialog } from './FriendsPageDialogs';
 import type { FriendChange } from './FriendsPageDialogs';
 import { FriendRelationList } from './FriendRelationList';
 import { FriendBlockList, FriendInviteList } from './FriendInvitesAndBlocks';
+import { FriendListStatus, FriendsEmptyState, FriendViewControls } from './FriendsPageControls';
 import { Icon } from '../components/Icon';
 
 function subscribeUrl(listener: () => void) {
@@ -38,13 +39,6 @@ function subscribeUrl(listener: () => void) {
   };
 }
 const readUrl = () => location.search;
-const viewLabels: Record<FriendsView, string> = {
-  friends: 'Friends',
-  incoming: 'Incoming',
-  sent: 'Sent',
-  invites: 'Invite links',
-  blocked: 'Blocked',
-};
 interface AuxiliaryPage {
   view: FriendsView;
   invites: FriendInvitation[];
@@ -516,75 +510,23 @@ export function FriendsPage({
         </button>
       </div>
       {sharingSummary}
-      <nav className="personal-tabs friend-view-tabs" aria-label="Friends view">
-        {(Object.keys(viewLabels) as FriendsView[]).map((value) => (
-          <button
-            key={value}
-            disabled={working}
-            aria-current={view.view === value ? 'page' : undefined}
-            aria-pressed={view.view === value}
-            onClick={() => updateView({ view: value })}
-          >
-            {viewLabels[value]}
-          </button>
-        ))}
-      </nav>
-      {relationView && (
-        <div className="friend-manager-toolbar">
-          <label>
-            Filter loaded {view.view === 'friends' ? 'friends' : 'requests'}
-            <input
-              type="search"
-              maxLength={60}
-              value={view.name}
-              onChange={(event) => updateView({ name: event.target.value }, true)}
-            />
-          </label>
-          <label>
-            Order
-            <select
-              aria-label="Order"
-              value={view.order}
-              onChange={(event) => updateView({ order: event.target.value === 'name' ? 'name' : 'recent' })}
-            >
-              <option value="recent">Recent first</option>
-              <option value="name">Name A-Z</option>
-            </select>
-          </label>
-        </div>
-      )}
-      <div className="friend-list-summary">
-        <p role="status">
-          {loading
-            ? ready
-              ? 'Updating loaded entries…'
-              : 'Loading…'
-            : ready
-              ? `${relationView ? `${rows.length} shown / ` : ''}${loaded} loaded${cursor ? ' · more available' : ''}`
-              : 'List unavailable'}
-        </p>
-        <button
-          className="text-button"
-          disabled={working || loading || (relationView && !list.active)}
-          onClick={() => {
-            void refresh();
-          }}
-        >
-          Refresh loaded
-        </button>
-      </div>
-      {relationView && list.changed && (
-        <p className="friend-update-notice" role="status">
-          The list changed. Refresh loaded entries before loading more.
-        </p>
-      )}
-      {relationView && !list.active && <p role="status">Reconnect or return to this tab to manage friends.</p>}
-      {problem && (
-        <p className="inline-error" role="alert">
-          {problem}
-        </p>
-      )}
-      {message && <p role="status">{message}</p>}
+      <FriendViewControls view={view} relationView={relationView} working={working} onUpdateView={updateView} />
+      <FriendListStatus
+        loading={loading}
+        ready={ready}
+        relationView={relationView}
+        shown={rows.length}
+        loaded={loaded}
+        cursor={cursor}
+        working={working}
+        active={list.active}
+        changed={list.changed}
+        problem={problem}
+        message={message}
+        onRefresh={() => {
+          void refresh();
+        }}
+      />
       {selected.length > 0 && (
         <div className="friend-selection-bar">
           <span>{selected.length} / 5 friends selected</span>
@@ -677,37 +619,14 @@ export function FriendsPage({
         />
       )}
       {ready && !loading && !problem && empty && (
-        <div className="empty-state">
-          <h2>
-            {view.name && relationView
-              ? 'No loaded names match'
-              : view.view === 'friends'
-                ? 'No friends loaded'
-                : view.view === 'incoming'
-                  ? 'No incoming requests loaded'
-                  : view.view === 'sent'
-                    ? 'No sent requests loaded'
-                    : view.view === 'invites'
-                      ? 'No invite links'
-                      : 'No blocked accounts'}
-          </h2>
-          {cursor ? (
-            <p>
-              {view.view === 'incoming' || view.view === 'sent'
-                ? 'Incoming and sent requests share these pages. Load more to check further.'
-                : 'More entries are available below.'}
-            </p>
-          ) : view.view === 'friends' && !view.name && !list.changed ? (
-            <button className="text-button" onClick={onCommunity}>
-              Find players in Community
-            </button>
-          ) : null}
-          {view.name && relationView && (
-            <button className="text-button" onClick={() => updateView({ name: '' }, true)}>
-              Clear filter
-            </button>
-          )}
-        </div>
+        <FriendsEmptyState
+          view={view}
+          relationView={relationView}
+          cursor={cursor}
+          changed={list.changed}
+          onCommunity={onCommunity}
+          onClearFilter={() => updateView({ name: '' }, true)}
+        />
       )}
       {cursor && (
         <button
