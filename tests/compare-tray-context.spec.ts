@@ -334,7 +334,11 @@ test('the header navigation stays put as the Compare chip arrives and leaves', a
       );
     }
   };
-  await page.locator('.game-card').first().getByRole('button', { name: /^Pin for comparison:/ }).click();
+  await page
+    .locator('.game-card')
+    .first()
+    .getByRole('button', { name: /^Pin for comparison:/ })
+    .click();
   await expect(header).toHaveAttribute('data-compare-chip', '');
   await expectResting('with the chip');
   await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
