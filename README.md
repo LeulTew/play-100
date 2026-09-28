@@ -195,21 +195,21 @@ data migration is required. The rules half of this limit is already in the live
 
 **All sharing** follows the complete account library, including future additions,
 up to its 10,000-game limit. Metadata and ranking scores use separate bounded
-paths; notes, email, queue and play history stay private. Friends load25 rows at
+paths; notes, email, queue and play history stay private. Friends load 25 rows at
 a time; the six-game tray uses exact lookups. Unfetched rows never become fake
 missing scores, and incomplete whole-list statistics stay unknown.
 
-The first10,000 games plus10,000 rankings require at least30,000 document writes,
-above Spark's20,000-write daily free quota. Progress and quota cooldown survive
+The first 10,000 games plus 10,000 rankings require at least 30,000 document writes,
+above Spark's 20,000-write daily free quota. Progress and quota cooldown survive
 reload; one completed path cannot make the whole operation say up to date.
-An unchanged cold reload reads heads/controls rather than20,000 game rows.
+An unchanged cold reload reads heads/controls rather than 20,000 game rows.
 See the [versioned transport and acceptance evidence](docs/friendships-data-contract.md).
 
 Stopping All or private saving revokes All views; resuming requires an explicit
 action. Older clients must refresh before changing a ready All source, or use
 their existing sharing Stop first. Current clients atomically invalidate both
 views with private changes. Accounts without active All keep their previous
-private-write behavior. Legacy selected shelves retain their200-game limit,
+private-write behavior. Legacy selected shelves retain their 200-game limit,
 separate review and removal protections in the [shelf contract](docs/friend-shelf-contract.md).
 
 ### Optional films

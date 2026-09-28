@@ -154,11 +154,11 @@ formats below retain their current bounds and selected-mode semantics.
   email, queue, played/completed value, imported studio/genre or private avatar
   data is transported with a game.
 - The new store must use separate metadata/ranking permission paths, bounded
-  documents, cursor pages of at most25 and exact-game lookup sets of at most6.
+  documents, cursor pages of at most 25 and exact-game lookup sets of at most 6.
   Stable record identities and changed-record plans avoid a complete rewrite on
   an ordinary score edit. Source/consent CAS, verified progress and known-ACK
   recovery are required before reporting a complete publication.
-- All10,000 supported records must remain reachable; more than200 is not a
+- All 10,000 supported records must remain reachable; more than 200 is not a
   truncation point. The concrete atomic write group is gated by actual Standard
   Firestore SDK/rules expression/access-call proof. Initial upload and free-tier
   quotas remain explicit, resumable limits rather than false Saved states.
@@ -175,7 +175,7 @@ policy is enabled, so a waiting disabled default can precede the first saving
 head. The `friendAllHeads/{uid}/views/{kind}`
 documents carry a ready/updating state, count, digest and source revision, not a
 selection array. Private `friendAllJobs/{uid}/views/{kind}` records store progress,
-the target count, total changes (at most20,000), and the last changed ID.
+the target count, total changes (at most 20,000), and the last changed ID.
 `friendAllGames/{uid}/entries/{id}` and `friendAllRankings/{uid}/entries/{id}`
 hold strictly validated single-game metadata or metadata plus position/score.
 Every create and update has ownership, required/exclusive fields, source,
@@ -194,8 +194,8 @@ uses one row mutation group rather than rewriting the inventory.
 With a format 3 head, a cold unchanged publication first verifies head/source/digest, the policy and
 both v1 bindings in a read-only transaction: **zero inventory queries and zero
 writes**. A cold changed or interrupted publication needs cursor inventory reads
-of at most100 rows per request; that cost is not disguised as a constant read.
-Friend pages are at most25 rows; exact lookups check at most6 document identities
+of at most 100 rows per request; that cost is not disguised as a constant read.
+Friend pages are at most 25 rows; exact lookups check at most 6 document identities
 and recheck the head before returning. Composite indexes cover format, epoch,
 active and title/position for counted head3 queries (legacy queries stay
 unchanged). The nested entry payload is exempt from unused single-field
@@ -251,14 +251,14 @@ missing authority, stale source, live revocation and quota/ACK failures.
 | Requirement | Implementation boundary | Actual focused proof |
 | --- | --- | --- |
 | Default only after confirmed account readiness; preserve legacy choices | `friend-all.ts`, `useFriendAll`, atomic `setPolicy` | Fresh real browser: no All click, no guest adoption; legacy off remains off until one inline action |
-| Complete supported size; no200 truncation | Per-record v2 paths, bounded jobs/pages | SDK publishes all10,000 games and all10,000 rankings; reads final identities without a full friend download |
+| Complete supported size; no 200 truncation | Per-record v2 paths, bounded jobs/pages | SDK publishes all 10,000 games and all 10,000 rankings; reads final identities without a full friend download |
 | Cold unchanged and warm edits remain bounded | Transactional no-op before inventory; per-ID cache diff | Each new cold store: zero row queries/writes;205-entry warm score edit: one row group, no inventory scan |
 | Unknown consent is never Off/default | Authoritative completion flag | Delayed then failed initial read of enabled policy remains Checking/Error; retry restores the actual state |
 | Failed Stop does not strand work or replay consent | Read-confirmed Refresh and worker generation | Mounted hook: pre-ACK failure, same-policy refresh, new private ACK, both scopes ready; committed Stop stays off |
 | Late canonical data wakes work without bypassing quota | Primitive readiness scheduling, persisted cooldown | Mounted hook exhausts its first attempt with no catalog, then publishes on arrival; quota case performs no publication |
 | Partial comparisons are honest | Coverage model and exact-game loader |205 rows:25 initially loaded, Unknown whole-list metrics; tray performs bounded exact lookup, never a legacy full fetch |
 | Private changes revoke then update safely | Source pulses, direct control watches, reader leases | Real private score update reaches the mounted comparison; old sharing Stop clears both views and an unsaved preview, retaining independent saved data and identity |
-| Quota recovery survives reload | Server job and scoped IDB cooldown | Metadata52 ready/ranking50 of52 pending, no global Saved; reload retains deadline/progress and finishes remaining work |
+| Quota recovery survives reload | Server job and scoped IDB cooldown | Metadata 52 ready/ranking 50 of 52 pending, no global Saved; reload retains deadline/progress and finishes remaining work |
 | Old private writes do not claim success | Narrow rules boundary and existing outbox | Synthetic old wire commit denied atomically; local score remains dirty/durable, refresh resumes without sign-out or clearing |
 | Export and cleanup remain complete | Controller/export/deletion integrations | Actual export, reversible copy deletion, fresh-Auth gate, full deletion and interrupted-cleanup retry on desktop and mobile |
 | All source formats stay strict | Shared validators plus v2 mutation guards | Maximum-size collection/Wikidata/Steam/FreeToGame/manual records pass both paths; extra/private/oversized fields fail |
@@ -385,7 +385,7 @@ cancelled pair, except by its sender during the 10 minutes after the cancel,
 when that sender also cannot re-request (R12). Deletion during full account
 deletion is exempt from both holds. A mutually intended invitation may
 accept an existing declined pair in place, subject to current token, block and
-lifetime proofs. A re-created pending pair at epoch1 grants no accepted access.
+lifetime proofs. A re-created pending pair at epoch 1 grants no accepted access.
 Pair documents contain only relationship metadata, no identity, scores or tokens.
 Participant-only gets and bounded queries may include inactive/deleted
 relationship metadata until cleanup; they are not data-access grants. Keeping
@@ -498,7 +498,7 @@ the resulting count from `transformResults`; no zero-leak receipt claim is made.
 Empty quota documents are removed at full account deletion.
 
 Only a capacity failure starts pair cleanup: creatorUid=caller, participant
-constraint, terminal states, oldest first, limit20 per page and bounded pages.
+constraint, terminal states, oldest first, limit 20 per page and bounded pages.
 Young declined rows are skipped. One freed slot permits one allocation retry;
 an index still building yields a plain retry error only on that at-cap path.
 
@@ -538,16 +538,16 @@ Current H5 changed-path counts are pessimistic and do not assume repeated
 | Private release, two manifest positions | 4 | 10 including chunk-read authorization |
 | Public indexed release, three entries | 3 | 12 |
 | Selected ranking / shelf release, three chunks | 4 / 5 | 15 / 18 |
-| Deleted-owner LIST20 / ten-delete purge | 1 | 10 for deletion transaction |
+| Deleted-owner LIST 20 / ten-delete purge | 1 | 10 for deletion transaction |
 | Final cleanupEpoch marker | 0 | 0 rule lookups; one actual head read/write |
-| Known format2 row batch, four deletes | 0 candidate / at most4 old | 0 candidate / 16 old |
+| Known format2 row batch, four deletes | 0 candidate / at most 4 old | 0 candidate / 16 old |
 | All format3 row + physical-count job | 8 / 3 | 11 |
 | Group create / edit / counted delete | 6 / 5 / 3 | 8 / 5 / 4 |
 | Block creation plus pair removal | 8 | 16 |
 | Report create / deleted-owner removal / creator resolution | 7 / 3 / 5 | 9 / 7 / 9 including creator's protected read |
 | New/re-requested pair + caller proof | 8 / 9 | 17 |
 | Ordinary acceptance + caller proof | 7 | 14 |
-| Invite acceptance writes | 8 | 19; standalone token read at most7 |
+| Invite acceptance writes | 8 | 19; standalone token read at most 7 |
 | Counted pair release | 3 | 6 |
 | Orphan group/block ID repair | 1 | 1 |
 

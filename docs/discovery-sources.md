@@ -324,9 +324,9 @@ Null/multiple provider release years do not replace the author's original year.
 Explicit examples: Resident Evil 4 (2023) `Q112231148`, not original `Q275950`;
 Tomb Raider (2013) `Q1757876`, not 1996 `Q317620`; Battlefront II (2017)
 `Q29154231`, not 2005 `Q54865`; Overwatch (2016) `Q18515944`, **not**
-FreeToGame540's 2022 game. The sheet's Hitman World of Assassination (2016)
+FreeToGame 540's 2022 game. The sheet's Hitman World of Assassination (2016)
 has no asserted provider mapping because its title/year do not unambiguously
-identify a single edition. It remains directly searchable as an original100
+identify a single edition. It remains directly searchable as an original 100
 entry. No FreeToGame equivalence is asserted without reviewed evidence.
 
 The 65 verified seed overlaps yield **845 public identities** (100+810-65), not
