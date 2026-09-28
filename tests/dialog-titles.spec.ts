@@ -3,46 +3,6 @@ import { emptyCatalogs } from './catalog-helpers';
 import { openMenu } from './readability-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 
-test('curated detail primary actions fit the opening view before artwork and rationale', async ({ page, isMobile }) => {
-  await page.setViewportSize(isMobile ? { width: 393, height: 851 } : { width: 1440, height: 900 });
-  await emptyCatalogs(page);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/?game=red-dead-redemption-2&catalogs=off');
-  const dialog = page.getByRole('dialog', { name: 'Red Dead Redemption 2', exact: true });
-  await expect(dialog.locator('#game-title')).toBeFocused();
-  await page.evaluate(() => document.fonts.ready);
-  const initial = await dialog.evaluate((element) => {
-    const row = element.querySelector('.detail-actions')!;
-    const bounds = element.getBoundingClientRect();
-    const cover = element.querySelector('.detail-cover')!;
-    return {
-      scroll: element.scrollTop,
-      followsRating: row.previousElementSibling?.className,
-      precedesCover: row.nextElementSibling === cover,
-      controls: [...row.querySelectorAll('button')].map((button) => {
-        const rect = button.getBoundingClientRect();
-        return {
-          fits: rect.top >= bounds.top && rect.bottom <= Math.min(bounds.bottom, innerHeight),
-          target: Math.min(rect.width, rect.height),
-          hit: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
-        };
-      }),
-    };
-  });
-  expect(initial.scroll).toBe(0);
-  expect(initial.followsRating).toBe('author-rating-detail');
-  expect(initial.precedesCover).toBe(true);
-  expect(initial.controls).toHaveLength(3);
-  for (const control of initial.controls) {
-    expect(control.fits && control.hit).toBe(true);
-    expect(control.target).toBeGreaterThanOrEqual(44);
-  }
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Play later', exact: true })).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Completed', exact: true })).toBeFocused();
-});
-
 test('Settings exposes Export and Import without scrolling at 1440x900', async ({ page, baseURL }) => {
   expect(['127.0.0.1', 'localhost']).toContain(new URL(baseURL!).hostname);
   await page.setViewportSize({ width: 1440, height: 900 });

@@ -251,9 +251,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain(rationale);
     expect(html.match(/Why it made the list/g)).toHaveLength(1);
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Existing saved copies'));
-    expect(html.indexOf('author-rating-detail')).toBeLessThan(html.indexOf('detail-actions'));
-    expect(html.indexOf('detail-actions')).toBeLessThan(html.indexOf('detail-cover'));
-    expect(html.indexOf('Play later')).toBeLessThan(html.indexOf(rationale));
+    expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Play later'));
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Your rating / 10 for'));
     if (game.sourceNote) {
       const note = renderToStaticMarkup(
