@@ -4,6 +4,7 @@ import { createAccount, emailFor, enableSync, verifyEmail } from './helpers';
 
 declare global {
   interface Window {
+    allReviewResourceEntries: Performance['getEntriesByType'];
     allReview: {
       rejectReads: () => void;
       allowReads: () => void;
@@ -37,8 +38,8 @@ async function mount(
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The current synthetic account is missing.');
     const loaded = (pathname: string) => {
-      const url = performance
-        .getEntriesByType('resource')
+      const url = window
+        .allReviewResourceEntries('resource')
         .map((entry) => entry.name)
         .findLast((value) => new URL(value).pathname === pathname);
       if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
@@ -284,6 +285,10 @@ async function mount(
   await expect(page.locator('#all-review-harness')).toContainText('sharing');
 }
 test.beforeEach(async ({ page, request }) => {
+  // Capture native resource timing before the clock replaces performance with an empty resource ledger.
+  await page.addInitScript(() => {
+    window.allReviewResourceEntries = performance.getEntriesByType.bind(performance);
+  });
   await page.clock.install();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const email = emailFor('all-corners');
