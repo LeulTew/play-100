@@ -256,7 +256,7 @@
 }
 .ratings-table th,
 .ratings-table td {
-  padding: 9px 12px;
+  padding: 9px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
   background: var(--paper);
@@ -368,6 +368,16 @@
 }
 .ratings-table thead .selection-column {
   z-index: 5;
+}
+/* When the scores need a little horizontal scroll, Your list stays whole at the table's right edge and they pass
+   beneath it, as the rank and game columns hold the left edge. Below 1024px the two frozen edges would leave too
+   little room for the scores, so the whole row scrolls. */
+@media (min-width: 1024px) {
+  .ratings-table tr > :last-child {
+    position: sticky;
+    right: 0;
+    box-shadow: -4px 0 5px #20231e08;
+  }
 }
 .ratings-table .numeric-score {
   text-align: right;

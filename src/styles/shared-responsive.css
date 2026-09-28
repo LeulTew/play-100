@@ -115,10 +115,6 @@
     max-width: 146px;
     left: var(--selection-width);
   }
-  .ratings-table th,
-  .ratings-table td {
-    padding-inline: 9px;
-  }
   .ratings-table .table-game a {
     align-items: flex-start;
     gap: 6px;

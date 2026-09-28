@@ -486,6 +486,14 @@ keyboard reachable, and limited to the table rather than the page. On mobile,
 a compact sticky game cell includes its original rank while scores scroll.
 It leaves room for a useful numeric column rather than pinning a wide desktop
 identity block; sort buttons retain the 44px inline target floor.
+Cells use 9px padding at every width, which brings the full table to about
+1,296px: it fits a 1440px window when the page's scrollbar overlays the content,
+and comes within a few pixels of fitting with a classic page scrollbar.
+From 1024px, when the scores still need to scroll, the Your list column holds
+the right edge as the rank and game columns hold the left: its progress, Play
+later and Compare controls are never cut, and the scores pass beneath it.
+Keyboard focus scrolls a control in a scrolling column clear of the frozen
+columns beside it.
 Table mode omits the decorative introduction so the spreadsheet-like working
 surface leads. The default grid/list browsing introduction remains unchanged.
 

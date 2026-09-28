@@ -32,6 +32,34 @@ interface RatingsTableProps {
   comparisonTray?: ReactNode;
 }
 
+// Which columns are frozen depends on the width: selection, Rank and Game hold the left edge on desktop (only
+// selection and Game up to 760px), and from 1024px Your list holds the right edge. The browser scrolls a focused
+// control only when it lies wholly outside the scrollport, not when a frozen cell is drawn over it, so a focused
+// control in a column that scrolls is moved clear of the frozen cells beside it and of the scrollport's edges.
+function revealFromFrozenColumns(port: HTMLElement, control: EventTarget) {
+  if (!(control instanceof HTMLElement) || document.activeElement !== control) return;
+  // A dialog a cell opens (Played's confirmation) is drawn in the top layer, not in the row.
+  const cell = control.closest('dialog, th, td');
+  if (!(cell instanceof HTMLTableCellElement) || !cell.parentElement) return;
+  const frozen = (element: Element, side: 'left' | 'right') => {
+    const style = getComputedStyle(element);
+    return style.position === 'sticky' && style[side] !== 'auto';
+  };
+  if (frozen(cell, 'left') || frozen(cell, 'right')) return;
+  const view = port.getBoundingClientRect();
+  let start = view.left + port.clientLeft;
+  let end = start + port.clientWidth;
+  let before = true;
+  for (const other of Array.from(cell.parentElement.children)) {
+    if (other === cell) before = false;
+    else if (before && frozen(other, 'left')) start = Math.max(start, other.getBoundingClientRect().right);
+    else if (!before && frozen(other, 'right')) end = Math.min(end, other.getBoundingClientRect().left);
+  }
+  const box = control.getBoundingClientRect();
+  if (box.left < start) port.scrollLeft -= start - box.left;
+  else if (box.right > end) port.scrollLeft += box.right - end;
+}
+
 export default function RatingsTable({
   games,
   filters,
@@ -129,6 +157,13 @@ export default function RatingsTable({
         aria-label="Rankings and ratings table; scroll horizontally for all scores"
         tabIndex={0}
         style={{ '--selection-width': selecting ? '44px' : '0px' } as CSSProperties}
+        onFocus={(event) => {
+          const port = event.currentTarget;
+          const control = event.target;
+          // Once now, and again after any scroll the browser makes for the same focus change.
+          revealFromFrozenColumns(port, control);
+          requestAnimationFrame(() => revealFromFrozenColumns(port, control));
+        }}
       >
         <table className="ratings-table">
           <caption className="sr-only">
