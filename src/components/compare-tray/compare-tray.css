@@ -106,8 +106,9 @@ button.compare-drag-handle[hidden] {
     height: 46px;
   }
   .site-header .compare-tray-dock {
-    position: absolute;
-    inset: 0 0 auto auto;
+    position: fixed;
+    inset: auto;
+    transform: translateX(calc(46px - 100%));
   }
 }
 @media (min-width: 761px) and (max-width: 1150px) {

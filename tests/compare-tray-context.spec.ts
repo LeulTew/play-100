@@ -50,6 +50,7 @@ for (const viewport of [
         );
         const geometry = await page.evaluate((selector) => {
           const dock = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
+          const anchor = document.querySelector('.compare-tray-anchor')!.getBoundingClientRect();
           const header = document.querySelector('.site-header')!.getBoundingClientRect();
           const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
           const floor = nav.height ? nav.top : innerHeight;
@@ -90,6 +91,14 @@ for (const viewport of [
               dock.bottom <= innerHeight &&
               (nav.height ? dock.top >= header.bottom : dock.top >= header.top && dock.bottom <= header.bottom),
             sharesNavBand: !nav.height || dock.top >= nav.top,
+            headerSlotAligned:
+              Boolean(nav.height) ||
+              (anchor.width === 46 &&
+                anchor.height === 46 &&
+                dock.width === 46 &&
+                dock.height === 46 &&
+                Math.abs(dock.left - anchor.left) <= 1 &&
+                Math.abs(dock.top - anchor.top) <= 1),
             overflow: document.documentElement.scrollWidth > innerWidth,
             padding: parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom),
             navHeight: nav.height,
@@ -101,6 +110,7 @@ for (const viewport of [
         expect(geometry.headerCollisions).toBe(0);
         expect(geometry.chipFits).toBe(true);
         expect(geometry.sharesNavBand).toBe(true);
+        expect(geometry.headerSlotAligned).toBe(true);
         expect(geometry.overflow).toBe(false);
         expect(geometry.padding).toBeGreaterThanOrEqual(geometry.navHeight);
 
@@ -171,6 +181,91 @@ for (const viewport of [
     });
   }
 }
+
+test('header Compare keeps its slot and expansion edge across wide breakpoints', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Native fine-pointer expansion; the browsing matrix also covers the coarse header and nav.');
+  await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
+  await emptyCatalogs(page);
+  await installGuestLibrary(page, libraryFixture(0));
+  await page.goto('/?view=list&catalogs=off');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  const before = await readLibrary(page);
+  await page
+    .locator('.game-card')
+    .nth(1)
+    .getByRole('button', { name: /^Pin for comparison:/ })
+    .click();
+  const dock = page.locator('.compare-tray-dock');
+  const chip = dock.getByRole('button', { name: '1 game in Compare tray', exact: true });
+  const slot = () =>
+    dock.evaluate((element) => ({
+      anchor: element.parentElement!.getBoundingClientRect().toJSON(),
+      dock: element.getBoundingClientRect().toJSON(),
+      position: getComputedStyle(element).position,
+      header: element.closest('.site-header')!.getBoundingClientRect().toJSON(),
+    }));
+  const expectSlot = async () => {
+    const bounds = await slot();
+    expect(bounds.position).toBe('fixed');
+    expect(bounds.anchor.width).toBe(46);
+    expect(bounds.anchor.height).toBe(46);
+    expect(bounds.dock.width).toBe(46);
+    expect(bounds.dock.height).toBe(46);
+    expect(Math.abs(bounds.dock.left - bounds.anchor.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(bounds.dock.top - bounds.anchor.top)).toBeLessThanOrEqual(1);
+    expect(bounds.dock.top).toBeGreaterThanOrEqual(bounds.header.top);
+    expect(bounds.dock.bottom).toBeLessThanOrEqual(bounds.header.bottom);
+    return bounds;
+  };
+  await expect(chip).toBeVisible();
+  await expectSlot();
+  await page.reload();
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await expect(chip).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [761, 768, 1024, 1150, 1151, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(page.locator('.site-header')).toHaveAttribute('data-compare-chip', '');
+    const title = page.locator('.game-card .game-link h3').first();
+    await title.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const resting = await expectSlot();
+    const scrollBeforeReveal = await page.evaluate(() => scrollY);
+    await dock.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => scrollY)).toBe(scrollBeforeReveal);
+    const source = await title.boundingBox();
+    if (!source) throw new Error('The title drag source is not laid out.');
+    const x = source.x + Math.min(20, source.width / 2);
+    const y = source.y + Math.min(16, source.height / 2);
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    try {
+      await page.mouse.move(x + 26, y + 18, { steps: 8 });
+      await expect(dock).toHaveAttribute('data-dragging', 'true');
+      const expanded = await slot();
+      expect(expanded.dock.width).toBe(320);
+      expect(expanded.dock.height).toBe(88);
+      expect(Math.abs(expanded.dock.right - resting.dock.right)).toBeLessThanOrEqual(1);
+      expect(Math.abs(expanded.dock.top - resting.dock.top)).toBeLessThanOrEqual(1);
+      expect(expanded.anchor).toEqual(resting.anchor);
+      expect(expanded.header).toEqual(resting.header);
+      await page.keyboard.press('Escape');
+    } finally {
+      await page.mouse.up();
+    }
+    await expect(dock).toHaveAttribute('data-dragging', 'false');
+    await expect(page.locator('.compare-drag-ghost')).toHaveCount(0);
+    await expectSlot();
+    await chip.focus();
+    await expect(chip).toHaveCSS('outline-style', 'solid');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Compare tray', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(chip).toBeFocused();
+    await expectSlot();
+  }
+  expect(await readLibrary(page)).toEqual(before);
+});
 
 for (const narrow of [false, true]) {
   for (const occupied of [false, true]) {

@@ -242,6 +242,10 @@ slot. One activation opens the existing native tray and its Choose friends actio
 No scroll-driven hiding, resize loop or automatic expansion changes the resting
 chip. During an explicit desktop drag, its target expands left and down from the
 same header slot to 320px by 88px, retaining the original hit area and header height.
+The header dock is fixed at that slot's static position, not absolutely positioned
+inside the sticky header. Native target reveal must not scroll the source away
+between press and drag. Its `46px - 100%` translation is zero at rest and preserves
+the slot's right edge during expansion, without JavaScript positioning.
 The touch drop target stays above navigation. Overlap during that explicit gesture
 is not a resting browsing state. Pin refusals appear in the existing viewport
 notification. The tray's polite status announces them once.
