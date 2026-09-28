@@ -55,15 +55,13 @@ async function surfaces(page: Page, spacing = false) {
   await expect(page.locator('.compare-tray-dock')).toBeVisible();
   await audit('Pinned comparison dock');
   if (await page.evaluate(() => matchMedia('(forced-colors: active)').matches)) {
-    const borders = await page
-      .locator('.compare-tray-dock, .search-field, .game-cover')
-      .evaluateAll((elements) =>
-        elements.map((element) => ({
-          selector: element.className,
-          style: getComputedStyle(element).borderTopStyle,
-          width: parseFloat(getComputedStyle(element).borderTopWidth),
-        })),
-      );
+    const borders = await page.locator('.compare-tray-dock, .search-field, .game-cover').evaluateAll((elements) =>
+      elements.map((element) => ({
+        selector: element.className,
+        style: getComputedStyle(element).borderTopStyle,
+        width: parseFloat(getComputedStyle(element).borderTopWidth),
+      })),
+    );
     expect(
       borders.every((border) => border.style === 'solid' && border.width >= 1),
       JSON.stringify(borders),

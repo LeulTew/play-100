@@ -30,9 +30,12 @@ for (const viewport of [
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await emptyCatalogs(page);
       await installGuestLibrary(page, libraryFixture(100));
-      await page.evaluate((items) => {
-        localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items }));
-      }, libraryRecords.slice(0, 3));
+      await page.evaluate(
+        (items) => {
+          localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items }));
+        },
+        libraryRecords.slice(0, 3),
+      );
       await page.goto(route.url);
       const rows = page.locator(route.rows);
       await expect(rows).toHaveCount(route.url.startsWith('/my-games') ? 25 : 24);
