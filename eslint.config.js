@@ -16,7 +16,7 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
-      'react-hooks/rules-of-hooks': 'error',
+      ...reactHooks.configs.flat.recommended.rules,
       'react-hooks/exhaustive-deps': 'error',
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
