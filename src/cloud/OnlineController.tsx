@@ -965,13 +965,25 @@ export default function OnlineController({
 
   const identityKey = `${identity?.uid ?? 'guest'}:${authSessionEpoch.current}:${account.snapshot?.sync.epoch ?? 0}:${Boolean(account.snapshot?.sync.enabled)}`;
   const pageScope = `${scope ?? 'guest'}:${authSessionEpoch.current}`;
+  // Compare opens the group its URL names, and a navigation to another group opens that group afresh. The page changes
+  // ?group= in place (replaceState) when the user picks, saves or clears a group, and reports it here, because every
+  // render reads the URL again: it must not take the page's own change for a navigation, remount the page and lose its
+  // unsaved name and selection at whatever unrelated render comes next.
+  const compareRoute = useRef({ group: '', generation: 0 });
+  const urlGroup = new URLSearchParams(location.search).get('group') ?? '';
+  if (page === 'compare' && urlGroup !== compareRoute.current.group)
+    compareRoute.current = { group: urlGroup, generation: compareRoute.current.generation + 1 };
+  const compareKey = String(compareRoute.current.generation);
+  const keepCompareGroup = useCallback((group: string) => {
+    compareRoute.current = { ...compareRoute.current, group };
+  }, []);
   const pageRouteKey =
     page === 'profile'
       ? publicHandle
       : page === 'friend'
         ? location.pathname
         : page === 'compare'
-          ? (new URLSearchParams(location.search).get('group') ?? '')
+          ? compareKey
           : page === 'invite'
             ? (openInvitation.capability ?? '')
             : '';
@@ -1135,7 +1147,7 @@ export default function OnlineController({
             </div>
           ) : page === 'compare' && friendIdentity ? (
             <FriendComparisonPage
-              key={`${uid}:${new URLSearchParams(location.search).get('group') ?? ''}`}
+              key={`${uid}:${compareKey}`}
               store={friends.store}
               uid={identity.uid}
               identity={friendIdentity}
@@ -1143,6 +1155,7 @@ export default function OnlineController({
               games={games}
               onOpen={onOpenRecord}
               onFriends={() => onNavigate('friends')}
+              onGroupRoute={keepCompareGroup}
             />
           ) : (page === 'friend-sharing' || page === 'friend-shelf') && sharingView === 'automatic' ? (
             <section className="app-page">

@@ -177,8 +177,12 @@ games does not pull in the owner's editor.
 `createRetryableModule`, `ChunkBoundary`, `Suspense`, `RouteFallback` and
 `ChunkRecovery`; it does not introduce a second import/reload protocol.
 Its identity includes the account scope, auth-session generation, page and the
-page's target (public handle, friend, comparison group or invitation). Private
-save revisions do not remount forms. A page-module failure leaves the controller
+page's target (public handle, friend, comparison group or invitation). For
+Compare, the target is the group a navigation opened. The page changes
+`?group=` in place when the user picks, saves or clears a group and reports
+that change, so a later render that reads the new URL does not remount the page
+or drop its unsaved group name and selection. Private save revisions do not
+remount forms. A page-module failure leaves the controller
 and its `OnlineBridge` mounted; changing pages or account scope clears only the
 failed page boundary. Native sign-in and picker dialogs keep their own closeable,
 scope-bound loading/recovery states. Existing navigation flush, account-transition

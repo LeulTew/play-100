@@ -27,6 +27,7 @@ export function FriendComparisonPage({
   games,
   onOpen,
   onFriends,
+  onGroupRoute,
 }: {
   store: FriendStore;
   uid: string;
@@ -35,6 +36,8 @@ export function FriendComparisonPage({
   games: Game[];
   onOpen: (record: LibraryRecord) => void;
   onFriends: () => void;
+  /** Told of each group this page puts in the URL itself, which the parent must not take for a navigation. */
+  onGroupRoute: (group: string) => void;
 }) {
   const scope = comparisonScope(firebaseApp.options.projectId ?? '', uid);
   const filteredGames = useComparisonGameFilter(accountScope(uid, firebaseApp.options.projectId));
@@ -264,6 +267,13 @@ export function FriendComparisonPage({
     setCoverageOpen(true);
     coverageDisclosure.current?.querySelector('summary')?.focus();
   };
+  // Picking, saving or clearing a group changes ?group= in place, which is not a navigation: this page stays mounted,
+  // with its unsaved name and selection. A save or delete that settles after the page closed leaves the URL alone.
+  const routeGroup = (id: string | null) => {
+    if (currentUid.current !== uid) return;
+    history.replaceState(history.state, '', id ? `/compare?group=${encodeURIComponent(id)}` : '/compare');
+    onGroupRoute(id ?? '');
+  };
   const chooseGroup = (value: FriendGroup) => {
     generation.current += 1;
     setGroup(value);
@@ -272,7 +282,7 @@ export function FriendComparisonPage({
     setPage(1);
     setViewReady(true);
     setPeopleDisclosure({ initialized: true, touched: false, open: value.participantUids.length < 2 });
-    history.replaceState(history.state, '', `/compare?group=${encodeURIComponent(value.id)}`);
+    routeGroup(value.id);
   };
   const run = async (operation: () => Promise<void>) => {
     if (running.current) return;
@@ -661,7 +671,7 @@ export function FriendComparisonPage({
                   setGroup(null);
                   setGroupName('');
                   groupCreationId.current = null;
-                  history.replaceState(history.state, '', '/compare');
+                  routeGroup(null);
                 }}
               >
                 New group
@@ -678,7 +688,7 @@ export function FriendComparisonPage({
                     setGroups((old) => old.filter((item) => item.id !== group.id));
                     setGroup(null);
                     setGroupName('');
-                    history.replaceState(history.state, '', '/compare');
+                    routeGroup(null);
                     setMessage('Group deleted.');
                   });
                 }}

@@ -325,6 +325,14 @@ async function sixReady(page: Page) {
   await expect(page.locator('.friend-matrix thead th')).toHaveCount(8);
   await expect(page.locator('.compare-coverage-summary')).toHaveText('Loaded games only. Overall totals are unknown.');
 }
+// Makes the app render and read the URL again now, as its next unrelated render would: the URL state reads the
+// location on every render. React commits the store change in a microtask, before the next frame.
+async function rereadUrl(page: Page) {
+  await page.evaluate(async () => {
+    window.dispatchEvent(new Event('play100:navigate'));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+}
 
 async function settleScroll(region: Locator) {
   await region.evaluate(
@@ -470,17 +478,39 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
     sixId,
   );
   if (!name) throw new Error('The existing six-person group must be available.');
+  // Each Compare mount lists the groups, so the count shows whether choosing a group in the page mounted it again.
+  const mounts = () => page.evaluate(() => window.compareOrientationProbe.counts.groupLists ?? 0);
+  const mounted = await mounts();
   await page.locator('.friend-groups').getByRole('button', { name, exact: true }).click();
   await sixReady(page);
-  await page.getByLabel('Group name', { exact: true }).fill('Keep the newer unsaved draft');
+  const groupName = page.getByLabel('Group name', { exact: true });
+  await groupName.fill('Keep the newer unsaved draft');
   await page.evaluate((id) => window.compareOrientationProbe.releaseGroup(id), twoId);
-  await expect(page.getByLabel('Group name', { exact: true })).toHaveValue('Keep the newer unsaved draft');
+  await expect(groupName).toHaveValue('Keep the newer unsaved draft');
+  // Choosing the group replaced ?group= in place. The next render reads that URL, and opening a game from the table
+  // is a navigation that keeps it; neither is a new Compare route, so neither may remount the page and drop the draft.
+  await rereadUrl(page);
+  await expect(groupName).toHaveValue('Keep the newer unsaved draft');
+  await page.locator('.friend-matrix tbody tr').first().locator('th button').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(groupName).toHaveValue('Keep the newer unsaved draft');
   await expect(page.locator('.compare-people input:checked')).toHaveCount(6);
   await expect(people(page)).not.toHaveAttribute('open');
+  expect(await mounts()).toBe(mounted);
   await page.goto(fixture().routes.compareTwo);
   await expect(page.locator('.compare-people input:checked')).toHaveCount(2);
   await page.goBack();
   await expect(page.locator('.compare-people input:checked')).toHaveCount(6);
+  // New group clears ?group= in place too, and the next render must keep the page and the new group's name draft.
+  await installProbe(page);
+  await page.getByRole('button', { name: 'New group', exact: true }).click();
+  await groupName.fill('A draft for a new group');
+  await rereadUrl(page);
+  await expect(groupName).toHaveValue('A draft for a new group');
+  await expect(page.locator('.compare-people input:checked')).toHaveCount(6);
+  expect(await mounts()).toBe(0);
   await page.goto('/account');
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   // Sign-out finishes asynchronously and lands on the home page; navigating earlier can abort it.
