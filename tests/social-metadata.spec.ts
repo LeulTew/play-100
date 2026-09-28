@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('served head has unique matching social metadata and a fetchable PNG', async ({ page, request }) => {
   await page.goto('/?catalogs=off');
+  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
   const canonical = page.locator('head link[rel="canonical"]');
   await expect(canonical).toHaveCount(1);
   const url = await canonical.getAttribute('href');
@@ -33,4 +34,13 @@ test('served head has unique matching social metadata and a fetchable PNG', asyn
   expect(image.ok()).toBe(true);
   expect(image.headers()['content-type']).toContain('image/png');
   expect([undefined, 'cross-origin']).toContain(image.headers()['cross-origin-resource-policy']);
+  await expect(page.locator('link[rel="icon"][sizes="32x32"]')).toHaveAttribute('href', '/pwa/icon-32.png');
+  const png = await request.get('/pwa/icon-32.png');
+  expect(png.ok()).toBe(true);
+  expect(png.headers()['content-type']).toContain('image/png');
+  const ico = await request.get('/favicon.ico');
+  expect(ico.ok()).toBe(true);
+  const icoBytes = await ico.body();
+  expect(icoBytes.readUInt16LE(2)).toBe(1);
+  expect(icoBytes.subarray(22)).toEqual(await png.body());
 });

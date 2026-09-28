@@ -63,7 +63,7 @@ test('committed Settings and About own the title, and Close restores the route t
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(settings).toHaveCount(0);
   await expect(page).not.toHaveURL(/info=/);
-  await expect(page).toHaveTitle('Find your next game | Play 100');
+  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
 
   await openMenu(page);
   await expect(page).toHaveTitle('Menu | Play 100');
@@ -76,7 +76,7 @@ test('committed Settings and About own the title, and Close restores the route t
   await expect(page).toHaveTitle('About & credits | Play 100');
   await about.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(about).toHaveCount(0);
-  await expect(page).toHaveTitle('Find your next game | Play 100');
+  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
 });
 
 test('Menu, Compare tray and signed-out Sign in titles restore their underlying view', async ({
@@ -134,7 +134,7 @@ test('Menu, Compare tray and signed-out Sign in titles restore their underlying 
     else await page.keyboard.press('Escape');
     await expect(tray).toHaveCount(0);
     await expect(chip).toBeFocused();
-    await expect(page).toHaveTitle('Find your next game | Play 100');
+    await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
   }
   const signIn = page.getByRole('dialog', { name: 'Sign in', exact: true });
   for (const close of ['Close', 'Escape'] as const) {
@@ -148,7 +148,7 @@ test('Menu, Compare tray and signed-out Sign in titles restore their underlying 
     else await page.keyboard.press('Escape');
     await expect(signIn).toHaveCount(0);
     await expect(chip).toBeFocused();
-    await expect(page).toHaveTitle('Find your next game | Play 100');
+    await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
   }
   await card.locator('.game-link').click();
   const detail = page.getByRole('dialog', { name: game.title, exact: true });
@@ -156,7 +156,7 @@ test('Menu, Compare tray and signed-out Sign in titles restore their underlying 
   await expect(page).toHaveTitle(`${game.title} · #1 | Play 100`);
   await page.goBack();
   await expect(detail).toHaveCount(0);
-  await expect(page).toHaveTitle('Find your next game | Play 100');
+  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
 
   await page.goto(`/?game=${game.id}&info=settings&catalogs=off`);
   const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
@@ -169,5 +169,5 @@ test('Menu, Compare tray and signed-out Sign in titles restore their underlying 
   await expect(page).toHaveTitle(`${game.title} · #1 | Play 100`);
   await page.keyboard.press('Escape');
   await expect(detail).toHaveCount(0);
-  await expect(page).toHaveTitle('Find your next game | Play 100');
+  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
 });

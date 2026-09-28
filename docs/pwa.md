@@ -38,6 +38,12 @@ chalk. Regenerate the five existing public PNGs with
 `npm run assets:social-card`. The icon command reports dimensions, byte counts
 and SHA-256 values, and refuses a PNG over 24 KiB. The build uses the same icon
 renderer; no extra core entries or runtime modules are added.
+The same command also writes `/pwa/icon-32.png` and `/favicon.ico` for browsers
+without SVG-favicon support. The ICO contains that exact 32px PNG, not a second
+mark. These two browser fallbacks are outside the explicit PWA core inventory;
+the installed-app icons retain their existing five paths. The static share
+title, running collection title, card headline and image alt all use
+"Good games. Great escapes." Neither first-paint template nor boot bytes change.
 
 The core has hard build/install limits of 51 entries, including the online split's
 shared chunks, 2 MiB decoded total and 1 MiB per file. Two entries and 32 KiB of

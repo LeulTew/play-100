@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import type { Manifest } from 'vite';
 import { pwaBuildVersion, pwaCorePaths, pwaDocumentPolicy, PWA_ROOTS } from './pwa-build';
-import { PWA_ICONS, renderPwaIcons } from './pwa-icons';
+import { PWA_ICONS, renderBrowserIcons, renderPwaIcons } from './pwa-icons';
 import { myGamesTab } from '../src/lib/my-games-navigation';
 import { pageFromPath } from '../src/lib/url';
 
@@ -323,5 +323,23 @@ describe('generated public PWA build closure', () => {
     expect(headerCss).toContain('transform: skewY(-8deg)');
     expect(headerCss).toContain('border-left: 12px solid var(--ink)');
     expect(headerCss).toContain('border-top: 9px solid transparent');
+  });
+
+  it('emits a 32px PNG and matching PNG-backed ICO without expanding the offline core', async () => {
+    const [png, ico] = await renderBrowserIcons(fileURLToPath(new URL('../', import.meta.url)));
+    if (!png || !ico) throw new Error('Both browser fallback formats must be generated.');
+    expect(png.file).toBe('pwa/icon-32.png');
+    expect(ico.file).toBe('favicon.ico');
+    expect(await sharp(png.bytes).metadata()).toMatchObject({ width: 32, height: 32, format: 'png' });
+    expect(ico.bytes.readUInt16LE(0)).toBe(0);
+    expect(ico.bytes.readUInt16LE(2)).toBe(1);
+    expect(ico.bytes.readUInt16LE(4)).toBe(1);
+    expect([ico.bytes[6], ico.bytes[7]]).toEqual([32, 32]);
+    expect(ico.bytes.readUInt16LE(12)).toBe(32);
+    expect(ico.bytes.readUInt32LE(14)).toBe(png.bytes.length);
+    expect(ico.bytes.readUInt32LE(18)).toBe(22);
+    expect(ico.bytes.subarray(22)).toEqual(png.bytes);
+    expect(ico.bytes.length).toBeLessThan(4096);
+    for (const icon of [png, ico]) expect(pwaCorePaths(manifest())).not.toContain(`/${icon.file}`);
   });
 });

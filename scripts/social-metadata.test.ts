@@ -47,6 +47,19 @@ describe('public social metadata', () => {
       expect(meta(`twitter:${field}`, 'name')).toBe(meta(`og:${field}`));
     }
     expect(meta('og:image:alt')).toBe('Play 100. Good games. Great escapes. One hundred games worth making time for.');
+    expect(meta('og:title')).toBe('Play 100 — Good games. Great escapes.');
+  });
+
+  it('matches the hero and social artwork tagline and declares both SVG and PNG favicons', () => {
+    expect(html).toContain('<title>Good games. Great escapes. | Play 100</title>');
+    const card = readFileSync(new URL('../public/social-card.svg', import.meta.url), 'utf8');
+    expect(card).toContain('>GOOD GAMES.</text>');
+    expect(card).toContain('>GREAT ESCAPES.</text>');
+    expect(tags('link').filter((link) => link.rel === 'icon')).toEqual([
+      { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/pwa/icon-32.png' },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+    ]);
+    expect(html.indexOf('<meta charset="UTF-8"')).toBeLessThan(100);
   });
 
   it.each([undefined, 'https://play100.example'])(
