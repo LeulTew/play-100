@@ -65,6 +65,8 @@ for (const width of [1440, 393]) {
             const bounds = element.getBoundingClientRect();
             const navigation = document.querySelector('.mobile-nav')?.getBoundingClientRect();
             const text = element.querySelector('span')!.getBoundingClientRect();
+            const dismiss = element.querySelector('button')!;
+            const button = dismiss.getBoundingClientRect();
             return (
               bounds.top >= 0 &&
               bounds.left >= 0 &&
@@ -72,7 +74,8 @@ for (const width of [1440, 393]) {
               bounds.bottom <= (navigation?.height ? navigation.top : innerHeight) &&
               text.top >= bounds.top &&
               text.bottom <= bounds.bottom &&
-              element.contains(document.elementFromPoint(text.x + text.width / 2, text.y + text.height / 2))
+              getComputedStyle(element).pointerEvents === 'none' &&
+              dismiss.contains(document.elementFromPoint(button.x + button.width / 2, button.y + button.height / 2))
             );
           }),
         )

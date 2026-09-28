@@ -358,6 +358,10 @@ test('toast recovery can be dismissed by touch and a later explicit request resu
   await page.goto('/?info=credits&catalogs=off');
   const toast = page.locator('.toast');
   await expect(toast.getByRole('alert')).toContainText("Credits didn't load.");
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
+  await toast.getByRole('button', { name: 'Reload and open credits', exact: true }).click();
+  await expect(toast.getByRole('status')).toContainText("You're offline. Reconnect, then try again.");
+  await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: true }));
   const dismiss = toast.getByRole('button', { name: 'Dismiss loading error', exact: true });
   const bounds = await dismiss.boundingBox();
   expect(bounds?.width).toBeGreaterThanOrEqual(44);

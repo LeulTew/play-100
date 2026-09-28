@@ -1086,6 +1086,8 @@
 .toast-visible {
   transform: translate(-50%, 0);
   opacity: 1;
+}
+.toast-visible :is(button, a) {
   pointer-events: auto;
 }
 .toast > span {

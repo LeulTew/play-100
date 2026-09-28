@@ -75,6 +75,9 @@ for shared previews; it does not persist records.
 owns a separate scoped pin store backed by localStorage, not the library queue.
 Panel state belongs to [useAppPanel](../src/hooks/useAppPanel.ts); notification,
 manual-share and offline-settings state are separate from the selected URL detail.
+Visible toast surfaces pass pointer input through to the page except at their
+actual buttons and links. Dismissal and nested recovery actions remain interactive;
+the existing live-region announcements, focus handling and timeout are unchanged.
 
 ## Storage failures
 
