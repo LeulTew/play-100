@@ -13,11 +13,14 @@ export function AuthPanel({
   onReset,
   onDevice,
   purpose,
+  games,
 }: {
   busy: boolean;
   error: string;
   message: string;
   purpose?: 'compare';
+  /** How many games the Compare tray holds, when the tray opened this sign-in. */
+  games?: number;
   onGoogle: () => Promise<boolean>;
   onEmail: (email: string, password: string, create: boolean) => Promise<boolean>;
   onReset: (email: string) => Promise<boolean>;
@@ -37,8 +40,10 @@ export function AuthPanel({
         <section className="auth-purpose" aria-labelledby={`${id}-purpose`}>
           <h2 id={`${id}-purpose`}>Compare friends' rankings</h2>
           <p>
-            Sign in to compare rankings shared by your friends. Pins select games for comparison; they do not share your
-            library.
+            {games
+              ? `Sign in to compare your ${games === 1 ? 'pinned game' : `${games} pinned games`} with friends.`
+              : 'Sign in to compare rankings shared by your friends.'}{' '}
+            Pins select games for comparison; they do not share your library.
           </p>
         </section>
       )}

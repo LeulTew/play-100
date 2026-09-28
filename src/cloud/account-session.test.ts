@@ -208,6 +208,29 @@ describe('Google return transitions', () => {
       else expect(options.setError).not.toHaveBeenCalled();
     },
   );
+  it.each([true, false])('lets a sign-in continue elsewhere (%s) instead of opening Account', (continued) => {
+    const continueSignIn = vi.fn(() => continued);
+    const navigation = {
+      current: { page: 'collection' as const, onCloseSheet: vi.fn(), onNavigate: vi.fn(), continueSignIn },
+    };
+    applyGoogleReturn({
+      state: { googleReturn: returned(), handledGoogleReturn: { current: null }, setReturnSheet: vi.fn() },
+      identity,
+      cacheReady: true,
+      cacheError: null,
+      epoch: 3,
+      sessionEpoch: 7,
+      navigation,
+      setDeletionApproval: vi.fn(),
+      setError: vi.fn(),
+      setMessage: vi.fn(),
+    });
+    expect(continueSignIn).toHaveBeenCalledExactlyOnceWith('alpha');
+    expect(navigation.current.onCloseSheet).toHaveBeenCalledOnce();
+    expect(calls.remember).toHaveBeenCalledExactlyOnceWith(true);
+    if (continued) expect(navigation.current.onNavigate).not.toHaveBeenCalled();
+    else expect(navigation.current.onNavigate).toHaveBeenCalledExactlyOnceWith('account');
+  });
 });
 describe('session bootstrap ownership', () => {
   function callbacks() {

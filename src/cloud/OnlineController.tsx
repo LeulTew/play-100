@@ -79,6 +79,7 @@ import { useFriendAll } from './useFriendAll';
 import { friendSharingView } from '../lib/friend-all';
 import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { navigateFriend, prepareFriendIdentity } from './friend-page-actions';
+import { deviceComparePins, forgetCompareSignIn, rememberCompareSignIn, takeCompareSignIn } from './compare-sign-in';
 import { useFriendShelf } from './useFriendShelf';
 import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
 import { committedFriendChange, committedFriendMessage } from './friend-outcomes';
@@ -158,6 +159,8 @@ export default function OnlineController({
   invitation,
   showSheet,
   signInPurpose,
+  signInGames,
+  onCompareSignIn,
   guest,
   games,
   onBridge,
@@ -177,6 +180,13 @@ export default function OnlineController({
   guest: LibraryController;
   games: Game[];
   signInPurpose?: SignInPurpose;
+  /** How many games the Compare tray holds, which its sign-in sheet names. */
+  signInGames?: number;
+  /**
+   * Continues a sign-in the Compare tray started, with the device's pins, once that account has opened. `signedIn` is
+   * whether that sign-in's session is still the current one.
+   */
+  onCompareSignIn?: (uid: string, pins: LibraryRecord[], signedIn: () => boolean) => void;
   onBridge: (bridge: OnlineBridge) => void;
   onCloseSheet: () => void;
   onNavigate: (page: AppPage) => void;
@@ -232,8 +242,28 @@ export default function OnlineController({
   } = useAccountSessionState();
   const deletion = useAccountDeletionState();
   const { approval: deletionApproval, setApproval: setDeletionApproval } = deletion;
-  const navigation = useRef({ page, onCloseSheet, onNavigate });
-  navigation.current = { page, onCloseSheet, onNavigate };
+  // Whether this page load returned from a Google redirect that the Compare tray's sign-in started; the ref lets the
+  // return's own transition see it in the same effects pass.
+  const [googleCompare, setGoogleCompare] = useState(false);
+  const googleCompareNow = useRef(false);
+  // A sign-in the Compare tray started continues to Compare with the device's pins once its account has opened. App
+  // then runs the tray's own checks, so an account that cannot compare yet opens Account. Without pins it opens Account.
+  // Only this signed-in session continues it: a sign-out or another sign-in, in this tab or another, replaces the user.
+  const continueToCompare = (uid: string) => {
+    const pins = deviceComparePins();
+    const user = cloudAuth.currentUser;
+    if (!pins.length || !onCompareSignIn || user?.uid !== uid) return false;
+    onCompareSignIn(uid, pins, () => cloudAuth.currentUser === user);
+    return true;
+  };
+  const signInNavigation = {
+    page,
+    onCloseSheet,
+    onNavigate,
+    continueSignIn: (uid: string) => googleCompareNow.current && continueToCompare(uid),
+  };
+  const navigation = useRef(signInNavigation);
+  navigation.current = signInNavigation;
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [defaultAvatar, setDefaultAvatar] = useState(() => createAvatarDescriptor());
   const defaultAvatarUid = useRef<string | null>(null);
@@ -395,6 +425,11 @@ export default function OnlineController({
     defaultAvatarUid.current = uid ?? null;
     setDefaultAvatar(createAvatarDescriptor());
   }, [uid]);
+  useEffect(() => {
+    if (!googleReturn?.attempted || !takeCompareSignIn()) return;
+    googleCompareNow.current = true;
+    setGoogleCompare(true);
+  }, [googleReturn]);
   useEffect(() => {
     applyGoogleReturn({
       state: { googleReturn, handledGoogleReturn, setReturnSheet },
@@ -690,20 +725,34 @@ export default function OnlineController({
       setBusy(false);
     }
   };
-  const afterSignIn = async (user: User) => {
+  const afterSignIn = async (user: User, compare: boolean) => {
     await reconcileIdentity(user);
     if (cloudAuth.currentUser?.uid !== user.uid) return;
     rememberOnlineRequest(true);
+    // A sign-in uses the sheet a cancelled Google return reopened: neither it nor its Compare purpose reopens after a
+    // later sign-out.
+    setReturnSheet(false);
+    setGoogleCompare(false);
+    googleCompareNow.current = false;
     onCloseSheet();
+    if (compare && continueToCompare(user.uid)) return;
     if (signInNeedsAccountPage(page)) onNavigate('account');
   };
-  const google = () =>
+  const google = (compare = false) =>
     run(async () => {
       const session = authSessionEpoch.current;
       if (!(await flushPendingEdits())) throw new Error('Finish or correct the open rating/note before signing in.');
       if (authSessionEpoch.current !== session || cloudAuth.currentUser)
         throw new Error('The signed-in account changed. Review Account before continuing.');
-      await startGoogleRedirect(cloudAuth, { kind: 'sign-in', uid: null });
+      // Only a redirect the Compare tray's sign-in starts has its return continue to Compare.
+      if (compare) rememberCompareSignIn();
+      else forgetCompareSignIn();
+      try {
+        await startGoogleRedirect(cloudAuth, { kind: 'sign-in', uid: null });
+      } catch (cause) {
+        forgetCompareSignIn();
+        throw cause;
+      }
     }, true);
   const linkGoogle = () =>
     run(async () => {
@@ -715,13 +764,13 @@ export default function OnlineController({
         throw new Error('The account changed. No other account was linked.');
       await startGoogleRedirect(cloudAuth, { kind: 'link', uid: user.uid });
     });
-  const email = (address: string, password: string, create: boolean) =>
+  const email = (address: string, password: string, create: boolean, compare = false) =>
     run(async () => {
       if (!(await flushPendingEdits())) throw new Error('Finish or correct the open edit before signing in.');
       const result = create
         ? await createUserWithEmailAndPassword(cloudAuth, address, password)
         : await signInWithEmailAndPassword(cloudAuth, address, password);
-      await afterSignIn(result.user);
+      await afterSignIn(result.user, compare);
     }, true);
   const sendVerification = () =>
     run(async () => {
@@ -999,35 +1048,41 @@ export default function OnlineController({
     setReturnSheet(false);
     onCloseSheet();
   };
-  const purposes = authPanelPurposes(page, signInPurpose);
-  const renderAuthPanel = (purpose: SignInPurpose | undefined) => (
-    <AuthPanel
-      purpose={purpose}
-      busy={busy}
-      error={visibleError}
-      message={visibleMessage}
-      onGoogle={google}
-      onEmail={email}
-      onReset={resetEmail}
-      onDevice={() => {
-        closeSignin();
-        if (
-          [
-            'account',
-            'publish',
-            'creator',
-            'friends',
-            'friend',
-            'invite',
-            'compare',
-            'friend-sharing',
-            'friend-shelf',
-          ].includes(page)
-        )
-          onNavigate('collection');
-      }}
-    />
-  );
+  // The sheet the Compare tray opened, and the sheet its Google return reopens, name the pins and continue to Compare.
+  const compareSheet = signInPurpose === 'compare' || (googleCompare && returnSheet);
+  const purposes = authPanelPurposes(page, compareSheet ? 'compare' : signInPurpose);
+  const renderAuthPanel = (purpose: SignInPurpose | undefined, sheet = false) => {
+    const compare = sheet && compareSheet;
+    return (
+      <AuthPanel
+        purpose={purpose}
+        games={compare ? signInGames : undefined}
+        busy={busy}
+        error={visibleError}
+        message={visibleMessage}
+        onGoogle={() => google(compare)}
+        onEmail={(address, password, create) => email(address, password, create, compare)}
+        onReset={resetEmail}
+        onDevice={() => {
+          closeSignin();
+          if (
+            [
+              'account',
+              'publish',
+              'creator',
+              'friends',
+              'friend',
+              'invite',
+              'compare',
+              'friend-sharing',
+              'friend-shelf',
+            ].includes(page)
+          )
+            onNavigate('collection');
+        }}
+      />
+    );
+  };
   const authPanel = renderAuthPanel(purposes.page);
   const cloudPage = [
     'account',
@@ -1390,7 +1445,9 @@ export default function OnlineController({
             Sign in
           </h2>
           <ChunkBoundary key={`${pageScope}:sign-in`} fallback={<ChunkRecovery message="Sign-in tools didn't load." />}>
-            <Suspense fallback={<p role="status">Loading sign-in…</p>}>{renderAuthPanel(purposes.sheet)}</Suspense>
+            <Suspense fallback={<p role="status">Loading sign-in…</p>}>
+              {renderAuthPanel(purposes.sheet, true)}
+            </Suspense>
           </ChunkBoundary>
         </Dialog>
       )}

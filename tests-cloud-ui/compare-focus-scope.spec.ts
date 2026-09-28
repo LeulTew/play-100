@@ -48,7 +48,7 @@ test('a real emulator identity transition invalidates the guest Compare focus or
       .getByRole('dialog', { name: 'Sign in', exact: true })
       .getByRole('region', { name: "Compare friends' rankings", exact: true }),
   ).toContainText(
-    'Sign in to compare rankings shared by your friends. Pins select games for comparison; they do not share your library.',
+    'Sign in to compare your pinned game with friends. Pins select games for comparison; they do not share your library.',
   );
   await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');
   await page.evaluate(

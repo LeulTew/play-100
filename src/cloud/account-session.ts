@@ -160,7 +160,13 @@ export function applyGoogleReturn({
   cacheError: string | null;
   epoch: number;
   sessionEpoch: number;
-  navigation: RefObject<{ page: AppPage; onCloseSheet: () => void; onNavigate: (page: AppPage) => void }>;
+  navigation: RefObject<{
+    page: AppPage;
+    onCloseSheet: () => void;
+    onNavigate: (page: AppPage) => void;
+    /** Takes over a completed sign-in's destination, returning whether it did; otherwise Account opens as usual. */
+    continueSignIn?: (uid: string) => boolean;
+  }>;
   setDeletionApproval: (approval: GoogleDeletionApproval) => void;
   setError: (message: string) => void;
   setMessage: (message: string) => void;
@@ -182,6 +188,7 @@ export function applyGoogleReturn({
   if (transition.kind === 'sign-in') {
     rememberOnlineRequest(true);
     navigation.current.onCloseSheet();
+    if (identity && navigation.current.continueSignIn?.(identity.uid)) return;
     if (signInNeedsAccountPage(navigation.current.page)) navigation.current.onNavigate('account');
   } else if (transition.kind === 'link') setMessage('Google is linked to this existing account.');
   else if (transition.kind === 'changed') {

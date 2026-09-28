@@ -12,12 +12,13 @@ afterEach(() => {
   vi.mocked(useState).mockReset();
 });
 
-function render(purpose?: 'compare', busy = false) {
+function render(purpose?: 'compare', busy = false, games?: number) {
   const props = {
     busy,
     error: '',
     message: '',
     purpose,
+    games,
     onGoogle: vi.fn(async () => true),
     onEmail: vi.fn(async () => true),
     onReset: vi.fn(async () => true),
@@ -59,6 +60,19 @@ describe('AuthPanel purpose', () => {
     expect(html).toContain('Continue with Google');
     expect(html).toContain('Use email');
     expect(html).toContain('Keep using this device');
+  });
+
+  it.each([
+    [1, 'Sign in to compare your pinned game with friends.'],
+    [3, 'Sign in to compare your 3 pinned games with friends.'],
+  ] as const)('names the %i game(s) the Compare tray holds before provider choices', (games, text) => {
+    const { html } = render('compare', false, games);
+    expect(html).toContain(text);
+    expect(html).toContain('Pins select games for comparison; they do not share your library.');
+    expect(html).not.toContain('Sign in to compare rankings shared by your friends.');
+    expect(html.indexOf(text)).toBeLessThan(html.indexOf('Continue with Google'));
+    // Only a Compare sign-in names pins.
+    expect(render(undefined, false, games).html).not.toContain('pinned');
   });
 
   it('renders the decorative Google mark inline without network images or inline styles', () => {

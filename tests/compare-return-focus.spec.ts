@@ -15,7 +15,7 @@ async function expectComparePurpose(page: Page) {
     comparePurpose(page).getByRole('heading', { name: "Compare friends' rankings", exact: true }),
   ).toBeVisible();
   await expect(comparePurpose(page)).toContainText(
-    'Sign in to compare rankings shared by your friends. Pins select games for comparison; they do not share your library.',
+    'Sign in to compare your pinned game with friends. Pins select games for comparison; they do not share your library.',
   );
 }
 

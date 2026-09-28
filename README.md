@@ -160,17 +160,27 @@ grip, including in Lite or reduced motion. Add-only card Pins stay focused and
 in the tab order after pinning; repeat activation does not add another item.
 Pins do not change private library state or permissions.
 The visible action says **Compare rankings with friends**. Its signed-out
-destination explains that purpose before provider choices and retains the
-device-only exit; ordinary Account sign-in is unchanged.
+destination explains that purpose before provider choices, names how many games
+the tray holds, and retains the device-only exit; ordinary Account sign-in is
+unchanged. The sheet opens over the current page, whose URL and title stay as
+they are, so declining it returns to the same action.
 Declining a Compare-invoked sign-in restores the remounted Compare action when
 the view, navigation and scope are still current. Cold loading does not consume
 that origin; cancellation or an invalidated origin uses a current safe target.
+Signing in from that sheet, by email or through Google's redirect and return,
+continues the comparison once the account has opened: the tray's own checks then
+open Compare with the device's pins as its game filter, or Account when the
+account cannot compare yet. It continues only if nothing has changed while the
+account opened: a navigation (including Back), a changed view, an open panel or
+another sign-in session drops it. A cancelled Google return reopens the sheet
+with its purpose once; a sign-in from it uses it up.
 Failed pending edits retain their exact usable field and do not open sign-in.
 Notifications have independent measured clearance above the active tray,
 including storage/error messages, without waiting for the toast to expire.
 The tray feeds a private game filter into the existing comparison of two to six
 people. It never supplies invented friend entries, scores or ranking positions.
-Guest pins are not automatically adopted by an account. Starting another tray
+Guest pins are not automatically adopted by an account: a continued comparison
+uses them as its filter, and they stay in the device's tray. Starting another tray
 comparison while Compare is already open resets its game mode/search/page as
 one explicit transition while retaining the chosen people.
 

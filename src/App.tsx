@@ -269,6 +269,12 @@ export default function App() {
   accountPanelOpen.current = panel === 'account';
   const compareSignInOrigin = useRef<{ isCurrent: () => boolean } | null>(null);
   const [signInTicket, setSignInTicket] = useState<SignInPurposeTicket | null>(null);
+  // A sign-in the Compare tray started, reported with the device's pins once it succeeds (compareGames continues it).
+  const [compareSignIn, setCompareSignIn] = useState<{
+    uid: string;
+    pins: LibraryRecord[];
+    isCurrent: () => boolean;
+  } | null>(null);
   const [pendingCompareReturn, setPendingCompareReturn] = useState<{
     origin: { isCurrent: () => boolean };
     fallback: HTMLElement | null;
@@ -540,6 +546,7 @@ export default function App() {
   const navigate = (next: AppPage, patch: Partial<Filters> = {}) => {
     compareSignInOrigin.current = null;
     setSignInTicket(null);
+    setCompareSignIn(null);
     setPanel(null);
     goToPage(next, patch);
   };
@@ -721,6 +728,33 @@ export default function App() {
         );
     }
   };
+  // Once that account has opened, the tray's own checks continue it: Compare with the pins, or Account when the account
+  // cannot compare yet. It continues only from where it signed in: a navigation (Back, a link, one saving an edit), a
+  // changed view, an open panel or another session drops it.
+  const continueComparison = useRef(compareGames);
+  continueComparison.current = compareGames;
+  const signedInUid = online?.identity?.uid;
+  const holdComparison = (uid: string, pins: LibraryRecord[], signedIn: () => boolean) => {
+    const navigation = navigationGeneration.current;
+    const intent = navigationIntent.current;
+    const view = `${window.location.pathname}${window.location.search}`;
+    setCompareSignIn({
+      uid,
+      pins,
+      isCurrent: () =>
+        signedIn() &&
+        navigation === navigationGeneration.current &&
+        intent === navigationIntent.current &&
+        view === `${window.location.pathname}${window.location.search}`,
+    });
+  };
+  useEffect(() => {
+    if (!compareSignIn) return;
+    const current = !panel && compareSignIn.isCurrent();
+    if (current && (onlineOpening || signedInUid !== compareSignIn.uid)) return;
+    setCompareSignIn(null);
+    if (current) void continueComparison.current(compareSignIn.pins);
+  }, [compareSignIn, onlineOpening, signedInUid, panel]);
   const enablePublicDetails = async () => {
     const currentScopeAndNavigation = captureMenuFocusGuard();
     const view = `${window.location.pathname}${window.location.search}`;
@@ -952,6 +986,8 @@ export default function App() {
                                     invitation,
                                     showSheet: panel === 'account',
                                     signInPurpose,
+                                    signInGames: tray.items.length,
+                                    onCompareSignIn: holdComparison,
                                     guest: guestLibrary,
                                     games: games ?? [],
                                     onBridge: setOnline,
