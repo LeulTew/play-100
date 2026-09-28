@@ -215,7 +215,8 @@ function subjectCompound(selector: string): string {
     const char = selector[index];
     if (char === '(' || char === '[') depth += 1;
     else if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
-    else if (depth === 0 && (char === '>' || char === '+' || char === '~' || /\s/.test(char))) start = index + 1;
+    else if (depth === 0 && char !== undefined && (char === '>' || char === '+' || char === '~' || /\s/.test(char)))
+      start = index + 1;
   }
   return selector.slice(start);
 }
