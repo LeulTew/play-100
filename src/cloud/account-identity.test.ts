@@ -24,10 +24,9 @@ const user: IdentityUser = {
 };
 type Token = Pick<IdTokenResult, 'claims'>;
 function fixture() {
-  const owner = { current: 'alpha' as string | undefined, live: true };
+  const owner = { current: 'alpha' as string | undefined };
   const ports = {
     currentUid: () => owner.current,
-    controllerLive: () => owner.live,
     readToken: vi
       .fn<(user: IdentityUser, force: boolean) => Promise<Token>>()
       .mockResolvedValue({ claims: { email_verified: true } }),
@@ -36,7 +35,9 @@ function fixture() {
     clearPrevious: vi.fn(),
   };
   const lifetime = createAccountIdentity(ports);
-  return { owner, ports, lifetime };
+  // Mounted, as the controller's effect leaves it; detach is its unmount.
+  const detach = lifetime.attach();
+  return { owner, ports, lifetime, detach };
 }
 function deferred() {
   let resolve!: (token: Token) => void;
@@ -243,7 +244,7 @@ describe('identity reconciliation lifetime', () => {
     // Restoration gives up and the controller unmounts, closing its observer, while the same account stays signed
     // in; the user may then choose this device. The read that was still pending succeeds afterwards.
     live = false;
-    f.owner.live = false;
+    f.detach();
     const late = f.lifetime.reconcileIdentity(user);
     gate.resolve({ claims: { email_verified: true } });
     await expect(late).resolves.toEqual(identityOf(user, true));
@@ -262,7 +263,7 @@ describe('identity reconciliation lifetime', () => {
     // An email sign-in submitted while the session is still restoring; the controller unmounts before its observer
     // first hears from Firebase.
     const read = f.lifetime.reconcileIdentity(user);
-    f.owner.live = false;
+    f.detach();
     gate.resolve({ claims: { email_verified: true } });
     await expect(read).resolves.toEqual(identityOf(user, true));
     expect(f.ports.publish).not.toHaveBeenCalled();
@@ -275,13 +276,24 @@ describe('identity reconciliation lifetime', () => {
     f.ports.readToken.mockReturnValueOnce(gate.promise);
     // StrictMode and Fast Refresh unmount and mount the same controller again; what counts is whether it is mounted
     // when the read finishes.
-    f.owner.live = false;
+    f.detach();
     const read = f.lifetime.reconcileIdentity(user);
-    f.owner.live = true;
+    f.lifetime.attach();
     gate.resolve({ claims: { email_verified: true } });
     await read;
     expect(f.ports.publish).toHaveBeenCalledExactlyOnceWith(identityOf(user, true));
     expect(f.ports.remember).toHaveBeenCalledOnce();
+  });
+  it('is live only while attached, as its controller is only while mounted', () => {
+    const f = fixture();
+    expect(f.lifetime.controllerLive()).toBe(true);
+    f.detach();
+    expect(f.lifetime.controllerLive()).toBe(false);
+    const detach = f.lifetime.attach();
+    expect(f.lifetime.controllerLive()).toBe(true);
+    detach();
+    expect(f.lifetime.controllerLive()).toBe(false);
+    expect(createAccountIdentity(f.ports).controllerLive()).toBe(false);
   });
   it('sign-out forgets the pending slot and prevents a late signed-out read from publishing', async () => {
     const f = fixture();

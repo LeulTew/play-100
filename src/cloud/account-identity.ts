@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getIdTokenResult } from 'firebase/auth';
 import type { IdTokenResult, User } from 'firebase/auth';
 import { rememberOnlineRequest } from '../lib/online-availability';
@@ -26,12 +26,6 @@ export function authSessionTransition(previousUid: string | null, epoch: number,
 }
 interface IdentityPorts<T extends IdentityUser> {
   currentUid: () => string | undefined;
-  /**
-   * Whether the controller that owns this lifetime is still mounted. A read can outlive it: restoration gives up and
-   * the controller unmounts while the same account stays signed in, even before its session observer first hears from
-   * Firebase, and the user may then choose this device.
-   */
-  controllerLive: () => boolean;
   readToken: (user: T, force: boolean) => Promise<Pick<IdTokenResult, 'claims'>>;
   publish: (identity: AccountIdentity | null | undefined) => void;
   remember: () => unknown;
@@ -42,6 +36,11 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
   const refreshedMismatch = new Set<string>();
   let authSessionUid: string | null = null;
   const authSessionEpoch = { current: 0 };
+  // Whether the controller that owns this lifetime is still mounted (attach, from its effect). A read can outlive it:
+  // restoration gives up and the controller unmounts while the same account stays signed in, even before its session
+  // observer first hears from Firebase, and the user may then choose this device.
+  let attached = false;
+  const controllerLive = () => attached;
   const reconcileIdentity = (user: T, force = false): Promise<AccountIdentity> => {
     if (identityRead?.uid === user.uid) return identityRead.promise;
     const task = (async () => {
@@ -53,7 +52,7 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
       const next = identityOf(user, token.claims.email_verified === true);
       // A read that outlives its controller still settles for its callers, but publishes nothing and leaves the
       // remembered online choice as it is.
-      if (ports.controllerLive() && ports.currentUid() === user.uid) {
+      if (controllerLive() && ports.currentUid() === user.uid) {
         ports.publish(next);
         void ports.remember();
       }
@@ -104,7 +103,14 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
     authSessionEpoch,
     reconcileIdentity,
     observeUser,
-    controllerLive: () => ports.controllerLive(),
+    controllerLive,
+    /** Marks the owning controller mounted; the returned function marks it unmounted. */
+    attach: () => {
+      attached = true;
+      return () => {
+        attached = false;
+      };
+    },
     clearVerificationMismatch: (uid: string) => {
       refreshedMismatch.delete(uid);
     },
@@ -116,27 +122,23 @@ export function createAccountIdentity<T extends IdentityUser>(ports: IdentityPor
  */
 export function useAccountIdentity(clearPrevious: (uid: string) => void) {
   const [identity, setIdentity] = useState<AccountIdentity | null | undefined>();
+  // The committed identity, for handlers and work that settles later.
   const identityRef = useRef(identity);
-  identityRef.current = identity;
-  // Set before the controller's session observer starts, and cleared as it closes. Both are the controller's passive
-  // effects, declared in this order, so they open and close together.
-  const mounted = useRef(false);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+  useLayoutEffect(() => {
+    identityRef.current = identity;
+  }, [identity]);
   // State, not a memo: React may discard a memo (as Fast Refresh does), and this lifetime must survive re-renders.
   const [lifetime] = useState(() =>
     createAccountIdentity<User>({
       currentUid: () => cloudAuth.currentUser?.uid,
-      controllerLive: () => mounted.current,
       readToken: getIdTokenResult,
       publish: setIdentity,
       remember: () => rememberOnlineRequest(true),
       clearPrevious,
     }),
   );
+  // Attached before the controller's session observer starts, and detached as it closes. Both are the controller's
+  // passive effects, declared in this order, so they open and close together.
+  useEffect(() => lifetime.attach(), [lifetime]);
   return { identity, identityRef, setIdentity, ...lifetime };
 }
