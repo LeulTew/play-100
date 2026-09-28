@@ -141,9 +141,9 @@ test('the landing renders its below-fold showcase before any scroll, and contain
   await settle(page);
   expect(await page.evaluate(() => scrollY), 'nothing below the fold has been scrolled to').toBe(0);
   const skipped = (selector: string) =>
-    page.locator(selector).evaluateAll((elements) =>
-      elements.map((element) => !element.checkVisibility({ contentVisibilityAuto: true })),
-    );
+    page
+      .locator(selector)
+      .evaluateAll((elements) => elements.map((element) => !element.checkVisibility({ contentVisibilityAuto: true })));
   for (const [selector, count] of [
     ['#collection-films-title', 1],
     ['.film-watch .film-summary', 2],
