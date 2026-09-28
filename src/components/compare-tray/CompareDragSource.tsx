@@ -1,3 +1,4 @@
+/* eslint react-hooks/refs: "error" */
 import { useRef } from 'react';
 import type { CompareDragSourceProps } from './compare-drag-types';
 import { useCompareDragSource } from './useCompareDragSource';

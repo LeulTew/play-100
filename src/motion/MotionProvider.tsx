@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { MotionControllerContext, MotionPolicyContext } from './context';
 import { createMotionRuntime } from './runtime';
 import type { MotionProviderProps, MotionSnapshot } from './types';
@@ -23,6 +23,7 @@ function createMotionBinding(initial: MotionSnapshot) {
 export function MotionProvider({ policy, boundary, location, children }: MotionProviderProps) {
   const [binding] = useState(() => createMotionBinding({ policy, boundary, location }));
   const { controller } = binding;
+  const setHost = useCallback((node: HTMLDivElement | null) => binding.setHost(node), [binding]);
   useLayoutEffect(() => {
     binding.setSnapshot({ policy, boundary, location });
   });
@@ -37,13 +38,7 @@ export function MotionProvider({ policy, boundary, location, children }: MotionP
     <MotionControllerContext.Provider value={controller}>
       <MotionPolicyContext.Provider value={policy}>
         {children}
-        <div
-          ref={(node) => binding.setHost(node)}
-          className="motion-return-host"
-          data-motion-host="root"
-          aria-hidden="true"
-          inert
-        />
+        <div ref={setHost} className="motion-return-host" data-motion-host="root" aria-hidden="true" inert />
       </MotionPolicyContext.Provider>
     </MotionControllerContext.Provider>
   );
