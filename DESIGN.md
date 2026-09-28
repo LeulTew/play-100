@@ -406,6 +406,15 @@ saved records remain usable independently.
 Game details keep the creator's original score and **Your rating** visually and
 semantically separate. The complete existing rationale and source note lead
 the personal tracking controls; do not rewrite or truncate the curator's text.
+At 1024px and wider, the canonical drawer is up to 1000px wide: the original
+rating, complete rationale and source caveats, then tracking actions form one
+reading column, with a 240px artwork-and-caption column beside it. The reading
+measure is about 72ch; all 100 games' primary actions must fit the first view at
+1440×900 and 1024×768 without scrolling past or abbreviating the rationale.
+Below 1024px the reading order stays stacked, with a 192px sleeve that retains
+the normal numbered-jacket geometry and native bitmap-size ceiling. Mobile
+uses a 40px title and tighter section spacing, not smaller body text or clipped
+source notes; unusually long caveats may still require a short scroll.
 Long detail copy and previous/next navigation wrap without pushing controls
 outside the native dialog. Private ratings and notes commit on editor exit as well
 as their normal save triggers. Unordered library views omit disabled drag/move

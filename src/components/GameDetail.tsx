@@ -130,64 +130,70 @@ export function GameDetail({
           <span> / </span>
           {game.studio}
         </p>
-        <div className="author-rating-detail">
-          <div>
-            <strong>{author.shortName}'s original rating</strong>
-            <p>Original workbook score, based on the game's rank.</p>
-          </div>
-          <span title={game.authorRating?.rawValue}>
-            {authorRatingText(game.authorRating)}
-            {game.authorRating && <small> / 10</small>}
-          </span>
-        </div>
-        <div className="detail-cover" ref={artworkRef}>
-          <GameCover key={game.slug} game={game} large eager />
-        </div>
-        <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
-        {game.slug === 'hitman-world-of-assassination' && (
-          <p className="source-note">
-            Source caveat: the workbook calls this “Hitman: World of Assassination”, lists 2016 and supplies HITMAN
-            III-branded artwork. We preserve all three rather than infer a release or edition.
-          </p>
-        )}
-        <p className="detail-genre">{game.genre}</p>
-        <section className="detail-section">
-          <h3>Why it made the list</h3>
-          <p className="rationale">{game.rationale}</p>
-          {game.sourceNote && (
-            <div className="source-note">
-              <Icon name="info" />
-              <p>
-                <strong>From the source workbook</strong>
-                <br />
-                {game.sourceNote}
-              </p>
+        <div className="detail-overview">
+          <div className="author-rating-detail">
+            <div>
+              <strong>{author.shortName}'s original rating</strong>
+              <p>Original workbook score, based on the game's rank.</p>
             </div>
-          )}
-        </section>
-        {savedCopies}
-        <div className="detail-actions">
-          <button
-            className={`button ${state?.later ? 'button-lime' : 'button-dark'}`}
-            disabled={busy}
-            aria-pressed={Boolean(state?.later)}
-            onClick={() => onToggle(game.slug, 'later')}
-          >
-            <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />
-            Play later
-          </button>
-          <button
-            className={`button ${state?.completed ? 'button-lime' : 'button-outline'}`}
-            disabled={busy}
-            aria-pressed={Boolean(state?.completed)}
-            onClick={() => onToggle(game.slug, 'completed', !state?.completed)}
-          >
-            <Icon name={state?.completed ? 'check' : 'plus'} />
-            Completed
-          </button>
-          <button className="icon-button share-detail" aria-label={`Share ${game.title}`} onClick={onShare}>
-            <Icon name="share" />
-          </button>
+            <span title={game.authorRating?.rawValue}>
+              {authorRatingText(game.authorRating)}
+              {game.authorRating && <small> / 10</small>}
+            </span>
+          </div>
+          <div className="detail-art">
+            <div className="detail-cover" ref={artworkRef}>
+              <GameCover key={game.slug} game={game} large eager />
+            </div>
+            <p className="art-caption">{game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'}</p>
+          </div>
+          <div className="detail-story">
+            <p className="detail-genre">{game.genre}</p>
+            <section className="detail-section">
+              <h3>Why it made the list</h3>
+              <p className="rationale">{game.rationale}</p>
+              {game.slug === 'hitman-world-of-assassination' && (
+                <p className="source-note">
+                  Source caveat: the workbook calls this “Hitman: World of Assassination”, lists 2016 and supplies
+                  HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.
+                </p>
+              )}
+              {game.sourceNote && (
+                <div className="source-note">
+                  <Icon name="info" />
+                  <p>
+                    <strong>From the source workbook</strong>
+                    <br />
+                    {game.sourceNote}
+                  </p>
+                </div>
+              )}
+            </section>
+            {savedCopies}
+            <div className="detail-actions">
+              <button
+                className={`button ${state?.later ? 'button-lime' : 'button-dark'}`}
+                disabled={busy}
+                aria-pressed={Boolean(state?.later)}
+                onClick={() => onToggle(game.slug, 'later')}
+              >
+                <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />
+                Play later
+              </button>
+              <button
+                className={`button ${state?.completed ? 'button-lime' : 'button-outline'}`}
+                disabled={busy}
+                aria-pressed={Boolean(state?.completed)}
+                onClick={() => onToggle(game.slug, 'completed', !state?.completed)}
+              >
+                <Icon name={state?.completed ? 'check' : 'plus'} />
+                Completed
+              </button>
+              <button className="icon-button share-detail" aria-label={`Share ${game.title}`} onClick={onShare}>
+                <Icon name="share" />
+              </button>
+            </div>
+          </div>
         </div>
         <p className="device-note">
           {mode.scope === 'guest'

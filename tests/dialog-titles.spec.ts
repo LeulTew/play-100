@@ -1,7 +1,92 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { parseCollection } from '../src/lib/collection';
 import { emptyCatalogs } from './catalog-helpers';
 import { openMenu } from './readability-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+
+const games = parseCollection(
+  JSON.parse(readFileSync(new URL('../data/collection.json', import.meta.url), 'utf8')),
+).games;
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1024, height: 768 },
+]) {
+  test(`every canonical detail keeps complete rationale before first-view actions at ${viewport.width}x${viewport.height}`, async ({
+    page,
+    baseURL,
+  }) => {
+    test.setTimeout(120_000);
+    expect(['127.0.0.1', 'localhost']).toContain(new URL(baseURL!).hostname);
+    await page.setViewportSize(viewport);
+    await emptyCatalogs(page);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(`/?catalogs=off&game=${games[0]!.slug}`);
+    const dialog = page.locator('.game-dialog[open]');
+    await expect(dialog).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    for (const [index, game] of games.entries()) {
+      await expect(dialog.locator('#game-title')).toHaveText(game.title);
+      await expect(dialog.locator('#game-title')).toBeFocused();
+      await expect(dialog.locator('.rationale')).toHaveText(game.rationale);
+      if (game.sourceNote)
+        await expect(dialog.locator('.detail-top .source-note').filter({ hasText: game.sourceNote })).toContainText(
+          game.sourceNote,
+        );
+      if (game.slug === 'hitman-world-of-assassination')
+        await expect(dialog.locator('.detail-top .source-note')).toContainText('HITMAN III-branded artwork');
+      const geometry = await dialog.evaluate((element) => {
+        const drawer = element.getBoundingClientRect();
+        const rationale = element.querySelector('.rationale')!.getBoundingClientRect();
+        const rating = element.querySelector('.author-rating-detail')!.getBoundingClientRect();
+        const actions = element.querySelector('.detail-actions')!.getBoundingClientRect();
+        const artwork = element.querySelector('.detail-art')!.getBoundingClientRect();
+        return {
+          scrollTop: element.scrollTop,
+          contentWidth: element.scrollWidth,
+          width: element.clientWidth,
+          rationaleBottom: rationale.bottom,
+          noteBottom: Math.max(
+            0,
+            ...[...element.querySelectorAll('.detail-top .source-note')].map(
+              (note) => note.getBoundingClientRect().bottom,
+            ),
+          ),
+          actionsTop: actions.top,
+          actionsBottom: actions.bottom,
+          viewBottom: Math.min(innerHeight, drawer.bottom),
+          ratingLeft: rating.left,
+          rationaleLeft: rationale.left,
+          rationaleRight: rationale.right,
+          artworkLeft: artwork.left,
+          controls: [...element.querySelectorAll('.detail-actions button')].map((button) => {
+            const rect = button.getBoundingClientRect();
+            return {
+              width: rect.width,
+              height: rect.height,
+              hit: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
+            };
+          }),
+        };
+      });
+      const label = `${game.rank}: ${game.title}`;
+      expect(geometry.scrollTop, label).toBe(0);
+      expect(geometry.rationaleBottom, label).toBeLessThan(geometry.actionsTop);
+      expect(geometry.noteBottom, label).toBeLessThan(geometry.actionsTop);
+      expect(geometry.actionsBottom, label).toBeLessThanOrEqual(geometry.viewBottom);
+      expect(geometry.contentWidth, label).toBeLessThanOrEqual(geometry.width);
+      expect(Math.abs(geometry.ratingLeft - geometry.rationaleLeft), label).toBeLessThanOrEqual(1);
+      expect(geometry.artworkLeft, label).toBeGreaterThan(geometry.rationaleRight);
+      for (const control of geometry.controls) {
+        expect(control.width, label).toBeGreaterThanOrEqual(44);
+        expect(control.height, label).toBeGreaterThanOrEqual(44);
+        expect(control.hit, label).toBe(true);
+      }
+      if (index < games.length - 1) await dialog.getByRole('button', { name: 'Next game', exact: true }).click();
+    }
+  });
+}
 
 test('Settings exposes Export and Import without scrolling at 1440x900', async ({ page, baseURL }) => {
   expect(['127.0.0.1', 'localhost']).toContain(new URL(baseURL!).hostname);

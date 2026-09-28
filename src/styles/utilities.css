@@ -617,13 +617,13 @@ html[data-motion='off']
   .detail-place {
     font-size: 12px;
     gap: 8px;
-    margin-block: 5px 24px;
+    margin-block: 5px 16px;
   }
   .detail-place > span:last-child {
     font-size: 12px;
   }
   .game-dialog h2 {
-    font-size: 46px;
+    font-size: 40px;
   }
   .detail-byline {
     font-size: 13px;
@@ -643,14 +643,6 @@ html[data-motion='off']
   }
   .share-detail {
     margin-left: 0;
-  }
-  .detail-cover {
-    margin-top: 18px;
-  }
-  .detail-cover .cover-rank {
-    min-width: 58px;
-    height: 59px;
-    font-size: 44px;
   }
   .detail-cover .game-cover.has-cover {
     aspect-ratio: 1.5;

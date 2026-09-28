@@ -18,7 +18,7 @@ test('canonical rationale stays complete before bookkeeping at narrow, mobile, i
   await expect(dialog.getByRole('heading', { name: game.title, exact: true })).toBeFocused();
   await expect(dialog.locator('.rationale')).toHaveText(game.rationale);
   await expect(dialog.locator('.author-rating-detail')).toContainText("Leul's original rating");
-  for (const width of [320, 393, 768, 1440]) {
+  for (const width of [320, 393, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const geometry = await dialog.evaluate((element) => {
       const rationale = element.querySelector('.rationale')!.getBoundingClientRect();
@@ -26,6 +26,12 @@ test('canonical rationale stays complete before bookkeeping at narrow, mobile, i
       const close = element.querySelector('.dialog-close')!.getBoundingClientRect();
       return {
         rationaleBottom: rationale.bottom,
+        noteBottom: Math.max(
+          0,
+          ...[...element.querySelectorAll('.detail-top .source-note')].map(
+            (note) => note.getBoundingClientRect().bottom,
+          ),
+        ),
         actionsTop: actions.top,
         width: element.clientWidth,
         contentWidth: element.scrollWidth,
@@ -34,6 +40,7 @@ test('canonical rationale stays complete before bookkeeping at narrow, mobile, i
       };
     });
     expect(geometry.rationaleBottom).toBeLessThan(geometry.actionsTop);
+    expect(geometry.noteBottom).toBeLessThan(geometry.actionsTop);
     expect(geometry.contentWidth).toBeLessThanOrEqual(geometry.width);
     expect(geometry.closeWidth).toBeGreaterThanOrEqual(44);
     expect(geometry.closeHeight).toBeGreaterThanOrEqual(44);

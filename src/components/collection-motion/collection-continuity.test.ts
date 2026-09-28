@@ -229,7 +229,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('We preserve all three rather than infer a release or edition.');
   });
 
-  it.each([1, 2, 100])('puts the complete original rationale before bookkeeping for rank %i', (rank) => {
+  it.each([1, 2, 13, 73, 100])('puts the complete original rationale before bookkeeping for rank %i', (rank) => {
     const game = gameAt(rank);
     const html = renderToStaticMarkup(
       h(GameDetail, {
@@ -259,6 +259,10 @@ describe('collection continuity preserves the public presentation', () => {
       );
       expect(html).toContain(note);
       expect(html.indexOf(note)).toBeLessThan(html.indexOf('Existing saved copies'));
+    }
+    if (game.slug === 'hitman-world-of-assassination') {
+      expect(html.indexOf('HITMAN III-branded artwork')).toBeLessThan(html.indexOf('Existing saved copies'));
+      expect(html.indexOf('HITMAN III-branded artwork')).toBeLessThan(html.indexOf('Play later'));
     }
   });
 
