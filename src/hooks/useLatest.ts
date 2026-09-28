@@ -1,4 +1,4 @@
-import { useCallback, useInsertionEffect, useRef } from 'react';
+import { useCallback, useInsertionEffect, useRef, useState } from 'react';
 
 /**
  * The value of the last committed render, for code that runs after render: events, timers, effects and async work.
@@ -17,4 +17,22 @@ export function useLatest<T>(value: T): { readonly current: T } {
 export function useStableHandler<A extends unknown[], R>(handler: (...args: A) => R): (...args: A) => R {
   const latest = useLatest(handler);
   return useCallback((...args: A) => latest.current(...args), [latest]);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a handler record takes any parameter list.
+type Handlers<T> = { [K in keyof T]: (...args: any[]) => unknown };
+
+/**
+ * useStableHandler for a record of handlers: each keeps its identity for the component's lifetime. The first render
+ * fixes the keys. Never call one in render; render-time functions (hrefs, render props) need a plain useCallback.
+ */
+export function useStableHandlers<T extends Handlers<T>>(handlers: T): T {
+  const latest = useLatest(handlers);
+  const [stable] = useState(
+    () =>
+      Object.fromEntries(
+        Object.keys(handlers).map((key) => [key, (...args: unknown[]) => latest.current[key as keyof T](...args)]),
+      ) as T,
+  );
+  return stable;
 }

@@ -28,9 +28,19 @@ import { defaultFilters } from '../lib/url';
 // first paint and the hydrated page never differ (docs/first-paint-shell.md).
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const html = read('../../index.html');
-const appSource = read('../App.tsx');
+// App renders AppShell, which renders the landing structure; useOnlineState derives the header's library label and
+// useAppCapabilities the first commit's motion hint.
+const shellSource = read('../components/app/AppShell.tsx');
 const routeHostSource = read('../components/app/RouteHost.tsx');
-const appSyntax = ts.createSourceFile('App.tsx', appSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const onlineStateSource = read('../hooks/useOnlineState.ts');
+const capabilitiesSource = read('../hooks/useAppCapabilities.ts');
+const onlineStateSyntax = ts.createSourceFile(
+  'useOnlineState.ts',
+  onlineStateSource,
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TS,
+);
 const VARIANTS = ['offline', 'online'] as const;
 const STILL = /<svg class="artifact-still"[\s\S]*?<\/svg>/;
 
@@ -139,7 +149,7 @@ describe("first-paint shell parity with React's first commit", () => {
   });
 
   it("keeps App's landing structure: skip link, header, main and the route wrapper", () => {
-    const calls = jsxCalls(appSource);
+    const calls = jsxCalls(shellSource);
     const skip = calls.find((call) => {
       const tag = call.arguments[0];
       const className = property(call.arguments[1], 'className');
@@ -214,7 +224,7 @@ describe("first-paint shell parity with React's first commit", () => {
         // App's first commit is still opening the account whenever online tools exist.
         libraryLabel: online
           ? firstBranch(
-              sourceNodes(appSyntax, ts.isPropertyAssignment).find(
+              sourceNodes(onlineStateSyntax, ts.isPropertyAssignment).find(
                 (item) =>
                   ts.isIdentifier(item.name) &&
                   item.name.text === 'label' &&
@@ -346,7 +356,7 @@ describe("first-paint shell parity with React's first commit", () => {
     const snapshot = main.indexOf(sourceTokens("snapshotMotionHint('guest');"));
     expect(snapshot).toBeGreaterThan(-1);
     expect(snapshot).toBeLessThan(main.indexOf(sourceTokens('startGuestLibraryLoad();')));
-    expect(sourceTokens(appSource, ts.ScriptKind.TSX)).toContain(
+    expect(sourceTokens(capabilitiesSource, ts.ScriptKind.TS)).toContain(
       sourceTokens('const motionHint = useMemo(() => startupMotionHint(libraryScope), [libraryScope]);'),
     );
   });

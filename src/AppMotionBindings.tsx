@@ -23,7 +23,7 @@ interface OriginTicket extends PreparedPreview {
   readonly expectedNavigation: number;
 }
 
-interface MotionBindings {
+export interface MotionBindings {
   openCollection(slug: string, hint?: MotionOriginHint): void;
   preview(record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint): void;
   previewFromDiscover(record: LibraryRecord, hint?: MotionOriginHint): void;
@@ -48,7 +48,7 @@ export function AppMotionBindings({
   page: AppPage;
   boundary: MotionBoundary;
   motionLocation: MotionLocation;
-  navigation: RefObject<number>;
+  navigation: Readonly<{ current: number }>;
   blocked: boolean;
   onOpen: (id: string) => void;
   preparePreview: (record: LibraryRecord, authority?: PreviewAuthority) => PreparedPreview | null;
