@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
-const compare = (page: Page) => page.getByRole('button', { name: 'Compare rankings with friends', exact: true });
+const compare = (page: Page) => page.locator('.compare-tray-expand');
 const chip = (page: Page) => page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true });
 const signIn = (page: Page) => page.getByRole('dialog', { name: 'Sign in', exact: true });
 const account = (page: Page) => page.locator('.account-nav');
@@ -55,7 +55,7 @@ async function fullDock(page: Page) {
 }
 
 async function compareFromChip(page: Page) {
-  await expect(compare(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toHaveCount(0);
   await chip(page).focus();
   await page.keyboard.press('Enter');
   const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
@@ -63,6 +63,13 @@ async function compareFromChip(page: Page) {
   await tray.getByRole('button', { name: 'Choose friends', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(tray).not.toBeVisible();
+}
+
+async function chooseFriends(page: Page) {
+  await page
+    .getByRole('dialog', { name: 'Compare tray', exact: true })
+    .getByRole('button', { name: 'Choose friends', exact: true })
+    .click();
 }
 
 async function readyAccount(page: Page) {
@@ -115,6 +122,7 @@ test('ready Compare keyboard device exit restores the remounted action while its
   await compare(page).focus();
   const began = Date.now();
   await page.keyboard.press('Enter');
+  await chooseFriends(page);
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
   await expectComparePurpose(page);
   await nativeDeviceExit(page);
@@ -169,6 +177,7 @@ test('cold loading to ready Sign in keeps the Compare origin until the final nat
   try {
     await compare(page).focus();
     await page.keyboard.press('Enter');
+    await chooseFriends(page);
     await held.began;
     await expect(page.locator('#loading-account-title')).toBeFocused();
     held.release();
@@ -225,6 +234,7 @@ for (const returnToFallback of [false, true]) {
     const held = await holdAccountModule(page);
     try {
       await compare(page).click();
+      await chooseFriends(page);
       await held.began;
       await expect(page.locator('#loading-account-title')).toBeFocused();
       await page.keyboard.press('Escape');
@@ -255,6 +265,7 @@ test('native Back cancels a cold comparison return before the account module fin
   const held = await holdAccountModule(page);
   try {
     await compare(page).click();
+    await chooseFriends(page);
     await held.began;
     await expect(page.locator('#loading-account-title')).toBeFocused();
     await page.keyboard.press('Escape');

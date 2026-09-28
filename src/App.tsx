@@ -850,9 +850,9 @@ export default function App() {
                   const dragHandle = (record: LibraryRecord) =>
                     !onlineOpening && <CompareDragHandle record={record} compact />;
                   const inlineTray = page === 'collection' && filters.view === 'table' && collection.status === 'ready';
-                  const inlineTrayError = inlineTray && !motionBlocked ? tray.error : null;
+                  const trayError = !motionBlocked ? tray.error : null;
                   // Tray errors use the existing polite provider status; the toast supplies their visible copy.
-                  const currentNotice = inlineTrayError || visibleNotice;
+                  const currentNotice = trayError || visibleNotice;
                   const comparisonTray = (
                     <TrayHost
                       page={page}
@@ -1242,8 +1242,8 @@ export default function App() {
                       />
                       <div
                         className={`toast ${currentNotice || toastRecovery ? 'toast-visible' : ''}`}
-                        role={toastRecovery || inlineTrayError ? undefined : 'status'}
-                        aria-live={toastRecovery || inlineTrayError ? undefined : 'polite'}
+                        role={toastRecovery || trayError ? undefined : 'status'}
+                        aria-live={toastRecovery || trayError ? undefined : 'polite'}
                         aria-atomic="true"
                       >
                         {toastRecovery ? (
@@ -1269,7 +1269,7 @@ export default function App() {
                                 className="icon-button"
                                 aria-label="Dismiss notification"
                                 onClick={() => {
-                                  if (inlineTrayError) tray.dismissError();
+                                  if (trayError) tray.dismissError();
                                   else {
                                     setNotice('');
                                     if (!panelRecovery) dismissPanelMessage();

@@ -25,6 +25,8 @@ async function readNavigation(page: Page) {
       scale: visualViewport?.scale,
       overflow: document.documentElement.scrollWidth > innerWidth,
       nav: bounds.toJSON(),
+      compareReserved: Boolean(document.querySelector('.compare-tray-reserve')),
+      dockTop: dock?.top ?? null,
       dockBottom: dock?.bottom ?? null,
       items: [...nav.children].map((item) => {
         const rect = item.getBoundingClientRect();
@@ -54,16 +56,20 @@ async function assertNavigation(page: Page) {
   expect(actual.items.map((item) => item.label)).toEqual(labels);
   expect(actual.items.map((item) => item.font)).toEqual([12, 12, 12, 12, 12]);
   expect(actual.overflow).toBe(false);
-  expect(actual.nav.height).toBe(66);
+  expect(actual.nav.height).toBeGreaterThanOrEqual(66);
+  if (!actual.compareReserved) expect(actual.nav.height).toBe(66);
   for (const item of actual.items) {
-    expect(item.width).toBeGreaterThanOrEqual(48);
+    expect(item.width).toBeGreaterThanOrEqual(actual.compareReserved ? 44 : 48);
     expect(item.height).toBeGreaterThanOrEqual(48);
     expect(item.labelWidth).toBeLessThanOrEqual(item.width);
-    expect(item.labelHeight).toBeLessThanOrEqual(22);
+    expect(item.labelHeight).toBeLessThanOrEqual(actual.compareReserved ? 44 : 22);
     expect(item.inside).toBe(true);
     expect(item.hit).toBe(true);
   }
-  if (actual.dockBottom !== null) expect(actual.dockBottom).toBeLessThanOrEqual(actual.nav.top - 8);
+  if (actual.dockBottom !== null) {
+    expect(actual.dockTop).toBeGreaterThanOrEqual(actual.nav.top);
+    expect(actual.dockBottom).toBeLessThanOrEqual(actual.nav.bottom);
+  }
   return actual;
 }
 

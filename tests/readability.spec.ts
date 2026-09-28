@@ -56,7 +56,7 @@ async function surfaces(page: Page, spacing = false) {
   await audit('Pinned comparison dock');
   if (await page.evaluate(() => matchMedia('(forced-colors: active)').matches)) {
     const borders = await page
-      .locator('.compare-tray-dock, .compare-tray-action, .search-field, .game-cover')
+      .locator('.compare-tray-dock, .search-field, .game-cover')
       .evaluateAll((elements) =>
         elements.map((element) => ({
           selector: element.className,
@@ -68,9 +68,8 @@ async function surfaces(page: Page, spacing = false) {
       borders.every((border) => border.style === 'solid' && border.width >= 1),
       JSON.stringify(borders),
     ).toBe(true);
-    expect(
-      await page.locator('.compare-tray-action svg').evaluate((element) => getComputedStyle(element).stroke),
-    ).not.toBe('none');
+    await page.locator('.compare-tray-expand').focus();
+    await expect(page.locator('.compare-tray-expand')).toHaveCSS('outline-style', 'solid');
   }
   await page.locator('.game-card .game-link').first().click();
   await expect(page.locator('#game-title')).toBeVisible();

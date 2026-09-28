@@ -180,15 +180,21 @@ for (const spacing of ['default', 'WCAG text spacing'] as const) {
       const dock = element.getBoundingClientRect();
       const count = element.querySelector('.compare-tray-expand strong')!;
       const countRange = document.createRange();
-      countRange.selectNodeContents(count);
+      if (!count.firstChild) throw new Error('The chip needs a visible count.');
+      countRange.selectNodeContents(count.firstChild);
       const overflows: string[] = [];
-      const buttons = [...element.querySelectorAll('button')];
+      const buttons = [...element.querySelectorAll('button')].filter((button) => button.checkVisibility());
       for (const button of buttons) {
         const box = button.getBoundingClientRect();
         const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
         while (walker.nextNode()) {
           const text = walker.currentNode;
-          if (!text.textContent?.trim() || !text.parentElement?.checkVisibility()) continue;
+          if (
+            !text.textContent?.trim() ||
+            text.parentElement?.closest('.sr-only') ||
+            !text.parentElement?.checkVisibility()
+          )
+            continue;
           const range = document.createRange();
           range.selectNodeContents(text);
           if (
@@ -210,6 +216,8 @@ for (const spacing of ['default', 'WCAG text spacing'] as const) {
         ).size,
         height: dock.height,
         bottom: dock.bottom,
+        top: dock.top,
+        navBottom: document.querySelector('.mobile-nav')!.getBoundingClientRect().bottom,
         navTop: document.querySelector('.mobile-nav')!.getBoundingClientRect().top,
         targets: buttons.map((button) => button.getBoundingClientRect().height),
         overflows,
@@ -219,7 +227,8 @@ for (const spacing of ['default', 'WCAG text spacing'] as const) {
     expect(geometry.lines).toBe(1);
     expect(geometry.overflows).toEqual([]);
     expect(geometry.height).toBeLessThanOrEqual(spacing === 'default' ? 72 : 112);
-    expect(geometry.bottom).toBeLessThan(geometry.navTop);
+    expect(geometry.top).toBeGreaterThanOrEqual(geometry.navTop);
+    expect(geometry.bottom).toBeLessThanOrEqual(geometry.navBottom);
     expect(geometry.targets.every((height) => height >= 44)).toBe(true);
     expect(geometry.width).toBe(320);
   });

@@ -77,8 +77,6 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
   await expect(rating(page)).toBeEnabled();
   await page.getByRole('button', { name: `Pin for comparison: ${target.title}`, exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
-  if (entry === 'dock')
-    await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toBeVisible();
   // Warm the actual comparison tools, not a replacement callback, so Compare reaches the held editor directly.
   await page.evaluate(async () => {
     const toolsPath = '/src/lib/app-tool-preload.ts';
@@ -88,11 +86,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
   return uid;
 }
 
-async function chooseCompare(page: Page, entry: 'dock' | 'expanded') {
-  if (entry === 'dock') {
-    await page.getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();
-    return;
-  }
+async function chooseCompare(page: Page) {
   await page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true }).click();
   await expect(tray(page)).toBeVisible();
   await tray(page).getByRole('button', { name: 'Choose friends', exact: true }).click();
@@ -171,7 +165,7 @@ for (const entry of ['dock', 'expanded'] as const) {
           await expect.poll(() => rejected.evaluate((probe) => probe.state.held)).toBe(true);
           await expect(input).toBeDisabled();
         }
-        await chooseCompare(page, entry);
+        await chooseCompare(page);
         await expect(page).toHaveURL(originalUrl);
         if (rejected) {
           await expect(input).toBeDisabled();
@@ -228,7 +222,7 @@ test('a scope change while signed-in Compare awaits a failed save cancels editor
     await input.fill('7.5');
     await input.press('Tab');
     await expect.poll(() => rejected.evaluate((probe) => probe.state.held)).toBe(true);
-    await chooseCompare(page, 'expanded');
+    await chooseCompare(page);
     await expect(input).toBeDisabled();
     await peer.getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(page.locator('.account-nav')).toHaveAccessibleName('Account Device only');

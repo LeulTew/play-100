@@ -2,6 +2,160 @@ import { expect, test } from '@playwright/test';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { closeDialog } from './readability-helpers';
+import { emptyCatalogs } from './catalog-helpers';
+
+const browsingTargets =
+  ':is(.game-card, .discovery-card, .personal-row-static) :is(h3, button, a[href], input, select, textarea, summary)';
+
+for (const viewport of [
+  { width: 320, height: 568 },
+  { width: 360, height: 800 },
+  { width: 393, height: 851 },
+  { width: 768, height: 1024 },
+  { width: 851, height: 393 },
+  { width: 1024, height: 900 },
+  { width: 1440, height: 1000 },
+  { width: 1920, height: 1080 },
+]) {
+  for (const route of [
+    { url: '/?catalogs=off', rows: '.game-card' },
+    { url: '/discover?catalogs=off', rows: '.discovery-cards > .discovery-card' },
+    { url: '/my-games?tab=library&catalogs=off', rows: '.personal-row-static' },
+  ]) {
+    test(`Compare stays outside browsing at ${viewport.width}x${viewport.height} on ${route.url}`, async ({
+      page,
+      isMobile,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await emptyCatalogs(page);
+      await installGuestLibrary(page, libraryFixture(100));
+      await page.evaluate((items) => {
+        localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items }));
+      }, libraryRecords.slice(0, 3));
+      await page.goto(route.url);
+      const rows = page.locator(route.rows);
+      await expect(rows).toHaveCount(route.url.startsWith('/my-games') ? 25 : 24);
+      await page.evaluate(() => document.fonts.ready);
+      const chip = page.getByRole('button', { name: 'Open Compare tray, 3 games', exact: true });
+      await expect(chip).toBeVisible();
+      const before = await readLibrary(page);
+      for (const index of [0, 12, 23]) {
+        await rows.nth(index).evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+        await page.evaluate(
+          () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+        );
+        const geometry = await page.evaluate((selector) => {
+          const dock = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
+          const header = document.querySelector('.site-header')!.getBoundingClientRect();
+          const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
+          const floor = nav.height ? nav.top : innerHeight;
+          const intersects = (box: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>) =>
+            box.left < dock.right && box.right > dock.left && box.top < dock.bottom && box.bottom > dock.top;
+          const visible = [...document.querySelectorAll<HTMLElement>(selector)].filter(
+            (element) =>
+              !element.closest('[hidden], [inert], dialog:not([open]), .sr-only') &&
+              element.checkVisibility({ checkVisibilityCSS: true }),
+          );
+          // The existing header/nav bands are not browsing space. Compare may share that band, never its links.
+          const painted = visible
+            .map((element) => {
+              const box = element.getBoundingClientRect();
+              return {
+                name: element.getAttribute('aria-label') || element.textContent?.trim().slice(0, 90),
+                left: Math.max(0, box.left),
+                right: Math.min(innerWidth, box.right),
+                top: Math.max(header.bottom, box.top),
+                bottom: Math.min(floor, box.bottom),
+              };
+            })
+            .filter((box) => box.right > box.left && box.bottom > box.top);
+          return {
+            inspected: painted.length,
+            collisions: painted.filter(intersects),
+            navigationCollisions: [...document.querySelectorAll('.mobile-nav > *')]
+              .filter((element) => element.checkVisibility())
+              .map((element) => element.getBoundingClientRect())
+              .filter(intersects).length,
+            chipFits:
+              dock.left >= 0 && dock.right <= innerWidth && dock.bottom <= innerHeight && dock.top >= header.bottom,
+            sharesNavBand: !nav.height || dock.top >= nav.top,
+            overflow: document.documentElement.scrollWidth > innerWidth,
+            padding: parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom),
+            navHeight: nav.height,
+          };
+        }, browsingTargets);
+        expect(geometry.inspected).toBeGreaterThan(0);
+        expect(geometry.collisions).toEqual([]);
+        expect(geometry.navigationCollisions).toBe(0);
+        expect(geometry.chipFits).toBe(true);
+        expect(geometry.sharesNavBand).toBe(true);
+        expect(geometry.overflow).toBe(false);
+        expect(geometry.padding).toBeGreaterThanOrEqual(geometry.navHeight);
+
+        const controls = page.locator(browsingTargets).filter({ visible: true });
+        const first = await controls.evaluateAll((elements) => {
+          const top = document.querySelector('.site-header')!.getBoundingClientRect().bottom;
+          const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
+          return elements.findIndex((element) => {
+            const box = element.getBoundingClientRect();
+            return (
+              element.matches('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), summary') &&
+              !element.closest('[aria-hidden="true"]') &&
+              box.top >= top &&
+              box.bottom <= (nav.height ? nav.top : innerHeight)
+            );
+          });
+        });
+        expect(first).toBeGreaterThanOrEqual(0);
+        await controls.nth(first).focus();
+        let checkedFocus = 0;
+        for (let step = 0; step < 6; step++) {
+          const focused = await page.evaluate(() => {
+            const target = document.activeElement;
+            if (!(target instanceof HTMLElement)) throw new Error('A real control must own keyboard focus.');
+            const box = target.getBoundingClientRect();
+            const dock = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
+            const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
+            const header = document.querySelector('.site-header')!.getBoundingClientRect();
+            return {
+              browsing: Boolean(target.closest('.game-card, .discovery-card, .personal-row-static')),
+              visible:
+                box.top >= header.bottom &&
+                box.bottom <= (nav.height ? nav.top : innerHeight) &&
+                box.left >= 0 &&
+                box.right <= innerWidth,
+              clear:
+                box.right <= dock.left || box.left >= dock.right || box.bottom <= dock.top || box.top >= dock.bottom,
+              hit: target.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
+            };
+          });
+          if (!focused.browsing) break;
+          expect(focused.visible).toBe(true);
+          expect(focused.clear).toBe(true);
+          expect(focused.hit).toBe(true);
+          checkedFocus += 1;
+          await page.keyboard.press('Tab');
+        }
+        expect(checkedFocus).toBeGreaterThan(0);
+      }
+      await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+      const end = await page.evaluate((rowSelector) => {
+        const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
+        const last = [...document.querySelectorAll(rowSelector)].at(-1)!.getBoundingClientRect();
+        return { last: last.bottom, floor: nav.height ? nav.top : innerHeight };
+      }, route.rows);
+      expect(end.last).toBeLessThanOrEqual(end.floor);
+      if (isMobile) await chip.tap();
+      else await chip.click();
+      await expect(page.getByRole('dialog', { name: 'Compare tray', exact: true })).toBeVisible();
+      await expect(page.locator('.compare-tray-games > li')).toHaveCount(3);
+      await closeDialog(page);
+      await expect(chip).toBeFocused();
+      expect(await readLibrary(page)).toEqual(before);
+    });
+  }
+}
 
 for (const narrow of [false, true]) {
   for (const occupied of [false, true]) {
@@ -141,7 +295,7 @@ for (const width of [320, 393, 768, 1440]) {
     }
 
     const dock = page.locator('.compare-tray-dock');
-    await expect(dock.locator('.compare-tray-error')).toContainText('six games');
+    await expect(page.locator('.toast-visible')).toContainText('six games');
     const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true });
     await expect(failedPin).toBeFocused();
     const failedHit = await failedPin.evaluate((element) => {
@@ -149,27 +303,22 @@ for (const width of [320, 393, 768, 1440]) {
       return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
     });
     expect(failedHit).toBe(true);
-    const action = dock.locator('.compare-tray-action');
+    const action = dock.locator('.compare-tray-expand');
     await expect(action).toBeVisible();
-    await expect(action).toHaveCSS('padding-inline-start', width <= 360 ? '12px' : '22px');
-    await expect(action).toHaveCSS('padding-inline-end', width <= 360 ? '12px' : '22px');
-    await expect(action).toHaveCSS('min-height', '48px');
-    await expect(action).toHaveCSS('font-size', '15px');
     const errorBounds = await dock.evaluate((element) => {
       const dock = element.getBoundingClientRect();
-      const error = element.querySelector('.compare-tray-error')!.getBoundingClientRect();
+      const error = document.querySelector('.toast-visible')!.getBoundingClientRect();
       const reserve = document.querySelector('.compare-tray-reserve')!.getBoundingClientRect();
       return {
-        errorTop: error.top,
-        errorBottom: error.bottom,
-        dockTop: dock.top,
-        dockBottom: dock.bottom,
+        errorVisible: error.top >= 0 && error.bottom <= innerHeight,
+        clear:
+          error.right <= dock.left || error.left >= dock.right || error.bottom <= dock.top || error.top >= dock.bottom,
         reserve: reserve.height,
-        occupied: innerHeight - dock.top,
+        occupied: document.querySelector('.mobile-nav')!.getBoundingClientRect().height,
       };
     });
-    expect(errorBounds.errorTop).toBeGreaterThanOrEqual(errorBounds.dockTop);
-    expect(errorBounds.errorBottom).toBeLessThanOrEqual(errorBounds.dockBottom);
+    expect(errorBounds.errorVisible).toBe(true);
+    expect(errorBounds.clear).toBe(true);
     expect(errorBounds.reserve).toBeGreaterThanOrEqual(errorBounds.occupied);
     const completed = page
       .locator('.game-card')
@@ -183,9 +332,8 @@ for (const width of [320, 393, 768, 1440]) {
     expect(hit).toBe(true);
     await completed.press('Enter');
     await expect(completed).toHaveAttribute('aria-pressed', 'true');
-    await dock.getByRole('button', { name: 'Dismiss Compare tray message', exact: true }).click();
-    await expect(dock.locator('.compare-tray-error')).toHaveCount(0);
-    await expect(dock.locator('.compare-tray-expand')).toBeFocused();
+    await page.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+    await expect(page.locator('.toast-visible')).not.toContainText('six games');
     const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
     const before = await readLibrary(page);
     for (const route of [
@@ -204,12 +352,12 @@ for (const width of [320, 393, 768, 1440]) {
       await expect(page.locator('.compare-tray-expand')).toContainText('Compare tray');
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       const geometry = await page.evaluate(() => {
-        const dock = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
         const footer = document.querySelector('.site-footer')!.getBoundingClientRect();
         const button = document.querySelector('.compare-tray-expand')!.getBoundingClientRect();
         const manual = document.querySelector('.manual-add summary')?.getBoundingClientRect();
+        const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
         return {
-          dockTop: dock.top,
+          floor: nav.height ? nav.top : innerHeight,
           footerBottom: footer.bottom,
           manualBottom: manual?.bottom,
           buttonWidth: button.width,
@@ -218,8 +366,8 @@ for (const width of [320, 393, 768, 1440]) {
           viewport: innerWidth,
         };
       });
-      expect(geometry.footerBottom).toBeLessThanOrEqual(geometry.dockTop);
-      if (geometry.manualBottom !== undefined) expect(geometry.manualBottom).toBeLessThanOrEqual(geometry.dockTop);
+      expect(geometry.footerBottom).toBeLessThanOrEqual(geometry.floor);
+      if (geometry.manualBottom !== undefined) expect(geometry.manualBottom).toBeLessThanOrEqual(geometry.floor);
       expect(geometry.buttonWidth).toBeGreaterThanOrEqual(44);
       expect(geometry.buttonHeight).toBeGreaterThanOrEqual(44);
       expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);

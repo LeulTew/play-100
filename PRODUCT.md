@@ -127,9 +127,10 @@ until one explicit, inline **Share all with friends** action.
 - The comparison tray leads to friends' rankings, not an anonymous game-spec
   comparison. Its per-game Artwork credits disclosure retains the full original
   credit, license/source links, conversion notices and caveats.
-  On mobile, an active dock compacts only collection-toolbar spacing so Explore
-  keeps the first game identity clear of both the dock and navigation, without
-  shrinking controls or artwork. An empty tray retains the ordinary spacing.
+  A pinned-count chip opens the tray in one action, outside the browsing column
+  on wider screens or in a separate slot of the mobile navigation band. It does
+  not float over mid-page cards. The empty tray retains ordinary page spacing;
+  the larger transient drop target appears only during an explicit drag.
 - Discover starts with 810 verified provider records and 220 illustrated
   records using licensed local images; unavailable art is labelled honestly.
   Seed browsing/search is public and independent of account/storage/provider

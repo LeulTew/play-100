@@ -94,22 +94,26 @@ function ScopedCompareTray({
       }
     }
     if (
-      error &&
-      layout !== 'inline' &&
-      node &&
+      hasContent &&
+      !hidden &&
+      !dragging &&
+      layout === 'dock' &&
       focused instanceof HTMLElement &&
-      focused.closest('.game-card, .discovery-card, .ratings-table, .personal-records')
+      focused.closest('.game-card, .discovery-card, .personal-records')
     ) {
       const target = focused.getBoundingClientRect();
-      const obstruction = node.getBoundingClientRect();
+      const obstruction = error ? toast?.getBoundingClientRect() : null;
+      const floor = window.innerHeight - (navigation?.getBoundingClientRect().height ?? 0);
       if (
-        target.bottom > obstruction.top &&
-        target.top < obstruction.bottom &&
-        target.right > obstruction.left &&
-        target.left < obstruction.right
-      ) {
+        target.bottom > floor ||
+        target.top < (header?.getBoundingClientRect().bottom ?? 0) ||
+        (obstruction &&
+          target.bottom > obstruction.top &&
+          target.top < obstruction.bottom &&
+          target.right > obstruction.left &&
+          target.left < obstruction.right)
+      )
         focused.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-      }
     }
     const observer = new ResizeObserver(measure);
     [header, navigation, toast, node].forEach((element) => {
@@ -147,7 +151,7 @@ function ScopedCompareTray({
   };
   return (
     <>
-      {layout === 'dock' && hasContent && !hidden && (
+      {layout === 'dock' && hasContent && (
         <div className="compare-tray-reserve" data-error={Boolean(error)} aria-hidden="true" />
       )}
       {hasTray && !hidden && (
@@ -188,9 +192,28 @@ function ScopedCompareTray({
               ))}
             </span>
             <span>
-              <span>{persistent ? 'Compare tray' : 'Temporary tray'}</span>{' '}
+              <span>
+                {layout === 'dock' ? (
+                  persistent ? (
+                    <>
+                      Compare<span className="sr-only"> tray</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="sr-only">Temporary </span>tray
+                    </>
+                  )
+                ) : persistent ? (
+                  'Compare tray'
+                ) : (
+                  'Temporary tray'
+                )}
+              </span>{' '}
               <strong>
-                {items.length} {items.length === 1 ? 'game' : 'games'}
+                {items.length}{' '}
+                <span className={layout === 'dock' ? 'sr-only' : undefined}>
+                  {items.length === 1 ? 'game' : 'games'}
+                </span>
               </strong>
             </span>
             <Icon name="up" width="16" height="16" />
@@ -217,7 +240,7 @@ function ScopedCompareTray({
               <Icon name="info" width="17" height="17" />
             </span>
           )}
-          {error && (
+          {error && layout === 'inline' && (
             <div className="compare-tray-error">
               <p>{error}</p>
               <button

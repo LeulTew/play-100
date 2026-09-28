@@ -27,12 +27,12 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       await page.evaluate(() => document.fonts.ready);
       const normal = await page.locator('.mobile-nav').evaluate((element) => ({
         nav: element.getBoundingClientRect().height,
-        gap:
-          element.getBoundingClientRect().top -
-          document.querySelector('.compare-tray-dock')!.getBoundingClientRect().bottom,
+        contained:
+          document.querySelector('.compare-tray-dock')!.getBoundingClientRect().top >=
+          element.getBoundingClientRect().top,
       }));
-      expect(normal.nav).toBe(66);
-      expect(normal.gap).toBe(12);
+      expect(normal.nav).toBeGreaterThanOrEqual(66);
+      expect(normal.contained).toBe(true);
       await page.addStyleTag({ content: textSpacingCSS });
       await openMenu(page);
       await page
@@ -54,7 +54,7 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       const started = Date.now();
       const live = await page.evaluate(() => {
         const dock = document.querySelector('.compare-tray-dock')!;
-        const action = dock.querySelector('.compare-tray-action')!;
+        const action = dock.querySelector('.compare-tray-expand')!;
         const nav = document.querySelector('.mobile-nav')!;
         const toast = document.querySelector('.toast')!;
         const dismiss = toast.querySelector('button')!;
@@ -65,7 +65,7 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
         return {
           visible: toast.classList.contains('toast-visible'),
           navHeight: nav.getBoundingClientRect().height,
-          gap: nav.getBoundingClientRect().top - dock.getBoundingClientRect().bottom,
+          navTop: nav.getBoundingClientRect().top,
           toastBottom: toast.getBoundingClientRect().bottom,
           dockTop: dock.getBoundingClientRect().top,
           compareHit: hit(action),
@@ -77,7 +77,7 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       expect(Date.now() - started).toBeLessThan(4000);
       expect(live.visible).toBe(true);
       expect(live.navHeight).toBeGreaterThanOrEqual(66);
-      expect(live.gap).toBe(12);
+      expect(live.dockTop).toBeGreaterThanOrEqual(live.navTop);
       expect(live.toastBottom).toBeLessThanOrEqual(live.dockTop - 8);
       expect(live.compareHit).toBe(true);
       expect(live.dismissHit).toBe(true);

@@ -414,7 +414,7 @@ describe('tray and image rendering contract', () => {
         ),
       );
       expect(html).not.toContain('<aside');
-      expect(html).not.toContain('compare-tray-reserve');
+      expect(html.includes('compare-tray-reserve')).toBe(hidden);
     }
   });
   it('uses one inline table surface without the fixed-dock end reserve', () => {
@@ -497,9 +497,8 @@ describe('tray and image rendering contract', () => {
     );
     expect(html).toContain(`aria-label="Open ${persistent ? 'Compare tray' : 'Temporary tray'}, 1 game"`);
     // Label in Name (WCAG 2.5.3): visible label, a real space, then the count, in the same order as the name.
-    expect(html).toContain(
-      `<span><span>${persistent ? 'Compare tray' : 'Temporary tray'}</span> <strong>1 game</strong></span>`,
-    );
+    expect(html).toContain(persistent ? 'Compare<span class="sr-only"> tray</span>' : 'Temporary </span>tray');
+    expect(html).toContain('1 <span class="sr-only">game</span>');
   });
   it('retains the compact collection state for real pins and storage messages while dragging', () => {
     for (const content of [

@@ -106,7 +106,7 @@ for (const width of [320, 393]) {
         await prepare(page, total, mode.preference);
         await expect(page.locator('html')).toHaveAttribute('data-motion', mode.name === 'full' ? 'on' : 'off');
         const before = await readLibrary(page);
-        const targets = await page.locator('.compare-tray-dock button').evaluateAll((buttons) =>
+        const targets = await page.locator('.compare-tray-dock button:visible').evaluateAll((buttons) =>
           buttons.map((button) => ({
             width: button.getBoundingClientRect().width,
             height: button.getBoundingClientRect().height,
@@ -171,7 +171,8 @@ for (const mode of modes) {
         for (const record of originals.slice(5, 7)) {
           await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).tap();
         }
-        await expect(page.locator('.compare-tray-dock .compare-tray-error')).toBeVisible();
+        await expect(page.locator('.toast-visible')).toContainText('six games');
+        await page.getByRole('button', { name: 'Dismiss notification', exact: true }).tap();
       }
       const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
       await page.locator('.mobile-nav').getByRole('button', { name: 'Menu', exact: true }).tap();
@@ -194,10 +195,9 @@ for (const mode of modes) {
       await expect(page.locator('.toast-visible')).toContainText('Link copied.');
       const began = Date.now();
       // Measure before attempting Compare: locator auto-wait must not hide a 6.5s obstruction.
-      const live = await page.locator('.compare-tray-action').evaluate((element) => {
+      const live = await page.locator('.compare-tray-expand').evaluate((element) => {
         const action = element.getBoundingClientRect();
         const dock = document.querySelector('.compare-tray-dock')!.getBoundingClientRect();
-        const error = document.querySelector('.compare-tray-dock .compare-tray-error')?.getBoundingClientRect();
         const notice = document.querySelector('.toast')!;
         const toast = notice.getBoundingClientRect();
         const dismiss = notice.querySelector('button')!;
@@ -206,7 +206,7 @@ for (const mode of modes) {
           visible: notice.classList.contains('toast-visible'),
           text: notice.textContent,
           toastBottom: toast.bottom,
-          dockTop: Math.min(dock.top, error?.top ?? dock.top),
+          dockTop: dock.top,
           actionHit: element.contains(
             document.elementFromPoint(action.x + action.width / 2, action.y + action.height / 2),
           ),
@@ -228,13 +228,17 @@ for (const mode of modes) {
       expect(live.announcement).toBe('polite');
       expect(live.role).toBe('status');
       await page.touchscreen.tap(live.action.x, live.action.y);
+      await page
+        .getByRole('dialog', { name: 'Compare tray', exact: true })
+        .getByRole('button', { name: 'Choose friends', exact: true })
+        .tap();
       await expect(page.locator('.toast')).toContainText('Sign in to compare with friends.');
       if (await page.locator('.account-nav').count()) {
         const signIn = page.getByRole('dialog', { name: 'Sign in', exact: true });
         await expect(signIn).toBeVisible();
         await signIn.getByRole('button', { name: 'Keep using this device', exact: true }).tap();
         await expect(signIn).toHaveCount(0);
-        await expect(page.locator('.compare-tray-action')).toBeFocused();
+        await expect(page.locator('.compare-tray-expand')).toBeFocused();
       }
       await expect(page.locator('.toast-visible')).toContainText('Sign in to compare with friends.');
       const dismiss = page.getByRole('button', { name: 'Dismiss notification', exact: true });

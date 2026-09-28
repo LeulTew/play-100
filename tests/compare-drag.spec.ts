@@ -348,7 +348,8 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
     coarse: matchMedia('(pointer: coarse)').matches,
   }));
   expect(geometry.coarse).toBe(true);
-  expect(geometry.dock.bottom).toBeLessThanOrEqual(geometry.nav.top);
+  expect(geometry.dock.top).toBeGreaterThanOrEqual(geometry.nav.top);
+  expect(geometry.dock.bottom).toBeLessThanOrEqual(geometry.nav.bottom);
   expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.width);
   expect(await readLibrary(page)).toEqual(before);
 });

@@ -151,7 +151,7 @@ focus and selected states without depending on lime fills. Native inputs and
 currentColor icons retain the user's palette; do not force brand colors.
 The shared tray observer measures the header, bottom navigation and notification
 as well as the dock for scroll clearance. Ordinary mobile navigation stays
-66px high with a 12px dock gap; increased text spacing may grow it. The ratings
+at least 66px high; labels and increased text spacing may grow it. The ratings
 table alone retains its labelled horizontal scroll region.
 
 **The Rank Rule.** Keep canonical rank visible; sorting changes presentation, never the displayed authored rank.
@@ -233,11 +233,15 @@ and Table; pointer activation keeps its existing focus behavior.
 
 Table view places the Compare tray in its own strip below the table scrollport,
 not over the cells. With pins present, the table and strip fit the usable window;
-the first pin reveals both the tray and the next row action. Other views keep
-the existing dock, and an active drag still exposes the fixed drop target.
-Table pin refusals also appear in the existing viewport toast without scrolling
-or moving focus. The tray's polite status announces the refusal once; dismissing
-its notification clears the same error shown in the strip.
+the first pin reveals both the tray and the next row action. Other views use a
+64px count chip: above 760px it sits in a reserved right gutter; below that it
+occupies its own slot in the existing bottom-navigation band, not above the cards.
+The five navigation targets retain at least 44px each. One activation opens the
+existing native tray and its Choose friends action. No scroll-driven hiding,
+resize loop or automatic expansion changes the chip while reading.
+An active drag alone retains the larger fixed drop target; overlap during that
+explicit gesture is not a resting browsing state. Pin refusals appear in the
+existing viewport notification. The tray's polite status announces them once.
 On narrow windows, a visible toast reserves its measured height and entrance
 clearance in the table's height limit, keeping the inline strip clear without
 changing the desktop layout or moving it into the table scrollport.
@@ -512,22 +516,22 @@ touch and pen no longer enter that grip-capture path.
 
 The six-game comparison tray keeps identities and actions ahead of long artwork
 attribution. The tray and catalog detail use the native Artwork credits
-disclosure; their full source credit and license/source links remain unchanged. Compare is
-visibly labelled **Compare rankings / with friends**, matching the accessible
-name **Compare rankings with friends**. Sheet actions may wrap without changing
+disclosure; their full source credit and license/source links remain unchanged.
+The resting chip shows **Compare** and the exact pinned count; its accessible
+name remains **Open Compare tray, N games**. The table strip retains its direct
+**Compare rankings with friends** action. Sheet actions may wrap without changing
 their purpose or order. Root mobile focus scrolling reserves the
 fixed bottom navigation and safe area, including on recovery controls.
 Primary mobile navigation labels use 12px while retaining the existing
-48px minimum target width, navigation height, spacing and safe-area padding.
+44px minimum target width, navigation height and safe-area padding.
 Its five destinations share one box model (the Menu button adds no padding of
 its own) in five equal columns. A label that needs more room, as under the
 user's text spacing, wraps centred within its own column.
-An active notification clears the measured tray, including its error and
-storage marker, instead of covering Compare. Empty transient drag targets add
-no page spacer. Dismissible limit feedback stays inside the measured dock, and
-the page-end reserve includes the entire dock, mobile navigation and gap.
-Non-collection routes and empty collection results use a labelled chip that
-opens the same native tray dialog. Ratings-table rows retain the same Pin path.
+An active notification clears the measured navigation band instead of covering
+Compare. Empty transient drag targets add no page spacer. The page-end reserve
+and focus scroll padding include the real navigation height and clearance.
+The reserve stays while a modal hides the chip, so underlying content never
+reflows during native open/close. Ratings-table rows retain the same Pin path.
 If limit feedback grows over its focused source, one immediate native scroll
 reveals that control without moving focus.
 Explicit Explore and same-page The 100 navigation use one

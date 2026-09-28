@@ -13,7 +13,7 @@ async function expectNativeLayout(page: Page, selector: string, allowHiddenDock 
           const stack = node.closest('.compare-tray-stack');
           const dock = stack?.closest('.compare-tray-dock');
           if (!stack || !dock) return false;
-          const compact = dock.getAttribute('data-compact') === 'true' && dock.getAttribute('data-dragging') !== 'true';
+          const compact = dock.getAttribute('data-layout') === 'dock' && dock.getAttribute('data-dragging') !== 'true';
           if (!matchMedia('(max-width: 760px)').matches && !compact) return false;
           for (let parent = node.parentElement; parent && stack.contains(parent); parent = parent.parentElement) {
             if (getComputedStyle(parent).display === 'none') return true;
@@ -66,7 +66,7 @@ test('every rendered grid/list cover and original detail uses native layout pixe
   }
 });
 
-test('canonical Discover covers and comparison thumbnails never enlarge workbook art', async ({ page, isMobile }) => {
+test('canonical Discover covers and comparison thumbnails never enlarge workbook art', async ({ page }) => {
   await page.goto('/discover?catalogs=off&source=collection&include100=on');
   await expect(page.locator('.discovery-card')).toHaveCount(24);
   await expectNativeLayout(page, '.discovery-card .game-cover img');
@@ -91,5 +91,5 @@ test('canonical Discover covers and comparison thumbnails never enlarge workbook
   await expect(dock).toBeVisible();
   expect([null, 'false']).toContain(await dock.getAttribute('data-compact'));
   await expect(dock.locator('img[src^="/covers/"]')).toHaveCount(3);
-  await expectNativeLayout(page, '.compare-tray-dock img[src^="/covers/"]', isMobile);
+  await expectNativeLayout(page, '.compare-tray-dock img[src^="/covers/"]', true);
 });

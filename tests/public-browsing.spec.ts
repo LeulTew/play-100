@@ -320,9 +320,8 @@ test('the tray preserves complete art provenance behind a labelled disclosure an
     credited.record,
   );
   await page.goto('/?catalogs=off');
-  await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toBeVisible();
-  await expect(page.locator('.compare-tray-action-context')).toBeVisible();
-  await expect(page.locator('.compare-tray-action')).toHaveText('Compare rankings with friends');
+  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
+  await expect(page.locator('.compare-tray-action')).toBeHidden();
   await page.goto('/discover?catalogs=off');
   await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'true');
   await expect(page.locator('.compare-tray-action')).toBeHidden();
@@ -456,11 +455,13 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
           hits,
           coarse: matchMedia('(pointer: coarse)').matches,
           touch: navigator.maxTouchPoints,
-          targets: [...document.querySelectorAll('.compare-tray-dock button')].map((button) => ({
-            label: button.getAttribute('aria-label') ?? button.textContent,
-            width: button.getBoundingClientRect().width,
-            height: button.getBoundingClientRect().height,
-          })),
+          targets: [...document.querySelectorAll('.compare-tray-dock button')]
+            .filter((button) => button.checkVisibility())
+            .map((button) => ({
+              label: button.getAttribute('aria-label') ?? button.textContent,
+              width: button.getBoundingClientRect().width,
+              height: button.getBoundingClientRect().height,
+            })),
         };
       });
   await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
@@ -487,9 +488,9 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).click();
   await expect(page.locator('.game-card')).toHaveCount(24);
   await expect(page.locator('.compare-tray-dock')).toHaveAttribute('data-compact', 'false');
-  await expect(page.getByRole('button', { name: 'Compare rankings with friends', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open Compare tray, 1 game', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
-  const targetsBefore = await page.locator('.compare-tray-dock button').evaluateAll((buttons) =>
+  const targetsBefore = await page.locator('.compare-tray-dock button:visible').evaluateAll((buttons) =>
     buttons.map((button) => ({
       label: button.getAttribute('aria-label') ?? button.textContent,
       width: button.getBoundingClientRect().width,

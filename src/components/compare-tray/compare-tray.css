@@ -2,25 +2,22 @@
   --compare-tray-bottom: 20px;
 }
 html:has(.compare-tray-dock[data-layout='dock']) {
-  scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 12px);
+  scroll-padding-bottom: calc(var(--mobile-nav-height, 0px) + 16px);
 }
 html:has(.toast-visible) {
   scroll-padding-bottom: calc(25px + var(--toast-height, 64px) + 16px);
 }
 html:has(.compare-tray-dock[data-layout='dock']):has(.toast-visible) {
-  scroll-padding-bottom: calc(
-    var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px + var(--toast-height, 64px) + 16px
-  );
+  scroll-padding-bottom: calc(var(--mobile-nav-height, 0px) + var(--toast-height, 64px) + 36px);
 }
 .compare-tray-reserve {
-  height: calc(var(--compare-tray-height, 88px) + var(--compare-tray-bottom) + 12px);
+  height: calc(var(--mobile-nav-height, 0px) + 16px);
 }
 body:has(.compare-tray-reserve) {
   padding-bottom: 0;
 }
-/* Also clear the toast's existing 15px entrance translation. */
 body:has(.compare-tray-dock[data-layout='dock']) .toast {
-  bottom: calc(var(--compare-tray-bottom) + var(--compare-tray-height, 88px) + 28px);
+  bottom: calc(var(--mobile-nav-height, 0px) + 20px);
 }
 button.compare-drag-handle {
   display: inline-flex;
@@ -66,8 +63,7 @@ button.compare-drag-handle[hidden] {
   inset-inline-end: var(--gutter);
   bottom: var(--compare-tray-bottom);
   display: grid;
-  grid-template-columns: max-content var(--tray-column, minmax(0, 1fr));
-  width: var(--tray-width, auto);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
   gap: 8px 16px;
   max-width: calc(100% - 2 * var(--gutter));
@@ -84,6 +80,28 @@ button.compare-drag-handle[hidden] {
   width: fit-content;
   max-width: 100%;
   margin-block: 12px;
+}
+.compare-tray-dock[data-layout='dock'][data-dragging='false'] {
+  --tray-extra: none;
+  --tray-label: block;
+  grid-template-columns: 1fr;
+  inset-inline: auto 8px;
+  width: 64px;
+  padding: 0;
+}
+.compare-tray-dock[data-layout='dock'] .compare-tray-expand {
+  min-width: 0;
+  padding: 4px 0;
+  justify-content: center;
+  gap: 0;
+}
+.compare-tray-dock[data-layout='dock'] .compare-tray-expand > svg {
+  display: none;
+}
+@media (min-width: 761px) {
+  body:has(.compare-tray-reserve) :is(.hero, .collection-section, .app-page, .workbook-section, .site-footer) {
+    padding-inline-end: max(76px, var(--gutter));
+  }
 }
 .ratings-tray-strip:has(.compare-tray-dock[data-has-content='true']) {
   min-height: calc(var(--compare-tray-height, 88px) + 24px);
@@ -323,16 +341,6 @@ button.compare-tray-action {
 html[data-motion] .compare-tray-sheet[open] .dialog-inner {
   animation: none;
 }
-.compare-tray-dock:is([data-compact='true'], body:has(#collection[data-empty='true']) *) {
-  --tray-label: block;
-}
-.compare-tray-dock:is([data-compact='true'], body:has(#collection[data-empty='true']) *):not([data-dragging='true']) {
-  --tray-column: ;
-  --tray-width: fit-content;
-  --tray-extra: none;
-  --tray-left: auto;
-  --tray-max: calc(100% - 20px);
-}
 @media (max-width: 760px) {
   :root {
     --compare-tray-bottom: calc(var(--mobile-nav-height, calc(66px + env(safe-area-inset-bottom, 0px))) + 12px);
@@ -344,19 +352,19 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
     /* The dismiss target supplies the first-frame minimum before the toast's height observer runs. */
     --inline-toast-clearance: calc(max(44px, var(--toast-height, 64px)) + 28px);
   }
-  body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true']) .collection-title-line {
-    padding-top: 8px;
+  body:has(.compare-tray-reserve) .mobile-nav {
+    padding-inline-end: 78px;
   }
-  body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true']) .collection-search {
-    margin-top: 8px;
+  body:has(.compare-tray-reserve) .mobile-nav > * {
+    min-width: 44px;
   }
-  body:has(.compare-tray-dock[data-layout='dock'][data-has-content='true'])
-    :is(.collection-utilities, .collection-extra-actions) {
-    margin-bottom: 8px;
+  .compare-tray-dock[data-layout='dock'][data-dragging='false'] {
+    z-index: 35;
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   }
   .compare-tray-dock {
-    inset-inline: var(--tray-left, 10px) 10px;
-    max-width: var(--tray-max, none);
+    inset-inline: 10px;
+    max-width: none;
     justify-content: space-between;
     gap: 8px;
     padding: 5px 8px;
