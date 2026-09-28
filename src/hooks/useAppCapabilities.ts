@@ -17,7 +17,12 @@ export function useAppCapabilities(
   const motionHint = useMemo(() => startupMotionHint(libraryScope), [libraryScope]);
   const effectiveMotion = effectiveMotionPreference(libraryStatus, savedMotion, motionHint);
   const motionPending = motionPreferencePending(libraryStatus, motionHint);
-  const capabilities = useCapabilities(effectiveMotion);
+  const { reducedMotion, coarsePointer, hidden, constrained, animate } = useCapabilities(effectiveMotion);
+  // The motion policy context value: one object per change, so useMotionPolicy() consumers skip App's other renders.
+  const capabilities = useMemo(
+    () => ({ reducedMotion, coarsePointer, hidden, constrained, animate }),
+    [reducedMotion, coarsePointer, hidden, constrained, animate],
+  );
   useEffect(() => {
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);

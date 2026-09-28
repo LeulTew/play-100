@@ -3,7 +3,8 @@ import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { advanceGeneration, useCommittedGeneration } from '../../hooks/useCommittedGeneration';
-import { useEquivalentValue } from '../../hooks/useEquivalentValue';
+import { useAppCapabilities } from '../../hooks/useAppCapabilities';
+import { sameFields, useEquivalentValue } from '../../hooks/useEquivalentValue';
 import { useStableHandlers } from '../../hooks/useLatest';
 import { createNoticeStore } from '../../lib/notice-store';
 import CollectionPage from '../CollectionPage';
@@ -52,6 +53,36 @@ describe('App render isolation (PERF-03)', () => {
     expect(held[0]).toBe(held[1]);
     expect(held[2]).toEqual({ id: 2 });
     expect(held[2]).not.toBe(held[1]);
+  });
+
+  it('holds one guest library for a spread of the same parts', () => {
+    const perform = () => true;
+    const snapshot = { status: 'ready', error: null };
+    const libraries = passes(3, (pass) =>
+      useEquivalentValue({ ...snapshot, busy: pass === 2, perform }, sameFields),
+    );
+    expect(libraries[0]).toBe(libraries[1]);
+    expect(libraries[2]?.busy).toBe(true);
+    expect(sameFields({ a: 1 }, { a: 1, b: 2 } as { a: number })).toBe(false);
+  });
+
+  it('holds one motion policy while the capabilities it reads are unchanged', () => {
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) });
+    vi.stubGlobal('document', { hidden: false, documentElement: { dataset: {} } });
+    vi.stubGlobal('navigator', {});
+    try {
+      const policies = passes(3, () => useAppCapabilities('guest', 'ready', 'auto').capabilities);
+      expect(new Set(policies).size).toBe(1);
+      expect(policies[0]).toEqual({
+        reducedMotion: false,
+        coarsePointer: false,
+        hidden: false,
+        constrained: false,
+        animate: true,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('counts generations from the values a render saw, not from how often it rendered', () => {

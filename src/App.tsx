@@ -33,7 +33,7 @@ import { useNavigationScope } from './hooks/useNavigationScope';
 import { actionMessage } from './lib/action-message';
 import { enableOnlineDetails, enterAccount, startComparison } from './lib/app-commands';
 import type { AccountInvocation } from './lib/app-commands';
-import { useEquivalentValue } from './hooks/useEquivalentValue';
+import { sameFields, useEquivalentValue } from './hooks/useEquivalentValue';
 import { useStableHandler, useStableHandlers } from './hooks/useLatest';
 import { useNoticeStore } from './hooks/useNotice';
 import { useGuardedNavigation } from './hooks/useGuardedNavigation';
@@ -53,7 +53,7 @@ export default function App() {
   const invitation = useInvitation();
   const collection = useEquivalentValue(useCollection(), sameCollection);
   const canonicalRecords = useMemo(() => collection.data?.games.map(recordFromGame) ?? [], [collection.data]);
-  const guestLibrary = useLibrary(canonicalRecords, collection.status === 'loading');
+  const guestLibrary = useEquivalentValue(useLibrary(canonicalRecords, collection.status === 'loading'), sameFields);
   const url = useUrlState();
   const { page, game: selectedSlug, gamesView, closeGame, goToPage } = url;
   const filters = useEquivalentValue(url.filters, sameFilters);
