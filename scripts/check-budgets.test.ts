@@ -192,6 +192,22 @@ function lazyRoots(): string[] {
   return [...roots].sort();
 }
 
+/** Route roots the app renders through a guarded deferred module instead of React.lazy(), with the loader that imports each. */
+const DEFERRED_ROOTS: Readonly<Record<string, string>> = {
+  'src/components/CollectionExtras.tsx': 'src/lib/collection-extras-preload.ts',
+};
+
+/** Every deferred root whose loader really imports it through the guarded module helper. */
+function deferredRoots(): string[] {
+  return Object.entries(DEFERRED_ROOTS).map(([root, loaderFile]) => {
+    const target = /create(?:Retryable|Memoized)Module\(\s*\(\)\s*=>\s*import\(\s*'([^']+)'\s*\)\s*\)/.exec(
+      readSource(loaderFile),
+    )?.[1];
+    if (!target || resolveModule(loaderFile, target) !== root) throw new Error(`${loaderFile} does not load ${root}.`);
+    return root;
+  });
+}
+
 describe('offline built-output budgets', () => {
   it.each(['.vite', 'assets/main.js.map'])(
     'rejects deploy-only metadata leak %s even with a valid private manifest',
@@ -637,8 +653,8 @@ describe('offline built-output budgets', () => {
     });
   });
 
-  it('costs every React.lazy() root of the app', async () => {
-    expect(lazyRoots()).toEqual([...ROUTE_ROOTS].sort());
+  it('costs every React.lazy() and guarded deferred root of the app', async () => {
+    expect([...lazyRoots(), ...deferredRoots()].sort()).toEqual([...ROUTE_ROOTS].sort());
     const measured = await measureBuild(await fixture());
     expect(measured.routes.map((route) => route.root).sort()).toEqual([...ROUTE_ROOTS].sort());
   });

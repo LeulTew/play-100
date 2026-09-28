@@ -104,7 +104,7 @@ function DeferredCollection({ input, near = false }: { input: CollectionExtrasPr
       onFocusCapture={(event) => {
         if (event.target instanceof HTMLElement) {
           focusedFilm.current =
-            event.target.id === 'collection-films-title' ? 'heading' : event.target.dataset.filmId ?? null;
+            event.target.id === 'collection-films-title' ? 'heading' : (event.target.dataset.filmId ?? null);
         }
         setRequested(true);
       }}
