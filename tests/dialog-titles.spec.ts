@@ -2,6 +2,46 @@ import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { openMenu } from './readability-helpers';
 
+test('Settings exposes Export and Import without scrolling at 1440x900', async ({ page, baseURL }) => {
+  expect(['127.0.0.1', 'localhost']).toContain(new URL(baseURL!).hostname);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await emptyCatalogs(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?info=settings&catalogs=off');
+  const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
+  await expect(settings.locator('#settings-title')).toBeFocused();
+  await expect(settings.getByRole('button', { name: 'Export my library', exact: true })).toBeEnabled();
+  await expect(settings.getByRole('button', { name: 'Import backup', exact: true })).toBeEnabled();
+  await page.evaluate(() => document.fonts.ready);
+  const layout = await settings.evaluate((dialog) => {
+    const backup = dialog.querySelector('.backup-panel');
+    const preferences = dialog.querySelector('.motion-options');
+    if (!backup || !preferences) throw new Error('Both Settings destinations must remain present.');
+    const bounds = dialog.getBoundingClientRect();
+    const buttons = [...backup.querySelectorAll('button')].slice(0, 2);
+    return {
+      scrollTop: dialog.scrollTop,
+      beforePreferences: Boolean(backup.compareDocumentPosition(preferences) & Node.DOCUMENT_POSITION_FOLLOWING),
+      controls: buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          name: button.textContent?.trim(),
+          visible:
+            rect.top >= Math.max(0, bounds.top) &&
+            rect.bottom <= Math.min(innerHeight, bounds.bottom) &&
+            rect.left >= bounds.left &&
+            rect.right <= bounds.right,
+          hit: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
+        };
+      }),
+    };
+  });
+  expect(layout.scrollTop).toBe(0);
+  expect(layout.beforePreferences).toBe(true);
+  expect(layout.controls.map((button) => button.name)).toEqual(['Export my library', 'Import backup']);
+  expect(layout.controls.every((button) => button.visible && button.hit)).toBe(true);
+});
+
 test('committed Settings and About own the title, and Close restores the route title', async ({
   page,
   context,

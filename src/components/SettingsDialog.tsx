@@ -136,6 +136,13 @@ export function SettingsDialog({
         </div>
       )}
       {offlineControls}
+      <BackupPanel
+        state={state}
+        busy={busy}
+        persistent={persistent}
+        onRestore={onRestore}
+        onActionStart={() => setResetMessage('')}
+      />
       <fieldset className="motion-options">
         <legend>Visual experience</legend>
         {(
@@ -181,13 +188,6 @@ export function SettingsDialog({
           your system's reduced-motion setting.
         </p>
       )}
-      <BackupPanel
-        state={state}
-        busy={busy}
-        persistent={persistent}
-        onRestore={onRestore}
-        onActionStart={() => setResetMessage('')}
-      />
       <section className="device-settings">
         <h3>{mode.scope === 'guest' ? 'Only on this device' : 'This account library'}</h3>
         <p>

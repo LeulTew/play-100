@@ -56,6 +56,8 @@ describe('Settings PWA adapter readiness', () => {
       expect(button).toBeDefined();
       expect(button?.includes('disabled=""')).toBe(disabled);
       expect(html).toContain('data-autofocus="true" tabindex="-1">Settings &amp; backups</h2>');
+      expect(html.indexOf('Export my library')).toBeLessThan(html.indexOf('<legend>Visual experience</legend>'));
+      expect(html.indexOf('Import backup')).toBeLessThan(html.indexOf('<legend>Visual experience</legend>'));
       expect(html).not.toContain('Preparing offline files…');
       expect(html.includes('Loading offline controls…')).toBe(!ready && !error);
       expect(input.offline?.pwa.prepareOffline).not.toHaveBeenCalled();

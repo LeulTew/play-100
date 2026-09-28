@@ -256,6 +256,9 @@ icon; mobile replaces only the fifth Settings slot. Direct primary navigation
 and the Account/status entry remain. Settings & backups stays a real dialog
 action inside Menu. Its heading and accessible name are Settings & backups,
 matching the document title.
+Backup export and import precede visual preferences so both named actions are
+visible in the initial desktop dialog viewport. Starting either action still
+clears obsolete reset feedback through the existing backup callback.
 
 Use the existing native Dialog with a quiet, ruled, two-column directory on
 desktop and one scrollable column on mobile. Browse, My games, People & sharing,
