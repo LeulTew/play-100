@@ -521,6 +521,9 @@ the final value before rewinding, and snap on disabled motion or scope change.
 Never interpolate between account scopes or remount a sibling editor for a count.
 
 Keep drawer focus management and mobile safe areas intact. The narrow-screen detail actions share available width; supplementary details must not push the primary controls out of reach.
+Curated detail places Play later, Completed and Share directly after the original
+rating panel, before the unchanged jacket and rationale. The row remains in
+normal flow; its native actions and focus guards do not depend on scrolling.
 
 The signature interaction is one public game sleeve moving from its source
 into the existing native detail, with the actual form stationary. Fine-pointer
