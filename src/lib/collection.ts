@@ -1,4 +1,5 @@
 import type { AuthorRating, CollectionData, Critics, Filters, Game, Progress, SortOrder } from './types';
+import { isRecord, hasText } from './guards.js';
 
 const SCORE_SCALES: Record<keyof Critics, number> = {
   metacritic: 100,
@@ -21,14 +22,6 @@ export function normalizedAverage(critics: Critics): number | null {
     critics[key] === null ? [] : [(critics[key] / scale) * 100],
   );
   return entered.length ? entered.reduce((sum, score) => sum + score, 0) / entered.length : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasText(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function readAuthorRating(value: unknown, rank: number): AuthorRating | null {

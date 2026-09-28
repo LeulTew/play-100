@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { requireObject as object, requireText as text } from '../src/lib/guards.js';
 import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -8,7 +9,6 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { scanDocument } from './check-budgets';
 
-type ObjectValue = Record<string, unknown>;
 interface Counts {
   files: number;
   passed: number;
@@ -28,18 +28,8 @@ export interface ManifestOptions {
   allowDirty: boolean;
 }
 
-function object(value: unknown): ObjectValue {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected a JSON object.');
-  return value as ObjectValue;
-}
-
 function array(value: unknown): unknown[] {
   if (!Array.isArray(value)) throw new Error('Expected a JSON array.');
-  return value;
-}
-
-function text(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) throw new Error('Expected a non-empty string.');
   return value;
 }
 
@@ -112,7 +102,7 @@ export function summarizePlaywright(input: unknown): Counts {
         if (!tests.length) throw new Error('Playwright spec contains no tests.');
         for (const testValue of tests) {
           const test = object(testValue);
-          const results = array(test.results).map(object);
+          const results = array(test.results).map((value) => object(value));
           const statuses = ['passed', 'failed', 'timedOut', 'skipped', 'interrupted'];
           if (results.some((result) => !statuses.includes(text(result.status)))) {
             throw new Error('Playwright contains an unknown attempt status.');

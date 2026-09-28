@@ -1,4 +1,5 @@
 import { ENRICHMENT_LIMITS } from '../../src/lib/catalog-enrichment.js';
+import { nullableText as text } from '../../src/lib/guards.js';
 import type { ExternalCatalogArtwork } from '../../src/lib/catalog-enrichment.ts';
 import { jsonObject } from './catalog-detail-data.js';
 import { CatalogError, publicBytes, requirePublicUrl } from './public-http.js';
@@ -18,9 +19,6 @@ interface CommonsRasterPermission {
   credit: string;
   license: string;
   licenseUrl: string;
-}
-function text(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 function plainCredit(value: string): string {
   return value

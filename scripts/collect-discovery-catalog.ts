@@ -3,6 +3,12 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import {
+  nullableObject as object,
+  labelledObject as requiredObject,
+  nullableText as string,
+} from '../src/lib/guards.js';
+import type { JsonObject } from '../src/lib/guards.js';
 import { hasAsciiControl } from '../src/lib/text-controls.ts';
 import {
   artworkPresencePath,
@@ -157,18 +163,6 @@ export const FEATURED_WIKI_TITLES = [
   'Valheim',
 ];
 
-type JsonObject = Record<string, unknown>;
-function object(value: unknown): JsonObject | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : null;
-}
-function requiredObject(value: unknown, label: string): JsonObject {
-  const result = object(value);
-  if (!result) throw new Error(`Invalid ${label}: expected an object.`);
-  return result;
-}
-function string(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
 function requiredText(value: unknown, label: string, max = 200): string {
   const result = string(value);
   if (!result || result.length > max || hasAsciiControl(result)) throw new Error(`Invalid ${label}.`);

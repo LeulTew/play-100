@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { Parser } from 'htmlparser2';
+import { isRecord as object } from '../src/lib/guards.js';
 import {
   assertPublicBuildOutput,
   assertPublicPrecachePaths,
@@ -95,10 +96,6 @@ export interface BuildMeasurement {
   };
   /** Every route root's cost, the most expensive first. */
   routes: RouteCost[];
-}
-
-function object(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 export function parseBudgetLimits(input: unknown): BudgetLimits {

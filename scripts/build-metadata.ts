@@ -1,5 +1,6 @@
 import { lstat, mkdir, readFile, readdir, rename, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { objectOrEmpty as object } from '../src/lib/guards.js';
 import type { Manifest } from 'vite';
 import { sha256Source } from './first-paint/csp.ts';
 import type { ShellVariant } from './first-paint/shell-html.ts';
@@ -46,10 +47,6 @@ export async function writeFirstPaintRecord(output: string, record: FirstPaintRe
   const file = firstPaintRecordPath(output);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, `${JSON.stringify(record, null, 2)}\n`);
-}
-
-function object(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
 function isTextDigest(value: unknown): value is TextDigest {

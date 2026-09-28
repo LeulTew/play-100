@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { nullableObject as object, nullableText as text } from '../src/lib/guards.js';
 import type { LibraryRecord } from '../src/lib/personal-types.ts';
 import type { CatalogPage, CatalogSource } from '../src/lib/catalog-types.ts';
 import { matchesCatalogQuery } from '../src/lib/catalog-query.js';
@@ -14,14 +15,6 @@ const JSON_OPTIONS = { contentTypes: ['application/json'] };
 // Per-instance: a searched Wikidata page or one cold FreeToGame fill holds a slot. The WAF rule is the global limit.
 const admission = createAdmission({ maxActive: 6, maxPerWindow: 90, windowMs: 60_000 });
 type JsonObject = Record<string, unknown>;
-
-function object(value: unknown): JsonObject | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : null;
-}
-
-function text(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
 
 function wikiUrl(parameters: Record<string, string>): URL {
   const url = new URL(WIKIDATA);

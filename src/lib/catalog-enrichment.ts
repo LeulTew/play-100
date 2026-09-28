@@ -1,4 +1,5 @@
 import { hasAsciiControl } from './text-controls.js';
+import { requireObject, requireText } from './guards.js';
 import { enrichmentIdentity } from './catalog-enrichment-identity.js';
 export { enrichmentIdentity } from './catalog-enrichment-identity.js';
 export type { PublicCatalogIdentity } from './catalog-enrichment-identity.js';
@@ -80,20 +81,13 @@ function invalid(): never {
   throw new Error('The public game details returned an invalid response. Please retry.');
 }
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    Object.keys(value).length !== keys.length ||
-    !keys.every((key) => Object.hasOwn(value, key))
-  )
-    return invalid();
-  return value as Record<string, unknown>;
+  const result = requireObject(value, invalid);
+  if (Object.keys(result).length !== keys.length || !keys.every((key) => Object.hasOwn(result, key))) return invalid();
+  return result;
 }
 function text(value: unknown, max: number): string {
-  return typeof value === 'string' && value.trim() && value.length <= max && !hasAsciiControl(value)
-    ? value
-    : invalid();
+  const result = requireText(value, invalid, max);
+  return hasAsciiControl(result) ? invalid() : result;
 }
 function optionalText(value: unknown, max: number) {
   return value === null ? null : text(value, max);

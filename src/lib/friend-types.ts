@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { requireObject } from './guards.js';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { parseAvatar, parsePublicationEntry, parsePublicEntry, projectPublicRanking } from './community';
 import type { AvatarValue, PublicEntry } from './community';
@@ -193,14 +194,9 @@ function invalid(message = 'Friend data has an unsupported format. Reload before
   throw new FriendStoreError('invalid', message);
 }
 function object(value: unknown, keys: string): Record<string, unknown> {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    Object.keys(value).sort().join() !== keys.split(',').sort().join()
-  )
-    invalid();
-  return value as Record<string, unknown>;
+  const result = requireObject(value, invalid);
+  if (Object.keys(result).sort().join() !== keys.split(',').sort().join()) invalid();
+  return result;
 }
 function integer(value: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) invalid();

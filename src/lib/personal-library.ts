@@ -8,6 +8,7 @@ import type {
   PersonalRanking,
 } from './personal-types.js';
 import { parseLibrary } from './storage.js';
+import { requireObject, labelledText } from './guards.js';
 import type { MotionPreference } from './types.js';
 import { orderByRating, retainManualPositions } from './ranking-order.js';
 import {
@@ -38,23 +39,21 @@ function dictionary<T>(): Record<string, T> {
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return invalid(`${label} must be an object.`);
-  }
-  const prototype: unknown = Object.getPrototypeOf(value);
+  const result = requireObject(value, () => invalid(`${label} must be an object.`));
+  const prototype: unknown = Object.getPrototypeOf(result);
   if (prototype !== Object.prototype && prototype !== null) {
     return invalid(`${label} has an unsupported object type.`);
   }
-  for (const key of Reflect.ownKeys(value)) {
+  for (const key of Reflect.ownKeys(result)) {
     if (typeof key !== 'string' || forbiddenKeys.has(key)) {
       return invalid(`${label} contains an unsafe key.`);
     }
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    const descriptor = Object.getOwnPropertyDescriptor(result, key);
     if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
       return invalid(`${label} must contain enumerable data, not accessors or hidden fields.`);
     }
   }
-  return value as Record<string, unknown>;
+  return result;
 }
 
 function shape(
@@ -86,10 +85,7 @@ function safeId(value: unknown): string {
 }
 
 function text(value: unknown, label: string, limit: number, nonempty = false): string {
-  if (typeof value !== 'string' || value.length > limit || (nonempty && !value.trim())) {
-    return invalid(`${label} must be ${nonempty ? 'nonempty ' : ''}text of at most ${limit} characters.`);
-  }
-  return value;
+  return labelledText(value, label, limit, nonempty, invalid);
 }
 
 function nullableText(value: unknown, label: string): string | null {

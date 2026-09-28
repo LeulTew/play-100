@@ -1,5 +1,6 @@
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library.js';
 import { hasAsciiControl } from './text-controls.js';
+import { requireObject, requireText } from './guards.js';
 
 import { DISCOVERY_LIMITS } from './discovery-catalog-shared.js';
 import type { CatalogArtwork, DiscoveryCatalog, DiscoveryItem } from './discovery-catalog-shared.js';
@@ -11,27 +12,26 @@ function invalid(message: string): never {
 }
 
 function shape(value: unknown, fields: readonly string[]): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return invalid('expected an object.');
-  const prototype: unknown = Object.getPrototypeOf(value);
+  const result = requireObject(value, () => invalid('expected an object.'));
+  const prototype: unknown = Object.getPrototypeOf(result);
   if (prototype !== Object.prototype && prototype !== null) return invalid('unsupported object type.');
-  const keys = Reflect.ownKeys(value);
-  if (keys.length !== fields.length || !fields.every((key) => Object.hasOwn(value, key))) {
+  const keys = Reflect.ownKeys(result);
+  if (keys.length !== fields.length || !fields.every((key) => Object.hasOwn(result, key))) {
     return invalid('missing or unknown fields.');
   }
   for (const key of keys) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    const descriptor = Object.getOwnPropertyDescriptor(result, key);
     if (typeof key !== 'string' || !fields.includes(key) || !descriptor?.enumerable || !('value' in descriptor)) {
       return invalid('expected enumerable data fields.');
     }
   }
-  return value as Record<string, unknown>;
+  return result;
 }
 
 function text(value: unknown, limit: number): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > limit || hasAsciiControl(value)) {
-    return invalid(`expected nonempty text of at most ${limit} characters.`);
-  }
-  return value;
+  const reject = () => invalid(`expected nonempty text of at most ${limit} characters.`);
+  const result = requireText(value, reject, limit);
+  return hasAsciiControl(result) ? reject() : result;
 }
 
 function integer(value: unknown, max: number): number {

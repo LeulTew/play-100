@@ -1,4 +1,5 @@
 import type { PublicEntry } from './community';
+import { requireObject, labelledText } from './guards.js';
 import type { GameSource } from './personal-types';
 
 export const FRIEND_COMPARISON_LIMITS = Object.freeze({
@@ -174,20 +175,18 @@ function invalid(message: string): never {
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return invalid(`${label} must be an object.`);
-  }
-  const prototype: unknown = Object.getPrototypeOf(value);
+  const result = requireObject(value, () => invalid(`${label} must be an object.`));
+  const prototype: unknown = Object.getPrototypeOf(result);
   if (prototype !== Object.prototype && prototype !== null) {
     return invalid(`${label} must contain plain data.`);
   }
-  for (const key of Reflect.ownKeys(value)) {
-    const property = Object.getOwnPropertyDescriptor(value, key);
+  for (const key of Reflect.ownKeys(result)) {
+    const property = Object.getOwnPropertyDescriptor(result, key);
     if (typeof key !== 'string' || forbiddenIds.has(key) || !property?.enumerable || !('value' in property)) {
       return invalid(`${label} contains unsupported fields or accessors.`);
     }
   }
-  return value as Record<string, unknown>;
+  return result;
 }
 
 function shape(value: unknown, required: readonly string[], label: string, optional: readonly string[] = []) {
@@ -202,10 +201,7 @@ function shape(value: unknown, required: readonly string[], label: string, optio
 }
 
 function text(value: unknown, label: string, nonempty = true): string {
-  if (typeof value !== 'string' || value.length > 200 || (nonempty && !value.trim())) {
-    return invalid(`${label} must be ${nonempty ? 'nonempty ' : ''}text of at most 200 characters.`);
-  }
-  return value;
+  return labelledText(value, label, 200, nonempty, invalid);
 }
 
 function integer(value: unknown, min: number, max: number, label: string): number {

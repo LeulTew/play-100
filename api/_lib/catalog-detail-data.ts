@@ -2,10 +2,9 @@ import { ENRICHMENT_LIMITS, parseReportedScore, publicHttpsUrl } from '../../src
 import type { CatalogExternalRating } from '../../src/lib/catalog-enrichment.ts';
 import { hasAsciiControl } from '../../src/lib/text-controls.js';
 
-type JsonObject = Record<string, unknown>;
-export function jsonObject(value: unknown): JsonObject | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : null;
-}
+import { nullableObject as jsonObject } from '../../src/lib/guards.js';
+import type { JsonObject } from '../../src/lib/guards.js';
+export { nullableObject as jsonObject } from '../../src/lib/guards.js';
 function snakValue(value: unknown): unknown {
   const snak = jsonObject(value);
   return snak?.snaktype === 'value' ? jsonObject(snak.datavalue)?.value : undefined;
