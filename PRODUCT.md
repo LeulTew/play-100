@@ -206,7 +206,9 @@ until one explicit, inline **Share all with friends** action.
 - Progress filters distinguish Not played, Played (not completed) and Completed,
   separately from Queue. An inclusive played filter names that inclusion. The
   historical `list=unplayed` URL retains its old Not completed meaning; new
-  controls use `progress=`. Public share URLs omit private progress filters.
+  controls use `progress=`. Public share URLs omit private progress and list
+  filters. Successful copying or native sharing says when those restrictions
+  were left out, for both device and account libraries.
 - Bulk Mark played and Mark completed are separate actions in collection,
   library and Discover. Save, Pin, rating and import never imply played.
 - Sign-in does not upload or publish existing device data. Online saving

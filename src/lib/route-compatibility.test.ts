@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createShareUrl, pageFromPath, parseUrl } from './url';
+import { createShareLink, pageFromPath, parseUrl } from './url';
 
 describe('preserved entry points during the My games navigation merge', () => {
   it.each([
@@ -38,7 +38,7 @@ describe('preserved entry points during the My games navigation merge', () => {
     const source = parseUrl(
       '?q=Mass&list=later&catalogs=off&group=private-group&participants=friend-1&token=private-capability&scope=account',
     );
-    const url = new URL(createShareUrl('https://play100.test', source.filters, 'mass-effect-2'));
+    const url = new URL(createShareLink('https://play100.test', source.filters, 'mass-effect-2').url);
     expect([...url.searchParams.keys()].sort()).toEqual(['catalogs', 'game', 'q']);
     expect(url.searchParams.get('catalogs')).toBe('off');
     expect(url.searchParams.get('q')).toBe('Mass');

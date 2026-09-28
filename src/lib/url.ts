@@ -103,6 +103,11 @@ export function createSearch(filters: Filters, game: string | null = null): stri
   return query ? `?${query}` : '';
 }
 
-export function createShareUrl(origin: string, filters: Filters, game: string | null): string {
-  return `${origin}/${createSearch({ ...filters, list: 'all', progress: 'all' }, game)}`;
+export function createShareLink(
+  origin: string,
+  filters: Filters,
+  game: string | null,
+): { url: string; privateFilter: boolean } {
+  const publicSearch = createSearch({ ...filters, list: 'all', progress: 'all' }, game);
+  return { url: `${origin}/${publicSearch}`, privateFilter: publicSearch !== createSearch(filters, game) };
 }

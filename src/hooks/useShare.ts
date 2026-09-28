@@ -7,7 +7,7 @@ export function useShare(notify: (message: string) => void) {
     async (title: string, url: string, privateFilter: boolean) => {
       if (sharing) return;
       setSharing(true);
-      const suffix = privateFilter ? ' Device-only list filters are not included.' : '';
+      const suffix = privateFilter ? " Private progress and list filters aren't included." : '';
       try {
         if (navigator.share) {
           try {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { filterGames, formatAverage, normalizedAverage, parseCollection, searchText } from './collection';
-import { createSearch, createShareUrl, defaultFilters, parseUrl } from './url';
+import { createSearch, createShareLink, defaultFilters, parseUrl } from './url';
 import { emptyLibrary, parseLibrary } from './storage';
 import type { CollectionData, Critics } from './types';
 
@@ -126,22 +126,28 @@ describe('shareable and reversible URL state', () => {
   it('keeps default URLs clean and recovers safely from invalid enum values', () => {
     expect(createSearch(defaultFilters)).toBe('');
     expect(parseUrl('?tier=fake&sort=bad&list=everyone&year=no&view=poster').filters).toEqual(defaultFilters);
+    expect(
+      createShareLink('https://play100.example', parseUrl('?list=everyone&progress=unknown').filters, null),
+    ).toEqual({ url: 'https://play100.example/', privateFilter: false });
   });
   it('retains the explicit catalog opt-out through reloads and public filter links', () => {
     const filters = { ...defaultFilters, q: 'Atlas', catalogs: 'off' as const };
     expect(parseUrl(createSearch(filters)).filters).toEqual(filters);
-    expect(new URL(createShareUrl('https://play100.example', filters, null)).searchParams.get('catalogs')).toBe('off');
+    const shared = createShareLink('https://play100.example', filters, null);
+    expect(new URL(shared.url).searchParams.get('catalogs')).toBe('off');
+    expect(shared.privateFilter).toBe(false);
     expect(parseUrl('?catalogs=unknown').filters.catalogs).toBe('on');
   });
-  it('omits device-list filters from shared links but preserves public filters', () => {
-    const url = new URL(
-      createShareUrl(
-        'https://play100.example',
-        { ...defaultFilters, list: 'completed', year: '2018' },
-        'red-dead-redemption-2',
-      ),
+  it('reports omitted private filters while preserving the public link', () => {
+    const shared = createShareLink(
+      'https://play100.example',
+      { ...defaultFilters, list: 'completed', year: '2018' },
+      'red-dead-redemption-2',
     );
+    const url = new URL(shared.url);
+    expect(shared.privateFilter).toBe(true);
     expect(url.searchParams.get('list')).toBeNull();
+    expect(url.searchParams.get('progress')).toBeNull();
     expect(url.searchParams.get('year')).toBe('2018');
     expect(url.searchParams.get('game')).toBe('red-dead-redemption-2');
   });

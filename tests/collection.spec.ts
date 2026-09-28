@@ -299,6 +299,101 @@ test('share fallback exposes a copyable public URL without private list state', 
   ).toBe(true);
 });
 
+for (const method of ['clipboard', 'native'] as const) {
+  for (const restriction of [
+    'progress=not-played',
+    'progress=unfinished',
+    'progress=completed',
+    'progress=any-played',
+    'progress=not-completed',
+    'list=later',
+    'list=completed',
+    'list=unplayed',
+    'list=later&progress=completed',
+    '',
+  ]) {
+    test(`${method} share reports omitted filters for ${restriction || 'public filters only'}`, async ({
+      page,
+      isMobile,
+    }) => {
+      if (isMobile) await page.setViewportSize({ width: 320, height: 740 });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const publicQuery = 'q=Mass&year=2010&tier=core&sort=title&direction=desc&view=list&catalogs=off';
+      await page.goto(`/?${publicQuery}${restriction ? `&${restriction}` : ''}`);
+      const action = page.getByRole('button', { name: 'Share this view', exact: true });
+      await expect(action).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate((method) => {
+        Object.defineProperty(navigator, 'share', {
+          configurable: true,
+          value:
+            method === 'native'
+              ? async (data: ShareData) => {
+                  document.documentElement.dataset.sharedLink = data.url;
+                  document.documentElement.dataset.sharedVia = 'native';
+                }
+              : undefined,
+        });
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: {
+            writeText: async (url: string) => {
+              document.documentElement.dataset.sharedLink = url;
+              document.documentElement.dataset.sharedVia = 'clipboard';
+            },
+          },
+        });
+      }, method);
+      const original = page.url();
+      await action.click();
+      const toast = page.locator('.toast-visible');
+      const success = method === 'native' ? 'Shared.' : 'Link copied.';
+      const suffix = restriction ? " Private progress and list filters aren't included." : '';
+      await expect(toast).toHaveText(`${success}${suffix}`);
+      await expect(toast).toBeVisible();
+      const sent = await page.evaluate(() => ({
+        url: document.documentElement.dataset.sharedLink,
+        method: document.documentElement.dataset.sharedVia,
+      }));
+      expect(sent.method).toBe(method);
+      if (!sent.url) throw new Error('The successful share must receive a public URL.');
+      const shared = new URL(sent.url);
+      expect(shared.origin).toBe(new URL(original).origin);
+      expect(shared.pathname).toBe('/');
+      expect(Object.fromEntries(shared.searchParams)).toEqual(Object.fromEntries(new URLSearchParams(publicQuery)));
+      expect(page.url()).toBe(original);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      const fit = await toast.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const text = document.createRange();
+        text.selectNodeContents(element.querySelector('span')!);
+        const dismiss = element.querySelector('button')!;
+        const button = dismiss.getBoundingClientRect();
+        const nav = document.querySelector('.mobile-nav')!.getBoundingClientRect();
+        return {
+          visible:
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= 0 &&
+            box.bottom <= (nav.height ? nav.top : innerHeight),
+          textClear: [...text.getClientRects()].every(
+            (line) =>
+              line.left >= box.left - 1 &&
+              line.right <= button.left + 1 &&
+              line.top >= box.top - 1 &&
+              line.bottom <= box.bottom + 1,
+          ),
+          dismissible:
+            button.width >= 44 &&
+            button.height >= 44 &&
+            dismiss.contains(document.elementFromPoint(button.x + button.width / 2, button.y + button.height / 2)),
+        };
+      });
+      expect(fit).toEqual({ visible: true, textClear: true, dismissible: true });
+    });
+  }
+}
+
 test('clipboard sharing reports success and retains a game deep link', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', {

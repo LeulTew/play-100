@@ -5,9 +5,15 @@ import { filterUnranked } from './extended-search';
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import { recordFromGame } from './personal-types';
 import type { PersonalProgress } from './personal-types';
-import { defaultFilters, parseUrl, createSearch, createShareUrl } from './url';
+import { defaultFilters, parseUrl, createSearch, createShareLink } from './url';
 import { createDiscoverySearch, defaultDiscoveryFilters, parseDiscoverySearch } from './discovery-search';
-import { effectiveProgressFilter, matchesProgress, pickCandidates, selectionOperation } from './game-progress';
+import {
+  effectiveProgressFilter,
+  matchesProgress,
+  pickCandidates,
+  progressFilters,
+  selectionOperation,
+} from './game-progress';
 import type { Filters } from './types';
 
 const games = parseCollection(
@@ -118,11 +124,44 @@ describe('distinct played/completed progress', () => {
     expect(
       parseDiscoverySearch(createDiscoverySearch({ ...defaultDiscoveryFilters, progress: 'not-played' })).progress,
     ).toBe('not-played');
-    const shared = new URL(createShareUrl('https://example.test', next, games[0]!.slug));
+    const link = createShareLink('https://example.test', next, games[0]!.slug);
+    expect(link.privateFilter).toBe(true);
+    const shared = new URL(link.url);
     expect(shared.searchParams.get('progress')).toBeNull();
     expect(shared.searchParams.get('list')).toBeNull();
     expect(shared.searchParams.get('game')).toBe(games[0]!.slug);
   });
+  it.each(['all', 'later', 'completed', 'unplayed'] as const)(
+    'reports precisely the omitted restriction for list=%s and every progress view',
+    (list) => {
+      for (const progress of [undefined, ...progressFilters]) {
+        const filters: Filters = {
+          ...defaultFilters,
+          q: 'sci-fi & RPG',
+          genre: 'Action RPG / Sci-Fi',
+          year: '2010',
+          tier: 'core',
+          sort: 'title',
+          direction: 'desc',
+          view: 'table',
+          catalogs: 'off',
+          list,
+          progress,
+        };
+        const before = structuredClone(filters);
+        const link = createShareLink('https://example.test', filters, games[0]!.slug);
+        const shared = new URL(link.url);
+        expect(link.privateFilter).toBe(list !== 'all' || (progress ?? 'all') !== 'all');
+        expect(parseUrl(shared.search)).toEqual({
+          filters: { ...filters, list: 'all', progress: 'all' },
+          game: games[0]!.slug,
+        });
+        expect(shared.searchParams.has('list')).toBe(false);
+        expect(shared.searchParams.has('progress')).toBe(false);
+        expect(filters).toEqual(before);
+      }
+    },
+  );
   it('keeps the existing backup migration and never infers progress from ranking or source notes', () => {
     let state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: records[0]!, score: 9 });
     expect(state.progress[records[0]!.id]?.played ?? false).toBe(false);

@@ -5,7 +5,7 @@ import { useLibrary } from './hooks/useLibrary';
 import { useUrlState } from './hooks/useUrlState';
 import { useCapabilities } from './hooks/useCapabilities';
 import { useShare } from './hooks/useShare';
-import { createShareUrl } from './lib/url';
+import { createShareLink } from './lib/url';
 import { pageDestination } from './lib/page-navigation';
 import { appDocumentTitle } from './lib/document-title';
 import type { AppPage, Filters } from './lib/types';
@@ -648,7 +648,8 @@ export default function App() {
   };
   const shareView = (slug: string | null = null) => {
     const title = slug && selectedGame ? `${selectedGame.title} | Play 100` : 'Play 100 — a collection worth playing';
-    void share(title, createShareUrl(window.location.origin, filters, slug), filters.list !== 'all');
+    const { url, privateFilter } = createShareLink(window.location.origin, filters, slug);
+    void share(title, url, privateFilter);
   };
   const toggle = (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => {
     const target = allRecords.get(id);
