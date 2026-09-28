@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../../lib/test-server-ports';
+import { resolve } from 'node:path';
 
 declare global {
   interface Window {
@@ -12,33 +13,14 @@ declare global {
   }
 }
 
-const STUB = '\0online-controller-stub';
-// Records each render and the URL it read, as OnlineController reads ?group= and /friends/:uid during render.
-const stub = `import { createElement as h } from 'react';
-export default function OnlineController() {
-  window.onlineRouteFixture.renders.push(location.search);
-  return h('p', { id: 'online-url' }, location.search || 'none');
-}`;
+// Stands in for cloud/OnlineController: it records each render and the URL it read during render.
+const STUB = resolve(process.cwd(), 'src/components/app/OnlineRoute.browser-stub.tsx');
 
-// Mirrors App: stable online props, and other state (a notice, a panel, the tray) that changes around the route.
+// Keep the isolated Vite/Playwright harness: @vitest/browser-playwright is not installed.
+// The external fixture and stub modules are checked by TypeScript and ESLint without adding a dependency.
 const fixture = `<!doctype html><html lang="en" data-motion="off"><head>
 <meta charset="utf-8"><title>Online route fixture</title><link rel="icon" href="/favicon.svg">
-</head><body><div id="mount"></div><script type="module">
-import { createElement as h, useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { RouteHost } from '/src/components/app/RouteHost.tsx';
-const renders = [];
-let bump = () => {};
-function App() {
-  const [other, setOther] = useState(0);
-  bump = () => setOther((count) => count + 1);
-  const online = useMemo(() => ({ onDevice() {}, onFailedChange() {}, fallback: null, props: {} }), []);
-  return h('div', null, h('span', { id: 'other' }, String(other)),
-    h(RouteHost, { route: 'compare', scope: 'guest', online, content: null }));
-}
-window.onlineRouteFixture = { renders, bump: () => bump() };
-createRoot(document.getElementById('mount')).render(h(App));
-</script></body></html>`;
+</head><body><div id="mount"></div><script type="module" src="/src/components/app/OnlineRoute.browser-fixture.tsx"></script></body></html>`;
 
 let server: ViteDevServer | undefined;
 let browser: Browser | undefined;
@@ -69,7 +51,6 @@ beforeAll(async () => {
             name: 'online-controller-stub',
             enforce: 'pre',
             resolveId: (source) => (source.endsWith('/cloud/OnlineController') ? STUB : undefined),
-            load: (id) => (id === STUB ? stub : undefined),
           },
           react(),
           {
