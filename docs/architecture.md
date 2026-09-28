@@ -257,6 +257,10 @@ their route.
 The module helper retains a rejected import until reload, rather than retrying it.
 Its identity includes the account scope, auth-session generation, page and the
 page's target (public handle, friend, comparison group or invitation). The
+generation is state, which the account-identity lifetime sets in the same call
+that publishes each new session's identity, so a render never sees one without
+the other. Handlers and work that settles later compare against the live epoch,
+`authSessionEpochRef`, which no render reads. The
 controller reads the URL for these targets through
 [online-location](../src/cloud/online-location.ts), a subscription to
 `popstate` and `play100:navigate`, not by reading `location` during render, so
