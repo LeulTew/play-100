@@ -44,6 +44,10 @@ may not read the recipient's private friend identity; outgoing rows use only the
 recipient's already published snapshot. Accepted friendships keep their existing
 identity access, and loaded-row scope/direction guards invalidate stale reads.
 
+**Invitation links: keep it private.** A valid invitation read includes the
+inviter's `ownerUid`, needed for acceptance, so a link holder can connect the
+inviter's friend identity to their public profile, if published.
+
 After a decline, the original sender waits 30 days before another request.
 The decliner may initiate sooner. Firestore compares the existing server-written
 `updatedAt` against `request.time`; the new timestamp must equal request.time.
@@ -137,9 +141,9 @@ signed out; no credentials were entered and no writes were made. This is
 - An unauthenticated missing publicProfiles get returned 404 under live 270f,
   independently confirming the H4 existence distinction.
 
-**2026-09-26 re-probe (G4 readback).** The same nine probes ran again
+**2026-09-27 re-probe (G5 readback, carried into G8).** The same nine probes ran again
 (operator-held receipt `firebase-settings-readback.json`, SHA-256
-`f6ce9c3fae74f7f9e3f6ee7c4630296046e56cb7e9d760b812f734baa9fbc445`). With the
+`c7089f627227b6515a6d6ce60e03cf73a15effd4b09b53ad63fb55ea2b4f25db`). With the
 production origin as Referer, Books and Generative Language both returned
 `403 SERVICE_DISABLED`: those services are disabled in the project. That neither
 renews nor contradicts the 2026-09-23 result, and a black-box `SERVICE_DISABLED`
@@ -147,6 +151,17 @@ is not evidence of the key's API allowlist. The intended allowlist is Identity
 Toolkit API, Token Service API and Cloud Firestore API; Firebase App Check API
 would be added only once App Check is enabled. The client calls no Installations
 endpoint.
+
+**2026-09-28 Authentication console readback (G8 supplement 1, 06:40:52Z).**
+The owner-authorised receipt `firebase-console-readback-20260928.json` recorded
+Email/Password and Google enabled, with sign-up, account deletion and email
+enumeration protection enabled. Authorized domains were exactly
+`play-100-collection.vercel.app`, `play100-online-48823b32.firebaseapp.com` and
+`play100-online-48823b32.web.app`; localhost was absent. The console offered
+deletion only for the custom production domain, not the two default domains.
+Fraud-prevention reCAPTCHA was **not set up**; that page covered SMS defense.
+The project remained on **Spark**, without the **Identity Platform** upgrade
+required for email/password reCAPTCHA protection. No setting was changed.
 
 **2026-09-28 console readback (G8 supplement 2, approximately 07:15Z).** The
 owner-authorised readback of **Browser key (auto created by Firebase)** recorded
@@ -162,9 +177,11 @@ App Check remains an **accepted risk with a plan**: Spark quotas bound cost,
 while auth/ownership rules and the proposed caps constrain permitted writes.
 Quota denial of service remains possible. reCAPTCHA would add third-party
 scripts/cookies, widen CSP and require a Data Use disclosure change; it is not
-silently enabled by this batch. reCAPTCHA Auth protection is likewise not adopted
-now given enumeration protection, the password policy and rules controls; revisit
-if abuse appears.
+silently enabled by this batch. Email/password reCAPTCHA Auth protection also
+requires the Identity Platform upgrade, which this project has not adopted;
+that prerequisite and enabling protection remain owner decisions. Existing
+enumeration protection, password policy and rules controls do not remove the
+accepted abuse risk.
 
 **Sign-up enumeration (accepted risk, R9).** Creating an account with an email
 that is already registered fails with `auth/email-already-in-use`, which
@@ -173,8 +190,9 @@ sign-up (`createUserWithEmailAndPassword`) shows, so the sign-up form reveals wh
 email enumeration protection covers sign-in and `createAuthUri`, not account
 creation, so it does not hide this. The copy is deliberately unchanged: a
 generic message would leave real users unable to tell they should sign in
-instead. The mitigation is reCAPTCHA Auth protection or App Check enforcement to
-rate-limit automated probing; adopting either is an owner decision.
+instead. Potential mitigations are reCAPTCHA Auth protection (requiring the
+not-yet-adopted Identity Platform upgrade for email/password) or App Check
+enforcement to limit automated probing; adopting either is an owner decision.
 
 The authored client (`src/cloud/app-check-client.ts`) uses the **reCAPTCHA v3**
 provider (`ReCaptchaV3Provider`), which works on Spark without billing, behind
