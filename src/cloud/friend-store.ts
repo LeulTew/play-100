@@ -4,7 +4,6 @@ import {
   documentId,
   getDocFromServer,
   getDocsFromServer,
-  increment,
   limit,
   onSnapshot,
   orderBy,
@@ -30,7 +29,6 @@ import {
   FriendStoreError,
   friendPairId,
   friendUid,
-  parseFriendBlock,
   parseFriendGeneration,
   parseFriendHead,
   parseFriendIdentity,
@@ -62,25 +60,34 @@ import { releaseIndexedPayload } from './generation-cleanup';
 import {
   ACCOUNT_LIMITS,
   AccountQuotaFull,
-  occupyQuotaSlot,
   quotaRef,
   quotaSupported,
   readQuotaSlots,
   releaseQuotaSlot,
-  requireVisibleCapacity,
 } from './account-quota';
 import type { SlotQuotaKind } from './account-quota';
-import { activeSettings, conflict, errorValue, online, page } from './friend-store-core';
+import { activeSettings, conflict, errorValue, online } from './friend-store-core';
 import { deleteGroup, getGroup, listGroups, saveGroup } from './friend-groups';
 import { acceptInvite, createInvite, listInvites, previewInvite, revokeInvite } from './friend-invites';
+import {
+  FRIEND_CANCEL_COOLDOWN_MS,
+  FRIEND_REQUEST_COOLDOWN_MS,
+  block,
+  listBlocks,
+  listRelations,
+  relationsQuery,
+  releaseBlock,
+  releasePair,
+  respond,
+  sendRequest,
+  touchPairCount,
+  unblock,
+  watchRelations,
+} from './friend-pairs';
 import { initialize, publicIdentity, saveIdentity, saveSettings } from './friend-profile';
 import { publishRanking, ranking } from './friend-ranking-share';
 
-export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
-/** After cancelling, the sender waits this long before requesting again or releasing the pair (rules fPairAction). */
-export const FRIEND_CANCEL_COOLDOWN_MS = 10 * 60 * 1000;
-const requestUnavailable = "You can't send this person a request right now.";
-const recentlyCancelled = 'You cancelled a request to this person a moment ago. Try again in a few minutes.';
+export { FRIEND_CANCEL_COOLDOWN_MS, FRIEND_REQUEST_COOLDOWN_MS } from './friend-pairs';
 
 const EXPORT_PAGE_LIMIT = 100;
 // Pages one collection only until its own last page; a failed sibling stream stops further reads.
@@ -227,18 +234,10 @@ export class FriendStore {
     return this.watch(this.pairRef(uid, otherUid), parseFriendPair, next, error);
   }
   private relationsQuery(uid: string, state?: FriendPairState, cursor?: FriendCursor): Query<DocumentData> {
-    return query(
-      collection(this.db, 'friendPairs'),
-      where('participants', 'array-contains', friendUid(uid)),
-      ...(state ? [where('state', '==', state)] : []),
-      orderBy('updatedAt', 'desc'),
-      ...(cursor ? [startAfter(cursor)] : []),
-      limit(20),
-    );
+    return relationsQuery(this, uid, state, cursor);
   }
-  async listRelations(uid: string, state?: FriendPairState, cursor?: FriendCursor): Promise<FriendPage<FriendPair>> {
-    const result = await getDocsFromServer(this.relationsQuery(uid, state, cursor));
-    return page(result.docs, (row) => parseFriendPair(row.data()));
+  listRelations(uid: string, state?: FriendPairState, cursor?: FriendCursor): Promise<FriendPage<FriendPair>> {
+    return listRelations(this, uid, state, cursor);
   }
   watchRelations(
     uid: string,
@@ -246,54 +245,13 @@ export class FriendStore {
     next: (value: FriendPage<FriendPair>) => void,
     error: (cause: Error) => void,
   ): () => void {
-    return onSnapshot(
-      this.relationsQuery(uid, state),
-      { includeMetadataChanges: true },
-      (result) => {
-        if (result.metadata.fromCache || result.metadata.hasPendingWrites) return;
-        try {
-          next(page(result.docs, (row) => parseFriendPair(row.data())));
-        } catch (cause) {
-          error(errorValue(cause));
-        }
-      },
-      error,
-    );
+    return watchRelations(this, uid, state, next, error);
   }
-  private async touchPairCount(tx: Transaction, uid: string, id: string, created: boolean) {
-    const ref = quotaRef(this.db, uid, 'pairs');
-    const snapshot = await tx.get(ref);
-    const value = snapshot.exists() ? snapshot.data() : { count: 0, revision: 0 };
-    if (
-      !Number.isSafeInteger(value.count) ||
-      value.count < 0 ||
-      !Number.isSafeInteger(value.revision) ||
-      value.revision < 0
-    ) {
-      throw new FriendStoreError(
-        'invalid',
-        'Your connection count could not be read. Refresh the page, then try again.',
-      );
-    }
-    if (created && value.count >= ACCOUNT_LIMITS.pairs) throw new AccountQuotaFull('pairs');
-    tx.set(ref, { count: value.count + Number(created), revision: value.revision + 1, lastPair: id });
+  private touchPairCount(tx: Transaction, uid: string, id: string, created: boolean) {
+    return touchPairCount(this, tx, uid, id, created);
   }
-  async releasePair(uid: string, otherUid: string, expectedEpoch?: number): Promise<boolean> {
-    online();
-    const ref = this.pairRef(uid, otherUid);
-    return runTransaction(this.db, async (tx) => {
-      const snapshot = await tx.get(ref);
-      if (!snapshot.exists()) return false;
-      const current = parseFriendPair(snapshot.data());
-      if (expectedEpoch !== undefined && current.epoch !== expectedEpoch) conflict();
-      if (current.format === 2)
-        tx.update(quotaRef(this.db, current.creatorUid, 'pairs'), {
-          count: increment(-1),
-          lastPair: ref.id,
-        });
-      tx.delete(ref);
-      return true;
-    });
+  releasePair(uid: string, otherUid: string, expectedEpoch?: number): Promise<boolean> {
+    return releasePair(this, uid, otherUid, expectedEpoch);
   }
   private async freePairCapacity(uid: string): Promise<void> {
     let cursor: FriendCursor | undefined;
@@ -335,163 +293,28 @@ export class FriendStore {
       return operation();
     }
   }
-  async sendRequest(uid: string, otherUid: string): Promise<FriendPair> {
-    const ref = this.pairRef(uid, otherUid);
-    online();
-    await this.graphReady(uid);
-    const counted = await quotaSupported(quotaRef(this.db, uid, 'pairs'));
-    const epoch = await this.withPairCapacity(uid, () =>
-      runTransaction(this.db, async (tx) => {
-        online();
-        const snap = await tx.get(ref);
-        const current = snap.exists() ? parseFriendPair(snap.data()) : null;
-        if (current?.state === 'accepted') conflict('You are already friends.');
-        if (current?.state === 'pending')
-          conflict(
-            current.from === uid
-              ? 'Your request is already waiting for a response.'
-              : 'This person already sent you a request. Accept or decline that request instead.',
-          );
-        if (
-          current?.state === 'declined' &&
-          current.from === uid &&
-          Date.now() < current.updatedAt + FRIEND_REQUEST_COOLDOWN_MS
-        ) {
-          throw new FriendStoreError('request-unavailable', requestUnavailable);
-        }
-        if (
-          current?.state === 'cancelled' &&
-          current.from === uid &&
-          Date.now() < current.updatedAt + FRIEND_CANCEL_COOLDOWN_MS
-        ) {
-          throw new FriendStoreError('request-unavailable', recentlyCancelled);
-        }
-        const [a, b] = [uid, otherUid].sort();
-        if (counted) await this.touchPairCount(tx, uid, ref.id, current === null);
-        tx.set(ref, {
-          format: current?.format ?? (counted ? 2 : 1),
-          ...(current?.format === 2
-            ? { creatorUid: current.creatorUid }
-            : !current && counted
-              ? { creatorUid: uid }
-              : {}),
-          a,
-          b,
-          participants: [a, b],
-          from: uid,
-          state: 'pending',
-          epoch: (current?.epoch ?? 0) + 1,
-          inviteSlot: null,
-          createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        return (current?.epoch ?? 0) + 1;
-      }),
-    );
-    return this.afterCommit({ operation: 'send-request', uid, otherUid, epoch }, async () => {
-      const result = await this.readCommitted(ref, parseFriendPair);
-      if (!result) conflict();
-      return result;
-    });
+  sendRequest(uid: string, otherUid: string): Promise<FriendPair> {
+    return sendRequest(this, uid, otherUid);
   }
-  async respond(
+  respond(
     uid: string,
     otherUid: string,
     action: 'accept' | 'decline' | 'cancel' | 'remove',
     expectedEpoch: number,
   ): Promise<FriendPair> {
-    const ref = this.pairRef(uid, otherUid);
-    online();
-    await this.graphReady(uid);
-    const counted = action === 'accept' && (await quotaSupported(quotaRef(this.db, uid, 'pairs')));
-    await runTransaction(this.db, async (tx) => {
-      online();
-      const snap = await tx.get(ref);
-      const current = snap.exists() ? parseFriendPair(snap.data()) : null;
-      if (!current || current.epoch !== expectedEpoch) conflict();
-      if (action === 'remove' ? current.state !== 'accepted' : current.state !== 'pending')
-        conflict('That relationship no longer has this action available.');
-      if ((action === 'accept' || action === 'decline') && current.from === uid)
-        conflict('Only the recipient can respond to this request.');
-      if (action === 'cancel' && current.from !== uid) conflict('Only the sender can cancel this request.');
-      const state: FriendPairState =
-        action === 'accept'
-          ? 'accepted'
-          : action === 'decline'
-            ? 'declined'
-            : action === 'cancel'
-              ? 'cancelled'
-              : 'removed';
-      if (counted) await this.touchPairCount(tx, uid, ref.id, false);
-      tx.update(ref, { state, epoch: current.epoch + 1, inviteSlot: null, updatedAt: serverTimestamp() });
-    });
-    return this.afterCommit({ operation: 'respond', uid, otherUid, epoch: expectedEpoch + 1 }, async () => {
-      const result = await this.readCommitted(ref, parseFriendPair);
-      if (!result) conflict();
-      return result;
-    });
+    return respond(this, uid, otherUid, action, expectedEpoch);
   }
-  async block(uid: string, otherUid: string): Promise<void> {
-    const pairRef = this.pairRef(uid, otherUid);
-    online();
-    await this.graphReady(uid);
-    const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
-    const quota = quotaRef(this.db, uid, 'blocks');
-    const counted = await quotaSupported(quota);
-    if (!(await getDocFromServer(ref)).exists())
-      await requireVisibleCapacity<FriendCursor>('blocks', (cursor) => this.listBlocks(uid, cursor));
-    await runTransaction(this.db, async (tx) => {
-      online();
-      const [pair, block, slots] = await Promise.all([
-        tx.get(pairRef),
-        tx.get(ref),
-        counted ? readQuotaSlots(tx, quota, 'blocks') : Promise.resolve(null),
-      ]);
-      const current = pair.exists() ? parseFriendPair(pair.data()) : null;
-      if (!block.exists()) {
-        if (slots) occupyQuotaSlot(tx, quota, slots, otherUid, 'blocks');
-        tx.set(ref, { createdAt: serverTimestamp() });
-      }
-      if (current && (current.state === 'pending' || current.state === 'accepted'))
-        tx.update(pairRef, {
-          state: 'removed',
-          epoch: current.epoch + 1,
-          inviteSlot: null,
-          updatedAt: serverTimestamp(),
-        });
-    });
+  block(uid: string, otherUid: string): Promise<void> {
+    return block(this, uid, otherUid);
   }
-  async unblock(uid: string, otherUid: string): Promise<void> {
-    friendPairId(uid, otherUid);
-    online();
-    await this.graphReady(uid);
-    await this.releaseBlock(uid, otherUid);
+  unblock(uid: string, otherUid: string): Promise<void> {
+    return unblock(this, uid, otherUid);
   }
-  private async releaseBlock(uid: string, otherUid: string, quotaAvailable?: boolean): Promise<void> {
-    const ref = doc(this.db, 'friendBlocks', uid, 'items', otherUid);
-    const quota = quotaRef(this.db, uid, 'blocks');
-    const counted = quotaAvailable ?? (await quotaSupported(quota));
-    await runTransaction(this.db, async (tx) => {
-      online();
-      const [block, slots] = await Promise.all([
-        tx.get(ref),
-        counted ? readQuotaSlots(tx, quota, 'blocks') : Promise.resolve(null),
-      ]);
-      if (!block.exists()) return;
-      tx.delete(ref);
-      if (slots) releaseQuotaSlot(tx, quota, slots, otherUid);
-    });
+  private releaseBlock(uid: string, otherUid: string, quotaAvailable?: boolean): Promise<void> {
+    return releaseBlock(this, uid, otherUid, quotaAvailable);
   }
-  async listBlocks(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendBlock>> {
-    const result = await getDocsFromServer(
-      query(
-        collection(this.db, 'friendBlocks', friendUid(uid), 'items'),
-        orderBy(documentId()),
-        ...(cursor ? [startAfter(cursor)] : []),
-        limit(20),
-      ),
-    );
-    return page(result.docs, (row) => parseFriendBlock(row.id, row.data()));
+  listBlocks(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendBlock>> {
+    return listBlocks(this, uid, cursor);
   }
   createInvite(uid: string): Promise<FriendInvitation> {
     return createInvite(this, uid);

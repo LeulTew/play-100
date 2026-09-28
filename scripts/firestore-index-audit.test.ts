@@ -173,9 +173,11 @@ describe('STORAGE-02 exact query/index contract', () => {
     // loads with the pages that use them (social-publication.ts); the queries are the same.
     // FriendStore's methods listed here run the functions of the same names in these modules; the queries are the same.
     const friendModules: Record<string, string> = {
-      listGroups: 'friend-groups',
+      relationsQuery: 'friend-pairs',
+      listBlocks: 'friend-pairs',
       listInvites: 'friend-invites',
       ranking: 'friend-ranking-share',
+      listGroups: 'friend-groups',
     };
     const current = (owner: string) =>
       owner
