@@ -9,6 +9,25 @@ const main = configuration.headers.find((rule) => rule.source === '/((?!__/auth/
 const headers = Object.fromEntries(main.headers.map((header) => [header.key, header.value]));
 
 describe('S3 header and supply-chain boundaries', () => {
+  it('caches unversioned covers briefly without overriding their catch-all security headers', () => {
+    const covers = configuration.headers.filter((rule) => rule.source === '/covers/(.*)');
+    const policy = { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' };
+    expect(covers).toHaveLength(1);
+    expect(covers[0]!.headers).toEqual([policy]);
+    for (const pathname of ['/covers/red-dead-redemption-2.webp', '/covers/mass-effect-2.webp']) {
+      const matching = configuration.headers.filter((rule) => new RegExp(`^${rule.source}$`).test(pathname));
+      expect(matching.map((rule) => rule.source)).toEqual([main.source, '/covers/(.*)']);
+      const combined = Object.fromEntries(
+        matching.flatMap((rule) => rule.headers.map(({ key, value }) => [key, value])),
+      );
+      expect(combined).toEqual({ ...headers, 'Cache-Control': policy.value });
+      expect(combined['Cache-Control']).not.toContain('immutable');
+    }
+    for (const pathname of ['/api/catalog', '/__/auth/handler', '/assets/index.js', '/images/discovery/a.webp']) {
+      expect(new RegExp(`^${covers[0]!.source}$`).test(pathname)).toBe(false);
+    }
+  });
+
   it('uses opener/resource isolation without COEP or a redundant cross-origin auth-frame permission', () => {
     expect(headers['Cross-Origin-Opener-Policy']).toBe('same-origin');
     expect(headers['Cross-Origin-Resource-Policy']).toBe('same-origin');

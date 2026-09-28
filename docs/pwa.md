@@ -75,6 +75,16 @@ Videos, spreadsheets, 3D and the online controller are not precached. Existing
 media/download behavior is unchanged. The public Data use page bypasses PWA
 registration; it still does not bootstrap an account.
 
+Ordinary `/covers/` image responses use `public, max-age=86400,
+stale-while-revalidate=604800`: one day fresh, then at most seven days of
+stale-while-revalidate. Slug-based cover paths are not immutable, so a newly
+replaced cover may remain in a browser cache for that freshness window.
+This path-specific rule sets only Cache-Control; the catch-all CSP, HSTS,
+isolation and other security headers still apply. Offline asset preparation
+continues using network-only requests and exact manifest checksums rather than
+trusting those browser-cache bytes. No cover paths, image bytes or PWA policy
+are changed by this HTTP cache rule.
+
 `/pwa/fallback.css` belongs to the standalone offline document and the app's
 `noscript` fallback, not the JavaScript-enabled app stylesheet graph. Its
 separate byte gate does not exempt it from the core entry/byte budget. Active
