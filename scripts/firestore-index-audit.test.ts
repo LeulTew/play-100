@@ -191,8 +191,8 @@ describe('STORAGE-02 exact query/index contract', () => {
         'src/cloud/cloud-store.ts#CloudStore.probeDeletedCopy',
         'src/cloud/cloud-store.ts#CloudStore.purgeDeletedPayload',
         'src/cloud/friend-all-store.ts#FriendAllStore.pruneLegacy',
+        'src/cloud/friend-cleanup.ts#cleanupDeleted',
         'src/cloud/friend-store.ts#FriendStore.freePairCapacity',
-        'src/cloud/friend-store.ts#FriendStore.cleanupDeleted',
         'src/cloud/social-publication.ts#SocialPublication.report',
       ].sort(),
     );
