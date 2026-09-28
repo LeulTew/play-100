@@ -192,9 +192,7 @@ it('opens Blocked afresh with one page after Invite links held two', async () =>
 it('keeps the open list while loadAux() reloads the pages it holds', async () => {
   const opened = await twoInvitePages();
   store.listInvites.mockClear();
-  store.listInvites
-    .mockResolvedValueOnce(page([invite('a')], cursor('1')))
-    .mockResolvedValueOnce(page([invite('d')]));
+  store.listInvites.mockResolvedValueOnce(page([invite('a')], cursor('1'))).mockResolvedValueOnce(page([invite('d')]));
   const reload = opened.loadAux();
   const reloading = render('invites');
   expect(reloading.aux).toMatchObject({ loading: true, pages: 2 });

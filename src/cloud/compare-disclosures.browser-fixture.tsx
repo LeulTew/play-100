@@ -6,7 +6,7 @@ import { initialPeopleDisclosure, useCoverageDisclosure, usePeopleDisclosure } f
 // Compare's two disclosures on their own: the "Change people" chooser in a known view with two people chosen and the
 // chooser closed, and the coverage details with no failed reads. The controls commit synchronously, in the calling
 // task, so a test can commit before a queued toggle event is delivered.
-function Disclosures() {
+export function Disclosures() {
   const [count, setCount] = useState(2);
   const [problems, setProblems] = useState('');
   const [, setRenders] = useState(0);
