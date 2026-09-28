@@ -28,7 +28,6 @@ import type { AvatarValue, PublicEntry } from '../lib/community';
 import { displayNameProblem } from '../lib/text-controls';
 import {
   FRIEND_CHUNK_LIMIT,
-  FRIEND_CHUNK_SIZE,
   FriendCommittedError,
   FriendStoreError,
   friendName,
@@ -36,16 +35,13 @@ import {
   friendSelection,
   friendUid,
   parseFriendBlock,
-  parseFriendChunk,
   parseFriendGeneration,
   parseFriendHead,
   parseFriendIdentity,
   parseFriendPair,
   parseFriendRegistry,
   parseFriendSettings,
-  parseFriendSource,
   retainsFriendGeneration,
-  validateFriendEntries,
 } from '../lib/friend-types';
 import type {
   FriendBlock,
@@ -66,7 +62,6 @@ import type {
   FriendSourceRevision,
 } from '../lib/friend-types';
 import { ensureAccountActivity } from './account-lifecycle';
-import { parseHead } from './cloud-store';
 import { SocialStore } from './social-store';
 import { releaseIndexedPayload } from './generation-cleanup';
 import {
@@ -83,6 +78,7 @@ import type { SlotQuotaKind } from './account-quota';
 import { activeSettings, conflict, errorValue, expectedSettings, online, page } from './friend-store-core';
 import { deleteGroup, getGroup, listGroups, saveGroup } from './friend-groups';
 import { acceptInvite, createInvite, listInvites, previewInvite, revokeInvite } from './friend-invites';
+import { publishRanking, ranking } from './friend-ranking-share';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 /** After cancelling, the sender waits this long before requesting again or releasing the pair (rules fPairAction). */
@@ -90,12 +86,6 @@ export const FRIEND_CANCEL_COOLDOWN_MS = 10 * 60 * 1000;
 const requestUnavailable = "You can't send this person a request right now.";
 const recentlyCancelled = 'You cancelled a request to this person a moment ago. Try again in a few minutes.';
 
-async function contentDigest(entries: PublicEntry[]): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(entries));
-  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('');
-}
 const EXPORT_PAGE_LIMIT = 100;
 // Pages one collection only until its own last page; a failed sibling stream stops further reads.
 async function exportPages<T>(
@@ -617,38 +607,10 @@ export class FriendStore {
   ): () => void {
     return this.watch(this.ref('friendShareHeads', uid), parseFriendHead, next, error);
   }
-  async ranking(ownerUid: string): Promise<FriendRanking> {
-    const head = await this.shareHead(ownerUid);
-    if (!head?.current) throw new FriendStoreError('unavailable', 'This person has not shared a ranking.');
-    const current = head.current;
-    const entries: PublicEntry[] = [];
-    if (current.count) {
-      const chunks = await getDocsFromServer(
-        query(
-          collection(this.db, 'friendShares', ownerUid, 'generations', current.generation, 'chunks'),
-          orderBy('index'),
-          limit(FRIEND_CHUNK_LIMIT),
-        ),
-      );
-      if (chunks.size !== Math.ceil(current.count / FRIEND_CHUNK_SIZE))
-        throw new FriendStoreError('unavailable', 'This shared ranking is incomplete. Reload it.');
-      chunks.docs.forEach((snap, index) => {
-        if (snap.id !== String(index))
-          throw new FriendStoreError('invalid', 'This shared ranking has inconsistent chunk positions.');
-        entries.push(...parseFriendChunk(snap.data(), index, current.count));
-      });
-    }
-    if (
-      new Set(entries.map((entry) => entry.id)).size !== entries.length ||
-      (await contentDigest(entries)) !== current.digest
-    )
-      throw new FriendStoreError('invalid', 'This shared ranking failed its integrity check.');
-    const latest = await this.shareHead(ownerUid);
-    if (!latest || latest.revision !== head.revision || latest.current?.generation !== current.generation)
-      conflict('This shared ranking changed while loading. Reload it.');
-    return { head, entries };
+  ranking(ownerUid: string): Promise<FriendRanking> {
+    return ranking(this, ownerUid);
   }
-  async publishRanking(
+  publishRanking(
     uid: string,
     input: PublicEntry[],
     expected: FriendSettings,
@@ -656,132 +618,7 @@ export class FriendStore {
     expectedHeadRevision: number,
     isCurrent?: () => boolean,
   ): Promise<{ changed: boolean; head: FriendShareHead }> {
-    activeSettings(expected);
-    if (!expected.enabled) throw new FriendStoreError('unavailable', 'Enable friends-only sharing before publishing.');
-    const source = parseFriendSource(sourceInput);
-    const guard = () => {
-      online();
-      if (isCurrent && !isCurrent()) conflict('This account scope changed. The sharing update was cancelled.');
-    };
-    const checkSource = (data: DocumentData | undefined) => {
-      const sync = data ? parseHead(data) : null;
-      if (!sync?.enabled || sync.deleted || sync.epoch !== source.syncEpoch || sync.revision !== source.remoteRevision)
-        conflict('The private online copy changed or paused. Wait for it to save before sharing.');
-    };
-    const entries = validateFriendEntries(input, expected.selectedIds);
-    const digest = await contentDigest(entries);
-    guard();
-    const headRef = this.ref('friendShareHeads', uid);
-    const settingsRef = this.ref('friendSettings', uid);
-    const syncRef = this.ref('syncHeads', uid);
-    const prior = await runTransaction(this.db, async (tx) => {
-      guard();
-      const [settings, head, sync] = await Promise.all([tx.get(settingsRef), tx.get(headRef), tx.get(syncRef)]);
-      checkSource(sync.data());
-      expectedSettings(activeSettings(settings.exists() ? parseFriendSettings(settings.data()) : null), expected);
-      const current = head.exists() ? parseFriendHead(head.data()) : null;
-      if ((current?.revision ?? 0) !== expectedHeadRevision)
-        conflict('A newer shared ranking is already available. Reload before replacing it.');
-      return current;
-    });
-    if (
-      prior?.epoch === expected.epoch &&
-      prior.settingsRevision === expected.revision &&
-      prior.current?.digest === digest
-    )
-      return { changed: false, head: prior };
-    await this.cleanupSharing(uid);
-    const id = crypto.randomUUID();
-    const generationRef = doc(this.db, 'friendShares', uid, 'generations', id);
-    const registryRef = this.ref('friendShareRegistry', uid);
-    await runTransaction(this.db, async (tx) => {
-      guard();
-      const [settings, registry, sync] = await Promise.all([tx.get(settingsRef), tx.get(registryRef), tx.get(syncRef)]);
-      checkSource(sync.data());
-      expectedSettings(activeSettings(settings.exists() ? parseFriendSettings(settings.data()) : null), expected);
-      const ids = registry.exists() ? parseFriendRegistry(registry.data()) : [];
-      if (ids.length >= 3)
-        throw new FriendStoreError(
-          'limit',
-          'Another sharing update is in progress. Retry after it finishes or after five minutes.',
-        );
-      tx.set(registryRef, { ids: [...ids, id], revision: registry.exists() ? registry.data().revision + 1 : 1 });
-      guard();
-      tx.set(generationRef, {
-        epoch: expected.epoch,
-        settingsRevision: expected.revision,
-        source,
-        count: entries.length,
-        digest,
-        uploaded: 0,
-        ids: [],
-        status: entries.length ? 'staging' : 'ready',
-        createdAt: serverTimestamp(),
-      });
-    });
-    for (let index = 0; index < Math.ceil(entries.length / FRIEND_CHUNK_SIZE); index += 1) {
-      guard();
-      const chunkEntries = entries.slice(index * FRIEND_CHUNK_SIZE, (index + 1) * FRIEND_CHUNK_SIZE);
-      const batch = writeBatch(this.db);
-      batch.set(doc(generationRef, 'chunks', String(index)), {
-        index,
-        entries: chunkEntries,
-        ids: chunkEntries.map((entry) => entry.id),
-      });
-      batch.update(generationRef, {
-        uploaded: index + 1,
-        ids: entries.slice(0, (index + 1) * FRIEND_CHUNK_SIZE).map((entry) => entry.id),
-        status: (index + 1) * FRIEND_CHUNK_SIZE >= entries.length ? 'ready' : 'staging',
-      });
-      await batch.commit();
-    }
-    await runTransaction(this.db, async (tx) => {
-      guard();
-      const [settings, head, gen, sync] = await Promise.all([
-        tx.get(settingsRef),
-        tx.get(headRef),
-        tx.get(generationRef),
-        tx.get(syncRef),
-      ]);
-      checkSource(sync.data());
-      expectedSettings(activeSettings(settings.exists() ? parseFriendSettings(settings.data()) : null), expected);
-      const current = head.exists() ? parseFriendHead(head.data()) : null;
-      const generation = gen.exists() ? parseFriendGeneration(gen.data()) : null;
-      if (
-        (current?.revision ?? 0) !== expectedHeadRevision ||
-        !generation ||
-        generation.status !== 'ready' ||
-        generation.epoch !== expected.epoch ||
-        generation.settingsRevision !== expected.revision
-      )
-        conflict();
-      guard();
-      tx.update(generationRef, { status: 'published' });
-      tx.set(headRef, {
-        format: 1,
-        epoch: expected.epoch,
-        settingsRevision: expected.revision,
-        source,
-        revision: expectedHeadRevision + 1,
-        current: { generation: id, digest, count: entries.length },
-        previous: current?.current ?? null,
-        updatedAt: serverTimestamp(),
-      });
-    });
-    const receipt: FriendMutationReceipt = {
-      operation: 'publish-ranking',
-      uid,
-      generation: id,
-      epoch: expected.epoch,
-      revision: expectedHeadRevision + 1,
-    };
-    const head = await this.afterCommit(receipt, async () => {
-      const current = await this.readCommitted(headRef, parseFriendHead);
-      if (!current || current.current?.generation !== id) conflict();
-      return current;
-    });
-    await this.afterCommit(receipt, () => this.cleanupSharing(uid), 'cleanup');
-    return { changed: true, head };
+    return publishRanking(this, uid, input, expected, sourceInput, expectedHeadRevision, isCurrent);
   }
   getGroup(uid: string, id: string): Promise<FriendGroup | null> {
     return getGroup(this, uid, id);

@@ -172,7 +172,11 @@ describe('STORAGE-02 exact query/index contract', () => {
     // SocialStore's publishing, moderation, report and public-copy cleanup methods run in SocialPublication, which
     // loads with the pages that use them (social-publication.ts); the queries are the same.
     // FriendStore's methods listed here run the functions of the same names in these modules; the queries are the same.
-    const friendModules: Record<string, string> = { listGroups: 'friend-groups', listInvites: 'friend-invites' };
+    const friendModules: Record<string, string> = {
+      listGroups: 'friend-groups',
+      listInvites: 'friend-invites',
+      ranking: 'friend-ranking-share',
+    };
     const current = (owner: string) =>
       owner
         .replace('src/cloud/social-store.ts#SocialStore.', 'src/cloud/social-publication.ts#SocialPublication.')
@@ -216,8 +220,8 @@ describe('STORAGE-02 exact query/index contract', () => {
     expect(identities(chunks)).toEqual([
       'src/cloud/cloud-store.ts#CloudStore.probeDeletedCopy',
       'src/cloud/cloud-store.ts#CloudStore.purgeDeletedPayload',
+      'src/cloud/friend-ranking-share.ts#ranking',
       'src/cloud/friend-shelf-store.ts#FriendShelfStore.shelf',
-      'src/cloud/friend-store.ts#FriendStore.ranking',
     ]);
     expect(
       new Set(chunks.flatMap((query) => query.orders.map((order) => `${order.field}:${order.direction}`))),
