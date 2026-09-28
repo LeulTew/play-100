@@ -33,15 +33,12 @@ import {
   FriendStoreError,
   friendName,
   friendPairId,
-  friendParticipants,
   friendSelection,
   friendToken,
   friendUid,
-  friendUuid,
   parseFriendBlock,
   parseFriendChunk,
   parseFriendGeneration,
-  parseFriendGroup,
   parseFriendHead,
   parseFriendIdentity,
   parseFriendInvite,
@@ -87,6 +84,7 @@ import {
 } from './account-quota';
 import type { SlotQuotaKind } from './account-quota';
 import { activeSettings, conflict, errorValue, expectedSettings, online, page } from './friend-store-core';
+import { deleteGroup, getGroup, listGroups, saveGroup } from './friend-groups';
 
 export const FRIEND_REQUEST_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 /** After cancelling, the sender waits this long before requesting again or releasing the pair (rules fPairAction). */
@@ -132,6 +130,9 @@ async function exportPages<T>(
   );
 }
 
+// A method that delegates runs the function of the same name in its concern's friend-* module. That function calls
+// other store methods through the store, as the method did, so a patched FriendStore.prototype method still
+// intercepts those calls. The helpers such functions need are public for that reason.
 export class FriendStore {
   constructor(readonly db: Firestore) {}
   private ref(collectionName: string, uid: string): DocumentReference<DocumentData> {
@@ -140,14 +141,11 @@ export class FriendStore {
   private pairRef(uid: string, otherUid: string): DocumentReference<DocumentData> {
     return doc(this.db, 'friendPairs', friendPairId(uid, otherUid));
   }
-  private async read<T>(ref: DocumentReference<DocumentData>, parse: (data: DocumentData) => T): Promise<T | null> {
+  async read<T>(ref: DocumentReference<DocumentData>, parse: (data: DocumentData) => T): Promise<T | null> {
     const snap = await getDocFromServer(ref);
     return snap.exists() ? parse(snap.data()) : null;
   }
-  private async readCommitted<T>(
-    ref: DocumentReference<DocumentData>,
-    parse: (data: DocumentData) => T,
-  ): Promise<T | null> {
+  async readCommitted<T>(ref: DocumentReference<DocumentData>, parse: (data: DocumentData) => T): Promise<T | null> {
     // Read transaction RPCs bypass stale RemoteStore listener snapshots after the mutation ACK.
     return runTransaction(
       this.db,
@@ -175,7 +173,7 @@ export class FriendStore {
     if (settings) activeSettings(settings);
     online();
   }
-  private async afterCommit<T>(
+  async afterCommit<T>(
     receipt: FriendMutationReceipt,
     operation: () => Promise<T>,
     phase: 'refresh' | 'cleanup' = 'refresh',
@@ -1026,84 +1024,21 @@ export class FriendStore {
     await this.afterCommit(receipt, () => this.cleanupSharing(uid), 'cleanup');
     return { changed: true, head };
   }
-  async getGroup(uid: string, id: string): Promise<FriendGroup | null> {
-    return this.read(doc(this.db, 'friendGroups', friendUid(uid), 'items', friendUuid(id)), (data) =>
-      parseFriendGroup(id, data),
-    );
+  getGroup(uid: string, id: string): Promise<FriendGroup | null> {
+    return getGroup(this, uid, id);
   }
-  async listGroups(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendGroup>> {
-    const result = await getDocsFromServer(
-      query(
-        collection(this.db, 'friendGroups', friendUid(uid), 'items'),
-        orderBy('updatedAt', 'desc'),
-        ...(cursor ? [startAfter(cursor)] : []),
-        limit(20),
-      ),
-    );
-    return page(result.docs, (row) => parseFriendGroup(row.id, row.data()));
+  listGroups(uid: string, cursor?: FriendCursor): Promise<FriendPage<FriendGroup>> {
+    return listGroups(this, uid, cursor);
   }
-  async saveGroup(
+  saveGroup(
     uid: string,
     input: { id?: string; name: string; participantUids: string[] },
     expectedRevision: number,
   ): Promise<FriendGroup> {
-    const id = input.id ? friendUuid(input.id) : crypto.randomUUID();
-    const name = friendName(input.name, 80);
-    const participantUids = friendParticipants(input.participantUids);
-    const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', id);
-    online();
-    const quota = quotaRef(this.db, uid, 'groups');
-    const counted = await quotaSupported(quota);
-    if (!(await getDocFromServer(ref)).exists())
-      await requireVisibleCapacity<FriendCursor>('groups', (cursor) => this.listGroups(uid, cursor));
-    const existing = await runTransaction(this.db, async (tx) => {
-      const [snap, slots] = await Promise.all([
-        tx.get(ref),
-        counted ? readQuotaSlots(tx, quota, 'groups') : Promise.resolve(null),
-      ]);
-      const current = snap.exists() ? parseFriendGroup(id, snap.data()) : null;
-      if (
-        input.id &&
-        expectedRevision === 0 &&
-        current &&
-        current.name === name &&
-        current.participantUids.join('|') === participantUids.join('|')
-      )
-        return current;
-      if ((current?.revision ?? 0) !== expectedRevision) conflict('This saved group changed. Reload before saving.');
-      if (slots && !current) occupyQuotaSlot(tx, quota, slots, id, 'groups');
-      tx.set(ref, {
-        format: 1,
-        name,
-        participantUids,
-        revision: expectedRevision + 1,
-        createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      return null;
-    });
-    if (existing) return existing;
-    return this.afterCommit({ operation: 'save-group', uid, groupId: id, revision: expectedRevision + 1 }, async () => {
-      const result = await this.readCommitted(ref, (data) => parseFriendGroup(id, data));
-      if (!result) conflict();
-      return result;
-    });
+    return saveGroup(this, uid, input, expectedRevision);
   }
-  async deleteGroup(uid: string, id: string, expectedRevision: number, quotaAvailable?: boolean): Promise<void> {
-    const ref = doc(this.db, 'friendGroups', friendUid(uid), 'items', friendUuid(id));
-    online();
-    const quota = quotaRef(this.db, uid, 'groups');
-    const counted = quotaAvailable ?? (await quotaSupported(quota));
-    await runTransaction(this.db, async (tx) => {
-      const [snap, slots] = await Promise.all([
-        tx.get(ref),
-        counted ? readQuotaSlots(tx, quota, 'groups') : Promise.resolve(null),
-      ]);
-      if (!snap.exists() || parseFriendGroup(id, snap.data()).revision !== expectedRevision)
-        conflict('This saved group changed or was already deleted.');
-      tx.delete(ref);
-      if (slots) releaseQuotaSlot(tx, quota, slots, id);
-    });
+  deleteGroup(uid: string, id: string, expectedRevision: number, quotaAvailable?: boolean): Promise<void> {
+    return deleteGroup(this, uid, id, expectedRevision, quotaAvailable);
   }
   /** Reads identity and settings once, then pages each collection only until its own last page. */
   async exportAll(uid: string, isCurrent: () => boolean): Promise<FriendExport> {

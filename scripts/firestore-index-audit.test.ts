@@ -171,8 +171,14 @@ describe('STORAGE-02 exact query/index contract', () => {
     expect(identities(oldQueries)).toEqual(oldOwners.sort());
     // SocialStore's publishing, moderation, report and public-copy cleanup methods run in SocialPublication, which
     // loads with the pages that use them (social-publication.ts); the queries are the same.
+    // FriendStore's methods listed here run the functions of the same names in these modules; the queries are the same.
+    const friendModules: Record<string, string> = { listGroups: 'friend-groups' };
     const current = (owner: string) =>
-      owner.replace('src/cloud/social-store.ts#SocialStore.', 'src/cloud/social-publication.ts#SocialPublication.');
+      owner
+        .replace('src/cloud/social-store.ts#SocialStore.', 'src/cloud/social-publication.ts#SocialPublication.')
+        .replace(/^src\/cloud\/friend-store\.ts#FriendStore\.(\w+)$/, (owned, name: string) =>
+          friendModules[name] ? `src/cloud/${friendModules[name]}.ts#${name}` : owned,
+        );
     expect(identities(currentQueries)).toEqual(
       [
         ...oldOwners.map(current),
