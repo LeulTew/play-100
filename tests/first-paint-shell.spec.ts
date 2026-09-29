@@ -466,7 +466,9 @@ test('the startup artifact caption names Lite mode only when the visitor chose i
     fresh.filter((entry) => entry.includes('Lite mode')),
     'a caption naming a mode nobody chose',
   ).toEqual([]);
-  if (isMobile) expect(fresh.at(-1)).toBe('app: Auto · tap Fan out to start 3D');
+  // One stable caption until the final state: no loading or ready-to-explore steps in between (UX-006).
+  expect(new Set(fresh.map((entry) => entry.replace(/^(?:shell|app): /, ''))).size).toBeLessThanOrEqual(2);
+  if (isMobile) expect(fresh.at(-1)).toBe('app: Illustrated view · tap Fan out for 3D');
 
   // Choosing Lite saves it in the library and its startup hint, so the next visit's first frames name it.
   await page.getByRole('button', { name: 'Menu', exact: true }).click();

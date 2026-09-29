@@ -276,6 +276,7 @@ export default function CollectionArtifact({
 
   const renderMode = showing ? 'webgl' : 'static';
   const status = !canRender ? 'static' : state.status;
+  // One caption until the view settles: waiting for and loading the 3D scene both read as the illustration they show.
   const explanation = motionReduced
     ? 'Illustrated view · reduced motion'
     : quality === 'lite'
@@ -285,13 +286,8 @@ export default function CollectionArtifact({
       : quality === 'auto' && constrained
         ? 'Illustrated view · saving resources'
         : needsInteraction
-          ? 'Auto · tap Fan out to start 3D'
-          : (state.reason ??
-            (state.ready
-              ? 'A small, interactive collection study.'
-              : state.status === 'loading'
-                ? 'Illustrated view · 3D is loading…'
-                : 'Illustrated view · ready to explore'));
+          ? 'Illustrated view · tap Fan out for 3D'
+          : (state.reason ?? (state.ready ? '3D view' : 'Illustrated view'));
 
   return (
     <figure
@@ -309,10 +305,8 @@ export default function CollectionArtifact({
       </div>
       <figcaption ref={footerRef} className="artifact-footer">
         <div id={captionId} className="artifact-caption">
-          <span className="artifact-caption-title">Good things, collected.</span>
-          <span className="artifact-status" role="status" aria-live="polite">
-            {explanation}
-          </span>
+          <span className="artifact-caption-title">The 100 game sleeves</span>
+          <span className="artifact-status">{explanation}</span>
         </div>
         {canInteract && (
           <button

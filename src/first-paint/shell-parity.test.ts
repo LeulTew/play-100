@@ -221,17 +221,14 @@ describe("first-paint shell parity with React's first commit", () => {
         page: 'collection',
         onlineAvailable: online,
         libraryScope: 'guest',
-        // App's first commit is still opening the account whenever online tools exist.
+        // App's first commit is still checking for an account whenever online tools exist; for a visitor with no
+        // remembered account, the header names none yet.
         libraryLabel: online
           ? firstBranch(
-              sourceNodes(onlineStateSyntax, ts.isPropertyAssignment).find(
-                (item) =>
-                  ts.isIdentifier(item.name) &&
-                  item.name.text === 'label' &&
-                  ts.isConditionalExpression(item.initializer) &&
-                  sourceTokens(item.initializer.condition.getText()) === sourceTokens('onlineOpening'),
+              sourceNodes(onlineStateSyntax, ts.isVariableDeclaration).find(
+                (item) => ts.isIdentifier(item.name) && item.name.text === 'headerLabel',
               )?.initializer,
-              'onlineOpening',
+              'onlineOpening && !onlineRequested',
             )
           : 'Device only',
         syncStatus: 'device',

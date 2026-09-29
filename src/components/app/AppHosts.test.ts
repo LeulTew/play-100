@@ -266,6 +266,30 @@ describe('navigation and dialog hosts', () => {
     expect(html).not.toContain('data-compare-chip');
   });
 
+  it('names only "Account" while no account session is known (UX-006)', () => {
+    const html = renderToStaticMarkup(
+      createElement(AppHeader, {
+        page: 'collection',
+        onlineAvailable: true,
+        libraryScope: 'guest',
+        libraryLabel: '',
+        syncStatus: 'device',
+        headerIdentity: null,
+        savedCount: 0,
+        animate: false,
+        menuOpen: false,
+        pageHref: (page) => `/${page}`,
+        onNavigateLink: vi.fn(),
+        onQueue: vi.fn(),
+        onMenu: vi.fn(),
+        onAccount: vi.fn(),
+      }),
+    );
+    expect(html).toContain('href="/account" aria-label="Account">');
+    expect(html).toContain('<span class="account-nav-copy"><strong>Account</strong></span>');
+    expect(html).not.toContain('Opening account');
+  });
+
   it('retains header selectors, navigation order and verified display inputs', () => {
     const html = renderToStaticMarkup(
       createElement(AppHeader, {
@@ -294,8 +318,8 @@ describe('navigation and dialog hosts', () => {
     expect(html.indexOf('>Discover</a>')).toBeLessThan(html.indexOf('>My games</a>'));
     expect(html).toContain('aria-label="Account Device only"');
     expect(html).not.toContain('title="Device only"');
-    expect(html).toContain('aria-label="Download enhanced Excel workbook"');
-    expect(html).not.toContain('title="Download Excel"');
+    // Named and titled alike, so hovering the icon shows the name it announces (UX-009).
+    expect(html).toContain('aria-label="Download the Excel workbook" title="Download the Excel workbook"');
     expect(html).toContain('aria-label="Play later, 3 games"');
     expect(html).toContain('class="saved-count"><span class="sr-only">3</span>');
     expect(html.indexOf('class="saved-nav"')).toBeLessThan(html.indexOf('>3 games in Compare tray</button>'));

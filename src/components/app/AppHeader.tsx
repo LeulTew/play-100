@@ -112,7 +112,8 @@ export function AppHeader({
           className="icon-button header-download"
           href="/downloads/Play-100-Collection.xlsx"
           download
-          aria-label="Download enhanced Excel workbook"
+          aria-label="Download the Excel workbook"
+          title="Download the Excel workbook"
         >
           <Icon name="download" />
         </a>
@@ -125,7 +126,7 @@ export function AppHeader({
             {...intent('account')}
             className={`account-nav sync-${syncStatus}`}
             href="/account"
-            aria-label={`Account${headerIdentity ? ` for ${headerIdentity.name}` : ''} ${libraryLabel}`}
+            aria-label={`Account${headerIdentity ? ` for ${headerIdentity.name}` : ''}${libraryLabel ? ` ${libraryLabel}` : ''}`}
             onClick={(event) => {
               if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
                 event.preventDefault();
@@ -141,7 +142,13 @@ export function AppHeader({
               )}
             </span>
             <span className="account-nav-copy">
-              <strong>{headerIdentity?.name ?? 'Account'}</strong> <small>{libraryLabel}</small>
+              <strong>{headerIdentity?.name ?? 'Account'}</strong>
+              {libraryLabel && (
+                <>
+                  {' '}
+                  <small>{libraryLabel}</small>
+                </>
+              )}
             </span>
           </a>
         )}

@@ -62,7 +62,7 @@ export default function App() {
   const personalPage = page === 'games' ? (gamesView === 'ranking' ? 'rankings' : 'library') : page;
   const cloudPage = CLOUD_PAGES.includes(page);
   const onlineState = useOnlineState();
-  const { online, onlineOpening, currentOnline, libraryScope, libraryMode, headerIdentity } = onlineState;
+  const { online, onlineOpening, currentOnline, libraryScope, libraryMode, headerLabel, headerIdentity } = onlineState;
   const library = online?.controller ?? guestLibrary;
   const libraryBusy = library.busy || library.status === 'loading' || onlineOpening;
   const { activeScope, scopeEpoch, navigationGeneration, navigationEpoch, captureFocusGuard } =
@@ -349,7 +349,7 @@ export default function App() {
                         library,
                         libraryBusy,
                         libraryScope,
-                        libraryLabel: libraryMode.label,
+                        libraryLabel: headerLabel,
                         online,
                         onlineOpening,
                         showOnline: ONLINE_AVAILABLE && (onlineState.onlineRequested || cloudPage),

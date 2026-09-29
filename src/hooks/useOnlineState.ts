@@ -26,6 +26,8 @@ export function useOnlineState() {
     }),
     [libraryScope, onlineOpening, online?.enabled, online?.label],
   );
+  // A guest with no remembered account sees a neutral "Account" until the check ends: "Opening account…" is for a known one.
+  const headerLabel = onlineOpening && !onlineRequested ? '' : libraryMode.label;
   const headerIdentity =
     online?.identity && online.headerIdentity?.uid === online.identity.uid ? online.headerIdentity : null;
   useEffect(() => {
@@ -59,6 +61,7 @@ export function useOnlineState() {
     onlineOpening,
     libraryScope,
     libraryMode,
+    headerLabel,
     headerIdentity,
   };
 }

@@ -25,7 +25,7 @@
  *   550 sans     desktop navigation labels
  *   600 sans     "Play later", "Menu", mobile navigation labels
  *   650 sans     "Explore all 100", "Pick for me", "Account"
- *   700 sans     "GOOD THINGS, COLLECTED.", "Fan out"
+ *   700 sans     "THE 100 GAME SLEEVES", "Fan out" (fitted on "GOOD THINGS, COLLECTED.", boot.js's probe)
  * Each override is the web font's metric divided by (units per em x size-adjust), because
  * size-adjust also scales the overrides. Web metrics (ascent/descent/line gap per 1000 units):
  * Barlow Condensed 1000/200/0 and Hanken Grotesk 1000/303/0, so line boxes match exactly.

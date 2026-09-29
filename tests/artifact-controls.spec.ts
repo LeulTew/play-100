@@ -39,7 +39,7 @@ test('Auto offers a real on-demand fan on touch and a working loaded fan on desk
     );
     await expect(artifact).toHaveAttribute('data-activation', 'on-demand');
     await expect(artifact.locator('canvas')).toHaveCount(0);
-    await expect(artifact).toContainText('tap Fan out to start 3D');
+    await expect(artifact).toContainText('Illustrated view · tap Fan out for 3D');
   } else {
     // Idle-scheduled scene startup uses the test budget, not a 10s performance threshold.
     await expect(artifact).toHaveAttribute('data-scene-status', 'ready', { timeout: 0 });
