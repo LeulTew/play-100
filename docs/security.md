@@ -684,6 +684,22 @@ and refused sets are unchanged. Unit tests keep the pattern copies equal, and
 emulator tests cover the heaviest writes: a 200-entry publication, a rename
 that runs every pattern, unpublishing and moderation with a saved online copy.
 
+**Rules size and structure (R22).** Firebase refuses a rules source over
+256 KiB, a compiled ruleset over 250 KiB, a function with more than 7
+arguments or 10 `let` bindings, a call chain deeper than 20 rule-defined
+functions, recursion, match nesting deeper than 10 and more than 20 path
+captures in a chain of nested matches. The compiled size can't be measured
+locally, so `scripts/firestore-rules-limits.test.ts` holds the source to a
+project ceiling of 192 KiB (196,608 bytes), three quarters of its own limit, and
+checks the rest from the source with comments and strings removed. In R22 the
+source is 111,757 bytes, with 181 functions: at most 6 arguments and 9 `let`
+bindings, a deepest call chain of 7, match nesting of 2 and at most 4
+captures. The per-request limits, 1,000 evaluated expressions and the document
+lookups a request may make, apply at runtime instead:
+`tests-cloud/rules-expression-budget.test.ts` and `rules-access-budget.test.ts`
+calibrate how the emulator enforces them, and the emulator suites run the
+heaviest real writes against them (see the R12 note above).
+
 **Save-commit evaluation limit (R13).** Since R9, emulator denials of private
 saves have named the 1,000-expression limit. That includes the losing tab's
 save in a Release 5 two-tab race, and refusals that should be cheap, such as an
