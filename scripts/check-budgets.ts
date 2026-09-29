@@ -17,7 +17,7 @@ import { inlineBlocks } from './first-paint/csp.ts';
 import type { ShellVariant } from './first-paint/shell-html.ts';
 export { assertDeferredBundleModules } from './eager-module-guard.ts';
 
-const metrics = [
+export const BUDGET_METRICS = [
   'eagerCombinedGzipBytes',
   'cssRawBytes',
   'cssGzipBytes',
@@ -33,8 +33,8 @@ const metrics = [
   'inlineScriptRawBytes',
   'largestRouteGzipBytes',
 ] as const;
-type Metric = (typeof metrics)[number];
-export type BudgetLimits = Record<Metric, number>;
+export type BudgetMetric = (typeof BUDGET_METRICS)[number];
+export type BudgetLimits = Record<BudgetMetric, number>;
 
 /**
  * Every lazily loaded page and picker root, React.lazy() in src: the public routes, the catalog detail and data-use
@@ -101,7 +101,7 @@ export interface BuildMeasurement {
 export function parseBudgetLimits(input: unknown): BudgetLimits {
   if (!object(input) || input.version !== 1 || !object(input.limits)) throw new Error('Invalid budgets.json format.');
   const values = input.limits;
-  const read = (key: Metric) => {
+  const read = (key: BudgetMetric) => {
     const value = values[key];
     // 0 is a cap no build passes, so a placeholder for a gate that is not measured yet fails closed.
     if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)
@@ -472,7 +472,7 @@ export async function measureBuild(
 }
 
 export function budgetRows(measured: BuildMeasurement, limits: BudgetLimits) {
-  return metrics.map((metric) => ({
+  return BUDGET_METRICS.map((metric) => ({
     metric,
     actual: measured.values[metric],
     limit: limits[metric],

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "limits": {
-    "eagerCombinedGzipBytes": 175542,
+    "eagerCombinedGzipBytes": 174803,
     "cssRawBytes": 135115,
     "cssGzipBytes": 28249,
     "standaloneCssRawBytes": 603,
@@ -9,12 +9,12 @@
     "pwaCoreBytes": 2097152,
     "pwaCoreFiles": 51,
     "largestLazyRawBytes": 577308,
-    "largestLazyGzipBytes": 146453,
-    "indexHtmlRawBytes": 33399,
+    "largestLazyGzipBytes": 146441,
+    "indexHtmlRawBytes": 33104,
     "indexHtmlGzipBytes": 9386,
     "inlineStyleRawBytes": 18527,
     "inlineScriptRawBytes": 3585,
-    "largestRouteGzipBytes": 282325
+    "largestRouteGzipBytes": 282025
   },
   "baseline": {
     "commit": "270f4c743d3a9a89d5a64fe612e471ea045ebb47",
@@ -43,12 +43,50 @@
     "r10b": "Parent-configured R10 scratch chain c470a52 (R9 tip 25e2ab6d + R10 + R10b), configured online build: largest whole route = src/cloud/FriendComparisonPage.tsx at 277864 gzip9 (1053028 raw, 16 files), cap ceil(277864 * 1.02) = 283422. Online page rows include the online bridge closure their chunks import; offline build 277856.",
     "r11": "Parent-measured R11 scratch tree abcec9f6 (R10 main c877a04b + R11 ranges 1-11), configured online build: boot script = ceil(4760 * 1.02) = 4856, after G3 REL-001 added the Data use exception to the deferred-tag loop (+118 B over the R10 measurement of 4642). index.html then measures 33006 raw / 9252 gzip9, within its R10 caps; every other cap is unchanged.",
     "r19": "Parent-configured R19 integration tree (R18b 9ea25e7 + the seven R19 ranges), configured online build: the first-paint inline style = ceil(18441 * 1.02) = 18810 (online variant; offline 17651). The +1822 B over R18's 16619 are the Roboto fallback faces and probe styles that let the static shell show on Android, whose system fonts the Impact and Arial faces cannot match (lab FCP about 0.8 s instead of about 2.5 s there); the shell's CSS is otherwise minified by Lightning CSS. index.html stays within its R10 caps (33236 raw / 9256 gzip9).",
-    "policy": "R22 (docs/performance.md): caps only move down. After a configured build of the integrated tree, each cap with room drops to min(cap, measured + max(ceil(1% of measured), 256)). A cap rises only with a reason recorded here: the release, the measured value, what grew and why that growth is accepted; it then rises to measured + the same margin, no further. pwaCoreBytes and pwaCoreFiles are the offline worker's install limits (PWA_BUDGET in src/pwa/worker.ts) and change only with them.",
+    "policy": "R22, enforced from R23 (docs/performance.md): caps only move down. After a configured build of the integrated tree, each cap with room drops to min(cap, measured + max(ceil(1% of measured), 256)), and `release` records that measurement and the caps set from it. A cap rises above the release's cap only with an entry in `raises` (metric, the new measurement and the reason the growth is accepted), and then to that measurement + the same margin, no further. pwaCoreBytes and pwaCoreFiles are the offline worker's install limits (PWA_BUDGET in src/pwa/worker.ts) and change only with them. scripts/budget-policy.test.ts fails on any cap the policy does not allow, and `npm run budgets:record -- <check:budgets --json report> --release <name>` writes the record and the lowered caps.",
     "r22": "Intermediate measurement, not the release: configured build of sim db0ea42a plus L-FIRSTPAINT's first app-shared group and CSS removals, where the caps were lowered per notes.policy. App CSS 133777 raw / 27969 gzip9, 1731 / 180 less than the same tree before the removals (135508 / 28149). Lowered: cssRawBytes 135115, cssGzipBytes 28249, largestLazyRawBytes 577308 (571592 measured), largestLazyGzipBytes 146453 (145002), indexHtmlRawBytes 33399 (33068), inlineStyleRawBytes 18527 (18271 online; offline 17595), inlineScriptRawBytes 3585 (3329), largestRouteGzipBytes 282325 (279529). Unchanged: standaloneCss 603 / 330 and indexHtmlGzipBytes 9386, where the margin would exceed the cap (574 / 314 and 9228 measured); pwaCoreBytes and pwaCoreFiles, the worker's limits (1783539 bytes; 50 of 51 files, after the first app-shared group folded four shared chunks into one). eagerCombinedGzipBytes measured 176221 there, above its 175542 cap, after R22 added about 2.9 KB of eager JS gzip9 since 4218eb4d (156053 to 158913), mostly a2838ac4, 3a12ac44 and 201ee366; notes.r22Release has the release figures.",
     "r22Release": "Configured build of the R22 candidate (tree 63c5500d): every cap passes, 14 of 14, and none changed from notes.r22. eagerCombinedGzipBytes 173072 of 175542 (155764 JS + 17308 CSS; offline build 172978), back under the unchanged cap after ae1dd74d deferred the saved-artwork load behind the existing dynamic catalog module and widened the app-shared group to the entry's whole static closure (includeDependenciesRecursively), so the eager code ships as the entry, app-shared and the Rolldown runtime instead of as separate shared chunks. pwaCoreFiles 46 of 51 (44 public files plus 2 metadata entries), pwaCoreBytes 1783068; indexHtmlRawBytes 32776 of 33399 (offline 31593), indexHtmlGzipBytes 9162; largestRouteGzipBytes 279232 of 282325; largestLazy 571597 / 144991; app CSS, the inline style and the boot script as in notes.r22. The caps with room stay where notes.r22 lowered them; the next configured build of an integrated tree lowers them again per notes.policy.",
+    "r23": "R23 applied notes.policy to the R22 release measurement (release: configured build of 5b6dadd8, tree 63c5500d; the figures of notes.r22Release): eagerCombinedGzipBytes 175542 -> 174803 (173072 measured), largestRouteGzipBytes 282325 -> 282025 (279232), largestLazyGzipBytes 146453 -> 146441 (144991), indexHtmlRawBytes 33399 -> 33104 (32776). The other caps already sat at or below their measurement plus the margin, or are the worker's limits.",
     "compression": "gzip level 9, independently per file, summed after deduplication. Fonts, JSON and the root worker are not part of the eager JS+CSS gate.",
     "lazy": "All emitted assets/*.js outside the eager set; raw and gzip maxima are measured separately. The root service worker is excluded.",
     "routes": "Whole-route cost: for each lazily loaded page or picker root (ROUTE_ROOTS in scripts/check-budgets.ts, every React.lazy() in src), the gzip9 bytes, per file, of its root chunk, its static-import closure and the CSS those chunks import, beyond the eager set, from the retained Vite manifest. The most expensive route is gated; every route is reported.",
     "cssScopes": "App CSS is Vite-emitted assets/*.css. Standalone pwa/*.css may only be linked from pwa/offline.html or index.html noscript, never an app chunk or CSS import, and must be in the bounded PWA core. Active inline styles count in the gated index.html raw/gzip measurements, and the first-paint style in its own cap, rather than being silently added to or removed from the emitted-CSS baseline series."
-  }
+  },
+  "release": {
+    "name": "R22",
+    "commit": "5b6dadd87038955cfd1ccd48f0a0af6023126d9b",
+    "measured": {
+      "eagerCombinedGzipBytes": 173072,
+      "cssRawBytes": 133777,
+      "cssGzipBytes": 27969,
+      "standaloneCssRawBytes": 574,
+      "standaloneCssGzipBytes": 314,
+      "pwaCoreBytes": 1783068,
+      "pwaCoreFiles": 46,
+      "largestLazyRawBytes": 571597,
+      "largestLazyGzipBytes": 144991,
+      "indexHtmlRawBytes": 32776,
+      "indexHtmlGzipBytes": 9162,
+      "inlineStyleRawBytes": 18271,
+      "inlineScriptRawBytes": 3329,
+      "largestRouteGzipBytes": 279232
+    },
+    "limits": {
+      "eagerCombinedGzipBytes": 174803,
+      "cssRawBytes": 135115,
+      "cssGzipBytes": 28249,
+      "standaloneCssRawBytes": 603,
+      "standaloneCssGzipBytes": 330,
+      "pwaCoreBytes": 2097152,
+      "pwaCoreFiles": 51,
+      "largestLazyRawBytes": 577308,
+      "largestLazyGzipBytes": 146441,
+      "indexHtmlRawBytes": 33104,
+      "indexHtmlGzipBytes": 9386,
+      "inlineStyleRawBytes": 18527,
+      "inlineScriptRawBytes": 3585,
+      "largestRouteGzipBytes": 282025
+    }
+  },
+  "raises": []
 }

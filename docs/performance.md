@@ -12,12 +12,21 @@ Caps only move down.
 - **Lowering.** After a configured build of the integrated tree, each cap with room drops to
   `min(cap, measured + max(ceil(1% of measured), 256))`. The margin leaves room for ordinary changes without a cap
   edit, and the bytes a release removes lower the cap instead of becoming room for the next addition.
-- **Raising.** A change that needs a higher cap records its reason in `budgets.json` `notes`: the release, the measured
-  value, what grew and why that growth is accepted. The cap then rises to the new measured value plus the same margin,
-  no further. A cap is never raised to make a build pass without that record.
+  `npm run budgets:record -- <report.json> --release <name>` does this from the `npm run check:budgets -- --json
+  <report.json>` report of a clean, committed, configured build that passes. It writes the lowered caps and records the
+  measurement, its commit and the caps set from it as `budgets.json` `release`; explain the lowered caps in `notes`.
+- **Raising.** A change that needs a higher cap adds an entry to `budgets.json` `raises`: the metric, the new
+  measurement and the reason the growth is accepted, which `notes` can expand on. The cap then rises to that
+  measurement plus the same margin, no further. The next recorded release absorbs the raise and clears the list.
 - **Offline worker limits.** `pwaCoreBytes` and `pwaCoreFiles` are the offline worker's install limits (`PWA_BUDGET`
   in [`src/pwa/worker.ts`](../src/pwa/worker.ts)), which the build also enforces. They change only with those
   constants.
+
+[`scripts/budget-policy.test.ts`](../scripts/budget-policy.test.ts) holds the committed `budgets.json` to these rules
+([`scripts/budget-policy.ts`](../scripts/budget-policy.ts)). It fails when a cap is above the cap set from the
+release, or above the release's measurement plus the margin, unless a raise allows it; when a raise lacks its
+measurement or reason, or lets a cap exceed that measurement plus the margin; and when the offline worker limits
+differ from `PWA_BUDGET`.
 
 ## Keeping bytes down
 
@@ -31,31 +40,33 @@ Caps only move down.
 
 ## R22 figures
 
-Configured build of the R22 candidate (tree `63c5500d`), the release figures. Every figure is within its cap, 14 of 14:
+Configured build of the R22 candidate (commit `5b6dadd8`, tree `63c5500d`), the release figures, which `budgets.json`
+records as `release`. Every figure was within its cap, 14 of 14. R23 applied the policy to them, lowering four caps:
 
-| Metric | Measured | Cap |
-| --- | ---: | ---: |
-| `eagerCombinedGzipBytes` | 173,072 | 175,542 |
-| `cssRawBytes` | 133,777 | 135,115 |
-| `cssGzipBytes` | 27,969 | 28,249 |
-| `standaloneCssRawBytes` | 574 | 603 |
-| `standaloneCssGzipBytes` | 314 | 330 |
-| `pwaCoreBytes` | 1,783,068 | 2,097,152 |
-| `pwaCoreFiles` | 46 | 51 |
-| `largestLazyRawBytes` | 571,597 | 577,308 |
-| `largestLazyGzipBytes` | 144,991 | 146,453 |
-| `indexHtmlRawBytes` | 32,776 | 33,399 |
-| `indexHtmlGzipBytes` | 9,162 | 9,386 |
-| `inlineStyleRawBytes` | 18,271 | 18,527 |
-| `inlineScriptRawBytes` | 3,329 | 3,585 |
-| `largestRouteGzipBytes` | 279,232 | 282,325 |
+| Metric | Measured | Cap at R22 | Cap from R23 |
+| --- | ---: | ---: | ---: |
+| `eagerCombinedGzipBytes` | 173,072 | 175,542 | 174,803 |
+| `cssRawBytes` | 133,777 | 135,115 | 135,115 |
+| `cssGzipBytes` | 27,969 | 28,249 | 28,249 |
+| `standaloneCssRawBytes` | 574 | 603 | 603 |
+| `standaloneCssGzipBytes` | 314 | 330 | 330 |
+| `pwaCoreBytes` | 1,783,068 | 2,097,152 | 2,097,152 |
+| `pwaCoreFiles` | 46 | 51 | 51 |
+| `largestLazyRawBytes` | 571,597 | 577,308 | 577,308 |
+| `largestLazyGzipBytes` | 144,991 | 146,453 | 146,441 |
+| `indexHtmlRawBytes` | 32,776 | 33,399 | 33,104 |
+| `indexHtmlGzipBytes` | 9,162 | 9,386 | 9,386 |
+| `inlineStyleRawBytes` | 18,271 | 18,527 | 18,527 |
+| `inlineScriptRawBytes` | 3,329 | 3,585 | 3,585 |
+| `largestRouteGzipBytes` | 279,232 | 282,325 | 282,025 |
 
 Eager is 155,764 bytes of JavaScript and 17,308 of CSS, gzip9; the offline build measures 172,978. The offline core is
 44 public files plus 2 metadata entries.
 
-The caps were lowered on an intermediate tree (sim `db0ea42a` with the first `app-shared` group and the CSS removals)
-and stayed there. App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that never applied and
-merging rules written twice, and each cap with room dropped to its measurement there plus the margin:
+R22 itself lowered the caps on an intermediate tree (sim `db0ea42a` with the first `app-shared` group and the CSS
+removals), where they stayed until R23. App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that
+never applied and merging rules written twice, and each cap with room dropped to its measurement there plus the
+margin:
 
 | Metric | Intermediate `db0ea42a` | Cap |
 | --- | ---: | ---: |
@@ -77,4 +88,4 @@ The candidate brought it back under the unchanged cap with two changes in `ae1dd
 load their artwork through the existing dynamic catalog module instead of a static hook import. The `app-shared`
 group takes the entry's whole static closure (`includeDependenciesRecursively`), so the eager code ships as the
 entry, `app-shared` and the Rolldown runtime rather than as separate shared chunks. `budgets.json` `notes.r22` and
-`notes.r22Release` record both measurements.
+`notes.r22Release` record both measurements, and `notes.r23` the caps R23 lowered.
