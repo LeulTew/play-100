@@ -253,6 +253,16 @@ release ran the campaign.
 
 ## Boundaries
 
+Account's page remains one lazy route, with local form and confirmation state in
+[useAccountPage](../src/cloud/useAccountPage.ts). Its header and deletion notices
+stay in [AccountPage](../src/cloud/AccountPage.tsx); the connection, sync and
+backup controls live in [AccountLibrarySection](../src/cloud/AccountLibrarySection.tsx),
+the profile/sharing controls in [AccountSidebar](../src/cloud/AccountSidebar.tsx),
+and the existing native dialog in [AccountConfirmation](../src/cloud/AccountConfirmation.tsx).
+These components do not create account, sync or deletion lifetimes: they use
+the same supplied callbacks and the page-owned state, with unchanged field IDs,
+classes, accessible names and text.
+
 [OnlineController](../src/cloud/OnlineController.tsx) composes the online
 controllers, then publishes an `OnlineBridge` to App in a layout effect;
 [online-bridge](../src/cloud/online-bridge.ts) builds it. The bridge carries the
