@@ -37,6 +37,7 @@ it.each([
     online: {
       sources: emptySources(),
       records: [],
+      localRecords: [],
       loading: false,
       retry: vi.fn(),
       more: vi.fn(),

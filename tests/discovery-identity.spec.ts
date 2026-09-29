@@ -120,7 +120,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
   await card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true }).click();
   await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
-  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByText('More actions', { exact: true }).click();
   await rate(page, '8.7');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.7);
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
@@ -269,7 +269,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
   await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
   await expect(card).toContainText('Progress and ratings use your existing saved catalog copy.');
-  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByText('More actions', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('7.3');
   await card.getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true }).click();
   await card.getByRole('button', { name: `Completed: ${rdr.title}`, exact: true }).click();
@@ -382,7 +382,7 @@ test('both owned copies keep conflicting opinions and manual names remain separa
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
   await expect(card).toContainText('You also have a separate saved catalog copy.');
-  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByText('More actions', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('9.1');
   await rate(page, '8.9');
   await expect
@@ -441,7 +441,7 @@ test('provider echoes resolve before filtering and cannot reappear from another 
     });
   });
   await page.goto('/discover?source=wikidata&online=on&include100=on');
-  await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('1 loaded online');
+  await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('No new online matches');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(24);
   await expect(cardFor(page)).toHaveCount(0);
   await expect(cardFor(page, provider.id)).toHaveCount(0);
@@ -452,7 +452,7 @@ test('provider echoes resolve before filtering and cannot reappear from another 
   await expect(cardFor(page)).toHaveCount(0);
   expect(offsets).toContain(5);
   await page.goto('/discover?q=RDR2&source=wikidata&year=2018&online=on&include100=on');
-  await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('1 loaded online');
+  await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('No new online matches');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(1);
   await expect(cardFor(page)).toContainText('2018');
   await expect(cardFor(page, provider.id)).toHaveCount(0);
@@ -589,7 +589,7 @@ test('a superseded provider response cannot restore an old query or duplicate a 
   await page.getByRole('button', { name: 'Search online', exact: true }).click();
   release();
   await expect.poll(() => oldFinished).toBe(true);
-  await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('1 loaded online');
+  await expect(page.getByRole('group', { name: 'Online catalog status' })).toContainText('No new online matches');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(1);
   await expect(cardFor(page, 'mass-effect-2')).toContainText('From The 100 · #2');
   await expect(cardFor(page)).toHaveCount(0);

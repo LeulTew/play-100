@@ -27,6 +27,7 @@ export interface DiscoveryCardProps {
   state: PersonalLibraryState;
   busy: boolean;
   eager?: boolean;
+  showSource?: boolean;
   selecting?: boolean;
   selected?: boolean;
   pinned?: boolean;
@@ -46,6 +47,7 @@ export function DiscoveryCard({
   state,
   busy,
   eager = false,
+  showSource = false,
   selecting,
   selected,
   pinned,
@@ -124,9 +126,9 @@ export function DiscoveryCard({
           />
         ) : (
           <div className="discovery-no-art">
-            <span>{record.year ?? 'Game'}</span>
+            {record.year !== null && <span>{record.year}</span>}
             {artwork && failedSrc === artwork.src && <strong aria-hidden="true">{record.title}</strong>}
-            <span>Artwork unavailable</span>
+            <div>Artwork unavailable</div>
           </div>
         )}
         {selecting && onSelect && (
@@ -163,7 +165,11 @@ export function DiscoveryCard({
           </p>
         )}
         <p className="discovery-card-meta">
-          {[CATALOG_EDITION_HINTS.get(record.id) ?? record.year, catalogGenreLabel(record)]
+          {[
+            CATALOG_EDITION_HINTS.get(record.id) ?? record.year,
+            catalogGenreLabel(record),
+            showSource ? SOURCE_LABELS[record.source] : null,
+          ]
             .filter((value) => value !== null)
             .join(' · ') || 'Game'}
         </p>
@@ -202,7 +208,7 @@ export function DiscoveryCard({
           />
         )}
         <details className="discovery-card-details">
-          <summary aria-label={`Actions & source for ${record.title}`}>Actions &amp; source</summary>
+          <summary aria-label={`More actions for ${record.title}`}>More actions</summary>
           <div className="discovery-card-secondary">
             <PlayedToggle
               key={`played:${actionRecord.id}`}

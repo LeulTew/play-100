@@ -39,6 +39,7 @@ export function useExtendedSearch(query: string, enabled: boolean, games: readon
   return {
     ...remote,
     records,
+    localRecords: matches.map((item) => item.record),
     eligible,
     artwork,
     seedError: seed.error,

@@ -450,7 +450,7 @@ for (const [genre, label] of [
     await page.goto('/discover?catalogs=off');
     const card = page.locator(`[data-catalog-id="${record.id}"]`);
     await expect(card.locator('.discovery-card-meta')).toHaveText(`${record.year} · ${label}`);
-    await card.getByText('Actions & source', { exact: true }).click();
+    await card.getByText('More actions', { exact: true }).click();
     await expect(card.locator('.discovery-card-source')).toContainText(
       `Source classification: ${genre ?? 'Not provided'}`,
     );

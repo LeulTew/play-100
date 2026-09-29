@@ -70,7 +70,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
   if (entry === 'dock') {
     await expect(page.locator('.extended-results .discovery-card')).toHaveCount(2);
     for (const record of records) {
-      await page.locator(`[data-catalog-id="${record.id}"]`).getByText('Actions & source', { exact: true }).click();
+      await page.locator(`[data-catalog-id="${record.id}"]`).getByText('More actions', { exact: true }).click();
     }
   }
   await expect(rating(page)).toHaveValue('5');

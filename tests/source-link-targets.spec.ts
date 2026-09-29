@@ -109,7 +109,7 @@ for (const forcedColors of ['none', 'active'] as const) {
     const discoverMeasurements = await expectSourceLinks(page, catalogRow, [catalogLinks[0], catalogLinks[2]]);
     await expect(sources.getByRole('link')).toHaveCount(2);
     await expect(sources).toContainText(
-      "Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's Actions & source or in its details.",
+      "Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's More actions or in its details.",
     );
     await info.attach('source-link-targets', {
       contentType: 'application/json',

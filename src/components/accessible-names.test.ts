@@ -104,6 +104,7 @@ describe('composite control accessible names', () => {
   it('distinguishes provider disclosures in the same status group without changing their visible labels', () => {
     const html = renderToStaticMarkup(
       h(CatalogSourceStatus, {
+        newMatches: { wikidata: 0, freetogame: 0 },
         sources: emptySources().map((source) => ({
           ...source,
           status: 'ready' as const,
@@ -126,8 +127,8 @@ describe('composite control accessible names', () => {
         onAction: vi.fn(async () => true),
       }),
     );
-    expect(html).toContain(`aria-label="Actions &amp; source for ${discoveryFixture.record.title}"`);
-    expect(html).toContain('>Actions &amp; source</summary>');
+    expect(html).toContain(`aria-label="More actions for ${discoveryFixture.record.title}"`);
+    expect(html).toContain('>More actions</summary>');
   });
 
   it.each([false, true])(

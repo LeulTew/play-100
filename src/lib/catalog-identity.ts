@@ -3,6 +3,8 @@ import type { CatalogArtwork, DiscoveryItem } from './discovery-catalog.js';
 import type { GameSource, LibraryRecord, PersonalLibraryState } from './personal-types.js';
 import { recordFromGame } from './personal-types.js';
 import type { Game } from './types.js';
+import type { CatalogSource } from './catalog-types.js';
+import { normalizeCatalogQuery } from './catalog-query.js';
 
 const providerSlugs: ReadonlyMap<string, string> = new Map(
   COLLECTION_IDENTITIES.map(([slug, id]) => [`wikidata:${id}`, slug]),
@@ -26,6 +28,37 @@ export function collectionGameForId(games: readonly Game[], id: string): Game | 
 
 export function canonicalCatalogId(id: string): string {
   return providerSlugs.get(id) ?? id;
+}
+
+export function newOnlineMatchCounts(
+  sources: readonly { source: CatalogSource; records: readonly LibraryRecord[] }[],
+  local: readonly LibraryRecord[],
+  shown: readonly LibraryRecord[],
+): Record<CatalogSource, number> {
+  const seen = new Set(local.map((record) => canonicalCatalogId(record.id)));
+  const visible = new Set(shown.map((record) => canonicalCatalogId(record.id)));
+  const counts = { wikidata: 0, freetogame: 0 };
+  for (const source of sources) {
+    for (const record of source.records) {
+      const id = canonicalCatalogId(record.id);
+      if (!seen.has(id) && visible.has(id)) {
+        counts[source.source]++;
+        seen.add(id);
+      }
+    }
+  }
+  return counts;
+}
+
+export function collidingCatalogTitles(records: readonly LibraryRecord[]): ReadonlySet<string> {
+  const titles = new Map<string, string[]>();
+  for (const record of records) {
+    const title = normalizeCatalogQuery(record.title);
+    const ids = titles.get(title) ?? [];
+    ids.push(record.id);
+    titles.set(title, ids);
+  }
+  return new Set([...titles.values()].filter((ids) => new Set(ids).size > 1).flat());
 }
 
 export function catalogOwnership(records: Record<string, LibraryRecord>): CatalogOwnership {

@@ -107,7 +107,7 @@ test('saving 0 A.D. from Discover retains its logo and full credits in Library, 
   await expect(card.locator('img')).toHaveAttribute('src', artwork.src);
   await card.getByRole('button', { name: `Add to My games: ${provider.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).records[provider.id]).toEqual(provider);
-  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByText('More actions', { exact: true }).click();
   await card.getByRole('button', { name: `Play later: ${provider.title}`, exact: true }).click();
   const rating = card.getByRole('spinbutton', { name: `Your rating / 10 for ${provider.title}`, exact: true });
   await rating.fill('8');

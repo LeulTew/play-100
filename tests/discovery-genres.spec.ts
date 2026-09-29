@@ -187,7 +187,7 @@ test('changing a family cannot discard an invalid pending rating or replace its 
   await ready(page);
   await openBrowsingFilters(page);
   const card = page.locator('[data-catalog-id="red-dead-redemption-2"]');
-  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByText('More actions', { exact: true }).click();
   const rating = card.getByRole('spinbutton', { name: 'Your rating / 10 for Red Dead Redemption 2', exact: true });
   await rating.fill('11');
   const before = await readLibrary(page);
@@ -215,21 +215,26 @@ test('one unqueried Discover result is counted in the singular', async ({ page }
   await expect(page.locator('.discovery-results-heading')).toContainText('3 games · Illustrated first');
 });
 
-for (const total of [0, 1, 5]) {
-  test(`Discover counts ${total} deduplicated matches shown separately from provider coverage`, async ({ page }) => {
+for (const [total, bundledCount] of [
+  [0, 0],
+  [1, 1],
+  [5, 1],
+  [5, 5],
+]) {
+  test(`Discover counts ${total} matches shown with ${bundledCount} bundled duplicates`, async ({ page }) => {
     const remote = Array.from({ length: total }, (_, index) =>
       catalogRecord('wikidata', `Q9100000${index + 1}`, `Scope count ${index + 1}`),
     );
-    const bundled = remote[0] ?? discoveryFixture.record;
+    const bundled = bundledCount ? remote.slice(0, bundledCount) : [discoveryFixture.record];
     await page.route('**/data/discovery/catalog.v1.json', (route) =>
       route.fulfill({
-        json: { ...catalogFixture, items: [{ ...discoveryFixture, record: bundled }] },
+        json: { ...catalogFixture, items: bundled.map((record) => ({ ...discoveryFixture, record })) },
       }),
     );
     await page.route('**/api/catalog?**', (route) => respondWithCatalog(route, remote));
-    await page.goto('/discover?q=Scope%20count&source=wikidata');
+    await page.goto('/discover?q=Scope%20count&source=wikidata&online=on');
     await expect(page.getByRole('group', { name: 'Online catalog status', exact: true })).toContainText(
-      total === 0 ? 'No online matches' : `${total} loaded online`,
+      total === bundledCount ? 'No new online matches' : `${total - bundledCount} new online matches`,
     );
     await expect(page.locator('.discovery-results-heading [role="status"]')).toHaveText(
       `${total} catalog ${total === 1 ? 'match' : 'matches'} shown`,
@@ -238,3 +243,73 @@ for (const total of [0, 1, 5]) {
     expect(await ids(page)).toEqual(remote.map((record) => record.id));
   });
 }
+
+test('same-title cards show their sources with actions closed and missing years stay out of placeholders', async ({
+  page,
+}) => {
+  const title = 'Gwent: The Witcher Card Game';
+  const records = [
+    { ...catalogRecord('wikidata', 'Q91000101', title), year: null },
+    {
+      ...catalogRecord('freetogame', '91000102', title),
+      sourceUrl: 'https://www.freetogame.com/gwent',
+      year: null,
+    },
+  ];
+  await page.route('**/data/discovery/catalog.v1.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalogFixture,
+        items: records.map((record) => ({
+          ...discoveryFixture,
+          record,
+          artwork: null,
+          provenance: {
+            ...discoveryFixture.provenance,
+            ...(record.source === 'freetogame'
+              ? { metadataLicense: 'FreeToGame API terms', metadataLicenseUrl: 'https://www.freetogame.com/api-doc' }
+              : {}),
+          },
+        })),
+      },
+    }),
+  );
+  await page.goto('/discover?q=Gwent&catalogs=off');
+  await expect(page.locator('[data-catalog-id]')).toHaveCount(2);
+  for (const [index, source] of ['Wikidata', 'FreeToGame'].entries()) {
+    const card = page.locator(`[data-catalog-id="${records[index].id}"]`);
+    await expect(card.locator('.discovery-card-meta')).toContainText(source);
+    await expect(card.locator('.discovery-card-meta')).toBeVisible();
+    await expect(card.locator('details')).not.toHaveAttribute('open');
+    await expect(card.locator('summary')).toHaveText('More actions');
+    await expect(card.locator('.discovery-no-art')).toHaveText('Artwork unavailable');
+    await expect(card.locator('.discovery-no-art > div')).toHaveCSS('font-size', '13px');
+  }
+});
+
+test('saving a provider game keeps its exact genre in Saved additions without changing curated options', async ({
+  page,
+}) => {
+  const record = {
+    ...catalogRecord('wikidata', 'Q91000103', 'Genre grouping fixture'),
+    genre: 'action-adventure game',
+  };
+  await page.route('**/data/discovery/catalog.v1.json', (route) =>
+    route.fulfill({ json: { ...catalogFixture, items: [{ ...discoveryFixture, record }] } }),
+  );
+  await page.goto('/discover?q=Genre%20grouping%20fixture&catalogs=off');
+  const card = page.locator(`[data-catalog-id="${record.id}"]`);
+  await card.getByRole('button', { name: `Add to My games: ${record.title}`, exact: true }).click();
+  await expect.poll(async () => (await readLibrary(page)).records[record.id]?.genre).toBe(record.genre);
+  await page.goto('/?catalogs=off');
+  await openBrowsingFilters(page);
+  const genre = page.getByRole('combobox', { name: 'Genre', exact: true });
+  await expect(genre.locator('optgroup[label="Saved additions"] option')).toHaveText([record.genre]);
+  expect(await genre.locator(':scope > option').allTextContents()).toEqual([
+    'All genres',
+    ...[...new Set(games.map((game) => game.genre))].sort((a, b) => a.localeCompare(b)),
+  ]);
+  await genre.selectOption(record.genre);
+  await expect(page.locator(`[data-unranked-id="${record.id}"]`)).toBeVisible();
+  await expect(page.locator('[data-game-id]')).toHaveCount(0);
+});

@@ -379,7 +379,7 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await expect(results.locator(':scope > li')).toHaveCount(1);
   expect(Object.keys((await readLibrary(page)).records)).toHaveLength(0);
   const card = results.locator(`[data-unranked-id="${item.id}"]`);
-  await card.getByText('Actions & source', { exact: true }).click();
+  await card.getByText('More actions', { exact: true }).click();
   await card.getByRole('button', { name: `Play later: ${item.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([item.id]);
   await card.getByRole('button', { name: 'Add to ranking', exact: true }).click();

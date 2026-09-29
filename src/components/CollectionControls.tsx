@@ -70,15 +70,15 @@ export function CollectionControls({
       window.scrollBy({ top: bounds.bottom - bottom, behavior: 'instant' });
     }
   }, [filters.view]);
-  const genres = useMemo(
-    () =>
-      [
-        ...new Set(
-          [...games, ...extraRecords].map((game) => game.genre).filter((genre): genre is string => genre !== null),
-        ),
-      ].sort((a, b) => a.localeCompare(b)),
-    [games, extraRecords],
-  );
+  const genres = useMemo(() => {
+    const curated = [...new Set(games.map((game) => game.genre))].sort((a, b) => a.localeCompare(b));
+    const saved = [
+      ...new Set(
+        extraRecords.flatMap((record) => (record.genre && !curated.includes(record.genre) ? [record.genre] : [])),
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+    return { curated, saved };
+  }, [games, extraRecords]);
   const years = useMemo(
     () =>
       [
@@ -194,12 +194,19 @@ export function CollectionControls({
         <div className="search-and-filters">
           <SelectField id="genre-filter" label="Genre" value={filters.genre} onChange={(genre) => onChange({ genre })}>
             <option value="">All genres</option>
-            {filters.genre && !genres.includes(filters.genre) && (
+            {filters.genre && ![...genres.curated, ...genres.saved].includes(filters.genre) && (
               <option value={filters.genre}>{filters.genre} (not loaded)</option>
             )}
-            {genres.map((genre) => (
+            {genres.curated.map((genre) => (
               <option key={genre}>{genre}</option>
             ))}
+            {genres.saved.length > 0 && (
+              <optgroup label="Saved additions">
+                {genres.saved.map((genre) => (
+                  <option key={genre}>{genre}</option>
+                ))}
+              </optgroup>
+            )}
           </SelectField>
           <SelectField
             id="year-filter"

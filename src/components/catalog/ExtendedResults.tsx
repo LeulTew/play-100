@@ -5,6 +5,7 @@ import type { useExtendedSearch } from '../../hooks/useExtendedSearch';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
+import { collidingCatalogTitles, newOnlineMatchCounts } from '../../lib/catalog-identity';
 
 export default function ExtendedResults({
   records,
@@ -43,14 +44,22 @@ export default function ExtendedResults({
   const failed = online.sources.some((source) => source.status === 'error');
   // Keep mounted rating drafts in place when another provider finishes.
   const limit = localLimit + online.sources.reduce((count, source) => count + source.records.length, 0);
+  const shown = records.slice(0, limit);
+  const collisions = collidingCatalogTitles(records);
+  const newMatches = newOnlineMatchCounts(
+    online.sources,
+    [...online.localRecords, ...Object.values(state.records)],
+    shown,
+  );
   const content = (
     <>
       {records.length > 0 && (
         <ul className="discovery-cards discovery-cards-list" aria-label="Unranked games in this view">
-          {records.slice(0, limit).map((record) => (
+          {shown.map((record) => (
             <DiscoveryCard
               key={record.id}
               record={record}
+              showSource={collisions.has(record.id)}
               artwork={online.artwork.get(record.id)}
               state={state}
               busy={busy}
@@ -88,6 +97,7 @@ export default function ExtendedResults({
           )}
           <CatalogSourceStatus
             sources={online.sources}
+            newMatches={newMatches}
             onRetry={online.retry}
             onMore={(source) => online.more(source)}
           />

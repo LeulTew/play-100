@@ -18,7 +18,12 @@ import { ProgressFilter } from '../ProgressFilter';
 import { SelectField } from '../SelectField';
 import { selectionOperation } from '../../lib/game-progress';
 import type { useCollection } from '../../hooks/useCollection';
-import { catalogActionRecord, collectionGameForId } from '../../lib/catalog-identity';
+import {
+  catalogActionRecord,
+  collectionGameForId,
+  collidingCatalogTitles,
+  newOnlineMatchCounts,
+} from '../../lib/catalog-identity';
 import { LocalPager } from '../LocalPager';
 import { BrowseFilters } from '../BrowseFilters';
 import { gameDetailSearch } from '../../lib/my-games-navigation';
@@ -95,6 +100,12 @@ export default function DiscoverPage({
     collectionMatches,
     showCollection,
   } = search;
+  const collisions = collidingCatalogTitles([...local.map((item) => item.record), ...records]);
+  const newMatches = newOnlineMatchCounts(
+    remote.sources,
+    local.map((item) => item.record),
+    records,
+  );
   const selection = records
     .filter((record) => selected.has(record.id))
     .map((record) => catalogActionRecord(record, ownership));
@@ -519,6 +530,7 @@ export default function DiscoverPage({
               <DiscoveryCard
                 key={record.id}
                 record={record}
+                showSource={collisions.has(record.id)}
                 game={collectionGameForId(games, record.id)}
                 actionRecord={catalogActionRecord(record, ownership)}
                 ownedCopies={ownership.get(record.id)}
@@ -612,6 +624,7 @@ export default function DiscoverPage({
         )}
         <CatalogSourceStatus
           sources={remote.sources}
+          newMatches={newMatches}
           onRetry={remote.retry}
           onMore={(source, offset) => change({ source, offset, online: 'on' }, 'push', true)}
           onPrevious={(source, offset) => change({ source, offset, online: 'on' }, 'push', true)}
@@ -630,13 +643,13 @@ export default function DiscoverPage({
           <p>
             Verified matches link to the original entry from The 100, including when found through Wikidata. Include The
             100 to browse those entries here once. Other editions stay separate; titles alone are never merged. Provider
-            counts describe their responses, before local genre/year filters and duplicate matching.
+            counts show new matches after local filters and duplicate matching.
           </p>
           <p>
             Only public search terms and exact public game IDs are sent to providers, not your saved progress, ratings
             or notes. Opening an eligible game can load separately labelled ratings and licensed artwork while online
-            lookup is on. Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's Actions &amp;
-            source or in its details.
+            lookup is on. Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's More actions
+            or in its details.
           </p>
           <div className="button-row" role="group" aria-label="Public catalog sources">
             <a

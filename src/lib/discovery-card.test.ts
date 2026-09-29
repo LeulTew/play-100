@@ -46,7 +46,7 @@ describe('compact catalog card markup', () => {
     expect(html).toContain('decoding="async"');
     expect(html).toContain('Add to My games: Kingdom Come: Deliverance');
     expect(html).toContain('Pin for comparison: Kingdom Come: Deliverance');
-    expect(html).toContain('Actions &amp; source');
+    expect(html).toContain('More actions');
     expect(html).toContain(artworkFixture.sourceUrl);
     expect(html).toContain(artworkFixture.licenseUrl);
     expect(html).toContain(discoveryFixture.record.sourceUrl);
@@ -76,6 +76,21 @@ describe('compact catalog card markup', () => {
     expect(pin).toBeDefined();
     expect(pin).not.toContain('disabled=""');
     expect(pin).not.toContain('aria-disabled="true"');
+  });
+  it('shows the provider on colliding cards and leaves a missing year out of the art placeholder', () => {
+    const html = renderToStaticMarkup(
+      createElement(DiscoveryCard, {
+        record: { ...discoveryFixture.record, year: null },
+        showSource: true,
+        state: emptyPersonalLibrary(),
+        busy: false,
+        onAction: vi.fn(),
+      }),
+    );
+    expect(html).toContain('<p class="discovery-card-meta">Role-playing · Wikidata</p>');
+    expect(html).toContain('<div class="discovery-no-art"><div>Artwork unavailable</div></div>');
+    expect(html).toContain('aria-label="More actions for Kingdom Come: Deliverance"');
+    expect(html).not.toContain('>Game</span>');
   });
   it('does not copy source HTML credit into markup', () => {
     const html = renderToStaticMarkup(

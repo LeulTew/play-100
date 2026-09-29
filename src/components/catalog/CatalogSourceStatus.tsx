@@ -4,11 +4,13 @@ import { SOURCE_LABELS } from '../../lib/personal-types';
 
 export function CatalogSourceStatus({
   sources,
+  newMatches,
   onRetry,
   onMore,
   onPrevious,
 }: {
   sources: SourceSearchState[];
+  newMatches: Readonly<Record<CatalogSource, number>>;
   onRetry: (source: CatalogSource) => void;
   onMore: (source: CatalogSource, offset: number) => void;
   onPrevious?: (source: CatalogSource, offset: number) => void;
@@ -42,9 +44,9 @@ export function CatalogSourceStatus({
                         : source.failure === 'offline'
                           ? 'Offline'
                           : 'Provider unavailable'
-                    : source.total === 0
-                      ? 'No online matches'
-                      : `${source.records.length} loaded online`}
+                    : newMatches[source.source] === 0
+                      ? 'No new online matches'
+                      : `${newMatches[source.source]} new online ${newMatches[source.source] === 1 ? 'match' : 'matches'}`}
               </span>
             </p>
             {source.error && (

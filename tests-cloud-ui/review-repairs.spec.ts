@@ -158,8 +158,8 @@ test('a guest inline rating keeps its original save target while another tab res
     .poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === title))
     .toBe(true);
   await page.locator('.wordmark').first().click();
-  // 819618a shows saved additions beyond The 100 as catalog cards whose rating sits under Actions & source.
-  await page.getByLabel(`Actions & source for ${title}`, { exact: true }).click();
+  // Saved additions beyond The 100 have their rating under More actions.
+  await page.getByLabel(`More actions for ${title}`, { exact: true }).click();
   await expect(page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toBeVisible();
   const peer = await context.newPage();
   try {

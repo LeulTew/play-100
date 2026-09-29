@@ -17,8 +17,7 @@ async function searchOnline(page: Page) {
 
 async function openActions(page: Page, record: LibraryRecord) {
   const details = row(page, record).locator('.discovery-card-details');
-  if ((await details.getAttribute('open')) === null)
-    await details.getByText('Actions & source', { exact: true }).click();
+  if ((await details.getAttribute('open')) === null) await details.getByText('More actions', { exact: true }).click();
   await expect(details).toHaveAttribute('open', '');
 }
 
@@ -57,6 +56,11 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   const seeded = await unranked.count();
   await searchOnline(page);
   await expect(unranked).toHaveCount(seeded + 2);
+  const onlineStatus = page.getByRole('group', { name: 'Online catalog status', exact: true });
+  await expect(onlineStatus.getByRole('status')).toHaveCount(2);
+  for (const source of ['Wikidata', 'FreeToGame']) {
+    await expect(onlineStatus.getByRole('status').filter({ hasText: source })).toContainText('1 new online match');
+  }
   await expect(row(page, b)).toHaveCount(1);
   await expect(row(page, a).locator('.discovery-canonical')).toHaveCount(0);
   await expect(row(page, a).getByRole('button', { name: `Add to My games: ${a.title}`, exact: true })).toBeEnabled();
@@ -83,6 +87,9 @@ test('main search combines the 100 and unranked catalogs; preview, rating and sa
   expect(saved.ranking).toEqual([{ id: a.id, score: 9.25, note: '', manualPosition: null }]);
   expect(saved.progress[a.id]?.played ?? false).toBe(false);
   expect(saved.progress[b.id]).toEqual({ later: true, played: false, completed: false });
+  for (const source of ['Wikidata', 'FreeToGame']) {
+    await expect(onlineStatus.getByRole('status').filter({ hasText: source })).toContainText('No new online matches');
+  }
   await page.reload();
   await expect(row(page, a)).toHaveCount(1);
   await openActions(page, a);

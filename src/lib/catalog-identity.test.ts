@@ -15,6 +15,8 @@ import {
   collectionGameForId,
   resolveCatalogRecord,
   resolveCatalogRecords,
+  newOnlineMatchCounts,
+  collidingCatalogTitles,
 } from './catalog-identity';
 import {
   createDiscoverySearch,
@@ -28,6 +30,7 @@ import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from 
 import { createCompareTrayStore } from './compare-tray';
 import { filterGames } from './collection';
 import { unrankedRecords } from './extended-search';
+import { emptySources } from './catalog-search-session';
 
 const games = parseCollection(
   JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8')),
@@ -46,6 +49,33 @@ const unknown: LibraryRecord = {
   sourceUrl: null,
 };
 const initial = () => emptyPersonalLibrary();
+
+describe('catalog result explanations', () => {
+  it('counts only new visible identities, not seed, saved, canonical or filtered duplicates', () => {
+    const outside = { ...provider, id: 'wikidata:Q9999999', sourceId: 'Q9999999' };
+    const filtered = { ...provider, id: 'wikidata:Q9999998', sourceId: 'Q9999998' };
+    const sources = emptySources().map((source) => ({
+      ...source,
+      status: 'ready' as const,
+      records: source.source === 'wikidata' ? [provider, outside, outside, filtered] : [],
+    }));
+    expect(newOnlineMatchCounts(sources, [canonical], [canonical, outside])).toEqual({ wikidata: 1, freetogame: 0 });
+    expect(newOnlineMatchCounts(sources, [canonical, outside], [canonical, outside])).toEqual({
+      wikidata: 0,
+      freetogame: 0,
+    });
+    expect(newOnlineMatchCounts(sources, [], [])).toEqual({ wikidata: 0, freetogame: 0 });
+    expect(newOnlineMatchCounts(sources, [], [canonical, outside])).toEqual({ wikidata: 2, freetogame: 0 });
+  });
+
+  it('marks distinct same-title records without merging their identities', () => {
+    const one = { ...provider, id: 'wikidata:Q9999999', title: 'Gwent: The Witcher Card Game' };
+    const two = { ...provider, id: 'freetogame:999', title: 'GWENT: The Witcher Card Game' };
+    const other = { ...provider, id: 'manual:other', title: 'The Witcher 2' };
+    expect([...collidingCatalogTitles([one, two, other])]).toEqual([one.id, two.id]);
+    expect([...collidingCatalogTitles([one, one, other])]).toEqual([]);
+  });
+});
 
 describe('reviewed public identities, not fuzzy title matching', () => {
   it('has99 unique game crosswalks and deliberately does not assert a Hitman edition', () => {

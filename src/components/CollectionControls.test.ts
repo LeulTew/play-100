@@ -4,8 +4,44 @@ import { describe, expect, it, vi } from 'vitest';
 import { defaultFilters } from '../lib/url';
 import { BrowseFilters } from './BrowseFilters';
 import { CollectionControls } from './CollectionControls';
+import { parseCollection } from '../lib/collection';
+import { readFileSync } from 'node:fs';
+import { discoveryFixture } from '../lib/discovery-test-fixtures';
 
 describe('collection result scope and accessible names', () => {
+  it('keeps curated genres separate without changing saved additions exact filter values', () => {
+    const game = parseCollection(
+      JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8')),
+    ).games[0]!;
+    const rawGenre = 'action-adventure game';
+    const html = renderToStaticMarkup(
+      createElement(CollectionControls, {
+        games: [game],
+        extraRecords: [
+          { ...discoveryFixture.record, genre: rawGenre },
+          { ...discoveryFixture.record, genre: rawGenre },
+          { ...discoveryFixture.record, genre: game.genre },
+          { ...discoveryFixture.record, genre: null },
+        ],
+        filters: { ...defaultFilters, genre: rawGenre },
+        count: 1,
+        addedCount: 1,
+        unrankedCount: 1,
+        onlineScope: true,
+        searching: false,
+        savedCount: 1,
+        completedCount: 0,
+        onChange: vi.fn(),
+        onShare: vi.fn(),
+      }),
+    );
+    const select = html.match(/<select\b[^>]*id="genre-filter"[\s\S]*?<\/select>/)?.[0];
+    expect(select).toContain(`<option>${game.genre}</option>`);
+    expect(select).toContain(`<optgroup label="Saved additions"><option selected="">${rawGenre}</option></optgroup>`);
+    expect(select?.match(new RegExp(rawGenre, 'g'))).toHaveLength(1);
+    expect(select).not.toContain('(not loaded)');
+  });
+
   it.each([false, true])(
     'names the current selection-mode action without a competing pressed state (selecting=%s)',
     (selecting) => {

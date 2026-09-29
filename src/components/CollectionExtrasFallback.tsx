@@ -171,7 +171,7 @@ export function ExtendedFallback({
                 )}
               </div>
               <details className="discovery-card-details">
-                <summary>Actions &amp; source</summary>
+                <summary>More actions</summary>
               </details>
             </div>
           </li>
