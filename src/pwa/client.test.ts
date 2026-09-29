@@ -337,6 +337,27 @@ describe('truthful installation and page startup', () => {
     }
   });
 
+  it('shows one message when the install prompt throws: the unavailable advice, not an error too (UX-014)', async () => {
+    const current = fixture();
+    const failure = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const event = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+      prompt: vi.fn(() => Promise.reject(new Error('blocked'))),
+      userChoice: new Promise(() => {}),
+    });
+    try {
+      current.window.dispatchEvent(event);
+      expect(await current.controller.install()).toBe('unavailable');
+      const snapshot = current.controller.getSnapshot();
+      expect(snapshot.installState).toBe('unavailable');
+      expect(snapshot.error).toBe('');
+      expect(snapshot.message).toBe('');
+      expect(failure).toHaveBeenCalledWith('The browser could not open installation.', 'blocked');
+    } finally {
+      failure.mockRestore();
+      current.stop();
+    }
+  });
+
   it('rejects foreign, query-bearing or alternate worker URLs', () => {
     expect(trustedPwaWorker({ scriptURL: `${origin}/sw.js` }, origin)).toBe(true);
     for (const scriptURL of ['https://evil.test/sw.js', `${origin}/sw.js?token=one`, `${origin}/other.js`]) {

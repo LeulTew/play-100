@@ -360,7 +360,8 @@ export function createPwaController(): PwaController {
         }
         return choice.outcome;
       } catch (cause) {
-        report('The browser could not open installation. Use its install or share menu if available.', cause);
+        // installState is now 'unavailable', whose one message already points to the browser's own install menu.
+        console.error('The browser could not open installation.', cause instanceof Error ? cause.message : '');
         return 'unavailable';
       }
     },

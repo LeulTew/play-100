@@ -23,8 +23,9 @@ export function useShare(notify: (message: string) => void) {
           await navigator.clipboard.writeText(url);
           notify(`Link copied.${suffix}`);
         } catch {
+          // The fallback dialog says this, including that private progress isn't in the link; a toast behind it
+          // would only repeat it.
           setManualLink(url);
-          notify(`Automatic sharing is unavailable. Select and copy the link below.${suffix}`);
         }
       } finally {
         setSharing(false);

@@ -299,6 +299,9 @@ test('share fallback exposes a copyable public URL without private list state', 
   const fallback = page.getByRole('dialog', { name: 'Copy this link', exact: true });
   await expect(fallback.locator('#share-title')).toBeFocused();
   await expect(page).toHaveTitle('Copy this link | Play 100');
+  // The dialog carries the explanation; no toast repeats it behind the dialog (UX-014).
+  await expect(page.locator('.toast')).not.toHaveClass(/toast-visible/);
+  await expect(page.locator('.toast')).toHaveText('');
   const link = await page.getByLabel('Shareable link', { exact: true }).inputValue();
   expect(new URL(link).searchParams.get('list')).toBeNull();
   expect(new URL(link).searchParams.get('year')).toBe('2018');
