@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ScopedLibrary } from '../lib/cloud-types';
 import type { DeviceCopyRemoval } from '../lib/scoped-library';
 import { emptyPersonalLibrary } from '../lib/personal-library';
-import { CHANGED_ACCOUNT, signOutTransition, UNSYNCED_DEVICE_COPY } from './sign-out-transition';
+import { CHANGED_ACCOUNT, signOutTransition, UNOPENED_DEVICE_COPY, UNSYNCED_DEVICE_COPY } from './sign-out-transition';
 import type { SignOutSteps } from './sign-out-transition';
 
 function copy(dirty: boolean, revision = 7): ScopedLibrary {
@@ -161,6 +161,22 @@ describe('sign-out transition', () => {
     expect(ordinary.steps.readDeviceCopy).not.toHaveBeenCalled();
     expect(ordinary.steps.removeDeviceCopy).not.toHaveBeenCalled();
     for (const resume of ordinary.resumes) expect(resume).not.toHaveBeenCalled();
+  });
+
+  it('signs out when Account could not open the device copy, and refuses only to remove it', async () => {
+    // Account builds these steps without a writer when the copy is unreadable or corrupt (review-repairs:69).
+    const unopened = () => Promise.reject(new Error(UNOPENED_DEVICE_COPY));
+    const ordinary = harness([], { readDeviceCopy: vi.fn(unopened), removeDeviceCopy: vi.fn(unopened) });
+    expect(await signOutTransition(false, ordinary.steps)).toEqual({ complete: true });
+    expect(ordinary.events).toEqual(['suspend', 'drain', 'sign-out']);
+    expect(ordinary.steps.readDeviceCopy).not.toHaveBeenCalled();
+    expect(ordinary.steps.removeDeviceCopy).not.toHaveBeenCalled();
+    const removal = harness([], { readDeviceCopy: vi.fn(unopened), removeDeviceCopy: vi.fn(unopened) });
+    await expect(signOutTransition(true, removal.steps)).rejects.toThrow(UNOPENED_DEVICE_COPY);
+    expect(removal.events).toEqual(['drain']);
+    expect(removal.steps.suspend).not.toHaveBeenCalled();
+    expect(removal.steps.signOut).not.toHaveBeenCalled();
+    expect(removal.steps.removeDeviceCopy).not.toHaveBeenCalled();
   });
 
   it('returns a removal that left part of the copy, once signed out, and neither resumes nor retries it', async () => {

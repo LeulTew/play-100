@@ -4,6 +4,8 @@ import type { DeviceCopyRemoval } from '../lib/scoped-library';
 export const UNSYNCED_DEVICE_COPY =
   'This device has unsynced changes. Save or export them before removing its copy. Ordinary Sign out keeps them.';
 export const CHANGED_ACCOUNT = 'The signed-in account changed. Nothing was removed.';
+export const UNOPENED_DEVICE_COPY =
+  "This device's account copy isn't open, so nothing was removed. Ordinary Sign out keeps it.";
 
 export interface SignOutSteps {
   /** The user and auth session that started this sign-out are still signed in. */

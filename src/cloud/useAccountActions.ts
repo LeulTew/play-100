@@ -21,7 +21,7 @@ import type { ConnectionChoice } from './AccountPage';
 import type { OnlineSession } from './useOnlineSession';
 import type { OnlineAccount } from './useOnlineAccount';
 import type { OnlineSharing } from './useOnlineSharing';
-import { signOutTransition } from './sign-out-transition';
+import { signOutTransition, UNOPENED_DEVICE_COPY } from './sign-out-transition';
 import { reportDeviceLeftovers } from './device-leftovers';
 import { libraryBackupText } from './backup-download';
 
@@ -135,20 +135,22 @@ export function useAccountActions({
   const signOutAccount = (removeDeviceCopy = false) =>
     run(async () => {
       const user = cloudAuth.currentUser;
+      // Only removal reads or removes the device copy, and only the one this Account opened. An ordinary sign-out keeps
+      // the copy, so a copy that couldn't be opened (unreadable or corrupt) must not keep the account signed in.
       const target = account.writer;
       const session = authSessionEpochRef.current;
       if (!(await flushPendingEdits())) throw new Error('Correct the pending edit before signing out.');
       const current = () =>
         Boolean(user && cloudAuth.currentUser?.uid === user.uid && authSessionEpochRef.current === session);
-      if (!user || !target || !current())
-        throw new Error('The signed-in account changed. Review Account before signing out.');
+      if (!user || !current()) throw new Error('The signed-in account changed. Review Account before signing out.');
+      const unopened = () => Promise.reject(new Error(UNOPENED_DEVICE_COPY));
       const removal = await signOutTransition(removeDeviceCopy, {
         current,
         waitForWrites: account.waitForWrites,
-        readDeviceCopy: () => loadScopedLibrary(target),
+        readDeviceCopy: () => (target ? loadScopedLibrary(target) : unopened()),
         suspend: () => [sync.suspend(), friends.stop(), shelf.stop(), automatic.suspend()],
         signOut: () => signOut(cloudAuth),
-        removeDeviceCopy: (revision) => deleteScopedLibrary(target, revision),
+        removeDeviceCopy: (revision) => (target ? deleteScopedLibrary(target, revision) : unopened()),
       });
       retireInvitation();
       await rememberOnlineRequest(false);
