@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import type { ReactNode } from 'react';
 import { ChunkRecovery } from './ChunkRecovery';
+import { reportClientError } from '../lib/client-error-report';
 
 interface OnlineBoundaryProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ export class OnlineBoundary extends Component<OnlineBoundaryProps, { failed: boo
     if (this.state.failed) this.props.onFailedChange?.(true);
   }
   componentDidCatch(error: Error) {
+    reportClientError(error, 'online');
     console.warn('Online tools could not load. The device library is retained.', error.message);
     this.props.onFailedChange?.(true);
   }

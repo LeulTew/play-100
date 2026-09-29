@@ -53,8 +53,10 @@ original genre and entered critic-score snapshot.
 
 Public and device-only by default, with no analytics or Supabase. Anonymous
 operational fault counts without identifiers are allowed: first-party CSP
-reports retain only directive, blocked origin and route template, and scheduled
-credential-free probes record service health. They do not track people or sessions.
+reports retain only directive, allow-listed blocked origin and route template;
+bounded client error batches retain only fixed error class, component area,
+route template, count and build fingerprint; scheduled credential-free probes
+record service health. They do not track people or sessions.
 A read-only,
 stateless Vercel function looks up public catalog metadata. Optional Firebase
 Google or verified email accounts enable explicitly consented cross-device

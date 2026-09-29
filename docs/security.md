@@ -25,11 +25,28 @@ It logs one structured OK/FAIL result, never response bodies, URLs or credential
 Public callers cannot choose destinations or query parameters. Both success and
 failure are cached for 15 minutes per instance; concurrent calls share a probe,
 and admission caps active requests at 4 / 12 per minute. Per-instance limits do
-not replace the global WAF control. No client error beacon or visitor analytics
-is shipped. These checks report faults, not successful real-user sign-in.
+not replace the global WAF control. These checks report faults, not successful
+real-user sign-in.
+
+Production error boundaries also send anonymous counts to the first-party
+`/api/client-error-report` endpoint. The only fields are a fixed error class,
+component area (`app`, `route`, `online`, `chunk`), route template, count and a
+build fingerprint (`entry:<content hash>` from the same-origin entry script).
+No message, stack, full URL, query, IP, user agent or account identifier is
+included or logged. Unknown classes/routes become fixed categories. Missing
+or invalid fingerprints disable sending; development does not send reports.
+The client batches with `sendBeacon` after five seconds or when the page hides,
+with at most 20 errors and four attempted batches per page, no storage and no
+retry. The endpoint rejects extra fields, caps the JSON body at 8 KiB and each
+batch at 20 counts, and shares the CSP reader's three-second deadline with its
+own per-instance admission (4 active / 30 per minute). Beacons are best-effort
+and are not visitor analytics or a complete error census. Counts can be spoofed;
+they are diagnostic hints, not trusted security evidence.
 
 The project owner reviews these signals on a fault or abuse signal and by
-2026-10-02 with the WAF decision. Endpoint code and the cron definition are
+2026-10-02 with the WAF decision, following the
+[daily and post-deploy checks](release-operations.md#11-daily-and-post-deploy-operational-checks).
+Endpoint code and the cron definition are
 pending the ordinary release/deployment gate; their presence is not evidence
 that production reporting or a scheduled run has occurred.
 

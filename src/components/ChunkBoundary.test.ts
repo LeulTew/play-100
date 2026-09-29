@@ -2,6 +2,9 @@ import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ChunkBoundary } from './ChunkBoundary';
 import { ModuleLoadFailure } from '../lib/chunk-recovery';
+import { reportClientError } from '../lib/client-error-report';
+
+vi.mock('../lib/client-error-report', () => ({ reportClientError: vi.fn() }));
 
 describe('local lazy-module containment', () => {
   const children = createElement('p', null, 'Current page');
@@ -24,9 +27,12 @@ describe('local lazy-module containment', () => {
     try {
       boundary.componentDidCatch(bug);
       expect(log).not.toHaveBeenCalled();
+      expect(reportClientError).not.toHaveBeenCalled();
       const failure = new ModuleLoadFailure(bug);
       boundary.componentDidCatch(failure);
       expect(log).toHaveBeenCalledWith('An app module did not load.', failure);
+      expect(reportClientError).toHaveBeenCalledWith(failure, 'chunk');
+      expect(reportClientError).toHaveBeenCalledOnce();
     } finally {
       log.mockRestore();
     }

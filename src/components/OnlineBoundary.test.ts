@@ -1,6 +1,9 @@
 import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { OnlineBoundary } from './OnlineBoundary';
+import { reportClientError } from '../lib/client-error-report';
+
+vi.mock('../lib/client-error-report', () => ({ reportClientError: vi.fn() }));
 
 describe('online tools containment', () => {
   const children = createElement('p', null, 'Account');
@@ -17,6 +20,8 @@ describe('online tools containment', () => {
       boundary.state = OnlineBoundary.getDerivedStateFromError();
       boundary.componentDidCatch(new Error('Account restoration timed out.'));
       expect(warn).toHaveBeenCalledOnce();
+      expect(reportClientError).toHaveBeenCalledWith(expect.any(Error), 'online');
+      expect(reportClientError).toHaveBeenCalledOnce();
     } finally {
       warn.mockRestore();
     }

@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { reportClientError } from '../lib/client-error-report';
 
 export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -7,6 +8,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
     return { failed: true };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
+    reportClientError(error, 'app');
     console.error('Play 100 could not render the collection.', error.message, info.componentStack);
   }
   render() {

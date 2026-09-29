@@ -10,7 +10,8 @@
     "api/catalog-detail.ts",
     "api/auth-helper.ts",
     "api/csp-report.ts",
-    "api/operational-probe.ts"
+    "api/operational-probe.ts",
+    "api/client-error-report.ts"
   ],
   "references": []
 }

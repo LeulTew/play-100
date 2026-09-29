@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import type { ReactNode } from 'react';
 import { isModuleLoadFailure } from '../lib/chunk-recovery';
+import { reportClientError } from '../lib/client-error-report';
 
 export class ChunkBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { error: unknown }> {
   state: { error: unknown } = { error: null };
@@ -8,7 +9,10 @@ export class ChunkBoundary extends Component<{ children: ReactNode; fallback: Re
     return { error };
   }
   componentDidCatch(error: Error) {
-    if (isModuleLoadFailure(error)) console.error('An app module did not load.', error);
+    if (isModuleLoadFailure(error)) {
+      reportClientError(error, 'chunk');
+      console.error('An app module did not load.', error);
+    }
   }
   render() {
     if (this.state.error) {

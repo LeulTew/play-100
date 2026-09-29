@@ -4,6 +4,7 @@ import { Socket } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { blockedOrigin, createCspReportHandler, cspCounts, reportRoute } from '../../api/csp-report';
 import { createOperationalProbe, probeProduction } from '../../api/operational-probe';
+import { createClientErrorHandler } from '../../api/client-error-report';
 import { createAdmission } from '../../api/_lib/admission';
 import { listenOnFetchSafePort } from './test-server-ports';
 
@@ -38,6 +39,48 @@ const legacy = {
     referrer: 'private',
   },
 };
+
+describe('first-party client error endpoint', () => {
+  const report = { buildVersion: 'entry:AbCd_123', counts: [{ errorClass: 'TypeError', area: 'app', route: '/u/:handle', count: 2 }] };
+  it('logs only validated counts, rejects private payload fields and bounds instance admission', async () => {
+    const log = vi.fn();
+    const base = await serve(createClientErrorHandler(createAdmission({ maxActive: 1, maxPerWindow: 3 }), log));
+    const send = (body: unknown) => nativeFetch(base, {
+      method: 'POST', body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json', 'user-agent': 'private agent', 'x-forwarded-for': '192.0.2.1' },
+    });
+    expect((await nativeFetch(base)).status).toBe(405);
+    expect((await nativeFetch(base, { method: 'POST', body: '{}' })).status).toBe(415);
+    expect((await send(report)).status).toBe(204);
+    expect(log).toHaveBeenCalledWith(JSON.stringify({ event: 'client-error-count', ...report }));
+    expect((await send({ ...report, url: 'https://private.test/?secret' })).status).toBe(400);
+    expect((await send({ ...report, counts: [{ ...report.counts[0], message: 'private' }] })).status).toBe(400);
+    expect((await send(report)).status).toBe(429);
+    expect(log).toHaveBeenCalledOnce();
+    expect(log.mock.calls[0]![0]).not.toMatch(/private|192\.0|secret|agent/);
+  });
+
+  it('caps body size and releases admission after the three-second read deadline', async () => {
+    const log = vi.fn();
+    const base = await serve(createClientErrorHandler(undefined, log));
+    expect((await nativeFetch(base, {
+      method: 'POST', body: 'x'.repeat(8193), headers: { 'content-type': 'application/json' },
+    })).status).toBe(413);
+    vi.useFakeTimers();
+    const request = new IncomingMessage(new Socket());
+    request.method = 'POST';
+    request.headers['content-type'] = 'application/json';
+    const response = new ServerResponse(request);
+    const release = vi.fn();
+    const task = createClientErrorHandler({ acquire: () => release }, log)(request, response);
+    request.emit('data', Buffer.from('{'));
+    await vi.advanceTimersByTimeAsync(3_000);
+    await task;
+    expect(response.statusCode).toBe(408);
+    expect(release).toHaveBeenCalledOnce();
+    expect(log).not.toHaveBeenCalled();
+  });
+});
 
 describe('anonymous first-party CSP counts', () => {
   it('bounds an unfinished body read and releases its admission slot', async () => {

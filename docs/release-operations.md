@@ -635,3 +635,44 @@ hashes, PWA version, gate and verifier counts, failures, manual receipts and
 explicit waivers. Record rollback/undo if performed. Release facts belong in
 the ledger, not in this runbook, and a pending owner action is complete only
 with the owner's readback.
+
+## 11. Daily and post-deploy operational checks
+
+Owner: project owner; check daily and after each authorized production deployment,
+and review by 2026-10-02 with the WAF decision or immediately on an abuse signal.
+This is a manual first-party dashboard check, not a third-party alerting service
+or a claim that an operator is automatically notified.
+
+1. In the Vercel project, open **Settings → Cron Jobs**. Confirm the job is
+   enabled and `/api/operational-probe` is scheduled at `0 6 * * *` (UTC; allow
+   the plan's scheduling window). A committed cron definition alone is not
+   evidence that the deployed job exists or ran.
+2. Open the project's **Logs** runtime view, select the production environment
+   and current deployment, and filter to `/api/operational-probe`. Check the
+   latest invocation's time, HTTP status and structured `operational-probe`
+   result. HTTP 503 / `FAIL`, function errors/timeouts or a missing daily run
+   need investigation. Check the `auth`, `wikidata` and `freetogame` booleans to
+   distinguish helper regressions from provider outages. Cached requests can
+   return the same result without another structured log for 15 minutes.
+3. After a deploy, request the fixed production `/api/operational-probe` once
+   and inspect its status/JSON plus the invocation in Logs; do not add query
+   parameters. Investigate failures rather than retrying in a tight loop.
+   Confirm release readbacks and the rollback procedure above before attributing
+   a fault to the new version; a dependency outage is not proof of an app regression.
+4. In Logs, inspect `/api/csp-report` and `/api/client-error-report` for function
+   failures and changes in `csp-count` / `client-error-count`. Compare fixed
+   categories and the client build fingerprint with the current entry asset,
+   not visitor identities. A rejected body or 429 can be abuse or admission
+   pressure; counts are untrusted hints, and absent reports do not prove health.
+   Browsers can suppress beacons, and offline or unrecovered startup failures
+   may never report.
+
+Record UTC, deployment/build identity, last observed probe status, affected
+categories and the investigation/rollback decision in the release evidence;
+do not copy raw request headers, URLs or private payloads. Runtime-log retention
+and availability depend on the hosting plan: review within that window, and
+record a missing observation as unknown, not passing. Build logs on deployment
+pages are not a substitute for runtime/function logs.
+
+References: [Vercel cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs)
+and [runtime logs](https://vercel.com/docs/logs/runtime).

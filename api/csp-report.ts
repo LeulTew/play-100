@@ -3,6 +3,8 @@ import { isIP } from 'node:net';
 import { nullableObject } from '../src/lib/guards.js';
 import { createAdmission } from './_lib/admission.js';
 import type { Admission } from './_lib/admission.js';
+import { readReport, ReportFailure } from './_lib/report-body.js';
+import { reportRouteTemplate } from '../src/lib/client-error-schema.js';
 
 const MAX_BYTES = 16 * 1024;
 const MAX_REPORTS = 16;
@@ -43,38 +45,13 @@ const directives = new Set([
   'trusted-types',
   'require-trusted-types-for',
 ]);
-const routes = new Set([
-  '/',
-  '/index.html',
-  '/my-games',
-  '/my-library',
-  '/my-rankings',
-  '/discover',
-  '/account',
-  '/publish',
-  '/community',
-  '/creator',
-  '/data-use',
-  '/friends',
-  '/friends/sharing',
-  '/friends/sharing/games',
-  '/invite',
-  '/compare',
-  '/pwa/offline.html',
-  '/__/auth/handler',
-  '/__/auth/iframe',
-]);
-
 export function reportRoute(value: unknown): string {
   if (typeof value !== 'string') return 'other';
   try {
     const url = new URL(value);
     if (url.origin !== ORIGIN || url.username || url.password) return 'other';
-    if (routes.has(url.pathname)) return url.pathname;
-    if (/^\/u\/[^/]+$/.test(url.pathname)) return '/u/:handle';
-    if (/^\/friends\/[^/]+$/.test(url.pathname)) return '/friends/:uid';
+    return reportRouteTemplate(url.pathname);
   } catch {
-    return 'other';
   }
   return 'other';
 }
@@ -122,42 +99,6 @@ export function cspCounts(input: unknown, batch: boolean) {
   return [...counts.values()];
 }
 
-class ReportFailure extends Error {
-  constructor(readonly status: number) {
-    super('CSP report rejected.');
-  }
-}
-
-function readReport(request: IncomingMessage): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let bytes = 0;
-    const finish = (error?: ReportFailure) => {
-      clearTimeout(timer);
-      request.off('data', data);
-      request.off('end', end);
-      request.off('error', failed);
-      request.off('close', closed);
-      if (error) {
-        request.resume();
-        reject(error);
-      } else resolve(Buffer.concat(chunks));
-    };
-    const data = (chunk: Buffer) => {
-      bytes += chunk.length;
-      if (bytes > MAX_BYTES) finish(new ReportFailure(413));
-      else chunks.push(chunk);
-    };
-    const end = () => finish();
-    const failed = () => finish(new ReportFailure(400));
-    const closed = () => {
-      if (!request.complete) failed();
-    };
-    const timer = setTimeout(() => finish(new ReportFailure(408)), 3_000);
-    request.on('data', data).once('end', end).once('error', failed).once('close', closed);
-  });
-}
-
 export function createCspReportHandler(
   admission: Admission = createAdmission({ maxActive: 4, maxPerWindow: 30, windowMs: 60_000 }),
   log: (line: string) => void = console.log,
@@ -186,7 +127,7 @@ export function createCspReportHandler(
       return;
     }
     try {
-      const raw = await readReport(request);
+      const raw = await readReport(request, MAX_BYTES);
       let rows: ReturnType<typeof cspCounts>;
       try {
         rows = cspCounts(JSON.parse(raw.toString('utf8')), contentType === 'application/reports+json');
