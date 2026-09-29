@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { FriendPair } from '../lib/friend-types';
 import type { FriendIdentityState } from '../lib/friend-manager';
 import { friendPeer } from '../lib/friend-manager';
@@ -7,138 +6,7 @@ import { onlineError } from './errors';
 import type { FriendChange } from './FriendsPageDialogs';
 import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
-
-function MoreActions({
-  name,
-  accepted,
-  disabled,
-  onChoose,
-}: {
-  name: string;
-  accepted: boolean;
-  disabled: boolean;
-  onChoose: (action: 'remove' | 'block') => void;
-}) {
-  const id = useId();
-  const trigger = useRef<HTMLButtonElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const close = () => {
-    menu.current?.hidePopover();
-    trigger.current?.focus({ preventScroll: true });
-  };
-  const place = useCallback(() => {
-    const button = trigger.current;
-    const popup = menu.current;
-    if (!button || !popup?.matches(':popover-open')) return;
-    const rect = button.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > innerHeight) {
-      popup.hidePopover();
-      return;
-    }
-    popup.style.left = `${Math.max(8, Math.min(rect.right - popup.offsetWidth, innerWidth - popup.offsetWidth - 8))}px`;
-    popup.style.top = `${Math.max(8, Math.min(rect.bottom + 4, innerHeight - popup.offsetHeight - 8))}px`;
-  }, []);
-  const show = (last = false) => {
-    const button = trigger.current;
-    const popup = menu.current;
-    if (!button || !popup) return;
-    if (popup.matches(':popover-open')) {
-      close();
-      return;
-    }
-    popup.showPopover();
-    place();
-    const items = popup.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
-    items[last ? items.length - 1 : 0]?.focus({ preventScroll: true });
-  };
-  useEffect(() => {
-    if (!open) return;
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place);
-    return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place);
-    };
-  }, [open, place]);
-  return (
-    <>
-      <button
-        ref={trigger}
-        className="text-button"
-        disabled={disabled}
-        aria-label={`More actions for ${name}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => show()}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            show(event.key === 'ArrowUp');
-          }
-        }}
-      >
-        More
-      </button>
-      <div
-        ref={menu}
-        id={id}
-        popover="auto"
-        role="menu"
-        aria-label={`Actions for ${name}`}
-        className="friend-more-menu"
-        onToggle={(event) => setOpen(event.newState === 'open')}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' || event.key === 'Tab') {
-            if (event.key === 'Escape') event.preventDefault();
-            close();
-            return;
-          }
-          const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
-          const index = items.findIndex((item) => item === document.activeElement);
-          const next =
-            event.key === 'ArrowDown'
-              ? (index + 1) % items.length
-              : event.key === 'ArrowUp'
-                ? (index + items.length - 1) % items.length
-                : event.key === 'Home'
-                  ? 0
-                  : event.key === 'End'
-                    ? items.length - 1
-                    : -1;
-          if (next >= 0) {
-            event.preventDefault();
-            items[next]?.focus();
-          }
-        }}
-      >
-        {accepted && (
-          <button
-            role="menuitem"
-            className="text-button"
-            onClick={() => {
-              close();
-              onChoose('remove');
-            }}
-          >
-            Remove friend
-          </button>
-        )}
-        <button
-          role="menuitem"
-          className="text-button danger-text"
-          onClick={() => {
-            close();
-            onChoose('block');
-          }}
-        >
-          Block player
-        </button>
-      </div>
-    </>
-  );
-}
+import { FriendMoreActions } from './FriendMoreActions';
 
 export function FriendRelationList({
   rows,
@@ -265,7 +133,7 @@ export function FriendRelationList({
                   </button>
                 </>
               )}
-              <MoreActions
+              <FriendMoreActions
                 name={name}
                 accepted={pair.state === 'accepted'}
                 disabled={busy}

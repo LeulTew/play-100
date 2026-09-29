@@ -251,8 +251,10 @@ described:
   boxes overlap titles; a jacket whose artwork failed keeps its fixed shape around the fallback
   note; My games' ranking move buttons stay in flow; Discover's genre filter keeps a single grid
   column; and the avatar picker draws no focus ring.
-- **The Popover API** (Chrome 114, Firefox 125, Safari 17). The friend actions menu needs it and
-  does not open without it.
+- **The Popover API** (Chrome 114, Firefox 125, Safari 17). It is feature-detected. Without it, a
+  friend's More actions menu opens in place, on its own line below the row's actions, instead of
+  floating below its button. It has the same keys and closes on Escape, Tab, a choice or a press
+  outside it.
 - **`text-wrap: balance` and `pretty`** (Chrome 114 and 117, Firefox 121, Safari 17.5). Typography
   only: headings and titles wrap greedily instead.
 - **`content-visibility`** (Firefox 125, Safari 18). Long card lists render in full: slower, with

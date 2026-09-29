@@ -476,6 +476,12 @@
 .friend-more-menu:popover-open {
   display: grid;
 }
+/* Without the Popover API the menu is an ordinary disclosure: it opens in place, on its own line below the actions. */
+.friend-more-menu:not([popover]):not([hidden]) {
+  position: static;
+  display: grid;
+  flex-basis: 100%;
+}
 .friend-more-menu .text-button {
   justify-content: flex-start;
   padding-inline: 12px;
