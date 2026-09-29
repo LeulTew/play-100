@@ -107,8 +107,9 @@ describe('S3 header and supply-chain boundaries', () => {
         args: ['audit', 'signatures'],
       })),
     );
-    expect(plan.filter((step) => step.args[0] === 'audit')).toHaveLength(2);
+    expect(plan.filter((step) => step.args[0] === 'audit' && step.args[1] === 'signatures')).toHaveLength(2);
+    expect(plan.slice(2, 4).every((step) => step.audit && step.args.includes('--json'))).toBe(true);
     expect(plan.slice(0, 2).every((step) => step.report === undefined)).toBe(true);
-    expect(plan.findIndex((step) => step.report !== undefined)).toBeGreaterThan(1);
+    expect(plan.findIndex((step) => step.report !== undefined)).toBeGreaterThan(3);
   });
 });

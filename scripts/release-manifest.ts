@@ -23,6 +23,7 @@ export interface ManifestOptions {
   vitestCloud?: string;
   cloudRules?: string;
   receipts: { name: string; file: string }[];
+  audits: string[];
   playwright: string[];
   decisions?: string;
   allowDirty: boolean;
@@ -46,6 +47,24 @@ function equal(actual: number, expected: unknown): void {
 
 export function sha256(bytes: string | Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
+}
+
+export function summarizeNpmAudit(input: unknown, exitCode: unknown) {
+  const report = object(input);
+  if (report.error !== undefined || report.auditReportVersion !== 2 || (exitCode !== 0 && exitCode !== 1)) {
+    throw new Error('Dependency audit did not return a complete native report.');
+  }
+  object(report.vulnerabilities);
+  const values = object(object(report.metadata).vulnerabilities);
+  const vulnerabilities = {
+    info: count(values.info), low: count(values.low), moderate: count(values.moderate),
+    high: count(values.high), critical: count(values.critical), total: count(values.total),
+  };
+  const sum = vulnerabilities.info + vulnerabilities.low + vulnerabilities.moderate + vulnerabilities.high + vulnerabilities.critical;
+  if (sum !== vulnerabilities.total || exitCode !== (sum ? 1 : 0)) {
+    throw new Error('Dependency audit exit code or totals disagree with its report.');
+  }
+  return { exitCode, vulnerabilities, reviewRequired: sum > 0 };
 }
 
 export function summarizeVitest(input: unknown): Counts {
@@ -172,6 +191,7 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
     vitest: [],
     playwright: [],
     receipts: [],
+    audits: [],
     allowDirty: false,
   };
   const single = new Set<string>();
@@ -184,7 +204,7 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
     }
     if (
       !flag ||
-      !['--vitest', '--vitest-cloud', '--cloud-rules', '--receipt', '--playwright', '--decisions', '--mode'].includes(
+      !['--vitest', '--vitest-cloud', '--cloud-rules', '--receipt', '--audit', '--playwright', '--decisions', '--mode'].includes(
         flag,
       )
     ) {
@@ -194,6 +214,10 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
     if (!value || value.startsWith('--')) throw new Error('Missing release-manifest option value.');
     if (flag === '--vitest') options.vitest.push(value);
     else if (flag === '--playwright') options.playwright.push(value);
+    else if (flag === '--audit') {
+      if (options.audits.includes(value)) throw new Error('Duplicate dependency audit.');
+      options.audits.push(value);
+    }
     else if (flag === '--receipt') {
       const separator = value.indexOf('=');
       const name = value.slice(0, separator);
@@ -349,6 +373,29 @@ export async function collectReleaseManifest(
       throw new Error('Tested Firestore rules do not match the candidate.');
     }
   }
+  const lockfileSha256 = sha256(await bytes(path.join(root, 'package-lock.json'), 'lockfile'));
+  const audits = [];
+  for (const input of options.audits) {
+    const file = path.resolve(root, input);
+    const content = await bytes(file, 'dependency audit');
+    const audit = object(json(content, 'dependency audit'));
+    if (audit.lockfileSha256 !== lockfileSha256) throw new Error('Dependency audit lockfile does not match the candidate.');
+    for (const field of ['startedAt', 'finishedAt'] as const) {
+      if (typeof audit[field] !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(audit[field]) || !Number.isFinite(Date.parse(audit[field]))) {
+        throw new Error('Dependency audit has no valid UTC date.');
+      }
+    }
+    if (Date.parse(String(audit.finishedAt)) < Date.parse(String(audit.startedAt))) throw new Error('Dependency audit dates are reversed.');
+    if (typeof audit.commandReceiptSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(audit.commandReceiptSha256)) {
+      throw new Error('Dependency audit has no command receipt digest.');
+    }
+    audits.push({
+      path: portable(file), sha256: sha256(content),
+      ...summarizeNpmAudit(audit.report, audit.exitCode),
+      startedAt: audit.startedAt, finishedAt: audit.finishedAt, lockfileSha256,
+      commandReceiptSha256: audit.commandReceiptSha256,
+    });
+  }
   const receipts = [];
   for (const { name, file: input } of options.receipts) {
     const file = path.resolve(root, input);
@@ -380,7 +427,7 @@ export async function collectReleaseManifest(
     allowDirty: options.allowDirty,
     lockfile: {
       path: 'package-lock.json',
-      sha256: sha256(await bytes(path.join(root, 'package-lock.json'), 'lockfile')),
+      sha256: lockfileSha256,
     },
     versions,
     os: { platform: platform(), release: release(), arch: arch() },
@@ -390,6 +437,7 @@ export async function collectReleaseManifest(
     reports,
     cloudRules,
     receipts,
+    audits,
     decisionInput,
     ...decisions,
   };

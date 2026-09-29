@@ -7,9 +7,11 @@ describe('candidate release gate planning', () => {
     const plan = gatePlan();
     const names = plan.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
-    expect(names.slice(0, 9)).toEqual([
+    expect(names.slice(0, 11)).toEqual([
       'configured-audit-signatures',
       'offline-audit-signatures',
+      'configured-dependency-audit',
+      'offline-dependency-audit',
       'types',
       'lint',
       'typecheck-functions',
@@ -35,6 +37,10 @@ describe('candidate release gate planning', () => {
       'offline-unit-browser',
     ]);
     expect(plan.flatMap((step) => step.args).join(' ')).not.toMatch(/\b(?:install|ci|deploy|push|merge|vercel)\b/);
+    expect(plan.filter((step) => step.audit).map((step) => [step.profile, step.args])).toEqual([
+      ['configured', ['audit', '--json', '--audit-level=info']],
+      ['offline', ['audit', '--json', '--audit-level=info']],
+    ]);
   });
 
   it('removes stale test overrides and isolates configured, offline and emulator environments', () => {

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { requireObject } from '../src/lib/guards.js';
-import { summarizePlaywright, summarizeVitest } from './release-manifest';
+import { summarizeNpmAudit, summarizePlaywright, summarizeVitest } from './release-manifest';
 
 export const GATE_NODE = 'v24.21.0';
 const ports = [4187, 9199, 8188, 4417, 4517, 9150];
@@ -20,6 +20,7 @@ export interface GateStep {
   args: string[];
   report?: 'vitest' | 'playwright';
   expectedPassed?: number;
+  audit?: true;
 }
 
 export function gatePlan(): GateStep[] {
@@ -36,6 +37,13 @@ export function gatePlan(): GateStep[] {
       profile,
       tool: 'npm',
       args: ['audit', 'signatures'],
+    })),
+    ...(['configured', 'offline'] as const).map((profile): GateStep => ({
+      name: `${profile}-dependency-audit`,
+      profile,
+      tool: 'npm',
+      args: ['audit', '--json', '--audit-level=info'],
+      audit: true,
     })),
   );
   steps.push({
@@ -166,6 +174,7 @@ async function runCommand(
   executable: string,
   args: string[],
   env: NodeJS.ProcessEnv,
+  auditLockfileSha256?: string,
 ) {
   const logPath = path.join(evidence, `${name}.log`);
   // Reserve before spawning; a failed attempt is never overwritten or retried.
@@ -174,17 +183,32 @@ async function runCommand(
   const startedAt = new Date().toISOString();
   let exitCode: number | null = null;
   let failure: string | undefined;
+  const auditChunks: Buffer[] = [];
+  let auditBytes = 0;
+  let finishedAt: string;
   try {
     exitCode = await new Promise<number>((resolve, reject) => {
       const child = spawn(executable, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
       child.stdout.pipe(output, { end: false });
       child.stderr.pipe(output, { end: false });
+      if (auditLockfileSha256) child.stdout.on('data', (chunk: Buffer) => {
+        auditBytes += chunk.length;
+        if (auditBytes > 8 * 1024 * 1024) {
+          if (!failure) {
+            failure = 'Dependency audit JSON exceeds its 8 MiB evidence limit.';
+            child.kill();
+          }
+        } else auditChunks.push(chunk);
+      });
       output.once('error', (cause) => {
         child.kill();
         reject(cause);
       });
       child.once('error', reject);
-      child.once('close', (code, signal) => resolve(signal ? 1 : (code ?? 1)));
+      child.once('close', (code, signal) => {
+        if (signal) failure ??= `Command terminated by ${signal}.`;
+        resolve(code ?? 1);
+      });
     });
   } catch (cause) {
     failure = cause instanceof Error ? cause.message : 'Command could not run.';
@@ -192,12 +216,23 @@ async function runCommand(
     await new Promise<void>((resolve, reject) =>
       output.end((error?: Error | null) => (error ? reject(error) : resolve())),
     );
+    finishedAt = new Date().toISOString();
     await json(path.join(evidence, `${name}-exit.json`), {
       ...commandReceipt(name, exitCode, await readFile(logPath), failure),
       command: [executable, ...args],
       startedAt,
-      finishedAt: new Date().toISOString(),
+      finishedAt,
     });
+  }
+  if (auditLockfileSha256 && !failure) {
+    const report: unknown = JSON.parse(Buffer.concat(auditChunks).toString('utf8'));
+    const summary = summarizeNpmAudit(report, exitCode);
+    await json(path.join(evidence, `${name}.json`), {
+      ...summary, startedAt, finishedAt, lockfileSha256: auditLockfileSha256, report,
+      commandReceiptSha256: hash(await readFile(path.join(evidence, `${name}-exit.json`))),
+    });
+    if (summary.reviewRequired) console.warn(`${name}: dependency advisories recorded for owner review; not a clean audit.`);
+    return;
   }
   if (exitCode !== 0 || failure) throw new Error(`${name} failed; retain ${logPath} and its receipt.`);
 }
@@ -437,7 +472,10 @@ export async function releaseGate(evidence: string, offline: string) {
     } else {
       if (step.report) args.push(...reporterArgs(step, evidence));
       if (step.name.endsWith('check-budgets')) args.push('--', '--json', path.join(evidence, `${step.name}.json`));
-      await runCommand(step.name, cwd, evidence, process.execPath, [cli(cwd, step.tool), ...args], env);
+      await runCommand(
+        step.name, cwd, evidence, process.execPath, [cli(cwd, step.tool), ...args], env,
+        step.audit ? hash(await readFile(path.join(cwd, 'package-lock.json'))) : undefined,
+      );
     }
     if (step.report) {
       const bytes = await readFile(path.join(evidence, `${step.name}.json`));
@@ -483,7 +521,8 @@ export async function releaseGate(evidence: string, offline: string) {
         );
       else if (step.report)
         args.push(step.report === 'vitest' ? '--vitest' : '--playwright', path.join(evidence, `${step.name}.json`));
-      args.push('--receipt', `${step.name}=${path.join(evidence, `${step.name}-exit.json`)}`);
+      if (step.audit) args.push('--audit', path.join(evidence, `${step.name}.json`));
+      else args.push('--receipt', `${step.name}=${path.join(evidence, `${step.name}-exit.json`)}`);
       if (step.tool === 'emulators')
         args.push('--receipt', `${step.name}-tests=${path.join(evidence, `${step.name}-tests-exit.json`)}`);
       if (step.name === 'cloud-ui') {

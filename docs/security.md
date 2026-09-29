@@ -966,8 +966,13 @@ Release 1 is not a supported target.
 Vercel installs with `npm ci`. The stale CI workflow was removed; CodeQL,
 Dependency review and Secret scan remain disabled by the owner. The committed
 local `release:gate` runner verifies `npm audit signatures` in both installed
-checkouts before other checks and retains hashed exit receipts. Run `npm audit`
-locally after each install as well (README "Quality checks"). The
+checkouts before other checks and retains hashed exit receipts. It then records
+native `npm audit --json --audit-level=info` results from each checkout, including
+the real exit code, UTC dates and lockfile digest, in the release manifest.
+Valid advisory reports remain visible as requiring owner review; they are not
+silently converted to a clean audit. Registry failures and malformed reports
+stop the gate. Run `npm audit` locally after each install as well (README
+"Quality checks"). The
 maintainer's full-history Gitleaks scan remains a pre-merge step. Its evidence
 is the scanner's redacted JSON report and command log; a summary of the result
 is a reading of the scan, not the scanner's output.

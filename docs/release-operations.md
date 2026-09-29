@@ -120,8 +120,17 @@ if ($LASTEXITCODE -ne 0) { throw 'Gate stopped; investigate retained evidence be
 The evidence directory must not exist and must be outside both checkouts.
 Dry-run prints the entire plan without starting servers, tests or builds.
 Execution first runs `npm audit signatures` against the installed tree in each
-checkout, before any static check or test. Each audit must succeed; its log hash
-and exit receipt are bound into that checkout's release manifest. It then runs
+checkout, before any static check or test. Each signature check must succeed;
+its log hash and exit receipt are bound into that checkout's release manifest.
+Next, `npm audit --json --audit-level=info` runs in both checkouts. Native audit
+JSON, its real exit code, UTC start/end, command-receipt hash and lockfile SHA-256
+are retained in `*-dependency-audit.json` and bound through manifest
+`--audit` inputs. Exit 1 with a valid advisory report is recorded as
+`reviewRequired: true`, not relabelled as a clean audit or an automatic release
+block for already-documented advisories. The owner must review changed/new
+advisories before release and record any acceptance. Registry/network failures,
+malformed reports and unexpected exits still stop the gate; the manifest refuses
+audit evidence for another lockfile. It then runs
 static checks, unit/browser tests, cloud rules and the handle
 race x5 / convergence x20, both independent builds with CSP/budget checks,
 production/development e2e, cloud-UI with freshly allocated comparison actors,
