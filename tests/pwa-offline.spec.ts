@@ -48,10 +48,16 @@ test('a prepared worker reloads Library page 2 offline without losing the page o
   const pager = page.getByRole('navigation', { name: 'Library pages', exact: true });
   await expect(pager.getByRole('combobox')).toHaveValue('2');
   const settings = await openOfflineSettings(page);
-  await settings.getByRole('button', { name: 'Enable offline access', exact: true }).click();
+  const enable = settings.getByRole('button', { name: 'Enable offline access', exact: true });
+  await enable.focus();
+  const pressed = await enable.elementHandle();
+  await page.keyboard.press('Enter');
   await expect(settings.getByRole('button', { name: 'Offline files ready', exact: true })).toBeDisabled({
     timeout: 45000,
   });
+  // The pressed control keeps focus through preparing and ready (UX-013).
+  expect(await page.evaluate((button) => document.activeElement === button, pressed)).toBe(true);
+  await pressed?.dispose();
   await page.keyboard.press('Escape');
   await context.setOffline(true);
   try {

@@ -41,10 +41,14 @@ export default function PwaControls({
         <p>No install prompt is available here. Look for Install or Add to Home Screen in your browser.</p>
       )}
       <div className="button-row">
+        {/* A press that starts preparation or a check keeps focus on its button: aria-disabled and a guarded
+            handler, not disabled, while the work it started runs (UX-013). Offline, the controls are disabled. */}
         <button
           className="button button-outline"
-          disabled={!pwa.online || pending || pwa.offlineState === 'ready'}
+          disabled={!pwa.online}
+          aria-disabled={pending || pwa.offlineState === 'ready' || undefined}
           onClick={() => {
+            if (pending || pwa.offlineState === 'ready') return;
             void pwa.prepareOffline();
           }}
         >
@@ -57,9 +61,11 @@ export default function PwaControls({
         {pwa.offlineState === 'ready' && (
           <button
             className="text-button"
-            disabled={!pwa.online || pending}
+            disabled={!pwa.online}
+            aria-disabled={pending || undefined}
             aria-busy={pwa.checkingUpdate === true}
             onClick={() => {
+              if (pending) return;
               void pwa.checkForUpdate();
             }}
           >
@@ -68,8 +74,8 @@ export default function PwaControls({
         )}
       </div>
       <p className="section-help">
-        Public app files, collection details and recently viewed artwork included with the app have storage limits.
-        Workbooks, films, online-only pages and live catalog results are not downloaded for offline use.
+        Offline files are stored within your browser's storage limits. Workbooks, films, online-only pages and live
+        catalog results are not downloaded for offline use.
       </p>
       <div role="status">{pwa.message && <p>{pwa.message}</p>}</div>
       {pwa.error && !pwa.moduleError && (
@@ -108,8 +114,8 @@ export default function PwaControls({
         (confirm ? (
           <div className="reset-confirmation" role="group" aria-label="Confirm app update">
             <p>
-              Updating reloads this page. Finish or clear unsubmitted forms first. Pending ratings and notes must save
-              successfully; a new edit, changed page or another open Play 100 window prevents this reload.
+              Updating reloads this page, so finish any unsent forms first. It saves your ratings and notes before
+              reloading, and stops if you edit, change page or have Play 100 open in another window.
             </p>
             <div className="button-row">
               <button className="button button-outline" autoFocus onClick={() => setConfirm(false)}>

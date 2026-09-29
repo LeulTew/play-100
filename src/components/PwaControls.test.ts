@@ -22,7 +22,7 @@ describe('offline controls copy preserves readiness and privacy boundaries', () 
     );
     expect(html).toContain(
       checkingUpdate
-        ? 'disabled="" aria-busy="true">Checking for an update…</button>'
+        ? 'aria-disabled="true" aria-busy="true">Checking for an update…</button>'
         : 'aria-busy="false">Check for an app update</button>',
     );
     expect(html).toContain(
@@ -49,7 +49,7 @@ describe('offline controls copy preserves readiness and privacy boundaries', () 
       expect(html).toContain('Keep The 100 and this device&#x27;s library available offline.');
       expect(html).toContain('Account services and live catalog results need a connection.');
       expect(html).toContain('Offline preparation downloads public files, not private or account data.');
-      expect(html).toContain('recently viewed artwork included with the app have storage limits.');
+      expect(html).toContain('Offline files are stored within your browser&#x27;s storage limits.');
       expect(html).toContain('No install prompt is available here.');
       expect(html).toContain('Workbooks, films, online-only pages and live catalog results are not downloaded');
       expect(html).not.toContain('offline worker');
@@ -61,7 +61,9 @@ describe('offline controls copy preserves readiness and privacy boundaries', () 
             ? 'Preparing offline files…'
             : 'Enable offline access',
       );
-      expect(html.includes('disabled=""')).toBe(offlineState !== 'idle');
+      // Preparing and ready keep focus on the pressed button: aria-disabled, never disabled, while online (UX-013).
+      expect(html.includes('aria-disabled="true"')).toBe(offlineState !== 'idle');
+      expect(html).not.toContain(' disabled=""');
       expect(pwa.prepareOffline).not.toHaveBeenCalled();
       expect(html).toContain('<div role="status"></div>');
       const loading = renderToStaticMarkup(
