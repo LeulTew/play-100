@@ -161,7 +161,7 @@ export function useRankingsPage({
     recovered.current = recovery;
   }, [busy, changing, recovery]);
   useLayoutEffect(() => {
-    if (!active || busy || changing) return;
+    if (!active || busy || changing || pendingEdits) return;
     if (followMove && followedMove.current !== followMove) {
       if (!followMove.isCurrent()) {
         followedMove.current = followMove;
@@ -176,9 +176,9 @@ export function useRankingsPage({
       )
         return;
       const offset = Math.floor((moved.position - 1) / RANKING_PAGE_SIZE) * RANKING_PAGE_SIZE;
+      const focus = followMove.position !== null ? 'position' : followMove.direction;
       if (offset === followMove.offset) {
-        if (followMove.direction)
-          focusMovedRecord(results.current, followMove.id, followMove.direction, followMove.origin);
+        if (focus) focusMovedRecord(results.current, followMove.id, focus, followMove.origin);
         followedMove.current = followMove;
         return;
       }
@@ -186,7 +186,7 @@ export function useRankingsPage({
         updateView({ offset });
         return;
       }
-      if (!focusMovedRecord(results.current, followMove.id, followMove.direction, followMove.origin)) return;
+      if (!focusMovedRecord(results.current, followMove.id, focus, followMove.origin)) return;
       followedMove.current = followMove;
     } else if (focusAfterPage.current) {
       focusAfterPage.current = false;
@@ -258,6 +258,13 @@ export function useRankingsPage({
       if (!isCurrent()) return false;
       if (!saved) {
         setError('The position could not be saved. Your ranking has not moved; retry.');
+        if (typeof destination === 'number' && origin instanceof HTMLElement) {
+          setRecovery({
+            target: origin,
+            isCurrent: () =>
+              isCurrent() && (document.activeElement === origin || document.activeElement === document.body),
+          });
+        }
         return false;
       }
       setFollowMove({

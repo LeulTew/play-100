@@ -92,8 +92,10 @@ navigation and action notices; adding a record is instead **Add to My games**.
 Reorder arrows use guarded `aria-disabled` while saving and at list edges, keeping
 native focus intact. After a saved move, focus follows the same row's arrow,
 including across page boundaries, or its opposite arrow at an edge. A deliberate
-focus change while saving is not overridden. Drag and numeric-position moves
-retain their existing title-focus behavior when they cross pages.
+focus change while saving is not overridden. Numeric moves keep their input or
+Move button visible after saving or refusal; across pages, the moved record's
+Move to position summary receives focus. Drag moves retain title focus when
+they cross pages.
 Mobile rows group Rank and delete with the move controls and omit the redundant
 progress summary; Played and Completed remain individually labeled controls.
 Compact comparison buttons expose **Pin** on coarse pointers.

@@ -97,7 +97,8 @@ test('an explicit manual position moves across several pages and focuses the sav
   await expect(pager(page).getByRole('combobox')).toHaveValue('5');
   await expect(rows(page)).toHaveCount(20);
   await expect(row(page, 1)).toHaveAttribute('aria-posinset', '103');
-  await expect(row(page, 1).locator('.record-title')).toBeFocused();
+  await expect(row(page, 1).locator('.ranking-position-control > summary')).toBeFocused();
+  await expect(row(page, 1).locator('.ranking-position-control > summary')).toBeInViewport();
   expect((await readLibrary(page)).ranking[102]?.id).toBe(recordId(1));
 });
 

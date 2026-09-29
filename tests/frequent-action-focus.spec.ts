@@ -276,3 +276,71 @@ test('bulk feedback counts only changed memberships and single toggles name thei
   await later.press('Enter');
   await expect(page.locator('.toast-visible')).toContainText(`${game.title} added to Play later.`);
 });
+
+for (const [position, rejected, moveFocus] of [
+  [1, false, false],
+  [1, true, false],
+  [2, false, false],
+  [2, true, false],
+  [2, false, true],
+  [2, true, true],
+] as const) {
+  test(`numeric Move button from ${position} ${moveFocus ? 'respects newer focus' : 'keeps visible focus on its moved record'} after ${rejected ? 'refusal' : 'saving'}`, async ({
+    page,
+  }) => {
+    const records = libraryRecords.slice(0, 3);
+    const ranked = applyPersonalAction(emptyPersonalLibrary(), { type: 'add-ranking', records });
+    const seed = applyPersonalAction(ranked, { type: 'move-item', list: 'ranking', id: game.id, position });
+    await installGuestLibrary(page, seed);
+    await page
+      .getByRole('navigation', { name: 'My games views' })
+      .getByRole('button', { name: /^Ranking,/ })
+      .click();
+    const row = page.getByRole('list', { name: 'Your ranked games' }).locator(`[data-record-id="${game.id}"]`);
+    await expect(row).toHaveAttribute('aria-posinset', String(position));
+    await row.getByText('Move to position', { exact: true }).click();
+    const input = row.getByRole('spinbutton', { name: `Position for ${game.title}`, exact: true });
+    const move = row.getByRole('button', { name: 'Move', exact: true });
+    await input.fill('3');
+    await input.press('Tab');
+    await expect(move).toBeFocused();
+    await expect(move).toBeInViewport();
+    const before = await readLibrary(page);
+    const held = await holdWrite(page, rejected);
+    try {
+      await page.keyboard.press('Enter');
+      await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+      await expect(move).toBeFocused();
+      await expect(move).toHaveAttribute('aria-disabled', 'true');
+      await page.keyboard.press('Enter');
+      expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+      const otherControl = page.getByRole('button', { name: 'Add games', exact: true });
+      if (moveFocus) await otherControl.focus();
+      await held.evaluate((probe) => probe.release());
+      if (rejected) {
+        await expect(page.getByRole('alert').filter({ hasText: 'The position could not be saved' })).toBeVisible();
+        expect(await readLibrary(page)).toEqual(before);
+        await expect(input).toHaveValue('3');
+      } else {
+        await expect(row).toHaveAttribute('aria-posinset', '3');
+        await expect(input).toHaveValue('');
+        await expect.poll(async () => (await readLibrary(page)).ranking[2]?.id).toBe(game.id);
+      }
+      const target = moveFocus ? otherControl : move;
+      await expect(target).toBeFocused();
+      await expect(target).toBeVisible();
+      await expect(target).toBeInViewport();
+      await expect(move).not.toHaveAttribute('aria-disabled', 'true');
+      expect(
+        await target.evaluate((element) => ({
+          focused: document.activeElement === element,
+          record: element.closest('[data-record-id]')?.getAttribute('data-record-id'),
+          focusRing: element.matches(':focus-visible') && getComputedStyle(element).outlineStyle !== 'none',
+        })),
+      ).toEqual({ focused: true, record: moveFocus ? undefined : game.id, focusRing: true });
+    } finally {
+      await held.evaluate((probe) => probe.restore());
+      await held.dispose();
+    }
+  });
+}
