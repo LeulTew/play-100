@@ -294,8 +294,11 @@ test('share fallback exposes a copyable public URL without private list state', 
     });
   });
   await page.goto('/?list=completed&year=2018');
-  await page.getByRole('button', { name: 'Share this view', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  const share = page.getByRole('button', { name: 'Share this view', exact: true });
+  await share.click();
+  const fallback = page.getByRole('dialog', { name: 'Copy this link', exact: true });
+  await expect(fallback.locator('#share-title')).toBeFocused();
+  await expect(page).toHaveTitle('Copy this link | Play 100');
   const link = await page.getByLabel('Shareable link', { exact: true }).inputValue();
   expect(new URL(link).searchParams.get('list')).toBeNull();
   expect(new URL(link).searchParams.get('year')).toBe('2018');
@@ -305,6 +308,10 @@ test('share fallback exposes a copyable public URL without private list state', 
       .getByLabel('Shareable link', { exact: true })
       .evaluate((input: HTMLInputElement) => input.selectionEnd === input.value.length && input.selectionStart === 0),
   ).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(fallback).toHaveCount(0);
+  await expect(share).toBeFocused();
+  await expect(page).toHaveTitle('The 100 | Play 100');
 });
 
 for (const method of ['clipboard', 'native'] as const) {

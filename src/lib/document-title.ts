@@ -26,19 +26,20 @@ const workspaceTitles: Record<MyGamesTab, string> = {
   queue: 'My games · Play later',
   ranking: 'My games · Ranking',
 };
-const panelTitles: Record<Exclude<AppPanel, null> | 'compare-tray', string> = {
+const panelTitles: Record<Exclude<AppPanel, null> | 'compare-tray' | 'share', string> = {
   settings: 'Settings & backups',
   about: 'About & credits',
   menu: 'Menu',
   account: 'Sign in',
   'compare-tray': 'Compare tray',
+  share: 'Copy this link',
 };
 
 export function appDocumentTitle(
   page: AppPage,
   game?: Pick<Game, 'title' | 'rank'>,
   record?: Pick<LibraryRecord, 'title'>,
-  panel?: AppPanel | 'compare-tray',
+  panel?: AppPanel | 'compare-tray' | 'share',
   gamesView?: MyGamesTab,
 ): string {
   const workspaceTitle =

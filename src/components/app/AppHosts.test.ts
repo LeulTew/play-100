@@ -361,6 +361,8 @@ describe('navigation and dialog hosts', () => {
       }),
     );
     expect(sharing).toContain('aria-labelledby="share-title"');
+    expect(sharing).toContain('>Copy this link</h2>');
+    expect(sharing).not.toContain('Good games are better shared.');
     expect(sharing).toContain('id="share-link"');
     expect(sharing).toContain('Your private progress isn&#x27;t included.');
   });

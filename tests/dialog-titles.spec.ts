@@ -9,6 +9,46 @@ const games = parseCollection(
   JSON.parse(readFileSync(new URL('../data/collection.json', import.meta.url), 'utf8')),
 ).games;
 
+test('manual sharing owns the title above a game and restores its title and focused action', async ({ page }) => {
+  await emptyCatalogs(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async () => {
+          throw new DOMException('Synthetic clipboard refusal', 'NotAllowedError');
+        },
+      },
+    });
+  });
+  const game = games[0]!;
+  await page.goto(`/?catalogs=off&game=${game.slug}`);
+  const detail = page.getByRole('dialog', { name: game.title, exact: true });
+  const share = detail.getByRole('button', { name: `Share ${game.title}`, exact: true });
+  const detailUrl = page.url();
+  const historyLength = await page.evaluate(() => history.length);
+  for (const method of ['Close', 'Escape'] as const) {
+    await share.focus();
+    await share.press('Enter');
+    const fallback = page.getByRole('dialog', { name: 'Copy this link', exact: true });
+    await expect(fallback.locator('#share-title')).toBeFocused();
+    await expect(page).toHaveTitle('Copy this link | Play 100');
+    await expect(page.locator('dialog[open]')).toHaveCount(2);
+    const copied = new URL(await fallback.getByLabel('Shareable link', { exact: true }).inputValue());
+    expect(copied.searchParams.get('game')).toBe(game.slug);
+    if (method === 'Close') await fallback.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    else await page.keyboard.press('Escape');
+    await expect(fallback).toHaveCount(0);
+    await expect(detail).toBeVisible();
+    await expect(share).toBeFocused();
+    await expect(page).toHaveTitle(`${game.title} · #${game.rank} | Play 100`);
+    await expect(page).toHaveURL(detailUrl);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  }
+});
+
 for (const viewport of [
   { width: 1440, height: 900 },
   { width: 1024, height: 768 },

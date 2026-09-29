@@ -124,8 +124,9 @@ export default function App() {
   }, [libraryScope, notices]);
   const requestedTitlePanel =
     panel === 'account' && (!ONLINE_AVAILABLE || onlineState.onlineFailed || online?.identity) ? null : panel;
-  const titlePanel =
-    requestedTitlePanel ?? (online?.signInOpen ? 'account' : compareTrayVisible ? 'compare-tray' : null);
+  const titlePanel = manualLink
+    ? 'share'
+    : (requestedTitlePanel ?? (online?.signInOpen ? 'account' : compareTrayVisible ? 'compare-tray' : null));
   const documentTitle = appDocumentTitle(page, selectedGame, selectedRecord, titlePanel, gamesView);
   useEffect(() => {
     document.title = documentTitle;

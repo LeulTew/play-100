@@ -56,6 +56,7 @@ describe('committed-state document titles', () => {
     ['menu', 'Menu'],
     ['compare-tray', 'Compare tray'],
     ['account', 'Sign in'],
+    ['share', 'Copy this link'],
   ] as const)('gives committed %s precedence without exposing the underlying record title', (panel, title) => {
     const game = { title: 'Underlying game', rank: 2 };
     const record = { title: 'Private record title' };

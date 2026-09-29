@@ -242,7 +242,7 @@ export function DialogHost({
           <DialogBoundary key={`share:${scope}`} onClose={manualShare.onClose} onFailure={failed('Sharing')}>
             <Dialog open titleId="share-title" onClose={manualShare.onClose} className="info-dialog share-dialog">
               <h2 id="share-title" data-autofocus tabIndex={-1}>
-                Good games are better shared.
+                Copy this link
               </h2>
               <p>
                 This browser couldn't share or copy automatically. Select this public link and copy it to send to a

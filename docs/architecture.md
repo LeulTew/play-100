@@ -140,6 +140,11 @@ it does not copy one library into the other when switching the active view.
 
 Public collection metadata comes from [useCollection](../src/hooks/useCollection.ts),
 which renders the ready collection as a transition.
+The visible saved additions in Beyond The 100 use the same exact-ID artwork
+loader as My games, even with a blank search or online lookup disabled.
+The bundled catalog is loaded only for records with known local artwork; manual
+and known no-art records do not cause a metadata fetch. Artwork completion
+updates only the additions, not AppShell's search state or saved library data.
 Unsaved previews are bounded, scope-qualified metadata in App, not library imports.
 [PreviewAuthority](../src/lib/preview-authority.ts) supplies a revocable subscription
 for shared previews; it does not persist records.
@@ -153,6 +158,9 @@ context; the mutable controller still checks committed ownership when an event
 runs. Rendering does not query the previous commit's controller readiness.
 Panel state belongs to [useAppPanel](../src/hooks/useAppPanel.ts); notification,
 manual-share and offline-settings state are separate from the selected URL detail.
+The manual share fallback is named **Copy this link**. It owns the document
+title while open, ahead of an underlying detail or panel; closing restores
+that prior title through the existing title helper without changing history.
 Visible toast surfaces pass pointer input through to the page except at their
 actual buttons and links. Dismissal and nested recovery actions remain interactive;
 the existing live-region announcements, focus handling and timeout are unchanged.
