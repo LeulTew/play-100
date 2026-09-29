@@ -72,6 +72,10 @@ describe('pinned history secret scan', () => {
         excludedFromScannerCount: 1,
         findings: 0,
       });
+      expect(
+        gitleaksSummary(directory, sha, '\u001b[32mINF\u001b[0m \u001b[1m1 commits scanned.\u001b[0m', [])
+          .scannedCommits,
+      ).toBe(1);
       expect(() => gitleaksSummary(directory, sha, 'no count', [])).toThrow('scanned-commit count');
       expect(() => gitleaksSummary(directory, sha, '3 commits scanned.', [])).toThrow('scanned-commit count');
       expect(() => gitleaksSummary(directory, sha, '1 commits scanned.', [{}])).toThrow('zero findings');

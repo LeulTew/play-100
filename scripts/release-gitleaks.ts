@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 
 export const GITLEAKS_VERSION = '8.30.1';
 // Digests published with https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1.
@@ -94,7 +95,7 @@ export function gitleaksSummary(checkout: string, sha: string, log: string, repo
       maxBuffer: 32 * 1024 * 1024,
     }),
   );
-  const match = log.match(/\b(\d+) commits scanned\b/);
+  const match = stripVTControlCharacters(log).match(/\b(\d+) commits scanned\b/);
   const scannedCommits = match ? Number(match[1]) : 0;
   if (!scannedCommits || scannedCommits > counts.reachableCommits)
     throw new Error('Missing or inconsistent Gitleaks scanned-commit count.');
