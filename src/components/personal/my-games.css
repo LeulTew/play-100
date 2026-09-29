@@ -227,18 +227,10 @@
   min-width: 0;
 }
 .game-artwork.record-thumb {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 60px;
   background: var(--wash);
   color: var(--sage);
-  flex: 0 0 48px;
-  overflow: hidden;
-  border-radius: 2px;
 }
 .game-artwork.record-thumb img {
-  object-fit: contain;
   width: auto;
   height: auto;
   max-width: 100%;
