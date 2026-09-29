@@ -1,4 +1,5 @@
 import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy, PwaWorkerClient, PwaWorkerHost } from './types.ts';
+import { APP_ROUTES, appRoute } from '../lib/routes.ts';
 
 export const PWA_CACHE_PREFIX = 'play100-pwa-v1-';
 export const PWA_BUDGET = {
@@ -54,9 +55,10 @@ const queryKeys = new Set([
   'genreFamily',
   'include100',
 ]);
-const shellRoutes = new Set(['/', '/index.html', '/discover', '/my-games', '/my-library', '/my-rankings']);
-const appRoutes =
-  /^\/(?:|index\.html|discover|my-games|my-library|my-rankings|data-use|friends(?:\/sharing(?:\/games)?|\/[^/]+)?|invite|compare|account|publish|community|creator|u\/[^/]+)\/?$/;
+const shellRoutes = new Set<string>([
+  '/index.html',
+  ...APP_ROUTES.filter((route) => route.shell).map((route) => route.path),
+]);
 // The worker is emitted as one self-contained file, so it keeps a copy of public/404.html (worker.test.ts checks they match).
 export const PWA_NOT_FOUND_HTML = `<!doctype html>
 <html lang="en">
@@ -119,7 +121,10 @@ export function isPwaShellNavigation(url: URL, origin: string): boolean {
 }
 
 export function isPwaNotFoundNavigation(url: URL, origin: string): boolean {
-  return url.origin === origin && !appRoutes.test(url.pathname) && !/\.[A-Za-z0-9]+$/.test(url.pathname);
+  // trailingSlash: false redirects a known page with one trailing slash online, so it isn't a missing page.
+  const path = url.pathname.length > 1 ? url.pathname.replace(/\/$/, '') : url.pathname;
+  const known = path === '/index.html' || appRoute(path) !== null;
+  return url.origin === origin && !known && !/\.[A-Za-z0-9]+$/.test(url.pathname);
 }
 
 export function pwaAppWindows(clients: readonly PwaWorkerClient[], origin: string): PwaWorkerClient[] | null {

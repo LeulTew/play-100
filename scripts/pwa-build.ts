@@ -137,6 +137,44 @@ async function describeAsset(output: string, url: string): Promise<PwaAsset> {
   return { url, bytes: bytes.byteLength, sha256: digest(bytes), type: assetType(url) };
 }
 
+// sw.js has to be one self-contained file, so the worker may import only these dependency-free modules, which
+// are transpiled and inlined in place of their import statement.
+export const PWA_WORKER_INLINE_IMPORTS = ['../lib/routes.ts'] as const;
+
+function transpileWorkerModule(source: string, name: string): string {
+  const result = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, removeComments: true },
+    reportDiagnostics: true,
+  });
+  if (result.diagnostics?.some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)) {
+    throw new Error(`The offline worker could not be emitted (${name}).`);
+  }
+  return result.outputText;
+}
+
+export function inlinePwaWorkerImports(worker: string, modules: Readonly<Record<string, string>>): string {
+  const statement = /^import\s[^;]*?\sfrom\s'([^']+)';\n?/gm;
+  const inlined = worker.replace(statement, (_, specifier: string) => {
+    const module = modules[specifier];
+    if (module === undefined) throw new Error(`The offline worker can't import ${specifier}.`);
+    if (/^\s*import\s/m.test(module)) throw new Error(`${specifier} must not import anything to be inlined.`);
+    return module.replace(/^export\s+(?=(?:const|function|let|class)\s)/gm, '');
+  });
+  if (/^\s*import[\s({]/m.test(inlined)) throw new Error('The offline worker has an import it could not inline.');
+  return inlined;
+}
+
+export async function emitPwaWorker(root: string): Promise<string> {
+  const directory = path.join(root, 'src', 'pwa');
+  const modules: Record<string, string> = {};
+  for (const specifier of PWA_WORKER_INLINE_IMPORTS) {
+    const file = path.resolve(directory, specifier);
+    modules[specifier] = transpileWorkerModule(await readFile(file, 'utf8'), specifier);
+  }
+  const worker = transpileWorkerModule(await readFile(path.join(directory, 'worker.ts'), 'utf8'), 'worker.ts');
+  return inlinePwaWorkerImports(worker, modules);
+}
+
 export async function generatePwaBuild(root: string, output: string): Promise<PwaBuildManifest> {
   const viteManifest = await retainBuildManifest(output);
   await writePwaIcons(root, output);
@@ -152,25 +190,18 @@ export async function generatePwaBuild(root: string, output: string): Promise<Pw
     }
   }
   images.sort((a, b) => a.url.localeCompare(b.url));
-  const source = await readFile(path.join(root, 'src', 'pwa', 'worker.ts'), 'utf8');
-  const result = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, removeComments: true },
-    reportDiagnostics: true,
-  });
-  if (result.diagnostics?.some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)) {
-    throw new Error('The offline worker could not be emitted.');
-  }
+  const workerText = await emitPwaWorker(root);
   const documentPolicy = pwaDocumentPolicy(JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8')));
   const manifest: PwaBuildManifest = {
     format: 1,
-    version: pwaBuildVersion(core, images, result.outputText, documentPolicy),
+    version: pwaBuildVersion(core, images, workerText, documentPolicy),
     core,
     images,
     documentPolicy,
   };
   assertPublicPrecachePaths(manifest.core.map((asset) => asset.url));
   validatePwaManifest(manifest);
-  const script = `${result.outputText}\ninstallPwaWorker(self, ${JSON.stringify(manifest)});\n`;
+  const script = `${workerText}\ninstallPwaWorker(self, ${JSON.stringify(manifest)});\n`;
   await writeFile(path.join(output, 'sw.js'), script);
   await writeFile(
     path.join(output, 'pwa-assets.json'),

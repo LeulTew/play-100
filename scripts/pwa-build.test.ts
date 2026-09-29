@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import type { Manifest } from 'vite';
-import { pwaBuildVersion, pwaCorePaths, pwaDocumentPolicy, PWA_ROOTS } from './pwa-build';
+import {
+  emitPwaWorker,
+  inlinePwaWorkerImports,
+  pwaBuildVersion,
+  pwaCorePaths,
+  pwaDocumentPolicy,
+  PWA_ROOTS,
+} from './pwa-build';
 import { PWA_ICONS, renderBrowserIcons, renderPwaIcons } from './pwa-icons';
 import { myGamesTab } from '../src/lib/my-games-navigation';
 import { pageFromPath } from '../src/lib/url';
@@ -341,5 +348,34 @@ describe('generated public PWA build closure', () => {
     expect(ico.bytes.subarray(22)).toEqual(png.bytes);
     expect(ico.bytes.length).toBeLessThan(4096);
     for (const icon of [png, ico]) expect(pwaCorePaths(manifest())).not.toContain(`/${icon.file}`);
+  });
+});
+
+describe('self-contained offline worker', () => {
+  it('inlines the route manifest so sw.js has no imports, and runs it as the worker does', async () => {
+    const script = await emitPwaWorker(fileURLToPath(new URL('..', import.meta.url)));
+    expect(script).not.toMatch(/^\s*import[\s({]/m);
+    expect(script).toContain('const APP_ROUTES = [');
+    const worker = (await import(`data:text/javascript,${encodeURIComponent(script)}`)) as {
+      isPwaNotFoundNavigation(url: URL, origin: string): boolean;
+    };
+    const origin = 'https://play100.test';
+    expect(worker.isPwaNotFoundNavigation(new URL(`${origin}/friends/someone`), origin)).toBe(false);
+    expect(worker.isPwaNotFoundNavigation(new URL(`${origin}/settings`), origin)).toBe(true);
+  });
+  it('refuses an import it may not inline, or an inlined module that imports', () => {
+    expect(() => inlinePwaWorkerImports("import { a } from './other.ts';\nexport const b = a;\n", {})).toThrow(
+      "can't import ./other.ts",
+    );
+    expect(() =>
+      inlinePwaWorkerImports("import { a } from './a.ts';\n", {
+        './a.ts': "import x from 'y';\nexport const a = x;\n",
+      }),
+    ).toThrow('must not import');
+    expect(
+      inlinePwaWorkerImports("import { a } from './a.ts';\nexport const b = a;\n", {
+        './a.ts': 'export const a = 1;\n',
+      }),
+    ).toBe('const a = 1;\nexport const b = a;\n');
   });
 });

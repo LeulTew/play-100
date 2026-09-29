@@ -40,6 +40,13 @@ both detail families and workspace view changes flush pending editors first;
 rejected edits keep their original field mounted and return focus to it.
 Scope or navigation changes cancel a pending handoff.
 
+[routes.ts](../src/lib/routes.ts) is the one list of pages served from
+`index.html`. The router (`pageFromPath`), the offline worker's shell and
+not-found checks, and the client error reports' route templates all read it;
+`scripts/pwa-build.ts` inlines it into the self-contained `sw.js`. `vercel.json`
+cannot import it, so [routes.test.ts](../src/lib/routes.test.ts) fails when its
+`index.html` rewrites and the list differ. A new page is added there first.
+
 Ranking also mounts at most 25 rows. Its page and search are lightweight,
 scope-local workspace state, independent of the Library URL page. Global rank
 numbers, boundary move arrows and within-page keyboard/drag sorting preserve

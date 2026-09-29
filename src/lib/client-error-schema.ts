@@ -1,4 +1,5 @@
 import { nullableObject } from './guards.js';
+import { APP_ROUTES, appRoute } from './routes.js';
 
 export const CLIENT_ERROR_AREAS = ['app', 'route', 'online', 'chunk'] as const;
 export type ClientErrorArea = (typeof CLIENT_ERROR_AREAS)[number];
@@ -13,27 +14,11 @@ export const CLIENT_ERROR_CLASSES = [
   'other',
 ] as const;
 export const REPORT_ROUTES = [
-  '/',
+  ...APP_ROUTES.map((route) => route.path),
   '/index.html',
-  '/my-games',
-  '/my-library',
-  '/my-rankings',
-  '/discover',
-  '/account',
-  '/publish',
-  '/community',
-  '/creator',
-  '/data-use',
-  '/friends',
-  '/friends/sharing',
-  '/friends/sharing/games',
-  '/invite',
-  '/compare',
   '/pwa/offline.html',
   '/__/auth/handler',
   '/__/auth/iframe',
-  '/u/:handle',
-  '/friends/:uid',
   'other',
 ] as const;
 export const MAX_CLIENT_ERRORS = 20;
@@ -46,11 +31,7 @@ export type ClientErrorCount = {
 };
 
 export function reportRouteTemplate(pathname: string): ClientErrorCount['route'] {
-  const known = REPORT_ROUTES.find((route) => route === pathname);
-  if (known) return known;
-  if (/^\/u\/[^/]+$/.test(pathname)) return '/u/:handle';
-  if (/^\/friends\/[^/]+$/.test(pathname)) return '/friends/:uid';
-  return 'other';
+  return appRoute(pathname)?.path ?? REPORT_ROUTES.find((route) => route === pathname) ?? 'other';
 }
 
 export function isBuildFingerprint(value: unknown): value is string {

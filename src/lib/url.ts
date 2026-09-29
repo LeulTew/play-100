@@ -1,5 +1,6 @@
 import type { AppPage, Filters, SortOrder } from './types';
 import { parseProgressFilter } from './game-progress';
+import { appRoute } from './routes';
 
 export const SORT_ORDERS = [
   'rank',
@@ -36,22 +37,9 @@ export const PAGE_PATHS: Record<AppPage, string> = {
 
 export function pageFromPath(path: string): AppPage {
   const normalized = path.replace(/\/+$/, '') || '/';
-  if (normalized === '/my-games') return 'games';
-  if (normalized === '/my-library') return 'library';
-  if (normalized === '/my-rankings') return 'rankings';
-  if (normalized === '/discover') return 'discover';
-  if (normalized === '/account') return 'account';
-  if (normalized === '/publish') return 'publish';
-  if (normalized === '/community') return 'community';
-  if (/^\/u\/[^/]+$/.test(normalized)) return 'profile';
-  if (normalized === '/creator') return 'creator';
-  if (normalized === '/friends') return 'friends';
-  if (normalized === '/friends/sharing') return 'friend-sharing';
-  if (normalized === '/friends/sharing/games') return 'friend-shelf';
-  if (/^\/friends\/[A-Za-z0-9_-]{1,128}$/.test(normalized)) return 'friend';
-  if (normalized === '/invite') return 'invite';
-  if (normalized === '/compare') return 'compare';
-  return 'collection';
+  const route = appRoute(normalized);
+  if (route?.page === 'friend' && !/^\/friends\/[A-Za-z0-9_-]{1,128}$/.test(normalized)) return 'collection';
+  return route?.page ?? 'collection';
 }
 
 export const defaultFilters: Filters = {
