@@ -214,7 +214,7 @@ for (const mobile of [false, true]) {
             page.locator('.device-settings').getByRole(result === true ? 'status' : 'alert'),
           ).toHaveText(
             result === true
-              ? 'Your active library, Play later, ranking and preferences have been reset.'
+              ? 'Your active library, Play later, ranking, Compare pins and preferences have been reset.'
               : 'Reset failed. Your saved data has not been removed.',
           );
         });
@@ -242,7 +242,7 @@ for (const mobile of [false, true]) {
           await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
           const resetStatus = page.locator('.device-settings').getByRole('status');
           await browserExpect(resetStatus).toHaveText(
-            'Your active library, Play later, ranking and preferences have been reset.',
+            'Your active library, Play later, ranking, Compare pins and preferences have been reset.',
           );
           if (action === 'Export my library') {
             const pending = page.waitForEvent('download');

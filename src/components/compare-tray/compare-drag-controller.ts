@@ -552,11 +552,11 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       if (accepted) added(before);
       return accepted;
     },
-    clear() {
+    clear(status?: string) {
       cancel();
       settleSession?.cancel();
       pendingSettle = null;
-      return store.clear();
+      return store.clear(status);
     },
     setDock(node: HTMLElement | null) {
       dock = node;

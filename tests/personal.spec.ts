@@ -269,7 +269,9 @@ test('backup export and validated replacement restore queue and private rankings
   await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([]);
   const resetStatus = page.locator('.device-settings').getByRole('status');
-  await expect(resetStatus).toHaveText('Your active library, Play later, ranking and preferences have been reset.');
+  await expect(resetStatus).toHaveText(
+    'Your active library, Play later, ranking, Compare pins and preferences have been reset.',
+  );
   await page
     .getByLabel('Import personal library backup file')
     .setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: bytes });

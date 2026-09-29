@@ -172,6 +172,7 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
       )}
       <AppDialogs
         app={app}
+        clearComparePins={tray.clear}
         origin={motion.origin}
         artwork={artwork}
         previewLoading={previewLoading}

@@ -257,7 +257,7 @@ test('blocked and corrupt storage remain usable, explicit and non-destructive', 
   await expect(
     page
       .getByRole('status')
-      .filter({ hasText: 'Your active library, Play later, ranking and preferences have been reset.' }),
+      .filter({ hasText: 'Your active library, Play later, ranking, Compare pins and preferences have been reset.' }),
   ).toBeVisible();
   expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), key)).toBeNull();
 });

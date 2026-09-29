@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { installGuestLibrary, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { createLibraryBackup, emptyPersonalLibrary } from '../src/lib/personal-library';
 import { applyPersonalAction } from '../src/lib/personal-library';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
+import { compareTrayStorageKey, serializeCompareTray } from '../src/lib/compare-tray';
 
 const game = libraryRecords[0]!;
 const provider = discoveryFixture.record;
@@ -108,6 +109,121 @@ for (const action of ['restore', 'cancel'] as const) {
     }
   });
 }
+
+for (const pins of [0, 6]) {
+  test(`Reset device data clears the confirmed library and its ${pins} Compare pins, including after reload`, async ({
+    page,
+  }) => {
+    await installGuestLibrary(page, libraryFixture(6));
+    await page.goto('/?catalogs=off');
+    for (const record of libraryRecords.slice(0, pins))
+      await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
+    const otherKey = compareTrayStorageKey('account:demo-play100:other');
+    const otherPins = serializeCompareTray('account:demo-play100:other', [game]);
+    await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), { key: otherKey, raw: otherPins });
+    const pinKey = compareTrayStorageKey('guest');
+    const savedPins = await page.evaluate((key) => localStorage.getItem(key), pinKey);
+    await page.goto('/?catalogs=off&info=settings');
+    const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
+    const trigger = settings.getByRole('button', { name: 'Reset device data', exact: true });
+    await trigger.click();
+    await expect(settings.locator('.reset-confirmation')).toContainText('Compare pins');
+    await settings.getByRole('button', { name: 'Keep my data', exact: true }).press('Enter');
+    await expect(trigger).toBeFocused();
+    expect(await page.evaluate((key) => localStorage.getItem(key), pinKey)).toBe(savedPins);
+    await trigger.press('Enter');
+    const reset = settings.getByRole('button', { name: 'Yes, reset device data', exact: true });
+    const held = await holdWrite(page, false);
+    try {
+      await reset.focus();
+      await reset.press('Enter');
+      await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+      await expect(reset).toBeFocused();
+      expect(await page.evaluate((key) => localStorage.getItem(key), pinKey)).toBe(savedPins);
+      await held.evaluate((probe) => probe.release());
+      await expect(settings.locator('.device-settings').getByRole('status')).toHaveText(
+        'Your active library, Play later, ranking, Compare pins and preferences have been reset.',
+      );
+      await expect(trigger).toBeFocused();
+      expect(await page.evaluate((key) => localStorage.getItem(key), pinKey)).toBeNull();
+      expect(await page.evaluate((key) => localStorage.getItem(key), otherKey)).toBe(otherPins);
+    } finally {
+      await held.evaluate((probe) => probe.restore());
+      await held.dispose();
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator('.game-card')).toHaveCount(24);
+    await expect(page.locator('.compare-tray-dock')).toHaveCount(0);
+    expect((await readLibrary(page)).records).toEqual({});
+  });
+}
+
+test('a rejected library reset leaves its Compare pins intact', async ({ page }) => {
+  await installGuestLibrary(page, libraryFixture(3));
+  await page.goto('/?catalogs=off');
+  await page.getByRole('button', { name: `Pin for comparison: ${game.title}`, exact: true }).click();
+  const key = compareTrayStorageKey('guest');
+  const before = await readLibrary(page);
+  const pins = await page.evaluate((key) => localStorage.getItem(key), key);
+  await page.goto('/?catalogs=off&info=settings');
+  await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
+  const held = await holdWrite(page, true);
+  try {
+    await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
+    await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+    await held.evaluate((probe) => probe.release());
+    await expect(page.locator('.device-settings').getByRole('alert')).toHaveText(
+      'Reset failed. Your saved data has not been removed.',
+    );
+    expect(await readLibrary(page)).toEqual(before);
+    expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(pins);
+  } finally {
+    await held.evaluate((probe) => probe.restore());
+    await held.dispose();
+  }
+});
+
+test('reset reports uncleared saved Compare pins instead of claiming complete removal', async ({ page }) => {
+  await installGuestLibrary(page, libraryFixture(3));
+  await page.goto('/?catalogs=off');
+  await page.getByRole('button', { name: `Pin for comparison: ${game.title}`, exact: true }).click();
+  const key = compareTrayStorageKey('guest');
+  const pins = await page.evaluate((key) => localStorage.getItem(key), key);
+  await page.goto('/?catalogs=off&info=settings');
+  const removal = await page.evaluateHandle((key) => {
+    const remove = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = function (target: string) {
+      if (target === key) throw new DOMException('Synthetic pin removal refusal', 'SecurityError');
+      return remove.call(this, target);
+    };
+    return {
+      restore: () => {
+        Storage.prototype.removeItem = remove;
+      },
+    };
+  }, key);
+  try {
+    for (const retry of [false, true]) {
+      if (retry) await removal.evaluate((probe) => probe.restore());
+      await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
+      await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
+      const result = page.locator('.device-settings').getByRole(retry ? 'status' : 'alert');
+      await expect(result).toHaveText(
+        retry
+          ? 'Your active library, Play later, ranking, Compare pins and preferences have been reset.'
+          : 'Your library and preferences were reset, but saved Compare pins could not be cleared. Allow storage and try Reset again.',
+      );
+      expect((await readLibrary(page)).records).toEqual({});
+      expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(retry ? null : pins);
+      await expect(page.getByRole('button', { name: 'Reset device data', exact: true })).toBeFocused();
+    }
+  } finally {
+    await removal.evaluate((probe) => probe.restore());
+    await removal.dispose();
+  }
+});
 
 type Surface =
   | 'card'

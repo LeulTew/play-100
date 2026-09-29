@@ -5,6 +5,7 @@ import {
   createCompareDragSession,
   createCompareTrayStore,
   parseCompareTray,
+  resetLibraryAndCompare,
   serializeCompareTray,
 } from './compare-tray';
 import type { CompareTrayStorage } from './compare-tray';
@@ -235,6 +236,107 @@ describe('Compare tray reference validation', () => {
 });
 
 describe('Compare tray scoped store', () => {
+  it.each(['guest', alice, bob])(
+    'reset clears only the confirmed %s library pins after the library commits',
+    async (scope) => {
+      const { storage, data } = memory();
+      for (const key of ['guest', alice, bob])
+        data.set(compareTrayStorageKey(key), serializeCompareTray(key, [game(1)]));
+      const store = createCompareTrayStore(scope, () => storage);
+      const reset = vi.fn(async () => {
+        expect(data.has(compareTrayStorageKey(scope))).toBe(true);
+        expect(store.getSnapshot().items).toHaveLength(1);
+        return true;
+      });
+      expect(await resetLibraryAndCompare(reset, store.clear)).toBe(true);
+      expect(reset).toHaveBeenCalledOnce();
+      expect(store.getSnapshot()).toMatchObject({ items: [], persistent: true, status: 'Compare pins cleared.' });
+      expect(storage.removeItem).toHaveBeenCalledExactlyOnceWith(compareTrayStorageKey(scope));
+      for (const key of ['guest', alice, bob]) expect(data.has(compareTrayStorageKey(key))).toBe(key !== scope);
+    },
+  );
+
+  it('does not clear pins when the library reset fails or rejects', async () => {
+    const { storage } = memory();
+    const store = createCompareTrayStore('guest', () => storage);
+    store.pin(game(1));
+    const before = store.getSnapshot();
+    expect(await resetLibraryAndCompare(async () => false, store.clear)).toBe(false);
+    const error = new Error('Reset rejected');
+    await expect(
+      resetLibraryAndCompare(async () => {
+        throw error;
+      }, store.clear),
+    ).rejects.toBe(error);
+    expect(store.getSnapshot()).toBe(before);
+    expect(storage.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('reports partial reset if saved pins cannot be cleared and supports a later successful retry', async () => {
+    const { storage, data } = memory();
+    const store = createCompareTrayStore('guest', () => storage);
+    store.pin(game(1));
+    vi.mocked(storage.removeItem).mockImplementationOnce(() => {
+      throw new Error('Storage denied');
+    });
+    expect(await resetLibraryAndCompare(async () => true, store.clear)).toBe('pins-retained');
+    expect(store.getSnapshot()).toMatchObject({
+      items: [],
+      persistent: false,
+      warning: expect.stringContaining('may return'),
+    });
+    expect(store.getSnapshot().status).not.toBe('Compare pins cleared.');
+    expect(data.has(compareTrayStorageKey('guest'))).toBe(true);
+    expect(await resetLibraryAndCompare(async () => true, store.clear)).toBe(true);
+    expect(data.has(compareTrayStorageKey('guest'))).toBe(false);
+  });
+
+  it('reports partial completion if the tray cleanup itself throws after the library commits', async () => {
+    const error = new Error('Tray cleanup failed.');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(
+        await resetLibraryAndCompare(
+          async () => true,
+          () => {
+            throw error;
+          },
+        ),
+      ).toBe('pins-retained');
+      expect(log).toHaveBeenCalledWith('The library was reset but Compare pins could not be cleared.', error);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('an old reset completion cannot clear a newer tray after an account changes', async () => {
+    const { storage } = memory();
+    let current = true;
+    const old = createCompareTrayStore(
+      alice,
+      () => storage,
+      () => current,
+    );
+    old.pin(game(1));
+    let finish: (result: boolean) => void = () => {
+      throw new Error('No reset pending');
+    };
+    const reset = resetLibraryAndCompare(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      old.clear,
+    );
+    current = false;
+    const fresh = createCompareTrayStore(alice, () => storage);
+    fresh.pin(game(2));
+    finish(true);
+    expect(await reset).toBe('pins-retained');
+    expect(storage.removeItem).not.toHaveBeenCalled();
+    expect(fresh.getSnapshot().items).toEqual([game(1), game(2)]);
+  });
+
   it('pins in order, deduplicates idempotently, caps at six and removes without library side effects', () => {
     const { storage, data } = memory();
     const library = emptyPersonalLibrary();

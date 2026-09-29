@@ -4,6 +4,7 @@ import type { MotionPreference } from '../lib/types';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 import type { PersonalLibraryState } from '../lib/personal-types';
+import type { LibraryResetResult } from '../lib/compare-tray';
 import BackupPanel from './personal/BackupPanel';
 import { useLibraryMode } from '../lib/library-mode';
 import { foregroundDialog } from './dialog-layer';
@@ -17,7 +18,7 @@ interface SettingsDialogProps {
   completed: number;
   warning: string | null;
   onMotion: (value: MotionPreference) => Promise<boolean>;
-  onReset: () => Promise<boolean>;
+  onReset: () => Promise<LibraryResetResult>;
   state: PersonalLibraryState;
   persistent: boolean;
   busy: boolean;
@@ -56,7 +57,7 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const motionId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
-  const [resetResult, setResetResult] = useState<'saved' | 'failed' | null>(null);
+  const [resetResult, setResetResult] = useState<'saved' | 'failed' | 'pins-retained' | null>(null);
   const [resetPending, setResetPending] = useState(false);
   const resetting = useRef(false);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -83,7 +84,8 @@ export function SettingsDialog({
     resetting.current = true;
     setResetPending(true);
     try {
-      setResetResult((await onReset()) ? 'saved' : 'failed');
+      const result = await onReset();
+      setResetResult(result === true ? 'saved' : result === 'pins-retained' ? 'pins-retained' : 'failed');
     } catch (error: unknown) {
       console.error('The active library could not be reset.', error);
       setResetResult('failed');
@@ -244,7 +246,7 @@ export function SettingsDialog({
         {confirmReset ? (
           <div className="reset-confirmation" role="group" aria-labelledby={`${motionId}-reset`}>
             <p id={`${motionId}-reset`}>
-              <strong>Reset the active library, Play later, personal rankings and preferences?</strong>{' '}
+              <strong>Reset the active library, Play later, personal rankings, Compare pins and preferences?</strong>{' '}
               {mode.scope !== 'guest' &&
                 'If online saving is enabled, this empty account library will sync online. The guest library stays untouched.'}{' '}
               This cannot be undone. Export a backup first if needed. The public collection is not affected.
@@ -287,10 +289,12 @@ export function SettingsDialog({
           </button>
         )}
         {resetResult && (
-          <p role={resetResult === 'failed' ? 'alert' : 'status'}>
+          <p role={resetResult === 'saved' ? 'status' : 'alert'}>
             {resetResult === 'saved'
-              ? 'Your active library, Play later, ranking and preferences have been reset.'
-              : 'Reset failed. Your saved data has not been removed.'}
+              ? 'Your active library, Play later, ranking, Compare pins and preferences have been reset.'
+              : resetResult === 'pins-retained'
+                ? 'Your library and preferences were reset, but saved Compare pins could not be cleared. Allow storage and try Reset again.'
+                : 'Reset failed. Your saved data has not been removed.'}
           </p>
         )}
       </section>

@@ -219,7 +219,7 @@ export function createCompareTrayStore(
         `${record.title} unpinned from comparison.`,
       );
     },
-    clear(): boolean {
+    clear(status = 'Compare tray cleared. Your library is unchanged.'): boolean {
       if (!isCurrent()) return false;
       let warning: string | null = null;
       let persistent = true;
@@ -236,15 +236,30 @@ export function createCompareTrayStore(
         persistent,
         warning,
         error: null,
-        status: 'Compare tray cleared. Your library is unchanged.',
+        status: warning ?? status,
         dragging: false,
       });
-      return true;
+      return persistent;
     },
   };
 }
 
 export type CompareTrayStore = ReturnType<typeof createCompareTrayStore>;
+
+export type LibraryResetResult = boolean | 'pins-retained';
+
+export async function resetLibraryAndCompare(
+  resetLibrary: () => Promise<boolean>,
+  clearPins: CompareTrayStore['clear'],
+): Promise<LibraryResetResult> {
+  if (!(await resetLibrary())) return false;
+  try {
+    return clearPins('Compare pins cleared.') ? true : 'pins-retained';
+  } catch (error: unknown) {
+    console.error('The library was reset but Compare pins could not be cleared.', error);
+    return 'pins-retained';
+  }
+}
 
 export function createCompareDragSession(
   scope: string,

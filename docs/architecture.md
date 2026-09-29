@@ -183,6 +183,10 @@ Unsaved previews are bounded, scope-qualified metadata in App, not library impor
 for shared previews; it does not persist records.
 [CompareTrayProvider](../src/components/compare-tray/CompareTrayProvider.tsx)
 owns a separate scoped pin store backed by localStorage, not the library queue.
+Settings reset clears that active scope's Compare pins after its library reset
+commits. A failed library reset leaves pins intact, and an old completion cannot
+clear a newer account binding. If the saved tray cannot be removed, Settings
+reports the partial reset instead of claiming all device data was cleared.
 Its binding becomes active in a layout effect and is revoked during cleanup:
 constructing an abandoned replacement does not invalidate the displayed tray.
 Neither binding construction nor an inactive binding can read or write storage.

@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
+import { resetLibraryAndCompare } from '../../lib/compare-tray';
+import type { CompareTrayStore } from '../../lib/compare-tray';
 import { visibleMenuTrigger } from '../../lib/dialog-focus';
 import { ONLINE_AVAILABLE } from '../../lib/online-availability';
 import type { MotionOriginLease } from '../../motion';
@@ -11,6 +13,7 @@ import { DialogHost } from './DialogHost';
 
 export interface AppDialogsProps {
   app: AppModel;
+  clearComparePins: CompareTrayStore['clear'];
   origin: MotionOriginLease | undefined;
   artwork: ReadonlyMap<string, CatalogArtwork>;
   previewLoading: boolean;
@@ -21,6 +24,7 @@ export interface AppDialogsProps {
 /** The detail dialogs, Menu, credits, Settings and share fallback. Only an open detail reads the notice. */
 export function AppDialogs({
   app,
+  clearComparePins,
   origin,
   artwork,
   previewLoading,
@@ -165,7 +169,7 @@ export function AppDialogs({
                 completed: app.completedCount,
                 warning: app.warning,
                 onMotion: (motion) => commands.perform({ type: 'set-motion', motion }, false),
-                onReset: commands.resetLibrary,
+                onReset: () => resetLibraryAndCompare(commands.resetLibrary, clearComparePins),
                 onRestore: commands.restoreLibrary,
                 state: library.state,
                 persistent: library.status === 'ready',
