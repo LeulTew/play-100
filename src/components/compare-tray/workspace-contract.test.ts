@@ -13,7 +13,6 @@ import RankingsPage from '../personal/RankingsPage';
 import { GameArtwork } from '../games/GameArtwork';
 import { CompareTray } from './CompareTray';
 import { ComparePinButton } from './ComparePinButton';
-import { CompareDragHandle } from './CompareDragHandle';
 import { CompareDragSource } from './CompareDragSource';
 import { CompareTrayProvider } from './CompareTrayProvider';
 import { CompareTrayContext } from './compare-tray-context';
@@ -99,8 +98,8 @@ describe('workspace embedding contract', () => {
         ?.find((button) => button.includes('aria-label="Pin for comparison: Alpha game"'));
       expect(pin).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
     }
-    expect(library).toContain('title="Pin for comparison"');
-    expect(ranking).toContain('</svg>Pin for comparison</button>');
+    expect(library).toContain(`</svg>${selected ? 'Pinned' : 'Pin'}</button>`);
+    expect(ranking).toContain(`</svg>${selected ? 'Pinned' : 'Pin'}</button>`);
   });
 
   it.each([false, true])('uses add-only editor Pin names when no unpin action is supplied (pinned=%s)', (pinned) => {
@@ -111,10 +110,11 @@ describe('workspace embedding contract', () => {
     ]) {
       const pin = html
         .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
-        ?.find((button) => button.includes(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: Alpha game"`));
+        ?.find((button) => button.includes('aria-label="Pin for comparison: Alpha game"'));
       expect(pin).toBeDefined();
-      expect(pin).not.toContain('aria-pressed');
-      expect(pin?.includes('disabled=""')).toBe(pinned);
+      expect(pin).toContain(`aria-pressed="${pinned}"`);
+      expect(pin?.includes('aria-disabled="true"')).toBe(pinned);
+      expect(pin).not.toContain('disabled=""');
       expect(pin).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
     }
   });
@@ -317,10 +317,7 @@ describe('workspace embedding contract', () => {
     expect(html).toContain('aria-pressed="false" aria-label="Pin for comparison: Beta game"');
     expect(onAction).not.toHaveBeenCalled();
   });
-  it('mounts one optional drag slot per record beside Pin in each mounted editor, never inside a button', () => {
-    const renderDragHandle = vi.fn((record: LibraryRecord) =>
-      h('button', { type: 'button', 'data-compare-drag': record.id }, 'Drag to tray'),
-    );
+  it('mounts one unified Pin/drag control per record without nested buttons or duplicate glyphs', () => {
     const html = renderToStaticMarkup(
       h(MyGamesPage, {
         ...props,
@@ -328,12 +325,11 @@ describe('workspace embedding contract', () => {
         view: 'queue',
         onViewChange: vi.fn(),
         onPin: vi.fn(),
-        renderDragHandle,
       }),
     );
-    // An unvisited Ranking pane renders no rows, so the queue view mounts only its own slots.
-    expect(html.match(/data-compare-drag="/g)).toHaveLength(2);
-    expect(renderDragHandle.mock.calls.map(([record]) => record.id)).toEqual(['beta', 'alpha']);
+    expect(html.match(/data-compare-drag-grip="/g)).toHaveLength(2);
+    expect(html.match(/aria-label="Pin for comparison:/g)).toHaveLength(2);
+    expect(html.match(/d="m3 7 9-4 9 4-9 4-9-4Z"/g)).toHaveLength(2);
     expect(html).toContain('Drag Beta game to reorder Play later');
     expect(html).not.toContain('reorder your ranking');
     const ranking = renderToStaticMarkup(
@@ -343,17 +339,10 @@ describe('workspace embedding contract', () => {
         view: 'ranking',
         onViewChange: vi.fn(),
         onPin: vi.fn(),
-        renderDragHandle,
       }),
     );
-    expect(ranking.match(/data-compare-drag="/g)).toHaveLength(3);
-    // Library rows (hidden, in Library order) plus the now-visited Ranking row.
-    expect(
-      renderDragHandle.mock.calls
-        .slice(2)
-        .map(([record]) => record.id)
-        .sort(),
-    ).toEqual(['alpha', 'alpha', 'beta']);
+    expect(ranking.match(/data-compare-drag-grip="/g)).toHaveLength(3);
+    expect(ranking.match(/d="m3 7 9-4 9 4-9 4-9-4Z"/g)).toHaveLength(3);
     expect(ranking).toContain('Drag Alpha game to reorder your ranking');
     expect(ranking).not.toMatch(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
     expect(html).not.toMatch(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
@@ -363,18 +352,21 @@ describe('workspace embedding contract', () => {
 });
 
 describe('tray and image rendering contract', () => {
-  it.each([false, true])('shows the compact Pin label on coarse pointers only (%s)', (coarsePointer) => {
-    const html = renderToStaticMarkup(
-      h(MotionPolicyContext.Provider, {
-        value: { ...staticMotionPolicy, coarsePointer },
-        children: h(CompareTrayContext.Provider, {
-          value: { ...value, items: [] },
-          children: h(ComparePinButton, { record: alpha, compact: true }),
+  it.each([false, true])('shows the compact Pin/Pinned label on coarse pointers only (%s)', (coarsePointer) => {
+    for (const pinned of [false, true]) {
+      const html = renderToStaticMarkup(
+        h(MotionPolicyContext.Provider, {
+          value: { ...staticMotionPolicy, coarsePointer },
+          children: h(CompareTrayContext.Provider, {
+            value: { ...value, items: pinned ? [alpha] : [] },
+            children: h(ComparePinButton, { record: alpha, compact: true }),
+          }),
         }),
-      }),
-    );
-    expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
-    expect(html.includes('</svg>Pin</button>')).toBe(coarsePointer);
+      );
+      expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
+      expect(html.includes(`</svg>${pinned ? 'Pinned' : 'Pin'}</button>`)).toBe(coarsePointer);
+      expect(html).toContain(`aria-pressed="${pinned}"`);
+    }
   });
   const value = {
     currentScope: 'guest',
@@ -397,10 +389,10 @@ describe('tray and image rendering contract', () => {
       h(CompareTrayProvider, {
         scope: 'guest',
         interaction: enabled === undefined ? undefined : { enabled, captureCurrent: () => ({ isCurrent: () => true }) },
-        children: h(CompareDragHandle, { record: alpha }),
+        children: h(ComparePinButton, { record: alpha }),
       }),
     );
-    expect(html.includes('disabled=""')).toBe(enabled === false);
+    expect(html.includes('aria-disabled="true"')).toBe(enabled === false);
   });
   it.each([false, true])('names full and compact comparison toggles with pressed=%s', (pinned) => {
     for (const compact of [false, true]) {
@@ -411,12 +403,11 @@ describe('tray and image rendering contract', () => {
           h(ComparePinButton, { record: alpha, compact }),
         ),
       );
-      const label = pinned ? 'Unpin from comparison' : 'Pin for comparison';
-      expect(html).toContain(`aria-pressed="${pinned}" aria-label="${label}: Alpha game"`);
-      if (compact) expect(html).toContain(`title="${label}"`);
+      expect(html).toContain(`aria-pressed="${pinned}" aria-label="Pin for comparison: Alpha game"`);
+      if (compact) expect(html).toContain(`title="${pinned ? 'Remove pin' : 'Pin for comparison'}"`);
       else expect(html).not.toContain('title=');
       expect(html).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
-      if (!compact) expect(html).toContain(`</svg>${label}</button>`);
+      if (!compact) expect(html).toContain(`</svg>${pinned ? 'Pinned' : 'Pin'}</button>`);
     }
   });
 
@@ -440,7 +431,7 @@ describe('tray and image rendering contract', () => {
       ),
     );
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('aria-pressed="true" aria-label="Unpin from comparison: Alpha game"');
+    expect(html).toContain('aria-pressed="true" aria-label="Pin for comparison: Alpha game"');
     expect(html).toContain('compare-tray-anchor');
     expect(html).not.toContain('compare-tray-reserve');
     expect(html).toContain('aria-haspopup="dialog"');
@@ -491,16 +482,16 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('Compare rankings');
     expect(html).toContain('aria-haspopup="dialog"');
   });
-  it('offers an optional semantic handle and a drop target even before the first pin', () => {
+  it('offers a semantic Pin drag source and a drop target even before the first pin', () => {
     const html = renderToStaticMarkup(
       h(
         CompareTrayContext.Provider,
         { value: { ...value, items: [], dragging: true } },
-        h(CompareDragHandle, { record: alpha }),
+        h(ComparePinButton, { record: alpha }),
         h(CompareTray, { onCompare: vi.fn() }),
       ),
     );
-    expect(html).toContain('aria-label="Drag to tray: Alpha game, or click to pin for comparison"');
+    expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
     expect(html).not.toContain('title="Drag with a mouse, or click to pin"');
     expect(html).toContain('draggable="false"');
     expect(html).toContain('data-dragging="true"');
@@ -509,7 +500,7 @@ describe('tray and image rendering contract', () => {
     expect(html).toContain('Drop to pin for comparison');
     expect(html).toContain('data-compare-drag-grip=""');
   });
-  it('removes the duplicate coarse Compare handle from layout, focus and the accessibility tree', () => {
+  it('keeps one coarse Pin visible, keyboard reachable and semantically pressed', () => {
     const html = renderToStaticMarkup(
       h(
         CompareTrayContext.Provider,
@@ -517,20 +508,20 @@ describe('tray and image rendering contract', () => {
         h(
           MotionPolicyContext.Provider,
           { value: { ...staticMotionPolicy, coarsePointer: true } },
-          h(CompareDragHandle, { record: alpha }),
+          h(ComparePinButton, { record: alpha }),
         ),
       ),
     );
-    expect(html).toContain('aria-label="Pin to tray: Alpha game"');
-    expect(html).toContain('>Pin to tray');
+    expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
+    expect(html).toContain('>Pinned</button>');
     expect(html).not.toContain('Drag to tray');
     expect(html).not.toContain('drag with a mouse');
     expect(html).toContain('draggable="false"');
-    expect(html).toContain('hidden=""');
-    expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain('tabindex="-1"');
+    expect(html).not.toContain('hidden=""');
+    expect(html).not.toContain('tabindex="-1"');
+    expect(html).toContain('aria-pressed="true"');
   });
-  it('keeps the compact grip pointer-only on every pointer type', () => {
+  it('keeps the unified compact Pin focusable on every pointer type', () => {
     for (const coarsePointer of [false, true]) {
       const html = renderToStaticMarkup(
         h(
@@ -539,14 +530,13 @@ describe('tray and image rendering contract', () => {
           h(
             MotionPolicyContext.Provider,
             { value: { ...staticMotionPolicy, coarsePointer } },
-            h(CompareDragHandle, { record: alpha, compact: true }),
+            h(ComparePinButton, { record: alpha, compact: true }),
           ),
         ),
       );
-      expect(html).toContain('aria-hidden="true"');
-      expect(html).toContain('tabindex="-1"');
-      expect(html).toContain('title="Drag to tray"');
-      expect(html).not.toContain('aria-label=');
+      expect(html).not.toContain('tabindex="-1"');
+      expect(html).toContain('title="Remove pin"');
+      expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
       expect(html).not.toContain('or drag with a mouse');
       expect(html).not.toContain('to the Compare tray');
     }

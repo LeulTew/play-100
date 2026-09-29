@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { useExtendedSearch } from '../../hooks/useExtendedSearch';
 import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
@@ -22,7 +21,6 @@ export default function ExtendedResults({
   onPreview,
   onPin,
   pinnedIds,
-  renderDragHandle,
   onAction,
   embedded = false,
 }: {
@@ -37,7 +35,6 @@ export default function ExtendedResults({
   onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
   onPin?: (record: LibraryRecord) => void;
   pinnedIds?: ReadonlySet<string>;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
   embedded?: boolean;
 }) {
@@ -104,7 +101,6 @@ export default function ExtendedResults({
               onPreview={onPreview}
               onPin={onPin}
               pinned={pinnedIds?.has(record.id)}
-              renderDragHandle={renderDragHandle}
               onAction={onAction}
             />
           ))}

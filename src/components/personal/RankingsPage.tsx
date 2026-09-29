@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import ReorderList from './ReorderList';
@@ -38,7 +37,6 @@ export interface RankingsPageProps {
   onPin?: (record: LibraryRecord) => void;
   onUnpin?: (id: string) => void;
   pinnedIds?: ReadonlySet<string>;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
   viewState?: RankingViewState;
   onViewStateChange?: (state: RankingViewState) => void;
 }
@@ -60,7 +58,6 @@ export default function RankingsPage(props: RankingsPageProps) {
     onPin,
     onUnpin,
     pinnedIds,
-    renderDragHandle,
   } = props;
   const {
     mode,
@@ -250,7 +247,6 @@ export default function RankingsPage(props: RankingsPageProps) {
                   onPin={onPin}
                   onUnpin={onUnpin}
                   pinned={pinnedIds?.has(record.id)}
-                  renderDragHandle={renderDragHandle}
                 />
               );
             }}

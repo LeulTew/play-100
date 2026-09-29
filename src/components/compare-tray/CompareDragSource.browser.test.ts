@@ -161,17 +161,14 @@ async function openFixture(touch = false, width = 1280) {
   });
   await page.goto(`${origin}/__compare-source-test`);
   await browserExpect(page.locator('#source-title')).toBeVisible();
-  await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('aria-hidden', 'true');
-  await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('tabindex', '-1');
-  await browserExpect(page.locator('.compare-drag-handle')).toHaveAttribute('title', 'Drag to tray');
-  await browserExpect(page.locator('.compare-drag-handle')).not.toHaveAttribute('aria-label');
-  if (touch) {
-    await browserExpect(page.locator('.compare-drag-handle')).toBeHidden();
-    await browserExpect(page.locator('#source-controls > button[aria-pressed]')).toBeEnabled();
-  } else {
-    await browserExpect(page.locator('.compare-drag-handle')).toBeVisible();
-    await browserExpect(page.locator('.compare-drag-handle')).toBeEnabled();
-  }
+  const pin = page.locator('.compare-pin');
+  await browserExpect(pin).toHaveCount(1);
+  await browserExpect(pin).not.toHaveAttribute('aria-hidden');
+  await browserExpect(pin).not.toHaveAttribute('tabindex');
+  await browserExpect(pin).toHaveAccessibleName('Pin for comparison: Manual fixture title');
+  await browserExpect(pin).toHaveText('Pin');
+  await browserExpect(pin).toBeVisible();
+  await browserExpect(pin).toBeEnabled();
 }
 
 beforeEach(async () => {
@@ -236,7 +233,7 @@ async function observePinInput() {
             pointerType: event.pointerType,
             trusted: event.isTrusted,
             isPrimary: event.isPrimary,
-            targetIsGrip: event.target === document.querySelector('.compare-drag-handle'),
+            targetIsGrip: event.target === document.querySelector('.compare-pin'),
             prevented: event.defaultPrevented,
           };
           receipt.events.push(row);
@@ -274,6 +271,26 @@ async function observePinInput() {
 }
 
 describe('Compare source browser contract', () => {
+  it.each(['Enter', 'Space'])(
+    'keeps ordinary %s Pin/unpin immediate, focused and free of drag feedback',
+    async (key) => {
+      const pin = page.locator('.compare-pin');
+      await pin.focus();
+      await pin.press(key);
+      await browserExpect(pin).toHaveAttribute('aria-pressed', 'true');
+      await browserExpect(pin).toHaveText('Pinned');
+      await browserExpect(pin).toBeFocused();
+      expect(await page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);
+      await pin.press(key);
+      await browserExpect(pin).toHaveAttribute('aria-pressed', 'false');
+      await browserExpect(pin).toHaveText('Pin');
+      await browserExpect(pin).toBeFocused();
+      expect(await page.evaluate(() => window.compareDragTest.items())).toEqual([]);
+      await browserExpect(page.locator('.compare-drag-ghost,[data-compare-dragging]')).toHaveCount(0);
+      expect(await page.evaluate(() => window.compareDragTest.transfer)).toBeNull();
+    },
+  );
+
   it.each(['#source', '#source-art'])(
     'accepts the real %s card/SVG source without a default DOM image or payload',
     async (selector) => {
@@ -335,8 +352,8 @@ describe('Compare source browser contract', () => {
     await browserExpect(page.locator('.compare-drag-ghost,[data-compare-dragging]')).toHaveCount(0);
   });
 
-  it('keeps native grip and zero-DOM wrapper title sources, with one slot for repeated pin', async () => {
-    await nativeStart('.compare-drag-handle');
+  it('keeps native Pin-button and zero-DOM wrapper title sources, with one slot for repeated pin', async () => {
+    await nativeStart('.compare-pin');
     await nativeDrop();
     await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toHaveLength(1);
     await nativeStart('#wrapper-title');
@@ -399,16 +416,16 @@ describe('Compare source browser contract', () => {
       await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:account:demo-play100:alice')),
     ).toBeNull();
     await page.evaluate(() => window.compareDragTest.setEnabled(false));
-    await browserExpect(page.locator('.compare-drag-handle')).toBeDisabled();
+    await browserExpect(page.locator('.compare-pin')).toBeDisabled();
     await page.evaluate(() => window.compareDragTest.setEnabled(true));
-    await page.locator('.compare-drag-handle').click();
+    await page.locator('.compare-pin').click();
     await browserExpect.poll(() => page.evaluate(() => window.compareDragTest.items())).toHaveLength(1);
   });
 
   it('removes native feedback on hide, source removal, and unmount even with reduced optional motion', async () => {
     for (const action of ['hidden', 'source', 'unmount'] as const) {
       await page.reload();
-      await browserExpect(page.locator('.compare-drag-handle')).toBeEnabled();
+      await browserExpect(page.locator('.compare-pin')).toBeEnabled();
       await nativeStart();
       await page.evaluate((action) => {
         if (action === 'hidden') window.compareDragTest.interrupt('hidden');
@@ -426,7 +443,7 @@ describe('Compare source browser contract', () => {
   it('cancels a native drag on a real modal and on an explicitly hidden dock', async () => {
     for (const modal of [true, false]) {
       await page.reload();
-      await browserExpect(page.locator('.compare-drag-handle')).toBeEnabled();
+      await browserExpect(page.locator('.compare-pin')).toBeEnabled();
       await nativeStart();
       await page.evaluate((modal) => {
         if (modal) window.compareDragTest.setModal(true);
@@ -481,7 +498,7 @@ describe('Compare source browser contract', () => {
         await openFixture(true, width);
         const pin = page.locator('#source-controls > button[aria-pressed]');
         await browserExpect(pin).toHaveAccessibleName('Pin for comparison: Manual fixture title');
-        await browserExpect(pin).toHaveText('Pin for comparison');
+        await browserExpect(pin).toHaveText('Pin');
         await browserExpect(pin).not.toHaveAttribute('title');
         expect(await pin.evaluate((node) => getComputedStyle(node).touchAction)).toBe('manipulation');
         const box = await pin.boundingBox();
@@ -576,7 +593,7 @@ describe('Compare source browser contract', () => {
     async (pointerType) => {
       expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(true);
       await observePinInput();
-      const grip = page.locator('.compare-drag-handle');
+      const grip = page.locator('.compare-pin');
       const box = await grip.locator('svg').boundingBox();
       if (!box) throw new Error('The mixed-input grip icon is missing.');
       const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };

@@ -152,12 +152,12 @@ new edit, changed scope or competing app window. See [PWA boundaries and
 recovery](docs/pwa.md).
 
 The **Compare tray** holds up to six game references, separately per guest or
-account scope. Use native Pin, the fine-mouse handle, or a supported
+account scope. Click Pin, drag that same button with a mouse, or use a supported
 card-artwork/title drag. Broad-surface touch dragging uses a deliberate hold followed by movement; ordinary
 scrolling, text selection and nested controls keep their own behavior. Keyboard
-and screen-reader users use the adjacent Pin control, not the pointer-only compact
-grip, including in Lite or reduced motion. Add-only card Pins stay focused and
-in the tab order after pinning; repeat activation does not add another item.
+and screen-reader users use the same Pin toggle, including in Lite or reduced
+motion. It stays focused and in the tab order after pinning; **Pinned** and
+`aria-pressed` indicate that another activation will remove the pin.
 Pins do not change private library state or permissions.
 The visible action says **Compare rankings with friends**. Its signed-out
 destination explains that purpose before provider choices, names how many games
@@ -900,14 +900,12 @@ when the condition clears. Native opening, closing, focus and saves never wait
 for an animation. Drag-to-Compare remains separate from private Queue/Ranking
 reordering, and an empty drop target does not reflow the collection controls.
 
-The 44px **Pin** control supports native touch, pen and keyboard activation; it
-does not start a held drag or explicit pointer capture. The adjacent compact
-grip is pointer-only, titled **Drag to tray**, and hidden on coarse pointers.
-Fine-mouse grip dragging and ordinary clicks remain available without adding
-a duplicate keyboard or screen-reader control. Coarse layouts show the Pin
-control and allow native panning from the button.
+The 44px **Pin / Pinned** control supports native touch, pen and keyboard activation.
+Touch and pen do not start a held drag or explicit pointer capture; native panning
+from the button remains available. That same control supports fine-mouse dragging
+without adding a duplicate stack icon, keyboard stop or screen-reader control.
 Card/title touch-hold dragging is a separate interaction, not enabled by the
-handle. This is an intentional capability fallback after a retained
+Pin button. This is an intentional capability fallback after a retained
 post-touch-grip click failure, not a claim to have diagnosed or fixed its
 underlying browser cause. It does not relax the performance qualification below.
 

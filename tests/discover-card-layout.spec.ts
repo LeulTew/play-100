@@ -35,7 +35,7 @@ for (const width of [320, 393, 768, 1024, 1440, 1920]) {
     await page.evaluate(() => document.fonts.ready);
     const card = cards.first();
     const pin = card.getByRole('button', { name: `Pin for comparison: ${items[0]!.record.title}`, exact: true });
-    const pinned = card.getByRole('button', { name: `Pinned for comparison: ${items[0]!.record.title}`, exact: true });
+    const pinned = card.getByRole('button', { name: `Pin for comparison: ${items[0]!.record.title}`, exact: true });
     const geometry = () =>
       cards.evaluateAll((elements) =>
         elements.map((element) => {
@@ -73,19 +73,15 @@ for (const width of [320, 393, 768, 1024, 1440, 1920]) {
           ).toBe(true);
         }
       }
-      const grip = card.locator('[data-compare-drag-grip]');
-      if (await grip.isVisible()) {
-        const gripBox = await grip.boundingBox();
-        const pinBox = await pin.boundingBox();
-        if (!gripBox || !pinBox) throw new Error('Pin and the fine-pointer grip must have real target boxes.');
-        expect(Math.abs(gripBox.y - pinBox.y)).toBeLessThanOrEqual(1);
-        expect(gripBox.x).toBeGreaterThanOrEqual(pinBox.x + pinBox.width);
-      }
+      await expect(card.locator('[data-compare-drag-grip]')).toHaveCount(1);
+      await expect(pin).toHaveAttribute('data-compare-drag-grip', '');
+      await expect(card.locator('.discovery-card-primary .compare-pin svg')).toHaveCount(1);
       const pinBefore = await pin.boundingBox();
       if (!pinBefore) throw new Error('The unpinned action must have a visible box.');
       if (forcedColors === 'active') await pin.press('Enter');
       else await pin.click();
-      await expect(pinned).toHaveAttribute('aria-disabled', 'true');
+      await expect(pinned).toHaveAttribute('aria-pressed', 'true');
+      await expect(pinned).toHaveText('Pinned');
       await expect(pinned).toBeFocused();
       // Read immediately: no action may scroll the card to conceal a success-state layout shift.
       const afterPin = await geometry();

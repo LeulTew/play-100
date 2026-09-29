@@ -216,7 +216,7 @@ for (const width of [320, 360, 393]) {
     await expect(pin).toHaveAttribute('aria-pressed', 'false');
     await expect(pin.locator('svg')).toHaveAttribute('fill', 'none');
     await pin.tap();
-    const pinned = card.getByRole('button', { name: `Unpin from comparison: ${title}`, exact: true });
+    const pinned = card.getByRole('button', { name: `Pin for comparison: ${title}`, exact: true });
     await expect(pinned).toHaveAttribute('aria-pressed', 'true');
     await expect(pinned.locator('svg')).toHaveAttribute('fill', 'currentColor');
     await expect(pinned).toBeEnabled();

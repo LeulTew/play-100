@@ -6,7 +6,6 @@ import { MotionProvider, useMotionRuntime } from '../../motion/index.ts';
 import { Dialog } from '../Dialog.tsx';
 import { CompareTrayProvider } from './CompareTrayProvider.tsx';
 import { CompareTray } from './CompareTray.tsx';
-import { CompareDragHandle } from './CompareDragHandle.tsx';
 import { ComparePinButton } from './ComparePinButton.tsx';
 import { CompareDragSource } from './CompareDragSource.tsx';
 import { useCompareDragSource } from './useCompareDragSource.ts';
@@ -112,7 +111,6 @@ export function Source() {
       <p id="selectable">Ordinary selectable game facts stay copyable.</p>
       <div id="source-controls">
         <ComparePinButton record={record} />
-        <CompareDragHandle record={record} compact />
         <button
           id="nested"
           type="button"

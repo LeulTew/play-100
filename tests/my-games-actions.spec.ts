@@ -21,9 +21,22 @@ test('mobile Play later rows keep Rank and delete together without a repeated pr
     const rank = row.getByRole('button', { name: `Add ${record.title} to my ranking`, exact: true });
     const remove = row.getByRole('button', { name: `Remove from Play later: ${record.title}`, exact: true });
     await expect(rank).toHaveText('Rank');
-    await expect(row.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true })).toHaveText(
-      'Pin',
-    );
+    const pin = row.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true });
+    await expect(pin).toHaveText('Pin');
+    await expect(row.locator('.compare-pin')).toHaveCount(1);
+    const played = row.locator('.played-toggle');
+    const [pinBox, playedBox] = await Promise.all([pin.boundingBox(), played.boundingBox()]);
+    if (!pinBox || !playedBox) throw new Error('Pin and Played must have visible targets.');
+    expect(playedBox.y >= pinBox.y + pinBox.height || playedBox.x - (pinBox.x + pinBox.width) >= 16).toBe(true);
+    await pin.click();
+    await expect(pin).toHaveText('Pinned');
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await expect(pin).toBeFocused();
+    const pinnedBox = await pin.boundingBox();
+    expect(pinnedBox?.width).toBeCloseTo(pinBox.width, 0);
+    await pin.press('Enter');
+    await expect(pin).toHaveText('Pin');
+    await expect(pin).toHaveAttribute('aria-pressed', 'false');
     const [rankBox, removeBox, rowBox] = await Promise.all([
       rank.boundingBox(),
       remove.boundingBox(),

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { MouseEvent, ReactNode } from 'react';
+import type { MouseEvent } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
@@ -14,6 +14,7 @@ import { GameCover } from '../GameCover';
 import { author, authorRatingText } from '../../lib/author';
 import { SavedCatalogCopies } from './SavedCatalogCopies';
 import { useCompareDragSource } from '../compare-tray/useCompareDragSource';
+import { ComparePinButton } from '../compare-tray/ComparePinButton';
 import { CATALOG_EDITION_HINTS } from '../../lib/collection-identities';
 import { catalogGenreLabel } from '../../lib/discovery-genres';
 import './discover.css';
@@ -34,7 +35,6 @@ export interface DiscoveryCardProps {
   onSelect?: (id: string) => void;
   onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
   onPin?: (record: LibraryRecord) => void;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
   onAction: (action: PersonalAction) => Promise<boolean>;
 }
 
@@ -54,7 +54,6 @@ export function DiscoveryCard({
   onSelect,
   onPreview,
   onPin,
-  renderDragHandle,
   onAction,
 }: DiscoveryCardProps) {
   const cardRef = useRef<HTMLLIElement>(null);
@@ -186,19 +185,8 @@ export function DiscoveryCard({
             {saved ? 'In My games' : 'Add to My games'}
           </button>
           {onPin && (
-            <button
-              className="button button-outline"
-              aria-label={`${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}`}
-              aria-disabled={pinned || undefined}
-              onClick={() => {
-                if (!pinned) onPin(actionRecord);
-              }}
-            >
-              <Icon name="stack" width="16" height="16" fill={pinned ? 'currentColor' : 'none'} />
-              {pinned ? 'Pinned' : 'Pin'}
-            </button>
+            <ComparePinButton record={actionRecord} pinned={pinned} onPin={onPin} disabled={Boolean(selecting)} />
           )}
-          {renderDragHandle?.(actionRecord)}
         </div>
         {game && (
           <SavedCatalogCopies

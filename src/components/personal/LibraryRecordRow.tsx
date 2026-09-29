@@ -5,6 +5,7 @@ import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
 import { CompletedToggle } from '../CompletedToggle';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
+import { ComparePinButton } from '../compare-tray/ComparePinButton';
 import { RecordIdentity } from './RecordIdentity';
 
 export function LibraryRecordRow({
@@ -22,13 +23,9 @@ export function LibraryRecordRow({
   onPin,
   onUnpin,
   pinnedIds,
-  renderDragHandle,
   onAction,
   requestRemoval,
-}: Pick<
-  LibraryPageProps,
-  'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'renderDragHandle' | 'onAction'
-> & {
+}: Pick<LibraryPageProps, 'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'onAction'> & {
   record: LibraryRecord;
   artwork?: CatalogArtwork;
   active: boolean;
@@ -56,22 +53,15 @@ export function LibraryRecordRow({
           <RecordIdentity record={record} artwork={artwork} onOpen={onOpen} compareDrag={binding} />
           <div className="record-actions">
             {onPin && (
-              <button
-                className="text-button"
-                disabled={pinnedIds?.has(record.id) && !onUnpin}
-                aria-pressed={onUnpin ? (pinnedIds?.has(record.id) ?? false) : undefined}
-                aria-label={`${pinnedIds?.has(record.id) && !onUnpin ? 'Pinned' : 'Pin'} for comparison: ${record.title}`}
-                title={`${pinnedIds?.has(record.id) && !onUnpin ? 'Pinned' : 'Pin'} for comparison`}
-                onClick={() => {
-                  if (pinnedIds?.has(record.id)) onUnpin?.(record.id);
-                  else onPin(record);
-                }}
-              >
-                <Icon name="stack" width="19" height="19" fill={pinnedIds?.has(record.id) ? 'currentColor' : 'none'} />
-                Pin
-              </button>
+              <ComparePinButton
+                record={record}
+                variant="text"
+                pinned={pinnedIds?.has(record.id)}
+                onPin={onPin}
+                onUnpin={onUnpin}
+                disabled={!active || selecting}
+              />
             )}
-            {renderDragHandle?.(record)}
             <PlayedToggle
               id={record.id}
               title={record.title}

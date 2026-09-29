@@ -249,7 +249,7 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
     .locator('[data-catalog-id]')
     .evaluateAll((elements) => elements.slice(0, 7).map((element) => element.getAttribute('data-catalog-id')!));
   if (!isMobile) {
-    const handle = card(page, ids[0]!).locator('.compare-drag-handle');
+    const handle = card(page, ids[0]!).locator('.compare-pin');
     await handle.scrollIntoViewIfNeeded();
     const start = await handle.boundingBox();
     if (!start) throw new Error('The real drag handle is not laid out.');
@@ -262,10 +262,13 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
     if (!target) throw new Error('The real tray drop target is not laid out.');
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
     await page.mouse.up();
-    await expect(card(page, ids[0]!).getByRole('button', { name: /^Pinned for comparison: / })).toBeDisabled();
+    await expect(card(page, ids[0]!).getByRole('button', { name: /^Pin for comparison: / })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   } else {
-    // 92187ea removed the redundant drag grip from coarse-pointer layout and focus; touch pins with the toggle.
-    await expect(card(page, ids[0]!).locator('.compare-drag-handle')).toBeHidden();
+    await expect(card(page, ids[0]!).locator('.compare-pin')).toHaveCount(1);
+    await expect(card(page, ids[0]!).locator('.compare-pin')).toBeVisible();
     await card(page, ids[0]!)
       .getByRole('button', { name: /^Pin for comparison: / })
       .click();

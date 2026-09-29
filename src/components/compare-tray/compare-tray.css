@@ -19,17 +19,8 @@ body:has(.compare-tray-reserve) {
 body:has(.compare-tray-chip) .toast {
   bottom: calc(var(--mobile-nav-height, 0px) + 20px);
 }
-button.compare-drag-handle {
-  display: inline-flex;
-  touch-action: manipulation;
-}
-button.compare-drag-handle[hidden] {
-  display: none;
-}
-@media (pointer: coarse) {
-  button.compare-drag-handle {
-    display: none;
-  }
+.compare-pin:not(.icon-button) {
+  min-width: 76px;
 }
 .compare-tray-dock[data-dragging='true'] {
   width: min(320px, calc(100vw - 16px));

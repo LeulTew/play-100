@@ -25,10 +25,13 @@ async function compareSignedOut(
   const games = table ? page.locator('.ratings-table') : page;
   const titles: string[] = [];
   for (let index = 0; index < 2; index += 1) {
-    const pin = games.getByRole('button', { name: /^Pin for comparison: / }).first();
+    const pin = games
+      .getByRole('button', { name: /^Pin for comparison: / })
+      .and(page.locator('[aria-pressed="false"]'))
+      .first();
     const title = ((await pin.getAttribute('aria-label')) ?? '').replace('Pin for comparison: ', '');
     await pin.click();
-    await expect(games.getByRole('button', { name: `Unpin from comparison: ${title}`, exact: true })).toBeVisible();
+    await expect(games.getByRole('button', { name: `Pin for comparison: ${title}`, exact: true })).toBeVisible();
     titles.push(title);
   }
   if (table) await page.getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();

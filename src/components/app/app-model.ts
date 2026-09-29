@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { MouseEvent } from 'react';
 import type { OnlineBridge } from '../../cloud/ui-types';
 import type { useCapabilities } from '../../hooks/useCapabilities';
 import type { useCollection } from '../../hooks/useCollection';
@@ -119,6 +119,5 @@ export interface AppModel {
   captureFocusGuard: () => () => boolean;
   notices: NoticeStore;
   pageHref: (next: AppPage, patch?: Partial<Filters>) => string;
-  renderDragHandle: (record: LibraryRecord) => ReactNode;
   commands: AppCommands;
 }

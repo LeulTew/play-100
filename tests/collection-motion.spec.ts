@@ -360,7 +360,7 @@ test('nested save, selection and Pin controls never enroll a detail origin', asy
   await expect(select).toBeChecked();
   const pin = card.getByRole('button', { name: `Pin for comparison: ${first.title}`, exact: true });
   await pin.click();
-  const unpin = card.getByRole('button', { name: `Unpin from comparison: ${first.title}`, exact: true });
+  const unpin = card.getByRole('button', { name: `Pin for comparison: ${first.title}`, exact: true });
   await expect(unpin).toBeEnabled();
   await expect(unpin).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.game-dialog')).toHaveCount(0);
@@ -472,7 +472,7 @@ test('a real desktop title drag pins without opening, then keyboard and a fresh 
   await link.dragTo(dock, { targetPosition: { x: 20, y: 20 } });
   await expect(
     page.locator(firstCard).getByRole('button', {
-      name: `Unpin from comparison: ${first.title}`,
+      name: `Pin for comparison: ${first.title}`,
       exact: true,
     }),
   ).toHaveAttribute('aria-pressed', 'true');
@@ -504,7 +504,7 @@ test('320px coarse detail keeps visible Pin, native artwork and reachable 44px c
     .tap();
   await expect(
     page.locator(firstCard).getByRole('button', {
-      name: `Unpin from comparison: ${first.title}`,
+      name: `Pin for comparison: ${first.title}`,
       exact: true,
     }),
   ).toHaveAttribute('aria-pressed', 'true');

@@ -111,12 +111,16 @@ Move to position summary receives focus. Drag moves retain title focus when
 they cross pages.
 Mobile rows group Rank and delete with the move controls and omit the redundant
 progress summary; Played and Completed remain individually labeled controls.
-Compact comparison buttons expose **Pin** on coarse pointers.
+Compact comparison buttons expose **Pin / Pinned** on coarse pointers. One
+`ComparePinButton` is both the immediate click/keyboard toggle and fine-mouse
+drag source, with a stable accessible name and `aria-pressed`. Touch and pen
+never arm a held drag on this control; existing card/title hold-drag remains
+separate. Personal rows leave space between Pin and progress controls.
 
 Frequent card, detail, table and personal-row actions keep native focus during
 pending writes with guarded `aria-disabled`. Ranking notes and position inputs
 become read-only rather than disabled; clearing a bulk selection moves focus to
-Select all. A row's tray handle uses the stack symbol, distinct from its reorder
+Select all. The single Pin stack symbol is distinct from the row's reorder
 grip. The rating-order action stays mounted after releasing its fixed position.
 Action notices use optional, non-persisted transaction feedback: guest and account
 commits compare the reducer-validated previous state to the result before writing

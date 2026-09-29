@@ -296,7 +296,7 @@ test('an empty transient native drag does not reflow collection controls or rese
       ),
     );
   }
-  const handle = cards.first().locator('.compare-drag-handle');
+  const handle = cards.first().locator('.compare-pin');
   await expect(handle).toBeVisible();
   await handle.scrollIntoViewIfNeeded();
   await settleLayout();

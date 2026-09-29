@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { defaultDiscoveryFilters, DISCOVERY_PAGE_SIZE, discoverySelectionKey } from '../../lib/discovery-search';
@@ -46,7 +45,6 @@ export default function DiscoverPage({
   onPreview,
   onPin,
   pinnedIds,
-  renderDragHandle,
 }: {
   collection: ReturnType<typeof useCollection>;
   state: PersonalLibraryState;
@@ -57,7 +55,6 @@ export default function DiscoverPage({
   onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
   onPin?: (record: LibraryRecord) => void;
   pinnedIds?: ReadonlySet<string>;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
   const { filters, update, error: navigationError, saving, search: locationSearch } = useDiscoveryUrl();
   const connected = useSyncExternalStore(
@@ -333,7 +330,6 @@ export default function DiscoverPage({
                   <div className="discovery-card-primary">
                     <span className="discovery-skeleton-action" />
                     <span className="discovery-skeleton-action" />
-                    {renderDragHandle && <span className="discovery-skeleton-grip" />}
                   </div>
                   <div className="discovery-skeleton-source">
                     <span className="discovery-skeleton-line" />
@@ -370,7 +366,6 @@ export default function DiscoverPage({
                 }
                 onPreview={onPreview}
                 onPin={onPin}
-                renderDragHandle={renderDragHandle}
                 onAction={onAction}
               />
             ))}

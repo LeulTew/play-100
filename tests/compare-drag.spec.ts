@@ -51,7 +51,7 @@ async function dropIntoFirstEmptyTray(page: Page, context: BrowserContext, sourc
   expect(
     await source.evaluate((element, point) => {
       const hit = document.elementFromPoint(point.x, point.y);
-      return Boolean(hit && element.contains(hit) && !hit.closest('.compare-drag-handle,.drag-handle'));
+      return Boolean(hit && element.contains(hit) && !hit.closest('.compare-pin,.drag-handle'));
     }, start),
   ).toBe(true);
   expect(await source.evaluate((element) => getComputedStyle(element).touchAction)).not.toBe('none');
@@ -202,7 +202,7 @@ for (const scenario of publicSources) {
     test.skip(isMobile, 'Native mouse contract; the touch experiment has a separate owned fixture.');
     await page.goto(scenario.url);
     const card = page.locator(scenario.card).first();
-    await expect(card.locator('.compare-drag-handle')).toBeEnabled();
+    await expect(card.locator('.compare-pin')).toBeEnabled();
     const id = await card.getAttribute(scenario.identity);
     if (!id) throw new Error('The current Compare source has no exact identity.');
     const before = await readLibrary(page);
@@ -244,7 +244,7 @@ for (const scenario of publicSources) {
     await page.setViewportSize({ width: 320, height: 740 });
     await page.goto(scenario.url);
     const card = page.locator(scenario.card).first();
-    await expect(card.locator('.compare-drag-handle')).toBeEnabled();
+    await expect(card.locator('.compare-pin')).toBeEnabled();
     const capabilities = await page.evaluate(() => ({
       width: innerWidth,
       height: innerHeight,
@@ -297,7 +297,7 @@ for (const kind of ['queue', 'ranking'] as const) {
     if (!firstId || !secondId) throw new Error('The private order fixture requires two exact records.');
     const row = list.locator(`[data-record-id="${firstId}"]`);
     const nextRow = list.locator(`[data-record-id="${secondId}"]`);
-    await expect(row.locator('.compare-drag-handle')).toBeEnabled();
+    await expect(row.locator('.compare-pin')).toBeEnabled();
     expect(await row.getAttribute('data-compare-drag-source')).toBeNull();
     if (isMobile) {
       expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0)).toBe(
@@ -328,10 +328,8 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/discover?q=0%20A.D.&catalogs=off');
   const card = page.locator('[data-catalog-id="wikidata:Q161234"]');
-  const grip = card.locator('.compare-drag-handle');
-  await expect(grip).toBeHidden();
-  await expect(grip).toHaveAttribute('aria-hidden', 'true');
-  await expect(grip).toHaveAttribute('tabindex', '-1');
+  await expect(card.locator('.compare-pin')).toHaveCount(1);
+  await expect(card.locator('[data-compare-drag-grip]')).toHaveCount(1);
   const pin = card.getByRole('button', { name: 'Pin for comparison: 0 A.D.', exact: true });
   await pin.scrollIntoViewIfNeeded();
   const bounds = await pin.boundingBox();
@@ -340,6 +338,8 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
   expect(bounds.height).toBeGreaterThanOrEqual(44);
   const before = await readLibrary(page);
   await pin.tap();
+  await expect(pin).toHaveText('Pinned');
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open],.compare-drag-ghost')).toHaveCount(0);
   const geometry = await page.evaluate(() => ({

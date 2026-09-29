@@ -228,7 +228,6 @@ interface CollectionCardProps {
   selected: boolean;
   onSelect: (id: string) => void;
   busy: boolean;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }
 
 /** One grid or list card. Memoised with stable element props, so a page render repaints only the cards it changes. */
@@ -246,7 +245,6 @@ const CollectionCard = memo(function CollectionCard({
   selected,
   onSelect,
   busy,
-  renderDragHandle,
 }: CollectionCardProps) {
   const actionRecord = useMemo(() => catalogActionRecord(recordFromGame(game), ownership), [game, ownership]);
   const copies = ownership.get(game.slug);
@@ -258,14 +256,8 @@ const CollectionCard = memo(function CollectionCard({
     [game.slug, copies, onPreview],
   );
   const compareActions = useMemo(
-    () =>
-      pinnable && (
-        <>
-          <ComparePinButton record={actionRecord} compact disabled={busy} />
-          {renderDragHandle?.(actionRecord)}
-        </>
-      ),
-    [pinnable, actionRecord, busy, renderDragHandle],
+    () => pinnable && <ComparePinButton record={actionRecord} compact disabled={busy} />,
+    [pinnable, actionRecord, busy],
   );
   return (
     <GameCard
@@ -309,7 +301,6 @@ interface CollectionPageProps {
   notify: (message: string) => void;
   onPin?: (record: LibraryRecord) => void;
   pinnedIds?: ReadonlySet<string>;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
   comparisonTray?: ReactNode;
 }
 
@@ -333,7 +324,6 @@ function CollectionPage({
   notify,
   onPin,
   pinnedIds,
-  renderDragHandle,
   comparisonTray,
 }: CollectionPageProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -623,7 +613,6 @@ function CollectionPage({
                         selected={selected.has(game.slug)}
                         onSelect={toggleSelection}
                         busy={busy}
-                        renderDragHandle={renderDragHandle}
                       />
                     ))}
                   </ul>
@@ -704,7 +693,6 @@ function CollectionPage({
                     onAction,
                     onPin,
                     pinnedIds,
-                    renderDragHandle,
                   },
                 }}
               />

@@ -273,6 +273,9 @@
   display: flex;
   gap: 3px;
 }
+.record-actions > .compare-pin {
+  margin-inline-end: 16px;
+}
 .play-state {
   min-width: 108px;
   font-size: 12px;

@@ -119,7 +119,10 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
   await card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true }).click();
-  await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
+  await expect(card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await card.getByText('More actions', { exact: true }).click();
   await rate(page, '8.7');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.7);
@@ -153,7 +156,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(page.locator('[data-game="red-dead-redemption-2"]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(0);
   await expect(page.locator('.result-summary strong')).toHaveText('1');
-  await expect(page.getByRole('button', { name: `Unpin from comparison: ${rdr.title}`, exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/discover?q=Red%20Dead&catalogs=off&include100=on');
@@ -267,7 +270,10 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
-  await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeDisabled();
+  await expect(card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(card).toContainText('Progress and ratings use your existing saved catalog copy.');
   await card.getByText('More actions', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('7.3');

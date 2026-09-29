@@ -64,7 +64,7 @@ separate; no original is enlarged.
   The existing flight still measures this same settled sleeve as its destination.
 - Successful Discover logos are not paired with a duplicate in-art title.
   Only an image-failure fallback repeats the title, alongside the unavailable
-  notice. Pin and the fine-pointer grip share one action row; the Grid/List
+  notice. One Pin/Pinned toggle also serves as the fine-mouse drag source; the Grid/List
   switch uses The 100's existing active-view fill and underline.
 - Redundant jacket-year print is hidden through 1150px, including the
   three-column tablet grid. The adjacent metadata year and canonical rank stay
@@ -144,8 +144,9 @@ correction, not a new collection or a private-library migration.
   second private record from Played, Queue, rating or ranking. If both copies
   exist, canonical controls use the canonical record, with a separate explicit
   saved-copy link for the old opinion. This is a derived view, not value merging.
-  Pin/drag recognizes either known identity already in the scoped tray and does
-  not spend another slot; persisted pins are not silently rekeyed or deleted.
+  Pin recognizes either known identity already in the scoped tray; clicking
+  Pinned removes that pin. Repeated drags do not spend another slot, and
+  persisted pins are not silently rekeyed or deleted.
   The private Ranking Add games picker follows the same owned-record binding.
   It offers one choice per effective add target before search/result limits,
   preserves the owned record's metadata, and searches both its saved title and

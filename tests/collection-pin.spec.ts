@@ -17,7 +17,7 @@ for (const view of ['grid', 'list', 'table'] as const) {
     const element = await pin.elementHandle();
     if (!element) throw new Error('The inline comparison toggle must be mounted.');
     await pin.press('Enter');
-    const unpin = row.getByRole('button', { name: 'Unpin from comparison: Red Dead Redemption 2', exact: true });
+    const unpin = row.getByRole('button', { name: 'Pin for comparison: Red Dead Redemption 2', exact: true });
     await expect(unpin).toHaveAttribute('aria-pressed', 'true');
     await expect(unpin).toBeEnabled();
     await expect(unpin).not.toHaveAttribute('aria-disabled');

@@ -257,16 +257,13 @@
 }
 .discovery-cards-grid > .discovery-card .discovery-card-primary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   margin-top: auto;
   padding-top: 12px;
 }
 .discovery-cards-grid > .discovery-card .discovery-card-primary > .button {
   width: 100%;
-}
-.discovery-cards-grid > .discovery-card .discovery-card-primary > :first-child {
-  grid-column: 1 / -1;
 }
 .discovery-card-details {
   margin-top: 2px;
@@ -465,11 +462,6 @@
 }
 .discovery-skeleton-action + .discovery-skeleton-action {
   width: 68px;
-}
-.discovery-skeleton-grip {
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--line);
 }
 .discovery-skeleton-source {
   margin-top: 2px;

@@ -22,7 +22,7 @@ import { usePwaGuards } from './hooks/usePwaGuards';
 import { CLOUD_PAGES } from './lib/cloud-pages';
 import { useAppMotion } from './hooks/useAppMotion';
 import { currentSignInPurpose, signInPurposeTicket } from './lib/sign-in-purpose';
-import { CompareDragHandle, CompareTrayProvider } from './components/compare-tray';
+import { CompareTrayProvider } from './components/compare-tray';
 import { CompareTrayBindings } from './components/app/CompareTrayBindings';
 import { enrichmentIdentity } from './lib/catalog-enrichment-identity';
 import { catalogActionRecord } from './lib/catalog-identity';
@@ -302,10 +302,6 @@ export default function App() {
     },
     [catalogs],
   );
-  const renderDragHandle = useCallback(
-    (record: LibraryRecord) => !onlineOpening && <CompareDragHandle record={record} compact />,
-    [onlineOpening],
-  );
   return (
     <ReloadGuardContext value={captureReloadGuard}>
       <MotionProvider policy={capabilities} boundary={motionBoundary} location={motionLocation}>
@@ -379,7 +375,6 @@ export default function App() {
                         captureFocusGuard,
                         notices,
                         pageHref,
-                        renderDragHandle,
                         commands,
                       }}
                       mainRef={mainRef}

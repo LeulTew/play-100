@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { Filters } from '../../lib/types';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
@@ -33,7 +32,6 @@ export interface LibraryPageProps {
   onPin?: (record: LibraryRecord) => void;
   onUnpin?: (id: string) => void;
   pinnedIds?: ReadonlySet<string>;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }
 
 export default function LibraryPage(props: LibraryPageProps) {

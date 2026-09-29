@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import type { LibraryRecord, PersonalAction, PersonalRanking } from '../../lib/personal-types';
 import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import { Icon } from '../Icon';
@@ -8,6 +7,7 @@ import { PlayedToggle } from '../PlayedToggle';
 import { CompletedToggle } from '../CompletedToggle';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
+import { ComparePinButton } from '../compare-tray/ComparePinButton';
 import { useExitSave } from '../../hooks/useExitSave';
 
 export function RankingRow({
@@ -29,7 +29,6 @@ export function RankingRow({
   onPin,
   onUnpin,
   pinned = false,
-  renderDragHandle,
 }: {
   record: LibraryRecord;
   artwork?: CatalogArtwork;
@@ -49,7 +48,6 @@ export function RankingRow({
   onPin?: (record: LibraryRecord) => void;
   onUnpin?: (id: string) => void;
   pinned?: boolean;
-  renderDragHandle?: (record: LibraryRecord) => ReactNode;
 }) {
   const [draftNote, setDraftNote] = useState<string | null>(null);
   const note = draftNote ?? entry.note;
@@ -103,24 +101,16 @@ export function RankingRow({
         {(binding) => (
           <div ref={binding.sourceRef} {...binding.surfaceProps} className="ranking-game-identity">
             <RecordIdentity record={record} artwork={artwork} onOpen={onOpen} compareDrag={binding} />
-            {(onPin || renderDragHandle) && (
+            {onPin && (
               <div className="ranking-compare-actions">
-                {onPin && (
-                  <button
-                    className="text-button"
-                    disabled={pinned && !onUnpin}
-                    aria-pressed={onUnpin ? pinned : undefined}
-                    aria-label={`${pinned && !onUnpin ? 'Pinned' : 'Pin'} for comparison: ${record.title}`}
-                    onClick={() => {
-                      if (pinned) onUnpin?.(record.id);
-                      else onPin(record);
-                    }}
-                  >
-                    <Icon name="stack" width="17" height="17" fill={pinned ? 'currentColor' : 'none'} />
-                    {pinned && !onUnpin ? 'Pinned for comparison' : 'Pin for comparison'}
-                  </button>
-                )}
-                {renderDragHandle?.(record)}
+                <ComparePinButton
+                  record={record}
+                  variant="text"
+                  pinned={pinned}
+                  onPin={onPin}
+                  onUnpin={onUnpin}
+                  disabled={!active}
+                />
               </div>
             )}
           </div>

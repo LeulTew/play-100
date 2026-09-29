@@ -34,7 +34,7 @@ export function AppRoute({
   comparisonTray,
 }: AppRouteProps) {
   const { page, panel, commands, libraryScope, games, library, libraryBusy, filters, capabilities, collection } = app;
-  const { online, cloudPage, showOnline, privateLoading, personalPage, gamesView, renderDragHandle } = app;
+  const { online, cloudPage, showOnline, privateLoading, personalPage, gamesView } = app;
   const { publicHandle, invitation, signInPurpose, guestLibrary, getSignInReturnFocus, allRecords } = app;
   const { openGame, openProfile, updateFilters, changeGamesView, effectiveMotion, motionPending } = app;
   const { openCollection, preview, previewFromDiscover } = motion;
@@ -124,7 +124,6 @@ export function AppRoute({
           onPin,
           onUnpin,
           pinnedIds,
-          renderDragHandle,
         },
       };
     if (page === 'discover')
@@ -140,7 +139,6 @@ export function AppRoute({
           onPreview: previewFromDiscover,
           onPin,
           pinnedIds,
-          renderDragHandle,
         },
       };
     return {
@@ -168,7 +166,6 @@ export function AppRoute({
         notify: app.notices.notify,
         onPin,
         pinnedIds,
-        renderDragHandle,
         comparisonTray,
       },
     };
@@ -196,7 +193,6 @@ export function AppRoute({
     onPin,
     onUnpin,
     pinnedIds,
-    renderDragHandle,
     collection,
     previewFromDiscover,
     effectiveMotion,
