@@ -381,6 +381,8 @@ test('external metadata, ratings and queue survive a full browser restart even w
   isMobile,
   viewport,
 }, testInfo) => {
+  // Persistent profile shutdown and reopening must fit alongside both provider-failure checks.
+  test.setTimeout(90_000);
   const profile = testInfo.outputPath('persistent-search-profile');
   const options = {
     headless: true,
