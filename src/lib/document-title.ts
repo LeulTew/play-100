@@ -8,7 +8,7 @@ const pageTitles: Record<AppPage, string> = {
   games: 'My games',
   library: 'My games · Library',
   rankings: 'My games · Ranking',
-  discover: 'Discover more games',
+  discover: 'Discover',
   account: 'Account',
   community: 'Community',
   publish: 'Publish ranking',

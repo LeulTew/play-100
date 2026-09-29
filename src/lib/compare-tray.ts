@@ -205,7 +205,7 @@ export function createCompareTrayStore(
       }
       return save(
         [...snapshot.items, valid],
-        `${valid.title} pinned for comparison. ${snapshot.items.length + 1} of six games.`,
+        `${valid.title} pinned for comparison. ${snapshot.items.length + 1} of 6 games.`,
       );
     },
     unpin(id: string): boolean {

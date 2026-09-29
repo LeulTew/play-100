@@ -13,14 +13,16 @@ describe('data use explanation', () => {
   it('explains restore, service limits, consent and older versions in plain words', () => {
     for (const phrase of [
       'account and guest libraries stay separate.',
-      "After sign-in, an active online copy can restore to your account's empty, unchanged device copy.",
+      "After sign-in, the app can restore your account's online library if online saving is active.",
+      'Its copy on this device must still be empty and unchanged.',
       'Pending device edits, stopped saving, deletion or conflicts require your choice before replacement.',
       'If the service reaches its free limit, online saving pauses; billing is never turned on.',
       'If you previously turned sharing off or chose specific games, that choice stays in place.',
       'When sharing everything with friends is active, older app versions cannot save online or stop online saving.',
       'Refresh the app, or first choose Stop in Friend sharing.',
       "Accounts that aren't sharing everything are unaffected; pending device edits are never discarded.",
-      'Private counts limit new groups, blocks and reports; account deletion removes these counts.',
+      'The app privately counts your groups, blocks and reports to enforce account limits.',
+      'Deleting your account removes those counts.',
     ])
       expect(text).toContain(phrase);
   });
@@ -93,7 +95,8 @@ describe('data use explanation', () => {
       'Some older shared copies need the site owner',
       "Small records with no library content remain so that old sessions can't bring deleted data back.",
       'never full URLs, queries, IP addresses, browser details or account IDs.',
-      'without account credentials.',
+      'Scheduled checks record whether the sign-in service and public catalogs respond.',
+      'They do not use account credentials.',
       'never messages or stack traces.',
       'Counts use no device storage or visitor ID',
       'Reporting is limited to 20 errors and four send attempts per page.',
@@ -106,6 +109,8 @@ describe('data use explanation', () => {
 
   it('gives practical next steps and identifies services in full sentences', () => {
     expect(text).toContain('Download a backup from Settings or Account.');
+    expect(text).toContain("Your comparison filters and chosen people stay in this tab's private history.");
+    expect(text).toContain('Public links do not include those choices.');
     expect(text).toContain('Vercel hosts the site. Firebase provides sign-in and online storage.');
     expect(text).toContain('Use Account to export or delete your data. For questions, use the creator links below.');
     expect(text).toContain(

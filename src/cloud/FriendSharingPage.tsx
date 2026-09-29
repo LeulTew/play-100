@@ -184,7 +184,7 @@ export function FriendSharingPage({
               });
             }}
           >
-            Preview friends sharing
+            Preview friend sharing
           </button>
         </>
       )}
@@ -204,7 +204,7 @@ export function FriendSharingPage({
             });
           }}
         >
-          Stop friends sharing
+          Stop friend sharing
         </button>
       )}
       {refreshRequired && (

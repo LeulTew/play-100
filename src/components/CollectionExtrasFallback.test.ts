@@ -9,6 +9,8 @@ import { defaultFilters } from '../lib/url';
 import { discoveryFixture } from '../lib/discovery-test-fixtures';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import { emptySources } from '../lib/catalog-search-session';
+import ExtendedResults from './catalog/ExtendedResults';
+import { DeferredCollection } from './DeferredCollection';
 
 it('reserves the exact film listing text and frames without loading movies or artwork', () => {
   const onWatch = vi.fn();
@@ -52,6 +54,44 @@ it('keeps one identical visible rating note before and after the table loads', (
     return note.replace(/<[^>]+>/g, '');
   });
   expect(notes[0]).toBe(notes[1]);
+});
+
+it.each([
+  ['', false, '1 saved game'],
+  ['?q=fixture', false, '1 match'],
+  ['?q=fixture', true, '1 match so far'],
+] as const)('keeps the additional-game count truthful through deferred loading for %s', (queryKey, loading, count) => {
+  const props: ComponentProps<typeof ExtendedResults> = {
+    records: [discoveryFixture.record],
+    online: {
+      sources: emptySources(),
+      records: [],
+      localRecords: [],
+      loading,
+      retry: vi.fn(),
+      more: vi.fn(),
+      eligible: Boolean(queryKey),
+      artwork: new Map(),
+      seedError: null,
+      seedRetry: vi.fn(),
+      searchOnline: vi.fn(),
+      remoteEnabled: false,
+    },
+    state: emptyPersonalLibrary(),
+    queryKey,
+    busy: false,
+    selecting: false,
+    selected: new Set(),
+    onSelect: vi.fn(),
+    onAction: vi.fn(async () => true),
+  };
+  for (const element of [
+    createElement(DeferredCollection, { input: { kind: 'extended', props } }),
+    createElement(ExtendedResults, props),
+  ]) {
+    const html = renderToStaticMarkup(element);
+    expect(html).toContain(`>Beyond The 100</h2><span>${count}</span>`);
+  }
 });
 
 it.each([

@@ -685,7 +685,7 @@ describe('Compare source browser contract', () => {
           .poll(() => page.evaluate(() => window.compareDragTest.items()))
           .toEqual(['manual:drag-fixture']);
         expect(await page.evaluate(() => window.compareDragTest.status())).toContain(
-          'pinned for comparison. 1 of six games.',
+          'pinned for comparison. 1 of 6 games.',
         );
         expect(await page.evaluate(() => window.compareDragTest.opens)).toBe(0);
         expect(await page.evaluate(() => scrollY)).toBe(0);

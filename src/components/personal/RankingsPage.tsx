@@ -168,7 +168,7 @@ export default function RankingsPage(props: RankingsPageProps) {
                 type="search"
                 value={searchInput}
                 onChange={(event) => search(event.target.value)}
-                placeholder="Find a game in your ranking…"
+                placeholder="Search your ranking…"
               />
             </div>
             <span className="section-help" role="status">

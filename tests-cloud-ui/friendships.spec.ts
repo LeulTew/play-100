@@ -39,7 +39,7 @@ async function enableSelectedSharing(page: Page) {
     page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friend sharing', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Select all', exact: true }).click();
-  await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();
+  await page.getByRole('button', { name: 'Preview friend sharing', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Red Dead Redemption 2');
   await page.getByRole('button', { name: 'Agree & share with friends', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -196,7 +196,7 @@ test('revoked invites show no inviter snapshot and a cancelled sharing preview d
     page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friend sharing', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Select all', exact: true }).click();
-  await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();
+  await page.getByRole('button', { name: 'Preview friend sharing', exact: true }).click();
   await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: /^Off$/ })).toBeVisible();
 });

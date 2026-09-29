@@ -4,6 +4,7 @@ import { TableFallback, ExtendedFallback, FilmsFallback } from './CollectionExtr
 import { collectionExtrasModule } from '../lib/collection-extras-preload';
 import { ChunkRecovery } from './ChunkRecovery';
 import { ChunkBoundary } from './ChunkBoundary';
+import { extendedResultCount } from '../lib/extended-search';
 
 export function DeferredCollection({
   input,
@@ -168,8 +169,7 @@ export function DeferredCollection({
               Beyond The 100
             </h2>
             <span>
-              {input.props.records.length} {input.props.records.length === 1 ? 'match' : 'matches'}
-              {input.props.online.loading ? ' so far' : ''}
+              {extendedResultCount(input.props.records.length, input.props.queryKey, input.props.online.loading)}
             </span>
           </div>
           {body}

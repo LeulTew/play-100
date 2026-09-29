@@ -251,7 +251,7 @@ async function shareLegacyRanking(browser: Browser, origin: string, legacy: Coho
       page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friend sharing', exact: true }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Select all', exact: true }).click();
-    await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();
+    await page.getByRole('button', { name: 'Preview friend sharing', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Agree & share with friends', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByRole('status').filter({ hasText: 'Sharing saved' })).toBeVisible({ timeout: 30_000 });

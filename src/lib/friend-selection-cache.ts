@@ -100,7 +100,7 @@ export function pendingFriendRemovals(
     const current = parse(value);
     if (current && currentStateRevision !== undefined && current.observedStateRevision !== currentStateRevision)
       return invalid(
-        'This library changed in an older tab. Refresh that tab, then review friends sharing before updating it. Private saving is unaffected.',
+        'This library changed in an older tab. Refresh that tab, then review Friend sharing before updating it. Private saving is unaffected.',
       );
     return new Set(Object.keys(current?.removed ?? {}));
   });

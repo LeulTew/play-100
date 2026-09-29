@@ -41,6 +41,15 @@ function memory() {
 const saved = (items: unknown, scope = 'guest') => JSON.stringify({ version: 1, scope, items });
 
 describe('Compare tray reference validation', () => {
+  it('announces the pinned title and numeric count consistently with the tray', () => {
+    const { storage } = memory();
+    const store = createCompareTrayStore('guest', () => storage);
+    for (let id = 1; id <= 6; id += 1) {
+      expect(store.pin(game(id))).toBe(true);
+      expect(store.getSnapshot().status).toBe(`Game ${id} pinned for comparison. ${id} of 6 games.`);
+    }
+  });
+
   it('dismisses limit feedback without changing pins or storage and announces the next failed attempt', () => {
     const { storage } = memory();
     let current = true;

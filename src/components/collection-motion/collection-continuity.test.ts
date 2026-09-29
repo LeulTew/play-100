@@ -133,6 +133,7 @@ describe('collection continuity preserves the public presentation', () => {
       );
       expect(html).toContain(`href="/${createSearch(filters, game.slug).replaceAll('&', '&amp;')}"`);
       expect(html).toContain(`data-game="${game.slug}"`);
+      expect(html).toContain(`Number ${game.rank} in Leul&#x27;s collection.`);
       expect(html).toContain('9.9696969696969688');
       expect(html).toContain('title="Original workbook rating: 9.9696969696969688"');
       expect(html).toContain(' critic avg.');

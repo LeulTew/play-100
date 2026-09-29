@@ -40,7 +40,7 @@ describe('About data and privacy summary', () => {
     expect(privacy).toContain('Sign-in never uploads guest data automatically; online saving needs separate consent.');
     for (const phrase of [
       'Firebase Authentication and Firestore at no cost.',
-      'No Supabase, analytics scripts, ad trackers, anonymous accounts or remote avatar services are used.',
+      'No analytics scripts, ad trackers, anonymous accounts or remote avatar services are used.',
       'Rankings can include unplayed games; ranking never marks them played or completed.',
       'Publishing shares only the previewed profile and selected ratings, not email, notes or play history.',
       'Community listing needs separate consent.',
@@ -89,6 +89,8 @@ describe('About source reference rows', () => {
 
   it('matches the About label and uses straight quotes and en-dash ranges', () => {
     expect(html).toContain('>About &amp; credits</h2>');
+    expect(html).toContain('>Leul&#x27;s ratings</h3>');
+    expect(html).not.toContain('Supabase');
     expect(html).toContain('ranks 1–50;');
     expect(html).toContain('ranks 51–100.');
     expect(html).not.toMatch(/[“”‘’]/);

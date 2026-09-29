@@ -36,6 +36,7 @@ describe('committed-state document titles', () => {
 
   it.each([
     ['collection', 'The 100'],
+    ['discover', 'Discover'],
     ['library', 'My games · Library'],
     ['rankings', 'My games · Ranking'],
     ['account', 'Account'],

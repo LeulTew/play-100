@@ -31,7 +31,7 @@ export function AboutDialog({
         </p>
       </section>
       <section>
-        <h3>Author ratings</h3>
+        <h3>{author.shortName}'s ratings</h3>
         <p>
           {author.fullName}'s rank-based scores come from the workbook column "my rating(based on rank)". Cards, tables
           and details preserve its saved numbers, rounding and text, without recalculation.
@@ -77,8 +77,8 @@ export function AboutDialog({
         </p>
         <p>
           Online-saving consent lets the creator view your profile and ranking summary, not notes or Play later.
-          Database operators can access stored data. No Supabase, analytics scripts, ad trackers, anonymous accounts or
-          remote avatar services are used.
+          Database operators can access stored data. No analytics scripts, ad trackers, anonymous accounts or remote
+          avatar services are used.
         </p>
         <p>
           Rankings can include unplayed games; ranking never marks them played or completed. Publishing shares only the

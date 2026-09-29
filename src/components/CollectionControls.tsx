@@ -289,7 +289,7 @@ export function CollectionControls({
             {unrankedCount > 0 ? (
               <> · {unrankedCount} beyond The 100</>
             ) : !activeFilters && filters.sort === 'rank' && filters.direction !== 'desc' ? (
-              ", in the author's order"
+              `, in ${author.shortName}'s order`
             ) : (
               ''
             )}

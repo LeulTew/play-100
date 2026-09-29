@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseCollection } from './collection';
-import { filterUnranked, unrankedRecords } from './extended-search';
+import { extendedResultCount, filterUnranked, unrankedRecords } from './extended-search';
 import { defaultFilters } from './url';
 import { recordFromGame } from './personal-types';
 import type { LibraryRecord, PersonalProgress } from './personal-types';
@@ -39,6 +39,20 @@ const c: LibraryRecord = {
   year: null,
 };
 const records = [a, b, c];
+
+describe('additional game counts', () => {
+  it.each([
+    [0, '', false, '0 saved games'],
+    [1, '', false, '1 saved game'],
+    [2, '?list=later', false, '2 saved games'],
+    [1, '?q=%20%20', false, '1 saved game'],
+    [0, '?q=atlas', false, '0 matches'],
+    [1, '?q=atlas', false, '1 match'],
+    [2, '?q=atlas', true, '2 matches so far'],
+  ])('labels %i results for %s (loading=%s)', (count, queryKey, loading, expected) => {
+    expect(extendedResultCount(count, queryKey, loading)).toBe(expected);
+  });
+});
 
 describe('saved and live unranked search', () => {
   it('deduplicates exact IDs, gives saved metadata priority and excludes canonical IDs', () => {

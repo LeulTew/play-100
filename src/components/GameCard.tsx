@@ -79,7 +79,9 @@ export const GameCard = memo(function GameCard({
           onOpen(game.slug, origin ?? undefined);
         }}
       >
-        <span className="sr-only">Number {game.rank} in the author's collection. </span>
+        <span className="sr-only">
+          Number {game.rank} in {author.shortName}'s collection.{' '}
+        </span>
         <GameCover game={game} eager={eager} />
         <div className="game-copy">
           <div className="game-meta">

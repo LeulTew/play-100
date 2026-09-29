@@ -8,7 +8,8 @@ export default function DataUseContent() {
       </p>
       <p>
         Compare keeps up to six pins per device or account. Pinning never adds, rates or shares games; sign-in never
-        copies guest pins. Filters and people selections stay in private tab history, not public links.
+        copies guest pins. Your comparison filters and chosen people stay in this tab's private history. Public links do
+        not include those choices.
       </p>
       <h2>Installation and offline access</h2>
       <p>
@@ -39,9 +40,9 @@ export default function DataUseContent() {
         play history. Private library data is stored under your verified account; database operators can access it.
       </p>
       <p>
-        After sign-in, an active online copy can restore to your account's empty, unchanged device copy. Guest data
-        never merges or uploads automatically. Pending device edits, stopped saving, deletion or conflicts require your
-        choice before replacement.
+        After sign-in, the app can restore your account's online library if online saving is active. Its copy on this
+        device must still be empty and unchanged. Guest data never merges or uploads automatically. Pending device
+        edits, stopped saving, deletion or conflicts require your choice before replacement.
       </p>
       <p>
         Edits save locally before uploading. Visible, connected browsers retry temporary failures; closed browsers
@@ -89,7 +90,10 @@ export default function DataUseContent() {
         Comparison groups save private people selections, not chats, permissions or others' scores. Unavailable rankings
         are labelled. Account exports exclude active invitation links and others' rankings.
       </p>
-      <p>Private counts limit new groups, blocks and reports; account deletion removes these counts.</p>
+      <p>
+        The app privately counts your groups, blocks and reports to enforce account limits. Deleting your account
+        removes those counts.
+      </p>
       <h2>Public rankings</h2>
       <p>
         Publishing requires a separate preview and your consent. Links publicly show selected games, order and scores.
@@ -123,11 +127,11 @@ export default function DataUseContent() {
       </p>
       <p>
         Browser security reports count known blocked sites, security rules and page types, never full URLs, queries, IP
-        addresses, browser details or account IDs. Scheduled checks record sign-in helper and catalog response status
-        without account credentials. Error screens may send batched counts by error type, component, page type and app
-        build, never messages or stack traces. Counts use no device storage or visitor ID. Reporting is limited to 20
-        errors and four send attempts per page. These are service checks, not visitor analytics. Hosts process normal
-        requests under their own policies.
+        addresses, browser details or account IDs. Scheduled checks record whether the sign-in service and public
+        catalogs respond. They do not use account credentials. Error screens may send batched counts by error type,
+        component, page type and app build, never messages or stack traces. Counts use no device storage or visitor ID.
+        Reporting is limited to 20 errors and four send attempts per page. These are service checks, not visitor
+        analytics. Hosts process normal requests under their own policies.
       </p>
       <p>
         For eligible Discover games, online lookup uses the exact public game ID to request public ratings and licensed

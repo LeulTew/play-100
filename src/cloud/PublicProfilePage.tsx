@@ -131,7 +131,7 @@ export function PublicProfilePage({
         </h1>
         <p>
           {error ||
-            'The link may be wrong, unpublished or hidden. Private libraries are never substituted for a missing public ranking.'}
+            'This link may be wrong, or the ranking may no longer be public. You can only see rankings their owners have published, not their private libraries.'}
         </p>
         {error && (
           <button className="button button-dark" onClick={() => setRetry((value) => value + 1)}>

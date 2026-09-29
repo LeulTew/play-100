@@ -5,6 +5,12 @@ import { matchesCatalogQuery } from './catalog-query';
 import { matchesProgressFilters } from './game-progress';
 import { collectionGameForId } from './catalog-identity';
 
+export function extendedResultCount(count: number, queryKey: string, loading: boolean): string {
+  const searching = Boolean(new URLSearchParams(queryKey).get('q')?.trim());
+  const label = searching ? (count === 1 ? 'match' : 'matches') : count === 1 ? 'saved game' : 'saved games';
+  return `${count} ${label}${loading ? ' so far' : ''}`;
+}
+
 export function unrankedRecords(
   games: Game[],
   saved: Record<string, LibraryRecord>,

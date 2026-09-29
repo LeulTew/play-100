@@ -8,6 +8,7 @@ import { CatalogSourceStatus } from './CatalogSourceStatus';
 import { collidingCatalogTitles, newOnlineMatchCounts } from '../../lib/catalog-identity';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { loadSavedDiscoveryArtwork } from '../../lib/saved-discovery-artwork';
+import { extendedResultCount } from '../../lib/extended-search';
 
 export default function ExtendedResults({
   records,
@@ -154,10 +155,7 @@ export default function ExtendedResults({
     <section className="extended-results discovery-extended" aria-labelledby="extended-results-title">
       <div className="extended-heading">
         <h2 id="extended-results-title">Beyond The 100</h2>
-        <span>
-          {records.length} {records.length === 1 ? 'match' : 'matches'}
-          {online.loading ? ' so far' : ''}
-        </span>
+        <span>{extendedResultCount(records.length, queryKey, online.loading)}</span>
       </div>
       {content}
     </section>

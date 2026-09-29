@@ -234,7 +234,7 @@ export function SettingsDialog({
         </p>
         <p>
           {mode.scope === 'guest'
-            ? 'This guest copy is device-only. Online saving is optional and requires a separate sign-in and consent. Clearing site data can remove this local copy.'
+            ? 'Online saving is optional and requires a separate sign-in and consent.'
             : 'Account edits save locally first and upload only while online saving is enabled. Sign out to return to the untouched guest library; manage cloud deletion from Account.'}{' '}
           Completed games can stay in Play later for a replay.
         </p>
