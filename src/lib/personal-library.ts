@@ -8,7 +8,7 @@ import type {
   PersonalRanking,
 } from './personal-types.js';
 import { parseLibrary } from './storage.js';
-import { requireObject, labelledText } from './guards.js';
+import { dictionary, requireObject, labelledText } from './guards.js';
 import type { MotionPreference } from './types.js';
 import { orderByRating, retainManualPositions } from './ranking-order.js';
 import {
@@ -32,10 +32,6 @@ function budgetError(message: string): never {
   const error = new Error(message);
   error.name = 'PersonalLibraryBudgetError';
   throw error;
-}
-
-function dictionary<T>(): Record<string, T> {
-  return Object.create(null) as Record<string, T>;
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {

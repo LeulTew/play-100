@@ -4,6 +4,19 @@ export function isRecord(value: unknown): value is JsonObject {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+// Array.isArray narrows unknown to any[]; these keep the elements unknown until they are checked.
+export function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+export function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+export function dictionary<T = unknown>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
 export function nullableObject(value: unknown): JsonObject | null {
   return isRecord(value) ? value : null;
 }

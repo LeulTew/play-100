@@ -209,7 +209,7 @@ export class FriendManagerFeed<Cursor = FriendCursor> {
             },
           });
         })
-        .catch((cause) => {
+        .catch((cause: unknown) => {
           if (!valid()) return;
           const denied = cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied';
           this.update({

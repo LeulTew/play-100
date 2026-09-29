@@ -1,6 +1,7 @@
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 import { canonicalCatalogId } from './catalog-identity';
+import { dictionary } from './guards';
 
 export const COMPARE_TRAY_LIMIT = 6;
 export const COMPARE_TRAY_MAX_BYTES = 24_576;
@@ -28,7 +29,7 @@ export function compareTrayStorageKey(scope: string): string {
 function records(value: unknown): LibraryRecord[] {
   if (!Array.isArray(value) || value.length > COMPARE_TRAY_LIMIT)
     throw new Error('Pin up to six games for comparison.');
-  const input: Record<string, unknown> = Object.create(null);
+  const input = dictionary();
   const ids: string[] = [];
   const length = value.length;
   for (let index = 0; index < length; index += 1) {

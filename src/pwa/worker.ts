@@ -167,7 +167,8 @@ export function parsePwaDocumentPolicy(input: unknown): PwaDocumentPolicy {
   }
   const names = new Set<string>();
   const headers: Array<{ name: string; value: string }> = [];
-  for (const entry of input.headers) {
+  const entries: unknown[] = input.headers;
+  for (const entry of entries) {
     if (
       !entry ||
       typeof entry !== 'object' ||

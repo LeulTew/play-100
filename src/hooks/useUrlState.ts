@@ -10,6 +10,7 @@ import {
 } from '../lib/my-games-navigation';
 import type { MyGamesTab } from '../lib/my-games-navigation';
 import { pageDestination } from '../lib/page-navigation';
+import { historyState } from '../lib/history-state';
 
 const NAVIGATION_EVENT = 'play100:navigate';
 
@@ -42,12 +43,7 @@ export function useUrlState() {
   const game = parsed.game;
 
   const navigate = useCallback(
-    (
-      nextSearch: string,
-      method: 'push' | 'replace',
-      state: object | null = null,
-      nextPath = window.location.pathname,
-    ) => {
+    (nextSearch: string, method: 'push' | 'replace', state: unknown = null, nextPath = window.location.pathname) => {
       if (nextSearch === window.location.search && nextPath === window.location.pathname) return;
       window.history[method === 'push' ? 'pushState' : 'replaceState'](state, '', `${nextPath}${nextSearch}`);
       window.dispatchEvent(new Event(NAVIGATION_EVENT));
@@ -74,16 +70,17 @@ export function useUrlState() {
   const openGame = useCallback(
     (slug: string) => {
       const current = parseUrl(window.location.search);
+      const state = historyState();
       navigate(gameDetailSearch(window.location.search, slug), current.game ? 'replace' : 'push', {
-        ...window.history.state,
-        play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
+        ...state,
+        play100Dialog: current.game ? state.play100Dialog === true : true,
       });
     },
     [navigate],
   );
 
   const closeGame = useCallback(() => {
-    if (window.history.state?.play100Dialog === true) {
+    if (historyState().play100Dialog === true) {
       window.history.back();
     } else {
       navigate(gameDetailSearch(window.location.search, null), 'replace', window.history.state);

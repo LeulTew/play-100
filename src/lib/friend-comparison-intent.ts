@@ -1,4 +1,6 @@
 import type { ComparisonMode } from './friend-comparison';
+import { isRecord, isUnknownArray } from './guards';
+import { historyState } from './history-state';
 
 export const FRIEND_COMPARISON_KEY = 'play100.friend-comparison.v1';
 export interface FriendComparisonView {
@@ -36,9 +38,9 @@ export function parseComparisonView(value: unknown, scope: string): FriendCompar
     Object.keys(row).sort().join() !== 'groupId,mode,page,query,scope,selected,version' ||
     row.version !== 1 ||
     row.scope !== scope ||
-    !Array.isArray(row.selected) ||
+    !isUnknownArray(row.selected) ||
     row.selected.length > 6 ||
-    row.selected.some((uid: unknown) => typeof uid !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(uid)) ||
+    !row.selected.every((uid): uid is string => typeof uid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(uid)) ||
     new Set(row.selected).size !== row.selected.length ||
     (row.mode !== 'common-ranked' && row.mode !== 'all-shared') ||
     typeof row.query !== 'string' ||
@@ -62,7 +64,7 @@ export function parseComparisonView(value: unknown, scope: string): FriendCompar
   };
 }
 export function readComparisonView(scope: string): FriendComparisonView | null {
-  const fromHistory = parseComparisonView(history.state?.play100Compare, scope);
+  const fromHistory = parseComparisonView(historyState().play100Compare, scope);
   if (fromHistory) return fromHistory;
   try {
     const raw = sessionStorage.getItem(FRIEND_COMPARISON_KEY);
@@ -96,14 +98,16 @@ export function rememberComparisonView(
   }
 }
 export function clearComparisonView(scope: string): void {
-  if (history.state?.play100Compare?.scope === scope) {
-    const next = { ...history.state };
+  const state = historyState();
+  if (isRecord(state.play100Compare) && state.play100Compare.scope === scope) {
+    const next = { ...state };
     delete next.play100Compare;
     history.replaceState(next, '', location.href);
   }
   try {
     const raw = sessionStorage.getItem(FRIEND_COMPARISON_KEY);
-    if (raw && JSON.parse(raw)?.scope === scope) sessionStorage.removeItem(FRIEND_COMPARISON_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (isRecord(parsed) && parsed.scope === scope) sessionStorage.removeItem(FRIEND_COMPARISON_KEY);
   } catch (cause) {
     console.warn(
       'The previous comparison preference could not be cleared. It will not be used by another account.',

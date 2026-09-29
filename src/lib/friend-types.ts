@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import { requireObject } from './guards.js';
+import { isUnknownArray, requireObject } from './guards.js';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { parseAvatar, parsePublicationEntry, parsePublicEntry, projectPublicRanking } from './community';
 import type { AvatarValue, PublicEntry } from './community';
@@ -242,9 +242,9 @@ export function friendName(value: unknown, max = 60): string {
 }
 export function friendSelection(value: unknown): string[] {
   if (
-    !Array.isArray(value) ||
+    !isUnknownArray(value) ||
     value.length > FRIEND_SELECTION_LIMIT ||
-    !value.every((id: unknown) => typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$/.test(id)) ||
+    !value.every((id): id is string => typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$/.test(id)) ||
     new Set(value).size !== value.length
   )
     invalid('Choose up to 200 distinct ranked game identities.');

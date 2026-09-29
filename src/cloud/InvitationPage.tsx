@@ -89,7 +89,7 @@ export function InvitationPage({
       .then((value) => {
         if (alive) setPreview(value);
       })
-      .catch((cause) => {
+      .catch((cause: unknown) => {
         if (!alive) return;
         setError(onlineError(cause));
         const code = cause && typeof cause === 'object' && 'code' in cause ? cause.code : '';

@@ -45,7 +45,7 @@ export async function renderFilmThumbnails(input: Buffer, width: number, height:
 }
 
 export async function generateFilmThumbnails(root = ROOT, verify = false) {
-  const entries = [];
+  const entries: Array<[string, { source: object; candidates: object[] }]> = [];
   const assets = new Map<string, Buffer>();
   for (const film of [...collectionFilms].sort((a, b) => a.id.localeCompare(b.id, 'en'))) {
     const filename = /^\/videos\/([a-f0-9]{64})\.jpg$/.exec(film.poster.src);

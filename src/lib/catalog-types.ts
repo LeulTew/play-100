@@ -1,5 +1,6 @@
 import type { LibraryRecord } from './personal-types.js';
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library.js';
+import { dictionary, isUnknownArray } from './guards.js';
 
 export type CatalogSource = 'wikidata' | 'freetogame';
 
@@ -20,7 +21,7 @@ export function parseCatalogPage(value: unknown): CatalogPage {
     (row.source !== 'wikidata' && row.source !== 'freetogame') ||
     typeof row.query !== 'string' ||
     row.query.length > 80 ||
-    !Array.isArray(row.items) ||
+    !isUnknownArray(row.items) ||
     row.items.length > 20 ||
     typeof row.total !== 'number' ||
     !Number.isSafeInteger(row.total) ||
@@ -39,7 +40,7 @@ export function parseCatalogPage(value: unknown): CatalogPage {
     !row.notices.every((notice): notice is string => typeof notice === 'string' && notice.length <= 1000)
   )
     throw new Error('The catalog returned invalid pagination or source information.');
-  const recordMap: Record<string, unknown> = Object.create(null);
+  const recordMap = dictionary();
   for (const item of row.items) {
     if (
       typeof item !== 'object' ||

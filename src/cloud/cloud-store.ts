@@ -550,7 +550,7 @@ export class CloudStore {
             throw new Error('The signed-in account changed. Return to the same account before continuing.');
           const chunks = await getDocsFromServer(
             query(collection(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks'), limit(20)),
-          ).catch(async (cause) => {
+          ).catch(async (cause: unknown) => {
             if (
               confirmed === 0 &&
               cause &&
