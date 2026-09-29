@@ -32,16 +32,20 @@ async function htmlDocuments(root: string, relative = ''): Promise<string[]> {
   return files.sort();
 }
 
-export function emittedDocumentPolicy(manifest: unknown): string | null {
+function emittedDocumentHeader(manifest: unknown, name: string): string | null {
   if (!manifest || typeof manifest !== 'object' || !('documentPolicy' in manifest)) return null;
   const policy: unknown = manifest.documentPolicy;
   if (!policy || typeof policy !== 'object' || !('headers' in policy) || !Array.isArray(policy.headers)) return null;
   const header: unknown = policy.headers.find(
     (entry: unknown) =>
-      Boolean(entry) && typeof entry === 'object' && (entry as { name?: unknown }).name === 'content-security-policy',
+      Boolean(entry) && typeof entry === 'object' && (entry as { name?: unknown }).name === name,
   );
   const value = header && typeof header === 'object' ? (header as { value?: unknown }).value : undefined;
   return typeof value === 'string' ? value : null;
+}
+
+export function emittedDocumentPolicy(manifest: unknown): string | null {
+  return emittedDocumentHeader(manifest, 'content-security-policy');
 }
 
 export async function checkCsp(root: string, configuration: unknown): Promise<{ lines: string[]; problems: string[] }> {
@@ -54,11 +58,19 @@ export async function checkCsp(root: string, configuration: unknown): Promise<{ 
   // One build holds one shell variant, so stale style hashes are left to the build, which knows both.
   const problems = cspProblems(documents, policy, { otherVariantStyles: 'unchecked' });
   problems.push(...reportingProblems(configuration));
-  const emitted = emittedDocumentPolicy(JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8')));
+  const manifest: unknown = JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8'));
+  const emitted = emittedDocumentPolicy(manifest);
   if (emitted !== policy)
     problems.push(
       'pwa-assets.json embeds a different content-security-policy than vercel.json for the documents the service worker serves.',
     );
+  if (
+    emitted &&
+    directiveSources(emitted, 'report-to') !== null &&
+    (JSON.stringify(directiveSources(emitted, 'report-to')) !== '["csp"]' ||
+      emittedDocumentHeader(manifest, 'reporting-endpoints') !== 'csp="/api/csp-report"')
+  )
+    problems.push('pwa-assets.json must retain the first-party Reporting-Endpoints header for CSP report-to.');
   const lines = documents.flatMap((entry) =>
     inlineBlocks(entry.html).map(
       (block, index) => `${entry.name} inline ${block.kind} #${index}: ${block.bytes} B ${block.source}`,

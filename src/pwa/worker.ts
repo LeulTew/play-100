@@ -25,6 +25,7 @@ class PwaAssetTimeoutError extends Error {
 
 export const PWA_DOCUMENT_HEADERS = [
   'content-security-policy',
+  'reporting-endpoints',
   'cross-origin-opener-policy',
   'cross-origin-resource-policy',
   'referrer-policy',
@@ -145,6 +146,15 @@ export function parsePwaDocumentPolicy(input: unknown): PwaDocumentPolicy {
     headers.push({ name: entry.name, value: entry.value });
   }
   if (!names.has('content-security-policy')) throw new Error('The offline document security policy has no CSP.');
+  const csp = headers.find((header) => header.name === 'content-security-policy')!.value;
+  const reportTo = /(?:^|;)\s*report-to(?:\s+([^;]*))?(?:;|$)/i.exec(csp);
+  if (
+    reportTo &&
+    (reportTo[1]?.trim() !== 'csp' ||
+      headers.find((header) => header.name === 'reporting-endpoints')?.value !== 'csp="/api/csp-report"')
+  ) {
+    throw new Error('The offline CSP report-to directive requires the first-party Reporting-Endpoints header.');
+  }
   return { headers, sha256: input.sha256 };
 }
 

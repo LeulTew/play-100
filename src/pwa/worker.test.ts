@@ -354,6 +354,26 @@ describe('PWA positive cache boundaries', () => {
 });
 
 describe('version-bound offline security headers', () => {
+  it('keeps the reporting endpoint with report-to in verified and cached document responses', async () => {
+    const csp = "default-src 'self'; report-to csp; report-uri /api/csp-report";
+    const reporting = documentPolicy(csp);
+    const headers = [...reporting.headers, { name: 'reporting-endpoints', value: 'csp="/api/csp-report"' }];
+    const withReports = { headers, sha256: createHash('sha256').update(JSON.stringify(headers)).digest('hex') };
+    const fixture = workerFixture(false, { ...manifest, documentPolicy: withReports });
+    await fixture.lifetime('install');
+    const response = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`).then((cache) =>
+      cache.match(`${origin}/index.html`),
+    );
+    expect(response?.headers.get('content-security-policy')).toBe(csp);
+    expect(response?.headers.get('reporting-endpoints')).toBe('csp="/api/csp-report"');
+    expect(() => validatePwaManifest({ ...manifest, documentPolicy: reporting })).toThrow(/Reporting-Endpoints/);
+    expect(() => validatePwaManifest({
+      ...manifest,
+      documentPolicy: { ...withReports, headers: headers.map((header) => header.name === 'reporting-endpoints'
+        ? { ...header, value: 'csp="https://third.test/report"' } : header) },
+    })).toThrow(/Reporting-Endpoints/);
+  });
+
   it('uses the embedded document policy and never copies cookies or arbitrary response headers', async () => {
     const asset = assets[0]!;
     const response = await verifiedPwaResponse(
