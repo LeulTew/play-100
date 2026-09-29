@@ -77,7 +77,7 @@ export function OnlinePages({
   sharing,
   friendControls,
   actions,
-  authPanel,
+  renderAuthPanel,
   pageScope,
   routeKey,
   error,
@@ -102,8 +102,12 @@ export function OnlinePages({
   sharing: OnlineSharing;
   friendControls: OnlineFriends;
   actions: AccountActions;
-  /** The sign-in panel a page that needs an account shows in its place. */
-  authPanel: ReactNode;
+  /**
+   * Renders the sign-in panel a page that needs an account shows in its place. A function, not an element: React's
+   * development build names a changed element prop when it logs a render, and naming a lazy element's type starts
+   * loading it, so an element prop would load the sign-in panel on every signed-in page.
+   */
+  renderAuthPanel: () => ReactNode;
   pageScope: string;
   routeKey: string;
   error: string;
@@ -146,7 +150,7 @@ export function OnlinePages({
           store={friends.store}
           invitation={openInvitation}
           identity={friendIdentity}
-          authPanel={authPanel}
+          authPanel={renderAuthPanel()}
           onAccount={() => onNavigate('account')}
           onFriends={() => onNavigate('friends')}
           onSettings={friends.acceptSettings}
@@ -156,7 +160,7 @@ export function OnlinePages({
           <h1 data-page-heading tabIndex={-1}>
             Sign in
           </h1>
-          {authPanel}
+          {renderAuthPanel()}
         </section>
       ) : page === 'friends' && friendIdentity ? (
         <FriendsPage

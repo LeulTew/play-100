@@ -278,7 +278,7 @@ export default function OnlineController({
       />
     );
   };
-  const authPanel = renderAuthPanel(purposes.page);
+  const authPanel = () => renderAuthPanel(purposes.page);
   if (session.startupError) throw new Error(session.startupError);
   return (
     <>
@@ -311,7 +311,7 @@ export default function OnlineController({
           sharing={sharing}
           friendControls={friendControls}
           actions={actions}
-          authPanel={authPanel}
+          renderAuthPanel={authPanel}
           pageScope={pageScope}
           routeKey={pageRouteKey}
           error={visibleError}
