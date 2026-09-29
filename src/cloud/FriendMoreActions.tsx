@@ -10,7 +10,7 @@ function focusItem(popup: HTMLElement, last: boolean) {
 /**
  * A friend row's More actions: Remove friend (for friends) and Block player. With the Popover API the menu is a popover
  * placed below its button. Without it (before Chrome 114, Firefox 125 and Safari 17) the menu is an ordinary disclosure
- * that opens in place below the row's actions. It has the same keys and closes on Escape, Tab, a choice or a press
+ * that opens in place below the row's actions. It has the same keys and closes on Escape, Tab, a choice or a click
  * outside it.
  */
 export function FriendMoreActions({
@@ -71,11 +71,13 @@ export function FriendMoreActions({
       window.removeEventListener('scroll', place);
     };
   }, [open, popover, place]);
-  // The disclosure closes as the popover does: Escape anywhere returns focus to its button, and a press outside it and
-  // its button closes it and leaves focus where the press lands.
+  // The disclosure closes as the popover does: Escape anywhere returns focus to its button, and a click outside it and
+  // its button closes it and leaves focus where the click lands. It closes on the click, not the press: it opens in
+  // place, so closing moves the content below it, and closing on the press would move a click's target away from the
+  // pointer before its release.
   useEffect(() => {
     if (!open || popover) return;
-    const press = (event: PointerEvent) => {
+    const outside = (event: MouseEvent) => {
       const target = event.target instanceof Node ? event.target : null;
       if (target && (menu.current?.contains(target) || trigger.current?.contains(target))) return;
       setOpen(false);
@@ -86,10 +88,10 @@ export function FriendMoreActions({
       setOpen(false);
       trigger.current?.focus({ preventScroll: true });
     };
-    document.addEventListener('pointerdown', press, true);
+    document.addEventListener('click', outside, true);
     document.addEventListener('keydown', escape);
     return () => {
-      document.removeEventListener('pointerdown', press, true);
+      document.removeEventListener('click', outside, true);
       document.removeEventListener('keydown', escape);
     };
   }, [open, popover]);

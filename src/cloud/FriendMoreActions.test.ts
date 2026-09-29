@@ -8,7 +8,12 @@ import { popoverSupported } from './popover-support';
 function browserWith({ methods, selector }: { methods: boolean; selector: boolean }) {
   vi.stubGlobal(
     'HTMLElement',
-    methods ? class { showPopover() {} hidePopover() {} } : class {},
+    methods
+      ? class {
+          showPopover() {}
+          hidePopover() {}
+        }
+      : class {},
   );
   vi.stubGlobal('document', {
     createElement: () => ({

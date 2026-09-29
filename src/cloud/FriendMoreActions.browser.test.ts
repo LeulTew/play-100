@@ -132,19 +132,32 @@ describe.each([
       await browserExpect(menu('Ada')).toBeHidden();
       await browserExpect(more('Grace')).toBeFocused();
 
-      // A press elsewhere closes it, and opening another row's menu closes this one.
+      // A click elsewhere closes it.
       await more('Ada').click();
       await browserExpect(menu('Ada')).toBeVisible();
       await page.getByRole('heading', { name: 'Friends', exact: true }).click();
       await browserExpect(menu('Ada')).toBeHidden();
-      await more('Ada').click();
-      await browserExpect(menu('Ada')).toBeVisible();
+      // Opening another row's menu closes this one. Grace's menu opens below her row, so Ada's button stays in reach.
       await more('Grace').click();
       await browserExpect(menu('Grace')).toBeVisible();
-      await browserExpect(menu('Ada')).toBeHidden();
-      await browserExpect(item('Grace', 'Remove friend')).toBeFocused();
-      await page.keyboard.press('Escape');
+      await more('Ada').click();
+      await browserExpect(menu('Ada')).toBeVisible();
       await browserExpect(menu('Grace')).toBeHidden();
+      await browserExpect(item('Ada', 'Remove friend')).toBeFocused();
+      await page.keyboard.press('Escape');
+      await browserExpect(menu('Ada')).toBeHidden();
+      if (withoutPopover) {
+        // The disclosure opens in place and pushes the rows below it down; closing it lifts them back. A click on one
+        // of them still reaches the control it was aimed at, and opens Grace's menu as it closes Ada's.
+        await more('Ada').click();
+        await browserExpect(menu('Ada')).toBeVisible();
+        await more('Grace').click();
+        await browserExpect(menu('Grace')).toBeVisible();
+        await browserExpect(menu('Ada')).toBeHidden();
+        await browserExpect(item('Grace', 'Remove friend')).toBeFocused();
+        await page.keyboard.press('Escape');
+        await browserExpect(menu('Grace')).toBeHidden();
+      }
 
       // Remove and Block close the menu, return focus to its button and reach the page.
       await more('Ada').click();
