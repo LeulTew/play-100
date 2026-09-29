@@ -12,13 +12,22 @@ export interface LegacyWriterFixture {
   releaseBlocker(): void;
 }
 declare global {
-  interface Window { legacyWriterFixture: LegacyWriterFixture }
+  interface Window {
+    legacyWriterFixture: LegacyWriterFixture;
+  }
 }
 
 const scope = accountScope('two-tab-writer', 'demo-play100');
 const game: LibraryRecord = {
-  id: 'synthetic-canonical', source: 'collection', sourceId: 'synthetic-canonical',
-  title: 'Synthetic canonical game', year: 2020, studio: null, genre: null, sourceUrl: null, collectionRank: 1,
+  id: 'synthetic-canonical',
+  source: 'collection',
+  sourceId: 'synthetic-canonical',
+  title: 'Synthetic canonical game',
+  year: 2020,
+  studio: null,
+  genre: null,
+  sourceUrl: null,
+  collectionRank: 1,
 };
 let captured: ScopedLibrary | null = null;
 let changes = 0;
@@ -70,7 +79,9 @@ async function start() {
     });
     blocker.onversionchange = () => {};
   }
-  legacyDatabase.subscribePersonalLibrary(() => { changes += 1; }, scope);
+  legacyDatabase.subscribePersonalLibrary(() => {
+    changes += 1;
+  }, scope);
   output.textContent = 'Release 6 ready';
 }
 void start().catch((error: unknown) => {

@@ -124,7 +124,13 @@ export default function Fixture() {
       {session.signedIn && account.error && (
         <div>
           <p role="alert">{account.error}</p>
-          <button onClick={() => { void account.refresh(); }}>Retry device library</button>
+          <button
+            onClick={() => {
+              void account.refresh();
+            }}
+          >
+            Retry device library
+          </button>
         </div>
       )}
     </main>
