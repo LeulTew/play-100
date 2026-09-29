@@ -1,284 +1,27 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo } from 'react';
 import type { ReactNode } from 'react';
 import type { useCollection } from '../hooks/useCollection';
-import type { Filters, Game, MotionPreference } from '../lib/types';
-import type { LibraryRecord, PersonalAction, PersonalLibraryState, PersonalProgress } from '../lib/personal-types';
+import { PAGE_SIZE, useCollectionView } from '../hooks/useCollectionView';
+import type { Filters, MotionPreference } from '../lib/types';
+import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 import { recordFromGame } from '../lib/personal-types';
-import { filterGames } from '../lib/collection';
-import { createSearch, defaultFilters } from '../lib/url';
+import { defaultFilters } from '../lib/url';
 import CollectionArtifact from './CollectionArtifact';
 import { CollectionControls } from './CollectionControls';
-import { GameCard } from './GameCard';
+import { CollectionCard } from './CollectionCard';
+import { DeferredCollection } from './DeferredCollection';
 import { SelectionBar } from './SelectionBar';
-import type { SelectionAction } from './SelectionBar';
 import { Icon } from './Icon';
 import Magnet from './bits/Magnet';
 import AnimatedContent from './bits/AnimatedContent';
 import { author } from '../lib/author';
-import { useExtendedSearch } from '../hooks/useExtendedSearch';
-import { filterUnranked, unrankedRecords } from '../lib/extended-search';
-import type { CollectionExtrasProps } from './CollectionExtras';
-import { TableFallback, ExtendedFallback, FilmsFallback } from './CollectionExtrasFallback';
-import { collectionExtrasModule, preloadCollectionExtras } from '../lib/collection-extras-preload';
-import { ChunkRecovery } from './ChunkRecovery';
-import { ChunkBoundary } from './ChunkBoundary';
+import { preloadCollectionExtras } from '../lib/collection-extras-preload';
 import './collection-films.css';
 import './catalog/discover.css';
-import { effectiveProgressFilter, pickCandidates, selectionOperation } from '../lib/game-progress';
-import { catalogActionRecord, catalogOwnership, catalogProgress } from '../lib/catalog-identity';
-import type { CatalogOwnership } from '../lib/catalog-identity';
-import { useStableHandler } from '../hooks/useLatest';
+import { catalogActionRecord } from '../lib/catalog-identity';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
-import { scrollCollectionIntoView } from './collection-landing';
-import { ComparePinButton } from './compare-tray/ComparePinButton';
 import { formatResultRange } from '../lib/local-pagination';
-
-const PAGE_SIZE = 24;
-
-function DeferredCollection({
-  input,
-  near = false,
-  onReady,
-}: {
-  input: CollectionExtrasProps;
-  near?: boolean;
-  onReady?: () => void;
-}) {
-  const [module, setModule] = useState(collectionExtrasModule.peek);
-  const [requested, setRequested] = useState(!near);
-  const [failed, setFailed] = useState(false);
-  const [film, setFilm] = useState<'the-100' | 'discover-compare'>();
-  const root = useRef<HTMLDivElement>(null);
-  const focusedFilm = useRef<string | null>(null);
-  const pendingSearch = useRef<{ queryKey: string; trigger: HTMLButtonElement; activate: boolean } | null>(null);
-  const ready = input.kind !== 'films' || input.props.postersReady;
-  // Without IntersectionObserver a nearby section cannot wait to be near, so it asks for its tools once it is ready.
-  if (ready && !requested && !module && typeof IntersectionObserver === 'undefined') setRequested(true);
-  useEffect(() => {
-    if (!ready || requested || module || !root.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setRequested(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '800px 0px' },
-    );
-    observer.observe(root.current);
-    return () => observer.disconnect();
-  }, [ready, requested, module, near]);
-  useEffect(() => {
-    if (!requested || module) return;
-    let current = true;
-    void collectionExtrasModule.load().then(
-      (loaded) => {
-        if (current) setModule(loaded);
-      },
-      (cause) => {
-        console.error('The requested collection tools did not load.', cause);
-        if (current) setFailed(true);
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [requested, module]);
-  useLayoutEffect(() => {
-    if (module && focusedFilm.current && document.activeElement === document.body) {
-      const selector =
-        focusedFilm.current === 'heading' ? '#collection-films-title' : `button[data-film-id="${focusedFilm.current}"]`;
-      root.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
-    }
-  }, [module]);
-  useLayoutEffect(() => {
-    const pending = pendingSearch.current;
-    if (!pending) return;
-    if (input.kind !== 'extended' || pending.queryKey !== input.props.queryKey) {
-      pendingSearch.current = null;
-      return;
-    }
-    if (!module) return;
-    pendingSearch.current = null;
-    const retainFocus = document.activeElement === pending.trigger || document.activeElement === document.body;
-    if (pending.activate) {
-      if (retainFocus) {
-        root.current?.querySelector<HTMLElement>('#extended-results-title')?.focus({ preventScroll: true });
-      }
-      if (input.props.online.eligible && !input.props.online.remoteEnabled) input.props.online.searchOnline();
-    } else if (retainFocus) {
-      const target =
-        root.current?.querySelector<HTMLButtonElement>('[data-extended-search]') ??
-        root.current?.querySelector<HTMLElement>('#extended-results-title');
-      target?.focus({ preventScroll: true });
-    }
-  }, [input, module]);
-  const Loaded = module?.default;
-  // The loaded tools are committed by now, so a keyboard append made while the placeholder showed can land.
-  useLayoutEffect(() => {
-    if (Loaded) onReady?.();
-  }, [Loaded, onReady]);
-  const fallback =
-    input.kind === 'table' ? (
-      <TableFallback {...input.props} />
-    ) : input.kind === 'extended' ? (
-      <ExtendedFallback
-        {...input.props}
-        onSearchIntent={(trigger, activate) => {
-          const prior = pendingSearch.current;
-          pendingSearch.current = {
-            queryKey: input.props.queryKey,
-            trigger,
-            activate: activate || (prior?.queryKey === input.props.queryKey && prior.activate),
-          };
-          setRequested(true);
-        }}
-      />
-    ) : (
-      <FilmsFallback
-        onWatch={(id) => {
-          setFilm(id);
-          setRequested(true);
-        }}
-      />
-    );
-  const failureMessage = input.kind === 'films' ? "The films didn't load." : "These collection tools didn't load.";
-  const body = failed ? (
-    <div className="data-error">
-      <ChunkRecovery message={failureMessage} />
-    </div>
-  ) : Loaded ? (
-    <ChunkBoundary fallback={<ChunkRecovery message={failureMessage} />}>
-      {input.kind === 'films' ? (
-        <Loaded kind="films" props={{ ...input.props, initialFilmId: film, embedded: true }} />
-      ) : input.kind === 'extended' ? (
-        <Loaded kind="extended" props={{ ...input.props, embedded: true }} />
-      ) : (
-        <Loaded {...input} />
-      )}
-    </ChunkBoundary>
-  ) : (
-    fallback
-  );
-  return (
-    <div
-      ref={root}
-      data-collection-extras={input.kind}
-      onFocusCapture={(event) => {
-        if (event.target instanceof HTMLElement) {
-          focusedFilm.current =
-            event.target.id === 'collection-films-title' ? 'heading' : (event.target.dataset.filmId ?? null);
-        }
-        setRequested(true);
-      }}
-    >
-      {input.kind === 'films' ? (
-        <section
-          id="collection-films"
-          className="collection-films"
-          aria-labelledby="collection-films-title"
-          aria-busy={requested && !Loaded && !failed}
-        >
-          <div className="films-heading">
-            <h2 id="collection-films-title" tabIndex={-1}>
-              Watch films
-            </h2>
-            <p>Short tours. Play only when you choose.</p>
-          </div>
-          {body}
-        </section>
-      ) : input.kind === 'extended' ? (
-        <section
-          className="extended-results discovery-extended"
-          aria-labelledby="extended-results-title"
-          aria-busy={requested && !Loaded && !failed}
-        >
-          <div className="extended-heading">
-            <h2 id="extended-results-title" tabIndex={-1}>
-              Beyond The 100
-            </h2>
-            <span>
-              {input.props.records.length} {input.props.records.length === 1 ? 'match' : 'matches'}
-              {input.props.online.loading ? ' so far' : ''}
-            </span>
-          </div>
-          {body}
-        </section>
-      ) : (
-        body
-      )}
-    </div>
-  );
-}
-
-type ProgressKey = 'later' | 'completed' | 'played';
-
-interface CollectionCardProps {
-  game: Game;
-  filters: Filters;
-  state: PersonalProgress | undefined;
-  ownership: CatalogOwnership;
-  pinnable: boolean;
-  onOpen: (id: string, origin?: MotionOriginHint) => void;
-  onToggle: (id: string, key: ProgressKey, value?: boolean) => void;
-  onPreview: (record: LibraryRecord, origin?: MotionOriginHint) => void;
-  eager: boolean;
-  selecting: boolean;
-  selected: boolean;
-  onSelect: (id: string) => void;
-  busy: boolean;
-}
-
-/** One grid or list card. Memoised with stable element props, so a page render repaints only the cards it changes. */
-const CollectionCard = memo(function CollectionCard({
-  game,
-  filters,
-  state,
-  ownership,
-  pinnable,
-  onOpen,
-  onToggle,
-  onPreview,
-  eager,
-  selecting,
-  selected,
-  onSelect,
-  busy,
-}: CollectionCardProps) {
-  const actionRecord = useMemo(() => catalogActionRecord(recordFromGame(game), ownership), [game, ownership]);
-  const copies = ownership.get(game.slug);
-  const onSave = useCallback((id: string) => onToggle(id, 'later'), [onToggle]);
-  const onPlayed = useCallback((id: string, value: boolean) => onToggle(id, 'played', value), [onToggle]);
-  const onCompleted = useCallback((id: string, value: boolean) => onToggle(id, 'completed', value), [onToggle]);
-  const savedCopies = useMemo(
-    () => <SavedCatalogCopies canonicalId={game.slug} copies={copies} onOpen={onPreview} />,
-    [game.slug, copies, onPreview],
-  );
-  const compareActions = useMemo(
-    () => pinnable && <ComparePinButton record={actionRecord} compact disabled={busy} />,
-    [pinnable, actionRecord, busy],
-  );
-  return (
-    <GameCard
-      game={game}
-      filters={filters}
-      state={state}
-      onOpen={onOpen}
-      onSave={onSave}
-      onPlayed={onPlayed}
-      onCompleted={onCompleted}
-      eager={eager}
-      selecting={selecting}
-      selected={selected}
-      onSelect={onSelect}
-      busy={busy}
-      compareRecord={pinnable ? actionRecord : undefined}
-      savedCopies={savedCopies}
-      compareActions={compareActions}
-    />
-  );
-});
 
 interface CollectionPageProps {
   collection: ReturnType<typeof useCollection>;
@@ -326,132 +69,37 @@ function CollectionPage({
   pinnedIds,
   comparisonTray,
 }: CollectionPageProps) {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [selecting, setSelecting] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [browseRequest, setBrowseRequest] = useState(0);
-  const handledBrowseRequest = useRef(0);
-  const collectionRef = useRef<HTMLElement>(null);
-  const appendedFocus = useRef<{ id: string; signature: string; trigger: HTMLButtonElement } | null>(null);
-  const [extrasReady, setExtrasReady] = useState(() => collectionExtrasModule.peek() !== null);
-  const markExtrasReady = useCallback(() => setExtrasReady(true), []);
-  const games = collection.data?.games;
-  const ownership = useMemo(() => catalogOwnership(state.records), [state.records]);
-  const progress = useMemo(() => catalogProgress(state, ownership), [state, ownership]);
-  const onlineScope = filters.tier === 'all' && filters.list !== 'later' && effectiveProgressFilter(filters) === 'all';
-  const online = useExtendedSearch(filters.q, Boolean(games) && onlineScope && filters.catalogs === 'on', games ?? []);
-  const onlineIds = useMemo(() => new Set(online.records.map((record) => record.id)), [online.records]);
-  const results = useMemo(
-    () => filterGames(games ?? [], filters, progress, onlineIds),
-    [games, filters, progress, onlineIds],
-  );
-  const extras = useMemo(
-    () => unrankedRecords(games ?? [], state.records, online.records),
-    [games, state.records, online.records],
-  );
-  const extraResults = useMemo(
-    () => filterUnranked(extras, filters, state.progress, onlineIds),
-    [extras, filters, state.progress, onlineIds],
-  );
-  const resultRecords = useMemo(() => [...results.map(recordFromGame), ...extraResults], [results, extraResults]);
-  const currentSelection = useMemo(
-    () => new Set(resultRecords.filter((record) => selected.has(record.id)).map((record) => record.id)),
-    [resultRecords, selected],
-  );
-  const showExtended = extraResults.length > 0 || online.eligible;
-  const additions = useMemo(() => unrankedRecords(games ?? [], state.records, []), [games, state.records]);
-  const signature = createSearch(filters);
-  // A new view starts at its first page with nothing selected.
-  const [viewSignature, setViewSignature] = useState(signature);
-  if (viewSignature !== signature) {
-    setViewSignature(signature);
-    setVisibleCount(PAGE_SIZE);
-    setSelected(new Set());
-  }
-  useLayoutEffect(() => {
-    const requested = appendedFocus.current;
-    if (!requested) return;
-    if (
-      requested.signature !== signature ||
-      (document.activeElement !== requested.trigger && document.activeElement !== document.body)
-    ) {
-      appendedFocus.current = null;
-      return;
-    }
-    const title = collectionRef.current?.querySelector<HTMLAnchorElement>(
-      `[data-game="${CSS.escape(requested.id)}"] ${filters.view === 'table' ? '.table-game a' : '.game-link'}`,
-    );
-    // The table's placeholder rows carry no data-game: keep the request until the loaded table commits.
-    if (!title) return;
-    appendedFocus.current = null;
-    title.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-    title.focus({ preventScroll: true });
-  }, [visibleCount, signature, filters.view, extrasReady]);
-  useEffect(() => {
-    if (collection.status === 'loading' || location.hash !== '#collection-films') return;
-    const frame = requestAnimationFrame(() => {
-      document.getElementById('collection-films')?.scrollIntoView({ behavior: 'instant' });
-      document.getElementById('collection-films-title')?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [collection.status]);
-  const { savedCount, completedCount } = useMemo(
-    () => ({
-      savedCount: Object.values(state.progress).filter((progress) => progress.later).length,
-      completedCount: Object.values(state.progress).filter((progress) => progress.completed).length,
-    }),
-    [state.progress],
-  );
-  useLayoutEffect(() => {
-    if (browseRequest === handledBrowseRequest.current) return;
-    handledBrowseRequest.current = browseRequest;
-    scrollCollectionIntoView(animate ? 'smooth' : 'instant');
-  }, [browseRequest, animate]);
-  const browse = () => setBrowseRequest((request) => request + 1);
-  const toggle = useStableHandler((id: string, key: ProgressKey, value?: boolean) => {
-    const game = games?.find((candidate) => candidate.slug === id);
-    if (game) {
-      const record = catalogActionRecord(recordFromGame(game), ownership);
-      void onAction(
-        value === undefined
-          ? { type: 'toggle-progress', record, key }
-          : { type: 'set-progress', records: [record], key, value },
-      );
-    }
-  });
-  const toggleSelection = useCallback(
-    (id: string) =>
-      setSelected((prior) => {
-        const next = new Set(prior);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      }),
-    [],
-  );
-  const bulk = async (action: SelectionAction) => {
-    const records = resultRecords
-      .filter((record) => currentSelection.has(record.id))
-      .map((record) => catalogActionRecord(record, ownership));
-    if (!records.length) {
-      notify('Select a matching game before applying a bulk action.');
-      return;
-    }
-    const change = selectionOperation(action, records);
-    if (await onAction(change)) setSelected(new Set());
-  };
-  const pick = () => {
-    const candidates = pickCandidates(resultRecords, progress, filters);
-    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    if (chosen && chosen.collectionRank !== null) onOpen(chosen.id);
-    else if (chosen) onPreview(chosen);
-    else
-      notify(
-        resultRecords.length
-          ? 'You have completed every game in this view. Change a filter to discover more.'
-          : 'No loaded games match this view. Reset filters for a fresh pick.',
-      );
-  };
+  const {
+    visibleCount,
+    setVisibleCount,
+    selecting,
+    setSelecting,
+    selected,
+    setSelected,
+    collectionRef,
+    appendedFocus,
+    markExtrasReady,
+    games,
+    ownership,
+    progress,
+    onlineScope,
+    online,
+    results,
+    extras,
+    extraResults,
+    resultRecords,
+    currentSelection,
+    showExtended,
+    additions,
+    signature,
+    savedCount,
+    completedCount,
+    browse,
+    toggle,
+    toggleSelection,
+    bulk,
+    pick,
+  } = useCollectionView({ collection, state, filters, animate, onAction, onOpen, onPreview, notify });
   return (
     <>
       {filters.view !== 'table' && (
