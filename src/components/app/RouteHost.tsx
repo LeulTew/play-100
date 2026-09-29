@@ -9,6 +9,7 @@ import { createMemoizedModule } from '../../lib/memoized-module';
 import { ChunkBoundary } from '../ChunkBoundary';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { routeBoundaryKey } from './route-boundary';
+import { RouteBoundary } from './RouteBoundary';
 import { OnlineRoute } from './OnlineRoute';
 import type { OnlineControllerProps } from './OnlineRoute';
 
@@ -70,18 +71,20 @@ export const RouteHost = memo(function RouteHost({ route, scope, online, content
         </section>
       ) : (
         content && (
-          <ChunkBoundary
-            key={routeBoundaryKey(route, content.kind, scope)}
-            fallback={
-              <section className="app-page data-error">
-                <ChunkRecovery message="This page didn't load." />
-              </section>
-            }
-          >
-            <Suspense key={boundary} fallback={<RouteFallback route={route} kind="public-page" />}>
-              <div key={scope}>{publicContent(content, route)}</div>
-            </Suspense>
-          </ChunkBoundary>
+          // A page's render error stays inside the page; its failed module load stays with the ChunkBoundary.
+          <RouteBoundary key={routeBoundaryKey(route, content.kind, scope)}>
+            <ChunkBoundary
+              fallback={
+                <section className="app-page data-error">
+                  <ChunkRecovery message="This page didn't load." />
+                </section>
+              }
+            >
+              <Suspense key={boundary} fallback={<RouteFallback route={route} kind="public-page" />}>
+                <div key={scope}>{publicContent(content, route)}</div>
+              </Suspense>
+            </ChunkBoundary>
+          </RouteBoundary>
         )
       )}
     </>
