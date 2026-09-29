@@ -30,7 +30,7 @@ describe('dialog render error boundary', () => {
     expect(boundary.render()).toBeNull();
   });
 
-  it('reports the existing route area and records recovery before clearing the open request', () => {
+  it('reports the dialog area and records recovery before clearing the open request', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const defer = vi.spyOn(globalThis, 'queueMicrotask').mockImplementation(() => {});
     const onClose = vi.fn();
@@ -38,7 +38,7 @@ describe('dialog render error boundary', () => {
     const boundary = new DialogBoundary({ children: null, onClose, onFailure });
     const error = new TypeError('Synthetic dialog failure');
     boundary.componentDidCatch(error, { componentStack: '\n    at Detail' });
-    expect(reportClientError).toHaveBeenCalledWith(error, 'route');
+    expect(reportClientError).toHaveBeenCalledWith(error, 'dialog');
     expect(log).toHaveBeenCalledWith(
       'A dialog could not render. The rest of Play 100 is still available.',
       error.message,

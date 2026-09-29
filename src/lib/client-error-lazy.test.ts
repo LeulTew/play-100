@@ -31,7 +31,9 @@ describe('lazy client fault reporting', () => {
   it('keeps beacon, fingerprint and batching implementation out of the eager module', () => {
     const source = readFileSync(new URL('./client-error-report.ts', import.meta.url), 'utf8');
     expect(source).toContain("import('./client-error-reporter')");
-    expect(source).not.toMatch(/sendBeacon|Blob|querySelector|setTimeout|client-error-schema/);
+    expect(source.replace(/^import type\b[^\n]*;$/gm, '')).not.toMatch(
+      /sendBeacon|Blob|querySelector|setTimeout|client-error-schema/,
+    );
     expect(source).not.toMatch(/^import\s+(?!type\b)/m);
   });
 

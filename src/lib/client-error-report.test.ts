@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createClientErrorReporter, entryBuildFingerprint } from './client-error-reporter';
 import { reportClientError } from './client-error-report';
-import { clientErrorCounts, reportRouteTemplate } from './client-error-schema';
+import { CLIENT_ERROR_AREAS, clientErrorCounts, reportRouteTemplate } from './client-error-schema';
+import type { ClientErrorArea } from './client-error-schema';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -20,14 +21,43 @@ function fixture(accepted = true) {
   });
   return {
     ...reporter,
-    report: (name: string, area: 'app' | 'route' | 'online' | 'chunk') =>
-      reporter.report(name, area, '/u/private-handle'),
+    report: (name: string, area: ClientErrorArea) => reporter.report(name, area, '/u/private-handle'),
     sendBeacon,
     warn,
   };
 }
 
 describe('anonymous client error counts', () => {
+  it.each(CLIENT_ERROR_AREAS)('retains the fixed %s area through reporting and endpoint validation', async (area) => {
+    const reporter = fixture();
+    reporter.report('TypeError', area);
+    reporter.flush();
+    const body = JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text());
+    expect(clientErrorCounts(body)).toEqual({ buildVersion, counts: [{ ...row, area }] });
+    expect(reporter.warn).not.toHaveBeenCalled();
+  });
+
+  it('keeps dialog and route counts separate while aggregating repeated dialog faults', () => {
+    expect(
+      clientErrorCounts({
+        buildVersion,
+        counts: [
+          { ...row, area: 'dialog' },
+          { ...row, area: 'route' },
+          { ...row, area: 'dialog' },
+        ],
+      }),
+    ).toEqual({
+      buildVersion,
+      counts: [
+        { ...row, area: 'dialog', count: 2 },
+        { ...row, area: 'route' },
+      ],
+    });
+    for (const area of ['Dialog', 'dialogs', 'private dialog title'])
+      expect(() => clientErrorCounts({ buildVersion, counts: [{ ...row, area }] })).toThrow(/Invalid client error/);
+  });
+
   it('batches only fixed categories, a route template and the entry fingerprint', async () => {
     vi.useFakeTimers();
     const reporter = fixture();
@@ -121,6 +151,7 @@ describe('anonymous client error counts', () => {
     });
     const { reportClientError: report } = await import('./client-error-report');
     report(new TypeError('private'), 'route');
+    report(new TypeError('private dialog title'), 'dialog');
     await vi.dynamicImportSettled();
     documentEvents.dispatchEvent(new Event('visibilitychange'));
     windowEvents.dispatchEvent(new Event('pagehide'));
@@ -129,7 +160,10 @@ describe('anonymous client error counts', () => {
     const blob: Blob = vi.mocked(sendBeacon).mock.calls[0]![1]!;
     expect(JSON.parse(await blob.text())).toEqual({
       buildVersion,
-      counts: [{ errorClass: 'TypeError', area: 'route', route: '/friends/:uid', count: 1 }],
+      counts: [
+        { errorClass: 'TypeError', area: 'route', route: '/friends/:uid', count: 1 },
+        { errorClass: 'TypeError', area: 'dialog', route: '/friends/:uid', count: 1 },
+      ],
     });
   });
 

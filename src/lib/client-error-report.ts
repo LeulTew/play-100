@@ -1,7 +1,9 @@
+import type { ClientErrorArea } from './client-error-schema';
+
 let pending: Promise<typeof import('./client-error-reporter') | null> | undefined;
 let count = 0;
 
-export function reportClientError(error: unknown, area: 'app' | 'route' | 'online' | 'chunk'): void {
+export function reportClientError(error: unknown, area: ClientErrorArea): void {
   if (!import.meta.env.PROD || typeof window === 'undefined' || count >= 20) return;
   count++;
   try {

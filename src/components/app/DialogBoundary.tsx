@@ -24,7 +24,7 @@ export class DialogBoundary extends Component<DialogBoundaryProps, { failed: boo
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
-    reportClientError(error, 'route');
+    reportClientError(error, 'dialog');
     console.error(
       'A dialog could not render. The rest of Play 100 is still available.',
       error instanceof Error ? error.message : 'Unknown render error.',

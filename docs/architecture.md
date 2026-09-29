@@ -15,7 +15,7 @@ header, footer or mobile navigation. The existing result order, aliases,
 private progress filters and pending-edit navigation guards remain unchanged.
 A dialog render failure unmounts only that dialog, clears its open request and
 restores a usable focus target. A keyed dialog boundary reports the existing
-`route` error category and leaves the shell, other dialogs and saved libraries
+`dialog` error category and leaves the shell, other dialogs and saved libraries
 available. The existing guarded reload control explains recovery outside the
 closed dialog; opening another dialog or changing scope does not inherit its
 failed render state. Module-load failures retain their specific recovery UI.

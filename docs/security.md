@@ -30,10 +30,12 @@ report faults, not successful real-user sign-in.
 
 Production error boundaries also send anonymous counts to the first-party
 `/api/client-error-report` endpoint. The only fields are a fixed error class,
-component area (`app`, `route`, `online`, `chunk`), route template, count and a
+component area (`app`, `route`, `online`, `chunk`, `dialog`), route template, count and a
 build fingerprint (`entry:<content hash>` from the same-origin entry script).
 No message, stack, full URL, query, IP, user agent or account identifier is
-included or logged. Unknown classes/routes become fixed categories. Missing
+included or logged. Dialog render faults use `dialog`, separate from routed-page
+faults; the endpoint still accepts all four earlier areas for older clients.
+Unknown classes/routes become fixed categories. Missing
 or invalid fingerprints disable sending; development does not send reports.
 An eager shim snapshots only the error class, component area and current
 pathname; the reporter loads on the first fault, reduces that pathname to a

@@ -263,7 +263,7 @@ for (const mobile of [false, true]) {
               await browserExpect(page.locator('.app-error')).toHaveCount(0);
               await browserExpect(trigger).toBeFocused();
               expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
-              expect(await page.evaluate(() => window.dialogHostFixture.reports)).toEqual(['route']);
+              expect(await page.evaluate(() => window.dialogHostFixture.reports)).toEqual(['dialog']);
               await page.evaluate(() => {
                 window.dialogHostFixture.fault = null;
               });
@@ -293,7 +293,7 @@ for (const mobile of [false, true]) {
         await browserExpect(page.locator('.game-dialog[open]')).toHaveCount(1);
         await browserExpect(page.locator('#game-title')).toBeFocused();
         expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
-        expect(await page.evaluate(() => window.dialogHostFixture.reports)).toEqual(['route']);
+        expect(await page.evaluate(() => window.dialogHostFixture.reports)).toEqual(['dialog']);
         await page.keyboard.press('Escape');
         await browserExpect(page.locator('dialog[open]')).toHaveCount(0);
       }, '/?catalogs=off&game=portal-2&info=settings');

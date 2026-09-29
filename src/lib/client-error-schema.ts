@@ -1,7 +1,7 @@
 import { nullableObject } from './guards.js';
 import { APP_ROUTES, appRoute } from './url.js';
 
-export const CLIENT_ERROR_AREAS = ['app', 'route', 'online', 'chunk'] as const;
+export const CLIENT_ERROR_AREAS = ['app', 'route', 'online', 'chunk', 'dialog'] as const;
 export type ClientErrorArea = (typeof CLIENT_ERROR_AREAS)[number];
 export const CLIENT_ERROR_CLASSES = [
   'Error',

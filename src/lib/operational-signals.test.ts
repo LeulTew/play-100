@@ -45,6 +45,40 @@ describe('first-party client error endpoint', () => {
     buildVersion: 'entry:AbCd_123',
     counts: [{ errorClass: 'TypeError', area: 'app', route: '/u/:handle', count: 2 }],
   };
+  it('accepts dialog counts separately from route counts without accepting arbitrary area labels', async () => {
+    const log = vi.fn();
+    const base = await serve(createClientErrorHandler(undefined, log));
+    const send = (counts: unknown[]) =>
+      nativeFetch(base, {
+        method: 'POST',
+        body: JSON.stringify({ buildVersion: report.buildVersion, counts }),
+        headers: { 'content-type': 'application/json' },
+      });
+    const fault = { errorClass: 'TypeError', route: '/u/:handle', count: 1 };
+    expect(
+      (
+        await send([
+          { ...fault, area: 'dialog' },
+          { ...fault, area: 'route' },
+          { ...fault, area: 'dialog' },
+        ])
+      ).status,
+    ).toBe(204);
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.parse(log.mock.calls[0]![0])).toEqual({
+      event: 'client-error-count',
+      buildVersion: report.buildVersion,
+      counts: [
+        { ...fault, area: 'dialog', count: 2 },
+        { ...fault, area: 'route' },
+      ],
+    });
+    expect((await send([{ ...fault, area: 'Dialog' }])).status).toBe(400);
+    expect((await send([{ ...fault, area: 'private dialog title' }])).status).toBe(400);
+    expect((await send([{ ...fault, area: 'dialog', message: 'private message' }])).status).toBe(400);
+    expect(log).toHaveBeenCalledOnce();
+  });
+
   it('logs only validated counts, rejects private payload fields and bounds instance admission', async () => {
     const log = vi.fn();
     const base = await serve(
