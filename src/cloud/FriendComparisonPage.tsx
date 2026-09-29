@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { PersonalLibraryState, LibraryRecord } from '../lib/personal-types';
-import { compareFriendRankings, getComparisonPage, unrankedCellLabel } from '../lib/friend-comparison';
+import { compareFriendRankings, getComparisonPage } from '../lib/friend-comparison';
 import type { ComparisonParticipant, ComparisonMode } from '../lib/friend-comparison';
-import { projectOwnRanking, recordFromPublic } from '../lib/community';
+import { projectOwnRanking } from '../lib/community';
 import type { FriendGroup, FriendIdentity, FriendPair, FriendCursor } from '../lib/friend-types';
 import { FriendStore } from './friend-store';
 import { cloudAuth, firebaseApp } from './firebase-client';
-import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
 import { onlineError } from './errors';
 import { committedFriendChange, committedFriendMessage, friendMutationError } from './friend-outcomes';
@@ -17,8 +16,12 @@ import { comparisonScope, readComparisonView, rememberComparisonView } from '../
 import { accountScope } from '../lib/cloud-types';
 import { useComparisonGameFilter } from '../hooks/useComparisonGameFilter';
 import { COMPARISON_GAMES_EVENT } from '../lib/comparison-game-filter';
-import { FriendComparisonLoader } from './FriendComparisonLoader';
 import { initialPeopleDisclosure, useCoverageDisclosure, usePeopleDisclosure } from './compare-disclosures';
+import { FriendComparisonPeople } from './FriendComparisonPeople';
+import { FriendComparisonFilters } from './FriendComparisonFilters';
+import { FriendComparisonCoverage } from './FriendComparisonCoverage';
+import { FriendComparisonTable } from './FriendComparisonTable';
+import { FriendComparisonGroups } from './FriendComparisonGroups';
 
 export function FriendComparisonPage({
   store,
@@ -337,427 +340,95 @@ export function FriendComparisonPage({
         </button>
       </div>
       {filteredGames.warning && <p role="status">{filteredGames.warning}</p>}
-      {viewReady ? (
-        <section className="compare-chosen-people" aria-label="Chosen people">
-          <p>
-            <strong>
-              {selected.length} {selected.length === 1 ? 'person' : 'people'}:
-            </strong>{' '}
-            {datasets.map((person, index) => (
-              <span key={person.id}>
-                {index > 0 && ', '}
-                {person.id === uid ? `You (${identity.displayName})` : <bdi>{person.displayName}</bdi>}
-              </span>
-            ))}
-          </p>
-        </section>
-      ) : (
-        <p className="compare-opening" role="status">
-          Opening comparison group…
-        </p>
-      )}
-      <details ref={peopleRef} className="compare-people-disclosure" open={peopleOpen} onToggle={onPeopleToggle}>
-        <summary>Change people</summary>
-        {!viewReady ? (
-          <p>Wait for this group to finish opening before changing people.</p>
-        ) : (
-          <>
-            <fieldset className="compare-people">
-              <legend>Choose 2–6 people</legend>
-              {[
-                uid,
-                ...new Set([...choices.map((pair) => peerOf(pair, uid)), ...selected.filter((value) => value !== uid)]),
-              ].map((id) => (
-                <label className="check-control" key={id}>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(id)}
-                    disabled={!selected.includes(id) && selected.length === 6}
-                    onChange={(event) => {
-                      setPage(1);
-                      setSelected((old) => (event.target.checked ? [...old, id] : old.filter((value) => value !== id)));
-                    }}
-                  />
-                  {id === uid ? (
-                    <Avatar descriptor={identity.avatar} size={32} />
-                  ) : identities[id] ? (
-                    <Avatar descriptor={identities[id].avatar} size={32} />
-                  ) : null}
-                  <span>
-                    {id === uid ? (
-                      'You (private device copy)'
-                    ) : (
-                      <bdi>{identities[id]?.displayName ?? 'Unavailable player'}</bdi>
-                    )}
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            {cursor && (
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => {
-                  void run(() => addChoices(cursor));
-                }}
-              >
-                More friends
-              </button>
-            )}
-          </>
-        )}
-      </details>
-      <div className="compare-toolbar">
-        <label>
-          Games
-          <select
-            aria-label="Games"
-            value={mode}
-            disabled={!viewReady}
-            onChange={(event) => {
-              setMode(event.target.value === 'all-shared' ? 'all-shared' : 'common-ranked');
-              setPage(1);
-            }}
-          >
-            <option value="common-ranked">Ranked by everyone</option>
-            <option value="all-shared">All available games</option>
-          </select>
-        </label>
-        <label>
-          Search games
-          <input
-            type="search"
-            maxLength={160}
-            value={query}
-            disabled={!viewReady}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-          />
-        </label>
-      </div>
-      {filteredGames.value && (
-        <section className="compare-game-filter" aria-label="Games chosen for comparison">
-          <div className="button-row">
-            <strong>
-              {filteredGames.value.records.length} {filteredGames.value.records.length === 1 ? 'game' : 'games'} from
-              your tray
-            </strong>
-            <button
-              className="text-button"
-              disabled={!viewReady}
-              onClick={() => {
-                filteredGames.clear();
-                setPage(1);
-              }}
-            >
-              Clear game filter
-            </button>
-          </div>
-          <ul>
-            {filteredGames.value.records.map((record) => (
-              <li key={record.id}>
-                <button className="text-button" onClick={() => onOpen(record)}>
-                  {record.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <FriendComparisonPeople
+        uid={uid}
+        identity={identity}
+        viewReady={viewReady}
+        selected={selected}
+        setSelected={setSelected}
+        setPage={setPage}
+        datasets={datasets}
+        choices={choices}
+        identities={identities}
+        cursor={cursor}
+        busy={busy}
+        run={run}
+        addChoices={addChoices}
+        peopleRef={peopleRef}
+        peopleOpen={peopleOpen}
+        onPeopleToggle={onPeopleToggle}
+      />
+      <FriendComparisonFilters
+        viewReady={viewReady}
+        mode={mode}
+        setMode={setMode}
+        query={query}
+        setQuery={setQuery}
+        setPage={setPage}
+        filteredGames={filteredGames}
+        onOpen={onOpen}
+      />
       {error && (
         <p className="inline-error" role="alert">
           {error}
         </p>
       )}
       {message && <p role="status">{message}</p>}
-      {unavailable.length > 0 && (
-        <div className="compare-problems" role="alert">
-          <ul>
-            {unavailable.map((person) => (
-              <li key={person.id}>
-                <strong>
-                  <bdi>{person.displayName}</bdi>:
-                </strong>{' '}
-                {person.availability === 'error' ? 'Rankings could not load.' : 'Rankings are unavailable.'}
-              </li>
-            ))}
-          </ul>
-          <button type="button" className="text-button" onClick={reviewCoverage}>
-            Review coverage and recovery
-            <Icon name="down" width="17" height="17" />
-          </button>
-        </div>
-      )}
-      <details
-        ref={coverageRef}
-        className="compare-coverage-disclosure"
-        open={coverageOpen}
-        onToggle={onCoverageToggle}
-      >
-        <summary>
-          Coverage &amp; loading
-          {comparison && (
-            <span className="compare-coverage-summary" role="status">
-              {filteredGames.value
-                ? 'Only the chosen games are checked. Overall totals are unknown.'
-                : comparison.cohort.incomplete
-                  ? datasets.some((person) => person.availability === 'loading')
-                    ? 'Loading chosen rankings… Overall totals are unknown.'
-                    : 'Loaded games only. Overall totals are unknown.'
-                  : `${comparison.summary.sharedGameCount ?? 'Unknown'} games in common.`}
-            </span>
-          )}
-        </summary>
-        <ul className="compare-freshness">
-          {selected
-            .filter((value) => value !== uid)
-            .map((peer) => (
-              <FriendComparisonLoader
-                key={`${uid}:${peer}`}
-                store={store}
-                uid={uid}
-                peer={peer}
-                exactIds={exactIds}
-                onData={acceptParticipant}
-                onRemove={removeParticipant}
-              />
-            ))}
-        </ul>
-        {comparison && !filteredGames.value && (
-          <p className="section-help">
-            {comparison.summary.sharedGameCount ?? 'Unknown'} games in common.
-            {comparison.summary.pairs.length === 1 && comparison.summary.pairs[0]?.meanAbsoluteScoreGap != null
-              ? ` Mean score gap ${comparison.summary.pairs[0].meanAbsoluteScoreGap.toFixed(2)} across ${comparison.summary.pairs[0].jointlyRatedCount} jointly rated games.`
-              : ''}
-          </p>
-        )}
-      </details>
+      <FriendComparisonCoverage
+        store={store}
+        uid={uid}
+        selected={selected}
+        datasets={datasets}
+        unavailable={unavailable}
+        comparison={comparison}
+        filtered={Boolean(filteredGames.value)}
+        exactIds={exactIds}
+        acceptParticipant={acceptParticipant}
+        removeParticipant={removeParticipant}
+        reviewCoverage={reviewCoverage}
+        coverageRef={coverageRef}
+        coverageOpen={coverageOpen}
+        onCoverageToggle={onCoverageToggle}
+      />
       {result ? (
-        <>
-          <div className="comparison-scroll" tabIndex={0} role="region" aria-label="Ranking comparison table">
-            <table className="friend-matrix">
-              <thead>
-                <tr>
-                  <th scope="col">Game</th>
-                  {datasets.map((person) => {
-                    const profile = identities[person.id];
-                    return (
-                      <th scope="col" key={person.id}>
-                        <span className="compare-participant-heading">
-                          {person.id === uid ? (
-                            <Avatar descriptor={identity.avatar} size={32} />
-                          ) : profile && person.availability === 'ready' ? (
-                            <Avatar descriptor={profile.avatar} size={32} />
-                          ) : null}
-                          <span>
-                            <bdi>{person.displayName}</bdi>
-                          </span>
-                        </span>
-                      </th>
-                    );
-                  })}
-                  <th scope="col">Mean · spread</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.rows.map((row) => (
-                  <tr key={row.key}>
-                    <th scope="row">
-                      <button
-                        className="text-button"
-                        onClick={() => {
-                          try {
-                            onOpen(recordFromPublic({ ...row.game, score: null, position: 1 }, games));
-                          } catch (cause) {
-                            setError(onlineError(cause));
-                          }
-                        }}
-                      >
-                        {row.game.title}
-                      </button>
-                      <small>
-                        {row.game.source} · {row.game.year ?? 'Year unknown'}
-                      </small>
-                    </th>
-                    {row.cells.map((cell) => (
-                      <td key={cell.participantId}>
-                        {cell.status === 'ranked' ? (
-                          <>
-                            <strong>{cell.score === null ? 'Unrated' : cell.score.toFixed(1)}</strong>
-                            <small>Rank {cell.position}</small>
-                          </>
-                        ) : (
-                          <span>{unrankedCellLabel(cell.status)}</span>
-                        )}
-                      </td>
-                    ))}
-                    <td>
-                      {row.cells.some((cell) => cell.status === 'unfetched')
-                        ? 'Incomplete'
-                        : row.meanScore === null
-                          ? 'Unrated'
-                          : row.meanScore.toFixed(2)}
-                      <small>
-                        {row.raterCount} {row.raterCount === 1 ? 'rater' : 'raters'} ·{' '}
-                        {row.scoreSpread === null ? 'No spread' : row.scoreSpread.toFixed(2)}
-                        {row.scoreDifference === null ? '' : ` · difference ${row.scoreDifference.toFixed(2)}`}
-                      </small>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!result.rows.length && (
-            <p>
-              {filteredGames.value
-                ? 'No chosen games match the available rankings and filters. Unshared rankings cannot contribute scores.'
-                : 'No matching games in this view.'}
-            </p>
-          )}
-          <div className="button-row">
-            <button className="text-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
-              Previous
-            </button>
-            <span>
-              {result.totalRows ? result.page : 0} / {result.pageCount}
-            </span>
-            <button
-              className="text-button"
-              disabled={page >= result.pageCount}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              Next 25
-            </button>
-          </div>
-        </>
+        <FriendComparisonTable
+          uid={uid}
+          identity={identity}
+          datasets={datasets}
+          identities={identities}
+          result={result}
+          filtered={Boolean(filteredGames.value)}
+          page={page}
+          setPage={setPage}
+          games={games}
+          onOpen={onOpen}
+          setError={setError}
+        />
       ) : (
         viewReady && <p>Choose at least two people.</p>
       )}
-      <section className="account-section">
-        <h2>Private groups</h2>
-        <form
-          data-unsaved={groupName !== (group?.name ?? '') ? 'true' : 'false'}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run(async () => {
-              const id = group?.id ?? groupCreationId.current ?? crypto.randomUUID();
-              if (!group) groupCreationId.current = id;
-              const saved = await store.saveGroup(
-                uid,
-                { id, name: groupName, participantUids: selected },
-                group?.revision ?? 0,
-              );
-              groupCreationId.current = null;
-              chooseGroup(saved);
-              setGroups((old) => [saved, ...old.filter((item) => item.id !== saved.id)]);
-              setMessage('Group saved.');
-            });
-          }}
-        >
-          <label>
-            Group name
-            <input
-              required
-              maxLength={80}
-              value={groupName}
-              disabled={!viewReady}
-              onChange={(event) => setGroupName(event.target.value)}
-            />
-          </label>
-          <div className="button-row">
-            <button
-              className="button button-outline"
-              disabled={!viewReady || busy || Boolean(refreshGroupId) || selected.length < 2 || selected.length > 6}
-            >
-              Save group
-            </button>
-            {group && (
-              <button
-                type="button"
-                className="text-button"
-                disabled={Boolean(refreshGroupId)}
-                onClick={() => {
-                  setGroup(null);
-                  setGroupName('');
-                  groupCreationId.current = null;
-                  routeGroup(null);
-                }}
-              >
-                New group
-              </button>
-            )}
-            {group && (
-              <button
-                type="button"
-                className="text-button danger-text"
-                disabled={busy || Boolean(refreshGroupId)}
-                onClick={() => {
-                  void run(async () => {
-                    await store.deleteGroup(uid, group.id, group.revision);
-                    setGroups((old) => old.filter((item) => item.id !== group.id));
-                    setGroup(null);
-                    setGroupName('');
-                    routeGroup(null);
-                    setMessage('Group deleted.');
-                  });
-                }}
-              >
-                Delete group
-              </button>
-            )}
-          </div>
-        </form>
-        {refreshGroupId && (
-          <button
-            className="button button-outline"
-            disabled={busy}
-            onClick={() => {
-              void run(async () => {
-                const saved = refreshGroupId === 'pending' ? null : await store.getGroup(uid, refreshGroupId);
-                const listed = await store.listGroups(uid);
-                setGroups(listed.items);
-                setGroupCursor(listed.cursor);
-                if (saved) {
-                  chooseGroup(saved);
-                  groupCreationId.current = null;
-                }
-                setRefreshGroupId(null);
-                setMessage('Groups refreshed.');
-              });
-            }}
-          >
-            Refresh groups
-          </button>
-        )}
-        <ul className="friend-groups">
-          {groups.map((item) => (
-            <li key={item.id}>
-              <button className="text-button" onClick={() => chooseGroup(item)}>
-                {item.name}
-                <Icon name="arrow" />
-              </button>
-            </li>
-          ))}
-        </ul>
-        {groupCursor && (
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => {
-              void run(async () => {
-                const more = await store.listGroups(uid, groupCursor);
-                setGroups((old) => [...old, ...more.items]);
-                setGroupCursor(more.cursor);
-              });
-            }}
-          >
-            More groups
-          </button>
-        )}
-      </section>
+      <FriendComparisonGroups
+        store={store}
+        uid={uid}
+        selected={selected}
+        viewReady={viewReady}
+        busy={busy}
+        run={run}
+        setMessage={setMessage}
+        group={group}
+        setGroup={setGroup}
+        groupName={groupName}
+        setGroupName={setGroupName}
+        groups={groups}
+        setGroups={setGroups}
+        groupCursor={groupCursor}
+        setGroupCursor={setGroupCursor}
+        refreshGroupId={refreshGroupId}
+        setRefreshGroupId={setRefreshGroupId}
+        groupCreationIdRef={groupCreationId}
+        chooseGroup={chooseGroup}
+        routeGroup={routeGroup}
+      />
     </section>
   );
 }
