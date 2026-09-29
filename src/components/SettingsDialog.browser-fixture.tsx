@@ -7,7 +7,7 @@ import { emptyPersonalLibrary } from '../lib/personal-library.ts';
 import '../styles.css';
 import '../shared-ui.css';
 let finish: (result: boolean | 'reject') => void;
-let finishRestore: (result: boolean) => void;
+let finishRestore: (result: boolean | 'reject') => void;
 let finishReset: (result: boolean | 'reject') => void;
 let deferReset = false;
 let setExternalBusy: (value: boolean) => void;
@@ -73,10 +73,11 @@ export function App() {
       onRestore={() => {
         window.settingsRadioFixture.restoreCalls += 1;
         setBusy(true);
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           finishRestore = (result) => {
             setBusy(false);
-            resolve(result);
+            if (result === 'reject') reject(new Error('Synthetic restore rejection'));
+            else resolve(result);
           };
         });
       }}

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { installGuestLibrary, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
-import { emptyPersonalLibrary } from '../src/lib/personal-library';
+import { createLibraryBackup, emptyPersonalLibrary } from '../src/lib/personal-library';
 import { applyPersonalAction } from '../src/lib/personal-library';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
 
@@ -58,6 +58,56 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.route('**/api/**', (route) => route.fulfill({ status: 503, json: { error: 'Offline fixture' } }));
   await page.route('**/data/discovery/catalog.v1.json', (route) => route.fulfill({ json: catalogFixture }));
 });
+
+for (const action of ['restore', 'cancel'] as const) {
+  test(`backup ${action} returns focus to Import backup inside Settings`, async ({ page }) => {
+    await installGuestLibrary(page);
+    const before = await readLibrary(page);
+    await page.goto('/?catalogs=off&info=settings');
+    const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
+    await settings.getByLabel('Import personal library backup file').setInputFiles({
+      name: 'focus-backup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+    });
+    const control = settings.getByRole('button', {
+      name: action === 'restore' ? 'Replace with this backup' : 'Cancel import',
+      exact: true,
+    });
+    const held = action === 'restore' ? await holdWrite(page, false) : null;
+    try {
+      await control.focus();
+      await control.press('Enter');
+      if (held) {
+        await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+        await expect(control).toBeFocused();
+        await expect(control).toHaveAttribute('aria-disabled', 'true');
+        await control.press('Enter');
+        expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+        await held.evaluate((probe) => probe.release());
+        await expect(settings.locator('.backup-panel').getByRole('status')).toHaveText(
+          'Your backup was restored and saved on this device.',
+        );
+      } else expect(await readLibrary(page)).toEqual(before);
+      await expect(settings.locator('.restore-preview')).toHaveCount(0);
+      const trigger = settings.getByRole('button', { name: 'Import backup', exact: true });
+      await expect(trigger).toBeFocused();
+      await expect(trigger).toBeInViewport();
+      expect(
+        await trigger.evaluate((node) => {
+          const rect = node.getBoundingClientRect();
+          return node.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+        }),
+      ).toBe(true);
+      await expect(settings).toBeVisible();
+    } finally {
+      if (held) {
+        await held.evaluate((probe) => probe.restore());
+        await held.dispose();
+      }
+    }
+  });
+}
 
 type Surface =
   | 'card'

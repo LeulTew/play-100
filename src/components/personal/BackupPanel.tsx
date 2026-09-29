@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   backupFileSizeError,
   describeLibraryBackup,
@@ -8,6 +8,8 @@ import {
 import type { PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { useLibraryMode } from '../../lib/library-mode';
+import { focusPendingEditor } from '../../lib/dialog-focus';
+import { foregroundDialog } from '../dialog-layer';
 
 export default function BackupPanel({
   state,
@@ -24,11 +26,53 @@ export default function BackupPanel({
 }) {
   const mode = useLibraryMode();
   const input = useRef<HTMLInputElement>(null);
+  const importButton = useRef<HTMLButtonElement>(null);
+  const preview = useRef<HTMLDivElement>(null);
+  const active = useRef(false);
+  const restorePending = useRef(false);
+  const returnToImport = useRef(false);
   const [incoming, setIncoming] = useState<PersonalLibraryState | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [reading, setReading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [storageStatus, setStorageStatus] = useState<'unknown' | 'granted' | 'best-effort'>('unknown');
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (!returnToImport.current || incoming || busy || restoring) return;
+    returnToImport.current = false;
+    const target = importButton.current;
+    if (target?.closest('dialog') === foregroundDialog()) focusPendingEditor(target);
+  }, [incoming, busy, restoring]);
+  const restoreBackup = async (backup: PersonalLibraryState) => {
+    if (busy || restorePending.current) return;
+    restorePending.current = true;
+    setRestoring(true);
+    onActionStart?.();
+    setError('');
+    setMessage('');
+    try {
+      const success = await onRestore(backup);
+      if (!active.current) return;
+      if (success) {
+        returnToImport.current =
+          document.activeElement === document.body || Boolean(preview.current?.contains(document.activeElement));
+        setIncoming(null);
+        setMessage('Your backup was restored and saved on this device.');
+      } else setError('Restore failed. Your existing library was not replaced.');
+    } catch (cause: unknown) {
+      console.error('The backup could not be restored.', cause);
+      if (active.current) setError('Restore failed. Your existing library was not replaced.');
+    } finally {
+      restorePending.current = false;
+      if (active.current) setRestoring(false);
+    }
+  };
   useEffect(() => {
     if (!navigator.storage?.persisted) return;
     let canceled = false;
@@ -63,6 +107,7 @@ export default function BackupPanel({
     setMessage('Backup download started. It includes My games, Play later, rankings, notes and preferences.');
   };
   const readBackup = async (file: File | undefined) => {
+    if (busy || restorePending.current) return;
     onActionStart?.();
     setError('');
     setMessage('');
@@ -126,9 +171,11 @@ export default function BackupPanel({
           Export my library
         </button>
         <button
+          ref={importButton}
           className="button button-outline"
-          disabled={busy || reading}
+          aria-disabled={busy || reading || restoring || undefined}
           onClick={() => {
+            if (busy || reading || restorePending.current) return;
             onActionStart?.();
             input.current?.click();
           }}
@@ -149,7 +196,7 @@ export default function BackupPanel({
         }}
       />
       {incoming && (
-        <div className="restore-preview">
+        <div className="restore-preview" ref={preview}>
           <p>
             <strong>{describeLibraryBackup(incoming)}</strong>
           </p>
@@ -162,22 +209,22 @@ export default function BackupPanel({
           <div className="button-row">
             <button
               className="button button-dark"
-              disabled={busy}
+              aria-disabled={busy || restoring || undefined}
               onClick={() => {
-                onActionStart?.();
-                setError('');
-                setMessage('');
-                void onRestore(incoming).then((success) => {
-                  if (success) {
-                    setIncoming(null);
-                    setMessage('Your backup was restored and saved on this device.');
-                  } else setError('Restore failed. Your existing library was not replaced.');
-                });
+                void restoreBackup(incoming);
               }}
             >
               Replace with this backup
             </button>
-            <button className="button button-outline" disabled={busy} onClick={() => setIncoming(null)}>
+            <button
+              className="button button-outline"
+              aria-disabled={busy || restoring || undefined}
+              onClick={() => {
+                if (busy || restorePending.current) return;
+                returnToImport.current = true;
+                setIncoming(null);
+              }}
+            >
               Cancel import
             </button>
           </div>

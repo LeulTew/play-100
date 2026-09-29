@@ -28,7 +28,7 @@ declare global {
       finish(result: boolean | 'reject'): void;
       externalBusy(value: boolean): void;
       restoreCalls: number;
-      finishRestore(result: boolean): void;
+      finishRestore(result: boolean | 'reject'): void;
       resetCalls: number;
       holdReset(): void;
       finishReset(result: boolean | 'reject'): void;
@@ -373,7 +373,8 @@ for (const mobile of [false, true]) {
         });
         const restore = panel.getByRole('button', { name: 'Replace with this backup', exact: true });
         await restore.click();
-        await browserExpect(restore).toBeDisabled();
+        await browserExpect(restore).toHaveAttribute('aria-disabled', 'true');
+        await browserExpect(restore).toBeFocused();
         await page.evaluate(() => window.settingsRadioFixture.finishRestore(false));
         await browserExpect(panel.getByRole('alert')).toHaveText(
           'Restore failed. Your existing library was not replaced.',
@@ -386,8 +387,82 @@ for (const mobile of [false, true]) {
         await browserExpect(panel.getByRole('status')).toHaveText('Your backup was restored and saved on this device.');
         await browserExpect(panel.getByRole('alert')).toHaveCount(0);
         await browserExpect(panel.locator('.restore-preview')).toHaveCount(0);
+        await browserExpect(panel.getByRole('button', { name: 'Import backup', exact: true })).toBeFocused();
         await browserExpect(page.getByRole('dialog')).toBeVisible();
         expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(2);
+      });
+    });
+
+    it('returns keyboard focus to Import backup when a preview is cancelled', async () => {
+      await withPage(async (page) => {
+        const panel = page.locator('.backup-panel');
+        await panel.getByLabel('Import personal library backup file').setInputFiles({
+          name: 'cancelled-backup.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+        });
+        const cancel = panel.getByRole('button', { name: 'Cancel import', exact: true });
+        await cancel.focus();
+        await cancel.press('Enter');
+        await browserExpect(panel.locator('.restore-preview')).toHaveCount(0);
+        await browserExpect(panel.getByRole('button', { name: 'Import backup', exact: true })).toBeFocused();
+        expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(0);
+      });
+    });
+
+    it.each([true, false, 'reject'] as const)(
+      'keeps restore focus and guards repeats while completing with %s',
+      async (result) => {
+        await withPage(async (page) => {
+          const panel = page.locator('.backup-panel');
+          await panel.getByLabel('Import personal library backup file').setInputFiles({
+            name: 'held-backup.json',
+            mimeType: 'application/json',
+            buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+          });
+          const restore = panel.getByRole('button', { name: 'Replace with this backup', exact: true });
+          const cancel = panel.getByRole('button', { name: 'Cancel import', exact: true });
+          await restore.focus();
+          await restore.press('Enter');
+          await browserExpect(restore).toHaveAttribute('aria-disabled', 'true');
+          await browserExpect(restore).toBeFocused();
+          await restore.press('Enter');
+          await cancel.press('Enter');
+          expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(1);
+          await browserExpect(panel.locator('.restore-preview')).toBeVisible();
+          await restore.focus();
+          await page.evaluate((value) => window.settingsRadioFixture.finishRestore(value), result);
+          if (result === true) {
+            await browserExpect(panel.locator('.restore-preview')).toHaveCount(0);
+            await browserExpect(panel.getByRole('button', { name: 'Import backup', exact: true })).toBeFocused();
+            await browserExpect(panel.getByRole('status')).toHaveText(
+              'Your backup was restored and saved on this device.',
+            );
+          } else {
+            await browserExpect(restore).toBeFocused();
+            await browserExpect(restore).not.toHaveAttribute('aria-disabled', 'true');
+            await browserExpect(panel.getByRole('alert')).toHaveText(
+              'Restore failed. Your existing library was not replaced.',
+            );
+          }
+        });
+      },
+    );
+
+    it('does not refocus an import after the Settings dialog has closed', async () => {
+      await withPage(async (page) => {
+        await page.getByLabel('Import personal library backup file').setInputFiles({
+          name: 'late-backup.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+        });
+        await page.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
+        await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        const next = page.getByRole('button', { name: 'Continue browsing', exact: true });
+        await next.focus();
+        await page.evaluate(() => window.settingsRadioFixture.finishRestore(true));
+        await browserExpect(next).toBeFocused();
+        await browserExpect(page.getByRole('dialog')).toHaveCount(0);
       });
     });
 
