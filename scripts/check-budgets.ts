@@ -334,9 +334,7 @@ export async function measureBuild(
         const href = localFile(attributes.get('href')!);
         // 404.html, Vercel's not-found page, is built to link the app's own entry stylesheet (scripts/pwa-build.ts).
         if (standalone(href)) {
-          throw new Error(
-            `Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`,
-          );
+          throw new Error(`Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`);
         }
       }
       for (const [index, { css }] of scan.styles.filter((entry) => !entry.inNoscript).entries()) {
