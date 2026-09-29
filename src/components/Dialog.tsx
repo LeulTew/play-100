@@ -83,25 +83,43 @@ export function Dialog({
         );
       const preferred = returnFocus.current?.() ?? null;
       const reveal = canReturnTo(preferred);
+      let fallback = false;
       let target: HTMLElement | null;
       if (reveal) target = preferred;
       else if (foreground && focused instanceof HTMLElement && canReturnTo(focused)) target = focused;
       else if (previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus))
         target = previousFocus;
-      else if (foreground)
-        target = [...foreground.querySelectorAll<HTMLElement>('[data-autofocus]')].find(canReturnTo) ?? foreground;
-      else
-        target =
-          [
-            ...document.querySelectorAll<HTMLElement>(
-              '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
-            ),
-          ].find(canReturnTo) ?? visibleMenuTrigger();
+      else {
+        fallback = true;
+        target = foreground
+          ? ([...foreground.querySelectorAll<HTMLElement>('[data-autofocus]')].find(canReturnTo) ?? foreground)
+          : ([
+              ...document.querySelectorAll<HTMLElement>(
+                '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
+              ),
+            ].find(canReturnTo) ?? visibleMenuTrigger());
+      }
       releaseLayer();
       dialog.close();
       unlock();
-      if (reveal) target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-      if (target && document.activeElement !== target) target.focus({ preventScroll: true });
+      if (fallback) {
+        const afterClose = document.activeElement;
+        queueMicrotask(() => {
+          // Let a reopened or replacement dialog keep its own focus and page scroll.
+          if (
+            !dialog.open &&
+            document.activeElement === afterClose &&
+            visibleFocusTarget(target) &&
+            target.closest('dialog') === foregroundDialog()
+          ) {
+            target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+            target.focus({ preventScroll: true });
+          }
+        });
+      } else {
+        if (reveal) target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+        if (target && document.activeElement !== target) target.focus({ preventScroll: true });
+      }
       controller.forgetDialog(dialog);
       runDialogMotion(() => ending?.closed());
     };

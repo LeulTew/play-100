@@ -72,6 +72,67 @@ async function closeFromEnd(page: Page, dialog: Locator, opener: Locator) {
   expect(position).toBeGreaterThan(0);
 }
 
+for (const pins of [0, 6]) {
+  test(`320x640 deep-link close reveals fallback focus above navigation with ${pins} pins`, async ({
+    page,
+    baseURL,
+    isMobile,
+  }, info) => {
+    expect(['127.0.0.1', 'localhost']).toContain(new URL(baseURL!).hostname);
+    await page.route('**/*', (route) =>
+      new URL(route.request().url()).origin === new URL(baseURL!).origin
+        ? route.continue()
+        : route.abort('blockedbyclient'),
+    );
+    await page.setViewportSize({ width: 320, height: 640 });
+    await prepare(page);
+    for (const record of libraryRecords.slice(0, pins))
+      await page.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true }).click();
+    if (pins)
+      await expect(page.getByRole('button', { name: `${pins} games in Compare tray`, exact: true })).toBeVisible();
+    await page.goto('/?game=portal-2&catalogs=off');
+    const dialog = page.locator('.game-dialog[open]');
+    await expect(dialog.locator('#game-title')).toBeFocused();
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    const heading = page.locator('#collection-title');
+    await expect(heading).toBeFocused();
+    await expect(page.locator('.compare-tray-dock')).toHaveCount(pins ? 1 : 0);
+    const geometry = await heading.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        heading: bounds.toJSON(),
+        headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
+        navTop: document.querySelector('.mobile-nav')!.getBoundingClientRect().top,
+        uncovered: element.contains(
+          document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2),
+        ),
+        width: innerWidth,
+        height: innerHeight,
+        coarse: matchMedia('(pointer: coarse)').matches,
+        touchPoints: navigator.maxTouchPoints,
+        scrollY,
+        bodyOverflow: document.body.style.overflow,
+      };
+    });
+    await info.attach('fallback-focus-geometry', { contentType: 'application/json', body: JSON.stringify(geometry) });
+    expect(geometry.width).toBe(320);
+    expect(geometry.height).toBe(640);
+    if (isMobile) {
+      expect(geometry.coarse).toBe(true);
+      expect(geometry.touchPoints).toBeGreaterThan(0);
+    }
+    expect(geometry.heading.top).toBeGreaterThanOrEqual(geometry.headerBottom);
+    expect(geometry.heading.bottom).toBeLessThanOrEqual(geometry.navTop);
+    expect(geometry.uncovered).toBe(true);
+    expect(geometry.bodyOverflow).not.toBe('hidden');
+    expect(new URL(page.url()).searchParams.has('game')).toBe(false);
+    await info.attach('fallback-focus-visible', { contentType: 'image/png', body: await page.screenshot() });
+  });
+}
+
 for (const game of [
   { id: 'red-dead-redemption-2', title: 'Red Dead Redemption 2' },
   { id: 'resident-evil-requiem', title: 'Resident Evil Requiem' },

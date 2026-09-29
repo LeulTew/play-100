@@ -63,6 +63,7 @@
   gap: 8px;
   background: transparent;
   min-height: 44px;
+  min-inline-size: 44px;
   padding: 6px 0;
   font-size: 14px;
   font-weight: 550;

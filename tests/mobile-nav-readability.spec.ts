@@ -141,6 +141,65 @@ test.beforeEach(async ({ page, baseURL }) => {
   );
 });
 
+for (const viewport of [
+  { width: 768, height: 1024 },
+  { width: 851, height: 393 },
+  { width: 1024, height: 768 },
+]) {
+  test(`compact primary navigation has 44px targets without overlap at ${viewport.width}px`, async ({ page }, info) => {
+    test.skip(!onlineAvailable, 'The Friends target requires the configured, signed-out header.');
+    await page.setViewportSize(viewport);
+    await page.goto('/?catalogs=off');
+    const navigation = page.getByRole('navigation', { name: 'Main navigation', exact: true });
+    await expect(navigation.getByRole('link', { name: 'Friends', exact: true })).toBeVisible();
+    await page.evaluate(async () => {
+      await document.fonts.load('550 13px "Hanken Grotesk Variable"');
+      await document.fonts.ready;
+    });
+    const geometry = await navigation.evaluate((element) => {
+      const header = element.closest('header')!;
+      return {
+        width: innerWidth,
+        height: innerHeight,
+        fontLoaded: [...document.fonts].some(
+          (font) => font.family.includes('Hanken Grotesk Variable') && font.status === 'loaded',
+        ),
+        overflow: document.documentElement.scrollWidth > innerWidth || header.scrollWidth > header.clientWidth,
+        markRight: header.querySelector('.wordmark')!.getBoundingClientRect().right,
+        actionsLeft: header.querySelector('.header-actions')!.getBoundingClientRect().left,
+        items: [...element.querySelectorAll('a, button')].map((target) => {
+          const bounds = target.getBoundingClientRect();
+          return {
+            name: target.textContent?.trim(),
+            width: bounds.width,
+            height: bounds.height,
+            left: bounds.left,
+            right: bounds.right,
+            hit: target.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)),
+          };
+        }),
+      };
+    });
+    await info.attach('compact-navigation-targets', {
+      contentType: 'application/json',
+      body: JSON.stringify(geometry),
+    });
+    expect({ width: geometry.width, height: geometry.height }).toEqual(viewport);
+    expect(geometry.fontLoaded).toBe(true);
+    expect(geometry.overflow).toBe(false);
+    expect(geometry.items.map((item) => item.name)).toEqual(['The 100', 'Discover', 'My games', 'Friends']);
+    let right = geometry.markRight;
+    for (const item of geometry.items) {
+      expect(item.width, item.name).toBeGreaterThanOrEqual(44);
+      expect(item.height, item.name).toBeGreaterThanOrEqual(44);
+      expect(item.left, item.name).toBeGreaterThanOrEqual(right);
+      expect(item.right, item.name).toBeLessThanOrEqual(geometry.actionsLeft);
+      expect(item.hit, item.name).toBe(true);
+      right = item.right;
+    }
+  });
+}
+
 for (const width of [320, 360, 393]) {
   test(`all five mobile navigation labels stay readable and reachable at ${width}px without changing dock clearance`, async ({
     page,

@@ -275,6 +275,8 @@ The play mark's triangle is intentionally made from transparent top/bottom borde
 ### Buttons
 
 Direct and compact. Standard buttons have a **48px minimum height**, a 12px internal gap and the frontmatter padding. Text actions have a 44px minimum height; icon buttons are 44px square. Keep the overall 44px touch-target floor.
+Primary header navigation also keeps a 44px minimum inline size, including
+Friends in the compact header at 768px, 851px and 1024px.
 
 Dark, lime, outline, quiet and destructive variants use the extracted assignments. Outline buttons use a 1px `#a5ac98` border, changing to ink on hover. Disabled buttons use opacity `.45` and a `not-allowed` cursor. Button/link color, background-color and border-color transitions last 150ms.
 
@@ -380,6 +382,10 @@ scroll position and focused control rather than remounting the utility.
 Closing a stacked dialog keeps focus inside the foreground dialog that remains:
 its valid trigger or focused editor takes precedence over a page-level return
 target, with its normal focus-in target as the fallback.
+When no valid opener remains, closing reveals the chosen fallback after unlocking
+the document. Center it within the existing scroll padding so the sticky header,
+bottom navigation and Compare slot cannot hide focus, including at 320×640.
+Returning to a valid opener retains its original scroll position.
 Escape dismisses only the foreground native dialog. Its keydown cancels the
 browser's grouped close request before closing that layer, and a held key cannot
 dismiss the next layer. Handled child-control keys retain their own behavior.
