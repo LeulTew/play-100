@@ -310,16 +310,19 @@ rerun older tests. Do not carry forward an older Node 24 receipt when release
 tooling changed. A local gate on a newer Node is separately recorded coverage
 expansion, not a replacement for the pinned release gate.
 
-The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in
+`npm run release:gate` is the committed local release runner; use
+`npm run release:gate -- --dry-run` to inspect its ordered plan. The stale CI
+workflow was removed. CodeQL, Dependency review and Secret scan remain in
 `.github/workflows` but are **disabled by the owner**; nothing runs on pull
-requests or pushes. Release gating is the local suites below plus review:
+requests or pushes. Release gating uses the runner and review:
 
 - unit/browser gate (`npm test`), the cloud emulator suite (`npm run test:cloud`),
   e2e production and development (`npm run test:e2e`) and the cloud-UI suite
   (`tests-cloud-ui`, `playwright.cloud.config.ts`);
 - `tsc -b`, `npm run lint`, `npm run build`, `npm run check:csp` and
   `npm run check:budgets`;
-- `npm audit` and `npm audit signatures`, run locally after each install.
+- `npm audit`, run locally after each install, and `npm audit signatures`,
+  which the runner requires in both installed checkouts before other checks.
 
 A full-history Gitleaks scan by the maintainer remains a pre-merge step.
 Dependabot's version-update configuration (`.github/dependabot.yml`) is unchanged.
@@ -327,12 +330,8 @@ Dependabot's version-update configuration (`.github/dependabot.yml`) is unchange
 The disabled jobs, for reference if they are re-enabled: SHA-pinned GitHub
 Actions with read-only repository access and no deployment credentials.
 
-| Disabled CI job | Checks |
+| Remaining disabled workflow | Checks |
 | --- | --- |
-| Quality | ESLint, project and Functions types, unit/mounted tests, production build, `check:budgets`, offline data validators |
-| Browser (production) | Built preview on port 4187, desktop and mobile, including the real-worker `pwa-offline.spec.ts` |
-| Browser (development) | Source-module fixtures on a Vite server at port 4187, desktop and mobile |
-| Auth and Firestore | Java 21, the lockfile-pinned Firebase CLI, and credential-free `demo-play100` emulator tests |
 | CodeQL | JavaScript/TypeScript analysis without running an application build |
 | Dependency review (pull requests) | Moderate-or-higher advisories in runtime, development and unknown dependency scopes; no PR comments |
 | Secret scan | Full checked-out Git history with redacted Gitleaks 8.30.1 findings; the pinned release checksum file and archive are SHA-256 verified before the binary is extracted |
@@ -1024,11 +1023,18 @@ npx --yes vercel@59.16.0 promote $verified_deployment --scope leulman2-gmailcoms
 
 Confirm the production alias serves the same asset hashes as the verified
 deployment, then run the production sign-in smoke. If rollback is needed,
-promote the recorded previous deployment using the same path:
+use the runbook's approved rollback procedure. On Hobby, the target must be the
+immediately previous production deployment:
 
 ```fish
-npx --yes vercel@59.16.0 promote $previous_deployment --scope leulman2-gmailcoms-projects --yes --timeout 3m
+npx --yes vercel@59.16.0 rollback $previous_deployment --scope leulman2-gmailcoms-projects --timeout 3m
+npx --yes vercel@59.16.0 rollback status --scope leulman2-gmailcoms-projects --timeout 3m
 ```
+
+Allow the edge to settle, confirm the production alias and run `release:verify`
+against the retained previous build, as described in the runbook. Rollback does
+not revert Firestore rules or data. Undo it with `promote` only after fresh owner
+approval and candidate verification; never repeat a timed-out mutation blindly.
 
 Keep `.vercel` and all environment files ignored. Never copy a token into the
 project. `vercel.json` sets Vite output, conservative security headers, and the

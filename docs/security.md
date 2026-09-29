@@ -944,10 +944,11 @@ deployment keeps the fresh-nonce helper. Only the pre-Release-1 `270f`
 deployment served the plain rewrites with a static nonce; rolling back past
 Release 1 is not a supported target.
 
-Vercel installs with `npm ci`. The GitHub workflows (CI, CodeQL, Dependency
-review, Secret scan) remain in the repository but are disabled by the owner, so
-`npm audit` and `npm audit signatures` run locally after each install as part of
-the release gate (local suites plus review; README "Quality checks"), and the
+Vercel installs with `npm ci`. The stale CI workflow was removed; CodeQL,
+Dependency review and Secret scan remain disabled by the owner. The committed
+local `release:gate` runner verifies `npm audit signatures` in both installed
+checkouts before other checks and retains hashed exit receipts. Run `npm audit`
+locally after each install as well (README "Quality checks"). The
 maintainer's full-history Gitleaks scan remains a pre-merge step. Its evidence
 is the scanner's redacted JSON report and command log; a summary of the result
 is a reading of the scan, not the scanner's output.
