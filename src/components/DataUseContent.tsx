@@ -133,14 +133,13 @@ export default function DataUseContent() {
         stay attached to their records.
       </p>
       <p>
-        Browsers may send security-policy failure reports to this site. Play 100 records only counts by known blocked origin,
-        security directive and page type, not full URLs, queries, IP addresses, browser details or account identifiers.
-        A scheduled check also records whether sign-in helpers and public catalogs respond correctly; it uses no account
-        credentials. App error screens may also send batched counts by error class, component area, page type and a build
-        fingerprint, never error messages or stacks. These counts use no device storage or visitor identifier, and are
-        limited to 20 errors and four attempted batches per page. These operational signals are not visitor analytics.
-        Hosting providers still process normal network
-        requests under their own policies.
+        Browsers may send security-policy failure reports to this site. Play 100 records only counts by known blocked
+        origin, security directive and page type, not full URLs, queries, IP addresses, browser details or account
+        identifiers. A scheduled check also records whether sign-in helpers and public catalogs respond correctly; it
+        uses no account credentials. App error screens may also send batched counts by error class, component area, page
+        type and a build fingerprint, never error messages or stacks. These counts use no device storage or visitor
+        identifier, and are limited to 20 errors and four attempted batches per page. These operational signals are not
+        visitor analytics. Hosting providers still process normal network requests under their own policies.
       </p>
       <p>
         Opening an eligible Discover game with online lookup enabled can request public ratings and licensed artwork by

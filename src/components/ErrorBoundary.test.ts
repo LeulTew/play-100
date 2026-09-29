@@ -18,6 +18,8 @@ describe('app fault reporting', () => {
       expect(reportClientError).toHaveBeenCalledWith(error, 'app');
       expect(reportClientError).toHaveBeenCalledOnce();
       expect(boundary.render()).not.toBe(children);
-    } finally { log.mockRestore(); }
+    } finally {
+      log.mockRestore();
+    }
   });
 });

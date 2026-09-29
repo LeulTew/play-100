@@ -52,8 +52,8 @@ export function reportRoute(value: unknown): string {
     if (url.origin !== ORIGIN || url.username || url.password) return 'other';
     return reportRouteTemplate(url.pathname);
   } catch {
+    return 'other';
   }
-  return 'other';
 }
 
 export function blockedOrigin(value: unknown): string {

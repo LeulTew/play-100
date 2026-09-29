@@ -253,12 +253,13 @@ describe('check:csp', () => {
       },
     });
 
-  it.each([null, 'csp="https://third.test/report"'])('rejects a missing or changed offline reporting endpoint: %s', async (endpoint) => {
-    const root = await dist({ 'index.html': page, 'pwa-assets.json': manifest(policy, endpoint) });
-    expect((await checkCsp(root, configuration)).problems).toEqual([
-      expect.stringContaining('Reporting-Endpoints'),
-    ]);
-  });
+  it.each([null, 'csp="https://third.test/report"'])(
+    'rejects a missing or changed offline reporting endpoint: %s',
+    async (endpoint) => {
+      const root = await dist({ 'index.html': page, 'pwa-assets.json': manifest(policy, endpoint) });
+      expect((await checkCsp(root, configuration)).problems).toEqual([expect.stringContaining('Reporting-Endpoints')]);
+    },
+  );
 
   it('passes a build whose documents and emitted offline policy match vercel.json, listing every inline block', async () => {
     const root = await dist({

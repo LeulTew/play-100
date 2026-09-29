@@ -187,23 +187,35 @@ describe('release manifest collection', () => {
   it('hashes native dependency audit JSON, nonzero advisory exit, dates and the candidate lockfile', async () => {
     const { root, put, args, environment } = await fixture();
     const report = {
-      auditReportVersion: 2, vulnerabilities: { example: { severity: 'moderate' } },
+      auditReportVersion: 2,
+      vulnerabilities: { example: { severity: 'moderate' } },
       metadata: { vulnerabilities: { info: 0, low: 0, moderate: 1, high: 0, critical: 0, total: 1 } },
     };
     const audit = {
-      exitCode: 1, report, lockfileSha256: sha256(await readFile(path.join(root, 'package-lock.json'))),
-      startedAt: '2026-09-29T12:00:00.000Z', finishedAt: '2026-09-29T12:00:01.000Z',
+      exitCode: 1,
+      report,
+      lockfileSha256: sha256(await readFile(path.join(root, 'package-lock.json'))),
+      startedAt: '2026-09-29T12:00:00.000Z',
+      finishedAt: '2026-09-29T12:00:01.000Z',
       commandReceiptSha256: 'a'.repeat(64),
     };
     const content = JSON.stringify(audit);
     await put('audit.json', content);
     const options = parseManifestArguments([...args, '--audit', 'audit.json']);
     const manifest = await collectReleaseManifest(root, options, environment);
-    expect(manifest.audits).toEqual([{
-      path: 'audit.json', sha256: sha256(content), exitCode: 1, vulnerabilities: report.metadata.vulnerabilities,
-      reviewRequired: true, startedAt: audit.startedAt, finishedAt: audit.finishedAt,
-      lockfileSha256: audit.lockfileSha256, commandReceiptSha256: audit.commandReceiptSha256,
-    }]);
+    expect(manifest.audits).toEqual([
+      {
+        path: 'audit.json',
+        sha256: sha256(content),
+        exitCode: 1,
+        vulnerabilities: report.metadata.vulnerabilities,
+        reviewRequired: true,
+        startedAt: audit.startedAt,
+        finishedAt: audit.finishedAt,
+        lockfileSha256: audit.lockfileSha256,
+        commandReceiptSha256: audit.commandReceiptSha256,
+      },
+    ]);
     for (const invalid of [
       { ...audit, lockfileSha256: 'b'.repeat(64) },
       { ...audit, startedAt: null },
@@ -219,16 +231,24 @@ describe('release manifest collection', () => {
 
   it('records clean audits but refuses network errors, malformed reports or contradictory exits', () => {
     const report = {
-      auditReportVersion: 2, vulnerabilities: {},
+      auditReportVersion: 2,
+      vulnerabilities: {},
       metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 } },
     };
     expect(summarizeNpmAudit(report, 0)).toEqual({
-      exitCode: 0, vulnerabilities: report.metadata.vulnerabilities, reviewRequired: false,
+      exitCode: 0,
+      vulnerabilities: report.metadata.vulnerabilities,
+      reviewRequired: false,
     });
     expect(() => summarizeNpmAudit(report, 1)).toThrow(/disagree/);
     expect(() => summarizeNpmAudit({ ...report, error: { code: 'ECONNRESET' } }, 1)).toThrow(/complete native/);
     expect(() => summarizeNpmAudit({ ...report, metadata: {} }, 0)).toThrow();
-    expect(() => summarizeNpmAudit({ ...report, metadata: { vulnerabilities: { ...report.metadata.vulnerabilities, total: 3 } } }, 1)).toThrow(/disagree/);
+    expect(() =>
+      summarizeNpmAudit(
+        { ...report, metadata: { vulnerabilities: { ...report.metadata.vulnerabilities, total: 3 } } },
+        1,
+      ),
+    ).toThrow(/disagree/);
   });
 
   it('binds cloud results, tested rules and named JSON or text receipts without copying their contents', async () => {

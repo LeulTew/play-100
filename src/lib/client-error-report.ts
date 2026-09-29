@@ -1,5 +1,9 @@
 import {
-  CLIENT_ERROR_AREAS, CLIENT_ERROR_CLASSES, MAX_CLIENT_ERRORS, isBuildFingerprint, reportRouteTemplate,
+  CLIENT_ERROR_AREAS,
+  CLIENT_ERROR_CLASSES,
+  MAX_CLIENT_ERRORS,
+  isBuildFingerprint,
+  reportRouteTemplate,
 } from './client-error-schema';
 import type { ClientErrorArea, ClientErrorCount } from './client-error-schema';
 
@@ -7,7 +11,11 @@ export function entryBuildFingerprint(sources: readonly string[], origin: string
   const fingerprints = new Set<string>();
   for (const source of sources) {
     let url: URL;
-    try { url = new URL(source, origin); } catch { continue; }
+    try {
+      url = new URL(source, origin);
+    } catch {
+      continue;
+    }
     if (url.origin !== origin || url.username || url.password || url.search || url.hash) continue;
     const match = /^\/assets\/index-([A-Za-z0-9_-]{8,64})\.js$/.exec(url.pathname);
     if (match) fingerprints.add(`entry:${match[1]}`);
@@ -27,7 +35,10 @@ export function createClientErrorReporter(options: {
   let warned = false;
   const counts = new Map<string, ClientErrorCount>();
   const warn = () => {
-    if (!warned) { warned = true; options.warn(); }
+    if (!warned) {
+      warned = true;
+      options.warn();
+    }
   };
   const flush = () => {
     clearTimeout(timer);
@@ -47,9 +58,13 @@ export function createClientErrorReporter(options: {
     flush,
     report(error: unknown, area: ClientErrorArea): void {
       if (!isBuildFingerprint(options.buildVersion) || total >= MAX_CLIENT_ERRORS || batches >= 4) return;
-      if (!CLIENT_ERROR_AREAS.includes(area)) { warn(); return; }
+      if (!CLIENT_ERROR_AREAS.includes(area)) {
+        warn();
+        return;
+      }
       try {
-        const errorClass = CLIENT_ERROR_CLASSES.find((name) => error instanceof Error && error.name === name) ?? 'other';
+        const errorClass =
+          CLIENT_ERROR_CLASSES.find((name) => error instanceof Error && error.name === name) ?? 'other';
         const route = reportRouteTemplate(options.pathname());
         const key = JSON.stringify([errorClass, area, route]);
         const prior = counts.get(key);
@@ -57,7 +72,9 @@ export function createClientErrorReporter(options: {
         else counts.set(key, { errorClass, area, route, count: 1 });
         total++;
         timer ??= setTimeout(flush, 5_000);
-      } catch { warn(); }
+      } catch {
+        warn();
+      }
     },
   };
 }
@@ -72,7 +89,10 @@ export function reportClientError(error: unknown, area: 'app' | 'route' | 'onlin
         Array.from(document.querySelectorAll<HTMLScriptElement>('script[type="module"][src]'), (script) => script.src),
         location.origin,
       );
-      if (!buildVersion || typeof navigator.sendBeacon !== 'function') { unavailable = true; return; }
+      if (!buildVersion || typeof navigator.sendBeacon !== 'function') {
+        unavailable = true;
+        return;
+      }
       reporter = createClientErrorReporter({
         buildVersion,
         pathname: () => location.pathname,

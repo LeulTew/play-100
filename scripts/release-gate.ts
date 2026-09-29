@@ -191,15 +191,16 @@ async function runCommand(
       const child = spawn(executable, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
       child.stdout.pipe(output, { end: false });
       child.stderr.pipe(output, { end: false });
-      if (auditLockfileSha256) child.stdout.on('data', (chunk: Buffer) => {
-        auditBytes += chunk.length;
-        if (auditBytes > 8 * 1024 * 1024) {
-          if (!failure) {
-            failure = 'Dependency audit JSON exceeds its 8 MiB evidence limit.';
-            child.kill();
-          }
-        } else auditChunks.push(chunk);
-      });
+      if (auditLockfileSha256)
+        child.stdout.on('data', (chunk: Buffer) => {
+          auditBytes += chunk.length;
+          if (auditBytes > 8 * 1024 * 1024) {
+            if (!failure) {
+              failure = 'Dependency audit JSON exceeds its 8 MiB evidence limit.';
+              child.kill();
+            }
+          } else auditChunks.push(chunk);
+        });
       output.once('error', (cause) => {
         child.kill();
         reject(cause);
@@ -228,10 +229,15 @@ async function runCommand(
     const report: unknown = JSON.parse(Buffer.concat(auditChunks).toString('utf8'));
     const summary = summarizeNpmAudit(report, exitCode);
     await json(path.join(evidence, `${name}.json`), {
-      ...summary, startedAt, finishedAt, lockfileSha256: auditLockfileSha256, report,
+      ...summary,
+      startedAt,
+      finishedAt,
+      lockfileSha256: auditLockfileSha256,
+      report,
       commandReceiptSha256: hash(await readFile(path.join(evidence, `${name}-exit.json`))),
     });
-    if (summary.reviewRequired) console.warn(`${name}: dependency advisories recorded for owner review; not a clean audit.`);
+    if (summary.reviewRequired)
+      console.warn(`${name}: dependency advisories recorded for owner review; not a clean audit.`);
     return;
   }
   if (exitCode !== 0 || failure) throw new Error(`${name} failed; retain ${logPath} and its receipt.`);
@@ -473,7 +479,12 @@ export async function releaseGate(evidence: string, offline: string) {
       if (step.report) args.push(...reporterArgs(step, evidence));
       if (step.name.endsWith('check-budgets')) args.push('--', '--json', path.join(evidence, `${step.name}.json`));
       await runCommand(
-        step.name, cwd, evidence, process.execPath, [cli(cwd, step.tool), ...args], env,
+        step.name,
+        cwd,
+        evidence,
+        process.execPath,
+        [cli(cwd, step.tool), ...args],
+        env,
         step.audit ? hash(await readFile(path.join(cwd, 'package-lock.json'))) : undefined,
       );
     }

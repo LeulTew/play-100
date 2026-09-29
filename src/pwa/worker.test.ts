@@ -312,44 +312,52 @@ describe('PWA positive cache boundaries', () => {
   });
 
   for (const phase of ['before-read', 'during-read', 'during-digest'] as const) {
-    it.each([false, true])(`rejects cancellation ${phase} without throwIfAborted, reason supported=%s`, async (hasReason) => {
-      const controller = new AbortController();
-      Object.defineProperty(controller.signal, 'throwIfAborted', { value: undefined });
-      if (!hasReason) Object.defineProperty(controller.signal, 'reason', { value: undefined });
-      const reason = new Error('obsolete offline asset');
-      const asset = assets[2]!;
-      let reading: () => void = () => {};
-      const started = new Promise<void>((resolve) => { reading = resolve; });
-      const cancel = vi.fn();
-      const body = phase === 'during-read'
-        ? new ReadableStream<Uint8Array>({
-            pull() { reading(); },
-            cancel,
-          })
-        : fixtureBytes;
-      const crypto: PwaWorkerHost['crypto'] = {
-        subtle: {
-          async digest(algorithm, data) {
-            const result = await webcrypto.subtle.digest(algorithm, data);
-            if (phase === 'during-digest') controller.abort(reason);
-            return result;
+    it.each([false, true])(
+      `rejects cancellation ${phase} without throwIfAborted, reason supported=%s`,
+      async (hasReason) => {
+        const controller = new AbortController();
+        Object.defineProperty(controller.signal, 'throwIfAborted', { value: undefined });
+        if (!hasReason) Object.defineProperty(controller.signal, 'reason', { value: undefined });
+        const reason = new Error('obsolete offline asset');
+        const asset = assets[2]!;
+        let reading: () => void = () => {};
+        const started = new Promise<void>((resolve) => {
+          reading = resolve;
+        });
+        const cancel = vi.fn();
+        const body =
+          phase === 'during-read'
+            ? new ReadableStream<Uint8Array>({
+                pull() {
+                  reading();
+                },
+                cancel,
+              })
+            : fixtureBytes;
+        const crypto: PwaWorkerHost['crypto'] = {
+          subtle: {
+            async digest(algorithm, data) {
+              const result = await webcrypto.subtle.digest(algorithm, data);
+              if (phase === 'during-digest') controller.abort(reason);
+              return result;
+            },
           },
-        },
-      };
-      if (phase === 'before-read') controller.abort(reason);
-      const response = new Response(body, { headers: { 'Content-Type': 'application/json' } });
-      const task = verifiedPwaResponse(response, asset, `${origin}${asset.url}`, crypto, policy, controller.signal);
-      const rejected = hasReason
-        ? expect(task).rejects.toBe(reason)
-        : expect(task).rejects.toMatchObject({ name: 'AbortError' });
-      if (phase === 'during-read') {
-        await started;
-        controller.abort(reason);
-      }
-      await rejected;
-      expect(response.body?.locked).toBe(false);
-      if (phase === 'during-read') expect(cancel).toHaveBeenCalledOnce();
-    });
+        };
+        if (phase === 'before-read') controller.abort(reason);
+        const response = new Response(body, { headers: { 'Content-Type': 'application/json' } });
+        const task = verifiedPwaResponse(response, asset, `${origin}${asset.url}`, crypto, policy, controller.signal);
+        const rejected = hasReason
+          ? expect(task).rejects.toBe(reason)
+          : expect(task).rejects.toMatchObject({ name: 'AbortError' });
+        if (phase === 'during-read') {
+          await started;
+          controller.abort(reason);
+        }
+        await rejected;
+        expect(response.body?.locked).toBe(false);
+        if (phase === 'during-read') expect(cancel).toHaveBeenCalledOnce();
+      },
+    );
   }
 });
 
@@ -361,17 +369,23 @@ describe('version-bound offline security headers', () => {
     const withReports = { headers, sha256: createHash('sha256').update(JSON.stringify(headers)).digest('hex') };
     const fixture = workerFixture(false, { ...manifest, documentPolicy: withReports });
     await fixture.lifetime('install');
-    const response = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`).then((cache) =>
-      cache.match(`${origin}/index.html`),
-    );
+    const response = await fixture.caches
+      .open(`${PWA_CACHE_PREFIX}core-${version}`)
+      .then((cache) => cache.match(`${origin}/index.html`));
     expect(response?.headers.get('content-security-policy')).toBe(csp);
     expect(response?.headers.get('reporting-endpoints')).toBe('csp="/api/csp-report"');
     expect(() => validatePwaManifest({ ...manifest, documentPolicy: reporting })).toThrow(/Reporting-Endpoints/);
-    expect(() => validatePwaManifest({
-      ...manifest,
-      documentPolicy: { ...withReports, headers: headers.map((header) => header.name === 'reporting-endpoints'
-        ? { ...header, value: 'csp="https://third.test/report"' } : header) },
-    })).toThrow(/Reporting-Endpoints/);
+    expect(() =>
+      validatePwaManifest({
+        ...manifest,
+        documentPolicy: {
+          ...withReports,
+          headers: headers.map((header) =>
+            header.name === 'reporting-endpoints' ? { ...header, value: 'csp="https://third.test/report"' } : header,
+          ),
+        },
+      }),
+    ).toThrow(/Reporting-Endpoints/);
   });
 
   it('uses the embedded document policy and never copies cookies or arbitrary response headers', async () => {

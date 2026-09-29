@@ -37,8 +37,7 @@ function emittedDocumentHeader(manifest: unknown, name: string): string | null {
   const policy: unknown = manifest.documentPolicy;
   if (!policy || typeof policy !== 'object' || !('headers' in policy) || !Array.isArray(policy.headers)) return null;
   const header: unknown = policy.headers.find(
-    (entry: unknown) =>
-      Boolean(entry) && typeof entry === 'object' && (entry as { name?: unknown }).name === name,
+    (entry: unknown) => Boolean(entry) && typeof entry === 'object' && (entry as { name?: unknown }).name === name,
   );
   const value = header && typeof header === 'object' ? (header as { value?: unknown }).value : undefined;
   return typeof value === 'string' ? value : null;

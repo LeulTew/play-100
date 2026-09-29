@@ -57,10 +57,19 @@ export function summarizeNpmAudit(input: unknown, exitCode: unknown) {
   object(report.vulnerabilities);
   const values = object(object(report.metadata).vulnerabilities);
   const vulnerabilities = {
-    info: count(values.info), low: count(values.low), moderate: count(values.moderate),
-    high: count(values.high), critical: count(values.critical), total: count(values.total),
+    info: count(values.info),
+    low: count(values.low),
+    moderate: count(values.moderate),
+    high: count(values.high),
+    critical: count(values.critical),
+    total: count(values.total),
   };
-  const sum = vulnerabilities.info + vulnerabilities.low + vulnerabilities.moderate + vulnerabilities.high + vulnerabilities.critical;
+  const sum =
+    vulnerabilities.info +
+    vulnerabilities.low +
+    vulnerabilities.moderate +
+    vulnerabilities.high +
+    vulnerabilities.critical;
   if (sum !== vulnerabilities.total || exitCode !== (sum ? 1 : 0)) {
     throw new Error('Dependency audit exit code or totals disagree with its report.');
   }
@@ -204,9 +213,16 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
     }
     if (
       !flag ||
-      !['--vitest', '--vitest-cloud', '--cloud-rules', '--receipt', '--audit', '--playwright', '--decisions', '--mode'].includes(
-        flag,
-      )
+      ![
+        '--vitest',
+        '--vitest-cloud',
+        '--cloud-rules',
+        '--receipt',
+        '--audit',
+        '--playwright',
+        '--decisions',
+        '--mode',
+      ].includes(flag)
     ) {
       throw new Error('Unknown release-manifest option.');
     }
@@ -217,8 +233,7 @@ export function parseManifestArguments(args: string[]): ManifestOptions {
     else if (flag === '--audit') {
       if (options.audits.includes(value)) throw new Error('Duplicate dependency audit.');
       options.audits.push(value);
-    }
-    else if (flag === '--receipt') {
+    } else if (flag === '--receipt') {
       const separator = value.indexOf('=');
       const name = value.slice(0, separator);
       const file = value.slice(separator + 1);
@@ -379,20 +394,29 @@ export async function collectReleaseManifest(
     const file = path.resolve(root, input);
     const content = await bytes(file, 'dependency audit');
     const audit = object(json(content, 'dependency audit'));
-    if (audit.lockfileSha256 !== lockfileSha256) throw new Error('Dependency audit lockfile does not match the candidate.');
+    if (audit.lockfileSha256 !== lockfileSha256)
+      throw new Error('Dependency audit lockfile does not match the candidate.');
     for (const field of ['startedAt', 'finishedAt'] as const) {
-      if (typeof audit[field] !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(audit[field]) || !Number.isFinite(Date.parse(audit[field]))) {
+      if (
+        typeof audit[field] !== 'string' ||
+        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(audit[field]) ||
+        !Number.isFinite(Date.parse(audit[field]))
+      ) {
         throw new Error('Dependency audit has no valid UTC date.');
       }
     }
-    if (Date.parse(String(audit.finishedAt)) < Date.parse(String(audit.startedAt))) throw new Error('Dependency audit dates are reversed.');
+    if (Date.parse(String(audit.finishedAt)) < Date.parse(String(audit.startedAt)))
+      throw new Error('Dependency audit dates are reversed.');
     if (typeof audit.commandReceiptSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(audit.commandReceiptSha256)) {
       throw new Error('Dependency audit has no command receipt digest.');
     }
     audits.push({
-      path: portable(file), sha256: sha256(content),
+      path: portable(file),
+      sha256: sha256(content),
       ...summarizeNpmAudit(audit.report, audit.exitCode),
-      startedAt: audit.startedAt, finishedAt: audit.finishedAt, lockfileSha256,
+      startedAt: audit.startedAt,
+      finishedAt: audit.finishedAt,
+      lockfileSha256,
       commandReceiptSha256: audit.commandReceiptSha256,
     });
   }

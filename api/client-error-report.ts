@@ -16,7 +16,10 @@ export function createClientErrorHandler(
       response.writeHead(405).end();
       return;
     }
-    if (request.url?.includes('?')) { response.writeHead(400).end(); return; }
+    if (request.url?.includes('?')) {
+      response.writeHead(400).end();
+      return;
+    }
     if (request.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/json') {
       response.writeHead(415).end();
       return;
@@ -34,14 +37,20 @@ export function createClientErrorHandler(
     try {
       const raw = await readReport(request, CLIENT_REPORT_BYTES);
       let report: ReturnType<typeof clientErrorCounts>;
-      try { report = clientErrorCounts(JSON.parse(raw.toString('utf8'))); }
-      catch { throw new ReportFailure(400); }
+      try {
+        report = clientErrorCounts(JSON.parse(raw.toString('utf8')));
+      } catch {
+        throw new ReportFailure(400);
+      }
       log(JSON.stringify({ event: 'client-error-count', ...report }));
       response.writeHead(204).end();
     } catch (cause) {
-      if (!(cause instanceof ReportFailure)) console.error(JSON.stringify({ event: 'client-error-report-error', count: 1 }));
+      if (!(cause instanceof ReportFailure))
+        console.error(JSON.stringify({ event: 'client-error-report-error', count: 1 }));
       if (!response.destroyed) response.writeHead(cause instanceof ReportFailure ? cause.status : 500).end();
-    } finally { release(); }
+    } finally {
+      release();
+    }
   };
 }
 

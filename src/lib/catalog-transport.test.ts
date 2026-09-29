@@ -23,31 +23,37 @@ describe('bounded catalog transport failures', () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it.each(['caller', 'timeout'] as const)('preserves %s cancellation when controllers discard abort reasons', async (cause) => {
-    vi.useFakeTimers();
-    const NativeAbortController = AbortController;
-    class LegacyAbortController extends NativeAbortController {
-      constructor() {
-        super();
-        Object.defineProperties(this.signal, {
-          throwIfAborted: { value: undefined },
-          reason: { value: undefined },
-        });
+  it.each(['caller', 'timeout'] as const)(
+    'preserves %s cancellation when controllers discard abort reasons',
+    async (cause) => {
+      vi.useFakeTimers();
+      const NativeAbortController = AbortController;
+      class LegacyAbortController extends NativeAbortController {
+        constructor() {
+          super();
+          Object.defineProperties(this.signal, {
+            throwIfAborted: { value: undefined },
+            reason: { value: undefined },
+          });
+        }
+        override abort() {
+          super.abort();
+        }
       }
-      override abort() {
-        super.abort();
-      }
-    }
-    vi.stubGlobal('AbortController', LegacyAbortController);
-    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
-    const controller = new AbortController();
-    const rejected = expect(fetchCatalogJson('/api/catalog', controller.signal, 1024, 10)).rejects.toMatchObject(
-      cause === 'caller' ? { name: 'AbortError' } : { kind: 'timeout' },
-    );
-    if (cause === 'caller') controller.abort();
-    else await vi.advanceTimersByTimeAsync(10);
-    await rejected;
-  });
+      vi.stubGlobal('AbortController', LegacyAbortController);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => new Promise<Response>(() => undefined)),
+      );
+      const controller = new AbortController();
+      const rejected = expect(fetchCatalogJson('/api/catalog', controller.signal, 1024, 10)).rejects.toMatchObject(
+        cause === 'caller' ? { name: 'AbortError' } : { kind: 'timeout' },
+      );
+      if (cause === 'caller') controller.abort();
+      else await vi.advanceTimersByTimeAsync(10);
+      await rejected;
+    },
+  );
 
   for (const status of [429, 504]) {
     it.each([null, '', 'Proxy failure', '<html>Proxy failure</html>'])(

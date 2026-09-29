@@ -41,14 +41,21 @@ const legacy = {
 };
 
 describe('first-party client error endpoint', () => {
-  const report = { buildVersion: 'entry:AbCd_123', counts: [{ errorClass: 'TypeError', area: 'app', route: '/u/:handle', count: 2 }] };
+  const report = {
+    buildVersion: 'entry:AbCd_123',
+    counts: [{ errorClass: 'TypeError', area: 'app', route: '/u/:handle', count: 2 }],
+  };
   it('logs only validated counts, rejects private payload fields and bounds instance admission', async () => {
     const log = vi.fn();
-    const base = await serve(createClientErrorHandler(createAdmission({ maxActive: 1, maxPerWindow: 3 }), log));
-    const send = (body: unknown) => nativeFetch(base, {
-      method: 'POST', body: JSON.stringify(body),
-      headers: { 'content-type': 'application/json', 'user-agent': 'private agent', 'x-forwarded-for': '192.0.2.1' },
-    });
+    const base = await serve(
+      createClientErrorHandler(createAdmission({ maxActive: 1, maxPerWindow: 3, windowMs: 60_000 }), log),
+    );
+    const send = (body: unknown) =>
+      nativeFetch(base, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'content-type': 'application/json', 'user-agent': 'private agent', 'x-forwarded-for': '192.0.2.1' },
+      });
     expect((await nativeFetch(base)).status).toBe(405);
     expect((await nativeFetch(base, { method: 'POST', body: '{}' })).status).toBe(415);
     expect((await send(report)).status).toBe(204);
@@ -63,9 +70,15 @@ describe('first-party client error endpoint', () => {
   it('caps body size and releases admission after the three-second read deadline', async () => {
     const log = vi.fn();
     const base = await serve(createClientErrorHandler(undefined, log));
-    expect((await nativeFetch(base, {
-      method: 'POST', body: 'x'.repeat(8193), headers: { 'content-type': 'application/json' },
-    })).status).toBe(413);
+    expect(
+      (
+        await nativeFetch(base, {
+          method: 'POST',
+          body: 'x'.repeat(8193),
+          headers: { 'content-type': 'application/json' },
+        })
+      ).status,
+    ).toBe(413);
     vi.useFakeTimers();
     const request = new IncomingMessage(new Socket());
     request.method = 'POST';
@@ -105,9 +118,7 @@ describe('anonymous first-party CSP counts', () => {
     socket.destroy();
   });
   it('retains only fixed directives, blocked origin and templated route, aggregating a batch', () => {
-    const expected = [
-      { directive: 'script-src-elem', blockedOrigin: 'other-origin', route: '/u/:handle', count: 1 },
-    ];
+    const expected = [{ directive: 'script-src-elem', blockedOrigin: 'other-origin', route: '/u/:handle', count: 1 }];
     expect(cspCounts(legacy, false)).toEqual(expected);
     const report = {
       type: 'csp-violation',
@@ -147,7 +158,9 @@ describe('anonymous first-party CSP counts', () => {
       'visitor-unique-id.accounts.google.com',
       'accounts.google.com.visitor-unique-id.test',
     ]) {
-      const report = { 'csp-report': { ...legacy['csp-report'], 'blocked-uri': `https://${host}/private?token=secret` } };
+      const report = {
+        'csp-report': { ...legacy['csp-report'], 'blocked-uri': `https://${host}/private?token=secret` },
+      };
       const counts = cspCounts(report, false);
       expect(counts[0]?.blockedOrigin).toBe('other-origin');
       expect(JSON.stringify(counts)).not.toContain('visitor-unique-id');
