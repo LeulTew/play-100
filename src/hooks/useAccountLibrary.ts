@@ -3,42 +3,72 @@ import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import type { LibraryController } from '../lib/library-controller';
 import type { PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 import { emptyPersonalLibrary } from '../lib/personal-library';
-import { commitScopedAction, loadScopedLibrary, restoreScopedLibrary } from '../lib/scoped-library';
+import { commitScopedAction, loadScopedLibrary, openScopedLibrary, restoreScopedLibrary, scopedWriter } from '../lib/scoped-library';
+import type { AccountWriter } from '../lib/scoped-library';
 import { subscribePersonalLibrary } from '../lib/personal-db';
 import type { MotionPreference } from '../lib/types';
+
+class AccountOpening {
+  writer: AccountWriter | null = null;
+  pending: Promise<ScopedLibrary> | null = null;
+
+  constructor(readonly scope: LibraryScope | null, readonly authGeneration: number) {}
+
+  async read(motion: MotionPreference, isCurrent: () => boolean): Promise<ScopedLibrary> {
+    if (!this.scope) throw new Error('Open an account before saving its device copy.');
+    if (this.writer) return loadScopedLibrary(this.writer, motion);
+    const opening = this.pending ?? openScopedLibrary(this.scope, motion, isCurrent);
+    this.pending = opening;
+    try {
+      const value = await opening;
+      this.writer = scopedWriter(value);
+      return value;
+    } finally {
+      if (this.pending === opening) this.pending = null;
+    }
+  }
+}
+
+function unavailableAccount(): Promise<never> {
+  return Promise.reject(new Error('Reopen the signed-in account before saving its device copy.'));
+}
 
 export function useAccountLibrary(
   scope: LibraryScope | null,
   deviceMotion: MotionPreference,
   identityIsCurrent: () => boolean,
+  authGeneration = 0,
 ) {
-  const [snapshot, setSnapshot] = useState<ScopedLibrary | null>(null);
-  const [failure, setFailure] = useState<{ scope: LibraryScope; message: string } | null>(null);
+  const lifetime = useMemo(() => new AccountOpening(scope, authGeneration), [scope, authGeneration]);
+  const [snapshot, setSnapshot] = useState<{ lifetime: AccountOpening; value: ScopedLibrary } | null>(null);
+  const [failure, setFailure] = useState<{ lifetime: AccountOpening; message: string; retired?: boolean } | null>(null);
   const [pending, setPending] = useState(0);
-  const currentScope = useRef(scope);
+  const currentLifetime = useRef(lifetime);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   useLayoutEffect(() => {
-    currentScope.current = scope;
-  }, [scope]);
+    currentLifetime.current = lifetime;
+  }, [lifetime]);
   const refresh = useCallback(() => {
     if (!scope) return Promise.resolve();
     return queue.current
       .then(async () => {
-        if (currentScope.current !== scope || !identityIsCurrent()) return;
-        const value = await loadScopedLibrary(scope, deviceMotion);
-        if (currentScope.current === scope) {
-          setSnapshot(value);
+        const owns = () => currentLifetime.current === lifetime && identityIsCurrent();
+        if (!owns()) return;
+        const value = await lifetime.read(deviceMotion, owns);
+        if (owns()) {
+          setSnapshot({ lifetime, value });
           setFailure(null);
         }
       })
       .catch((error: unknown) => {
-        if (currentScope.current === scope)
+        if (currentLifetime.current === lifetime)
           setFailure({
-            scope,
+            lifetime,
             message: error instanceof Error ? error.message : 'Account device storage is unavailable.',
+            retired: error instanceof Error && error.name === 'PersonalLibraryWriterRetiredError',
           });
       });
-  }, [scope, deviceMotion, identityIsCurrent]);
+  }, [scope, lifetime, deviceMotion, identityIsCurrent]);
   useEffect(() => {
     if (!scope) return;
     void refresh();
@@ -62,17 +92,18 @@ export function useAccountLibrary(
       const task = queue.current.then(async () => {
         try {
           const next = await operation();
-          if (currentScope.current === target) {
-            setSnapshot(next);
+          if (currentLifetime.current === lifetime) {
+            setSnapshot({ lifetime, value: next });
             setFailure(null);
           }
           return true;
         } catch (error) {
-          if (currentScope.current === target)
+          if (currentLifetime.current === lifetime)
             setFailure({
-              scope: target,
+              lifetime,
               message:
                 error instanceof Error ? error.message : 'Your account change could not be saved on this device.',
+              retired: error instanceof Error && error.name === 'PersonalLibraryWriterRetiredError',
             });
           return false;
         } finally {
@@ -82,32 +113,39 @@ export function useAccountLibrary(
       queue.current = task;
       return task;
     },
-    [scope],
+    [scope, lifetime],
   );
+  const current = snapshot?.lifetime === lifetime ? snapshot.value : null;
+  const writerGeneration = current?.writerGeneration ?? 0;
+  const ready = current !== null;
+  const writer = useMemo<AccountWriter | null>(
+    () => scope && ready ? { scope, generation: writerGeneration } : null,
+    [scope, ready, writerGeneration],
+  );
+  const retired = Boolean(failure?.lifetime === lifetime && failure.retired);
   const perform = useCallback(
-    (action: PersonalAction) => (scope ? enqueue(() => commitScopedAction(scope, action)) : Promise.resolve(false)),
-    [scope, enqueue],
+    (action: PersonalAction) => enqueue(() => writer && !retired ? commitScopedAction(writer, action) : unavailableAccount()),
+    [writer, retired, enqueue],
   );
   const restore = useCallback(
     (state: PersonalLibraryState) =>
-      scope ? enqueue(() => restoreScopedLibrary(scope, state)) : Promise.resolve(false),
-    [scope, enqueue],
+      enqueue(() => writer && !retired ? restoreScopedLibrary(writer, state) : unavailableAccount()),
+    [writer, retired, enqueue],
   );
   const reset = useCallback(() => restore(emptyPersonalLibrary()), [restore]);
-  const current = snapshot?.scope === scope ? snapshot : null;
-  const error = failure?.scope === scope ? failure.message : null;
+  const error = failure?.lifetime === lifetime ? failure.message : null;
   const controller = useMemo<LibraryController>(
     () => ({
       state: current?.state ?? emptyPersonalLibrary(),
       status: current ? 'ready' : error ? 'temporary' : 'loading',
       warning: null,
       error,
-      busy: pending > 0 || (!current && !error),
+      busy: Boolean(retired) || pending > 0 || (!current && !error),
       perform,
       restore,
       reset,
     }),
-    [current, error, pending, perform, restore, reset],
+    [current, error, retired, pending, perform, restore, reset],
   );
   useEffect(() => {
     if (!pending) return;
@@ -118,5 +156,5 @@ export function useAccountLibrary(
     window.addEventListener('beforeunload', guard);
     return () => window.removeEventListener('beforeunload', guard);
   }, [pending]);
-  return { snapshot: current, controller, error, refresh, waitForWrites: () => queue.current };
+  return { snapshot: current, writer, controller, error, refresh, waitForWrites: () => queue.current };
 }

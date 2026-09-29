@@ -10,6 +10,7 @@ import {
   isInitialAccountCache,
   loadScopedLibrary,
   restoreConsentedAccount,
+  scopedWriter,
 } from '../lib/scoped-library';
 import { syncFailure } from '../lib/sync-retry';
 import { useAccountLibrary } from '../hooks/useAccountLibrary';
@@ -89,13 +90,14 @@ export function useOnlineAccount({
   }, [uid, setError]);
   const scope = useMemo(() => (uid ? accountScope(uid, firebaseApp.options.projectId) : null), [uid]);
   const identityIsCurrent = useCallback(() => cloudAuth.currentUser?.uid === uid, [uid]);
-  const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent);
+  const account = useAccountLibrary(scope, guest.state.motion, identityIsCurrent, authGeneration);
+  const writer = account.writer;
   const refreshAccount = account.refresh;
   const social = useMemo(() => new SocialStore(cloudDb), []);
   const restoreInitial = useCallback(
     async (store: CloudStore, isCurrent: () => boolean) => {
-      if (!scope || !uid || !isCurrent()) return;
-      const local = await loadScopedLibrary(scope);
+      if (!writer || !uid || !isCurrent()) return;
+      const local = await loadScopedLibrary(writer);
       if (!isCurrent() || !isInitialAccountCache(local)) return;
       const [savedMember, savedHead] = await Promise.all([social.member(uid), store.head()]);
       if (!isCurrent()) return;
@@ -126,13 +128,13 @@ export function useOnlineAccount({
           code: 'aborted',
         });
       }
-      await restoreConsentedAccount(scope, incoming, fresh, savedMember, () => isCurrent() && !hasPendingEdits());
+      await restoreConsentedAccount(writer, incoming, fresh, savedMember, () => isCurrent() && !hasPendingEdits());
       if (isCurrent()) {
         setMessage('Online library restored.');
         await refreshAccount();
       }
     },
-    [scope, uid, social, refreshAccount, setMessage],
+    [writer, uid, social, refreshAccount, setMessage],
   );
   const sync = useCloudSync(scope, account.snapshot, Boolean(identity?.verified), restoreInitial, authGeneration);
   const reportProfileError = sync.reportProfileError;
@@ -160,6 +162,8 @@ export function useOnlineAccount({
     async (includeMember = true) => {
       const user = identityRef.current;
       if (!user?.verified || !sync.store) return;
+      const cache = cacheNow.current;
+      const cacheWriter = cache ? scopedWriter(cache) : null;
       const version = memberReadVersion.current;
       const [nextMember, nextProfile, nextHead, allowed] = await Promise.all([
         includeMember ? social.member(user.uid) : Promise.resolve(undefined),
@@ -174,10 +178,10 @@ export function useOnlineAccount({
       setProfile(nextProfile);
       if (nextHead !== undefined) setHeadSnapshot({ uid: user.uid, value: nextHead });
       setCreatorUid(allowed ? user.uid : null);
-      if (nextMember && scope && cacheReady.current && version === memberReadVersion.current) {
+      if (nextMember && cacheWriter && cacheReady.current && version === memberReadVersion.current) {
         try {
           await cacheScopedProfile(
-            scope,
+            cacheWriter,
             nextMember,
             () => cloudAuth.currentUser?.uid === user.uid && version === memberReadVersion.current,
           );
@@ -187,7 +191,7 @@ export function useOnlineAccount({
         }
       }
     },
-    [social, sync.store, scope, identityRef, setError],
+    [social, sync.store, identityRef, setError],
   );
   const accountReady = Boolean(account.snapshot || account.error);
   useEffect(() => {
@@ -243,7 +247,9 @@ export function useOnlineAccount({
           previous?.uid === uid && next && previous.updatedAt > next.updatedAt ? previous : next,
         );
         if (!next || !cacheReady.current) return;
-        const cached = cacheNow.current?.profile;
+        const local = cacheNow.current;
+        if (!local) return;
+        const cached = local.profile;
         const fingerprint = `${next.displayName}:${next.avatar.version}:${next.avatar.seed}:${next.avatar.palette}`;
         if (
           caching === fingerprint ||
@@ -254,7 +260,7 @@ export function useOnlineAccount({
         )
           return;
         caching = fingerprint;
-        void cacheScopedProfile(scope, next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
+        void cacheScopedProfile(scopedWriter(local), next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
           if (alive && cloudAuth.currentUser?.uid === uid) {
             caching = '';
             setError(`Your online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`);

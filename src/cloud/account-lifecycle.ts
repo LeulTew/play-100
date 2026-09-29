@@ -2,7 +2,7 @@ import { doc, getDocFromServer, runTransaction } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { deleteScopedLibrary } from '../lib/scoped-library';
-import type { DeviceCopyRemoval } from '../lib/scoped-library';
+import type { AccountWriter, DeviceCopyRemoval } from '../lib/scoped-library';
 import { scopeUid } from '../lib/cloud-types';
 import type { LibraryScope } from '../lib/cloud-types';
 
@@ -26,9 +26,10 @@ export async function readAccountLifecycle(db: Firestore, uid: string): Promise<
 export async function removeCancelledRegistration(
   db: Firestore,
   user: Pick<User, 'uid' | 'getIdTokenResult' | 'delete'>,
-  scope: LibraryScope,
+  target: LibraryScope | AccountWriter,
   isCurrent: () => boolean,
 ): Promise<DeviceCopyRemoval | false> {
+  const scope = typeof target === 'string' ? target : target.scope;
   if (scopeUid(scope) !== user.uid || !isCurrent())
     throw new Error('The signed-in account changed. Nothing was deleted.');
   const token = await user.getIdTokenResult(true);
@@ -37,7 +38,7 @@ export async function removeCancelledRegistration(
   if (!isCurrent()) throw new Error('The signed-in account changed. Nothing was deleted.');
   // The immutable cancelled marker prohibits content bootstrap; do not create cleanup state.
   await user.delete();
-  return deleteScopedLibrary(scope);
+  return deleteScopedLibrary(target);
 }
 
 export async function ensureAccountActivity(db: Firestore, uid: string): Promise<void> {

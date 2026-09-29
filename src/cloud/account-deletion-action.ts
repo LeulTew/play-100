@@ -5,7 +5,7 @@ import type { AppPage } from '../lib/types';
 import type { LibraryScope, ScopedLibrary, SyncHead } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import type { FriendShelfConfig } from '../lib/friend-shelf-types';
-import { deleteScopedLibrary, pauseScopedLibrary } from '../lib/scoped-library';
+import { deleteScopedLibrary, pauseScopedLibrary, scopedWriter } from '../lib/scoped-library';
 import type { DeviceCopyRemoval } from '../lib/scoped-library';
 import { rememberOnlineRequest } from '../lib/online-availability';
 import { hasPendingEdits } from '../hooks/useExitSave';
@@ -105,6 +105,7 @@ export function createAccountDeletion({
       const signedIn = cloudAuth.currentUser;
       if (!signedIn || signedIn.uid !== identityRef.current?.uid || !scope)
         throw new Error('Sign in to the account you want to delete.');
+      const writer = account.snapshot ? scopedWriter(account.snapshot) : { scope, generation: 0 };
       deletionProbe.current = null;
       setNotice(null);
       const session = authSessionEpochRef.current;
@@ -150,7 +151,7 @@ export function createAccountDeletion({
             session,
             authSessionEpochRef.current,
           );
-        const cancelled = await removeCancelledRegistration(cloudDb, signedIn, scope, current);
+        const cancelled = await removeCancelledRegistration(cloudDb, signedIn, writer, current);
         if (cancelled) {
           await rememberOnlineRequest(false);
           setIdentity(null);
@@ -167,7 +168,7 @@ export function createAccountDeletion({
         }
         await cancelUnusedRegistration(cloudDb, signedIn.uid);
         await deleteUser(signedIn);
-        const removal = await deleteScopedLibrary(scope);
+        const removal = await deleteScopedLibrary(writer);
         await rememberOnlineRequest(false);
         setIdentity(null);
         leave(removal);
@@ -176,7 +177,6 @@ export function createAccountDeletion({
       if (!identityRef.current?.verified || !sync.store)
         throw new Error('Verify this account before deleting existing online data.');
       const user = signedIn;
-      const target = scope;
       const store = sync.store;
       friends.stop();
       shelf.stop();
@@ -224,7 +224,7 @@ export function createAccountDeletion({
         )
       )
         throw new Error('The signed-in account changed. Return to the same account before continuing.');
-      if (account.snapshot) await pauseScopedLibrary(target);
+      if (account.snapshot) await pauseScopedLibrary(writer);
       await ensureAccountActivity(cloudDb, user.uid);
       await social.unpublish(user.uid, await social.control(user.uid), true);
       const deleting = await store.revoke(await store.head(), true);
@@ -304,7 +304,7 @@ export function createAccountDeletion({
           }
           throw cause;
         }
-        const removal = await deleteScopedLibrary(target);
+        const removal = await deleteScopedLibrary(writer);
         await rememberOnlineRequest(false);
         setIdentity(null);
         leave(removal);

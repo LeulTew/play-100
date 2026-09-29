@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import type { AccountIdentity } from './ui-types';
-import type { SyncHead } from '../lib/cloud-types';
+import type { ScopedLibrary, SyncHead } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import type { FriendAllPolicy } from '../lib/friend-all';
 import {
@@ -46,7 +46,11 @@ vi.mock('firebase/auth', () => ({
 }));
 vi.mock('../hooks/useExitSave', () => ({ hasPendingEdits: calls.pending }));
 vi.mock('../lib/online-availability', () => ({ rememberOnlineRequest: calls.remember }));
-vi.mock('../lib/scoped-library', () => ({ deleteScopedLibrary: calls.deleteDevice, pauseScopedLibrary: calls.pause }));
+vi.mock('../lib/scoped-library', () => ({
+  deleteScopedLibrary: calls.deleteDevice,
+  pauseScopedLibrary: calls.pause,
+  scopedWriter: (snapshot: ScopedLibrary) => ({ scope: snapshot.scope, generation: snapshot.writerGeneration ?? 0 }),
+}));
 vi.mock('./cloud-store', () => ({ deleteOwnMember: calls.deleteMember }));
 vi.mock('./google-auth', () => ({ startGoogleRedirect: calls.redirect }));
 vi.mock('./account-lifecycle', () => ({
@@ -346,7 +350,7 @@ describe('ordered account deletion orchestration', () => {
     } else {
       expect(calls.cancel).toHaveBeenCalledWith({}, 'alpha');
       expect(calls.deleteUser).toHaveBeenCalled();
-      expect(calls.deleteDevice).toHaveBeenCalledWith(f.context.scope);
+      expect(calls.deleteDevice).toHaveBeenCalledWith({ scope: f.context.scope, generation: 0 });
     }
     expect(f.context.sync.store.cleanup).not.toHaveBeenCalled();
   });

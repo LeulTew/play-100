@@ -25,6 +25,7 @@ interface LifetimeIdentity {
   verified: boolean;
   initialProbe: boolean;
   authGeneration: number;
+  writerGeneration: number | null;
 }
 // One sync session: the account and consent it serves, and the state its asynchronous work shares. A new one replaces
 // it when ownership or consent changes. Its fields change only through these methods, from effects, callbacks and
@@ -91,10 +92,15 @@ export function useCloudSync(
   const enabled = Boolean(snapshot?.sync.enabled && verified);
   const initialProbe = Boolean(verified && isInitialAccountCache(snapshot) && restoreInitial);
   const epoch = snapshot?.sync.epoch ?? 0;
+  const writerGeneration = snapshot ? snapshot.writerGeneration ?? 0 : null;
+  const writer = useMemo(
+    () => scope && writerGeneration !== null ? { scope, generation: writerGeneration } : null,
+    [scope, writerGeneration],
+  );
   // A fresh lease invalidates pending work when ownership or consent changes, not on ordinary data edits.
   const lifetime = useMemo(
-    () => new SyncLifetime({ scope, enabled, epoch, verified, initialProbe, authGeneration }),
-    [scope, enabled, epoch, verified, initialProbe, authGeneration],
+    () => new SyncLifetime({ scope, enabled, epoch, verified, initialProbe, authGeneration, writerGeneration }),
+    [scope, enabled, epoch, verified, initialProbe, authGeneration, writerGeneration],
   );
   const [initialCheck, setInitialCheck] = useState<{ lifetime: SyncLifetime; pending: boolean } | null>(null);
   const initialWork = useRef(restoreInitial);
@@ -171,8 +177,8 @@ export function useCloudSync(
         lifetime.queue?.failed('blocked');
         lifetime.detach();
         setStatus('paused');
-        if (scope)
-          void pauseScopedLibrary(scope, epoch, owns).catch((failure) => {
+        if (writer)
+          void pauseScopedLibrary(writer, epoch, owns).catch((failure) => {
             if (owns()) setError(onlineError(failure));
           });
       } else {
@@ -190,7 +196,7 @@ export function useCloudSync(
         `${onlineError(cause)}${lifetime.block === 'transient' ? ' Retrying automatically while this page is visible and connected.' : lifetime.block === 'quota' ? ' Retrying automatically at longer intervals while this page is visible and connected.' : ''}`,
       );
     },
-    [owns, lifetime, scope, epoch, enabled, initialProbe, setRemote],
+    [owns, lifetime, writer, epoch, enabled, initialProbe, setRemote],
   );
   const succeeded = useCallback(
     (next: SyncStatus) => {
@@ -209,7 +215,7 @@ export function useCloudSync(
 
   const receive = useCallback(
     async (head: SyncHead | null) => {
-      if (!scope || !store || !owns()) return;
+      if (!writer || !store || !owns()) return;
       // A stale view (see staleHeadRead) is followed by the current head from the same listener.
       if (!head || head.epoch < lifetime.identity.epoch) return;
       const known = latestRemote.current;
@@ -219,7 +225,7 @@ export function useCloudSync(
       if (uploading.current?.lifetime === lifetime) return;
       const operation = ++sequence.current;
       try {
-        let local = await loadScopedLibrary(scope);
+        let local = await loadScopedLibrary(writer);
         if (!owns() || operation !== sequence.current) return;
         if (!local.sync.enabled) {
           setStatus('paused');
@@ -236,7 +242,7 @@ export function useCloudSync(
             // that head without replacing local data. An edit made meanwhile stays pending.
             if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
             local = await acknowledgeScopedUpload(
-              scope,
+              writer,
               local.sync.dataRevision,
               head,
               () => owns() && !hardBlocked(lifetime.block),
@@ -246,7 +252,7 @@ export function useCloudSync(
             if (!incoming) throw new Error('The newer online copy has no saved library. Your local copy is retained.');
             if (!owns() || hardBlocked(lifetime.block) || operation !== sequence.current) return;
             local = await adoptScopedRemote(
-              scope,
+              writer,
               incoming,
               head,
               local.state.revision,
@@ -267,11 +273,11 @@ export function useCloudSync(
         if (owns() && operation === sequence.current) failed(cause);
       }
     },
-    [scope, store, owns, lifetime, setRemote, failed, succeeded],
+    [writer, store, owns, lifetime, setRemote, failed, succeeded],
   );
 
   const sync = useCallback(async () => {
-    if (!scope || !store || !verified || !owns() || uploading.current?.lifetime === lifetime || document.hidden) return;
+    if (!writer || !store || !verified || !owns() || uploading.current?.lifetime === lifetime || document.hidden) return;
     if (hardBlocked(lifetime.block)) return;
     if (!navigator.onLine) {
       setStatus('offline');
@@ -293,7 +299,7 @@ export function useCloudSync(
       }
       if (!enabled) return;
       // A retry reattaches failed listeners before checking the latest committed device revision.
-      const local = await loadScopedLibrary(scope);
+      const local = await loadScopedLibrary(writer);
       if (!local.sync.enabled || local.sync.epoch !== epoch || !owns()) return;
       const head = await store.head();
       if (!owns()) return;
@@ -319,7 +325,7 @@ export function useCloudSync(
       );
       if (!owns()) return;
       const acknowledged = await acknowledgeScopedUpload(
-        scope,
+        writer,
         local.sync.dataRevision,
         confirmed,
         () => owns() && !hardBlocked(lifetime.block),
@@ -347,7 +353,7 @@ export function useCloudSync(
       if (uploading.current === lease) uploading.current = null;
       if (owns()) {
         try {
-          const after = await loadScopedLibrary(scope);
+          const after = await loadScopedLibrary(writer);
           if (owns() && after.sync.enabled) {
             const observed = latestRemote.current;
             if (observed && (observed.epoch !== after.sync.epoch || observed.revision > after.sync.baseRemoteRevision))
@@ -359,7 +365,7 @@ export function useCloudSync(
         }
       }
     }
-  }, [scope, store, verified, enabled, initialProbe, owns, lifetime, epoch, setRemote, receive, succeeded, failed]);
+  }, [writer, store, verified, enabled, initialProbe, owns, lifetime, epoch, setRemote, receive, succeeded, failed]);
   const syncNow = useRef(sync);
   useLayoutEffect(() => {
     syncNow.current = sync;
@@ -437,7 +443,7 @@ export function useCloudSync(
   }, [enabled, initialProbe, pendingEdits, snapshot?.sync.dataRevision, snapshot?.sync.dirty, lifetime]);
 
   const useRemote = async (expected: SyncHead, expectedLocalRevision: number) => {
-    if (!store || !scope || !owns()) throw new Error('Sign in before resolving a cloud conflict.');
+    if (!store || !writer || !owns()) throw new Error('Sign in before resolving a cloud conflict.');
     const latest = await store.head();
     if (
       !latest ||
@@ -450,7 +456,7 @@ export function useCloudSync(
     const state = await store.download(latest);
     if (!state) throw new Error('There is no complete online copy to use.');
     await adoptScopedRemote(
-      scope,
+      writer,
       state,
       latest,
       expectedLocalRevision,
@@ -462,7 +468,7 @@ export function useCloudSync(
     succeeded('saved');
   };
   const useLocal = async (expected: SyncHead, expectedLocalRevision: number) => {
-    if (!store || !scope || !owns()) throw new Error('Sign in before resolving a cloud conflict.');
+    if (!store || !writer || !owns()) throw new Error('Sign in before resolving a cloud conflict.');
     const latest = await store.head();
     if (
       !latest ||
@@ -473,7 +479,7 @@ export function useCloudSync(
     )
       throw new Error('Online saving changed. Review the current state before replacing anything.');
     await rebaseScopedLibrary(
-      scope,
+      writer,
       latest,
       expectedLocalRevision,
       () => owns() && lifetime.block !== 'revoked' && lifetime.block !== 'terminal',

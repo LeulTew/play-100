@@ -8,6 +8,7 @@ import {
   deleteScopedLibrary,
   loadScopedLibrary,
   pauseScopedLibrary,
+  scopedWriter,
 } from '../lib/scoped-library';
 import { createLibraryBackup, emptyPersonalLibrary } from '../lib/personal-library';
 import { rememberOnlineRequest } from '../lib/online-availability';
@@ -65,7 +66,7 @@ export function useAccountActions({
   const connect = (choice: ConnectionChoice, name: string) =>
     run(async () => {
       if (!(await flushPendingEdits())) throw new Error('Finish or correct the open edit before connecting.');
-      const { user, scope: target, store, local } = verifiedIdentity();
+      const { user, store, local } = verifiedIdentity();
       const expected = { localRevision: local.state.revision, epoch: local.sync.epoch, enabled: local.sync.enabled };
       const before = await store.head();
       if (
@@ -108,7 +109,7 @@ export function useAccountActions({
       const enabledHead = before?.deleted ? await store.enable(before) : before;
       await social.saveMemberName(user.uid, name, member?.avatar ?? defaultAvatar);
       const connectedHead = before?.deleted && enabledHead ? enabledHead : await store.enable(before);
-      await connectScopedLibrary(target, chosen, connectedHead, name.trim(), choice !== 'online', expected);
+      await connectScopedLibrary(scopedWriter(local), chosen, connectedHead, name.trim(), choice !== 'online', expected);
       await social.restorePublicationPermission(user.uid);
       await account.refresh();
       await refresh();
@@ -127,7 +128,7 @@ export function useAccountActions({
   const signOutAccount = (removeDeviceCopy = false) =>
     run(async () => {
       const user = cloudAuth.currentUser;
-      const target = scope;
+      const target = account.writer;
       const session = authSessionEpochRef.current;
       if (!(await flushPendingEdits())) throw new Error('Correct the pending edit before signing out.');
       const current = () =>
@@ -152,7 +153,7 @@ export function useAccountActions({
     }, true);
   const pause = () =>
     run(async () => {
-      const { scope: target, store } = verifiedIdentity();
+      const { local, store } = verifiedIdentity();
       if (!navigator.onLine)
         throw new Error('Connect before stopping online saving on all devices. Offline edits are retained here.');
       sync.suspend();
@@ -161,7 +162,7 @@ export function useAccountActions({
       automatic.suspend();
       const current = await store.head();
       if (current) await store.revoke(current);
-      await pauseScopedLibrary(target);
+      await pauseScopedLibrary(scopedWriter(local));
       await account.refresh();
       await refresh();
       setMessage(
@@ -179,7 +180,7 @@ export function useAccountActions({
       let local = account.snapshot;
       let cacheError: string | null = null;
       try {
-        local = await loadScopedLibrary(scope);
+        local = await loadScopedLibrary(account.writer ?? scope);
       } catch (cause) {
         if (source === 'local') throw cause;
         cacheError = onlineError(cause);
