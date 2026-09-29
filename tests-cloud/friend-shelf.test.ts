@@ -46,7 +46,13 @@ vi.mock('firebase/firestore', async (original) => {
   const actual = await original<typeof import('firebase/firestore')>();
   return { ...actual, runTransaction: vi.fn(actual.runTransaction) };
 });
-const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
+const { host, port } = emulatorAddress();
+
+function emulatorAddress() {
+  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
+  if (!host || !port) throw new Error('FIRESTORE_EMULATOR_HOST must be host:port.');
+  return { host, port };
+}
 const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
 const projectId = 'demo-play100';
 const source = { syncEpoch: 1, remoteRevision: 0 };

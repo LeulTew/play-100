@@ -301,11 +301,11 @@ apart from the frozen files `.prettierignore` names with their reasons.
 ESLint is type-aware: `typescript-eslint`'s `recommendedTypeChecked` rules run
 with the project service, so every TypeScript file is linted against the
 tsconfig project that builds it (`no-floating-promises` and
-`no-misused-promises` included). Files no project covers, the plain JavaScript
-configs and `tests-cloud/`, are linted without type information.
-`eslint.config.js` names each type-aware rule not yet brought to zero.
-`tsconfig.node.json`, and the cloud-UI project that extends it, are as strict
-as the app's.
+`no-misused-promises` included). Plain JavaScript files, which no project
+covers, are linted without type information. `eslint.config.js` names each
+type-aware rule not yet brought to zero, and the few test-only exceptions with
+their reasons. `tsconfig.node.json`, and the cloud and cloud-UI projects that
+extend it, are as strict as the app's.
 The supported application runtime is **Node 24.x**, matching the Vercel build
 and Functions runtime and `package.json` engines. The release verification
 runtime is **exactly Node 24.21.0**, pinned in `.nvmrc`, with that installation's

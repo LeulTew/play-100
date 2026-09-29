@@ -5,9 +5,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 // Files that no tsconfig project covers are linted without type information (README, Quality checks).
-const untypedFiles = ['**/*.{js,mjs,cjs}', 'tests-cloud/**/*.ts', 'vitest.cloud.config.ts'];
+const untypedFiles = ['**/*.{js,mjs,cjs}'];
 
-const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/**/*.ts', 'tests-cloud-ui/**/*.ts'];
+const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/**/*.ts', 'tests-cloud/**/*.ts', 'tests-cloud-ui/**/*.ts'];
 
 const pendingTypedRules = [
   'no-unsafe-assignment',

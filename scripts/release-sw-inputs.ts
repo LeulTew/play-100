@@ -22,8 +22,10 @@ export interface SwBuildInput {
 
 export function parseSwArguments(args: string[]) {
   assert.equal(args.length, 2, 'Use release:sw-probe -- --input FILE (fresh evidence only).');
-  assert.equal(args[0], '--input', 'Use --input FILE.');
-  return path.resolve(args[1]);
+  const [flag, input] = args;
+  assert.equal(flag, '--input', 'Use --input FILE.');
+  assert.ok(input, 'Use --input FILE.');
+  return path.resolve(input);
 }
 
 export function parseSwInput(value: unknown, directory: string) {
@@ -124,9 +126,10 @@ export async function verifySwBuild(
     .map((value) => requireObject(value))
     .filter((rule) => new RegExp(`^${requireText(rule.source)}$`).test('/'));
   assert.equal(main.length, 1, 'Expected exactly one root-document header rule.');
-  assert.ok(Array.isArray(main[0].headers), 'Missing root headers.');
+  const [mainRule] = main;
+  assert.ok(mainRule && Array.isArray(mainRule.headers), 'Missing root headers.');
   const headers = Object.fromEntries(
-    main[0].headers.map((value) => {
+    mainRule.headers.map((value) => {
       const row = requireObject(value);
       return [requireText(row.key).toLowerCase(), requireText(row.value)];
     }),

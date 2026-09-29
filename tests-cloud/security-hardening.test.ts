@@ -318,6 +318,8 @@ describe('S3 report and friendship boundaries', () => {
 
   it('limits private registry growth to eight while permitting oversized legacy cleanup', async () => {
     const ids = Array.from({ length: 10 }, () => crypto.randomUUID());
+    const [id7, id8, id9] = ids.slice(7);
+    if (!id7 || !id8 || !id9) throw new Error('Expected ten generation ids.');
     await seed({
       'syncHeads/Alice': { enabled: true, deleted: false, epoch: 1, revision: 0, current: null, previous: null },
       'accounts/Alice/metadata/registry': { ids: ids.slice(0, 7), revision: 1 },
@@ -343,21 +345,21 @@ describe('S3 report and friendship boundaries', () => {
       batch.update(db.doc('accounts/Alice/metadata/registry'), { ids: nextIds, revision });
       return batch.commit();
     };
-    await assertSucceeds(grow(ids[7], ids.slice(0, 8), 2));
-    await assertFails(grow(ids[8], ids.slice(0, 9), 3));
+    await assertSucceeds(grow(id7, ids.slice(0, 8), 2));
+    await assertFails(grow(id8, ids.slice(0, 9), 3));
     await seed({
       'accounts/Alice/metadata/registry': { ids, revision: 1 },
-      [`accounts/Alice/generations/${ids[9]}`]: {
-        private: manifestFor(ids[9]),
-        ranking: manifestFor(ids[9]),
+      [`accounts/Alice/generations/${id9}`]: {
+        private: manifestFor(id9),
+        ranking: manifestFor(id9),
         epoch: 1,
         status: 'deleting',
         createdAt: Timestamp.now(),
       },
     });
-    await assertSucceeds(db.doc(`accounts/Alice/generations/${ids[9]}`).update({ released: 2 }));
+    await assertSucceeds(db.doc(`accounts/Alice/generations/${id9}`).update({ released: 2 }));
     const shrink = db.batch();
-    shrink.delete(db.doc(`accounts/Alice/generations/${ids[9]}`));
+    shrink.delete(db.doc(`accounts/Alice/generations/${id9}`));
     shrink.update(db.doc('accounts/Alice/metadata/registry'), { ids: ids.slice(0, 9), revision: 2 });
     await assertSucceeds(shrink.commit());
   });

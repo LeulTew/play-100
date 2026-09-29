@@ -52,7 +52,13 @@ vi.mock('firebase/firestore', async (importOriginal) => {
   };
 });
 
-const [firestoreHost, firestorePort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
+const { host: firestoreHost, port: firestorePort } = emulatorAddress();
+
+function emulatorAddress() {
+  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
+  if (!host || !port) throw new Error('FIRESTORE_EMULATOR_HOST must be host:port.');
+  return { host, port };
+}
 const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
 const projectId = 'demo-play100';
 const avatar: AvatarValue = { version: 1, seed: 'b'.repeat(32), palette: 'moss' };

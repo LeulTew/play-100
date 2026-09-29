@@ -34,7 +34,7 @@ export function authHeaderCoverageProblems(configuration: unknown): string[] {
     if (matches(pathname).length) problems.push(`${pathname} must keep its function-owned nonce headers only.`);
   for (const name of ['handler', 'iframe', 'experiments']) {
     const rules = matches(`/__/auth/${name}.js`);
-    if (rules.length !== 1 || rules[0].source !== '/__/auth/(handler|iframe|experiments)\\.js')
+    if (rules.length !== 1 || rules[0]?.source !== '/__/auth/(handler|iframe|experiments)\\.js')
       problems.push(`/__/auth/${name}.js must keep only the helper script headers.`);
   }
   return problems;

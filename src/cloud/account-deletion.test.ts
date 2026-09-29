@@ -127,7 +127,7 @@ function fixture() {
   const failures: unknown[] = [];
   const context = {
     identity,
-    identityRef: { current: identity as AccountIdentity | null | undefined },
+    identityRef: { current: identity },
     scope: 'account:demo-play100:alpha' as AccountDeletionContext['scope'],
     currentEpoch: { current: 2 },
     authSessionEpochRef: { current: 4 },
@@ -352,10 +352,10 @@ describe('ordered account deletion orchestration', () => {
       expect(f.context.setIdentity).toHaveBeenCalledWith(null);
       expect(f.context.onNavigate, 'Account stays open to say what stayed').not.toHaveBeenCalled();
       expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'left' });
-      retryDeviceLeftovers();
+      void retryDeviceLeftovers();
       expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'still-left' });
       removed = true;
-      retryDeviceLeftovers();
+      void retryDeviceLeftovers();
       expect(retry).toHaveBeenCalledTimes(2);
       expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'removed' });
     },
