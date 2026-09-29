@@ -4,6 +4,35 @@ import { fileURLToPath } from 'node:url';
 import { cspProblems, directiveSources, inlineBlocks, mainDocumentPolicy } from './first-paint/csp.ts';
 import type { CspDocument } from './first-paint/csp.ts';
 import { expectedDocumentHeaders } from './release-verify.ts';
+import { MAIN_DOCUMENT_RULE } from './first-paint/csp.ts';
+
+export function authHeaderCoverageProblems(configuration: unknown): string[] {
+  if (
+    !configuration ||
+    typeof configuration !== 'object' ||
+    !('headers' in configuration) ||
+    !Array.isArray(configuration.headers)
+  )
+    return ['No deployment header rules were provided.'];
+  const rules = configuration.headers.filter(
+    (rule: unknown): rule is { source: string } =>
+      !!rule && typeof rule === 'object' && 'source' in rule && typeof rule.source === 'string',
+  );
+  const matches = (pathname: string) => rules.filter((rule) => new RegExp(`^${rule.source}$`).test(pathname));
+  const problems: string[] = [];
+  for (const pathname of ['/__/auth/unknown', '/__/auth/', '/__/auth/handler/child', '/__/auth/handler.js.map']) {
+    if (!matches(pathname).some((rule: { source: string }) => rule.source === MAIN_DOCUMENT_RULE))
+      problems.push(`${pathname} must receive the main document security headers.`);
+  }
+  for (const pathname of ['/__/auth/handler', '/__/auth/iframe'])
+    if (matches(pathname).length) problems.push(`${pathname} must keep its function-owned nonce headers only.`);
+  for (const name of ['handler', 'iframe', 'experiments']) {
+    const rules = matches(`/__/auth/${name}.js`);
+    if (rules.length !== 1 || rules[0].source !== '/__/auth/(handler|iframe|experiments)\\.js')
+      problems.push(`/__/auth/${name}.js must keep only the helper script headers.`);
+  }
+  return problems;
+}
 
 export function reportingProblems(configuration: unknown): string[] {
   const headers = expectedDocumentHeaders(configuration);
@@ -60,6 +89,7 @@ export async function checkCsp(root: string, configuration: unknown): Promise<{ 
   // One build holds one shell variant, so stale style hashes are left to the build, which knows both.
   const problems = cspProblems(documents, policy, { otherVariantStyles: 'unchecked' });
   problems.push(...reportingProblems(configuration));
+  problems.push(...authHeaderCoverageProblems(configuration));
   const manifest: unknown = JSON.parse(await readFile(path.join(root, 'pwa-assets.json'), 'utf8'));
   const emitted = emittedDocumentPolicy(manifest);
   if (emitted !== policy)

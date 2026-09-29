@@ -14,8 +14,8 @@ import {
   sha256Source,
 } from './csp.ts';
 import { minifyBootScript } from './plugin.ts';
+import vercel from '../../vercel.json';
 
-const vercel: unknown = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
 const bootScript = minifyBootScript(readFileSync(new URL('../../src/first-paint/boot.js', import.meta.url), 'utf8'));
 const script = 'window.booted = true;';
 const policy = `default-src 'self'; report-to csp; report-uri /api/csp-report; script-src 'self' ${sha256Source(script)}; style-src 'self' 'unsafe-inline'`;
@@ -95,7 +95,12 @@ describe('main-document policy', () => {
     expect(() => mainDocumentPolicy({ headers: [] })).toThrow('exactly one');
     expect(() =>
       mainDocumentPolicy({
-        headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] }],
+        headers: [
+          {
+            source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+            headers: [{ key: 'X-Frame-Options', value: 'DENY' }],
+          },
+        ],
       }),
     ).toThrow('exactly one');
   });
@@ -234,12 +239,13 @@ describe('check:csp', () => {
   const configured = (value: string) => ({
     headers: [
       {
-        source: '/((?!__/auth/).*)',
+        source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
         headers: Object.entries({
           ...expectedDocumentHeaders(vercel),
           'content-security-policy': value,
         }).map(([key, value]) => ({ key, value })),
       },
+      ...vercel.headers.filter((rule) => rule.source === '/__/auth/(handler|iframe|experiments)\\.js'),
     ],
   });
   const configuration = configured(policy);

@@ -5,7 +5,9 @@ import { gatePlan } from '../../scripts/release-gate';
 
 const HELPER_SCRIPTS = '/__/auth/(handler|iframe|experiments)\\.js';
 
-const main = configuration.headers.find((rule) => rule.source === '/((?!__/auth/).*)')!;
+const main = configuration.headers.find(
+  (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+)!;
 const headers = Object.fromEntries(main.headers.map((header) => [header.key, header.value]));
 
 describe('S3 header and supply-chain boundaries', () => {
@@ -87,7 +89,7 @@ describe('S3 header and supply-chain boundaries', () => {
   it('lets no config header rule touch the helper documents, so the function sets their only CSP', () => {
     // Vercel matches header `source` against the incoming pathname. None of these sources use path-to-regexp
     // named parameters, so each reads as the same anchored JavaScript regular expression.
-    expect(configuration.headers.every((rule) => !rule.source.includes(':'))).toBe(true);
+    expect(configuration.headers.every((rule) => !/\/:[A-Za-z]/.test(rule.source))).toBe(true);
     const matching = (path: string) =>
       configuration.headers.filter((rule) => new RegExp(`^${rule.source}$`).test(path)).map((rule) => rule.source);
     for (const document of ['/__/auth/handler', '/__/auth/iframe']) expect(matching(document)).toEqual([]);
@@ -96,6 +98,24 @@ describe('S3 header and supply-chain boundaries', () => {
     for (const other of ['/__/auth/links', '/__/auth/handlerXjs', '/__/auth/handler.json'])
       expect(matching(other)).not.toContain(HELPER_SCRIPTS);
     expect(matching('/')).toContain(main.source);
+  });
+  it('protects unknown and near-matching auth paths with the complete main headers', () => {
+    for (const pathname of [
+      '/__/auth/unknown',
+      '/__/auth/',
+      '/__/auth/handler/child',
+      '/__/auth/handler.js.map',
+      '/__/auth/handlerXjs',
+      '/__/auth/iframe.json',
+      '/__/auth/experiments',
+      '/__/auth/Handler',
+    ]) {
+      const matching = configuration.headers.filter((rule) => new RegExp(`^${rule.source}$`).test(pathname));
+      expect(matching.map((rule) => rule.source)).toEqual([main.source]);
+      expect(
+        Object.fromEntries(matching.flatMap((rule) => rule.headers.map(({ key, value }) => [key, value]))),
+      ).toEqual(headers);
+    }
   });
   it('verifies installed registry signatures in both gate checkouts before trusting tests or builds', () => {
     const plan = gatePlan();

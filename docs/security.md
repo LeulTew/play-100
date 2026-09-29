@@ -989,7 +989,7 @@ separately reviewed POST path first.
 pathname (https://vercel.com/docs/project-configuration/vercel-json#headers).
 Its docs do not define which value wins when a config rule and a function set
 the same key. So no config rule matches the two helper documents:
-- the main rule's `/((?!__/auth/).*)` excludes them;
+- the main rule's `/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)` excludes them;
 - the static helper rule is narrowed to `/__/auth/(handler|iframe|experiments)\.js`;
 - the only CSP there is the function's.
 

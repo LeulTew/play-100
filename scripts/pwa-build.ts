@@ -90,7 +90,11 @@ export function pwaDocumentPolicy(configuration: unknown): PwaDocumentPolicy {
     throw new Error('The deployment security-header configuration is missing.');
   }
   const matches = configuration.headers.filter(
-    (rule) => rule && typeof rule === 'object' && 'source' in rule && rule.source === '/((?!__/auth/).*)',
+    (rule) =>
+      rule &&
+      typeof rule === 'object' &&
+      'source' in rule &&
+      rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
   );
   const rule: unknown = matches[0];
   if (

@@ -93,7 +93,7 @@ describe('generated public PWA build closure', () => {
           headers: [{ key: 'Content-Security-Policy', value: "script-src 'nonce-template'" }],
         },
         {
-          source: '/((?!__/auth/).*)',
+          source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
           headers: [
             { key: 'Content-Security-Policy', value: "default-src 'self'; style-src 'self' 'unsafe-inline'" },
             { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
@@ -115,7 +115,12 @@ describe('generated public PWA build closure', () => {
 
   it('changes the worker version for header-only deployments and reproduces it on policy rollback', () => {
     const config = (value: string) => ({
-      headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value }] }],
+      headers: [
+        {
+          source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+          headers: [{ key: 'Content-Security-Policy', value }],
+        },
+      ],
     });
     const original = pwaDocumentPolicy(config("default-src 'self'; style-src 'self' 'unsafe-inline'"));
     const tightened = pwaDocumentPolicy(config("default-src 'self'; style-src 'self'"));

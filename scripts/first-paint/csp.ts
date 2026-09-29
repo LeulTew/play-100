@@ -19,7 +19,7 @@ export interface CspDocument {
   readonly html: string;
 }
 
-export const MAIN_DOCUMENT_RULE = '/((?!__/auth/).*)';
+export const MAIN_DOCUMENT_RULE = '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)';
 
 export function sha256Source(content: string): string {
   return `'sha256-${createHash('sha256').update(content, 'utf8').digest('base64')}'`;

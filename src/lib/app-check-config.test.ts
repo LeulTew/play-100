@@ -7,7 +7,7 @@ import { APP_CHECK_CSP_SOURCES, appCheckCspProblems, readAppCheckConfiguration }
 
 const siteKey = `6L${'a'.repeat(38)}`;
 const policy = configuration.headers
-  .find((rule) => rule.source === '/((?!__/auth/).*)')!
+  .find((rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)')!
   .headers.find((header) => header.key === 'Content-Security-Policy')!.value;
 
 describe('optional App Check boundary', () => {

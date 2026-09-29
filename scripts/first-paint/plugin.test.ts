@@ -802,7 +802,12 @@ describe('first-paint index.html', () => {
         await writeFile(
           path.join(root, 'vercel.json'),
           JSON.stringify({
-            headers: [{ source: '/((?!__/auth/).*)', headers: [{ key: 'Content-Security-Policy', value: csp }] }],
+            headers: [
+              {
+                source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+                headers: [{ key: 'Content-Security-Policy', value: csp }],
+              },
+            ],
           }),
         );
         const plugin = firstPaintShell({ variant: 'offline' });

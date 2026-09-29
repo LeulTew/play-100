@@ -54,7 +54,9 @@ export function gatePlan(): GateStep[] {
     args: ['run', '--maxWorkers=1'],
     report: 'vitest',
   });
-  steps.splice(4, 0, {
+  const afterDependencyAudits = steps.findIndex((step) => step.name === 'offline-dependency-audit') + 1;
+  if (!afterDependencyAudits) throw new Error('The history scan requires the offline dependency audit anchor.');
+  steps.splice(afterDependencyAudits, 0, {
     name: 'history-secret-scan',
     profile: 'configured',
     tool: 'gitleaks',

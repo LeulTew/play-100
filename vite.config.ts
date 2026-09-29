@@ -37,7 +37,9 @@ export default defineConfig(({ mode }) => {
   if (appCheck.config) {
     const policy =
       deployment.headers
-        .find((rule) => rule.source === '/((?!__/auth/).*)')
+        .find(
+          (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+        )
         ?.headers.find((header) => header.key === 'Content-Security-Policy')?.value ?? '';
     const problems = appCheckCspProblems(policy);
     if (problems.length)

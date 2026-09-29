@@ -35,7 +35,9 @@ describe('RFC 9116 security.txt', () => {
   });
   it('stays outside the offline precache and under the main security-header rule', () => {
     expect(isPublicPwaFile('/.well-known/security.txt')).toBe(false);
-    const main = configuration.headers.find((rule) => rule.source === '/((?!__/auth/).*)')!;
+    const main = configuration.headers.find(
+      (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+    )!;
     expect(new RegExp(`^${main.source}$`).test('/.well-known/security.txt')).toBe(true);
   });
 });

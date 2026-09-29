@@ -31,7 +31,7 @@
   ],
   "headers": [
     {
-      "source": "/((?!__/auth/).*)",
+      "source": "/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },

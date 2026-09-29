@@ -88,7 +88,11 @@ export function parseVerifyArguments(args: string[]): VerifyOptions {
 
 export function expectedDocumentHeaders(config: unknown): Record<string, string> {
   if (!object(config) || !Array.isArray(config.headers)) throw new Error('Invalid Vercel header configuration.');
-  const groups = config.headers.filter((group: unknown) => object(group) && group.source === '/((?!__/auth/).*)');
+  const groups = config.headers.filter(
+    (group: unknown) =>
+      object(group) &&
+      group.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+  );
   if (groups.length !== 1 || !object(groups[0]) || !Array.isArray(groups[0].headers)) {
     throw new Error('Expected exactly one non-auth document header group.');
   }
