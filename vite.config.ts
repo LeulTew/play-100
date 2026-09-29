@@ -4,6 +4,7 @@ import type { HtmlTagDescriptor } from 'vite';
 import react from '@vitejs/plugin-react';
 import catalogHandler from './api/catalog.ts';
 import catalogDetailHandler from './api/catalog-detail.ts';
+import { isAppSharedModule } from './scripts/app-shared-chunk.ts';
 import { play100Pwa } from './scripts/pwa-build.ts';
 import { publicMetadataHtml } from './scripts/public-metadata.ts';
 import { landingFontFiles } from './scripts/landing-fonts.ts';
@@ -114,6 +115,21 @@ export default defineConfig(({ mode }) => {
       cssTarget: ['chrome94', 'edge94', 'firefox98', 'opera80', 'safari16.4', 'ios16.4'],
       chunkSizeWarningLimit: 650,
       assetsInlineLimit: 0,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                // One chunk for the modules the entry shares with most lazy chunks (scripts/app-shared-chunk.ts); their
+                // dependencies keep their own chunks.
+                name: 'app-shared',
+                test: isAppSharedModule,
+                includeDependenciesRecursively: false,
+              },
+            ],
+          },
+        },
+      },
     },
     test: {
       // Browser files each drive their own Chromium and Vite server.
