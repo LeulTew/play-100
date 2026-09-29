@@ -248,7 +248,8 @@ test('a sign-out whose device removal leaves the Compare pins says so and retrie
     .filter({ hasText: "Signed out, but some of this account's data is still on this device." });
   await expect(notice).toBeVisible();
   await expect(page).toHaveURL('http://127.0.0.1:4187/account');
-  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Account', level: 1, exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeVisible();
   await expect(readAccount(page, uid)).rejects.toThrow('missing');
   expect(await readLibrary(page)).toEqual(guest);
   expect(await savedPins(page, account)).not.toBeNull();

@@ -102,6 +102,8 @@ test('signed-out Compare explains friends rankings before authentication and pre
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/compare?catalogs=off');
+  // The page's heading names it as its tab title does; its purpose explains it before the sign-in choices.
+  await expect(page.getByRole('heading', { name: 'Compare rankings', level: 1, exact: true })).toBeVisible();
   const purpose = page.getByRole('heading', { name: "Compare friends' rankings", exact: true });
   await expect(purpose).toBeVisible();
   await expect(page.locator('.auth-purpose')).toContainText('Sign in to compare rankings shared by your friends.');
@@ -117,8 +119,12 @@ test('signed-out Compare explains friends rankings before authentication and pre
   await page.getByRole('button', { name: 'Keep using this device', exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/');
   await page.goto('/account?catalogs=off');
-  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
-  await expect(page.locator('.auth-purpose')).toHaveCount(0);
+  // Account explains its own purpose, never Compare's.
+  await expect(page.getByRole('heading', { name: 'Account', level: 1, exact: true })).toBeVisible();
+  await expect(page.locator('.auth-purpose')).toHaveText(
+    'Sign in to save your games and rankings online and use them on your other devices. Your library stays on this device until you turn on online saving.',
+  );
+  await expect(page.getByRole('heading', { name: "Compare friends' rankings", exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeVisible();
 });
 

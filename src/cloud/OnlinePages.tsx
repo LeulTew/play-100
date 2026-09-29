@@ -11,6 +11,7 @@ import { Avatar } from '../components/avatar/Avatar';
 import { FriendSharingSummary } from '../components/FriendSharingSummary';
 import { OnlinePageBoundary } from './OnlinePageBoundary';
 import { navigateFriend } from './friend-page-actions';
+import { signInPageTitle } from './sign-in-page-title';
 import type { GoogleDeletionApproval } from './account-deletion';
 import type { OnlineSession } from './useOnlineSession';
 import type { OnlineAccount } from './useOnlineAccount';
@@ -158,7 +159,7 @@ export function OnlinePages({
       ) : !identity ? (
         <section className="app-page auth-page">
           <h1 data-page-heading tabIndex={-1}>
-            Sign in
+            {signInPageTitle(page)}
           </h1>
           {renderAuthPanel()}
         </section>

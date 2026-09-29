@@ -6,7 +6,7 @@ import type { PreviewAuthority } from '../lib/preview-authority';
 import type { LibraryController } from '../lib/library-controller';
 import { EMULATOR_MODE } from '../lib/online-availability';
 import { authPanelPurposes } from '../lib/sign-in-purpose';
-import type { SignInPurpose } from '../lib/sign-in-purpose';
+import type { AuthPurpose, SignInPurpose } from '../lib/sign-in-purpose';
 import { Dialog } from '../components/Dialog';
 import { ChunkBoundary } from '../components/ChunkBoundary';
 import { ChunkRecovery } from '../components/ChunkRecovery';
@@ -246,7 +246,7 @@ export default function OnlineController({
   // The sheet the Compare tray opened, and the sheet its Google return reopens, name the pins and continue to Compare.
   const compareSheet = signInPurpose === 'compare' || (session.googleCompare && returnSheet);
   const purposes = authPanelPurposes(page, compareSheet ? 'compare' : signInPurpose);
-  const renderAuthPanel = (purpose: SignInPurpose | undefined, sheet = false) => {
+  const renderAuthPanel = (purpose: AuthPurpose | undefined, sheet = false) => {
     const compare = sheet && compareSheet;
     return (
       <AuthPanel

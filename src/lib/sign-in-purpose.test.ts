@@ -23,13 +23,24 @@ describe('sign-in purpose', () => {
     expect(isCurrent).not.toHaveBeenCalled();
   });
   it('carries a tray purpose into the sheet on any route without changing the page panel', () => {
-    for (const page of ['collection', 'discover', 'games', 'library', 'rankings', 'friends', 'invite'] as const) {
+    for (const page of ['collection', 'discover', 'games', 'library', 'rankings', 'invite', 'community'] as const) {
       expect(authPanelPurposes(page, 'compare')).toEqual({ page: undefined, sheet: 'compare' });
       expect(authPanelPurposes(page, undefined)).toEqual({ page: undefined, sheet: undefined });
     }
+    expect(authPanelPurposes('friends', 'compare')).toEqual({ page: 'friends', sheet: 'compare' });
   });
   it('keeps the existing Compare route purpose for both panels', () => {
     expect(authPanelPurposes('compare', undefined)).toEqual({ page: 'compare', sheet: 'compare' });
     expect(authPanelPurposes('compare', 'compare')).toEqual({ page: 'compare', sheet: 'compare' });
+  });
+  it.each([
+    ['account', 'account'],
+    ['friends', 'friends'],
+    ['friend', 'friends'],
+    ['publish', 'publish'],
+    ['friend-sharing', 'friend-sharing'],
+    ['friend-shelf', 'friend-shelf'],
+  ] as const)('explains the signed-out %s page on the page only, not in a sheet opened over it', (page, purpose) => {
+    expect(authPanelPurposes(page, undefined)).toEqual({ page: purpose, sheet: undefined });
   });
 });

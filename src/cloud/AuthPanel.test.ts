@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthPanel } from './AuthPanel';
 import { reportDeviceLeftovers, retryDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
 import type { DeviceCopyRemoval } from '../lib/scoped-library';
+import type { AuthPurpose } from '../lib/sign-in-purpose';
 
 vi.mock('react', async (importOriginal) => {
   const react = await importOriginal<typeof import('react')>();
@@ -15,7 +16,7 @@ afterEach(() => {
   withdrawDeviceLeftovers();
 });
 
-function render(purpose?: 'compare', busy = false, games?: number) {
+function render(purpose?: AuthPurpose, busy = false, games?: number) {
   const props = {
     busy,
     error: '',
@@ -63,6 +64,40 @@ describe('AuthPanel purpose', () => {
     expect(html).toContain('Continue with Google');
     expect(html).toContain('Use email');
     expect(html).toContain('Keep using this device');
+  });
+
+  it.each([
+    [
+      'account',
+      'Sign in to save your games and rankings online and use them on your other devices. Your library stays on this device until you turn on online saving.',
+    ],
+    [
+      'friends',
+      'Add friends with an invite link, see the games they share and compare your rankings. Sign in so your friends can find you.',
+    ],
+    [
+      'publish',
+      'Publish your ranking as a public page that anyone with its link can see, and choose whether Community lists it. Sign in so the page belongs to you.',
+    ],
+    [
+      'friend-sharing',
+      'Choose the ranked games, with their order and scores, that your friends can see. Sign in to share them with friends.',
+    ],
+    [
+      'friend-shelf',
+      'Choose saved games from your library for your friends to see. Sign in to share them with friends.',
+    ],
+  ] as const)('says what the signed-out %s page is for before provider choices', (purpose, text) => {
+    const { html, props } = render(purpose);
+    // The page's own heading names it, so its purpose is one paragraph with no heading of its own.
+    expect(html).toContain(`<div class="auth-purpose"><p>${text}</p></div>`);
+    expect(html.indexOf(text)).toBeLessThan(html.indexOf('Continue with Google'));
+    expect(html).not.toContain('<h2');
+    expect(html).not.toContain('pinned');
+    expect(html).not.toMatch(/[\u2018\u2019\u201C\u201D]/);
+    expect(html).toContain('Keep using this device');
+    expect(props.onGoogle).not.toHaveBeenCalled();
+    expect(props.onEmail).not.toHaveBeenCalled();
   });
 
   it.each([

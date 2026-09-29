@@ -1,6 +1,8 @@
 import type { AppPage } from './types';
 
 export type SignInPurpose = 'compare';
+/** What a sign-in panel explains before its choices: Compare, or the signed-out page it stands in for. */
+export type AuthPurpose = SignInPurpose | 'account' | 'friends' | 'publish' | 'friend-sharing' | 'friend-shelf';
 export interface SignInPurposeTicket {
   purpose: SignInPurpose;
   isCurrent: () => boolean;
@@ -22,10 +24,22 @@ export function currentSignInPurpose(
   return sheetOpen && ticket && ticket.isCurrent() ? ticket.purpose : undefined;
 }
 
+const routePurposes: Partial<Record<AppPage, AuthPurpose>> = {
+  compare: 'compare',
+  account: 'account',
+  friends: 'friends',
+  friend: 'friends',
+  publish: 'publish',
+  'friend-sharing': 'friend-sharing',
+  'friend-shelf': 'friend-shelf',
+};
+
+// A signed-out online page explains itself. Only Compare's purpose also carries into a sheet opened over its page: the
+// other pages already show their own panel, and a sheet opened from Account there is about the account.
 export function authPanelPurposes(
   page: AppPage,
   sheet: SignInPurpose | undefined,
-): { page: SignInPurpose | undefined; sheet: SignInPurpose | undefined } {
-  const route: SignInPurpose | undefined = page === 'compare' ? 'compare' : undefined;
-  return { page: route, sheet: sheet ?? route };
+): { page: AuthPurpose | undefined; sheet: SignInPurpose | undefined } {
+  const route = routePurposes[page];
+  return { page: route, sheet: sheet ?? (route === 'compare' ? route : undefined) };
 }

@@ -105,7 +105,10 @@ async function activateAll(page: Page, touch: boolean) {
     if (touch) await link.tap();
     else await link.click();
     await expect(page).toHaveURL((url) => url.pathname === path);
-    if (label === 'Friends') await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+    if (label === 'Friends') {
+      await expect(page.getByRole('heading', { name: 'Friends', level: 1, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Continue with Google', exact: true })).toBeVisible();
+    }
     if (label === 'Ranking') {
       await expect(page).toHaveURL((url) => url.pathname === path && url.searchParams.get('tab') === 'ranking');
       await expect(
