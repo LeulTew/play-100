@@ -266,7 +266,7 @@ test('credits requested inside Settings announces inside that modal instead of t
       .getByRole('button', { name: /^Effects:/ })
       .click();
     const settings = page.locator('dialog[aria-labelledby="settings-title"]');
-    const trigger = settings.getByRole('button', { name: 'Source, methodology & credits', exact: true });
+    const trigger = settings.getByRole('button', { name: 'About & credits', exact: true });
     const status = settings.locator('.dialog-inner > div[role="status"]');
     await expect(status).toHaveCount(1);
     await expect(status).toBeEmpty();
@@ -294,7 +294,7 @@ test('Settings credits failure stays in its modal and restores credits only afte
     .click();
   const settings = page.locator('dialog[aria-labelledby="settings-title"]');
   const status = settings.locator('.dialog-inner > div[role="status"]');
-  const trigger = settings.getByRole('button', { name: 'Source, methodology & credits', exact: true });
+  const trigger = settings.getByRole('button', { name: 'About & credits', exact: true });
   await expect(status).toHaveCount(1);
   await expect(status).toBeEmpty();
   expect(await status.evaluate((element) => element.getBoundingClientRect().height)).toBe(0);

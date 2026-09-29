@@ -138,7 +138,7 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
   await page.getByRole('button', { name: 'Publish a ranking', exact: true }).click();
   await keep();
   await page.getByRole('button', { name: 'Add games', exact: true }).click();
-  await page.getByRole('button', { name: 'Discover games beyond the 100', exact: true }).click();
+  await page.getByRole('button', { name: 'Discover games beyond The 100', exact: true }).click();
   await keep();
   expect(await exits(page)).toEqual([]);
   await page.getByRole('searchbox', { name: 'Search your ranking' }).fill('Beta');

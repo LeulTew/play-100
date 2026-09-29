@@ -15,9 +15,9 @@ describe('About data and privacy summary', () => {
     for (const phrase of [
       'Guest games, progress, ratings and notes stay in browser storage.',
       'Each account has a separate device copy.',
-      'Settings offers backup export/import and protection from automatic storage cleanup.',
+      'Settings lets you export or import backups and request protection from automatic storage cleanup.',
       'Service limits can pause online saving; errors and conflicts never silently replace device copies.',
-      'Content-free records remain to stop old sessions restoring deleted data.',
+      "Small records with no library content remain so that old sessions can't bring deleted data back.",
     ])
       expect(privacy).toContain(phrase);
     for (const term of [
@@ -27,6 +27,7 @@ describe('About data and privacy summary', () => {
       'Free cloud quotas',
       'revocation markers',
       'stale tabs',
+      'Content-free',
     ])
       expect(privacy).not.toContain(term);
   });
@@ -45,7 +46,7 @@ describe('About data and privacy summary', () => {
       'Community listing needs separate consent.',
       'Link-only rankings are public to anyone with the link.',
       'Clearing site data can erase edits not yet uploaded.',
-      'Account offers sign-out, stopping online saving, export and deletion.',
+      'In Account, you can sign out, stop online saving, export or delete data.',
     ])
       expect(privacy).toContain(phrase);
   });
@@ -82,14 +83,23 @@ describe('About source reference rows', () => {
       'Discover includes a built-in catalog and optional online facts from Wikidata (CC0) and the documented FreeToGame API. FreeToGame data retains credit and source links.',
     );
     expect(paragraphs).toContain(
-      'Built with React, Three.js, dnd kit, IndexedDB and customized React Bits CountUp, Magnet and AnimatedContent. React Bits: copyright 2026 David Haz, MIT + Commons Clause. Barlow Condensed and Hanken Grotesk: SIL Open Font License. Local creature avatars: DiceBear Critters (CC0 1.0), DiceBear core (MIT); no Google photo is fetched.',
+      'Play 100 uses React, Three.js, dnd kit, IndexedDB and customized React Bits CountUp, Magnet and AnimatedContent. React Bits is copyright 2026 David Haz, used under MIT + Commons Clause. Barlow Condensed and Hanken Grotesk use the SIL Open Font License. Creature avatars are generated locally with DiceBear Critters (CC0 1.0) and DiceBear core (MIT); no Google photo is fetched.',
     );
   });
 
   it('matches the About label and uses straight quotes and en-dash ranges', () => {
     expect(html).toContain('>About &amp; credits</h2>');
-    expect(html).toContain('ranks 1–50.');
+    expect(html).toContain('ranks 1–50;');
     expect(html).toContain('ranks 51–100.');
     expect(html).not.toMatch(/[“”‘’]/);
+  });
+
+  it('distinguishes the displayed sort order from original ranks in complete sentences', () => {
+    const text = html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'");
+    expect(text).toContain('Sorting changes only the order shown; each game keeps its original rank.');
+    expect(text).toContain("For example, The Witcher 3's original rating is 9.9, and Grand Theft Auto IV's is 9.8.");
+    expect(text).toContain('Metacritic and PC Gamer use 100-point scales; IGN and GameSpot use 10.');
+    expect(text).toContain("You don't need an account or API key.");
+    expect(text).not.toMatch(/Sorting preserves|Scales:|Enhanced download:|Content-free|\w\s*\/\s*\w/);
   });
 });

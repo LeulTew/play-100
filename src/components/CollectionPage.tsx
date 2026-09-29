@@ -631,7 +631,7 @@ function CollectionPage({
                 <div className="collection-end">
                   <p>
                     {results.length > 1 ? 'Showing ' : ''}
-                    {formatResultRange(results.length, 1, Math.min(visibleCount, results.length))} from the 100
+                    {formatResultRange(results.length, 1, Math.min(visibleCount, results.length))} from The 100
                   </p>
                   {visibleCount < results.length ? (
                     <button
@@ -672,7 +672,7 @@ function CollectionPage({
                 </h3>
                 <p>
                   {filters.list === 'later' && savedCount === 0
-                    ? 'Tap a bookmark to add a game to Play later, including games from other catalogs.'
+                    ? 'Choose a bookmark to add a game to Play later, including games from other catalogs.'
                     : filters.list === 'completed' && completedCount === 0
                       ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.'
                       : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'}

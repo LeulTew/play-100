@@ -186,8 +186,8 @@ export function MenuDialog({
                 {link('Friends', 'friends')}
                 {link('Compare', 'compare')}
                 {link('Community', 'community')}
-                {link('Public ranking', 'publish')}
-                {link('Friends sharing', 'friend-sharing')}
+                {link('Publish ranking', 'publish')}
+                {link('Friend sharing', 'friend-sharing')}
                 {link('Shared games', 'friend-shelf')}
               </ul>
             </section>

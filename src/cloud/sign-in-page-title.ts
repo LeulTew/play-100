@@ -9,7 +9,7 @@ const titles: Partial<Record<AppPage, string>> = {
   friends: 'Friends',
   friend: 'Friend',
   compare: 'Compare rankings',
-  'friend-sharing': 'Friends sharing',
+  'friend-sharing': 'Friend sharing',
   'friend-shelf': 'Shared games',
 };
 

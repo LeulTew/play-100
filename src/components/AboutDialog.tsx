@@ -21,12 +21,13 @@ export function AboutDialog({
       <h2 id="about-title" data-autofocus tabIndex={-1}>
         About &amp; credits
       </h2>
-      <p className="dialog-lead">A personal 100-game collection, not an official ranking.</p>
+      <p className="dialog-lead">This is a personal collection of 100 games, not an official ranking.</p>
       <section>
         <h3>Original order</h3>
         <p>
-          <strong>Core 50</strong>: ranks 1–50. <strong>Essential 50</strong>: ranks 51–100. Sorting preserves the
-          workbook's main-sheet order and manual changes.
+          The <strong>Core 50</strong> are ranks 1–50; the <strong>Essential 50</strong> are ranks 51–100. Both follow
+          the workbook's main sheet, including its manual changes. Sorting changes only the order shown; each game keeps
+          its original rank.
         </p>
       </section>
       <section>
@@ -36,15 +37,15 @@ export function AboutDialog({
           and details preserve its saved numbers, rounding and text, without recalculation.
         </p>
         <p>
-          The Witcher 3: 9.9; Grand Theft Auto IV: 9.8. Source notes stay attached; your editable ratings are separate,
-          never prefilled.
+          For example, The Witcher 3's original rating is 9.9, and Grand Theft Auto IV's is 9.8. Source notes stay
+          attached. Your editable ratings are separate and never prefilled from these scores.
         </p>
       </section>
       <section>
         <h3>Critic scores</h3>
         <p>
-          Workbook critic scores are not live, newly researched or independently verified. Scales: Metacritic/PC Gamer
-          100; IGN/GameSpot 10.
+          Workbook critic scores are not live, newly researched or independently verified. Metacritic and PC Gamer use
+          100-point scales; IGN and GameSpot use 10.
         </p>
         <p>
           Critic averages use entered scores converted to 100. Both Metacritic columns count; missing scores don't. This
@@ -54,15 +55,17 @@ export function AboutDialog({
       <section>
         <h3>Source notes &amp; artwork</h3>
         <p>
-          Details preserve AI / not-played source notes. A missing note doesn't mean the game was played. Your personal
-          list starts empty.
+          Details preserve source notes about AI or games not played. A missing note doesn't mean the game was played.
+          Your personal list starts empty.
         </p>
         <p>
-          The source excludes Nintendo but keeps premium non-AAA exceptions. No invented platforms, playtimes or scores.
+          The source excludes Nintendo but keeps premium non-AAA exceptions. No platforms, playtimes or scores have been
+          invented.
         </p>
         <p>
           Supplied cover thumbnails stay at native size in collection frames. Rank 73 keeps "Hitman: World of
-          Assassination", 2016 and its HITMAN III-branded cover; packaging proves no exact edition or platform.
+          Assassination", the year 2016 and its HITMAN III-branded cover. That packaging does not identify an exact
+          edition or platform.
         </p>
       </section>
       <section>
@@ -83,10 +86,10 @@ export function AboutDialog({
           consent. Link-only rankings are public to anyone with the link.
         </p>
         <p>
-          Settings offers backup export/import and protection from automatic storage cleanup. Clearing site data can
-          erase edits not yet uploaded. Service limits can pause online saving; errors and conflicts never silently
-          replace device copies. Account offers sign-out, stopping online saving, export and deletion. Content-free
-          records remain to stop old sessions restoring deleted data.
+          Settings lets you export or import backups and request protection from automatic storage cleanup. Clearing
+          site data can erase edits not yet uploaded. Service limits can pause online saving; errors and conflicts never
+          silently replace device copies. In Account, you can sign out, stop online saving, export or delete data. Small
+          records with no library content remain so that old sessions can't bring deleted data back.
         </p>
       </section>
       <section>
@@ -116,8 +119,8 @@ export function AboutDialog({
         </div>
         <p>
           Online search sends your query through a read-only relay to your chosen provider, never your private library,
-          notes or rankings. Pages load on request. Wikidata: classified video games only. FreeToGame: its free-to-play
-          catalog. Neither covers every game.
+          notes or rankings. Pages load on request. Wikidata includes entries classified as video games; FreeToGame
+          covers its free-to-play catalog. Neither covers every game.
         </p>
         <p>
           Searches import facts, not descriptions, prices or reviews. With online lookup on, eligible Discover details
@@ -125,25 +128,27 @@ export function AboutDialog({
           scores.
         </p>
         <p>
-          Dates may identify editions, not first worldwide releases. No account/API key required. Failed sources show
-          errors, not empty results. Manual titles are supported.
+          Dates may identify editions, not first worldwide releases. You don't need an account or API key. Failed
+          sources show errors, not empty results. You can also add a game title manually.
         </p>
       </section>
       <section className="credits">
         <h3>Sources &amp; credits</h3>
         <p>
-          Source: <span className="source-filename">AAA_games_u_have_to_play_list_top_100.xlsx</span>, "AAA Top 50" tab
-          (100 entries). Enhanced download: other sheets aligned. Untouched original: also available; older derived tabs
-          don't define order.
+          The source is the "AAA Top 50" tab of{' '}
+          <span className="source-filename">AAA_games_u_have_to_play_list_top_100.xlsx</span>, which contains 100
+          entries. The enhanced download aligns the other sheets with it. The untouched original is also available; its
+          older derived tabs don't define the order.
         </p>
         <p>
           All 100 covers came with the workbook; owners retain rights. Fallback jackets and the folding 3D collection
           are original supporting art, not official covers.
         </p>
         <p>
-          Built with React, Three.js, dnd kit, IndexedDB and customized React Bits CountUp, Magnet and AnimatedContent.
-          React Bits: copyright 2026 David Haz, MIT + Commons Clause. Barlow Condensed and Hanken Grotesk: SIL Open Font
-          License. Local creature avatars: DiceBear Critters (CC0 1.0), DiceBear core (MIT); no Google photo is fetched.
+          Play 100 uses React, Three.js, dnd kit, IndexedDB and customized React Bits CountUp, Magnet and
+          AnimatedContent. React Bits is copyright 2026 David Haz, used under MIT + Commons Clause. Barlow Condensed and
+          Hanken Grotesk use the SIL Open Font License. Creature avatars are generated locally with DiceBear Critters
+          (CC0 1.0) and DiceBear core (MIT); no Google photo is fetched.
         </p>
         <div className="button-row" role="group" aria-label="Project sources and notices">
           <a className="text-button" href="https://reactbits.dev" target="_blank" rel="noreferrer">

@@ -132,7 +132,7 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
   await expect(page.locator('.hero-footnote')).toBeInViewport({ ratio: 1 });
   await expect(page.locator(`${firstCard} .author-rating-card`)).toHaveAttribute(
     'title',
-    'Original workbook value: 10',
+    'Original workbook rating: 10',
   );
   await expect(page.locator(`${firstCard} .list-score`)).toContainText('critic avg.');
   const link = page.locator(`${firstCard} .game-link`);
@@ -220,7 +220,7 @@ test('play-later and completion are independent and persist on this device', asy
     .getByRole('button', { name: /Play later/ })
     .click();
   await expect(page.locator('.game-card')).toHaveCount(1);
-  await expect(page.locator('.list-privacy')).toContainText('including games you added beyond the 100');
+  await expect(page.locator('.list-privacy')).toContainText('including games you added beyond The 100');
   await expect(page.locator('.list-privacy').getByRole('button', { name: 'Open my full library' })).toBeVisible();
   await page
     .locator('.collection-tabs')

@@ -37,7 +37,7 @@ test('account, creature chooser and publication controls stay accessible at mobi
   const picker = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(picker.violations).toEqual([]);
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Public ranking', exact: true }).click();
+  await page.getByRole('button', { name: 'Publish ranking', exact: true }).click();
   const publication = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
   expect(publication.violations).toEqual([]);
   await page.locator('.account-nav').click();

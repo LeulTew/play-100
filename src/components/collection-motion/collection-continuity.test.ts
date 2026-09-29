@@ -134,7 +134,7 @@ describe('collection continuity preserves the public presentation', () => {
       expect(html).toContain(`href="/${createSearch(filters, game.slug).replaceAll('&', '&amp;')}"`);
       expect(html).toContain(`data-game="${game.slug}"`);
       expect(html).toContain('9.9696969696969688');
-      expect(html).toContain('title="Original workbook value: 9.9696969696969688"');
+      expect(html).toContain('title="Original workbook rating: 9.9696969696969688"');
       expect(html).toContain(' critic avg.');
       expect(html).toContain(`width="${dimensions[game.slug]?.width}" height="${dimensions[game.slug]?.height}"`);
       expect(html.match(/<img\b/g)).toHaveLength(1);
@@ -192,7 +192,8 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain('never prefilled');
     expect(html).toContain('&quot;my rating(based on rank)&quot;.');
     expect(html).toContain('&quot;Hitman: World of Assassination&quot;');
-    expect(html).toContain('&quot;AAA Top 50&quot; tab (100 entries).');
+    expect(html).toContain('The source is the &quot;AAA Top 50&quot; tab of');
+    expect(html).toContain('which contains 100 entries.');
   });
 
   it('distinguishes optional catalog lookups from licensed detail artwork and source ratings', () => {

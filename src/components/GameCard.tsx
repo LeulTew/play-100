@@ -95,7 +95,7 @@ export const GameCard = memo(function GameCard({
             className="author-rating-card"
             title={
               game.authorRating
-                ? `Original workbook value: ${game.authorRating.rawValue}`
+                ? `Original workbook rating: ${game.authorRating.rawValue}`
                 : 'The original author rating is unavailable in this copy.'
             }
           >

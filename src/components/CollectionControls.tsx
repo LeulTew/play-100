@@ -182,7 +182,7 @@ export function CollectionControls({
         {(filters.list !== 'all' || progress !== 'all') && (
           <div className="list-privacy">
             <Icon name="bookmark" width="16" height="16" />
-            <p>Your progress, including games you added beyond the 100.</p>
+            <p>Your progress, including games you added beyond The 100.</p>
             {onFullLibrary && (
               <button className="text-button" onClick={onFullLibrary}>
                 Open my full library
@@ -275,7 +275,7 @@ export function CollectionControls({
             {!onlineScope
               ? 'Online lookup is paused in this view. Matching saved games still appear.'
               : filters.catalogs === 'off'
-                ? 'Online lookup is off. Only the 100 and saved additions are searched.'
+                ? 'Online lookup is off. Only The 100 and saved additions are searched.'
                 : filters.q.trim().length > 80
                   ? 'Online lookup: 80 characters maximum. Local games are still searched.'
                   : 'Enter 2+ characters to search Wikidata and FreeToGame. Only your query is sent.'}

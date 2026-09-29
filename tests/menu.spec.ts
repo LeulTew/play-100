@@ -152,8 +152,8 @@ test('every applicable route uses its real target and only one current link', as
           ['Friends', '/friends?catalogs=off'],
           ['Compare', '/compare?catalogs=off'],
           ['Community', '/community?catalogs=off'],
-          ['Public ranking', '/publish?catalogs=off'],
-          ['Friends sharing', '/friends/sharing?catalogs=off'],
+          ['Publish ranking', '/publish?catalogs=off'],
+          ['Friend sharing', '/friends/sharing?catalogs=off'],
           ['Shared games', '/friends/sharing/games?catalogs=off'],
           ['Account', '/account?catalogs=off'],
         ]

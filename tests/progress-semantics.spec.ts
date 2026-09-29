@@ -198,9 +198,7 @@ test('progress-filter changes flush valid drafts, block invalid drafts and never
 }) => {
   await page.goto('/?game=the-witcher-3-wild-hunt');
   await expect(page.locator('.source-note')).toContainText('not played');
-  await expect(
-    page.getByRole('checkbox', { name: 'I have played it: The Witcher 3: Wild Hunt', exact: true }),
-  ).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Played: The Witcher 3: Wild Hunt', exact: true })).not.toBeChecked();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute(
     'aria-pressed',
     'false',

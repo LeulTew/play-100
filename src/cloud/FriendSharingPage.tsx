@@ -88,7 +88,7 @@ export function FriendSharingPage({
     <section className="app-page friends-sharing-page">
       <div className="page-heading">
         <h1 data-page-heading tabIndex={-1}>
-          Friends sharing
+          Friend sharing
         </h1>
         <button className="text-button" onClick={onAccount}>
           Account
@@ -200,7 +200,7 @@ export function FriendSharingPage({
                 settings,
               );
               onSettings(next);
-              setNotice('Friends sharing stopped.');
+              setNotice('Friend sharing stopped.');
             });
           }}
         >
@@ -301,7 +301,7 @@ export function FriendSharingPage({
                   confirmedSelection.current = null;
                   setEdited(false);
                   setPreview(null);
-                  setNotice('Friends sharing enabled.');
+                  setNotice('Friend sharing enabled.');
                 });
               }}
             >

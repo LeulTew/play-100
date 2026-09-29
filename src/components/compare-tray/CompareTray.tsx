@@ -321,7 +321,7 @@ function ScopedCompareTray({
                 )}
                 <span>
                   {SOURCE_LABELS[record.source]}
-                  {record.year !== null ? ` / ${record.year}` : ''}
+                  {record.year !== null ? ` · ${record.year}` : ''}
                 </span>
                 <GameArtworkCredit
                   artwork={resolveArtwork?.(record)}

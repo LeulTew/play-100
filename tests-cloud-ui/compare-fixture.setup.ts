@@ -248,7 +248,7 @@ async function shareLegacyRanking(browser: Browser, origin: string, legacy: Coho
     await expectRestoredSync(page);
     await page.goto('/friends/sharing');
     await expect(
-      page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friends sharing', exact: true }),
+      page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friend sharing', exact: true }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Select all', exact: true }).click();
     await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();

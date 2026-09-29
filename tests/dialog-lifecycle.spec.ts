@@ -171,7 +171,7 @@ for (const mode of ['on', 'off', 'lite', 'reduced'] as const) {
     const originalStyle = await page.evaluate(() => [document.body.style.overflow, document.body.style.paddingRight]);
     await link.press('Enter');
     const detail = page.getByRole('dialog', { name: game.title, exact: true });
-    const played = detail.getByRole('checkbox', { name: `I have played it: ${game.title}`, exact: true });
+    const played = detail.getByRole('checkbox', { name: `Played: ${game.title}`, exact: true });
     await expect(played).toBeChecked();
     await played.scrollIntoViewIfNeeded();
     await played.focus();

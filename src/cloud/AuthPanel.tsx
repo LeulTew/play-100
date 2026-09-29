@@ -18,6 +18,8 @@ const pagePurposes: Record<Exclude<AuthPurpose, 'compare'>, string> = {
   'friend-sharing':
     'Choose the ranked games, with their order and scores, that your friends can see. Sign in to share them with friends.',
   'friend-shelf': 'Choose saved games from your library for your friends to see. Sign in to share them with friends.',
+  creator:
+    'The collection creator can review consenting members and moderate public rankings here. Sign in with the creator account to continue.',
 };
 
 /** After a sign-out and removal, or an account deletion, that left some of the account's data on this device. */

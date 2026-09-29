@@ -40,6 +40,7 @@ describe('sign-in purpose', () => {
     ['publish', 'publish'],
     ['friend-sharing', 'friend-sharing'],
     ['friend-shelf', 'friend-shelf'],
+    ['creator', 'creator'],
   ] as const)('explains the signed-out %s page on the page only, not in a sheet opened over it', (page, purpose) => {
     expect(authPanelPurposes(page, undefined)).toEqual({ page: purpose, sheet: undefined });
   });

@@ -16,13 +16,13 @@ describe('destination loading anatomy', () => {
     ['account', 'Account'],
     ['publish', 'Publish ranking'],
     ['community', 'Community'],
-    ['profile', 'Public ranking'],
+    ['profile', 'A shared ranking'],
     ['creator', 'Creator desk'],
     ['friends', 'Friends'],
     ['friend', 'Player'],
     ['invite', 'Invitation'],
     ['compare', 'Compare rankings'],
-    ['friend-sharing', 'Friends sharing'],
+    ['friend-sharing', 'Friend sharing'],
     ['friend-shelf', 'Shared games'],
   ] as const)('names %s without inventing loaded contents', (route, title) => {
     const html = renderToStaticMarkup(createElement(RouteFallback, { route, kind: 'public-page' }));

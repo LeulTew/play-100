@@ -18,7 +18,7 @@ const pageTitles: Record<AppPage, string> = {
   friend: 'Friend',
   invite: 'Invitation',
   compare: 'Compare rankings',
-  'friend-sharing': 'Friends sharing',
+  'friend-sharing': 'Friend sharing',
   'friend-shelf': 'Shared games',
 };
 const workspaceTitles: Record<MyGamesTab, string> = {

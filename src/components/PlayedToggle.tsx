@@ -8,7 +8,6 @@ export function PlayedToggle({
   played,
   completed = false,
   busy = false,
-  compact = false,
   onChange,
 }: {
   id: string;
@@ -26,7 +25,7 @@ export function PlayedToggle({
   const [review, setReview] = useState({ key, eligible, open: false });
   if (review.key !== key || review.eligible !== eligible) setReview({ key, eligible, open: false });
   const reviewOpen = (open: boolean) => setReview({ key, eligible, open });
-  const label = compact ? 'Played' : 'I have played it';
+  const label = 'Played';
   return (
     <>
       <label className="check-control played-toggle" data-played-id={id}>

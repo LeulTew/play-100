@@ -17,6 +17,14 @@ const render = (busy: boolean) =>
   );
 
 describe('PlayedToggle', () => {
+  it.each([false, true])('uses the same Played name with compact=%s', (compact) => {
+    const html = renderToStaticMarkup(
+      createElement(PlayedToggle, { id: 'g', title: 'Game', played: false, compact, onChange: () => {} }),
+    );
+    expect(html).toContain('aria-label="Played: Game"');
+    expect(html).toContain('<span>Played</span>');
+    expect(html).not.toContain('I have played it');
+  });
   it('marks a pending save unavailable without disabling, so the focused checkbox keeps focus', () => {
     const pending = render(true);
     expect(pending).toContain('aria-label="Played: Game"');

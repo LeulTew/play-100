@@ -9,7 +9,7 @@ test('a cross-tab progress change cancels rather than revives an obsolete comple
   const id = 'red-dead-redemption-2';
   await page.goto(`/?game=${id}`);
   await page.getByRole('button', { name: 'Completed', exact: true }).click();
-  const played = page.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true });
+  const played = page.getByRole('checkbox', { name: `Played: ${title}`, exact: true });
   await played.click();
   await expect(page.getByRole('dialog', { name: `Mark ${title} not played?`, exact: true })).toBeVisible();
   const peer = await context.newPage();

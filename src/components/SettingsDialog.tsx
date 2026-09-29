@@ -295,7 +295,7 @@ export function SettingsDialog({
         )}
       </section>
       <button className="text-button" onClick={onAbout}>
-        Source, methodology &amp; credits
+        About &amp; credits
         <Icon name="arrow" width="17" height="17" />
       </button>
     </Dialog>

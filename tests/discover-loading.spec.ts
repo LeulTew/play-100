@@ -20,6 +20,35 @@ test.beforeEach(async ({ page, isMobile }) => {
   await emptyCatalogs(page);
 });
 
+test('an unreachable provider names itself and offers a working retry', async ({ page }) => {
+  let retry = false;
+  await page.route('**/api/catalog?**', (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    const source = query.get('source');
+    if (source === 'wikidata' && !retry) return route.abort('failed');
+    return route.fulfill({
+      json: {
+        source,
+        query: query.get('q'),
+        offset: Number(query.get('offset')),
+        items: [],
+        total: 0,
+        nextOffset: null,
+        notices: [],
+      },
+    });
+  });
+  await page.goto('/discover?q=atlas&catalogs=on');
+  const status = page.locator('.discovery-source-status > div').filter({
+    has: page.getByRole('link', { name: 'Wikidata', exact: true }),
+  });
+  await expect(status.getByRole('alert')).toHaveText("Couldn't reach Wikidata. Check your connection and try again.");
+  retry = true;
+  await status.getByRole('button', { name: 'Retry Wikidata', exact: true }).click();
+  await expect(status.getByRole('status')).toContainText('No new online matches');
+  await expect(status.getByRole('alert')).toHaveCount(0);
+});
+
 for (const view of ['grid', 'list']) {
   test(`Discover ${view} loads without a false count, blank anatomy or shifted first artwork`, async ({ page }) => {
     const catalog = holdCatalog();

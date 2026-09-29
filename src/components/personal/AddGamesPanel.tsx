@@ -70,7 +70,7 @@ export default function AddGamesPanel({
       </button>
       {(expanded || manualDraft.title.length > 0 || manualDraft.year.length > 0) && (
         <div className="game-picker" hidden={!expanded}>
-          <label htmlFor={`add-${kind}-search`}>Find a game from the 100 or your library</label>
+          <label htmlFor={`add-${kind}-search`}>Find a game from The 100 or your library</label>
           <div className="search-field">
             <Icon name="search" width="18" height="18" />
             <input
@@ -112,7 +112,7 @@ export default function AddGamesPanel({
           {!choices.length && <p>No match in these games. Discover more or add your own title below.</p>}
           {!query && <p className="section-help">Up to six suggestions. Search to find another title.</p>}
           <button className="text-button" onClick={onDiscover}>
-            Discover games beyond the 100
+            Discover games beyond The 100
             <Icon name="arrow" width="17" height="17" />
           </button>
           <ManualGameForm

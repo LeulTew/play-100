@@ -36,7 +36,7 @@ async function enableSelectedSharing(page: Page) {
   await page.goto('/friends/sharing');
   // The selected editor appears only after automatic sharing settles as off; the route and checking states share its title.
   await expect(
-    page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friends sharing', exact: true }),
+    page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friend sharing', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Select all', exact: true }).click();
   await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();
@@ -193,7 +193,7 @@ test('revoked invites show no inviter snapshot and a cancelled sharing preview d
   }
   await page.goto('/friends/sharing');
   await expect(
-    page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friends sharing', exact: true }),
+    page.locator('.friends-sharing-page').getByRole('heading', { name: 'Friend sharing', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Select all', exact: true }).click();
   await page.getByRole('button', { name: 'Preview friends sharing', exact: true }).click();

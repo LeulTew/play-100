@@ -175,7 +175,7 @@ describe('workspace embedding contract', () => {
       expect(html).toContain('Add a game manually');
       if (total === 0) {
         expect(html).toContain('No games yet');
-        expect(html).toContain('Choose from the 100');
+        expect(html).toContain('Choose from The 100');
         expect(html).toContain('Discover more games');
       }
     },

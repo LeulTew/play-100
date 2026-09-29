@@ -87,6 +87,10 @@ describe('AuthPanel purpose', () => {
       'friend-shelf',
       'Choose saved games from your library for your friends to see. Sign in to share them with friends.',
     ],
+    [
+      'creator',
+      'The collection creator can review consenting members and moderate public rankings here. Sign in with the creator account to continue.',
+    ],
   ] as const)('says what the signed-out %s page is for before provider choices', (purpose, text) => {
     const { html, props } = render(purpose);
     // The page's own heading names it, so its purpose is one paragraph with no heading of its own.

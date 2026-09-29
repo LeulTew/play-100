@@ -280,11 +280,11 @@ export default function LibraryPage(props: LibraryPageProps) {
               ? 'Try another progress filter or clear your search. Your saved games are unchanged.'
               : tab === 'later'
                 ? 'Choose Play later on a game to add it here.'
-                : 'Add games from the 100, Discover or the form below.'}
+                : 'Add games from The 100, Discover or the form below.'}
           </p>
           <div className="button-row">
             <button className="button button-dark" onClick={filtered ? clearView : onBrowse}>
-              {filtered ? 'Clear search and progress filter' : 'Choose from the 100'}
+              {filtered ? 'Clear search and progress filter' : 'Choose from The 100'}
             </button>
             <button className="button button-outline" onClick={onDiscover}>
               Discover more games

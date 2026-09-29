@@ -1,6 +1,7 @@
 import { parseCatalogPage } from './catalog-types';
 import type { CatalogPage, CatalogSource } from './catalog-types';
 import { CatalogRequestError, fetchCatalogJson } from './catalog-transport';
+import { SOURCE_LABELS } from './personal-types';
 
 export async function fetchCatalogPage(
   source: CatalogSource,
@@ -22,6 +23,8 @@ export async function fetchCatalogPage(
     `/api/catalog?${new URLSearchParams({ source, q: query.trim(), offset: String(offset) })}`,
     signal,
     256 * 1024,
+    undefined,
+    SOURCE_LABELS[source],
   );
   const page = parseCatalogPage(payload);
   if (page.source !== source || page.query !== query.trim() || page.offset !== offset)

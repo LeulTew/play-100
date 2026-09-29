@@ -95,9 +95,12 @@ export function normalizeHandle(value: string): string {
 
 export function parseHandle(value: string): string {
   const handle = value.trim().toLowerCase();
-  if (!/^[a-z][a-z0-9_]{2,23}$/.test(handle))
-    throw new Error('Choose 3-24 letters, numbers or underscores, starting with a letter.');
+  if (!isValidHandle(handle)) throw new Error('Choose 3–24 letters, numbers or underscores, starting with a letter.');
   return handle;
+}
+
+export function isValidHandle(value: string): boolean {
+  return /^[a-z][a-z0-9_]{2,23}$/i.test(value.trim());
 }
 
 function sourceUrl(record: Pick<LibraryRecord, 'source' | 'sourceId' | 'sourceUrl'>): string | null {

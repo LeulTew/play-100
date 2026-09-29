@@ -49,8 +49,8 @@ for (const field of ['score', 'note'] as const) {
     await expect
       .poll(async () => (await readLibrary(peer)).ranking[0]?.[field])
       .toBe(field === 'score' ? 9 : 'New note from another tab');
-    await peer.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true }).click();
-    await expect(page.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true })).toBeChecked();
+    await peer.getByRole('checkbox', { name: `Played: ${title}`, exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: `Played: ${title}`, exact: true })).toBeChecked();
     await expect(currentInput).toHaveValue(field === 'score' ? '9' : 'New note from another tab');
     await currentInput.press('Tab');
     expect((await readLibrary(page)).ranking[0]?.[field]).toBe(field === 'score' ? 9 : 'New note from another tab');
@@ -77,8 +77,8 @@ test('an actual dirty draft is preserved through another-tab updates and saves i
       await remote.fill('9');
       await remote.press('Tab');
       await expect.poll(async () => (await readLibrary(peer)).ranking[0]?.score).toBe(9);
-      await peer.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true }).click();
-      await expect(page.getByRole('checkbox', { name: `I have played it: ${title}`, exact: true })).toBeChecked();
+      await peer.getByRole('checkbox', { name: `Played: ${title}`, exact: true }).click();
+      await expect(page.getByRole('checkbox', { name: `Played: ${title}`, exact: true })).toBeChecked();
       await expect(current).toHaveValue('8.5');
     } finally {
       await page.clock.resume();

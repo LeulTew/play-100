@@ -609,7 +609,7 @@ export function AccountPage(props: AccountPageProps) {
               </button>
             )}
             <button className="text-button" onClick={onPublish}>
-              Public ranking
+              Publish ranking
               <Icon name="share" width="17" height="17" />
             </button>
             <button className="text-button" onClick={onCommunity}>

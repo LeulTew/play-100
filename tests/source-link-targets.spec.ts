@@ -92,8 +92,8 @@ for (const forcedColors of ['none', 'active'] as const) {
     await expect(about.getByRole('group', { name: 'Project sources and notices', exact: true })).toBeVisible();
     const aboutMeasurements = await expectSourceLinks(page, about, [...catalogLinks, ...projectLinks]);
     await expect(about).toContainText('FreeToGame data retains credit and source links.');
-    await expect(about).toContainText('React Bits: copyright 2026 David Haz, MIT + Commons Clause.');
-    await expect(about).toContainText('Barlow Condensed and Hanken Grotesk: SIL Open Font License.');
+    await expect(about).toContainText('React Bits is copyright 2026 David Haz, used under MIT + Commons Clause.');
+    await expect(about).toContainText('Barlow Condensed and Hanken Grotesk use the SIL Open Font License.');
     await about.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.goto('/discover?catalogs=off');
     // Discover has two .discovery-help disclosures; the exact-genre one precedes the sources one.

@@ -124,7 +124,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await rate(page, '8.7');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.7);
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
-  await card.getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true }).click();
+  await card.getByRole('checkbox', { name: `Played: ${rdr.title}`, exact: true }).click();
   await expect
     .poll(async () => (await readLibrary(page)).progress[canonical.id])
     .toEqual({ played: true, completed: false, later: false });
@@ -271,14 +271,14 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await expect(card).toContainText('Progress and ratings use your existing saved catalog copy.');
   await card.getByText('More actions', { exact: true }).click();
   await expect(card.getByRole('spinbutton')).toHaveValue('7.3');
-  await card.getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true }).click();
+  await card.getByRole('checkbox', { name: `Played: ${rdr.title}`, exact: true }).click();
   await card.getByRole('button', { name: `Completed: ${rdr.title}`, exact: true }).click();
   await rate(page, '8.1');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.1);
   await card.getByRole('button', { name: rdr.title, exact: true }).click();
   await expect(detailFor(page)).toContainText('#01 in the collection');
   await expect(detailFor(page).getByRole('spinbutton')).toHaveValue('8.1');
-  const played = detailFor(page).getByRole('checkbox', { name: `I have played it: ${rdr.title}`, exact: true });
+  const played = detailFor(page).getByRole('checkbox', { name: `Played: ${rdr.title}`, exact: true });
   const beforeConfirmation = await readLibrary(page);
   await played.click();
   const confirmation = page.getByRole('dialog', { name: `Mark ${rdr.title} not played?`, exact: true });

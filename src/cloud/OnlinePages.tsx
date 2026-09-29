@@ -237,7 +237,7 @@ export function OnlinePages({
       ) : (page === 'friend-sharing' || page === 'friend-shelf') && sharingView === 'checking' ? (
         <section className="app-page" aria-busy="true">
           <h1 data-page-heading tabIndex={-1}>
-            {page === 'friend-shelf' ? 'Shared games' : 'Friends sharing'}
+            {page === 'friend-shelf' ? 'Shared games' : 'Friend sharing'}
           </h1>
           <FriendSharingSummary
             mode="checking"

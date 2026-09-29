@@ -2,7 +2,8 @@ import type { AppPage } from './types';
 
 export type SignInPurpose = 'compare';
 /** What a sign-in panel explains before its choices: Compare, or the signed-out page it stands in for. */
-export type AuthPurpose = SignInPurpose | 'account' | 'friends' | 'publish' | 'friend-sharing' | 'friend-shelf';
+export type AuthPurpose =
+  SignInPurpose | 'account' | 'friends' | 'publish' | 'friend-sharing' | 'friend-shelf' | 'creator';
 export interface SignInPurposeTicket {
   purpose: SignInPurpose;
   isCurrent: () => boolean;
@@ -32,6 +33,7 @@ const routePurposes: Partial<Record<AppPage, AuthPurpose>> = {
   publish: 'publish',
   'friend-sharing': 'friend-sharing',
   'friend-shelf': 'friend-shelf',
+  creator: 'creator',
 };
 
 // A signed-out online page explains itself. Only Compare's purpose also carries into a sheet opened over its page: the

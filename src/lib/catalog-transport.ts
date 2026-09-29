@@ -17,6 +17,7 @@ export async function fetchCatalogJson(
   signal: AbortSignal,
   maxBytes: number,
   timeoutMs = 12_000,
+  catalogName = 'the catalog',
 ): Promise<unknown> {
   throwIfAborted(signal);
   const controller = new AbortController();
@@ -109,10 +110,7 @@ export async function fetchCatalogJson(
     throwIfAborted(signal);
     if (controller.signal.aborted) throw abortCause;
     if (error instanceof CatalogRequestError) throw error;
-    throw new CatalogRequestError(
-      'Offline or unable to reach the catalog. Check your connection and try again.',
-      'offline',
-    );
+    throw new CatalogRequestError(`Couldn't reach ${catalogName}. Check your connection and try again.`, 'offline');
   } finally {
     clearTimeout(timeout);
     signal.removeEventListener('abort', cancel);

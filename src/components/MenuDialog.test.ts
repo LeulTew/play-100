@@ -65,6 +65,14 @@ describe('Menu visibility and location contract', () => {
     expect(render(false, false)).not.toContain('Online sharing');
   });
 
+  it('names publishing and friend sharing exactly as their destination pages do', () => {
+    const html = render(true, false);
+    expect(html).toContain('>Publish ranking</span>');
+    expect(html).toContain('>Friend sharing</span>');
+    expect(html).not.toContain('>Public ranking</span>');
+    expect(html).not.toContain('Friends sharing');
+  });
+
   it.each([
     ['games', 'library', '/my-games'],
     ['library', 'queue', '/my-games?tab=queue'],

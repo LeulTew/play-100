@@ -194,7 +194,7 @@ function PublishDraft({
               />
             </label>
             <label>
-              Unique handle<span>3-24 letters, numbers or underscores; starts with a letter.</span>
+              Unique handle<span>3–24 letters, numbers or underscores; starts with a letter.</span>
               <input
                 name="public-handle"
                 autoComplete="off"

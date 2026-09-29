@@ -217,7 +217,7 @@ test('0, 1, 25 and 26 matches use the shared exact boundaries and existing empty
       await expect(page.getByRole('heading', { name: 'No games yet', exact: true })).toBeVisible();
       await expect(query(page)).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Select games', exact: true })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Choose from the 100', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Choose from The 100', exact: true })).toBeVisible();
     }
     if (total <= 25) {
       await expect(pager(page)).toHaveCount(0);

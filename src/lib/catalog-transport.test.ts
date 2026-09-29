@@ -146,7 +146,10 @@ describe('bounded catalog transport failures', () => {
         .mockResolvedValueOnce(new Response('{"error":"timeout","code":"timeout"}', { status: 504 }))
         .mockResolvedValueOnce(new Response('{"error":"unavailable"}', { status: 503 })),
     );
-    await expect(fetchCatalogJson('/api/catalog', signal(), 1024)).rejects.toMatchObject({ kind: 'offline' });
+    await expect(fetchCatalogJson('/api/catalog', signal(), 1024)).rejects.toMatchObject({
+      kind: 'offline',
+      message: "Couldn't reach the catalog. Check your connection and try again.",
+    });
     await expect(fetchCatalogJson('/api/catalog', signal(), 1024)).rejects.toMatchObject({
       kind: 'rate-limited',
       retryAfter: 60,

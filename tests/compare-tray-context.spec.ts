@@ -17,6 +17,7 @@ test('the tray limit message spans the list and aligns its dismissal with row ac
   await page.getByRole('button', { name: '6 games in Compare tray', exact: true }).click();
   const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expect(tray.locator('.compare-tray-error')).toContainText('six games');
+  await expect(tray.locator('.compare-tray-games li').first()).toContainText(`Leul's 100 · ${libraryRecords[0]!.year}`);
   const alignment = await tray.evaluate((dialog) => {
     const error = dialog.querySelector('.compare-tray-error')!;
     const text = error.querySelector('p')!;

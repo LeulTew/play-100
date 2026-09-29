@@ -73,13 +73,18 @@ for (const [path, title, purpose] of [
   ],
   [
     '/friends/sharing',
-    'Friends sharing',
+    'Friend sharing',
     'Choose the ranked games, with their order and scores, that your friends can see. Sign in to share them with friends.',
   ],
   [
     '/friends/sharing/games',
     'Shared games',
     'Choose saved games from your library for your friends to see. Sign in to share them with friends.',
+  ],
+  [
+    '/creator',
+    'Creator desk',
+    'The collection creator can review consenting members and moderate public rankings here. Sign in with the creator account to continue.',
   ],
 ] as const) {
   test(`signed-out ${path} names itself and explains its purpose before sign-in`, async ({ page }) => {

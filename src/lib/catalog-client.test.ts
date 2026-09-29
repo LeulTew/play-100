@@ -15,6 +15,14 @@ const signal = () => new AbortController().signal;
 afterEach(() => vi.unstubAllGlobals());
 
 describe('shared catalog transport', () => {
+  it.each(['wikidata', 'freetogame'] as const)('names %s when its connection fails', async (source) => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    await expect(fetchCatalogPage(source, 'Atlas', 0, signal())).rejects.toMatchObject({
+      kind: 'offline',
+      message: `Couldn't reach ${source === 'wikidata' ? 'Wikidata' : 'FreeToGame'}. Check your connection and try again.`,
+    });
+  });
+
   it('sends only a trimmed query, source and offset with the caller cancellation signal', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(page)));
     vi.stubGlobal('fetch', fetcher);

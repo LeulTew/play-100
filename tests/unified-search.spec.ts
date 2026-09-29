@@ -128,13 +128,13 @@ test('bulk actions span original and external search matches and private filters
   await expect(page.locator('tr[data-game]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(1);
   await openActions(page, a);
-  await expect(row(page, a).getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })).toBeChecked();
+  await expect(row(page, a).getByRole('checkbox', { name: `Played: ${a.title}`, exact: true })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
     true,
   );
   await row(page, a)
-    .getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })
+    .getByRole('checkbox', { name: `Played: ${a.title}`, exact: true })
     .click();
   // Unmarking a completed game asks first, since it also clears Completed (621bcef); nothing changes until confirmed.
   const confirmation = page.getByRole('dialog', { name: `Mark ${a.title} not played?`, exact: true });
@@ -177,9 +177,9 @@ test('search ratings preserve manual ranking slots and notes while played and ra
   await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${b.title}`, exact: true }).fill('8');
   await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${b.title}`, exact: true }).press('Tab');
   await expect(row(page, b).getByRole('spinbutton')).toHaveValue('8');
-  await peer.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true }).click();
+  await peer.getByRole('checkbox', { name: `Played: ${a.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(peer)).progress[a.id]?.played).toBe(true);
-  await expect(row(page, a).getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })).toBeChecked();
+  await expect(row(page, a).getByRole('checkbox', { name: `Played: ${a.title}`, exact: true })).toBeChecked();
   expect((await readLibrary(page)).ranking[0]?.manualPosition).toBe(1);
   await peer.close();
 });

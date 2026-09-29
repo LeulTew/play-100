@@ -221,9 +221,7 @@ test('personal rankings accept unplayed and historical games, scores and notes',
   await page.locator('.my-games-editor:visible').getByLabel('Year (optional)', { exact: false }).fill('1962');
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(1);
-  await expect(
-    page.getByRole('checkbox', { name: 'I have played it: My historical game', exact: true }),
-  ).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Played: My historical game', exact: true })).not.toBeChecked();
   const score = page.getByRole('spinbutton', { name: 'Your rating / 10 for My historical game', exact: true });
   await score.fill('9.4');
   await score.press('Tab');

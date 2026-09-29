@@ -30,9 +30,7 @@ test('played state is one committed value across detail, grid, list, table, libr
   context,
 }) => {
   await page.goto(`/?game=${a.id}`);
-  const detailPlayed = page
-    .getByRole('dialog')
-    .getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
+  const detailPlayed = page.getByRole('dialog').getByRole('checkbox', { name: `Played: ${a.title}`, exact: true });
   await detailPlayed.click();
   await expect(detailPlayed).toBeChecked();
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
@@ -44,7 +42,7 @@ test('played state is one committed value across detail, grid, list, table, libr
   await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
   await expect(page.locator(`tr[data-game="${a.id}"] [data-played-id] input`)).toBeChecked();
   await page.goto('/my-rankings');
-  const rankedPlayed = page.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
+  const rankedPlayed = page.getByRole('checkbox', { name: `Played: ${a.title}`, exact: true });
   await expect(rankedPlayed).toBeChecked();
   await rankedPlayed.click();
   await expect(rankedPlayed).not.toBeChecked();
@@ -75,7 +73,7 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   await dialog.getByRole('button', { name: 'Play later', exact: true }).click();
   await dialog.getByRole('button', { name: 'Completed', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Completed', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  const played = dialog.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
+  const played = dialog.getByRole('checkbox', { name: `Played: ${a.title}`, exact: true });
   await expect(played).toBeChecked();
   await dialog.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('8.5');
   await dialog.getByRole('spinbutton').press('Tab');
@@ -218,16 +216,16 @@ test('catalog played state follows the saved game into its library, detail and p
   const card = page.locator(`[data-catalog-id="${record.id}"]`);
   await expect(card.getByRole('heading', { name: record.title, exact: true })).toBeVisible();
   await card.locator('summary').click();
-  const played = card.getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true });
+  const played = card.getByRole('checkbox', { name: `Played: ${record.title}`, exact: true });
   await played.click();
   await expect(played).toBeChecked();
   await card.getByRole('button', { name: 'Add to ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);
   await page.goto('/my-rankings');
-  await expect(page.getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: `Played: ${record.title}`, exact: true })).toBeChecked();
   await page.getByRole('button', { name: record.title, exact: true }).click();
   await expect(
-    page.getByRole('dialog').getByRole('checkbox', { name: `I have played it: ${record.title}`, exact: true }),
+    page.getByRole('dialog').getByRole('checkbox', { name: `Played: ${record.title}`, exact: true }),
   ).toBeChecked();
 });
 
@@ -289,7 +287,7 @@ test('played state, score ordering and manual slots survive a full browser resta
     await expect
       .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === a.id)?.manualPosition)
       .toBe(2);
-    const played = page.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true });
+    const played = page.getByRole('checkbox', { name: `Played: ${a.title}`, exact: true });
     await played.click();
     await expect(played).toBeChecked();
     const before = await readLibrary(page);
@@ -302,7 +300,7 @@ test('played state, score ordering and manual slots survive a full browser resta
     expect(after.ranking).toEqual(before.ranking);
     expect(after.progress).toEqual(before.progress);
     expect(after.ranking.map((entry) => entry.id)).toEqual([c.id, a.id, b.id]);
-    await expect(page.getByRole('checkbox', { name: `I have played it: ${a.title}`, exact: true })).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: `Played: ${a.title}`, exact: true })).toBeChecked();
     await rate(page, c, '6');
     await expect
       .poll(async () => (await readLibrary(page)).ranking.map((entry) => entry.id))

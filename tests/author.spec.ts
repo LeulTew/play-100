@@ -60,7 +60,7 @@ test('Leul original values are visible by default and never become visitor ratin
   await expect(dialog.locator('.author-rating-detail')).toContainText("Leul's original rating");
   await expect(dialog.locator('.author-rating-detail')).toContainText('9.9');
   await expect(
-    dialog.getByRole('checkbox', { name: 'I have played it: The Witcher 3: Wild Hunt', exact: true }),
+    dialog.getByRole('checkbox', { name: 'Played: The Witcher 3: Wild Hunt', exact: true }),
   ).not.toBeChecked();
   await dialog.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);

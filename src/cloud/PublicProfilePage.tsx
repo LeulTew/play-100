@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Game } from '../lib/types';
 import type { PublicEntry, PublicProfile } from '../lib/community';
-import { recordFromPublic } from '../lib/community';
+import { isValidHandle, recordFromPublic } from '../lib/community';
 import type { LibraryController } from '../lib/library-controller';
 import type { LibraryRecord } from '../lib/personal-types';
 import type { AccountIdentity } from './ui-types';
@@ -57,6 +57,7 @@ export function PublicProfilePage({
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
   const [retry, setRetry] = useState(0);
+  const invalidHandle = !isValidHandle(handle);
   // Another profile, or a retry, starts over from its loading state.
   const [requested, setRequested] = useState({ social, handle, retry });
   if (requested.social !== social || requested.handle !== handle || requested.retry !== retry) {
@@ -69,6 +70,7 @@ export function PublicProfilePage({
     setProfile(null);
   }
   useEffect(() => {
+    if (invalidHandle) return;
     let canceled = false;
     void (async () => {
       const value = await social.profile(handle);
@@ -87,7 +89,7 @@ export function PublicProfilePage({
     return () => {
       canceled = true;
     };
-  }, [social, handle, retry]);
+  }, [social, handle, retry, invalidHandle]);
   const save = async (values: PublicEntry[]) => {
     try {
       const records = values.map((entry) => recordFromPublic(entry, games));
@@ -101,6 +103,19 @@ export function PublicProfilePage({
       setError(onlineError(cause));
     }
   };
+  if (invalidHandle)
+    return (
+      <section className="app-page empty-state">
+        <h1 data-page-heading tabIndex={-1}>
+          This ranking link isn't valid.
+        </h1>
+        <p>Check the link or browse Community.</p>
+        <a className="text-button" href="/community">
+          Browse Community
+          <Icon name="back" width="17" height="17" />
+        </a>
+      </section>
+    );
   if (busy && !profile)
     return (
       <section className="app-page page-loading" role="status">

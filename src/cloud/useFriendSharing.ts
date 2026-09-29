@@ -267,7 +267,7 @@ export function useFriendSharing(
         setStatus(kind === 'transient' ? 'retrying' : kind === 'quota' ? 'quota' : 'error');
         setFailure({
           uid: owner,
-          message: `${onlineError(cause)}${kind === 'blocked' ? '' : ' Friends sharing will retry automatically.'}`,
+          message: `${onlineError(cause)}${kind === 'blocked' ? '' : ' Friend sharing will retry automatically.'}`,
         });
       },
     );

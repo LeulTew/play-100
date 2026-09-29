@@ -131,7 +131,7 @@ export function recordFriendRemovals(
       );
     } catch (cause) {
       console.error(
-        'Friends sharing needs a fresh selection before it can resume.',
+        'Friend sharing needs a fresh selection before it can resume.',
         cause instanceof Error ? cause.message : 'Invalid selection.',
       );
       store.put({ version: 1, blocked: true }, key);

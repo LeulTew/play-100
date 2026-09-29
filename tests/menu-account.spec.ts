@@ -99,7 +99,7 @@ test('Menu keeps guest, Alpha and Beta drafts in their own scopes through real e
   expect(beforeBeta.state.ranking.find((entry) => entry.id === game.id)?.score).not.toBe(score);
   await followMenu(page, 'Ranking');
   await expect(rating(page)).toHaveValue(String(beforeBeta.state.ranking.find((entry) => entry.id === game.id)?.score));
-  for (const name of ['Friends', 'Compare', 'Community', 'Public ranking']) {
+  for (const name of ['Friends', 'Compare', 'Community', 'Publish ranking']) {
     await followMenu(page, name);
     await expect(page.locator('main [data-page-heading]').first()).toBeVisible();
   }
