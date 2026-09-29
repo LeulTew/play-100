@@ -216,7 +216,8 @@ describe('PWA positive cache boundaries', () => {
     expect(
       isPwaShellNavigation(new URL('/discover?genreFamily=role-playing&include100=on&code=private', origin), origin),
     ).toBe(false);
-    for (const url of ['/account', '/?code=oauth', '/?access_token=token', '/?returnTo=private', '/data-use']) {
+    expect(isPwaShellNavigation(new URL('/data-use', origin), origin)).toBe(true);
+    for (const url of ['/account', '/?code=oauth', '/?access_token=token', '/?returnTo=private', '/data-use?next=x']) {
       expect(isPwaShellNavigation(new URL(url, origin), origin)).toBe(false);
     }
   });
@@ -477,6 +478,19 @@ describe('version-bound offline security headers', () => {
     }
     expect(isPwaNotFoundNavigation(new URL('https://elsewhere.test/settings'), origin)).toBe(false);
     expect(isPwaNotFoundNavigation(new URL(`${origin}/robots.txt`), origin)).toBe(false);
+  });
+  it('serves Data use offline from the app shell, without writing its path to the cache (UX-019)', async () => {
+    const fixture = workerFixture();
+    await fixture.lifetime('install');
+    fixture.fetch.mockClear().mockRejectedValue(new Error('Offline'));
+    const page = await fixture.response(navigation(`${origin}/data-use`));
+    expect(page?.status).toBe(200);
+    expect(await page?.text()).toBe('public fixture');
+    for (const header of policy.headers) expect(page?.headers.get(header.name)).toBe(header.value);
+    expect(fixture.fetch).not.toHaveBeenCalled();
+    for (const cache of fixture.stores.values()) {
+      expect([...cache.entries.keys()].some((key) => key.includes('data-use'))).toBe(false);
+    }
   });
   it('serves a paged Library offline without caching the query or allowing a private query key', async () => {
     const fixture = workerFixture();

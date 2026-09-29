@@ -124,8 +124,7 @@
       pending -= 1;
       if (!pending) add('script', 'module', 'src');
     };
-    // The Data use page reads no collection data (src/main.tsx), and a prepared worker refuses
-    // versioned data to that network-only document, so it starts without the fetch preloads.
+    // The Data use page reads no collection data (src/main.tsx), so it starts without the fetch preloads.
     var dataUse = /^\/data-use\/?$/.test(window.location.pathname);
     for (var index = 0; index < tags.length; index += 1) {
       var tag = tags[index];

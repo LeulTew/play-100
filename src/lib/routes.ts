@@ -12,7 +12,7 @@ export const APP_ROUTES = [
   { path: '/community', page: 'community', shell: false },
   { path: '/u/:handle', page: 'profile', shell: false },
   { path: '/creator', page: 'creator', shell: false },
-  { path: '/data-use', page: null, shell: false },
+  { path: '/data-use', page: null, shell: true },
   { path: '/friends', page: 'friends', shell: false },
   { path: '/friends/sharing', page: 'friend-sharing', shell: false },
   { path: '/friends/sharing/games', page: 'friend-shelf', shell: false },

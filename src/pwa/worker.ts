@@ -688,7 +688,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       url.password ||
       input.headers.has('authorization') ||
       input.headers.has('range') ||
-      /^\/(?:api|__|data-use)(?:\/|$)/.test(url.pathname)
+      /^\/(?:api|__)(?:\/|$)/.test(url.pathname)
     )
       return;
     if (input.mode === 'navigate') {

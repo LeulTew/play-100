@@ -167,7 +167,7 @@ test('a prepared worker opens the disclosure without a collection preload or a r
   expect(refused).toEqual([]);
 });
 
-test('explicit offline preparation retains the unvisited disclosure body in the public core', async ({
+test('explicit offline preparation retains the disclosure body and opens Data use offline', async ({
   page,
   context,
 }) => {
@@ -199,6 +199,11 @@ test('explicit offline preparation retains the unvisited disclosure body in the 
     expect(cached).toHaveLength(1);
     expect(cached[0]).toContain('Device-only libraries');
     expect(cached[0]).toContain('Services and essential storage');
+    // Offline, Data use opens from the prepared app shell like other public pages (UX-019).
+    await page.goto('/data-use');
+    await expect(page.getByRole('heading', { name: 'Data use', level: 1, exact: true })).toBeVisible();
+    await expect(page.locator('#data-use h2')).toHaveCount(9);
+    expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   } finally {
     await context.setOffline(false);
   }
