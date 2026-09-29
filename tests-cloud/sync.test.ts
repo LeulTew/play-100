@@ -30,6 +30,7 @@ import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { applyPersonalAction, emptyPersonalLibrary } from '../src/lib/personal-library';
 import type { LibraryRecord } from '../src/lib/personal-types';
 import { untilSignInNewerThan } from './fixtures/auth-time';
+import type { RunTransaction } from './fixtures/modular-firestore';
 
 // A pass-through, so one test can hold a transaction between its reads and its commit.
 vi.mock('firebase/firestore', async (original) => {
@@ -63,7 +64,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-  vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
+  vi.mocked<RunTransaction>(runTransaction).mockReset().mockImplementation(actual.runTransaction);
   await environment.clearFirestore();
 });
 afterEach(async () => {
@@ -227,7 +228,7 @@ describe('real Auth and Firestore snapshot transactions', () => {
     // Holds the second writer's head commit after its transaction read the head and staged its writes, so the first
     // writer publishes in between. The emulator refuses that stale commit instead of retrying it, as it did in the
     // Release 5 two-tab race that ended in "Online saving paused".
-    vi.mocked(runTransaction).mockImplementation(
+    vi.mocked<RunTransaction>(runTransaction).mockImplementation(
       async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
         actual.runTransaction(
           db,
@@ -273,7 +274,7 @@ describe('real Auth and Firestore snapshot transactions', () => {
     let holding = true;
     // Holds the second writer's ranking chunk write after its transaction read the chunk, so the first writer adds its
     // own holder in between and the second writer's holders are stale.
-    vi.mocked(runTransaction).mockImplementation(
+    vi.mocked<RunTransaction>(runTransaction).mockImplementation(
       async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
         actual.runTransaction(
           db,

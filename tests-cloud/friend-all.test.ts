@@ -44,6 +44,12 @@ import type { FriendAllPolicy } from '../src/lib/friend-all';
 import type { FriendShelfEntry } from '../src/lib/friend-shelf-types';
 import type { PublicEntry } from '../src/lib/community';
 import { emptyPersonalLibrary } from '../src/lib/personal-library';
+import type {
+  CreateWriteBatch,
+  GetDocFromServer,
+  GetDocsFromServer,
+  RunTransaction,
+} from './fixtures/modular-firestore';
 
 // prepareFriendIdentity checks the app's auth singleton; each race test points it at the fixture acting now.
 const signedIn = vi.hoisted(() => ({ currentUser: null as { uid: string } | null }));
@@ -80,10 +86,10 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-  vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
-  vi.mocked(writeBatch).mockReset().mockImplementation(actual.writeBatch);
-  vi.mocked(getDocsFromServer).mockReset().mockImplementation(actual.getDocsFromServer);
-  vi.mocked(getDocFromServer).mockReset().mockImplementation(actual.getDocFromServer);
+  vi.mocked<RunTransaction>(runTransaction).mockReset().mockImplementation(actual.runTransaction);
+  vi.mocked<CreateWriteBatch>(writeBatch).mockReset().mockImplementation(actual.writeBatch);
+  vi.mocked<GetDocsFromServer>(getDocsFromServer).mockReset().mockImplementation(actual.getDocsFromServer);
+  vi.mocked<GetDocFromServer>(getDocFromServer).mockReset().mockImplementation(actual.getDocFromServer);
   await environment.clearFirestore();
 });
 afterEach(async () => {
@@ -185,7 +191,7 @@ async function holdNextSetup() {
     release = resolve;
   });
   let holding = true;
-  vi.mocked(runTransaction).mockImplementation(
+  vi.mocked<RunTransaction>(runTransaction).mockImplementation(
     async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
       actual.runTransaction(
         db,
@@ -321,11 +327,11 @@ describe('All-sharing bounded SDK transport', () => {
         active: false,
         entry: null,
       });
-    const transactions = vi.mocked(runTransaction).mock.calls.length;
-    const batches = vi.mocked(writeBatch).mock.calls.length;
+    const transactions = vi.mocked<RunTransaction>(runTransaction).mock.calls.length;
+    const batches = vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length;
     expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 5, done: false });
-    expect(vi.mocked(runTransaction).mock.calls.length).toBe(transactions);
-    expect(vi.mocked(writeBatch).mock.calls.length - batches).toBe(2);
+    expect(vi.mocked<RunTransaction>(runTransaction).mock.calls.length).toBe(transactions);
+    expect(vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length - batches).toBe(2);
     const ref = doc(a.db, 'friendAllGames', a.uid, 'entries', games(1)[0]!.id);
     const token = crypto.randomUUID();
     await seed(ref.path, { format: 2, epoch: policy.epoch, token, step: 1, active: true, entry: games(1)[0] });
@@ -636,7 +642,7 @@ describe('All-sharing bounded SDK transport', () => {
     let automatic: Promise<FriendAllPolicy | null> | undefined;
     // The friend action reads no policy; the automatic default then commits all three documents before the action
     // reads its ranking settings, so those separate reads observe the settings without the policy.
-    vi.mocked(getDocFromServer).mockImplementation(async (ref) => {
+    vi.mocked<GetDocFromServer>(getDocFromServer).mockImplementation(async (ref) => {
       if (phase === 'policy' && ref.path === `friendAllPolicies/${actor.uid}`) {
         phase = 'settings';
         policyRead = actual.getDocFromServer(ref);
@@ -654,7 +660,7 @@ describe('All-sharing bounded SDK transport', () => {
     expect(phase).toBe('done');
     expect(action).toEqual(await automatic);
     expect(action).toMatchObject({ enabled: true, origin: 'default', epoch: 1, revision: 1 });
-    vi.mocked(getDocFromServer).mockImplementation(actual.getDocFromServer);
+    vi.mocked<GetDocFromServer>(getDocFromServer).mockImplementation(actual.getDocFromServer);
     const legacy = await client();
     await legacy.friends.initialize(legacy.uid);
     expect(await legacy.all.startDefault(legacy.uid, () => true)).toBeNull();
@@ -825,11 +831,11 @@ describe('All-sharing bounded SDK transport', () => {
     expect(received).toEqual(entries);
     const unchanged = await getDocFromServer(doc(a.db, 'friendAllRankings', a.uid, 'entries', 'wikidata:Q204'));
     entries[204] = { ...entries[204]!, score: 9.2 };
-    const batches = vi.mocked(writeBatch).mock.calls.length;
-    const queries = vi.mocked(getDocsFromServer).mock.calls.length;
+    const batches = vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length;
+    const queries = vi.mocked<GetDocsFromServer>(getDocsFromServer).mock.calls.length;
     await a.all.publish(a.uid, 'ranking', entries, policy, source, () => true);
-    expect(vi.mocked(writeBatch).mock.calls.length - batches).toBe(1);
-    expect(vi.mocked(getDocsFromServer).mock.calls.length - queries).toBe(1);
+    expect(vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length - batches).toBe(1);
+    expect(vi.mocked<GetDocsFromServer>(getDocsFromServer).mock.calls.length - queries).toBe(1);
     expect((await getDocFromServer(unchanged.ref)).data()).toEqual(unchanged.data());
     expect((await b.all.exact(a.uid, 'ranking', ['wikidata:Q205'])).entries).toEqual([entries[204]]);
   }, 60000);
@@ -854,11 +860,11 @@ describe('All-sharing bounded SDK transport', () => {
       await a.friends.saveSettings(uid, { enabled: false, selectedIds: [] }, old.ranking!);
       return old;
     });
-    const queries = vi.mocked(getDocsFromServer).mock.calls.length;
+    const queries = vi.mocked<GetDocsFromServer>(getDocsFromServer).mock.calls.length;
     await expect(fresh.publish(a.uid, 'games', games(3), policy, source, () => true)).rejects.toMatchObject({
       code: 'conflict',
     });
-    expect(vi.mocked(getDocsFromServer).mock.calls.length).toBe(queries);
+    expect(vi.mocked<GetDocsFromServer>(getDocsFromServer).mock.calls.length).toBe(queries);
   });
   it('revokes an already mounted direct legacy control listener on an unchanged old-client Stop write', async () => {
     const a = await client();
@@ -927,10 +933,10 @@ describe('All-sharing bounded SDK transport', () => {
         ...entry,
         title: 'T'.repeat(200),
       }));
-      const writesBefore = vi.mocked(writeBatch).mock.calls.length;
+      const writesBefore = vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length;
       const head = await a.all.publish(a.uid, kind, entries, policy, source, () => true);
       expect(head.count).toBe(10_000);
-      expect(vi.mocked(writeBatch).mock.calls.length - writesBefore).toBe(10000);
+      expect(vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length - writesBefore).toBe(10000);
       const first = await b.all.page(a.uid, kind);
       expect(first.entries).toHaveLength(25);
       expect(first.head.count).toBe(10_000);
@@ -944,11 +950,11 @@ describe('All-sharing bounded SDK transport', () => {
         Object.keys((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', kind))).data() ?? {}),
       ).not.toContain('ids');
       const cold = new FriendAllStore(a.db);
-      const queries = vi.mocked(getDocsFromServer).mock.calls.length;
-      const writes = vi.mocked(writeBatch).mock.calls.length;
+      const queries = vi.mocked<GetDocsFromServer>(getDocsFromServer).mock.calls.length;
+      const writes = vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length;
       expect(await cold.publish(a.uid, kind, entries, policy, source, () => true)).toEqual(head);
-      expect(vi.mocked(getDocsFromServer).mock.calls.length - queries).toBe(0);
-      expect(vi.mocked(writeBatch).mock.calls.length - writes).toBe(0);
+      expect(vi.mocked<GetDocsFromServer>(getDocsFromServer).mock.calls.length - queries).toBe(0);
+      expect(vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length - writes).toBe(0);
     },
     180000,
   );
@@ -990,7 +996,7 @@ describe('All-sharing bounded SDK transport', () => {
     await connect(a, b);
     let keepWorking = true;
     const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-    vi.mocked(writeBatch).mockImplementationOnce((db) => {
+    vi.mocked<CreateWriteBatch>(writeBatch).mockImplementationOnce((db) => {
       const batch = actual.writeBatch(db);
       const commit = batch.commit.bind(batch);
       batch.commit = async () => {
@@ -1020,7 +1026,7 @@ describe('All-sharing bounded SDK transport', () => {
     await connect(a, b);
     await a.all.publish(a.uid, 'games', games(6), policy, source, () => true);
     const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-    vi.mocked(writeBatch).mockImplementationOnce((db) => {
+    vi.mocked<CreateWriteBatch>(writeBatch).mockImplementationOnce((db) => {
       const batch = actual.writeBatch(db);
       const commit = batch.commit.bind(batch);
       batch.commit = async () => {
@@ -1040,9 +1046,9 @@ describe('All-sharing bounded SDK transport', () => {
     const firstRow = doc(a.db, 'friendAllRankings', a.uid, 'entries', 'wikidata:Q1');
     const unchanged = (await getDocFromServer(firstRow)).data();
     const fresh = new FriendAllStore(a.db);
-    const writes = vi.mocked(writeBatch).mock.calls.length;
+    const writes = vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length;
     await fresh.publish(a.uid, 'ranking', ranks(6), policy, source, () => true);
-    expect(vi.mocked(writeBatch).mock.calls.length - writes).toBe(5);
+    expect(vi.mocked<CreateWriteBatch>(writeBatch).mock.calls.length - writes).toBe(5);
     expect((await getDocFromServer(jobRef)).data()).toMatchObject({
       token: pending.token,
       applied: 6,
@@ -1071,7 +1077,7 @@ describe('All-sharing bounded SDK transport', () => {
       release = resolve;
     });
     // The tab's first transaction is its counted begin: it stages the next head revision, then commits only after the peer has published.
-    vi.mocked(runTransaction).mockImplementationOnce(
+    vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(
       async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
         actual.runTransaction(
           db,
@@ -1119,7 +1125,7 @@ describe('All-sharing bounded SDK transport', () => {
       release = resolve;
     });
     // The tab begins its own job, and its first row batch commits only after a peer has replaced that job and published.
-    vi.mocked(writeBatch).mockImplementationOnce((db) => {
+    vi.mocked<CreateWriteBatch>(writeBatch).mockImplementationOnce((db) => {
       const batch = actual.writeBatch(db);
       const commit = batch.commit.bind(batch);
       batch.commit = async () => {

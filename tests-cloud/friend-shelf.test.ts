@@ -39,6 +39,7 @@ import type { FriendShelfConfig, FriendShelfEntry } from '../src/lib/friend-shel
 import { parseCollection } from '../src/lib/collection';
 import { friendPairId } from '../src/lib/friend-types';
 import { untilSignInNewerThan } from './fixtures/auth-time';
+import type { RunTransaction } from './fixtures/modular-firestore';
 
 vi.mock('firebase/firestore', async (original) => {
   const actual = await original<typeof import('firebase/firestore')>();
@@ -74,7 +75,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-  vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
+  vi.mocked<RunTransaction>(runTransaction).mockReset().mockImplementation(actual.runTransaction);
   await environment.clearFirestore();
 });
 afterEach(async () => {
@@ -691,11 +692,11 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     const a = await client();
     const config = await a.store.initialize(a.uid);
     const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-    vi.mocked(runTransaction).mockRejectedValueOnce(new Error('Commit not acknowledged'));
+    vi.mocked<RunTransaction>(runTransaction).mockRejectedValueOnce(new Error('Commit not acknowledged'));
     await expect(
       a.store.saveConfig(a.uid, { enabled: true, selectedIds: [entry.id], consentSyncEpoch: 1 }, config),
     ).rejects.not.toBeInstanceOf(FriendShelfCommittedError);
-    vi.mocked(runTransaction)
+    vi.mocked<RunTransaction>(runTransaction)
       .mockImplementationOnce(actual.runTransaction)
       .mockRejectedValueOnce(new Error('Readback unavailable'));
     await expect(
@@ -721,7 +722,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     const a = await client();
     const config = await select(a, [entry]);
     const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-    vi.mocked(runTransaction)
+    vi.mocked<RunTransaction>(runTransaction)
       .mockImplementationOnce(actual.runTransaction)
       .mockImplementationOnce(actual.runTransaction)
       .mockImplementationOnce(actual.runTransaction)

@@ -39,6 +39,7 @@ import { parseCollection } from '../src/lib/collection';
 import { friendPairId } from '../src/lib/friend-types';
 import type { FriendPair, FriendSettings } from '../src/lib/friend-types';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
+import type { GetDocFromServer, GetDocsFromServer, RunTransaction } from './fixtures/modular-firestore';
 
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
@@ -86,9 +87,9 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-  vi.mocked(runTransaction).mockReset().mockImplementation(actual.runTransaction);
-  vi.mocked(getDocFromServer).mockReset().mockImplementation(actual.getDocFromServer);
-  vi.mocked(getDocsFromServer).mockReset().mockImplementation(actual.getDocsFromServer);
+  vi.mocked<RunTransaction>(runTransaction).mockReset().mockImplementation(actual.runTransaction);
+  vi.mocked<GetDocFromServer>(getDocFromServer).mockReset().mockImplementation(actual.getDocFromServer);
+  vi.mocked<GetDocsFromServer>(getDocsFromServer).mockReset().mockImplementation(actual.getDocsFromServer);
   await environment.clearFirestore();
 });
 afterEach(async () => {
@@ -153,7 +154,7 @@ async function client(anonymous = false, prepareFriends = true) {
 type Client = Awaited<ReturnType<typeof client>>;
 async function failNextReadback(cause: Error): Promise<void> {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-  vi.mocked(runTransaction).mockImplementationOnce(actual.runTransaction).mockRejectedValueOnce(cause);
+  vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(actual.runTransaction).mockRejectedValueOnce(cause);
 }
 async function settings(owner: Client): Promise<FriendSettings> {
   const current = await owner.store.settings(owner.uid);
@@ -195,17 +196,17 @@ describe('canonical friendship requests and private relationship metadata', () =
     const b = await client();
     const quotaPath = `accountQuotas/${a.uid}/limits/pairs`;
     await seed(quotaPath, { count: 1000, revision: 1, lastPair: friendPairId(a.uid, b.uid) });
-    vi.mocked(getDocsFromServer).mockRejectedValueOnce(
+    vi.mocked<GetDocsFromServer>(getDocsFromServer).mockRejectedValueOnce(
       Object.assign(new Error('Index still building'), { code: 'failed-precondition' }),
     );
     await expect(a.store.sendRequest(a.uid, b.uid)).rejects.toThrow(
       'Connection cleanup is not ready yet. Try again later.',
     );
-    expect(vi.mocked(getDocsFromServer)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked<GetDocsFromServer>(getDocsFromServer)).toHaveBeenCalledTimes(1);
     expect(await a.store.pair(a.uid, b.uid)).toBeNull();
     await seed(quotaPath, { count: 0, revision: 1, lastPair: friendPairId(a.uid, b.uid) });
     expect((await a.store.sendRequest(a.uid, b.uid)).state).toBe('pending');
-    expect(vi.mocked(getDocsFromServer)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked<GetDocsFromServer>(getDocsFromServer)).toHaveBeenCalledTimes(1);
   });
 
   it.each(['revoked', 'consumed', 'replaced', 'recipient-retired'] as const)(
@@ -216,8 +217,8 @@ describe('canonical friendship requests and private relationship metadata', () =
       const invite = await owner.store.createInvite(owner.uid);
       const other = change === 'consumed' ? await client() : null;
       const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
-      const readsBefore = vi.mocked(getDocFromServer).mock.calls.length;
-      vi.mocked(runTransaction).mockImplementationOnce(
+      const readsBefore = vi.mocked<GetDocFromServer>(getDocFromServer).mock.calls.length;
+      vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(
         async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) => {
           if (change === 'recipient-retired') await recipient.store.revokeForDeletion(recipient.uid);
           else if (other) await other.store.acceptInvite(other.uid, invite.token);
@@ -237,7 +238,7 @@ describe('canonical friendship requests and private relationship metadata', () =
       });
       expect(
         vi
-          .mocked(getDocFromServer)
+          .mocked<GetDocFromServer>(getDocFromServer)
           .mock.calls.slice(readsBefore)
           .filter(([ref]) => ref.firestore === recipient.db && ref.path === `friendInvites/${invite.token}`),
       ).toHaveLength(2);
@@ -507,14 +508,14 @@ describe('single-use, fixed-slot invitation capabilities', () => {
     const denied = Object.assign(new Error('Reused invitation stream denied the new capability.'), {
       code: 'permission-denied',
     });
-    vi.mocked(getDocFromServer).mockImplementation((ref) => {
+    vi.mocked<GetDocFromServer>(getDocFromServer).mockImplementation((ref) => {
       if (ref.firestore === recipient.db && ref.path === `friendInvites/${invite.token}`) return Promise.reject(denied);
       return actual.getDocFromServer(ref);
     });
-    const before = vi.mocked(runTransaction).mock.calls.length;
+    const before = vi.mocked<RunTransaction>(runTransaction).mock.calls.length;
     expect(await recipient.store.previewInvite(invite.token)).toMatchObject({ ownerUid: owner.uid, singleUse: true });
-    expect(vi.mocked(runTransaction).mock.calls.slice(before)).toHaveLength(1);
-    expect(vi.mocked(runTransaction).mock.calls[before]?.[2]).toEqual({ maxAttempts: 1 });
+    expect(vi.mocked<RunTransaction>(runTransaction).mock.calls.slice(before)).toHaveLength(1);
+    expect(vi.mocked<RunTransaction>(runTransaction).mock.calls[before]?.[2]).toEqual({ maxAttempts: 1 });
     expect((await recipient.store.acceptInvite(recipient.uid, invite.token)).state).toBe('accepted');
     await expect(recipient.store.previewInvite(invite.token)).rejects.toMatchObject({ code: 'invite-unavailable' });
     expect((await recipient.store.listRelations(recipient.uid, 'accepted')).items).toHaveLength(1);
@@ -524,22 +525,22 @@ describe('single-use, fixed-slot invitation capabilities', () => {
     async (code) => {
       const guest = await client(true);
       const cause = Object.assign(new Error('Invitation read failed.'), { code });
-      vi.mocked(getDocFromServer).mockRejectedValueOnce(cause);
-      const before = vi.mocked(runTransaction).mock.calls.length;
+      vi.mocked<GetDocFromServer>(getDocFromServer).mockRejectedValueOnce(cause);
+      const before = vi.mocked<RunTransaction>(runTransaction).mock.calls.length;
       await expect(guest.store.previewInvite('a'.repeat(64))).rejects.toBe(cause);
-      expect(vi.mocked(runTransaction).mock.calls).toHaveLength(before);
+      expect(vi.mocked<RunTransaction>(runTransaction).mock.calls).toHaveLength(before);
     },
   );
   it('preserves invitation preview and acceptance network-disable failures without starting a transaction', async () => {
     const owner = await client();
     const recipient = await client();
     const invite = await owner.store.createInvite(owner.uid);
-    const before = vi.mocked(runTransaction).mock.calls.length;
+    const before = vi.mocked<RunTransaction>(runTransaction).mock.calls.length;
     await disableNetwork(recipient.db);
     try {
       await expect(recipient.store.previewInvite(invite.token)).rejects.toThrow();
       await expect(recipient.store.acceptInvite(recipient.uid, invite.token)).rejects.toThrow();
-      expect(vi.mocked(runTransaction).mock.calls).toHaveLength(before);
+      expect(vi.mocked<RunTransaction>(runTransaction).mock.calls).toHaveLength(before);
     } finally {
       await enableNetwork(recipient.db);
     }
