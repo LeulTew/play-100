@@ -7,6 +7,18 @@ import type { Admission } from './_lib/admission.js';
 const MAX_BYTES = 16 * 1024;
 const MAX_REPORTS = 16;
 const ORIGIN = 'https://play-100-collection.vercel.app';
+const diagnosticOrigins = new Set([
+  ORIGIN,
+  'https://apis.google.com',
+  'https://accounts.google.com',
+  'https://identitytoolkit.googleapis.com',
+  'https://securetoken.googleapis.com',
+  'https://firestore.googleapis.com',
+  'https://www.wikidata.org',
+  'https://commons.wikimedia.org',
+  'https://www.freetogame.com',
+  'https://store.steampowered.com',
+]);
 const directives = new Set([
   'default-src',
   'script-src',
@@ -79,7 +91,7 @@ export function blockedOrigin(value: unknown): string {
       url.hostname.length > 253
     )
       return 'other';
-    return `${url.protocol}//${url.hostname}`;
+    return diagnosticOrigins.has(url.origin) ? url.origin : 'other-origin';
   } catch {
     return 'other';
   }

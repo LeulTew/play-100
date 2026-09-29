@@ -8,7 +8,9 @@ inline script/style hashes are unchanged. Only POSTs with CSP report media types
 are accepted, with a 16 KiB body cap, a three-second read deadline, at most 16
 reports per batch and per-instance admission (4 active / 30 per minute). The
 handler emits one structured counts line containing only a known directive,
-blocked HTTP(S) origin (or `inline`/`eval`/`other`) and a fixed route template.
+an exact allow-listed app, Google/Firebase or catalog origin (or
+`inline`/`eval`/`other`/`other-origin`) and a fixed route template. Unrecognised
+hostnames, including arbitrary subdomains of allowed providers, become `other-origin`.
 Paths, queries, fragments, samples, IP literals, user agents and account/visitor
 identifiers are not logged. Raw reports are discarded, not persisted. Browsers
 and hosting infrastructure necessarily handle the original network request;

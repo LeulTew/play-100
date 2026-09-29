@@ -63,7 +63,7 @@ describe('anonymous first-party CSP counts', () => {
   });
   it('retains only fixed directives, blocked origin and templated route, aggregating a batch', () => {
     const expected = [
-      { directive: 'script-src-elem', blockedOrigin: 'https://cdn.test', route: '/u/:handle', count: 1 },
+      { directive: 'script-src-elem', blockedOrigin: 'other-origin', route: '/u/:handle', count: 1 },
     ];
     expect(cspCounts(legacy, false)).toEqual(expected);
     const report = {
@@ -95,6 +95,25 @@ describe('anonymous first-party CSP counts', () => {
     expect(() => cspCounts(Array(17).fill(legacy), true)).toThrow();
     expect(() => cspCounts([{ type: 'crash', body: {} }], true)).toThrow();
     expect(() => cspCounts({ 'csp-report': { 'effective-directive': 'private' } }, false)).toThrow();
+  });
+
+  it('never retains visitor-controlled hostname labels, including subdomains of diagnostic hosts', () => {
+    for (const host of [
+      'visitor-unique-id.example.test',
+      'visitor-unique-id.googleapis.com',
+      'visitor-unique-id.accounts.google.com',
+      'accounts.google.com.visitor-unique-id.test',
+    ]) {
+      const report = { 'csp-report': { ...legacy['csp-report'], 'blocked-uri': `https://${host}/private?token=secret` } };
+      const counts = cspCounts(report, false);
+      expect(counts[0]?.blockedOrigin).toBe('other-origin');
+      expect(JSON.stringify(counts)).not.toContain('visitor-unique-id');
+    }
+    expect(blockedOrigin('https://accounts.google.com/private?token=secret')).toBe('https://accounts.google.com');
+    expect(blockedOrigin('https://firestore.googleapis.com/private')).toBe('https://firestore.googleapis.com');
+    expect(blockedOrigin('https://www.wikidata.org/private')).toBe('https://www.wikidata.org');
+    expect(blockedOrigin('https://accounts.google.com:8443/private')).toBe('other-origin');
+    expect(blockedOrigin('http://accounts.google.com/private')).toBe('other-origin');
   });
 
   it('accepts both CSP types, logs one safe line, rejects other types/methods and limits admission', async () => {
