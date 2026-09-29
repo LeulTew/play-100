@@ -211,7 +211,9 @@ html[data-motion='off']
     height: 31px;
     margin-right: 2px;
   }
-  .desktop-nav {
+  /* The bottom navigation takes over from the header's links and Menu button. */
+  .desktop-nav,
+  .menu-nav {
     display: none;
   }
   .header-actions {
@@ -223,9 +225,6 @@ html[data-motion='off']
     padding: 7px 9px;
     font-size: 12px;
     gap: 8px;
-  }
-  .menu-nav {
-    display: none;
   }
   .hero {
     grid-template-columns: 1fr;
@@ -277,11 +276,11 @@ html[data-motion='off']
   .collection-title-line {
     padding-top: 12px;
   }
-  .collection-title-line h2 {
+  .collection-title-line :is(h1, h2) {
     font-size: 34px;
   }
   /* Too narrow to keep the count beside the title and the share action, so it becomes the title's caption. */
-  .collection-title-line h2 > span {
+  .collection-title-line :is(h1, h2) > span {
     display: block;
     margin: 2px 0 0;
   }
@@ -358,6 +357,7 @@ html[data-motion='off']
   .view-controls {
     width: auto;
     flex-shrink: 0;
+    gap: 12px;
   }
   .sort-control {
     flex: 1;
@@ -365,9 +365,11 @@ html[data-motion='off']
     max-width: 240px;
   }
   .view-switch {
+    padding-left: 3px;
     gap: 0;
   }
   .view-switch .icon-button {
+    width: 44px;
     height: 44px;
   }
   .clear-filters {

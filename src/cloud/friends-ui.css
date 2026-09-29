@@ -384,7 +384,8 @@
   font-weight: 600;
 }
 .friend-manager-toolbar input,
-.friend-manager-toolbar select {
+.friend-manager-toolbar select,
+.friend-shelf-controls input {
   width: 100%;
   min-width: 0;
   min-height: 48px;

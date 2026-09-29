@@ -354,7 +354,8 @@
   padding-top: 0;
   border-top: 0;
 }
-.account-secondary .text-button {
+.account-secondary .text-button,
+.account-danger .text-button {
   display: flex;
   justify-content: flex-start;
 }
@@ -402,10 +403,6 @@
   line-height: 1.6;
   color: var(--muted);
   margin-block: 12px;
-}
-.account-danger .text-button {
-  display: flex;
-  justify-content: flex-start;
 }
 .community-search {
   max-width: 640px;

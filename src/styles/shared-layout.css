@@ -146,19 +146,3 @@
 .collection-section {
   scroll-margin-top: 0;
 }
-.collection-title-line h1 {
-  font-family: var(--display);
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-}
-.collection-title-line h1 > span {
-  display: inline-block;
-  margin-left: 4px;
-  font-family: 'Hanken Grotesk Variable', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  line-height: 1.5;
-}

@@ -217,7 +217,9 @@
   padding: 0;
   font: inherit;
 }
-.discovery-card h3 button:hover {
+.discovery-card h3 button:hover,
+.discovery-card-details > summary:hover,
+.discovery-help > summary:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -278,11 +280,6 @@
   font-size: 0.8125rem;
   font-weight: 600;
   width: fit-content;
-}
-.discovery-card-details > summary:hover,
-.discovery-help > summary:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
 }
 .discovery-card-secondary {
   display: flex;

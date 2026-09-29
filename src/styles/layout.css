@@ -195,7 +195,8 @@
   padding-top: 20px;
   border-top: 1px solid var(--ink);
 }
-.collection-title-line h2,
+/* The title is an h1 in the table view, which has no hero heading, and an h2 elsewhere. */
+.collection-title-line :is(h1, h2),
 .collection-loading h2 {
   font-family: var(--display);
   font-size: 40px;
@@ -203,7 +204,7 @@
   line-height: 1.1;
   letter-spacing: -0.01em;
 }
-.collection-title-line h2 > span {
+.collection-title-line :is(h1, h2) > span {
   display: inline-block;
   margin-left: 4px;
   font-family: 'Hanken Grotesk Variable', sans-serif;

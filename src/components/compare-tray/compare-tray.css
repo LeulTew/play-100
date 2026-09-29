@@ -146,22 +146,13 @@ button.compare-drag-handle[hidden] {
   min-height: calc(var(--compare-tray-height, 88px) + 24px);
 }
 .ratings-mode:has(.compare-tray-inline) > .ratings-scroll {
-  max-height: min(
-    75vh,
-    780px,
-    calc(
-      100vh - max(104px, calc(var(--site-header-height, 80px) + 16px)) - var(--mobile-nav-height, 0px) -
-        var(--compare-tray-height, 88px) - 28px - var(--inline-toast-clearance, 0px)
-    )
+  /* What stays on screen around the table: the header, bottom navigation, tray, gaps and any toast. */
+  --ratings-scroll-chrome: calc(
+    max(104px, calc(var(--site-header-height, 80px) + 16px)) + var(--mobile-nav-height, 0px) +
+      var(--compare-tray-height, 88px) + 28px + var(--inline-toast-clearance, 0px)
   );
-  max-height: min(
-    75vh,
-    780px,
-    calc(
-      100dvh - max(104px, calc(var(--site-header-height, 80px) + 16px)) - var(--mobile-nav-height, 0px) -
-        var(--compare-tray-height, 88px) - 28px - var(--inline-toast-clearance, 0px)
-    )
-  );
+  max-height: min(75vh, 780px, calc(100vh - var(--ratings-scroll-chrome)));
+  max-height: min(75vh, 780px, calc(100dvh - var(--ratings-scroll-chrome)));
 }
 .compare-tray-expand {
   display: flex;
