@@ -33,7 +33,7 @@ export interface FriendManagerSnapshot<Cursor = FriendCursor> {
   loading: boolean;
   active: boolean;
   changed: boolean;
-  error: unknown | null;
+  error: unknown;
 }
 
 /** Explicit pages stay stable. The head stream signals refresh; loaded pair streams revoke rows immediately. */

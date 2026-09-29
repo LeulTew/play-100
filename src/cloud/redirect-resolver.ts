@@ -18,5 +18,5 @@ export function redirectOnlyResolver(resolver: PopupRedirectResolver): PopupRedi
       return false;
     }
   }
-  return RedirectOnlyResolver as unknown as PopupRedirectResolver;
+  return RedirectOnlyResolver;
 }

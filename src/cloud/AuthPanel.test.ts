@@ -146,19 +146,19 @@ describe('AuthPanel device leftovers', () => {
     );
     expect(left.indexOf('Try again')).toBeLessThan(left.indexOf('Continue with Google'));
     expect(retry).not.toHaveBeenCalled();
-    retryDeviceLeftovers();
+    void retryDeviceLeftovers();
     expect(render().html).toContain(
       `<p>${text} Trying again didn&#x27;t work. To remove it, clear this site&#x27;s data in your browser settings.</p><button class="button button-outline" type="button">Try again</button>`,
     );
     removed = true;
-    retryDeviceLeftovers();
+    void retryDeviceLeftovers();
     const done = render().html;
     // The same live region confirms the removal, so focus has somewhere to stay once its button goes.
     expect(done).toContain(
       '<section class="account-notice" role="alert" tabindex="-1"><p>That account&#x27;s data is now removed from this device.</p></section>',
     );
     expect(done).not.toContain('Try again');
-    retryDeviceLeftovers();
+    void retryDeviceLeftovers();
     expect(retry).toHaveBeenCalledTimes(2);
     withdrawDeviceLeftovers();
     expect(render().html).not.toContain('account-notice');

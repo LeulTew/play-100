@@ -40,6 +40,10 @@ const legacy = {
   },
 };
 
+function requestUrl(input: RequestInfo | URL): string {
+  return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+}
+
 describe('first-party client error endpoint', () => {
   const report = {
     buildVersion: 'entry:AbCd_123',
@@ -382,7 +386,7 @@ describe('credential-free operational probe', () => {
     const upstream = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
       expect(options?.credentials).toBe('omit');
       expect(options?.redirect).toBe('error');
-      const url = String(input);
+      const url = requestUrl(input);
       if (url.endsWith('/__/auth/handler')) {
         return new Response('helper', {
           headers: {
@@ -398,7 +402,7 @@ describe('credential-free operational probe', () => {
     vi.stubGlobal('fetch', upstream);
     expect(await probeProduction()).toEqual({ auth: true, wikidata: true, freetogame: true });
     expect(upstream).toHaveBeenCalledTimes(4);
-    expect(upstream.mock.calls.map(([url]) => new URL(String(url)).hostname).sort()).toEqual([
+    expect(upstream.mock.calls.map(([url]) => new URL(requestUrl(url)).hostname).sort()).toEqual([
       'play-100-collection.vercel.app',
       'play-100-collection.vercel.app',
       'www.freetogame.com',

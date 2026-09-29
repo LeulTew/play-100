@@ -256,7 +256,7 @@ async function mount(
             },
             score: 8.5,
           });
-          const privateStore = new cloud.CloudStore(client.cloudDb, uid!);
+          const privateStore = new cloud.CloudStore(client.cloudDb, uid);
           const head = await privateStore.head();
           if (!head) throw new Error('Fixture private source missing.');
           const saved = await privateStore.upload(local.state, head);

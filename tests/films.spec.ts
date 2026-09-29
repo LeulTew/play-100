@@ -163,7 +163,7 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
   expect(file).toBeTruthy();
   expect(
     createHash('sha256')
-      .update(await readFile(file!))
+      .update(await readFile(file))
       .digest('hex'),
   ).toBe(collectionFilms[1]?.video.sha256);
   await page.keyboard.press('Escape');

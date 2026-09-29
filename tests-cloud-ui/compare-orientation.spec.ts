@@ -82,12 +82,12 @@ async function guard(context: BrowserContext) {
     blocked.push(url.origin);
     return route.abort('blockedbyclient');
   });
-  await context.routeWebSocket('**/*', (route) => {
+  await context.routeWebSocket('**/*', async (route) => {
     const url = new URL(route.url());
     if (allowed(url)) route.connectToServer();
     else {
       blocked.push(url.origin);
-      route.close();
+      await route.close();
     }
   });
   await context.addInitScript(() => {
@@ -516,7 +516,7 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   // Sign-out finishes asynchronously and lands on the home page; navigating earlier can abort it.
   await expect(page).toHaveURL(/\/$/);
-  await login(page, fixture().peers[0]!);
+  await login(page, fixture().peers[0]);
   await page.goto('/compare');
   await expect(page.locator('.compare-people input:checked')).toHaveCount(1);
   await expect(people(page)).toHaveAttribute('open', '');

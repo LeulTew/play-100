@@ -207,7 +207,7 @@ describe('generated public PWA build closure', () => {
         `/${updateFile}`,
       ]),
     );
-    const client = entries[shared]!;
+    const client = entries[shared];
     delete entries[shared];
     expect(() => pwaCorePaths(entries)).toThrow(`missing required Vite entry ${shared}`);
     entries[shared] = client;

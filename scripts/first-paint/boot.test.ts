@@ -234,6 +234,7 @@ function run(environment: BootEnvironment = {}) {
       if (index !== -1) timers.splice(index, 1);
     },
   };
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- the test runs the built classic script text itself.
   new Function('window', 'document', bootScript)(window, document);
   if (!environment.measureThrows) expect(children, 'the probes are removed again').toEqual([]);
   const stylesheets = () => appended.filter((node) => node.getAttribute('rel') === 'stylesheet');

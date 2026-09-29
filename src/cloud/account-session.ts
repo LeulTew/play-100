@@ -189,7 +189,8 @@ export function applyGoogleReturn({
   state.handledGoogleReturn.current = transition.requestId;
   state.setReturnSheet(false);
   if (transition.kind === 'sign-in') {
-    rememberOnlineRequest(true);
+    // The hint write settles to a boolean and never rejects; nothing here waits for it.
+    void rememberOnlineRequest(true);
     navigation.current.onCloseSheet();
     if (identity && navigation.current.continueSignIn?.(identity.uid)) return;
     if (signInNeedsAccountPage(navigation.current.page)) navigation.current.onNavigate('account');

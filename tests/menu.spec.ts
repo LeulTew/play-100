@@ -202,7 +202,7 @@ test('Settings, credits, Data use and both actual workbook downloads retain thei
     expect(download.suggestedFilename()).toBe(file);
     const path = await download.path();
     expect(path).not.toBeNull();
-    expect(readFileSync(path!)).toEqual(readFileSync(new URL(`../public/downloads/${file}`, import.meta.url)));
+    expect(readFileSync(path)).toEqual(readFileSync(new URL(`../public/downloads/${file}`, import.meta.url)));
   }
 });
 

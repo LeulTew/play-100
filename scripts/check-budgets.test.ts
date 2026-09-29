@@ -176,7 +176,7 @@ function lazyRoots(): string[] {
   for (const file of sourceFiles()) {
     const text = readSource(file);
     for (const match of text.matchAll(/\blazy\(/g)) {
-      const argument = callArgument(text, match.index! + match[0].length - 1);
+      const argument = callArgument(text, match.index + match[0].length - 1);
       const direct = /import\(\s*'([^']+)'\s*\)/.exec(argument)?.[1];
       if (direct) {
         roots.add(resolveModule(file, direct));

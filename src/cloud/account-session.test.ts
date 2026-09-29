@@ -12,7 +12,7 @@ import {
 } from './account-session';
 
 const calls = vi.hoisted(() => ({
-  auth: { currentUser: { uid: 'alpha' } as { uid: string } | null },
+  auth: { currentUser: { uid: 'alpha' } },
   finish: vi.fn<() => Promise<GoogleReturn>>(),
   listen: vi.fn(),
   stop: vi.fn(),

@@ -65,7 +65,7 @@ export function parseShelfSelectionCache(value: unknown): ShelfSelectionCache | 
     revision: row.revision,
     observedStateRevision: row.observedStateRevision,
     selected,
-    removed: Object.fromEntries(removed) as Record<string, number>,
+    removed: Object.fromEntries(removed),
   };
 }
 export function rememberShelfSelection(

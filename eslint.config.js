@@ -4,10 +4,29 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
+// Files that no tsconfig project covers are linted without type information (README, Quality checks).
+const untypedFiles = ['**/*.{js,mjs,cjs}', 'tests-cloud/**/*.ts', 'vitest.cloud.config.ts'];
+
+const pendingTypedRules = [
+  'no-unsafe-assignment',
+  'unbound-method',
+  'require-await',
+  'no-unsafe-member-access',
+  'prefer-promise-reject-errors',
+  'no-unsafe-return',
+  'no-unsafe-argument',
+  'no-unsafe-call',
+];
+
 export default tseslint.config(
   { ignores: ['dist', 'node_modules', 'third-party', 'test-results', 'playwright-report', '.vercel', 'data'] },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
@@ -20,6 +39,14 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
+  },
+  {
+    // Type-aware rules still being brought to zero (CODE-03); each is removed from this list once it is clean.
+    rules: Object.fromEntries(pendingTypedRules.map((rule) => [`@typescript-eslint/${rule}`, 'off'])),
+  },
+  {
+    files: untypedFiles,
+    ...tseslint.configs.disableTypeChecked,
   },
   {
     files: ['*.js', 'scripts/**/*.mjs'],

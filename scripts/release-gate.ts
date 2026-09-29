@@ -149,10 +149,10 @@ export function commandReceipt(name: string, exitCode: number | null, log: Buffe
 }
 
 export function evidenceLogHeader(identity: unknown): string {
-  const record = requireObject(identity);
-  if (![record.sha, record.tree].every((value) => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value)))
-    throw new Error('Evidence logs require the full candidate commit and tree.');
-  return `commit: ${record.sha}\ntree: ${record.tree}\n\n`;
+  const { sha, tree } = requireObject(identity);
+  const full = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+  if (!full(sha) || !full(tree)) throw new Error('Evidence logs require the full candidate commit and tree.');
+  return `commit: ${sha}\ntree: ${tree}\n\n`;
 }
 
 export async function stampLogs(directory: string, header: string) {

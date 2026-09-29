@@ -59,7 +59,7 @@ describe('display-only external score precision', () => {
     expect(compact).not.toContain(score);
     const details = html.match(/<details class="catalog-review-details">([\s\S]*?)<\/details>/)?.[1];
     expect(details).toContain(`<p>Original score: ${score}</p>`);
-    expect(details).toContain(enrichment.data.ratings[0]!.sourceUrl);
+    expect(details).toContain(enrichment.data.ratings[0].sourceUrl);
     expect(JSON.stringify(enrichment.data)).toBe(before);
     expect(html).not.toContain('Your rating / 10');
   });

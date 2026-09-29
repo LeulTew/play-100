@@ -149,7 +149,7 @@ function record(value: unknown): LibraryRecord {
     source,
     sourceId: safeId(input.sourceId),
     sourceUrl,
-    collectionRank: rank as number | null,
+    collectionRank: rank,
   };
 }
 

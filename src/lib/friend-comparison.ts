@@ -416,8 +416,8 @@ function pairSummary(left: IndexedParticipant, right: IndexedParticipant): Compa
   const [smaller, larger] =
     left.entries.size <= right.entries.size ? [left.entries, right.entries] : [right.entries, left.entries];
   const common: { key: string; left: ComparisonEntry; right: ComparisonEntry }[] = [];
-  for (const [key, entry] of smaller!) {
-    const other = larger!.get(key);
+  for (const [key, entry] of smaller) {
+    const other = larger.get(key);
     if (other) common.push({ key, left: entry, right: other });
   }
   // A fixed accumulation order also makes floating-point results independent of input array order.

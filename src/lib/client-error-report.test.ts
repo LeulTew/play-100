@@ -157,7 +157,7 @@ describe('anonymous client error counts', () => {
     windowEvents.dispatchEvent(new Event('pagehide'));
     await vi.runAllTimersAsync();
     expect(sendBeacon).toHaveBeenCalledOnce();
-    const blob: Blob = vi.mocked(sendBeacon).mock.calls[0]![1]!;
+    const blob: Blob = vi.mocked(sendBeacon).mock.calls[0]![1];
     expect(JSON.parse(await blob.text())).toEqual({
       buildVersion,
       counts: [

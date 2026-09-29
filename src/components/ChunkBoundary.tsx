@@ -3,10 +3,15 @@ import type { ReactNode } from 'react';
 import { isModuleLoadFailure } from '../lib/chunk-recovery';
 import { reportClientError } from '../lib/client-error-report';
 
-export class ChunkBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { error: unknown }> {
-  state: { error: unknown } = { error: null };
-  static getDerivedStateFromError(error: unknown) {
-    return { error };
+interface ChunkState {
+  failed: boolean;
+  error: unknown;
+}
+
+export class ChunkBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, ChunkState> {
+  state: ChunkState = { failed: false, error: null };
+  static getDerivedStateFromError(error: unknown): ChunkState {
+    return { failed: true, error };
   }
   componentDidCatch(error: Error) {
     if (isModuleLoadFailure(error)) {
@@ -15,7 +20,8 @@ export class ChunkBoundary extends Component<{ children: ReactNode; fallback: Re
     }
   }
   render() {
-    if (this.state.error) {
+    // A flag, not the thrown value's truthiness: whatever was thrown, even a falsy value, is rethrown as it was.
+    if (this.state.failed) {
       if (!isModuleLoadFailure(this.state.error)) throw this.state.error;
       return this.props.fallback;
     }

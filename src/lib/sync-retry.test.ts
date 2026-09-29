@@ -76,7 +76,7 @@ describe('scope-owned automatic sync recovery', () => {
   });
   it('holds quota cooldown across focus, manual checks and further edits', async () => {
     const work = vi.fn(async () => {
-      throw { code: 'resource-exhausted' };
+      throw Object.assign(new Error('resource-exhausted'), { code: 'resource-exhausted' });
     });
     const q = queue(work);
     q.request();
@@ -96,7 +96,7 @@ describe('scope-owned automatic sync recovery', () => {
   it('keeps increasing restore backoff when metadata succeeds but the copy download keeps failing', async () => {
     const metadata = vi.fn(async () => ({ enabled: true }));
     const download = vi.fn(async () => {
-      throw { code: 'resource-exhausted' };
+      throw Object.assign(new Error('resource-exhausted'), { code: 'resource-exhausted' });
     });
     const q = queue(async () => {
       await metadata();
@@ -197,7 +197,7 @@ describe('scope-owned automatic sync recovery', () => {
   });
   it('blocks permanent failures and disposes old-scope results and timers', async () => {
     const blockedWork = vi.fn(async () => {
-      throw { code: 'permission-denied' };
+      throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
     });
     const blocked = queue(blockedWork);
     blocked.request();
@@ -256,7 +256,7 @@ describe('scope-owned automatic sync recovery', () => {
   });
   it('pauses a quota cooldown and releases it with the same due time and failure count', async () => {
     const work = vi.fn(async () => {
-      throw { code: 'resource-exhausted' };
+      throw Object.assign(new Error('resource-exhausted'), { code: 'resource-exhausted' });
     });
     const q = queue(work);
     q.request();
@@ -323,7 +323,7 @@ describe('scope-owned automatic sync recovery', () => {
   });
   it('keeps a permanently blocked queue blocked after a pause is released', async () => {
     const work = vi.fn(async () => {
-      throw { code: 'permission-denied' };
+      throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
     });
     const q = queue(work);
     q.request();
