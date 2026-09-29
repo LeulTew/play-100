@@ -705,6 +705,26 @@ transition now refuses to clear `deleted`, and `CloudStore.revoke` refuses to
 pause a deleted copy. Emulator tests cover the refused pause, the shelf staying
 unreadable, and a fresh sign-in's resume.
 
+**Moderation after a control-epoch lead (R20).** A publisher could make its
+live profile immune to creator moderation. `publicControls` lets the owner
+advance its own epoch by one per write with `hidden` unchanged, with no
+profile write alongside. That's needed to restore publication permission after
+a deletion, and a crafted write can do it at any time. Each such write left the
+profile's epoch further behind the control's. The unpublish and moderation
+statement required the profile's new epoch to equal both the control's new
+epoch and the profile's own epoch plus one, which no request could satisfy once
+the control led by one or more. Only an Admin SDK edit could then take the
+profile down. That statement now requires the new epoch to equal the control's
+new epoch and to be greater than the profile's current one. The profile's
+epoch therefore still only rises and never passes the control's. Its `hidden`
+flag still follows the control's, which only the creator can change, so the
+owner can't reverse a moderation. Refusing standalone owner bumps would not
+have been enough: an owner can also move the control ahead by setting
+`deleted` and clearing it again while the profile stays live, and restoring
+permission needs a standalone bump. Emulator tests cover moderation after one
+and two standalone bumps, the owner's refused un-hide, and an owner unpublish
+after a bump.
+
 The publish transaction already deletes the old handle when changing it;
 rules now require that atomic deletion on both rename and profile deletion.
 Deleting/recreating a profile cannot leave a new hoarded claim behind. Full

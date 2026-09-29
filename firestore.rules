@@ -403,12 +403,17 @@ service cloud.firestore {
         && publicGeneration(uid, request.resource.data.generation).epoch == publicControl(uid).epoch
         && publicGeneration(uid, request.resource.data.generation).status == 'ready'
         && publicGeneration(uid, request.resource.data.generation).uploaded == request.resource.data.count;
+      // An unpublish or moderation step moves the profile to the control's new epoch, however far the control has moved
+      // ahead of it. An owner can advance the control alone (restoring publication permission after deletion, or any
+      // standalone control write), and a creator's moderation must still reach a live profile after that. The profile's
+      // epoch still only rises and never passes the control's, and its hidden flag follows the control's, which the
+      // owner cannot change.
       allow update: if !request.resource.data.published && !request.resource.data.listed
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['published', 'listed', 'hidden', 'epoch', 'updatedAt'])
         && (own(uid) || creator()) && profileShape(request.resource.data, uid)
         && request.resource.data.hidden == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.hidden
         && request.resource.data.epoch == getAfter(/databases/$(database)/documents/publicControls/$(uid)).data.epoch
-        && request.resource.data.epoch == resource.data.epoch + 1;
+        && request.resource.data.epoch > resource.data.epoch;
       allow delete: if own(uid) && publicControl(uid).deleted && !resource.data.published
         && !existsAfter(/databases/$(database)/documents/handles/$(resource.data.handle));
     }

@@ -455,6 +455,96 @@ describe('consented public snapshots, handle claims and moderation', () => {
     );
   });
 
+  // G9-SEC2 F1: the owner may advance its publication control alone, which left a live profile's epoch behind the
+  // control's. A moderation or unpublish step then had to move the profile both to the control's new epoch and to its
+  // own epoch + 1, which no request could, so the profile stayed public until an Admin SDK edit.
+  it.each([1, 2])(
+    'lets the creator hide a live profile after %i standalone owner control bumps, which the owner cannot undo',
+    async (bumps) => {
+      const owner = await client();
+      const guest = await client(true);
+      const handle = `bumped_${bumps}_list`;
+      await owner.social.publish(owner.uid, publication(handle, true), control);
+      const published = (await owner.social.control(owner.uid)).epoch;
+      for (let bump = 1; bump <= bumps; bump += 1)
+        await assertSucceeds(
+          setDoc(doc(owner.db, 'publicControls', owner.uid), {
+            epoch: published + bump,
+            hidden: false,
+            deleted: false,
+          }),
+        );
+      expect(await guest.social.profile(handle)).toMatchObject({ uid: owner.uid, epoch: published });
+      const moderator = await client();
+      await environment.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
+      });
+      await moderator.social.moderate(owner.uid, true);
+      const hidden = published + bumps + 1;
+      expect(await guest.social.profile(handle)).toBeNull();
+      await environment.withSecurityRulesDisabled(async (context) => {
+        expect((await context.firestore().doc(`publicProfiles/${owner.uid}`).get()).data()).toMatchObject({
+          published: false,
+          listed: false,
+          hidden: true,
+          epoch: hidden,
+        });
+        expect((await context.firestore().doc(`publicControls/${owner.uid}`).get()).data()).toEqual({
+          epoch: hidden,
+          hidden: true,
+          deleted: false,
+        });
+      });
+      const profileRef = doc(owner.db, 'publicProfiles', owner.uid);
+      const unhide = { published: false, listed: false, hidden: false, updatedAt: serverTimestamp() };
+      // The owner cannot clear the control's hidden flag, and its profile's flag must follow the control's.
+      await assertFails(
+        setDoc(doc(owner.db, 'publicControls', owner.uid), { epoch: hidden + 1, hidden: false, deleted: false }),
+      );
+      await assertFails(setDoc(profileRef, { ...unhide, epoch: hidden + 1 }, { merge: true }));
+      await expect(
+        owner.social.publish(owner.uid, publication(handle, true), await owner.social.control(owner.uid)),
+      ).rejects.toThrow(/hidden/);
+      // Advancing the control alone again does not help: the profile may follow it, but stays hidden and unpublished.
+      await assertSucceeds(
+        setDoc(doc(owner.db, 'publicControls', owner.uid), { epoch: hidden + 1, hidden: true, deleted: false }),
+      );
+      const batch = writeBatch(owner.db);
+      batch.set(doc(owner.db, 'publicControls', owner.uid), { epoch: hidden + 2, hidden: false, deleted: false });
+      batch.set(profileRef, { ...unhide, epoch: hidden + 2 }, { merge: true });
+      await assertFails(batch.commit());
+      await assertFails(setDoc(profileRef, { ...unhide, epoch: hidden + 1 }, { merge: true }));
+      // The profile's epoch never moves back and never passes the control's.
+      await assertFails(setDoc(profileRef, { ...unhide, hidden: true, epoch: published }, { merge: true }));
+      await assertFails(setDoc(profileRef, { ...unhide, hidden: true, epoch: hidden + 2 }, { merge: true }));
+      await assertSucceeds(setDoc(profileRef, { ...unhide, hidden: true, epoch: hidden + 1 }, { merge: true }));
+      expect(await guest.social.profile(handle)).toBeNull();
+      // The creator can still reverse its own decision.
+      await moderator.social.moderate(owner.uid, false);
+      expect(await owner.social.control(owner.uid)).toEqual({ epoch: hidden + 2, hidden: false, deleted: false });
+    },
+    60000,
+  );
+
+  it('lets the owner unpublish its live profile after a standalone control bump', async () => {
+    const owner = await client();
+    const guest = await client(true);
+    await owner.social.publish(owner.uid, publication('owner_bumped_list', true), control);
+    const published = (await owner.social.control(owner.uid)).epoch;
+    await assertSucceeds(
+      setDoc(doc(owner.db, 'publicControls', owner.uid), { epoch: published + 1, hidden: false, deleted: false }),
+    );
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid));
+    expect(await guest.social.profile('owner_bumped_list')).toBeNull();
+    await environment.withSecurityRulesDisabled(async (context) => {
+      expect((await context.firestore().doc(`publicProfiles/${owner.uid}`).get()).data()).toMatchObject({
+        published: false,
+        hidden: false,
+        epoch: published + 2,
+      });
+    });
+  });
+
   it.each(['has no uid', 'is missing'] as const)(
     'keeps ordinary publishing and withholds creator powers while the owner config %s, then restores them with its uid',
     async (state) => {

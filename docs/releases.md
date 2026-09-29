@@ -722,12 +722,19 @@ Do these in runbook order and record each readback.
    - `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`
 
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
-3. **Rules.** Publish `firestore.rules` from the Release 7 tree (R13), and only
-   while Release 7 or later is serving. Its SHA-256 is
-   `75381577ed33f4576b6136c032db321a563879f28afe33b078e27cdc2ed3f14a`
-   (111,255 bytes). It supersedes the unpublished Release 6 rules
-   (`8e645497…`), Release 5 rules (`6c8ebcb2…`), Release 3 rules
-   (`9458021a…`) and Release 1 rules (`37e55c79…`); don't publish any of them.
+3. **Rules.** Publish `firestore.rules` from the R20 tree, and only while
+   Release 7 or later is serving. Its SHA-256 is
+   `c6368628bcbc7a22896ab19ab569c20b24f2d6f33fdfcee2cad5b7e98754abb1`
+   (111,757 bytes). It supersedes the unpublished R13 rules (`75381577…`),
+   Release 6 rules (`8e645497…`), Release 5 rules (`6c8ebcb2…`), Release 3
+   rules (`9458021a…`) and Release 1 rules (`37e55c79…`); don't publish any of
+   them.
+
+   R20 changes one statement from R13: a creator can hide or unpublish a live
+   profile, and its owner can unpublish it, after the owner advanced the
+   publication control on its own (see
+   [security](security.md#profile-reads-and-handles)). Nothing becomes newly
+   refused, so no client needs to change.
 
    The R13 rules keep a deleted online copy deleted for sessions older than
    the deletion. They refuse forced line breaks in names and titles,
