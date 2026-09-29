@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import sharp from 'sharp';
 
 const fontFiles = [
   {
@@ -37,9 +39,11 @@ const fontRules = await Promise.all(
     }`;
   }),
 );
-const svg = await readFile(new URL('../public/social-card.svg', import.meta.url), 'utf8');
+const svg = await readFile(new URL('./social-card-source.svg', import.meta.url), 'utf8');
 const destination = new URL('../public/social-card.png', import.meta.url);
 const temporary = new URL(`../public/.social-card-${randomUUID()}.png`, import.meta.url);
+const svgDestination = new URL('../public/social-card.svg', import.meta.url);
+const svgTemporary = new URL(`../public/.social-card-${randomUUID()}.svg`, import.meta.url);
 const browser = await chromium.launch({ headless: true, args: ['--force-color-profile=srgb'] });
 try {
   const page = await browser.newPage({
@@ -111,10 +115,106 @@ try {
     animations: 'disabled',
     caret: 'hide',
   });
+  const usages = await page.evaluate(() =>
+    [...document.querySelectorAll('svg text')].map((element) => {
+      if (!(element instanceof SVGTextElement)) throw new Error('Expected SVG text.');
+      const style = getComputedStyle(element);
+      const content = element.textContent ?? '';
+      return {
+        family: style.fontFamily
+          .split(',')[0]
+          ?.trim()
+          .replace(/^['"]|['"]$/g, ''),
+        weight: Number(style.fontWeight),
+        size: Number.parseFloat(style.fontSize),
+        fill: element.getAttribute('fill'),
+        content,
+        characters: [...content].map((value, index) => {
+          const { x, y } = element.getStartPositionOfChar(index);
+          return { value, x, y };
+        }),
+      };
+    }),
+  );
+  const payload = {
+    svg,
+    usages: usages.map((usage) => {
+      const font = fontFiles.find(
+        ({ family, weight }) => family === usage.family && (weight === '100 900' || Number(weight) === usage.weight),
+      );
+      if (!font) throw new Error(`No outline font for ${usage.family} ${usage.weight}.`);
+      return { ...usage, file: fileURLToPath(new URL(`../node_modules/${font.file}`, import.meta.url)) };
+    }),
+  };
+  const outlined = await new Promise<string>((resolve, reject) => {
+    const process = spawn('python', [fileURLToPath(new URL('./outline-social-card.py', import.meta.url))]);
+    let output = '';
+    let error = '';
+    process.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      output += chunk;
+    });
+    process.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      error += chunk;
+    });
+    process.on('error', reject);
+    process.on('close', (code) => {
+      if (code === 0) resolve(output);
+      else reject(new Error(`Social-card outlining failed (${code}): ${error}`));
+    });
+    process.stdin.on('error', reject);
+    process.stdin.end(JSON.stringify(payload));
+  });
+  if (Buffer.byteLength(outlined) > 80 * 1024) throw new Error('The outlined social SVG exceeds 80 KiB.');
+  const standalone = await browser.newPage({
+    viewport: { width: 1200, height: 630 },
+    deviceScaleFactor: 1,
+    locale: 'en-US',
+    colorScheme: 'light',
+    serviceWorkers: 'block',
+  });
+  const requests: string[] = [];
+  await standalone.route('**/*', async (route) => {
+    const url = route.request().url();
+    requests.push(url);
+    if (url !== 'https://social-card.invalid/social-card.svg') return route.abort();
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      headers: { 'Content-Security-Policy': "default-src 'none'; style-src 'none'; font-src 'none'" },
+      body: outlined,
+    });
+  });
+  await standalone.goto('https://social-card.invalid/social-card.svg');
+  const portable = await standalone.evaluate(() => ({
+    fonts: document.fonts.size,
+    text: document.querySelectorAll('text, tspan').length,
+  }));
+  if (portable.fonts || portable.text || requests.length !== 1)
+    throw new Error('The standalone social SVG must have no fonts, live text or dependent requests.');
+  const svgPng = await standalone.screenshot({ type: 'png', scale: 'css', animations: 'disabled' });
+  const baseline = await readFile(destination);
+  const [expected, actual, shipped] = await Promise.all(
+    [png, svgPng, baseline].map((bytes) => sharp(bytes).ensureAlpha().raw().toBuffer()),
+  );
+  let svgPixels = 0;
+  let pngPixels = 0;
+  for (let offset = 0; offset < expected!.length; offset += 4) {
+    if (!expected!.subarray(offset, offset + 4).equals(actual!.subarray(offset, offset + 4))) svgPixels += 1;
+    if (!expected!.subarray(offset, offset + 4).equals(shipped!.subarray(offset, offset + 4))) pngPixels += 1;
+  }
+  console.log(
+    `Comparison: PNG byte-identical=${png.equals(baseline)}, PNG changed pixels=${pngPixels}; outlined SVG changed pixels=${svgPixels}/756000.`,
+  );
+  if (process.env.SOCIAL_CARD_EVIDENCE_DIR) {
+    const { join } = await import('node:path');
+    await writeFile(join(process.env.SOCIAL_CARD_EVIDENCE_DIR, 'standalone-social-card.png'), svgPng);
+  }
+  await writeFile(svgTemporary, outlined, { flag: 'wx' });
   await writeFile(temporary, png, { flag: 'wx' });
+  await rename(svgTemporary, svgDestination);
   await rename(temporary, destination);
   console.log(`Rendered ${fileURLToPath(destination)} at 1200x630 (device scale 1). Verified: ${fonts.join(', ')}.`);
 } finally {
   await browser.close();
   await rm(temporary, { force: true });
+  await rm(svgTemporary, { force: true });
 }

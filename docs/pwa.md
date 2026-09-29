@@ -45,6 +45,30 @@ the installed-app icons retain their existing five paths. The static share
 title, running collection title, card headline and image alt all use
 "Good games. Great escapes." Neither first-paint template nor boot bytes change.
 
+### Portable social artwork
+
+`scripts/social-card-source.svg` is the editable, font-based composition.
+`npm run assets:social-card` loads its existing Fontsource Latin faces in Chromium,
+verifies every weight, and keeps the PNG renderer at 1200 by 630 and device scale 1.
+It also converts the browser-shaped character positions to reusable glyph paths
+in `public/social-card.svg`. No fonts, live text, CSS or external assets remain in
+the public SVG; each outlined phrase retains its accessible label. This works
+with the existing strict CSP without allowing embedded styles or data-URL fonts.
+
+Outline generation uses Python with `fonttools[woff]` (verified with FontTools
+4.63.0 and Brotli), in addition to the existing Node/Playwright dependencies.
+If absent, install that authoring tool with `python -m pip install "fonttools[woff]==4.63.0"`;
+it is not shipped to visitors or needed by the app build. Barlow and Hanken Grotesk
+remain under their packages' SIL Open Font License 1.1; the SVG paths are a document
+created with those fonts, not redistributed font software.
+
+The command opens the result in a separate, style-free SVG document with
+`font-src 'none'`, blocks dependent requests, and reports the pixel difference
+against both its font-based render and the existing PNG. Path antialiasing can
+differ from hinted/subpixel text without changing character positions or layout.
+The public SVG has an 80 KiB size cap. `SOCIAL_CARD_EVIDENCE_DIR` optionally saves
+the standalone screenshot outside the repository.
+
 The core has hard build/install limits of 51 entries, including the online split's
 shared chunks, 2 MiB decoded total and 1 MiB per file. Two entries and 32 KiB of
 that total are reserved for bounded
