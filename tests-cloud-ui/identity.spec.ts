@@ -60,6 +60,66 @@ test('a cross-tab identity change flushes the old account draft without exposing
   }
 });
 
+// G10 REL-01b: the catalog detail's rating draft belongs to the account it was typed for, as the library dialog's does.
+// Its title keeps "cross-tab identity change", so the release gate's sync-20 step repeats it with the test above.
+test('a cross-tab identity change saves a held catalog-detail rating to the old account without exposing it to the next account', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalogId = 'wikidata:Q15408545';
+  const title = 'Kingdom Come: Deliverance';
+  const firstEmail = emailFor('detail-scope-a');
+  const nextEmail = emailFor('detail-scope-b');
+  await createAccount(page, firstEmail);
+  await verifyEmail(page, request, firstEmail);
+  await enableSync(page, 'empty');
+  const firstUid = await uidFor(request, firstEmail);
+  const scoreIn = async (uid: string) =>
+    (await readAccount(page, uid)).state.ranking.find((entry) => entry.id === catalogId)?.score;
+  await page.goto('/discover?q=Kingdomcome&catalogs=off');
+  await page.locator(`[data-catalog-id="${catalogId}"]`).getByRole('button', { name: title, exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText(title);
+  const rating = page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true });
+  await rating.fill('5');
+  await rating.press('Tab');
+  await expect.poll(() => scoreIn(firstUid), { timeout: 30000 }).toBe(5);
+  await expect.poll(async () => (await readAccount(page, firstUid)).sync.dirty, { timeout: 30000 }).toBe(false);
+  const peer = await context.newPage();
+  try {
+    await peer.goto('/account');
+    await expect(peer.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+    // Holds the field's debounced save, so only the detail's exit saves the draft when the account changes.
+    await page.clock.install({ time: new Date('2026-09-14T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-09-14T12:00:10Z'));
+    await rating.fill('8.3');
+    await peer.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect(peer).toHaveURL(/\/$/);
+    await expect.poll(() => scoreIn(firstUid)).toBe(8.3);
+    // The detail stays open on the device library, which has no rating for it: the draft did not follow.
+    await expect(rating).toHaveValue('');
+    const guest = await readLibrary(page);
+    expect(guest.records[catalogId]).toBeUndefined();
+    expect(guest.ranking).toEqual([]);
+    await page.clock.resume();
+    await createAccount(peer, nextEmail);
+    await verifyEmail(peer, request, nextEmail);
+    await enableSync(peer, 'empty');
+    const nextUid = await uidFor(request, nextEmail);
+    expect((await readAccount(peer, nextUid)).state.records).toEqual({});
+    await peer.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect(peer).toHaveURL(/\/$/);
+    await signIn(peer, firstEmail);
+    await peer.goto('/my-rankings');
+    await expect(peer.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true })).toHaveValue(
+      '8.3',
+    );
+    expect((await readAccount(peer, nextUid)).state.records).toEqual({});
+  } finally {
+    await peer.close();
+  }
+});
+
 test('Google stays in the same tab even if windows are blocked, and browser Back cancels without changing the guest', async ({
   page,
   context,
