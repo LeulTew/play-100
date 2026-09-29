@@ -10,7 +10,8 @@ import { rememberMotionHint } from './motion-hint';
 import { STORAGE_DENIED_MESSAGE } from './storage-notices';
 
 export const DB_NAME = 'play100-personal';
-export const DB_VERSION = 2;
+// Version 3 fences clients whose writers do not understand account retirement.
+export const DB_VERSION = 3;
 export const STORE_NAME = 'library';
 export const STATE_KEY = 'state';
 const ONLINE_HINT_KEY = 'online-hint:v1';
@@ -132,6 +133,13 @@ function openDatabase(): Promise<IDBDatabase> {
       fail(storageError(cause));
       return;
     }
+    request.onblocked = () =>
+      fail(
+        namedError(
+          'PersonalLibraryBlockedError',
+          'Close other Play 100 tabs to finish updating this device library, then retry. Your saved data has not been changed.',
+        ),
+      );
     request.onupgradeneeded = () => {
       if (settled || generation !== startedGeneration) {
         request.transaction?.abort();

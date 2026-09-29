@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createAccount, emailFor, enableSync, googleRedirect, password, uidFor, verifyEmail } from './helpers';
 import { routeGoogleProvider } from './google-provider-fixture';
+import { DB_NAME, DB_VERSION } from '../src/lib/personal-db';
 
 // Signs out an account that can compare, then, as the device, pins two games on The 100 and chooses Compare. The tray
 // is a count chip whose sheet holds the Compare action, Choose friends; the Table view (`table`) keeps its strip with
@@ -76,9 +77,9 @@ async function fillEmailSignIn(sheet: Locator, email: string) {
 // object store, and a read-write transaction on it, kept open by back-to-back reads, makes every later one wait.
 async function holdDeviceLibraries(page: Page) {
   await page.evaluate(
-    () =>
+    ({ name, version }) =>
       new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('play100-personal', 2);
+        const open = indexedDB.open(name, version);
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const database = open.result;
@@ -93,6 +94,7 @@ async function holdDeviceLibraries(page: Page) {
           resolve();
         };
       }),
+    { name: DB_NAME, version: DB_VERSION },
   );
   return () => page.evaluate(() => Reflect.set(window, 'libraryHold', false));
 }

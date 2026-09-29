@@ -256,6 +256,32 @@ new navigation fails explicitly without displacing an in-flight document.
 
 ## Storage failures
 
+### Mixed application versions and private libraries
+
+R22 opens `play100-personal` at IndexedDB version **3** without rewriting its
+existing records. The version upgrade is independent of service-worker
+installation or activation. It is necessary because Release 6 uses version 2
+and does not check account-writer retirement markers; its unconditional delete
+also bypasses an unreadable sentinel. Release 6's `versionchange` handler closes
+its connection. Its next v2 read, save, restore or delete fails with the existing
+newer-version message instead of recreating or deleting account data.
+
+New-code writers still use the per-account generation checks: removing a device
+copy retires its generation atomically; a fresh explicit account opening is
+required to create the next copy. Ordinary sign-out keeps the current generation
+and its drafts. Older-version drafts cannot be saved after the upgrade; finish
+or copy them before opening the new release, and reload old tabs only after
+preserving any unsaved text. No window is force-reloaded and no draft is moved
+into the guest library.
+
+A tab that does not close its connection can block the update. The library error
+says "Close other Play 100 tabs to finish updating this device library, then retry.
+Your saved data has not been changed." Close that tab and choose **Retry account
+check**, which retries the local library before online work. A rejected upgrade request aborts when unblocked; only a fresh
+successful opening completes the upgrade. Existing data is never cleared as a
+recovery shortcut. See the **R22-or-later rollback floor** in
+[release operations](release-operations.md#r22-indexeddb-compatibility-and-rollback-floor).
+
 Offline readiness is committed only after every verified core file and the
 final ready marker have been stored. A quota failure must not advertise
 “Offline files ready” or leave a staging cache with a ready marker. A previous

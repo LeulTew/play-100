@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
 import type { ScopedLibrary } from '../src/lib/cloud-types';
 import { readLibrary } from '../tests/library-helpers';
+import { DB_NAME, DB_VERSION } from '../src/lib/personal-db';
 
 export const password = 'Local-emulator-passphrase-8426';
 export const authOrigin = 'http://127.0.0.1:9199';
@@ -84,9 +85,9 @@ export async function verifyByEmailReturn(page: Page, request: APIRequestContext
 }
 export async function readAccount(page: Page, uid: string): Promise<ScopedLibrary> {
   return page.evaluate(
-    (key) =>
+    ({ key, name, version }) =>
       new Promise<ScopedLibrary>((resolve, reject) => {
-        const open = indexedDB.open('play100-personal', 2);
+        const open = indexedDB.open(name, version);
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;
@@ -100,7 +101,7 @@ export async function readAccount(page: Page, uid: string): Promise<ScopedLibrar
           transaction.onabort = () => reject(transaction.error);
         };
       }),
-    `account:demo-play100:${uid}`,
+    { key: `account:demo-play100:${uid}`, name: DB_NAME, version: DB_VERSION },
   );
 }
 export async function enableSync(page: Page, choice: 'guest' | 'online' | 'empty' | 'cached' = 'guest') {

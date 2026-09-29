@@ -1,0 +1,13 @@
+{
+  "commit": "129e73eebbf6c8c7eef5fc3eda1d4ab45f8161fe",
+  "sourceBlobs": {
+    "src/lib/personal-db.ts": "672daa354889bb9f03f45fd58a8755744b4bc67f",
+    "src/lib/scoped-library.ts": "9af9481ba7c9e798e4b97797ef83f917032af180"
+  },
+  "extraction": {
+    "personal-db.ts": "Original constants, connection lifecycle, errors, notifications, transaction, accountStorageTransaction, subscription and close. Unused guest/online-hint operations and their imports/constants omitted; unused legacyNotice declaration/reset omitted. Remaining function bodies unchanged.",
+    "scoped-library.ts": "Original conflict, initial, parseScopedLibrary, update, loadScopedLibrary, commitScopedAction, restoreScopedLibrary and deleteScopedLibrary. Unused sync/profile operations omitted. Remaining function bodies unchanged."
+  },
+  "dependencies": "Imports redirected to current unchanged storage-denial text, pure domain validators/types, avatar parser, motion-hint helpers and the journal functions operating on the supplied object store. All database opens/transactions and scope-envelope validation execute the vendored Release 6 code; no current database opener, retirement check or writer is substituted.",
+  "purpose": "Mixed-version regression fixture only; never imported by a production entry. The v2 client must reproduce absent-row resurrection and unconditional deletion before the v3 barrier, then fail its v2 reopen after R22 upgrades."
+}

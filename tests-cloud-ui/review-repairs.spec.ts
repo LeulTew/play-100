@@ -14,6 +14,7 @@ import {
 } from './helpers';
 import { routeGoogleProvider } from './google-provider-fixture';
 import { readLibrary } from '../tests/library-helpers';
+import { DB_NAME, DB_VERSION } from '../src/lib/personal-db';
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -76,9 +77,9 @@ test('corrupt account cache does not trap sign-out or prevent a network-only acc
   await enableSync(page, 'empty');
   const uid = await uidFor(request, email);
   await page.evaluate(
-    (key) =>
+    ({ key, name, version }) =>
       new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('play100-personal', 2);
+        const open = indexedDB.open(name, version);
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction('library', 'readwrite');
@@ -91,7 +92,7 @@ test('corrupt account cache does not trap sign-out or prevent a network-only acc
         };
         open.onerror = () => reject(open.error);
       }),
-    `account:demo-play100:${uid}`,
+    { key: `account:demo-play100:${uid}`, name: DB_NAME, version: DB_VERSION },
   );
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeEnabled();

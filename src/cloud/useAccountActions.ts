@@ -257,6 +257,7 @@ export function useAccountActions({
     });
   const retry = () =>
     run(async () => {
+      await account.refresh();
       await sync.retry();
       await automatic.refresh();
       await friends.retry();

@@ -6,10 +6,12 @@ import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../lib/test-server-ports';
 import type { AccountWriterFixture } from './useAccountLibrary.browser-fixture';
+import type { LegacyAction, LegacyWriterFixture } from './useAccountLibrary.legacy-browser-fixture';
 
 declare global {
   interface Window {
     accountWriterFixture: AccountWriterFixture;
+    legacyWriterFixture: LegacyWriterFixture;
   }
 }
 
@@ -36,8 +38,12 @@ beforeAll(async () => {
             name: 'account-writer-fixture',
             configureServer(vite) {
               vite.middlewares.use((request, response, next) => {
-                if (request.url !== '/__account-writer') return next();
-                void vite.transformIndexHtml('/__account-writer', fixture).then((html) => {
+                const old = request.url?.startsWith('/__account-writer-v6');
+                if (!old && request.url !== '/__account-writer') return next();
+                const htmlSource = old
+                  ? fixture.replace('/src/hooks/useAccountLibrary.browser-fixture.tsx', '/src/hooks/useAccountLibrary.legacy-browser-fixture.ts')
+                  : fixture;
+                void vite.transformIndexHtml('/__account-writer', htmlSource).then((html) => {
                   response.setHeader('Content-Type', 'text/html');
                   response.end(html);
                 }, next);
@@ -96,6 +102,74 @@ describe('cross-tab account writer retirement', () => {
         guestRecords: 0,
         hint: null,
         pins: null,
+      });
+
+      async function mixedTabs(work: (old: Page, current: Page) => Promise<void>, blocked = false) {
+        if (!browser) throw new Error('Account writer fixture browser unavailable.');
+        const context = await browser.newContext();
+        const errors: string[] = [];
+        await context.route('**/*', (route) =>
+          new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
+        );
+        try {
+          const old = await context.newPage();
+          old.on('pageerror', (error) => errors.push(error.message));
+          await old.goto(`${origin}/__account-writer-v6${blocked ? '?block' : ''}`);
+          await browserExpect(old.getByRole('status')).toHaveText('Release 6 ready');
+          const current = await context.newPage();
+          current.on('pageerror', (error) => errors.push(error.message));
+          await current.goto(`${origin}/__account-writer`);
+          await work(old, current);
+          expect(errors).toEqual([]);
+        } finally {
+          await context.close();
+        }
+      }
+
+      describe('mixed Release 6 and current tabs', () => {
+        it('closes the v2 connection and blocks every old mutation after retirement and explicit reopen', async () => {
+          await mixedTabs(async (old, current) => {
+            await browserExpect(current.getByRole('status')).toHaveText('ready');
+            expect(await old.evaluate(() => window.legacyWriterFixture.versionChanges())).toBe(1);
+            expect(await current.evaluate(() => window.accountWriterFixture.signOut(true))).toBe(true);
+            const attempts: LegacyAction[] = ['save', 'restore', 'delete', 'checked-delete'];
+            for (const action of attempts) {
+              expect(await old.evaluate((action) => window.legacyWriterFixture.attempt(action), action))
+                .toMatchObject({ ok: false, name: 'PersonalLibraryVersionError' });
+            }
+            expect(await current.evaluate(() => window.accountWriterFixture.inspect())).toEqual({
+              present: false, score: null, guestRecords: 0, hint: null, pins: null,
+            });
+            await current.evaluate(() => window.accountWriterFixture.reopen());
+            await browserExpect(current.getByRole('status')).toHaveText('ready');
+            expect(await current.evaluate(() => window.accountWriterFixture.save(4))).toBe(true);
+            const before = await current.evaluate(() => window.accountWriterFixture.inspect());
+            for (const action of attempts) {
+              expect(await old.evaluate((action) => window.legacyWriterFixture.attempt(action), action))
+                .toMatchObject({ ok: false, name: 'PersonalLibraryVersionError' });
+            }
+            expect(await current.evaluate(() => window.accountWriterFixture.inspect())).toEqual(before);
+            expect(before).toMatchObject({ present: true, score: 4, guestRecords: 0 });
+          });
+        });
+
+        it('shows a blocked upgrade and retries without losing the old saved state', async () => {
+          await mixedTabs(async (old, current) => {
+            await browserExpect(current.getByRole('alert')).toContainText('Close other Play 100 tabs to finish updating');
+            await browserExpect(current.getByRole('button', { name: 'Retry device library' })).toBeEnabled();
+            // The rejected upgrade has not silently erased or migrated the v2 library.
+            expect(await old.evaluate(() => window.legacyWriterFixture.blockedScore())).toBe(6);
+            await old.evaluate(() => window.legacyWriterFixture.releaseBlocker());
+            await current.getByRole('button', { name: 'Retry device library' }).click();
+            await browserExpect(current.getByRole('status')).toHaveText('ready');
+            await browserExpect(current.getByRole('alert')).toHaveCount(0);
+            expect(await current.evaluate(() => window.accountWriterFixture.inspect())).toMatchObject({
+              present: true, score: 6, guestRecords: 0,
+            });
+            expect(await old.evaluate(() => window.legacyWriterFixture.attempt('delete')))
+              .toMatchObject({ ok: false, name: 'PersonalLibraryVersionError' });
+          }, true);
+        });
       });
     });
   });

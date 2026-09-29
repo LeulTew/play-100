@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { StrictMode, useCallback, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useAccountLibrary } from './useAccountLibrary';
 import { accountScope } from '../lib/cloud-types';
@@ -51,9 +51,6 @@ export default function Fixture() {
   const [session, setSession] = useState({ signedIn: true, generation: 0 });
   const identityIsCurrent = useCallback(() => session.signedIn, [session.signedIn]);
   const account = useAccountLibrary(session.signedIn ? scope : null, 'lite', identityIsCurrent, session.generation);
-  useEffect(() => {
-    void loadPersonalLibrary([]);
-  }, []);
   useLayoutEffect(() => {
     const perform = account.controller.perform;
     const rate = (score: number) => perform({ type: 'rate-game', record: game, score });
@@ -124,6 +121,12 @@ export default function Fixture() {
     <main>
       <h1>Account writer fixture</h1>
       <p role="status">{!session.signedIn ? 'Signed out' : (account.error ?? account.controller.status)}</p>
+      {session.signedIn && account.error && (
+        <div>
+          <p role="alert">{account.error}</p>
+          <button onClick={() => { void account.refresh(); }}>Retry device library</button>
+        </div>
+      )}
     </main>
   );
 }

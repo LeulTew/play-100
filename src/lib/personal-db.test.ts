@@ -321,7 +321,7 @@ describe('IndexedDB initialization and migration', () => {
 
   it('uses only its declared database, store, and versioned state key', async () => {
     const result = await loadPersonalLibrary(canonical);
-    expect([DB_NAME, DB_VERSION, STORE_NAME, STATE_KEY]).toEqual(['play100-personal', 2, 'library', 'state']);
+    expect([DB_NAME, DB_VERSION, STORE_NAME, STATE_KEY]).toEqual(['play100-personal', 3, 'library', 'state']);
     expect(result).toEqual({ state: emptyPersonalLibrary(), notice: null, migrated: false });
     expect(await stored()).toEqual(result.state);
     closePersonalLibrary();

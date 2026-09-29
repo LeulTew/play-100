@@ -56,6 +56,40 @@ Use the [security promotion order](security-release-runbook.md#promotion-order)
 for the owner operations and [manual PWA checks](pwa.md#manual-release-checks).
 Client rollback does not revert Firestore rules, indexes, WAF or private data.
 
+### R22 IndexedDB compatibility and rollback floor
+
+**After R22 first opens a visitor's device library, every rollback target must
+be R22 or later.** The database `play100-personal` advances from version 2 to 3.
+This is a writer barrier, not a record-format migration: existing guest/account
+libraries, recovery copies and store keys stay in place. Release 6 closes its
+connection on `versionchange`, then refuses to reopen version 2 with
+`PersonalLibraryVersionError`. This prevents both its marker-unaware saves and
+its unconditional deletes from undoing account-copy removal or damaging a
+newly opened writer generation.
+
+A pre-R22 rollback cannot read these upgraded local libraries. Never delete or
+rename the database, reduce the requested version, clear retirement markers,
+or silently create a replacement store to make old code appear to work.
+The safe recovery is a reviewed R22-or-later fix-forward deployment retaining
+database version 3 and the writer-generation checks. Keep backups independent;
+do not require visitors to destroy local data to recover the application.
+
+Before the first R22 promotion, retain an approved R22-compatible recovery
+candidate and its evidence. If the immediately previous production deployment
+predates R22, the Hobby one-step rollback is **not an available safe recovery**;
+use that approved compatible fix-forward with explicit owner authorization.
+Record the integrated R22 barrier commit as the release's rollback floor.
+Before upgrading, visitors should finish or copy drafts in older tabs: the
+barrier preserves saved data but deliberately refuses those old tabs' later
+writes. It does not forcibly reload them or migrate unsaved in-memory drafts.
+
+An open connection that ignores `versionchange` blocks the upgrade. The UI
+reports "Close other Play 100 tabs to finish updating this device library, then
+retry. Your saved data has not been changed." Retry after closing the blocker.
+The rejected open aborts if it later reaches the upgrade event, rather than
+silently migrating after its caller has already shown an error. Retain the
+mixed-version writer and blocked/retry browser-test receipts in the release gate.
+
 ## 1. Exact clean checkout and evidence directory
 
 Choose the full reviewed commit already on `origin/main`. In a new operator
@@ -574,6 +608,22 @@ That run used headless Chromium with a persistent profile. It is not
 physical-device evidence, so record devices or an explicit waiver.
 
 ## 9. Rollback, readback and undo
+
+First apply the **R22 rollback floor** above. In the source checkout, verify the
+recorded previous deployment's exact source commit descends from the integrated
+R22 barrier commit; an unavailable or unproven source is not an eligible target:
+
+```powershell
+$r22Floor = 'FULL_INTEGRATED_R22_BARRIER_COMMIT'
+$previousSource = 'RECORDED_PREVIOUS_DEPLOYMENT_SOURCE_COMMIT'
+git merge-base --is-ancestor $r22Floor $previousSource
+if ($LASTEXITCODE -ne 0) { throw 'Unsafe pre-R22 rollback: use an approved R22-or-later fix-forward' }
+```
+
+The rollback drill must use only an eligible R22-or-later target and include
+an already-upgraded version-3 guest and account library: verify both remain
+readable and that retired writers still cannot save, restore or delete.
+Do not drill a Release 6 rollback against upgraded visitor data.
 
 Rollback requires explicit owner approval and the recorded previous production
 deployment. On Hobby, `vercel rollback` permits only the **immediately previous**
