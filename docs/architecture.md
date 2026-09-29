@@ -222,6 +222,9 @@ repeat activation. Successful replacement and cancellation return focus to the
 Import backup trigger after the preview disappears. Failed replacement keeps
 the preview and its focused action. A closed or superseded Settings dialog
 never takes focus back when an old replacement finishes.
+The export filename uses the device's local calendar date, including near
+midnight and year boundaries. The backup's `exportedAt` remains an ISO UTC
+timestamp; the schema and saved library content are unchanged.
 
 Import feedback distinguishes unreadable JSON/files from unsupported backup
 formats or versions and points to Export my library for a compatible file.

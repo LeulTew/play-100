@@ -101,7 +101,13 @@ export default function BackupPanel({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Play-100-My-Library-${new Date().toISOString().slice(0, 10)}.json`;
+    const now = new Date();
+    const date = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    link.download = `Play-100-My-Library-${date}.json`;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     setMessage('Backup download started. It includes My games, Play later, rankings, notes and preferences.');

@@ -115,13 +115,14 @@ async function expectBackupImportFailure(page: Page, message: string) {
 
 for (const mobile of [false, true]) {
   describe(mobile ? 'mobile Settings motion radios' : 'desktop Settings motion radios', () => {
-    async function withPage(work: (page: Page) => Promise<void>) {
+    async function withPage(work: (page: Page) => Promise<void>, timezoneId?: string) {
       if (!browser) throw new Error('Settings fixture browser unavailable.');
       const context = await browser.newContext({
         viewport: { width: mobile ? 393 : 1440, height: mobile ? 851 : 900 },
         isMobile: mobile,
         hasTouch: mobile,
         reducedMotion: 'reduce',
+        timezoneId,
       });
       const page = await context.newPage();
       const errors: string[] = [];
@@ -257,6 +258,22 @@ for (const mobile of [false, true]) {
         });
       });
     }
+
+    it.each([
+      ['Etc/GMT-3', '2026-09-29T21:29:00.000Z', -180, '2026-09-30'],
+      ['Etc/GMT+8', '2026-10-01T00:29:00.000Z', 480, '2026-09-30'],
+      ['Etc/GMT-3', '2026-12-31T21:29:00.000Z', -180, '2027-01-01'],
+    ] as const)('dates a backup by the local calendar in %s at %s', async (zone, instant, offset, date) => {
+      await withPage(async (page) => {
+        await page.clock.setFixedTime(new Date(instant));
+        expect(await page.evaluate(() => new Date().getTimezoneOffset())).toBe(offset);
+        const pending = page.waitForEvent('download');
+        await page.getByRole('button', { name: 'Export my library', exact: true }).click();
+        const download = await pending;
+        expect(download.suggestedFilename()).toBe(`Play-100-My-Library-${date}.json`);
+        expect(await download.failure()).toBeNull();
+      }, zone);
+    });
 
     it('separates each visible preference label from its supporting description in the exact name', async () => {
       await withPage(async (page) => {
