@@ -11,7 +11,6 @@ const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/
 
 const pendingTypedRules = [
   'no-unsafe-assignment',
-  'require-await',
   'no-unsafe-member-access',
   'no-unsafe-return',
   'no-unsafe-argument',
@@ -50,8 +49,9 @@ export default tseslint.config(
   },
   {
     // Tests pass methods to expect() and capture prototype methods to restore or call with .call(); neither loses this.
+    // Async doubles stand in for promise-returning APIs, so a throw inside one rejects as the real call would.
     files: testFiles,
-    rules: { '@typescript-eslint/unbound-method': 'off' },
+    rules: { '@typescript-eslint/unbound-method': 'off', '@typescript-eslint/require-await': 'off' },
   },
   {
     files: untypedFiles,
