@@ -799,17 +799,22 @@ are untouched. Integration must preserve the newer P5 post-commit motion-hint
 removal inside `deleteScopedLibrary`; this change adds a guard, not a namespace.
 Since G6-SEC2 F2, the same post-commit step also removes the account's saved
 Compare tray pins (`play100:compare-tray:v1:<scope>`), which can hold manual
-titles, so this action and account deletion, which share `deleteScopedLibrary`,
-leave none of that account's local data behind, as Data use says. A refused
-removal keeps them with the copy.
+titles. So this action removes the account's copy, recovery data, sharing
+journals, motion hint and pins. The only thing it leaves is a content-free
+retirement record, the account's writer marker marked retired, which keeps
+older sessions from bringing deleted data back, as Data use says. A refused
+removal keeps everything with the copy. Account deletion removes the same data
+through `deleteAccountCopy` (see below), and leaves the same retirement record.
 Since G8-SEC-AUDIT F1, localStorage refusing those keys after the transaction is
-reported rather than swallowed: `deleteScopedLibrary` still removes the other
-key and returns an incomplete result, and the sign-out or deletion stands
-without being undone. The signed-out Account page then says some of the
-account's data is still on this device and offers Try again, bound to that
-account's scope. A refused retry points to clearing the site's data in the
-browser settings. Any sign-in withdraws the offer, and the retry removes only
-that account's pins and motion hint, never guest or another account's data.
+reported rather than swallowed: the removal still removes the other key and
+returns an incomplete result, and the sign-out or deletion stands without being
+undone. The signed-out Account page then says some of the account's data is
+still on this device and offers Try again, bound to that account's scope. A
+refused retry points to clearing the site's data in the browser settings. Any
+sign-in withdraws the offer. When only localStorage refused, the retry removes
+that account's pins and motion hint, whichever path removed the copy. When the
+device database refused an account deletion's removal, the retry repeats the
+whole removal (below). Neither touches guest or another account's data.
 Since G10 SEC-F1 (R22), the account's three sharing journals (the friends
 selection, the shared-games selection and the automatic sharing retry state)
 follow the same writer retirement as the copy. Each journal read or write
@@ -823,9 +828,11 @@ removed copy. Removing a copy that is already removed deletes any journal an
 earlier release left behind.
 Account deletion (G10 SEC2 item 8) removes the account's copy at whichever
 generation it reached, even when the copy did not open or has become
-unreadable: its sign-in is gone, so nothing can open that copy again. A removal
-the device database refuses is reported on Account like the localStorage case,
-and its Try again repeats the whole removal.
+unreadable: its sign-in is gone, so nothing can open that copy again. The
+removal uses `deleteAccountCopy`, through `removeDeletedAccountCopy`, not
+`deleteScopedLibrary`. A removal the device database refuses is reported on
+Account like the localStorage case, and its Try again repeats the whole
+removal: the copy's database row and journals as well as its localStorage keys.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
 ## Ordered parent-only rollout
