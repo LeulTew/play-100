@@ -320,10 +320,11 @@ button.compare-drag-handle[hidden] {
   padding: 0;
   border-top: 1px solid var(--line);
 }
+/* The thumbnail and Unpin control stay beside the title as the item's artwork credit opens below it. */
 .compare-tray-games > li {
   display: flex;
   gap: 14px;
-  align-items: center;
+  align-items: flex-start;
   padding-block: 10px;
   border-bottom: 1px solid var(--line);
 }

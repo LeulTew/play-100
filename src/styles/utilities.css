@@ -635,8 +635,11 @@ html[data-motion='off']
   .detail-actions {
     gap: 7px;
   }
+  /* Equal shares of the row, but never narrower than the label: at 320px "Completed" needs a few pixels more than half,
+     so it takes them from Play later, and Share moves to its own line wherever the two labels leave it no room. */
   .detail-actions .button {
     flex: 1;
+    min-width: max-content;
     padding-inline: 12px;
     font-size: 12px;
     gap: 7px;
