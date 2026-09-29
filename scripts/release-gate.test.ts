@@ -1,7 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { checkGateReport, commandReceipt, gateEnvironment, gatePlan, GATE_NODE } from './release-gate';
+import {
+  checkGateReport,
+  commandReceipt,
+  gateEnvironment,
+  gatePlan,
+  GATE_NODE,
+  innerEmulatorCommand,
+} from './release-gate';
 
 describe('candidate release gate planning', () => {
+  it('uses a file URL for the tsx loader in every Windows inner emulator command', () => {
+    for (const step of gatePlan().filter((step) => step.tool === 'emulators')) {
+      const command = innerEmulatorCommand(String.raw`C:\release\play100`, step.name, String.raw`C:\release\evidence`);
+      expect(command).toContain('"--import" "file:///C:/release/play100/node_modules/tsx/dist/loader.mjs"');
+      expect(command).toContain(`"--inner" "${step.name}" "C:\\release\\evidence"`);
+      expect(command).not.toContain('"--import" "C:');
+    }
+  });
+
+  it('also preserves POSIX loader URLs and rejects unsafe shell arguments', () => {
+    expect(innerEmulatorCommand('/release/play100', 'cloud', '/release/evidence')).toContain(
+      '"--import" "file:///release/play100/node_modules/tsx/dist/loader.mjs"',
+    );
+    expect(() => innerEmulatorCommand(String.raw`C:\release\play100`, 'cloud', 'evidence&command')).toThrow(
+      'unsupported shell metacharacters',
+    );
+  });
+
   it('pins the runtime and orders every partition without a deployment or dependency install', () => {
     expect(GATE_NODE).toBe('v24.21.0');
     const plan = gatePlan();

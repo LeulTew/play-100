@@ -4,7 +4,7 @@ import { createWriteStream } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { createServer as createTcpServer } from 'node:net';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
 import { requireObject } from '../src/lib/guards.js';
 import { summarizeNpmAudit, summarizePlaywright, summarizeVitest } from './release-manifest';
@@ -385,6 +385,22 @@ function quoteShell(value: string) {
   return `"${value}"`;
 }
 
+export function innerEmulatorCommand(checkout: string, name: string, evidence: string): string {
+  const windows = /^[a-z]:[\\/]|^\\\\/i.test(checkout);
+  const loader = (windows ? path.win32 : path.posix).join(checkout, 'node_modules', 'tsx', 'dist', 'loader.mjs');
+  return [
+    process.execPath,
+    '--import',
+    pathToFileURL(loader, { windows }).href,
+    fileURLToPath(import.meta.url),
+    '--inner',
+    name,
+    evidence,
+  ]
+    .map(quoteShell)
+    .join(' ');
+}
+
 export async function releaseGate(evidence: string, offline: string) {
   if (process.version !== GATE_NODE) throw new Error(`Use pinned Node ${GATE_NODE}, not ${process.version}.`);
   for (const name of ['PLAY100_BASE_URL', 'PLAY100_REUSE_SERVER', 'PLAY100_ALLOW_ONLY', 'PLAY100_GOOGLE_LIVE']) {
@@ -446,17 +462,7 @@ export async function releaseGate(evidence: string, offline: string) {
       for (const file of ['firebase.json', 'firestore.rules', 'firestore.indexes.json']) {
         await copyFile(path.join(root, file), path.join(local, file));
       }
-      const command = [
-        process.execPath,
-        '--import',
-        path.join(root, 'node_modules', 'tsx', 'dist', 'loader.mjs'),
-        fileURLToPath(import.meta.url),
-        '--inner',
-        step.name,
-        evidence,
-      ]
-        .map(quoteShell)
-        .join(' ');
+      const command = innerEmulatorCommand(root, step.name, evidence);
       await runCommand(
         step.name,
         local,
