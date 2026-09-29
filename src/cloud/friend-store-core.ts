@@ -22,6 +22,30 @@ export function expectedSettings(current: FriendSettings, expected: FriendSettin
   if (current.epoch !== expected.epoch || current.revision !== expected.revision)
     conflict('Sharing settings changed. Reload the selection before publishing.');
 }
+export function permissionDenied(cause: unknown): boolean {
+  return Boolean(cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied');
+}
+/**
+ * One write of a publication that another device of the account can be making at the same time. When the write is
+ * refused (permission-denied), `settle` reads the publication's inputs again. It returns the head the other device
+ * published with the same content, which ends this publication; throws a conflict when the inputs changed; or returns
+ * null, and the write is tried once more. A second refusal is reported as it came.
+ */
+export async function contendedWrite<H>(
+  write: () => Promise<H | null | void>,
+  settle: () => Promise<H | null>,
+): Promise<H | null> {
+  for (let retried = false; ; retried = true) {
+    try {
+      return (await write()) ?? null;
+    } catch (cause) {
+      if (!permissionDenied(cause)) throw cause;
+      const settled = await settle();
+      if (settled) return settled;
+      if (retried) throw cause;
+    }
+  }
+}
 export function page<T>(
   rows: QueryDocumentSnapshot<DocumentData>[],
   parse: (row: QueryDocumentSnapshot<DocumentData>) => T,

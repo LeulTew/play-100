@@ -10,6 +10,7 @@ import {
   inMemoryPersistence,
   initializeAuth,
   reload,
+  signInWithEmailAndPassword,
 } from 'firebase/auth';
 import {
   collection,
@@ -56,6 +57,7 @@ const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
 const projectId = 'demo-play100';
 const avatar: AvatarValue = { version: 1, seed: 'b'.repeat(32), palette: 'moss' };
 const source = { syncEpoch: 1, remoteRevision: 0 };
+const password = 'Emulator-only-passphrase-4382';
 const entry: PublicEntry = {
   position: 1,
   id: 'wikidata:Q123',
@@ -114,14 +116,9 @@ async function client(anonymous = false, prepareFriends = true) {
   const db = getFirestore(app);
   connectFirestoreEmulator(db, firestoreHost, Number(firestorePort));
   const store = new FriendStore(db);
-  if (anonymous) return { uid: '', db, store };
-  const user = (
-    await createUserWithEmailAndPassword(
-      auth,
-      `friend-${crypto.randomUUID()}@example.test`,
-      'Emulator-only-passphrase-4382',
-    )
-  ).user;
+  if (anonymous) return { uid: '', email: '', db, store };
+  const email = `friend-${crypto.randomUUID()}@example.test`;
+  const user = (await createUserWithEmailAndPassword(auth, email, password)).user;
   const response = await fetch(
     `http://${authAddress}/identitytoolkit.googleapis.com/v1/accounts:update?key=demo-play100-key`,
     {
@@ -149,9 +146,21 @@ async function client(anonymous = false, prepareFriends = true) {
     previous: null,
     updatedAt: Timestamp.now(),
   });
-  return { uid: user.uid, db, store };
+  return { uid: user.uid, email, db, store };
 }
 type Client = Awaited<ReturnType<typeof client>>;
+/** Another device signed in to the owner's account, with its own Firestore client. */
+async function sameAccount(owner: Client): Promise<Client> {
+  const app = initializeApp({ apiKey: 'demo-play100-key', projectId }, crypto.randomUUID());
+  apps.push(app);
+  const auth = initializeAuth(app, { persistence: inMemoryPersistence });
+  connectAuthEmulator(auth, `http://${authAddress}`, { disableWarnings: true });
+  const db = getFirestore(app);
+  connectFirestoreEmulator(db, firestoreHost, Number(firestorePort));
+  const { user } = await signInWithEmailAndPassword(auth, owner.email, password);
+  await getIdToken(user, true);
+  return { uid: user.uid, email: owner.email, db, store: new FriendStore(db) };
+}
 async function failNextReadback(cause: Error): Promise<void> {
   const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
   vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(actual.runTransaction).mockRejectedValueOnce(cause);
@@ -1228,6 +1237,50 @@ describe('bounded strict friends-only ranking generations', () => {
     await expect(
       a.store.publishRanking(a.uid, [{ ...entry, position: 2 }], control, source, published.head.revision),
     ).rejects.toThrow(/ranking changed/);
+  });
+  it('lets a device that loses a publication race to another device of its account take the same content as its result', async () => {
+    const a = await client();
+    const b = await client();
+    await connect(a, b);
+    const device = await sameAccount(a);
+    const control = await a.store.saveSettings(a.uid, { enabled: true, selectedIds: [entry.id] }, await settings(a));
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    let staged!: () => void;
+    const held = new Promise<void>((resolve) => {
+      staged = resolve;
+    });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // The device's third transaction publishes its head: it reads, then commits only after the account's other device
+    // has published the same selection.
+    let transactions = 0;
+    vi.mocked<RunTransaction>(runTransaction).mockImplementation(
+      async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+        db === device.db && ++transactions === 3
+          ? actual.runTransaction(
+              db,
+              async (tx) => {
+                const result = await operation(tx);
+                staged();
+                await released;
+                return result;
+              },
+              options,
+            )
+          : actual.runTransaction(db, operation, options),
+    );
+    const losing = device.store.publishRanking(device.uid, [entry], control, source, 0);
+    await held;
+    const won = await a.store.publishRanking(a.uid, [entry], control, source, 0);
+    release();
+    // The emulator judges the stale head commit against the winner's head and denies it. That lost race is not an
+    // authorization failure: the same content under the same settings is the losing device's result.
+    await expect(losing).resolves.toEqual({ changed: false, head: won.head });
+    expect(won.changed).toBe(true);
+    expect(await a.store.shareHead(a.uid)).toEqual(won.head);
+    expect((await b.store.ranking(a.uid)).entries).toEqual([entry]);
   });
   it('validates both packed entries, rejects incomplete or mutable chunks and prevents cross-chunk duplicate IDs', async () => {
     const a = await client();

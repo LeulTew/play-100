@@ -296,6 +296,16 @@ Unchanged content skips writes. Stop/logout/scope change must cancel scheduler
 callbacks; stale revisions fail on the server. Pause private saving without
 automatically deleting a previously shared projection.
 
+Every signed-in device of the account runs the scheduler, so two devices publish
+one settings change at once. Content already published under the same settings
+epoch and revision, with the same digest, is a publication's result at every
+step, whatever the head revision. A step whose write is denied reads the
+settings, head and source again: identical content ends the publication, a
+change is a retryable conflict, and unchanged ones get one retry before the
+denial is reported. The emulator denies such a lost race instead of retrying it
+(see REL-08 in the [intermittent register](intermittents.md)). The losing
+device's staging generation is retired after the five-minute grace interval.
+
 Only attach watches for the active screen/current comparison participants.
 On pair/settings/head listener errors or revocations clear displayed friend data;
 never retain stale scores as an available participant. Detach all watches on
