@@ -52,7 +52,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@types/three": "^0.183.0",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.0.0",
     "beasties": "0.5.4",
     "eslint": "^10.0.1",
