@@ -41,6 +41,7 @@ export interface AppShellProps {
 export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, previewModuleError }: AppShellProps) {
   const [searchResults] = useState(() => createValueStore<ExtendedSearchResults | null>(null));
   const { page, panel, manualLink, selectedSlug, onlineOpening, commands, notices } = app;
+  const libraryRecovery = app.libraryScope === 'guest' && !onlineOpening && app.guestLibrary.canRetry;
   const pin = useStableHandler((record: LibraryRecord) => {
     if (!commands.pinAllowed()) {
       notices.notify('Wait for the correct account before pinning a game.');
@@ -138,6 +139,13 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
         onSettings={chrome.onSettings}
         onAccount={chrome.onAccount}
         onDeviceOnly={commands.onDeviceOnly}
+        onRetryLibrary={libraryRecovery ? app.guestLibrary.retry : undefined}
+        retryBusy={libraryRecovery && app.guestLibrary.busy}
+        captureRetryFocus={app.captureFocusGuard}
+        onDiscardTemporary={libraryRecovery && app.guestLibrary.discardRequired ? app.guestLibrary.retry : undefined}
+        temporaryRevision={
+          libraryRecovery && app.guestLibrary.discardRequired ? app.guestLibrary.state.revision : undefined
+        }
       />
       <main id="page-main" ref={mainRef}>
         {app.toolFailure?.scope === app.libraryScope && app.toolFailure.page === page && (

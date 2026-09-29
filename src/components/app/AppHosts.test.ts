@@ -40,6 +40,58 @@ const bannerProps = (): GlobalBannersProps => ({
 });
 
 describe('app status host', () => {
+  it.each([false, true])('keeps blocked-library retry focusable while busy=%s', (retryBusy) => {
+    const onRetryLibrary = vi.fn(async () => false);
+    const warning =
+      'Close other Play 100 tabs to finish updating this device library, then retry. Your saved data has not been changed.';
+    const html = renderToStaticMarkup(
+      createElement(GlobalBanners, {
+        ...bannerProps(),
+        warning,
+        retryBusy,
+        onRetryLibrary,
+      }),
+    );
+    const button = html.match(/<button\b[^>]*>Try again<\/button>/)?.[0];
+    expect(button).toBeDefined();
+    expect(button).not.toContain(' disabled=');
+    expect(button).not.toContain('tabindex=');
+    expect(button?.includes('aria-disabled="true"')).toBe(retryBusy);
+    expect(button).toContain(`aria-busy="${retryBusy}"`);
+    expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
+    expect(html).toContain(warning);
+    expect(onRetryLibrary).not.toHaveBeenCalled();
+  });
+
+  it('does not offer library retry for account-only errors or a recovered library', () => {
+    for (const warning of [null, 'A separate account error']) {
+      const html = renderToStaticMarkup(
+        createElement(GlobalBanners, {
+          ...bannerProps(),
+          warning,
+        }),
+      );
+      expect(html).not.toContain('Try again');
+    }
+  });
+
+  it('offers temporary discard only as an explicit, initially closed confirmation', () => {
+    const onDiscardTemporary = vi.fn(async () => true);
+    const html = renderToStaticMarkup(
+      createElement(GlobalBanners, {
+        ...bannerProps(),
+        warning: 'This tab has unsaved changes.',
+        temporaryRevision: 7,
+        onDiscardTemporary,
+      }),
+    );
+    expect(html).toContain('aria-label="Temporary library recovery"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('Discard tab changes and try again');
+    expect(html).not.toContain('>Discard and try again</button>');
+    expect(onDiscardTemporary).not.toHaveBeenCalled();
+  });
+
   it('adds no wrapper or status when there is nothing to report', () => {
     expect(renderToStaticMarkup(createElement(GlobalBanners, bannerProps()))).toBe('');
   });

@@ -727,6 +727,59 @@ describe('connection lifecycle and local notifications', () => {
     }
   });
 
+  it('retains v2 rows through a blocked open, a blocked retry and a successful in-place reopen', async () => {
+    const blocker = await openForTest(2);
+    blocker.onversionchange = () => {};
+    const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: a, score: 8 });
+    const extras = { recovery: state, account: { untouched: 'synthetic account row' } };
+    await new Promise<void>((resolve, reject) => {
+      const tx = blocker.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(state, STATE_KEY);
+      store.put(extras, 'synthetic-other-rows');
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error);
+    });
+    const readBlocker = () =>
+      new Promise<unknown[]>((resolve, reject) => {
+        const tx = blocker.transaction(STORE_NAME, 'readonly');
+        const read = tx.objectStore(STORE_NAME).getAll();
+        tx.oncomplete = () => resolve(read.result);
+        tx.onabort = () => reject(tx.error);
+      });
+    const original = await readBlocker();
+    try {
+      await expect(loadPersonalLibrary(canonical)).rejects.toMatchObject({ name: 'PersonalLibraryBlockedError' });
+      expect(await readBlocker()).toEqual(original);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const retry = expect(loadPersonalLibrary(canonical)).rejects.toMatchObject({
+        name: 'PersonalLibraryBlockedError',
+      });
+      await vi.advanceTimersByTimeAsync(5_001);
+      await retry;
+      vi.useRealTimers();
+      expect(blocker.version).toBe(2);
+      expect(await readBlocker()).toEqual(original);
+    } finally {
+      vi.useRealTimers();
+      blocker.close();
+    }
+    expect((await loadPersonalLibrary(canonical)).state).toEqual(state);
+    const reopened = await openForTest();
+    try {
+      expect(reopened.version).toBe(DB_VERSION);
+      const rows = await new Promise<unknown[]>((resolve, reject) => {
+        const tx = reopened.transaction(STORE_NAME, 'readonly');
+        const read = tx.objectStore(STORE_NAME).getAll();
+        tx.oncomplete = () => resolve(read.result);
+        tx.onabort = () => reject(tx.error);
+      });
+      expect(rows).toEqual(original);
+    } finally {
+      reopened.close();
+    }
+  });
+
   it('never opens a BroadcastChannel in Node and tolerates failing subscribers', async () => {
     const constructor = vi.fn();
     vi.stubGlobal('BroadcastChannel', constructor);

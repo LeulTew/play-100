@@ -85,7 +85,16 @@ writes. It does not forcibly reload them or migrate unsaved in-memory drafts.
 
 An open connection that ignores `versionchange` blocks the upgrade. The UI
 reports "Close other Play 100 tabs to finish updating this device library, then
-retry. Your saved data has not been changed." Retry after closing the blocker.
+retry. Your saved data has not been changed." Its **Try again** action reopens
+the library without reloading the page or clearing storage. It stays focused
+while pending and after another blocked attempt; successful recovery moves
+focus to the current page heading only if the user has not focused elsewhere.
+Close the blocking tab, then try again. If temporary edits have already been
+made in this tab, retry refuses to replace them: export them in Settings, then
+use **Discard tab changes and try again** and confirm. Only a successful reopen
+discards those explicitly confirmed temporary changes; another blocked attempt
+keeps them. A newer temporary edit requires a fresh confirmation. Previously
+saved data is never cleared, and no copies are silently merged.
 The rejected open aborts if it later reaches the upgrade event, rather than
 silently migrating after its caller has already shown an error. Retain the
 mixed-version writer and blocked/retry browser-test receipts in the release gate.

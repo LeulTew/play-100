@@ -19,6 +19,8 @@ interface Snapshot {
   status: 'loading' | 'ready' | 'temporary';
   warning: string | null;
   error: string | null;
+  canRetry: boolean;
+  discardRequired?: boolean;
 }
 
 function describeError(error: unknown): string {
@@ -31,6 +33,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     status: 'loading',
     warning: null,
     error: null,
+    canRetry: false,
   }));
   const [pending, setPending] = useState(0);
   const current = useRef(snapshot);
@@ -38,6 +41,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
   const records = useRef(canonicalRecords);
   const loadSequence = useRef(0);
   const temporaryEdits = useRef(false);
+  const retryTask = useRef<Promise<boolean> | null>(null);
   const startupLoad = useRef<{ records: LibraryRecord[]; promise: ReturnType<typeof loadPersonalLibrary> } | null>(
     null,
   );
@@ -55,6 +59,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     // snapshot. Cross-tab updates have their own queued refresh below.
     if (current.current.status === 'ready') return;
     if (current.current.status === 'temporary' && temporaryEdits.current) return;
+    if (retryTask.current) return;
     let canceled = false;
     const sequence = ++loadSequence.current;
     const attempt = startupLoad.current ??
@@ -77,7 +82,9 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
         if (canceled || sequence !== loadSequence.current) return;
         // Opening the library re-renders the whole app; as a transition React renders it in slices.
         // current.current is still updated at once, so writes queued meanwhile see the ready state.
-        startTransition(() => publish({ state: result.state, status: 'ready', warning: result.notice, error: null }));
+        startTransition(() =>
+          publish({ state: result.state, status: 'ready', warning: result.notice, error: null, canRetry: false }),
+        );
       })
       .catch((error: unknown) => {
         if (canceled || sequence !== loadSequence.current || canonicalLoading) return;
@@ -94,6 +101,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
           status: 'temporary',
           error: null,
           warning: temporaryLibraryWarning(...details),
+          canRetry: error instanceof Error && error.name === 'PersonalLibraryBlockedError',
         });
       })
       .finally(() => {
@@ -113,7 +121,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
         .then(() => loadPersonalLibrary(records.current))
         .then((result) => {
           if (!canceled && sequence === loadSequence.current)
-            publish({ state: result.state, status: 'ready', warning: result.notice, error: null });
+            publish({ state: result.state, status: 'ready', warning: result.notice, error: null, canRetry: false });
         })
         .catch((error: unknown) => {
           if (!canceled && sequence === loadSequence.current)
@@ -178,12 +186,41 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     [enqueue, publish],
   );
 
+  const retry = useCallback(
+    (discardRevision?: number): Promise<boolean> => {
+      if (retryTask.current) return retryTask.current;
+      const task = enqueue(async () => {
+        if (temporaryEdits.current && discardRevision !== current.current.state.revision) {
+          publish({ ...current.current, discardRequired: true });
+          throw new Error(
+            "This tab has unsaved changes. Export a backup in Settings first, then confirm if you want to discard only this tab's temporary changes and try again. Your saved library has not been changed.",
+          );
+        }
+        const result = await loadPersonalLibrary(records.current).catch((error: unknown) => {
+          const message =
+            error instanceof Error && error.name === 'PersonalLibraryBlockedError'
+              ? (current.current.warning ?? temporaryLibraryWarning(describeError(error)))
+              : temporaryLibraryWarning(describeError(error));
+          throw new Error(message, { cause: error });
+        });
+        temporaryEdits.current = false;
+        publish({ state: result.state, status: 'ready', warning: result.notice, error: null, canRetry: false });
+      });
+      retryTask.current = task;
+      void task.then(() => {
+        if (retryTask.current === task) retryTask.current = null;
+      });
+      return task;
+    },
+    [enqueue, publish],
+  );
+
   const restore = useCallback(
     (state: PersonalLibraryState) =>
       enqueue(async () => {
         const saved = await restorePersonalLibrary(state);
         temporaryEdits.current = false;
-        publish({ state: saved, status: 'ready', warning: null, error: null });
+        publish({ state: saved, status: 'ready', warning: null, error: null, canRetry: false });
       }),
     [enqueue, publish],
   );
@@ -193,7 +230,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
       enqueue(async () => {
         const result = await resetPersonalLibrary();
         temporaryEdits.current = false;
-        publish({ state: result.state, status: 'ready', warning: result.notice, error: null });
+        publish({ state: result.state, status: 'ready', warning: result.notice, error: null, canRetry: false });
       }),
     [enqueue, publish],
   );
@@ -208,5 +245,5 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, [pending]);
 
-  return { ...snapshot, busy: pending > 0 || snapshot.status === 'loading', perform, restore, reset };
+  return { ...snapshot, busy: pending > 0 || snapshot.status === 'loading', perform, restore, reset, retry };
 }
