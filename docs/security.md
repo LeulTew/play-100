@@ -35,7 +35,11 @@ build fingerprint (`entry:<content hash>` from the same-origin entry script).
 No message, stack, full URL, query, IP, user agent or account identifier is
 included or logged. Unknown classes/routes become fixed categories. Missing
 or invalid fingerprints disable sending; development does not send reports.
-The client batches with `sendBeacon` after five seconds or when the page hides,
+An eager shim snapshots only the error class, component area and current
+pathname; the reporter loads on the first fault, reduces that pathname to a
+fixed route template and drains at most 20 queued counts. Error objects,
+messages and stacks are not retained by the import queue. Failed imports are
+not retried. The client batches with `sendBeacon` after five seconds or when the page hides,
 with at most 20 errors and four attempted batches per page, no storage and no
 retry. The endpoint rejects extra fields, caps the JSON body at 8 KiB and each
 batch at 20 counts, and shares the CSP reader's three-second deadline with its

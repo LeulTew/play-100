@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createClientErrorReporter, entryBuildFingerprint, reportClientError } from './client-error-report';
+import { createClientErrorReporter, entryBuildFingerprint } from './client-error-reporter';
+import { reportClientError } from './client-error-report';
 import { clientErrorCounts, reportRouteTemplate } from './client-error-schema';
 
 afterEach(() => {
@@ -14,21 +15,24 @@ function fixture(accepted = true) {
   const warn = vi.fn();
   const reporter = createClientErrorReporter({
     buildVersion,
-    pathname: () => '/u/private-handle',
     sendBeacon,
     warn,
   });
-  return { ...reporter, sendBeacon, warn };
+  return {
+    ...reporter,
+    report: (name: string, area: 'app' | 'route' | 'online' | 'chunk') =>
+      reporter.report(name, area, '/u/private-handle'),
+    sendBeacon,
+    warn,
+  };
 }
 
 describe('anonymous client error counts', () => {
   it('batches only fixed categories, a route template and the entry fingerprint', async () => {
     vi.useFakeTimers();
     const reporter = fixture();
-    const error = new TypeError('private message https://secret.test/?token=secret');
-    error.stack = 'private stack and user ID';
-    reporter.report(error, 'app');
-    reporter.report(error, 'app');
+    reporter.report('TypeError', 'app');
+    reporter.report('TypeError', 'app');
     expect(reporter.sendBeacon).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(5_000);
     expect(reporter.sendBeacon).toHaveBeenCalledOnce();
@@ -43,15 +47,15 @@ describe('anonymous client error counts', () => {
   it('limits a page to 20 errors and four batches without retrying declined or throwing beacons', async () => {
     vi.useFakeTimers();
     const reporter = fixture();
-    for (let i = 0; i < 30; i++) reporter.report(new TypeError(), 'app');
+    for (let i = 0; i < 30; i++) reporter.report('TypeError', 'app');
     reporter.flush();
     expect(JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text()).counts[0].count).toBe(20);
-    reporter.report(new Error(), 'app');
+    reporter.report('Error', 'app');
     reporter.flush();
     expect(reporter.sendBeacon).toHaveBeenCalledOnce();
     const declined = fixture(false);
     for (let i = 0; i < 8; i++) {
-      declined.report(new Error(), 'route');
+      declined.report('Error', 'route');
       declined.flush();
     }
     await vi.runAllTimersAsync();
@@ -61,7 +65,7 @@ describe('anonymous client error counts', () => {
     throwing.sendBeacon.mockImplementation(() => {
       throw new Error('private network error');
     });
-    throwing.report(new Error(), 'online');
+    throwing.report('Error', 'online');
     expect(() => throwing.flush()).not.toThrow();
     await vi.runAllTimersAsync();
     expect(throwing.sendBeacon).toHaveBeenCalledOnce();
@@ -86,11 +90,10 @@ describe('anonymous client error counts', () => {
     const sendBeacon = vi.fn(() => true);
     const reporter = createClientErrorReporter({
       buildVersion: 'private',
-      pathname: () => '/',
       sendBeacon,
       warn: vi.fn(),
     });
-    reporter.report(new Error(), 'app');
+    reporter.report('Error', 'app', '/');
     reporter.flush();
     expect(sendBeacon).not.toHaveBeenCalled();
   });
@@ -118,6 +121,7 @@ describe('anonymous client error counts', () => {
     });
     const { reportClientError: report } = await import('./client-error-report');
     report(new TypeError('private'), 'route');
+    await vi.dynamicImportSettled();
     documentEvents.dispatchEvent(new Event('visibilitychange'));
     windowEvents.dispatchEvent(new Event('pagehide'));
     await vi.runAllTimersAsync();
@@ -158,20 +162,12 @@ describe('anonymous client error counts', () => {
       expect(() => clientErrorCounts(input)).toThrow(/Invalid client error/);
   });
 
-  it('does not let unusual error objects interfere with recovery or leak names', async () => {
+  it('reduces unknown classifications to a fixed value', async () => {
     vi.useFakeTimers();
     const reporter = fixture();
-    const error = new Error('private');
-    error.name = 'visitor-unique-error';
-    reporter.report(error, 'chunk');
+    reporter.report('visitor-unique-error', 'chunk');
     reporter.flush();
     expect(JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text()).counts[0].errorClass).toBe('other');
-    Object.defineProperty(error, 'name', {
-      get: () => {
-        throw new Error('private getter');
-      },
-    });
-    expect(() => reporter.report(error, 'app')).not.toThrow();
-    expect(reporter.warn).toHaveBeenCalledOnce();
+    expect(reporter.warn).not.toHaveBeenCalled();
   });
 });
