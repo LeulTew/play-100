@@ -176,10 +176,10 @@ export function DiscoveryCard({
         <div className="discovery-card-primary">
           <button
             className={`button ${saved ? 'button-outline' : 'button-dark'}`}
-            disabled={busy || saved}
+            aria-disabled={busy || saved || undefined}
             aria-label={`${saved ? 'In My games' : 'Add to My games'}: ${record.title}`}
             onClick={() => {
-              void onAction({ type: 'add-records', records: [actionRecord] });
+              if (!busy && !saved) void onAction({ type: 'add-records', records: [actionRecord] });
             }}
           >
             <Icon name={saved ? 'check' : 'plus'} width="16" height="16" />
@@ -231,11 +231,11 @@ export function DiscoveryCard({
             />
             <button
               className="button button-outline"
-              disabled={busy}
+              aria-disabled={busy || undefined}
               aria-label={`Play later: ${record.title}`}
               aria-pressed={Boolean(progress?.later)}
               onClick={() => {
-                void onAction({ type: 'toggle-progress', record: actionRecord, key: 'later' });
+                if (!busy) void onAction({ type: 'toggle-progress', record: actionRecord, key: 'later' });
               }}
             >
               <Icon name="bookmark" width="16" height="16" fill={progress?.later ? 'currentColor' : 'none'} />
@@ -243,9 +243,9 @@ export function DiscoveryCard({
             </button>
             <button
               className="button button-outline"
-              disabled={busy || Boolean(ranking)}
+              aria-disabled={busy || Boolean(ranking) || undefined}
               onClick={() => {
-                void onAction({ type: 'add-ranking', records: [actionRecord] });
+                if (!busy && !ranking) void onAction({ type: 'add-ranking', records: [actionRecord] });
               }}
             >
               <Icon name="rank" width="16" height="16" />

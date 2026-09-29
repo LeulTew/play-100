@@ -13,6 +13,7 @@ import {
 import type { AccountWriter } from '../lib/scoped-library';
 import { subscribePersonalLibrary } from '../lib/personal-db';
 import type { MotionPreference } from '../lib/types';
+import type { ActionFeedback } from '../lib/action-message';
 
 class AccountOpening {
   writer: AccountWriter | null = null;
@@ -133,8 +134,8 @@ export function useAccountLibrary(
   );
   const retired = Boolean(failure?.lifetime === lifetime && failure.retired);
   const perform = useCallback(
-    (action: PersonalAction) =>
-      enqueue(() => (writer && !retired ? commitScopedAction(writer, action) : unavailableAccount())),
+    (action: PersonalAction, feedback?: ActionFeedback) =>
+      enqueue(() => (writer && !retired ? commitScopedAction(writer, action, feedback) : unavailableAccount())),
     [writer, retired, enqueue],
   );
   const restore = useCallback(

@@ -55,6 +55,7 @@ export function RankingRow({
   const note = draftNote ?? entry.note;
   const noteEdited = draftNote !== null;
   const [noteError, setNoteError] = useState('');
+  const [releasedPosition, setReleasedPosition] = useState(false);
   const noteSaving = useRef<Promise<boolean> | null>(null);
   const noteEdits = useRef(0);
   const committedNote = useRef(-1);
@@ -154,14 +155,19 @@ export function RankingRow({
       <button className="icon-button" aria-label={`Remove ${record.title} from my ranking`} onClick={onRemove}>
         <Icon name="close" width="18" height="18" />
       </button>
-      {entry.manualPosition !== null && (
+      {(entry.manualPosition !== null || releasedPosition) && (
         <div className="manual-rank">
-          <span>Fixed at #{entry.manualPosition}</span>
+          <span>{entry.manualPosition !== null ? `Fixed at #${entry.manualPosition}` : 'Follows your rating'}</span>
           <button
             className="text-button"
-            disabled={busy}
+            aria-disabled={busy || entry.manualPosition === null || undefined}
             aria-label={`Use rating order for ${record.title}`}
-            onClick={onUseRatingOrder}
+            onClick={() => {
+              if (!busy && entry.manualPosition !== null) {
+                setReleasedPosition(true);
+                onUseRatingOrder();
+              }
+            }}
           >
             Use rating order
             <Icon name="rank" width="16" height="16" />
@@ -189,10 +195,12 @@ export function RankingRow({
           rows={3}
           maxLength={2000}
           value={note}
-          disabled={busy}
+          readOnly={busy}
+          aria-disabled={busy || undefined}
           aria-invalid={Boolean(noteError)}
           aria-describedby={noteError ? `note-error-${entry.id}` : undefined}
           onChange={(event) => {
+            if (busy) return;
             noteEdits.current += 1;
             setNoteError('');
             setDraftNote(event.target.value);
@@ -258,6 +266,7 @@ function RankingPosition({
       <form
         onSubmit={(event) => {
           event.preventDefault();
+          if (disabled || applying.current) return;
           const next = Number(draft);
           if (!Number.isInteger(next) || next < 1 || next > total) {
             setError(`Choose a position from 1 to ${total}.`);
@@ -284,14 +293,16 @@ function RankingPosition({
             placeholder={String(position)}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? errorId : undefined}
-            disabled={disabled}
+            readOnly={disabled}
+            aria-disabled={disabled || undefined}
             onChange={(event) => {
+              if (disabled) return;
               setDraft(event.target.value);
               setError('');
             }}
           />
         </label>
-        <button className="button button-outline" type="submit" disabled={disabled}>
+        <button className="button button-outline" type="submit" aria-disabled={disabled || undefined}>
           Move
         </button>
         {error && (

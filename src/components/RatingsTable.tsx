@@ -277,11 +277,13 @@ export default function RatingsTable({
                       />
                       <button
                         className="icon-button"
-                        disabled={busy}
+                        aria-disabled={busy || undefined}
                         aria-pressed={Boolean(progress[game.slug]?.later)}
                         aria-label={`Play later: ${game.title}`}
                         title="Play later"
-                        onClick={() => onToggle(game.slug, 'later')}
+                        onClick={() => {
+                          if (!busy) onToggle(game.slug, 'later');
+                        }}
                       >
                         <Icon
                           name="bookmark"

@@ -297,7 +297,7 @@ export function FriendDetailPage({
             <span>They'll see {identity.displayName}.</span>
           </div>
           <p>
-            Accepted friends see the games and rankings allowed by your sharing mode. Notes, email, queue and play
+            Accepted friends see the games and rankings allowed by your sharing mode. Notes, email, Play later and play
             history stay private.
           </p>
           <div className="button-row">

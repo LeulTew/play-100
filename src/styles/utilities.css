@@ -843,7 +843,7 @@ html[data-motion='off']
     color: FieldText;
   }
   button:disabled,
-  :where(.game-card, .discovery-card) button[aria-disabled='true'] {
+  button[aria-disabled='true'] {
     color: GrayText;
     opacity: 1;
   }

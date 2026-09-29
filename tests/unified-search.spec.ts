@@ -114,7 +114,7 @@ test('bulk actions span original and external search matches and private filters
   await canonical.check();
   await external.check();
   await expect(page.locator('.selection-summary')).toContainText('2 selected');
-  await page.getByRole('button', { name: 'Add to play later', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual(['mass-effect-2', a.id]);
   await canonical.check();
   await external.check();

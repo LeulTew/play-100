@@ -88,7 +88,7 @@ test('bulk selection updates queue, completion and own ranking without changing 
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
   await expect(page.locator('.card-selection input:checked')).toHaveCount(3);
-  await page.getByRole('button', { name: 'Add to play later', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder.length).toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
   await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
@@ -273,7 +273,7 @@ test('backup export and validated replacement restore queue and private rankings
   await page
     .getByLabel('Import personal library backup file')
     .setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: bytes });
-  await expect(page.locator('.restore-preview')).toContainText('3 games, 3 queued, 1 ranked');
+  await expect(page.locator('.restore-preview')).toContainText('3 games, 3 in Play later, 1 ranked');
   await expect(resetStatus).toHaveCount(0);
   await page.getByRole('button', { name: 'Replace with this backup', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([first, second, third]);

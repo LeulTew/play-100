@@ -252,7 +252,7 @@ export function FriendSharingPage({
         >
           <h2 id="friend-sharing-title">Share with friends?</h2>
           <p>
-            Accepted friends can view and copy these games and scores. Notes, email, queue and play history are
+            Accepted friends can view and copy these games and scores. Notes, email, Play later and play history are
             excluded. Later edits update only these selected games.
           </p>
           <ol className="publication-preview-list">

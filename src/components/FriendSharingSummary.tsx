@@ -95,7 +95,7 @@ export function FriendSharingSummary({
         )}
       </div>
       <p className="section-help">
-        Accepted friends only. Notes, email, queue and play history stay private. Public sharing is separate.
+        Accepted friends only. Notes, email, Play later and play history stay private. Public sharing is separate.
       </p>
       {progress}
       {alertText && (

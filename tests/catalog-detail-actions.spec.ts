@@ -244,7 +244,7 @@ const mutationCases: {
     after: 'Play later',
     key: 'Space',
     action: { type: 'toggle-progress', record, key: 'later' },
-    message: 'Play later updated.',
+    message: `${record.title} added to Play later.`,
   },
   {
     name: 'completion',
@@ -252,7 +252,7 @@ const mutationCases: {
     after: 'Completed',
     key: 'Space',
     action: { type: 'set-progress', records: [record], key: 'completed', value: true },
-    message: '1 game updated in your play history.',
+    message: `${record.title} marked completed.`,
   },
   {
     name: 'ranking add',

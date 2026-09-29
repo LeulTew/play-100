@@ -36,7 +36,7 @@ export function CompareDragHandle({ record, compact = false }: { record: Library
         if (!event.defaultPrevented && !source.consumeClick(event) && (!controller || controller.canPin())) pin(record);
       }}
     >
-      <Icon name={coarsePointer ? 'stack' : 'grip'} width="18" height="18" />
+      <Icon name="stack" width="18" height="18" />
       {!compact && (coarsePointer ? 'Pin to tray' : 'Drag to tray')}
     </button>
   );

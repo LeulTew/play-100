@@ -177,18 +177,22 @@ export function GameDetail({
             <div className="detail-actions">
               <button
                 className={`button ${state?.later ? 'button-lime' : 'button-dark'}`}
-                disabled={busy}
+                aria-disabled={busy || undefined}
                 aria-pressed={Boolean(state?.later)}
-                onClick={() => onToggle(game.slug, 'later')}
+                onClick={() => {
+                  if (!busy) onToggle(game.slug, 'later');
+                }}
               >
                 <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />
                 Play later
               </button>
               <button
                 className={`button ${state?.completed ? 'button-lime' : 'button-outline'}`}
-                disabled={busy}
+                aria-disabled={busy || undefined}
                 aria-pressed={Boolean(state?.completed)}
-                onClick={() => onToggle(game.slug, 'completed', !state?.completed)}
+                onClick={() => {
+                  if (!busy) onToggle(game.slug, 'completed', !state?.completed);
+                }}
               >
                 <Icon name={state?.completed ? 'check' : 'plus'} />
                 Completed
@@ -216,7 +220,13 @@ export function GameDetail({
                 onChange={onPlayed}
               />
             )}
-            <button className="text-button" disabled={busy && !rankingPosition} onClick={onRank}>
+            <button
+              className="text-button"
+              aria-disabled={(busy && !rankingPosition) || undefined}
+              onClick={() => {
+                if (!busy || rankingPosition) onRank();
+              }}
+            >
               <Icon name="rank" width="18" height="18" />
               {rankingPosition ? `Your rank: #${rankingPosition}` : 'Add to my ranking'}
             </button>

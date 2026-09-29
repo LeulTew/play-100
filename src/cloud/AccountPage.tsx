@@ -384,7 +384,7 @@ export function AccountPage(props: AccountPageProps) {
                 </p>
                 <p className="section-help">
                   New setups share saved games and rankings with accepted friends. Existing sharing choices stay
-                  unchanged; notes, queue and history stay private.
+                  unchanged; notes, Play later and history stay private.
                 </p>
                 <button
                   className="button button-dark"
@@ -398,8 +398,8 @@ export function AccountPage(props: AccountPageProps) {
             ) : (
               <>
                 <p className="account-counts">
-                  {localGames} {localGames === 1 ? 'game' : 'games'} · {cache?.state.queueOrder.length ?? 0} queued ·{' '}
-                  {cache?.state.ranking.length ?? 0} ranked
+                  {localGames} {localGames === 1 ? 'game' : 'games'} · {cache?.state.queueOrder.length ?? 0} in Play
+                  later · {cache?.state.ranking.length ?? 0} ranked
                 </p>
                 {cache?.sync.lastSyncedAt && (
                   <p className="account-smallprint">

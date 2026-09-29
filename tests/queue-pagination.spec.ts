@@ -332,7 +332,7 @@ test('Queue removal preserves every non-queue field, while Library removal still
   await expect.poll(() => readLibrary(page)).toEqual(expected);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(row(page, 2)).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('1 game removed from Play later.');
+  await expect(page.locator('.toast')).toContainText(`${record.title} removed from Play later.`);
   const removedFromQueue = await readLibrary(page);
   expect(removedFromQueue.records).toEqual(before.records);
   expect(removedFromQueue.ranking).toEqual(before.ranking);

@@ -148,8 +148,10 @@ export const GameCard = memo(function GameCard({
         aria-pressed={Boolean(state?.later)}
         aria-label={`Play later: ${game.title}`}
         title="Play later"
-        disabled={busy}
-        onClick={() => onSave(game.slug)}
+        aria-disabled={busy || undefined}
+        onClick={() => {
+          if (!busy) onSave(game.slug);
+        }}
       >
         <Icon name="bookmark" fill={state?.later ? 'currentColor' : 'none'} />
       </button>

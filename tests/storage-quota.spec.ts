@@ -112,7 +112,7 @@ async function selectBackup(settings: Locator, buffer: Buffer) {
     mimeType: 'application/json',
     buffer,
   });
-  await expect(settings.locator('.restore-preview')).toContainText('2000 games, 0 queued, 2000 ranked.');
+  await expect(settings.locator('.restore-preview')).toContainText('2000 games, 0 in Play later, 2000 ranked.');
 }
 
 async function readyMarkers(page: Page): Promise<string[]> {

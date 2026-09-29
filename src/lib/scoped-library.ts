@@ -11,6 +11,8 @@ import { recordFriendRemovals } from './friend-selection-cache';
 import { recordFriendShelfRemovals } from './friend-shelf-selection-cache';
 import { friendShelfSelectionKey } from './friend-shelf-selection';
 import { motionHintKey, rememberMotionHint } from './motion-hint';
+import { actionMessage } from './action-message';
+import type { ActionFeedback } from './action-message';
 
 function conflict(message: string): Error {
   const error = new Error(message);
@@ -308,11 +310,17 @@ export async function openScopedLibrary(
   return opened;
 }
 
-export function commitScopedAction(target: AccountTarget, action: PersonalAction): Promise<ScopedLibrary> {
+export async function commitScopedAction(
+  target: AccountTarget,
+  action: PersonalAction,
+  feedback?: ActionFeedback,
+): Promise<ScopedLibrary> {
   const { scope } = targetWriter(target);
-  return writeScopedUpdate(target, (value) => {
+  let message: string | undefined;
+  const saved = await writeScopedUpdate(target, (value) => {
     const current = value === undefined ? initial(scope) : parseScopedEnvelope(value, scope);
     const state = applyPersonalAction(current.state, action);
+    if (feedback) message = actionMessage(action, current.state as PersonalLibraryState, state);
     const sync = parseSyncMetadata({
       ...current.sync,
       dirty: action.type === 'set-motion' ? current.sync.dirty : true,
@@ -323,6 +331,8 @@ export function commitScopedAction(target: AccountTarget, action: PersonalAction
     const previous = current.state as RemovalState;
     return { previous, next: { ...current, state, sync } };
   });
+  if (feedback) feedback.message = message;
+  return saved;
 }
 
 export function restoreScopedLibrary(

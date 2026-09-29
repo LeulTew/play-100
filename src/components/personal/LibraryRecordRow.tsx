@@ -94,12 +94,12 @@ export function LibraryRecordRow({
             {tab !== 'later' && (
               <button
                 className="icon-button"
-                disabled={busy}
+                aria-disabled={busy || undefined}
                 aria-pressed={Boolean(state.progress[record.id]?.later)}
                 aria-label={`Play later: ${record.title}`}
                 title="Play later"
                 onClick={() => {
-                  void onAction({ type: 'toggle-progress', record, key: 'later' });
+                  if (!busy) void onAction({ type: 'toggle-progress', record, key: 'later' });
                 }}
               >
                 <Icon
@@ -113,10 +113,10 @@ export function LibraryRecordRow({
             <span className="record-tail">
               <button
                 className="text-button"
-                disabled={busy || ranked}
+                aria-disabled={busy || ranked || undefined}
                 aria-label={`Add ${record.title} to my ranking`}
                 onClick={() => {
-                  void onAction({ type: 'add-ranking', records: [record] });
+                  if (!busy && !ranked) void onAction({ type: 'add-ranking', records: [record] });
                 }}
               >
                 <Icon name="rank" width="20" height="20" />

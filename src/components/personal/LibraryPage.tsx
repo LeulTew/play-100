@@ -154,7 +154,7 @@ export default function LibraryPage(props: LibraryPageProps) {
             <input
               id="library-search"
               type="search"
-              placeholder={tab === 'later' ? 'Find a game in Play later...' : 'Find a game in your library...'}
+              placeholder={tab === 'later' ? 'Search Play later…' : 'Search your library…'}
               value={query}
               maxLength={160}
               onChange={(event) => setQuery(event.target.value)}

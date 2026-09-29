@@ -596,9 +596,9 @@ describe('single reducer validation boundary', () => {
 describe('restore preview counts', () => {
   it('names one saved game in the singular and every other count unchanged', () => {
     const one = apply(emptyPersonalLibrary(), { type: 'set-progress', records: [a], key: 'later', value: true });
-    expect(describeLibraryBackup(one)).toBe('1 game, 1 queued, 0 ranked.');
-    expect(describeLibraryBackup(fixture())).toBe('3 games, 2 queued, 1 ranked.');
-    expect(describeLibraryBackup(emptyPersonalLibrary())).toBe('0 games, 0 queued, 0 ranked.');
+    expect(describeLibraryBackup(one)).toBe('1 game, 1 in Play later, 0 ranked.');
+    expect(describeLibraryBackup(fixture())).toBe('3 games, 2 in Play later, 1 ranked.');
+    expect(describeLibraryBackup(emptyPersonalLibrary())).toBe('0 games, 0 in Play later, 0 ranked.');
   });
 });
 

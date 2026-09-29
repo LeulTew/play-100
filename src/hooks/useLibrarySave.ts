@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { actionMessage } from '../lib/action-message';
+import type { ActionFeedback } from '../lib/action-message';
 import type { LibraryController } from '../lib/library-controller';
 import type { PersonalAction } from '../lib/personal-types';
 
@@ -27,10 +28,11 @@ export function useLibrarySave({
         notify('Wait for the account library to finish opening before changing saved data.');
         return false;
       }
-      const success = await perform(action);
+      const feedback: ActionFeedback = {};
+      const success = await perform(action, feedback);
       if (success && activeScope.current === scope && announce)
         notify(
-          `${actionMessage(action)}${status === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`,
+          `${feedback.message ?? actionMessage(action)}${status === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`,
         );
       return success;
     },

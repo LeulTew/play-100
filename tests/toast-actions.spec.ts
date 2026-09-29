@@ -20,7 +20,7 @@ test('a visible success toast passes a rapid second card action through while it
   const pin = page.getByRole('button', { name: /^(Pin for|Unpin from) comparison: Mass Effect 2$/ });
   await completed.click();
   const toast = page.locator('.toast-visible');
-  await expect(toast).toContainText('1 game updated in your play history.');
+  await expect(toast).toContainText('Red Dead Redemption 2 marked completed.');
   await expect(toast).toHaveAttribute('role', 'status');
   await expect(toast).toHaveAttribute('aria-live', 'polite');
   await expect(toast).toHaveAttribute('aria-atomic', 'true');

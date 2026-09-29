@@ -1,5 +1,6 @@
 import type { PersonalAction, PersonalLibraryState } from './personal-types';
 import type { LibraryScope } from './cloud-types';
+import type { ActionFeedback } from './action-message';
 
 export interface LibraryController {
   state: PersonalLibraryState;
@@ -7,7 +8,7 @@ export interface LibraryController {
   warning: string | null;
   error: string | null;
   busy: boolean;
-  perform: (action: PersonalAction) => Promise<boolean>;
+  perform: (action: PersonalAction, feedback?: ActionFeedback) => Promise<boolean>;
   restore: (state: PersonalLibraryState) => Promise<boolean>;
   reset: () => Promise<boolean>;
 }

@@ -11,6 +11,8 @@ import { STORAGE_KEY } from '../lib/storage';
 import { takeGuestLibraryLoad } from '../lib/guest-library-startup';
 import { temporaryLibraryWarning } from '../lib/storage-notices';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
+import { actionMessage } from '../lib/action-message';
+import type { ActionFeedback } from '../lib/action-message';
 
 interface Snapshot {
   state: PersonalLibraryState;
@@ -159,7 +161,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
   );
 
   const perform = useCallback(
-    (action: PersonalAction) =>
+    (action: PersonalAction, feedback?: ActionFeedback) =>
       enqueue(async () => {
         const previous = current.current;
         if (previous.status === 'loading')
@@ -167,7 +169,9 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
         const state =
           previous.status === 'temporary'
             ? applyPersonalAction(previous.state, action)
-            : await commitPersonalAction(action);
+            : await commitPersonalAction(action, feedback);
+        if (previous.status === 'temporary' && feedback)
+          feedback.message = actionMessage(action, previous.state, state);
         if (previous.status === 'temporary') temporaryEdits.current = true;
         publish({ ...previous, state, error: null });
       }),

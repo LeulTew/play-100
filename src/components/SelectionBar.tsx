@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Icon } from './Icon';
 
 import type { SelectionAction } from '../lib/game-progress';
@@ -30,11 +31,28 @@ export function SelectionBar({
   selectAllLabel,
   selectionHelp,
 }: SelectionBarProps) {
+  const section = useRef<HTMLElement>(null);
+  const selectAll = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (!count && section.current?.querySelector('.selection-actions')?.contains(document.activeElement)) {
+      selectAll.current?.focus({ preventScroll: true });
+    }
+  }, [count]);
+  const act = (action: SelectionAction) => {
+    if (count && !busy) onAction(action);
+  };
   return (
-    <section className="selection-bar" aria-label="Bulk game actions">
+    <section ref={section} className="selection-bar" aria-label="Bulk game actions">
       <div className="selection-summary">
         <strong role="status">{count} selected</strong>
-        <button className="text-button" onClick={count === total ? onClear : onSelectAll} disabled={busy || !total}>
+        <button
+          ref={selectAll}
+          className="text-button"
+          onClick={() => {
+            if (!busy && total) (count === total ? onClear : onSelectAll)();
+          }}
+          aria-disabled={busy || !total || undefined}
+        >
           {count === total ? 'Clear selection' : (selectAllLabel ?? `Select all ${total} in this view`)}
         </button>
         <button className="text-button selection-done" onClick={onDone}>
@@ -43,31 +61,57 @@ export function SelectionBar({
         </button>
       </div>
       <div className="selection-actions">
-        <button className="button button-dark" disabled={!count || busy} onClick={() => onAction('later')}>
+        <button className="button button-dark" aria-disabled={!count || busy || undefined} onClick={() => act('later')}>
           <Icon name="bookmark" width="18" height="18" />
-          Add to play later
+          Add to Play later
         </button>
-        <button className="button button-outline" disabled={!count || busy} onClick={() => onAction('played')}>
+        <button
+          className="button button-outline"
+          aria-disabled={!count || busy || undefined}
+          onClick={() => act('played')}
+        >
           Mark played
         </button>
-        <button className="button button-outline" disabled={!count || busy} onClick={() => onAction('completed')}>
+        <button
+          className="button button-outline"
+          aria-disabled={!count || busy || undefined}
+          onClick={() => act('completed')}
+        >
           <Icon name="check" width="18" height="18" />
           Mark completed
         </button>
-        <button className="button button-outline" disabled={!count || busy} onClick={() => onAction('ranking')}>
+        <button
+          className="button button-outline"
+          aria-disabled={!count || busy || undefined}
+          onClick={() => act('ranking')}
+        >
           <Icon name="rank" width="18" height="18" />
           Add to my ranking
         </button>
         {context === 'library' && (
           <>
-            <button className="text-button" disabled={!count || busy} onClick={() => onAction('remove-later')}>
+            <button
+              className="text-button"
+              aria-disabled={!count || busy || undefined}
+              onClick={() => act('remove-later')}
+            >
               Remove from Play later
             </button>
-            <button className="text-button" disabled={!count || busy} onClick={() => onAction('uncomplete')}>
+            <button
+              className="text-button"
+              aria-disabled={!count || busy || undefined}
+              onClick={() => act('uncomplete')}
+            >
               Unmark completed
             </button>
             {onRemove && (
-              <button className="text-button remove-library-action" disabled={!count || busy} onClick={onRemove}>
+              <button
+                className="text-button remove-library-action"
+                aria-disabled={!count || busy || undefined}
+                onClick={() => {
+                  if (count && !busy) onRemove();
+                }}
+              >
                 <Icon name="trash" width="17" height="17" />
                 Remove from my library
               </button>

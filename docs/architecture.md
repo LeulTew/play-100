@@ -98,6 +98,17 @@ Mobile rows group Rank and delete with the move controls and omit the redundant
 progress summary; Played and Completed remain individually labeled controls.
 Compact comparison buttons expose **Pin** on coarse pointers.
 
+Frequent card, detail, table and personal-row actions keep native focus during
+pending writes with guarded `aria-disabled`. Ranking notes and position inputs
+become read-only rather than disabled; clearing a bulk selection moves focus to
+Select all. A row's tray handle uses the stack symbol, distinct from its reorder
+grip. The rating-order action stays mounted after releasing its fixed position.
+Action notices use optional, non-persisted transaction feedback: guest and account
+commits compare the reducer-validated previous state to the result before writing
+the receipt after commit. Counts exclude duplicate IDs and already-set values,
+and single progress notices name the game and direction. Failed writes never
+populate a success receipt; existing boolean controller results remain unchanged.
+
 The personal page bodies delegate paging and guarded commands to
 [useLibraryPage](../src/components/personal/useLibraryPage.ts) and
 [useRankingsPage](../src/components/personal/useRankingsPage.ts). Record and ranking

@@ -239,16 +239,16 @@ export function parsePersonalLibrary(value: unknown): PersonalLibraryState {
     result.progress[id] = progress(value);
   }
   const queued = new Set<string>();
-  result.queueOrder = list(input.queueOrder, 'The play queue').map((value) => {
+  result.queueOrder = list(input.queueOrder, 'Play later').map((value) => {
     const id = safeId(value);
     if (queued.has(id) || !result.records[id] || !result.progress[id]?.later) {
-      return invalid('the play queue has a duplicate, missing, or non-queued game.');
+      return invalid('Play later has a duplicate, missing, or unselected game.');
     }
     queued.add(id);
     return id;
   });
   if (Object.entries(result.progress).some(([id, value]) => value.later && !queued.has(id))) {
-    return invalid('the play queue is missing a Play later game.');
+    return invalid('Play later is missing a selected game.');
   }
   const ranked = new Set<string>();
   const positions = new Set<number>();
@@ -599,7 +599,7 @@ export function readLibraryBackup(text: string, budget = MAX_LIBRARY_BACKUP_BYTE
 /** The restore preview's counts, with one saved game in the singular. */
 export function describeLibraryBackup(state: Pick<PersonalLibraryState, 'records' | 'queueOrder' | 'ranking'>): string {
   const games = Object.keys(state.records).length;
-  return `${games} ${games === 1 ? 'game' : 'games'}, ${state.queueOrder.length} queued, ${state.ranking.length} ranked.`;
+  return `${games} ${games === 1 ? 'game' : 'games'}, ${state.queueOrder.length} in Play later, ${state.ranking.length} ranked.`;
 }
 
 export function parseLibraryBackup(value: unknown): PersonalLibraryState {

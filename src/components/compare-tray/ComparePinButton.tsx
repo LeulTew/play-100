@@ -21,11 +21,12 @@ export function ComparePinButton({
     <button
       type="button"
       className={compact ? (coarsePointer ? 'text-button' : 'icon-button') : 'button button-outline'}
-      disabled={disabled}
+      aria-disabled={disabled || undefined}
       aria-pressed={pinned}
       aria-label={`${label}: ${record.title}`}
       title={compact ? label : undefined}
       onClick={() => {
+        if (disabled) return;
         if (pinned) unpin(record.id);
         else pin(record);
       }}

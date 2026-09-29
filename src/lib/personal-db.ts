@@ -9,6 +9,8 @@ import type { LibraryScope } from './cloud-types';
 import { STORAGE_KEY } from './storage';
 import { rememberMotionHint } from './motion-hint';
 import { STORAGE_DENIED_MESSAGE } from './storage-notices';
+import { actionMessage } from './action-message';
+import type { ActionFeedback } from './action-message';
 
 export const DB_NAME = 'play100-personal';
 // Version 3 fences clients whose writers do not understand account retirement.
@@ -318,7 +320,11 @@ export async function loadPersonalLibrary(canonicalRecords: LibraryRecord[]): Pr
   return { state: result.state, notice: legacyNotice, migrated: result.legacy !== null || result.upgraded };
 }
 
-export async function commitPersonalAction(action: PersonalAction): Promise<PersonalLibraryState> {
+export async function commitPersonalAction(
+  action: PersonalAction,
+  feedback?: ActionFeedback,
+): Promise<PersonalLibraryState> {
+  let message: string | undefined;
   const state = await transaction((current, store) => {
     if (current === undefined) {
       throw namedError(
@@ -327,9 +333,12 @@ export async function commitPersonalAction(action: PersonalAction): Promise<Pers
       );
     }
     const updated = applyPersonalAction(current, action);
+    // The reducer has validated the input and does not mutate it.
+    if (feedback) message = actionMessage(action, current as PersonalLibraryState, updated);
     store.put(updated, STATE_KEY);
     return updated;
   });
+  if (feedback) feedback.message = message;
   rememberMotionHint('guest', state.motion);
   publishLibraryChange();
   return state;
