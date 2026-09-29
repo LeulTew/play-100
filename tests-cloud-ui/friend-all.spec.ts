@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { createAccount, emailFor, enableSync, password, readAccount, signIn, uidFor, verifyEmail } from './helpers';
+import {
+  createAccount,
+  emailFor,
+  enableSync,
+  keepResourceTimings,
+  password,
+  readAccount,
+  signIn,
+  uidFor,
+  verifyEmail,
+} from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
@@ -31,6 +41,7 @@ async function sdk(page: Page, action: 'controls' | 'heads' | 'legacy-off' | 'ol
     return store.controls(uid);
   }, action);
 }
+test.beforeEach(({ context }) => keepResourceTimings(context));
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
@@ -236,6 +247,7 @@ test('friends read paginated All data, compare exact tray games, receive score u
     hasTouch: isMobile,
     reducedMotion: 'reduce',
   });
+  await keepResourceTimings(context);
   try {
     const friend = await context.newPage();
     const friendEmail = emailFor('all-viewer');

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { createAccount, emailFor } from './helpers';
+import { createAccount, emailFor, keepResourceTimings } from './helpers';
 
 type LifetimeKey = 'scope' | 'enabled' | 'epoch' | 'verified' | 'initialProbe' | 'authGeneration';
 declare global {
@@ -169,6 +169,8 @@ async function mountSync(page: Page) {
   });
   await expect.poll(() => page.evaluate(() => window.syncReliability?.inspect().restores)).toBe(1);
 }
+
+test.beforeEach(({ context }) => keepResourceTimings(context));
 
 test('sync lifetime retains ordinary edits and invalidates delayed work at every ownership or consent boundary', async ({
   page,

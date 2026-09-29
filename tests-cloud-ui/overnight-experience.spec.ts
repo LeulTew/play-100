@@ -12,6 +12,7 @@ import {
   stopAutomaticSharing,
   uidFor,
   verifyEmail,
+  keepResourceTimings,
 } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 import { openBrowsingFilters } from '../tests/browsing-helpers';
@@ -30,6 +31,7 @@ declare global {
     shelfReadGate?: { calls: number; fail: () => void };
   }
 }
+test.beforeEach(({ context }) => keepResourceTimings(context));
 test.beforeEach(async ({ page }) => {
   page.setDefaultTimeout(20000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -185,6 +187,7 @@ test('restricted storage and a failed online fallback never hide valid seeded ma
     hasTouch: isMobile,
     reducedMotion: 'reduce',
   });
+  await keepResourceTimings(restricted);
   try {
     await restricted.addInitScript(() => {
       Object.defineProperty(window, 'localStorage', {

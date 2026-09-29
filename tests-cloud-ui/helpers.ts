@@ -1,11 +1,19 @@
 import { expect } from '@playwright/test';
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
 import type { ScopedLibrary } from '../src/lib/cloud-types';
 import { readLibrary } from '../tests/library-helpers';
 
 export const password = 'Local-emulator-passphrase-8426';
 export const authOrigin = 'http://127.0.0.1:9199';
 export const firestoreOrigin = 'http://127.0.0.1:8188';
+/**
+ * Keeps every resource timing entry in the context's pages. A test that patches a module the app loaded finds its exact
+ * URL there. Chrome keeps 250 entries by default, fewer than the development server's module requests on an online
+ * page, so a module loaded after the 250th request had no entry.
+ */
+export function keepResourceTimings(context: BrowserContext) {
+  return context.addInitScript(() => performance.setResourceTimingBufferSize(10_000));
+}
 export function emailFor(prefix = 'qa') {
   return `${prefix}-${crypto.randomUUID()}@play100.test`;
 }

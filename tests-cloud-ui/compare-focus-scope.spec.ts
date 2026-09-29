@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { authOrigin, emailFor, password } from './helpers';
+import { authOrigin, emailFor, keepResourceTimings, password } from './helpers';
 import { installGuestLibrary, libraryFixture } from '../tests/library-pagination-helpers';
 import { readLibrary } from '../tests/library-helpers';
+
+test.beforeEach(({ context }) => keepResourceTimings(context));
 
 test('a real emulator identity transition invalidates the guest Compare focus origin without losing guest pins', async ({
   page,

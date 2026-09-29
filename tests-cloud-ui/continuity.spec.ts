@@ -9,9 +9,11 @@ import {
   signIn,
   uidFor,
   verifyEmail,
+  keepResourceTimings,
 } from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 
+test.beforeEach(({ context }) => keepResourceTimings(context));
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });

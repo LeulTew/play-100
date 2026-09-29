@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { createAccount, emailFor, enableSync, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, keepResourceTimings, verifyEmail } from './helpers';
 
 declare global {
   interface Window {
@@ -33,6 +33,7 @@ async function holdAutomaticSharingDefault(page: Page) {
     };
   });
 }
+test.beforeEach(({ context }) => keepResourceTimings(context));
 test.beforeEach(async ({ page, request }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const email = emailFor('invite-feedback');

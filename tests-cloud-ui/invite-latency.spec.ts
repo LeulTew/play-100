@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, enableSync, verifyEmail } from './helpers';
+import { createAccount, emailFor, enableSync, keepResourceTimings, verifyEmail } from './helpers';
 
 interface InviteTiming {
   start: number;
@@ -14,6 +14,8 @@ declare global {
     inviteTiming?: InviteTiming;
   }
 }
+
+test.beforeEach(({ context }) => keepResourceTimings(context));
 
 test('measures first and warm invitation feedback and confirmed links with a 300ms request delay', async ({
   page,
