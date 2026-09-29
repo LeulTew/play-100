@@ -34,7 +34,7 @@ import { useLibrarySave } from './hooks/useLibrarySave';
 import { enableOnlineDetails, enterAccount, startComparison } from './lib/app-commands';
 import type { AccountInvocation } from './lib/app-commands';
 import { sameFields, useEquivalentValue } from './hooks/useEquivalentValue';
-import { useStableHandler, useStableHandlers } from './hooks/useLatest';
+import { useBoundHandlers, useStableHandler, useStableHandlers } from './hooks/useLatest';
 import { useNoticeStore } from './hooks/useNotice';
 import { useGuardedNavigation } from './hooks/useGuardedNavigation';
 import { useCompareContinuation, useCompareSignIn } from './hooks/useCompareSignIn';
@@ -48,6 +48,8 @@ type CollectionState = ReturnType<typeof useCollection>;
 const sameCollection = (held: CollectionState, next: CollectionState) =>
   held.status === next.status && held.data === next.data && held.error === next.error;
 const sameFilters = (held: Filters, next: Filters) => JSON.stringify(held) === JSON.stringify(next);
+
+type LibraryCommand = 'perform' | 'performDetailAction' | 'toggle' | 'rankSelected' | 'resetLibrary' | 'restoreLibrary';
 
 export default function App() {
   const invitation = useInvitation();
@@ -154,7 +156,7 @@ export default function App() {
       },
       invocation,
     );
-  const handlers = useStableHandlers<Omit<AppCommands, 'perform'>>({
+  const handlers = useStableHandlers<Omit<AppCommands, LibraryCommand>>({
     navigate,
     navigateLink: (event, next, patch = {}, commit = () => navigate(next, patch)) => {
       if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
@@ -179,21 +181,6 @@ export default function App() {
     share: (title, link, privateFilter) => {
       void share(title, link, privateFilter);
     },
-    toggle: (id, key, value) => {
-      const target = allRecords.get(id);
-      const record = target && catalogActionRecord(target, ownership);
-      if (record)
-        void perform(
-          value === undefined
-            ? { type: 'toggle-progress', record, key }
-            : { type: 'set-progress', records: [record], key, value },
-        );
-    },
-    rankSelected: () => {
-      if (!selectedPersonalRecord) return;
-      if (rankingPosition) void guarded.guard(() => navigate('rankings'));
-      else void perform({ type: 'add-ranking', records: [selectedPersonalRecord] });
-    },
     compareGames: (records: LibraryRecord[]) =>
       startComparison(
         {
@@ -213,7 +200,6 @@ export default function App() {
         },
         records,
       ),
-    performDetailAction: detail.performDetailAction,
     enablePublicDetails: () => enableOnlineDetails({ captureFocusGuard, notify }),
     applyPwaUpdate: () => pwa.applyUpdate(captureSettingsUpdateGuard()),
     setPanel,
@@ -242,11 +228,35 @@ export default function App() {
     onCompareSignIn: signIn.holdComparison,
     setCompareTrayVisible,
     pinAllowed: () => !onlineOpening && activeScope.current === libraryScope,
-    resetLibrary: () => library.reset(),
-    restoreLibrary: (...args) => library.restore(...args),
   });
-  // The save is the one command bound to its library, so the record changes only when that library does.
-  const commands = useMemo<AppCommands>(() => ({ ...handlers, perform }), [handlers, perform]);
+  // The commands that change a library are bound to it (useLibrarySave): an editor holding one saves where it began.
+  const libraryHandlers = useBoundHandlers<typeof perform, Omit<Pick<AppCommands, LibraryCommand>, 'perform'>>(
+    perform,
+    {
+      toggle: (id, key, value) => {
+        const target = allRecords.get(id);
+        const record = target && catalogActionRecord(target, ownership);
+        if (record)
+          void perform(
+            value === undefined
+              ? { type: 'toggle-progress', record, key }
+              : { type: 'set-progress', records: [record], key, value },
+          );
+      },
+      rankSelected: () => {
+        if (!selectedPersonalRecord) return;
+        if (rankingPosition) void guarded.guard(() => navigate('rankings'));
+        else void perform({ type: 'add-ranking', records: [selectedPersonalRecord] });
+      },
+      performDetailAction: detail.performDetailAction,
+      resetLibrary: () => library.reset(),
+      restoreLibrary: (...args) => library.restore(...args),
+    },
+  );
+  const commands = useMemo<AppCommands>(
+    () => ({ ...handlers, ...libraryHandlers, perform }),
+    [handlers, libraryHandlers, perform],
+  );
   // Once that account has opened, the tray's own checks continue the comparison (useCompareContinuation).
   useCompareContinuation({
     compareSignIn: signIn.compareSignIn,

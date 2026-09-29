@@ -1,4 +1,4 @@
-import { useCallback, useInsertionEffect, useRef, useState } from 'react';
+import { useCallback, useInsertionEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * The value of the last committed render, for code that runs after render: events, timers, effects and async work.
@@ -36,4 +36,31 @@ export function useStableHandlers<T extends Handlers<T>>(handlers: T): T {
       ) as T,
   );
   return stable;
+}
+
+/**
+ * useStableHandlers bound to `binding` (the library a save goes to): each handler keeps its identity while the binding
+ * does and calls the last handlers committed with that binding. When the binding changes the record is new, and the
+ * old record keeps calling the handlers of its own binding, so an editor that holds one still saves where it began.
+ */
+export function useBoundHandlers<B extends object, T extends Handlers<T>>(binding: B, handlers: T): T {
+  const [committed] = useState(() => new WeakMap<B, T>());
+  const [keys] = useState(() => Object.keys(handlers) as (keyof T)[]);
+  useInsertionEffect(() => {
+    committed.set(binding, handlers);
+  });
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        keys.map((key) => [
+          key,
+          (...args: unknown[]) => {
+            const current = committed.get(binding);
+            if (!current) throw new Error('A bound handler ran before its first commit.');
+            return current[key](...args);
+          },
+        ]),
+      ) as T,
+    [committed, keys, binding],
+  );
 }
