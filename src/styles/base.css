@@ -144,7 +144,7 @@ svg {
   border-color: var(--edge);
 }
 .button-outline:hover {
-  background: var(--hover);
+  background: var(--wash);
   border-color: var(--ink);
 }
 .button-quiet {
@@ -152,11 +152,11 @@ svg {
   padding-inline: 12px;
 }
 .button-quiet:hover {
-  background: var(--hover);
+  background: var(--wash);
 }
 .button-danger {
   background: var(--danger);
-  color: #fff;
+  color: var(--white);
 }
 .text-button {
   min-height: 44px;

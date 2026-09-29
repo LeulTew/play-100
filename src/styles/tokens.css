@@ -13,11 +13,18 @@
   --line: #d1d4c6;
   /* Graphite ink at 55% over chalk: resting field edges keep 3:1 against chalk, soft white and hover fills. */
   --control-border: #7f8179;
+  /* Quiet fills, text and edges (DESIGN.md "Tints and quiet text"). */
+  --wash: #e6e9dc;
+  --tint: #e5ecd9;
+  --lime-tint: #e4eccf;
+  --moss: #516044;
+  --sage: #697252;
+  --border: #b8c2a8;
   /* State colors (DESIGN.md "States"). */
   --focus: #426515;
   --accent: #405e1c;
   --edge: #a5ac98;
-  --hover: #e6e9dc;
+  --selected: #6b8149;
   --hover-icon: #e1e6d4;
   --hover-select: #e9ecdf;
   --hover-lime: #c2e459;

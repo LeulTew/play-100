@@ -109,7 +109,7 @@
 
 .artifact-status {
   max-width: 32ch;
-  color: #5b6054;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
 }

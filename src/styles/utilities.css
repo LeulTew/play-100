@@ -541,7 +541,7 @@ html[data-motion='off']
     min-height: 66px;
     padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
     background: var(--paper);
-    border-top: 1px solid #bec6af;
+    border-top: 1px solid var(--border);
     box-shadow: 0 -3px 16px #29331709;
   }
   .mobile-nav > a,
@@ -565,7 +565,7 @@ html[data-motion='off']
   .mobile-nav > a[aria-current='page'],
   .mobile-nav > button[aria-expanded='true'] {
     color: var(--ink);
-    background: #e5ecd9;
+    background: var(--tint);
   }
   .dialog {
     width: calc(100% - 20px);

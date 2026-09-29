@@ -36,7 +36,7 @@
   box-shadow: 0 2px 6px #20231e14;
 }
 .card-selected .game-link {
-  outline: 2px solid #668137;
+  outline: 2px solid var(--selected);
   outline-offset: 4px;
 }
 .game-card > .game-link {
@@ -81,7 +81,7 @@
 }
 .author-rating-card {
   margin-top: 8px;
-  color: #4a5a38;
+  color: var(--moss);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -100,7 +100,7 @@
   justify-content: space-between;
   margin-top: 21px;
   padding: 16px 18px;
-  background: #e6edda;
+  background: var(--tint);
   border-radius: 4px;
 }
 .author-rating-detail strong {
@@ -109,7 +109,7 @@
 .author-rating-detail p {
   font-size: 12px;
   line-height: 1.5;
-  color: #536344;
+  color: var(--moss);
   margin-top: 5px;
 }
 .author-rating-detail > span {
@@ -160,7 +160,7 @@
   margin-bottom: 16px;
   padding: 13px 17px;
   border: 1px solid var(--line);
-  background: #f3e7c7;
+  background: var(--caution-tint);
   border-radius: 4px;
   font-size: 13px;
   line-height: 1.5;
@@ -178,8 +178,8 @@
 }
 .selection-bar {
   padding: 16px 19px;
-  background: #e4ebd5;
-  border: 1px solid #a8b696;
+  background: var(--tint);
+  border: 1px solid var(--border);
   border-radius: 4px;
   margin-block: 15px 22px;
 }
@@ -212,7 +212,7 @@
 }
 .selection-bar > p {
   font-size: 12px;
-  color: #546146;
+  color: var(--moss);
   margin-top: 13px;
   line-height: 1.5;
 }
@@ -247,7 +247,7 @@
   position: relative;
   overflow: auto;
   max-height: min(75vh, 780px);
-  border: 1px solid #aab39b;
+  border: 1px solid var(--edge);
   border-radius: 4px;
   scrollbar-gutter: stable;
 }
@@ -271,8 +271,8 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  background: #e5e9dc;
-  border-bottom: 1px solid #aab39b;
+  background: var(--wash);
+  border-bottom: 1px solid var(--edge);
   white-space: nowrap;
 }
 .table-sort {
@@ -293,11 +293,11 @@
   display: block;
   font-weight: 450;
   font-size: 12px;
-  color: #58624c;
+  color: var(--moss);
   margin-top: 2px;
 }
 .table-sort:hover {
-  color: #3a571d;
+  color: var(--accent);
 }
 .ratings-table tbody tr:last-child th,
 .ratings-table tbody tr:last-child td {
@@ -305,11 +305,11 @@
 }
 .ratings-table tbody tr:hover th,
 .ratings-table tbody tr:hover td {
-  background: #edf0e3;
+  background: var(--hover-select);
 }
 .ratings-table .row-selected th,
 .ratings-table .row-selected td {
-  background: #e5edce;
+  background: var(--lime-tint);
 }
 .ratings-table .table-rank {
   position: sticky;
@@ -425,7 +425,7 @@
   max-width: 24ch;
 }
 .page-heading h1 span {
-  color: #697252;
+  color: var(--sage);
 }
 .page-heading h1:focus {
   outline: none;
@@ -447,7 +447,7 @@
   align-items: center;
   min-height: 44px;
   font-size: 12px;
-  color: #516044;
+  color: var(--moss);
 }
 .personal-tabs {
   display: flex;
@@ -477,7 +477,7 @@
   min-width: 23px;
   align-items: center;
   justify-content: center;
-  background: #e5e8db;
+  background: var(--wash);
   padding: 1px 5px;
   border-radius: 2px;
   font-size: 12px;
@@ -588,7 +588,7 @@
   font-size: 12px;
   line-height: 1.5;
   font-weight: 600;
-  color: #546047;
+  color: var(--moss);
 }
 .personal-score input {
   width: 92px;
@@ -602,7 +602,7 @@
   color: var(--ink);
 }
 .personal-score input::placeholder {
-  color: #6f7962;
+  color: var(--muted);
 }
 .personal-detail-actions {
   margin-block: 17px;
@@ -621,8 +621,8 @@
   padding: 22px;
   justify-content: space-between;
   margin-block: 20px;
-  background: #e0e8cb;
-  color: #4e6330;
+  background: var(--lime-tint);
+  color: var(--moss);
   border-radius: 4px;
 }
 .catalog-art span {
@@ -714,7 +714,7 @@
   align-items: flex-start;
   gap: 13px;
   padding: 17px;
-  border: 1px solid #c6ae84;
+  border: 1px solid var(--caution-edge);
   background: var(--warning-tint);
   margin-block: 20px;
   border-radius: 4px;

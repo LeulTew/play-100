@@ -9,10 +9,16 @@ colors:
   lime: "#d3f36b"
   line: "#d1d4c6"
   control-border: "#7f8179"
+  wash: "#e6e9dc"
+  tint: "#e5ecd9"
+  lime-tint: "#e4eccf"
+  moss: "#516044"
+  sage: "#697252"
+  border: "#b8c2a8"
   focus: "#426515"
   accent: "#405e1c"
   edge: "#a5ac98"
-  hover: "#e6e9dc"
+  selected: "#6b8149"
   hover-icon: "#e1e6d4"
   hover-select: "#e9ecdf"
   hover-lime: "#c2e459"
@@ -82,7 +88,7 @@ components:
     rounded: "{rounded.control}"
     padding: "12px 22px"
   button-outline-hover:
-    backgroundColor: "{colors.hover}"
+    backgroundColor: "{colors.wash}"
   button-quiet:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
@@ -90,10 +96,10 @@ components:
     rounded: "{rounded.control}"
     padding: "12px"
   button-quiet-hover:
-    backgroundColor: "{colors.hover}"
+    backgroundColor: "{colors.wash}"
   button-danger:
     backgroundColor: "{colors.danger}"
-    textColor: "#fff"
+    textColor: "{colors.white}"
     typography: "{typography.button}"
     rounded: "{rounded.control}"
     padding: "12px 22px"
@@ -156,17 +162,27 @@ Styles and scripts target the browser floor in [README "Browser support"](README
 - **Chalk divider** (`line`): quiet ruled separation.
 - **Control edge** (`control-border`): the resting border of search fields, native selects, text inputs and text areas. Graphite ink at 55% over chalk, it keeps 3.54:1 against chalk, 3.87:1 against soft white and 3.30:1 against the select hover fill (`hover-select`). Decorative rules, keycaps and chips stay on `line`; focus, hover and disabled states keep their own treatments.
 
+### Tints and quiet text
+Quiet surfaces, secondary text and panel edges are tokens too, so near-identical values cannot drift apart:
+- **Chalk wash** (`wash`): badges, table headers, notes, pickers, artwork placeholders and loading skeletons, and the hover fill of quiet and outline buttons, menus and the account control.
+- **Pale tint** (`tint`): notices, previews, rating details and the selection bar, and the chosen option, avatar or bottom-navigation item.
+- **Lime tint** (`lime-tint`): the workbook section, catalog art placeholders, place badges, share notices and selected table rows.
+- **Moss** (`moss`): olive secondary text in dialogs, panels, tables and lists. It keeps at least 5.3:1 against chalk, the tints and the hover fills.
+- **Sage** (`sage`): the lighter second line of display headings, and quiet icons.
+- **Panel edge** (`border`): the borders of panels, option cards and pickers, and the bottom navigation's top edge.
+
 ### States
 State colors are tokens in `src\styles\tokens.css`, so one role has one value everywhere:
-- **Focus** (`focus`): focus outlines, the focused search field and the selected card outline.
-- **Accent** (`accent`): native checkbox and radio fills.
-- **Edge** (`edge`): the outline button's and avatar palette's resting border.
-- **Hover** (`hover`, `hover-icon`, `hover-select`, `hover-lime`, `hover-ink`): the quiet and outline hover fill shared by buttons, menus and the account control, and the icon, select, lime and dark button hovers.
-- **Positive** (`positive`): notices and completed or pressed states.
-- **Danger** (`danger`, `danger-tint`, `danger-edge`): errors and destructive actions.
-- **Warning and caution** (`warning`, `warning-tint`, `caution-tint`, `caution-edge`): emulator, sync and catalog warnings, and storage cautions.
+- **Focus** (`focus`): focus outlines, the focused search field and Discover's selected card outline.
+- **Selected** (`selected`): the selected Collection card's outline, the chosen motion option's edge and a dragged row's edge.
+- **Accent** (`accent`): native checkbox and radio fills, and the hovered sort control in the ratings table.
+- **Edge** (`edge`): the outline button's and avatar palette's resting border, and the ratings table's frame and header rule.
+- **Hover** (`wash`, `hover-icon`, `hover-select`, `hover-lime`, `hover-ink`): quiet and outline buttons, menus and the account control hover to the chalk wash. Icon buttons hover to `hover-icon`, which also marks the active view; selects and table rows hover to `hover-select`, lime buttons to `hover-lime`, and dark buttons and the toast's icon buttons to `hover-ink`.
+- **Positive** (`positive`): notices, completed markers and pressed states.
+- **Danger** (`danger`, `danger-tint`, `danger-edge`): errors, danger text and destructive actions.
+- **Warning and caution** (`warning`, `warning-tint`, `caution-tint`, `caution-edge`): emulator, sync and catalog warnings and catalog errors, and cautions about storage and about a cached collection without its original ratings.
 
-The remaining literal colors are component tints: the jacket palette, illustration, placeholder and badge fills, table rules and ink shadows. They stay with the components that use them rather than joining the palette. Sidecar tonal ramps are generated swatch-preview metadata, not implemented CSS palette steps.
+The remaining literal colors are not interface roles. Google's sign-in button keeps the colors Google's branding guidelines set for it. The jacket palette and the workbook illustration are artwork, and the wordmark's full stop and the hero footnote's dot belong to the logo and the landing illustration. The card meta dot and the byline slash are separator marks, set lighter than the text they separate. The shadows, the dialog backdrop, the avatar swatch outline and the file badge's rule are ink or chalk at partial alpha, which CSS at the browser floor cannot derive from a token (`color-mix()` needs Chrome 111 and Firefox 113). Sidecar tonal ramps are generated swatch-preview metadata, not implemented CSS palette steps.
 
 ## Typography
 

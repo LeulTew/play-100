@@ -169,7 +169,7 @@
 }
 .account-notice {
   color: var(--positive);
-  background: #e8eedc;
+  background: var(--tint);
   padding: 14px 16px;
   border-radius: 4px;
   font-size: 14px;
@@ -219,7 +219,7 @@
   font-weight: 600;
 }
 .account-icon-change:hover {
-  background: #e8eedc;
+  background: var(--wash);
 }
 .connection-source {
   display: flex;
@@ -276,8 +276,8 @@
   font-size: 12px;
   padding: 5px 9px;
   border-radius: 3px;
-  background: #e4e8da;
-  color: #4a5a38;
+  background: var(--wash);
+  color: var(--moss);
   font-weight: 600;
 }
 .sync-state.sync-conflict,

@@ -85,7 +85,7 @@ section.avatar-picker h3 {
 .avatar-picker__candidate.is-selected,
 .avatar-picker__palette.is-selected {
   border-color: var(--ink);
-  background: #e5ecd9;
+  background: var(--tint);
 }
 
 .avatar-picker__candidate input,
@@ -189,7 +189,7 @@ section.avatar-picker h3 {
   .avatar-picker__candidate:hover:not(:has(input:disabled)),
   .avatar-picker__palette:hover:not(:has(input:disabled)) {
     border-color: var(--ink);
-    background: var(--hover);
+    background: var(--wash);
   }
 }
 

@@ -91,7 +91,7 @@
 }
 .menu-nav:hover,
 .menu-nav[aria-expanded='true'] {
-  background: var(--hover);
+  background: var(--wash);
 }
 .saved-nav {
   min-height: 44px;
@@ -145,7 +145,7 @@
   margin-block: -0.135em;
 }
 .hero-copy h1 > span {
-  color: #697252;
+  color: var(--sage);
 }
 .hero-copy > p:not(.hero-footnote) {
   font-size: 17px;
@@ -257,7 +257,7 @@
   padding-inline: 5px;
   border-radius: 2px;
   min-width: 21px;
-  background: #e5e8db;
+  background: var(--wash);
   text-align: center;
 }
 .collection-tabs button.is-active > span {
@@ -333,7 +333,7 @@
   outline: none;
 }
 .search-field input::placeholder {
-  color: #6b6e61;
+  color: var(--muted);
   opacity: 1;
 }
 .search-field input::-webkit-search-cancel-button {
@@ -457,7 +457,7 @@
 /* The fill and ink alone would sit too close to the darker inactive icons, so the active view also takes an ink
    underline, as the collection tabs above it do. */
 .view-switch .is-active {
-  background: #e3e8d6;
+  background: var(--hover-icon);
   color: var(--ink);
   box-shadow: inset 0 -2px 0 var(--ink);
 }

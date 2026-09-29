@@ -64,7 +64,7 @@
   border: 1px solid var(--line);
 }
 .account-nav:hover {
-  background: var(--hover);
+  background: var(--wash);
   border-color: var(--ink);
 }
 .account-nav-avatar {
@@ -141,7 +141,7 @@
   font-size: 13px;
 }
 .collection-extra-actions button[aria-pressed='true'] {
-  color: #49621f;
+  color: var(--positive);
 }
 .collection-section {
   scroll-margin-top: 0;
