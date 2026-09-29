@@ -143,12 +143,13 @@ function DeferredCollection({
         }}
       />
     );
+  const failureMessage = input.kind === 'films' ? "The films didn't load." : "These collection tools didn't load.";
   const body = failed ? (
     <div className="data-error">
-      <ChunkRecovery message="These collection tools didn't load." />
+      <ChunkRecovery message={failureMessage} />
     </div>
   ) : Loaded ? (
-    <ChunkBoundary fallback={<ChunkRecovery message="These collection tools didn't load." />}>
+    <ChunkBoundary fallback={<ChunkRecovery message={failureMessage} />}>
       {input.kind === 'films' ? (
         <Loaded kind="films" props={{ ...input.props, initialFilmId: film, embedded: true }} />
       ) : input.kind === 'extended' ? (
@@ -497,7 +498,7 @@ function CollectionPage({
             </div>
             <p className="hero-footnote">
               <span className="collection-dot" />
-              The Core 50. And 50 more essentials.
+              Leul's 100: the Core 50 and 50 more essentials.
             </p>
           </div>
           <div className="hero-art">
@@ -522,8 +523,8 @@ function CollectionPage({
             {!collection.data.collection.authorRatingsAreOriginal && (
               <div className="source-version-notice" role="status">
                 <p>
-                  This cached collection does not include {author.shortName}'s original ratings yet. No substitute
-                  values are shown.
+                  This collection copy does not include {author.shortName}'s original ratings yet. No substitute values
+                  are shown.
                 </p>
                 <button className="text-button" onClick={collection.retry}>
                   Refresh original ratings
@@ -671,7 +672,7 @@ function CollectionPage({
                 </h3>
                 <p>
                   {filters.list === 'later' && savedCount === 0
-                    ? 'Tap a bookmark on any game to save it for later. Your full queue can also include games from other catalogs.'
+                    ? 'Tap a bookmark to add a game to Play later, including games from other catalogs.'
                     : filters.list === 'completed' && completedCount === 0
                       ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.'
                       : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'}
@@ -767,9 +768,9 @@ function CollectionPage({
         </div>
         <div className="workbook-copy">
           <h2>
-            OFFLINE.
+            THE WORKBOOK.
             <br />
-            STILL ON YOUR LIST.
+            ALL 100 TO KEEP.
           </h2>
           <p>
             Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes in

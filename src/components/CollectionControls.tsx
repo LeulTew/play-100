@@ -233,8 +233,8 @@ export function CollectionControls({
             }
           >
             <option value="all">All games</option>
-            <option value="core">Core 50 · #1-50</option>
-            <option value="essential">Essential 50 · #51-100</option>
+            <option value="core">Core 50 · #1–50</option>
+            <option value="essential">Essential 50 · #51–100</option>
           </SelectField>
           <ProgressFilter value={progress} onChange={(value) => onChange(progressFilterPatch(value, filters))} />
           <SelectField

@@ -13,11 +13,11 @@ const privacy = (/<h3>Data &amp; privacy<\/h3>([\s\S]*?)<\/section>/.exec(html)?
 describe('About data and privacy summary', () => {
   it('uses the same plain storage, limit and deletion wording as the data-use page', () => {
     for (const phrase of [
-      "Guest games, progress, ratings and notes stay in this browser's storage.",
-      'Each account has its own copy on this device.',
-      'Settings supports backup export/import and protection from automatic storage cleanup.',
-      "The online service's usage limits can pause online saving; errors and conflicts do not silently replace a local copy.",
-      "Small records with no library content remain so that old sessions can't bring deleted data back.",
+      'Guest games, progress, ratings and notes stay in browser storage.',
+      'Each account has a separate device copy.',
+      'Settings offers backup export/import and protection from automatic storage cleanup.',
+      'Service limits can pause online saving; errors and conflicts never silently replace device copies.',
+      'Content-free records remain to stop old sessions restoring deleted data.',
     ])
       expect(privacy).toContain(phrase);
     for (const term of [
@@ -33,12 +33,21 @@ describe('About data and privacy summary', () => {
 
   it('keeps the consent, creator-view and operator-access disclosures unchanged', () => {
     expect(privacy).toContain(
-      'Before online saving, you agree that the creator can view your account profile and ranking summary.',
+      'Online-saving consent lets the creator view your profile and ranking summary, not notes or Play later.',
     );
-    expect(privacy).toContain('a database operator can technically access stored data.');
-    expect(privacy).toContain(
-      'Signing in does not automatically upload the guest library; online saving requires a separate choice and consent.',
-    );
+    expect(privacy).toContain('Database operators can access stored data.');
+    expect(privacy).toContain('Sign-in never uploads guest data automatically; online saving needs separate consent.');
+    for (const phrase of [
+      'Firebase Authentication and Firestore at no cost.',
+      'No Supabase, analytics scripts, ad trackers, anonymous accounts or remote avatar services are used.',
+      'Rankings can include unplayed games; ranking never marks them played or completed.',
+      'Publishing shares only the previewed profile and selected ratings, not email, notes or play history.',
+      'Community listing needs separate consent.',
+      'Link-only rankings are public to anyone with the link.',
+      'Clearing site data can erase edits not yet uploaded.',
+      'Account offers sign-out, stopping online saving, export and deletion.',
+    ])
+      expect(privacy).toContain(phrase);
   });
 });
 
@@ -70,10 +79,17 @@ describe('About source reference rows', () => {
   it('preserves complete catalog and licence attribution prose outside the link rows', () => {
     const paragraphs = [...html.matchAll(/<p>([\s\S]*?)<\/p>/g)].map(([, text]) => text!.replace(/\s+/g, ' ').trim());
     expect(paragraphs).toContain(
-      'Discover includes a bundled catalog and optional online metadata lookup from Wikidata (CC0) and the documented FreeToGame API. Game data from FreeToGame is attributed and linked to its source.',
+      'Discover includes a built-in catalog and optional online facts from Wikidata (CC0) and the documented FreeToGame API. FreeToGame data retains credit and source links.',
     );
     expect(paragraphs).toContain(
-      'Built with React, Three.js, dnd kit, native IndexedDB and customized React Bits CountUp, Magnet and AnimatedContent. React Bits copyright 2026 David Haz, used under its MIT + Commons Clause license. Typography: Barlow Condensed and Hanken Grotesk, under the SIL Open Font License. Creature avatars use locally generated DiceBear Critters (CC0 1.0) with DiceBear core (MIT); no Google photo is fetched.',
+      'Built with React, Three.js, dnd kit, IndexedDB and customized React Bits CountUp, Magnet and AnimatedContent. React Bits: copyright 2026 David Haz, MIT + Commons Clause. Barlow Condensed and Hanken Grotesk: SIL Open Font License. Local creature avatars: DiceBear Critters (CC0 1.0), DiceBear core (MIT); no Google photo is fetched.',
     );
+  });
+
+  it('matches the About label and uses straight quotes and en-dash ranges', () => {
+    expect(html).toContain('>About &amp; credits</h2>');
+    expect(html).toContain('ranks 1–50.');
+    expect(html).toContain('ranks 51–100.');
+    expect(html).not.toMatch(/[“”‘’]/);
   });
 });

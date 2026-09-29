@@ -147,8 +147,20 @@ export default function RatingsTable({
     <div className="ratings-mode">
       <div className="ratings-explainer">
         <p>
-          {author.shortName}'s original ratings are shown separately from the critic snapshots. His source rating column
-          is based on his curated rank. <strong>—</strong> means unavailable.
+          {author.shortName}'s rank-based workbook ratings are separate from critic scores. <strong>—</strong> means
+          unavailable. Critic averages include both Metacritic columns. Edit your own ratings in{' '}
+          <a
+            className="text-button"
+            href="/my-games?tab=ranking"
+            onClick={(event) => {
+              if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+              event.preventDefault();
+              void openRanking();
+            }}
+          >
+            My games → Ranking
+          </a>
+          .
         </p>
       </div>
       <div
@@ -167,8 +179,8 @@ export default function RatingsTable({
       >
         <table className="ratings-table">
           <caption className="sr-only">
-            Author's game rankings and original critic scores. Sort using the column headings. IGN and GameSpot use ten
-            points; other critics use one hundred.
+            Rankings and ratings. Sort using the column headings. IGN and GameSpot use ten points; other critics use one
+            hundred.
           </caption>
           <thead>
             <tr>
@@ -288,23 +300,6 @@ export default function RatingsTable({
         </table>
       </div>
       {comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
-      <p className="table-footnote">
-        The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s
-        original cached ratings and source notes are preserved, not recalculated. Your ratings are separate from these
-        source values. Edit them in{' '}
-        <a
-          className="text-button"
-          href="/my-games?tab=ranking"
-          onClick={(event) => {
-            if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-            event.preventDefault();
-            void openRanking();
-          }}
-        >
-          My games → Ranking
-        </a>
-        .
-      </p>
       {navigationError && (
         <p className="inline-error" role="alert">
           {navigationError}

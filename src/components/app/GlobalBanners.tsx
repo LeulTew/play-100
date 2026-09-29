@@ -70,7 +70,7 @@ export function GlobalBanners({
               {offlineReady
                 ? 'Prepared app files and saved device games can work offline.'
                 : 'The loaded page and saved device games can still work. Enable offline access in Settings when connected.'}{' '}
-              Cloud saving and live lookups need a connection. Guest and account libraries stay separate.
+              Online saving and live lookups need a connection.
             </p>
           </div>
         </div>

@@ -132,6 +132,8 @@ describe('collection continuity preserves the public presentation', () => {
       expect(html).toContain(`href="/${createSearch(filters, game.slug).replaceAll('&', '&amp;')}"`);
       expect(html).toContain(`data-game="${game.slug}"`);
       expect(html).toContain('9.9696969696969688');
+      expect(html).toContain('title="Original workbook value: 9.9696969696969688"');
+      expect(html).toContain(' critic avg.');
       expect(html).toContain(`width="${dimensions[game.slug]?.width}" height="${dimensions[game.slug]?.height}"`);
       expect(html.match(/<img\b/g)).toHaveLength(1);
       expect(html).toContain(`aria-label="Select ${game.title}"`);
@@ -182,25 +184,25 @@ describe('collection continuity preserves the public presentation', () => {
 
   it('explains source ratings plainly without changing their precision or personal boundary', () => {
     const html = renderToStaticMarkup(h(AboutDialog, { onClose: vi.fn() }));
-    expect(html).toContain('original workbook scores, based on each game&#x27;s rank');
-    expect(html).toContain('including rounded or text-based results, rather than recalculating them');
+    expect(html).toContain('rank-based scores come from the workbook column');
+    expect(html).toContain('preserve its saved numbers, rounding and text, without recalculation.');
     expect(html).toContain('never prefilled');
-    expect(html).toContain('headed “my rating(based on rank)”.');
-    expect(html).toContain('“Hitman: World of Assassination” title');
-    expect(html).toContain('main tab “AAA Top 50”');
+    expect(html).toContain('&quot;my rating(based on rank)&quot;.');
+    expect(html).toContain('&quot;Hitman: World of Assassination&quot;');
+    expect(html).toContain('&quot;AAA Top 50&quot; tab (100 entries).');
   });
 
   it('distinguishes optional catalog lookups from licensed detail artwork and source ratings', () => {
     const html = renderToStaticMarkup(h(AboutDialog, { onClose: vi.fn() }));
-    expect(html).toContain('Discover includes a bundled catalog and optional online metadata lookup');
-    expect(html).toContain('Online catalog search sends your query');
-    expect(html).toContain('It does not send your private library, notes or rankings.');
+    expect(html).toContain('Discover includes a built-in catalog and optional online facts');
+    expect(html).toContain('Online search sends your query');
+    expect(html).toContain('never your private library, notes or rankings.');
     expect(html).toContain(
-      'Opening an eligible Discover game can also load separately labelled public ratings and licensed artwork while online lookup is on.',
+      'With online lookup on, eligible Discover details can also load labelled public ratings and licensed, credited artwork.',
     );
-    expect(html).toContain('Credits stay attached; entries from The 100 keep their original artwork and scores.');
-    expect(html).toContain('These lookups do not copy descriptions, prices or review text.');
-    expect(html).toContain('unavailable sources show an error rather than an empty success');
+    expect(html).toContain('The 100 keeps its original artwork and scores.');
+    expect(html).toContain('Searches import facts, not descriptions, prices or reviews.');
+    expect(html).toContain('Failed sources show errors, not empty results.');
     expect(html).not.toContain('not external cover artwork');
   });
 

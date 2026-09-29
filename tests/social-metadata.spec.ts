@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('served head has unique matching social metadata and a fetchable PNG', async ({ page, request }) => {
   await page.goto('/?catalogs=off');
-  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
+  await expect(page).toHaveTitle('The 100 | Play 100');
   const canonical = page.locator('head link[rel="canonical"]');
   await expect(canonical).toHaveCount(1);
   const url = await canonical.getAttribute('href');

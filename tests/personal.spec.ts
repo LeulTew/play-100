@@ -77,7 +77,7 @@ test('ratings table shows native scales, missing values and reversible column so
   await expect(ign).toHaveAttribute('aria-sort', 'ascending');
   await page.reload();
   await expect(page.getByRole('columnheader', { name: /IGN/ })).toHaveAttribute('aria-sort', 'ascending');
-  await expect(page.locator('.table-footnote')).toContainText('original cached ratings');
+  await expect(page.locator('.ratings-explainer')).toContainText('rank-based workbook ratings');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

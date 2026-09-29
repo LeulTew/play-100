@@ -296,12 +296,10 @@ for (const surface of ['Library', 'Discover'] as const) {
   });
 }
 
-test('the ratings-table footnote links to Ranking through client-side navigation', async ({ page }) => {
+test('the ratings-table note links to Ranking through client-side navigation', async ({ page }) => {
   await page.goto('/?view=table&catalogs=off');
-  const footnote = page.locator('.table-footnote');
-  await expect(footnote).toContainText(
-    'Your ratings are separate from these source values. Edit them in My games → Ranking.',
-  );
+  const footnote = page.locator('.ratings-explainer');
+  await expect(footnote).toContainText('Edit your own ratings in My games → Ranking.');
   const link = footnote.getByRole('link', { name: 'My games → Ranking', exact: true });
   await expect(link).toHaveAttribute('href', '/my-games?tab=ranking');
   await page.evaluate(() => {

@@ -3,7 +3,9 @@ import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 import { collectionFilms, filmDuration } from '../lib/films';
-import { ExtendedFallback, FilmsFallback } from './CollectionExtrasFallback';
+import { ExtendedFallback, FilmsFallback, TableFallback } from './CollectionExtrasFallback';
+import RatingsTable from './RatingsTable';
+import { defaultFilters } from '../lib/url';
 import { discoveryFixture } from '../lib/discovery-test-fixtures';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import { emptySources } from '../lib/catalog-search-session';
@@ -24,6 +26,32 @@ it('reserves the exact film listing text and frames without loading movies or ar
   expect(html).not.toContain('<img');
   expect(html).not.toContain('<video');
   expect(onWatch).not.toHaveBeenCalled();
+});
+
+it('keeps one identical visible rating note before and after the table loads', () => {
+  const props: ComponentProps<typeof RatingsTable> = {
+    games: [],
+    filters: defaultFilters,
+    progress: {},
+    selecting: false,
+    selected: new Set(),
+    busy: false,
+    onSelect: vi.fn(),
+    onOpen: vi.fn(),
+    onToggle: vi.fn(),
+    onSort: vi.fn(),
+  };
+  const notes = [TableFallback, RatingsTable].map((component) => {
+    const html = renderToStaticMarkup(createElement(component, props));
+    expect(html.match(/class="ratings-explainer"/g)).toHaveLength(1);
+    expect(html).not.toContain('class="table-footnote"');
+    const note = /class="ratings-explainer"[^>]*>([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
+    expect(note).toContain('rank-based workbook ratings are separate from critic scores.');
+    expect(note).toContain('Critic averages include both Metacritic columns.');
+    expect(note).toContain('My games → Ranking');
+    return note.replace(/<[^>]+>/g, '');
+  });
+  expect(notes[0]).toBe(notes[1]);
 });
 
 it.each([

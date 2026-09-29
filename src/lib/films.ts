@@ -16,7 +16,7 @@ export const collectionFilms: readonly CollectionFilm[] = [
   {
     id: 'the-100',
     title: 'The 100',
-    description: 'One point of view. The original order, ratings and workbook.',
+    description: 'The original order, ratings and workbook.',
     context:
       "The shown order and Leul's ratings come from the original workbook. Critic scores are recorded snapshots, not live results. No play or completion state is implied.",
     durationSeconds: 22,

@@ -290,6 +290,8 @@ describe("first-paint shell parity with React's first commit", () => {
       }),
     ).replace(/ style="[^"]*"/g, '');
     const shell = shellMarkup(html, variant);
+    expect(shell).toContain('Leul&#x27;s 100: the Core 50 and 50 more essentials.');
+    expect(html).toContain('<title>The 100 | Play 100</title>');
     for (const [start, end] of [
       ['<section class="hero"', '<div class="hero-art">'],
       ['<section class="collection-section"', '</section>'],

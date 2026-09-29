@@ -30,8 +30,9 @@ export function TableFallback({
       </p>
       <div className="ratings-explainer" aria-hidden="true">
         <p>
-          {author.shortName}'s original ratings are shown separately from the critic snapshots. His source rating column
-          is based on his curated rank. <strong>—</strong> means unavailable.
+          {author.shortName}'s rank-based workbook ratings are separate from critic scores. <strong>—</strong> means
+          unavailable. Critic averages include both Metacritic columns. Edit your own ratings in{' '}
+          <span className="text-button">My games → Ranking</span>.
         </p>
       </div>
       <div
@@ -117,11 +118,6 @@ export function TableFallback({
         </table>
       </div>
       {comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
-      <p className="table-footnote" aria-hidden="true">
-        The critic average normalizes available entered columns, including both Metacritic columns. {author.shortName}'s
-        original cached ratings and source notes are preserved, not recalculated. Your ratings are separate from these
-        source values. Edit them in <span className="text-button">My games → Ranking</span>.
-      </p>
     </div>
   );
 }
@@ -195,7 +191,7 @@ export function ExtendedFallback({
 }
 
 const filmSummaries = [
-  { id: 'the-100', title: 'The 100', description: 'One point of view. The original order, ratings and workbook.' },
+  { id: 'the-100', title: 'The 100', description: 'The original order, ratings and workbook.' },
   {
     id: 'discover-compare',
     title: 'Discover & compare',

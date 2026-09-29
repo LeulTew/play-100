@@ -4,7 +4,7 @@ import type { AppPage, Game } from './types';
 import type { MyGamesTab } from './my-games-navigation';
 
 const pageTitles: Record<AppPage, string> = {
-  collection: 'Good games. Great escapes.',
+  collection: 'The 100',
   games: 'My games',
   library: 'My games · Library',
   rankings: 'My games · Ranking',

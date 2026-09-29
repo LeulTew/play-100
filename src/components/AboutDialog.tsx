@@ -19,90 +19,81 @@ export function AboutDialog({
       motion={{ preset: 'dialog', enterMs: 160 }}
     >
       <h2 id="about-title" data-autofocus tabIndex={-1}>
-        About Play 100
+        About &amp; credits
       </h2>
-      <p className="dialog-lead">A personal collection of 100 games, not an official best-games ranking.</p>
+      <p className="dialog-lead">A personal 100-game collection, not an official ranking.</p>
       <section>
         <h3>Original order</h3>
         <p>
-          The <strong>Core 50</strong> are ranks 1-50. The <strong>Essential 50</strong> are ranks 51-100. Both follow
-          the original workbook's main sheet, including its manual changes. Sorting this website never changes those
-          original ranks.
+          <strong>Core 50</strong>: ranks 1–50. <strong>Essential 50</strong>: ranks 51–100. Sorting preserves the
+          workbook's main-sheet order and manual changes.
         </p>
       </section>
       <section>
         <h3>Author ratings</h3>
         <p>
-          These are {author.fullName}'s original workbook scores, based on each game's rank. The source column is headed
-          “my rating(based on rank)”. Cards, the table and game details show those saved values, including rounded or
-          text-based results, rather than recalculating them.
+          {author.fullName}'s rank-based scores come from the workbook column "my rating(based on rank)". Cards, tables
+          and details preserve its saved numbers, rounding and text, without recalculation.
         </p>
         <p>
-          For example, The Witcher 3's original value is 9.9, and Grand Theft Auto IV's is 9.8. Source notes remain
-          attached. Your editable personal ratings are separate and are never prefilled from {author.shortName}'s
-          ratings.
+          The Witcher 3: 9.9; Grand Theft Auto IV: 9.8. Source notes stay attached; your editable ratings are separate,
+          never prefilled.
         </p>
       </section>
       <section>
         <h3>Critic scores</h3>
         <p>
-          Critic scores were carried over from the supplied workbook. They are not live, newly researched or
-          independently verified. Metacritic and PC Gamer use 100-point scales; IGN and GameSpot use 10.
+          Workbook critic scores are not live, newly researched or independently verified. Scales: Metacritic/PC Gamer
+          100; IGN/GameSpot 10.
         </p>
         <p>
-          The critic average normalizes available scores to 100 and averages the entered columns. Both Metacritic
-          columns count when present; missing scores do not. This is not an official aggregate or a count of independent
-          publications.
+          Critic averages use entered scores converted to 100. Both Metacritic columns count; missing scores don't. This
+          isn't an official aggregate or count of independent publications.
         </p>
       </section>
       <section>
         <h3>Source notes &amp; artwork</h3>
         <p>
-          Some entries explicitly include an AI / not-played source note. Those notes are preserved in game details. The
-          absence of a note does not mean a game was played. Every visitor starts with an empty personal list.
+          Details preserve AI / not-played source notes. A missing note doesn't mean the game was played. Your personal
+          list starts empty.
         </p>
         <p>
-          The original scope excludes Nintendo and retains the premium non-AAA exceptions already in the source. No new
-          platform availability, playtimes or scores have been invented.
+          The source excludes Nintendo but keeps premium non-AAA exceptions. No invented platforms, playtimes or scores.
         </p>
         <p>
-          The supplied covers are small thumbnails, not high-resolution artwork. We keep their native size within
-          original collection frames. Rank 73 preserves the source's “Hitman: World of Assassination” title, 2016 year
-          and HITMAN III-branded cover; packaging does not establish an exact edition or platform.
+          Supplied cover thumbnails stay at native size in collection frames. Rank 73 keeps "Hitman: World of
+          Assassination", 2016 and its HITMAN III-branded cover; packaging proves no exact edition or platform.
         </p>
       </section>
       <section>
         <h3>Data &amp; privacy</h3>
         <p>
-          Guest games, progress, ratings and notes stay in this browser's storage. Optional Google or verified email
-          accounts use Firebase Authentication and Firestore on the no-cost Spark plan. Signing in does not
-          automatically upload the guest library; online saving requires a separate choice and consent. Each account has
-          its own copy on this device.
+          Guest games, progress, ratings and notes stay in browser storage. Optional Google or verified email accounts
+          use Firebase Authentication and Firestore at no cost. Each account has a separate device copy. Sign-in never
+          uploads guest data automatically; online saving needs separate consent.
         </p>
         <p>
-          Before online saving, you agree that the creator can view your account profile and ranking summary. Private
-          notes and queues are not loaded in that creator view, but a database operator can technically access stored
-          data. The app does not use Supabase, analytics scripts, ad trackers, anonymous account creation or remote
-          avatar services.
+          Online-saving consent lets the creator view your profile and ranking summary, not notes or Play later.
+          Database operators can access stored data. No Supabase, analytics scripts, ad trackers, anonymous accounts or
+          remote avatar services are used.
         </p>
         <p>
-          Private rankings may include games you have not played. Ranking never marks a game played or completed.
-          Explicitly published snapshots contain only the previewed profile and selected game ratings; email, notes and
-          play history are excluded. Community listing is a separate opt-in. Link-only is still public to anyone with
-          the link.
+          Rankings can include unplayed games; ranking never marks them played or completed. Publishing shares only the
+          previewed profile and selected ratings, not email, notes or play history. Community listing needs separate
+          consent. Link-only rankings are public to anyone with the link.
         </p>
         <p>
-          Settings supports backup export/import and protection from automatic storage cleanup. Clearing site data can
-          erase unsynced local edits. The online service's usage limits can pause online saving; errors and conflicts do
-          not silently replace a local copy. Account offers sign-out, stopping sync, export and deletion. Small records
-          with no library content remain so that old sessions can't bring deleted data back.
+          Settings offers backup export/import and protection from automatic storage cleanup. Clearing site data can
+          erase edits not yet uploaded. Service limits can pause online saving; errors and conflicts never silently
+          replace device copies. Account offers sign-out, stopping online saving, export and deletion. Content-free
+          records remain to stop old sessions restoring deleted data.
         </p>
       </section>
       <section>
         <h3>Public catalogs</h3>
         <p>
-          Discover includes a bundled catalog and optional online metadata lookup from Wikidata (CC0) and the documented
-          FreeToGame API. Game data from FreeToGame is attributed and linked to its source.
+          Discover includes a built-in catalog and optional online facts from Wikidata (CC0) and the documented
+          FreeToGame API. FreeToGame data retains credit and source links.
         </p>
         <div className="button-row" role="group" aria-label="Public catalog sources">
           <a
@@ -124,38 +115,35 @@ export function AboutDialog({
           </a>
         </div>
         <p>
-          Online catalog search sends your query to a small read-only proxy and the selected provider. It does not send
-          your private library, notes or rankings. Pages load only when requested. Wikidata coverage is limited to
-          entries explicitly classified as video games; FreeToGame covers its free-to-play catalog. Neither is a
-          complete inventory of every game ever made.
+          Online search sends your query through a read-only relay to your chosen provider, never your private library,
+          notes or rankings. Pages load on request. Wikidata: classified video games only. FreeToGame: its free-to-play
+          catalog. Neither covers every game.
         </p>
         <p>
-          Catalog searches import factual metadata. Opening an eligible Discover game can also load separately labelled
-          public ratings and licensed artwork while online lookup is on. Credits stay attached; entries from The 100
-          keep their original artwork and scores. These lookups do not copy descriptions, prices or review text.
+          Searches import facts, not descriptions, prices or reviews. With online lookup on, eligible Discover details
+          can also load labelled public ratings and licensed, credited artwork. The 100 keeps its original artwork and
+          scores.
         </p>
         <p>
-          Source dates can describe a particular edition rather than the first release everywhere. No accounts or API
-          keys are required, and unavailable sources show an error rather than an empty success. You can also add your
-          own game title manually.
+          Dates may identify editions, not first worldwide releases. No account/API key required. Failed sources show
+          errors, not empty results. Manual titles are supported.
         </p>
       </section>
       <section className="credits">
         <h3>Sources &amp; credits</h3>
         <p>
-          Source: <span className="source-filename">AAA_games_u_have_to_play_list_top_100.xlsx</span>, main tab “AAA Top
-          50” (which actually contains 100 entries). The enhanced download reconciles the derived sheets to that source.
-          The untouched original is also downloadable; its older derivative tabs are not the authoritative order.
+          Source: <span className="source-filename">AAA_games_u_have_to_play_list_top_100.xlsx</span>, "AAA Top 50" tab
+          (100 entries). Enhanced download: other sheets aligned. Untouched original: also available; older derived tabs
+          don't define order.
         </p>
         <p>
-          All 100 cover images were supplied in the workbook; artwork rights remain with their respective owners.
-          Fallback game jackets and the folding 3D collection are original supporting artwork, not official game covers.
+          All 100 covers came with the workbook; owners retain rights. Fallback jackets and the folding 3D collection
+          are original supporting art, not official covers.
         </p>
         <p>
-          Built with React, Three.js, dnd kit, native IndexedDB and customized React Bits CountUp, Magnet and
-          AnimatedContent. React Bits copyright 2026 David Haz, used under its MIT + Commons Clause license. Typography:
-          Barlow Condensed and Hanken Grotesk, under the SIL Open Font License. Creature avatars use locally generated
-          DiceBear Critters (CC0 1.0) with DiceBear core (MIT); no Google photo is fetched.
+          Built with React, Three.js, dnd kit, IndexedDB and customized React Bits CountUp, Magnet and AnimatedContent.
+          React Bits: copyright 2026 David Haz, MIT + Commons Clause. Barlow Condensed and Hanken Grotesk: SIL Open Font
+          License. Local creature avatars: DiceBear Critters (CC0 1.0), DiceBear core (MIT); no Google photo is fetched.
         </p>
         <div className="button-row" role="group" aria-label="Project sources and notices">
           <a className="text-button" href="https://reactbits.dev" target="_blank" rel="noreferrer">

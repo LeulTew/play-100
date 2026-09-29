@@ -109,6 +109,16 @@ test('a failed conditional chunk offers guarded reload without removing collecti
   await expect(page.locator('.game-card')).toHaveCount(24);
 });
 
+test('a failed films chunk names the films and keeps its reload action', async ({ page }) => {
+  const asset = await extrasAsset();
+  await page.route(`**${asset}`, (route) => route.abort('failed'));
+  await page.goto('/?catalogs=off#collection-films');
+  const films = page.locator('#collection-films');
+  await films.scrollIntoViewIfNeeded();
+  await expect(films.getByRole('alert')).toHaveText("The films didn't load.");
+  await expect(films.getByRole('button', { name: 'Reload this page', exact: true })).toBeVisible();
+});
+
 test('saved additions load immediately and preserve their heading and private data', async ({ page }) => {
   const record = {
     id: 'manual:lazy-fixture',

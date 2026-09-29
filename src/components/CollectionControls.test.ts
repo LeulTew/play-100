@@ -70,6 +70,8 @@ describe('collection result scope and accessible names', () => {
         );
       expect(button).toBeDefined();
       expect(button).not.toContain('aria-pressed');
+      expect(html).toContain('Core 50 · #1–50');
+      expect(html).toContain('Essential 50 · #51–100');
     },
   );
 

@@ -142,7 +142,7 @@ test('320px text spacing retains information, targets and single-axis page reflo
 });
 
 // G7-QA A11Y-002: the hero title and the workbook title set 0.93 and 0.98 display lines, well under the 1.2em glyphs.
-const TIGHT_HEADINGS = ['hero-title', 'OFFLINE. STILL ON YOUR LIST.'];
+const TIGHT_HEADINGS = ['hero-title', 'THE WORKBOOK. ALL 100 TO KEEP.'];
 
 for (const width of [320, 393, 768, 1440]) {
   test(`landing headings fit their boxes with and without the WCAG text spacing at ${width}px`, async ({ page }) => {

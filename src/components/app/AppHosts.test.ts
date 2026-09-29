@@ -159,15 +159,15 @@ describe('app status host', () => {
     expect(props.onDeviceOnly).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])('retains offline preparation and scope distinctions (ready=%s)', (offlineReady) => {
+  it.each([false, true])('explains offline preparation without unrelated account copy (ready=%s)', (offlineReady) => {
     const html = renderToStaticMarkup(createElement(GlobalBanners, { ...bannerProps(), offline: true, offlineReady }));
     expect(html).toContain(
       offlineReady
         ? 'Prepared app files and saved device games can work offline.'
         : 'Enable offline access in Settings when connected.',
     );
-    expect(html).toContain('Cloud saving and live lookups need a connection.');
-    expect(html).toContain('Guest and account libraries stay separate.');
+    expect(html).toContain('Online saving and live lookups need a connection.');
+    expect(html).not.toContain('Guest and account libraries stay separate.');
   });
 });
 

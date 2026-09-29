@@ -127,7 +127,14 @@ test('sorting changes display order, never collection ranks; list view roundtrip
 
 test('game detail deep links, native scores, source notes and keyboard focus work', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
+  await expect(page).toHaveTitle('The 100 | Play 100');
+  await expect(page.locator('.hero-footnote')).toHaveText("Leul's 100: the Core 50 and 50 more essentials.");
+  await expect(page.locator('.hero-footnote')).toBeInViewport({ ratio: 1 });
+  await expect(page.locator(`${firstCard} .author-rating-card`)).toHaveAttribute(
+    'title',
+    'Original workbook value: 10',
+  );
+  await expect(page.locator(`${firstCard} .list-score`)).toContainText('critic avg.');
   const link = page.locator(`${firstCard} .game-link`);
   await link.click();
   await expect(page).toHaveURL(new RegExp(`game=${firstSlug}`));
@@ -142,7 +149,7 @@ test('game detail deep links, native scores, source notes and keyboard focus wor
   ).toBe(true);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page).toHaveTitle('Good games. Great escapes. | Play 100');
+  await expect(page).toHaveTitle('The 100 | Play 100');
   await expect(link).toBeFocused();
   await page.goto('/?game=the-witcher-3-wild-hunt');
   await expect(page.locator('.source-note')).toContainText('(AI – not played)');

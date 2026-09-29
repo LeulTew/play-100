@@ -86,18 +86,14 @@ for (const forcedColors of ['none', 'active'] as const) {
       .getByRole('dialog', { name: 'Menu', exact: true })
       .getByRole('button', { name: 'About & credits', exact: true })
       .click();
-    const about = page.getByRole('dialog', { name: 'About Play 100', exact: true });
+    const about = page.getByRole('dialog', { name: 'About & credits', exact: true });
     await expect(about).toBeVisible();
     await expect(about.getByRole('group', { name: 'Public catalog sources', exact: true })).toBeVisible();
     await expect(about.getByRole('group', { name: 'Project sources and notices', exact: true })).toBeVisible();
     const aboutMeasurements = await expectSourceLinks(page, about, [...catalogLinks, ...projectLinks]);
-    await expect(about).toContainText('Game data from FreeToGame is attributed and linked to its source.');
-    await expect(about).toContainText(
-      'React Bits copyright 2026 David Haz, used under its MIT + Commons Clause license.',
-    );
-    await expect(about).toContainText(
-      'Typography: Barlow Condensed and Hanken Grotesk, under the SIL Open Font License.',
-    );
+    await expect(about).toContainText('FreeToGame data retains credit and source links.');
+    await expect(about).toContainText('React Bits: copyright 2026 David Haz, MIT + Commons Clause.');
+    await expect(about).toContainText('Barlow Condensed and Hanken Grotesk: SIL Open Font License.');
     await about.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.goto('/discover?catalogs=off');
     // Discover has two .discovery-help disclosures; the exact-genre one precedes the sources one.

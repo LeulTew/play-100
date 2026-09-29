@@ -31,13 +31,11 @@ describe('committed-state document titles', () => {
       'Settings & backups | Play 100',
     );
     expect(appDocumentTitle('games', undefined, undefined, 'about', 'queue')).toBe('About & credits | Play 100');
-    expect(appDocumentTitle('collection', undefined, undefined, null, 'queue')).toBe(
-      'Good games. Great escapes. | Play 100',
-    );
+    expect(appDocumentTitle('collection', undefined, undefined, null, 'queue')).toBe('The 100 | Play 100');
   });
 
   it.each([
-    ['collection', 'Good games. Great escapes.'],
+    ['collection', 'The 100'],
     ['library', 'My games · Library'],
     ['rankings', 'My games · Ranking'],
     ['account', 'Account'],

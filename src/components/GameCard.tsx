@@ -95,8 +95,8 @@ export const GameCard = memo(function GameCard({
             className="author-rating-card"
             title={
               game.authorRating
-                ? `Original ${game.authorRating.sourceCell}: ${game.authorRating.rawValue}`
-                : 'This cached collection copy does not include the original author rating.'
+                ? `Original workbook value: ${game.authorRating.rawValue}`
+                : 'The original author rating is unavailable in this copy.'
             }
           >
             {author.shortName}'s rating <strong>{authorRatingText(game.authorRating)}</strong>
@@ -105,7 +105,7 @@ export const GameCard = memo(function GameCard({
           <p className="game-genre">{game.genre}</p>
           <span className="list-score">
             {formatAverage(game.criticAverage)}
-            <span> snapshot avg.</span>
+            <span> critic avg.</span>
           </span>
           {state?.completed && (
             <span className="completed-marker">
