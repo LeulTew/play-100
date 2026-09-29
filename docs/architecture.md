@@ -80,6 +80,20 @@ recovery copies and restored or remote replacements retain full validation.
 State, dirty markers and both friend-removal journals still share one transaction.
 The dense account-edit unit benchmark reports three before/after samples using
 10,000 synthetic records in fake IndexedDB; timing is diagnostic, not a pass gate.
+Account writers capture the device copy's generation when it opens. Removal
+retires that generation under `account-writer:v1:<scope>` in the same transaction
+that removes its library, recovery and sharing caches. This small marker contains
+only a generation and retirement flag, not games or profile data, and survives
+removal so delayed writers in other tabs cannot recreate the copy. Every scoped
+mutation checks it before updating state, sync metadata or removal journals.
+Only `openScopedLibrary` for a fresh account-opening lifetime can reactivate the
+scope; focus, broadcast refresh, retries and captured saves cannot. Old cache
+envelopes without a generation belong to generation zero. Scope-only legacy
+mutation calls remain pinned to zero rather than inheriting a later generation.
+Ordinary sign-out does not retire writers, so pending edits can still settle in
+their original account without being redirected to the guest. `perform`, restore
+and reset bindings remain stable for one generation and change together when its
+opening lifetime changes or retirement is observed.
 App keeps the guest hook mounted and selects the account controller when present;
 it does not copy one library into the other when switching the active view.
 
