@@ -8,7 +8,9 @@ import { createFetchSafeViteServer } from '../lib/test-server-ports';
 import type { AccountWriterFixture } from './useAccountLibrary.browser-fixture';
 
 declare global {
-  interface Window { accountWriterFixture: AccountWriterFixture }
+  interface Window {
+    accountWriterFixture: AccountWriterFixture;
+  }
 }
 
 const fixture = `<!doctype html><html lang="en"><head>
@@ -19,24 +21,34 @@ let server: ViteDevServer | undefined;
 let browser: Browser | undefined;
 let origin: string;
 beforeAll(async () => {
-  server = (await createFetchSafeViteServer(() => createServer({
-    configFile: false, root: process.cwd(), cacheDir: 'node_modules/.vite-account-writer-tests',
-    logLevel: 'error', appType: 'custom',
-    optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
-    plugins: [react(), {
-      name: 'account-writer-fixture',
-      configureServer(vite) {
-        vite.middlewares.use((request, response, next) => {
-          if (request.url !== '/__account-writer') return next();
-          void vite.transformIndexHtml('/__account-writer', fixture).then((html) => {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(html);
-          }, next);
-        });
-      },
-    }],
-    server: { host: '127.0.0.1', port: 0, watch: null },
-  }))).server;
+  server = (
+    await createFetchSafeViteServer(() =>
+      createServer({
+        configFile: false,
+        root: process.cwd(),
+        cacheDir: 'node_modules/.vite-account-writer-tests',
+        logLevel: 'error',
+        appType: 'custom',
+        optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+        plugins: [
+          react(),
+          {
+            name: 'account-writer-fixture',
+            configureServer(vite) {
+              vite.middlewares.use((request, response, next) => {
+                if (request.url !== '/__account-writer') return next();
+                void vite.transformIndexHtml('/__account-writer', fixture).then((html) => {
+                  response.setHeader('Content-Type', 'text/html');
+                  response.end(html);
+                }, next);
+              });
+            },
+          },
+        ],
+        server: { host: '127.0.0.1', port: 0, watch: null },
+      }),
+    )
+  ).server;
   const address = server.httpServer?.address();
   if (!address || typeof address === 'string') throw new Error('Account writer fixture did not bind a local port.');
   origin = `http://127.0.0.1:${address.port}`;
@@ -79,7 +91,11 @@ describe('cross-tab account writer retirement', () => {
       expect(await editor.evaluate(() => window.accountWriterFixture.release())).toBe(false);
       await browserExpect(editor.getByRole('status')).toContainText('device copy was removed');
       expect(await remover.evaluate(() => window.accountWriterFixture.inspect())).toEqual({
-        present: false, score: null, guestRecords: 0, hint: null, pins: null,
+        present: false,
+        score: null,
+        guestRecords: 0,
+        hint: null,
+        pins: null,
       });
     });
   });
@@ -93,7 +109,9 @@ describe('cross-tab account writer retirement', () => {
       expect(await remover.evaluate(() => window.accountWriterFixture.save(4))).toBe(true);
       expect(await editor.evaluate(() => window.accountWriterFixture.release())).toBe(false);
       expect(await remover.evaluate(() => window.accountWriterFixture.inspect())).toMatchObject({
-        present: true, score: 4, guestRecords: 0,
+        present: true,
+        score: 4,
+        guestRecords: 0,
       });
     });
   });
@@ -107,7 +125,9 @@ describe('cross-tab account writer retirement', () => {
       expect(await remover.evaluate(() => window.accountWriterFixture.signOut(false))).toBe(true);
       expect(await editor.evaluate(() => window.accountWriterFixture.release())).toBe(true);
       expect(await remover.evaluate(() => window.accountWriterFixture.inspect())).toMatchObject({
-        present: true, score: 8, guestRecords: 0,
+        present: true,
+        score: 8,
+        guestRecords: 0,
       });
     });
   });

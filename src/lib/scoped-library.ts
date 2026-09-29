@@ -40,13 +40,20 @@ function retiredWriter(): Error {
 function writerStatus(value: unknown): WriterStatus {
   if (value === undefined) return { version: 1, generation: 0, retired: false };
   if (
-    !value || typeof value !== 'object' || Array.isArray(value) ||
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
     Object.keys(value).sort().join(',') !== 'generation,retired,version' ||
-    !('version' in value) || value.version !== 1 ||
-    !('generation' in value) || typeof value.generation !== 'number' ||
-    !Number.isSafeInteger(value.generation) || value.generation < 0 ||
-    !('retired' in value) || typeof value.retired !== 'boolean'
-  ) throw conflict('The account writer marker is invalid. Its saved data has not been changed.');
+    !('version' in value) ||
+    value.version !== 1 ||
+    !('generation' in value) ||
+    typeof value.generation !== 'number' ||
+    !Number.isSafeInteger(value.generation) ||
+    value.generation < 0 ||
+    !('retired' in value) ||
+    typeof value.retired !== 'boolean'
+  )
+    throw conflict('The account writer marker is invalid. Its saved data has not been changed.');
   return { version: 1, generation: value.generation, retired: value.retired };
 }
 
@@ -65,8 +72,8 @@ function targetWriter(target: AccountTarget): AccountWriter {
 function requireWriter(writer: AccountWriter, value: unknown, row: unknown): WriterStatus {
   const status = writerStatus(value);
   if (status.retired || status.generation !== writer.generation) throw retiredWriter();
-  if (row && typeof row === 'object' &&
-      ('writerGeneration' in row ? row.writerGeneration : 0) !== writer.generation) throw retiredWriter();
+  if (row && typeof row === 'object' && ('writerGeneration' in row ? row.writerGeneration : 0) !== writer.generation)
+    throw retiredWriter();
   if (row === undefined && writer.generation !== 0) throw retiredWriter();
   return status;
 }
@@ -146,11 +153,11 @@ function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelop
     row.version !== 1 ||
     row.scope !== scope ||
     ![
-      'recovery,scope,state,sync,version', 'profile,recovery,scope,state,sync,version',
-      'recovery,scope,state,sync,version,writerGeneration', 'profile,recovery,scope,state,sync,version,writerGeneration',
-    ].includes(
-      Object.keys(row).sort().join(','),
-    ) ||
+      'recovery,scope,state,sync,version',
+      'profile,recovery,scope,state,sync,version',
+      'recovery,scope,state,sync,version,writerGeneration',
+      'profile,recovery,scope,state,sync,version,writerGeneration',
+    ].includes(Object.keys(row).sort().join(',')) ||
     !row.sync ||
     typeof row.sync !== 'object' ||
     Array.isArray(row.sync)
@@ -530,7 +537,10 @@ function removeLocalCopy(scope: LibraryScope): DeviceCopyRemoval {
   return complete ? { complete: true } : { complete: false, retry: () => removeLocalCopy(scope) };
 }
 
-export async function deleteScopedLibrary(target: AccountTarget, expectedRevision?: number): Promise<DeviceCopyRemoval> {
+export async function deleteScopedLibrary(
+  target: AccountTarget,
+  expectedRevision?: number,
+): Promise<DeviceCopyRemoval> {
   const writer = targetWriter(target);
   const scope = writer.scope;
   await accountStorageTransaction(scope, (value, store, marker) => {

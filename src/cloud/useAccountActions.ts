@@ -109,7 +109,14 @@ export function useAccountActions({
       const enabledHead = before?.deleted ? await store.enable(before) : before;
       await social.saveMemberName(user.uid, name, member?.avatar ?? defaultAvatar);
       const connectedHead = before?.deleted && enabledHead ? enabledHead : await store.enable(before);
-      await connectScopedLibrary(scopedWriter(local), chosen, connectedHead, name.trim(), choice !== 'online', expected);
+      await connectScopedLibrary(
+        scopedWriter(local),
+        chosen,
+        connectedHead,
+        name.trim(),
+        choice !== 'online',
+        expected,
+      );
       await social.restorePublicationPermission(user.uid);
       await account.refresh();
       await refresh();

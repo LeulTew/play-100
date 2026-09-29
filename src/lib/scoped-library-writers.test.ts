@@ -4,9 +4,19 @@ import { accountScope } from './cloud-types';
 import type { ScopedLibrary, SyncHead } from './cloud-types';
 import { accountStorageTransaction, accountWriterKey, closePersonalLibrary, loadPersonalLibrary } from './personal-db';
 import {
-  acknowledgeScopedUpload, adoptScopedRemote, cacheScopedProfile, commitScopedAction, connectScopedLibrary,
-  deleteScopedLibrary, loadScopedLibrary, openScopedLibrary, pauseScopedLibrary, rebaseScopedLibrary,
-  restoreConsentedAccount, restoreScopedLibrary, scopedWriter,
+  acknowledgeScopedUpload,
+  adoptScopedRemote,
+  cacheScopedProfile,
+  commitScopedAction,
+  connectScopedLibrary,
+  deleteScopedLibrary,
+  loadScopedLibrary,
+  openScopedLibrary,
+  pauseScopedLibrary,
+  rebaseScopedLibrary,
+  restoreConsentedAccount,
+  restoreScopedLibrary,
+  scopedWriter,
 } from './scoped-library';
 import type { AccountWriter } from './scoped-library';
 import { emptyPersonalLibrary } from './personal-library';
@@ -19,14 +29,30 @@ const scope = accountScope('retired-writer');
 const other = accountScope('other-writer');
 const game = discoveryFixture.record;
 const head: SyncHead = {
-  format: 1, enabled: true, deleted: false, epoch: 1, revision: 1,
-  current: { format: 1, generation: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', digest: 'a'.repeat(64), bytes: 1, chunks: ['one'] },
-  previous: null, updatedAt: 1,
+  format: 1,
+  enabled: true,
+  deleted: false,
+  epoch: 1,
+  revision: 1,
+  current: {
+    format: 1,
+    generation: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    digest: 'a'.repeat(64),
+    bytes: 1,
+    chunks: ['one'],
+  },
+  previous: null,
+  updatedAt: 1,
 };
 const member = {
-  uid: 'retired-writer', displayName: 'Synthetic player',
+  uid: 'retired-writer',
+  displayName: 'Synthetic player',
   avatar: { version: 1 as const, seed: 'a'.repeat(32), palette: 'clay' as const },
-  consentVersion: 1 as const, createdAt: 1, updatedAt: 1, gameCount: 0, rankCount: 0,
+  consentVersion: 1 as const,
+  createdAt: 1,
+  updatedAt: 1,
+  gameCount: 0,
+  rankCount: 0,
 };
 let storage: Map<string, string>;
 beforeEach(() => {
@@ -49,8 +75,15 @@ afterEach(() => {
 const mutations: [string, (writer: AccountWriter) => Promise<ScopedLibrary>][] = [
   ['direct rating', (writer) => commitScopedAction(writer, { type: 'rate-game', record: game, score: 9 })],
   ['restore', (writer) => restoreScopedLibrary(writer, emptyPersonalLibrary())],
-  ['connect', (writer) => connectScopedLibrary(writer, emptyPersonalLibrary(), head, 'Player', false,
-    { localRevision: 0, epoch: 0, enabled: false })],
+  [
+    'connect',
+    (writer) =>
+      connectScopedLibrary(writer, emptyPersonalLibrary(), head, 'Player', false, {
+        localRevision: 0,
+        epoch: 0,
+        enabled: false,
+      }),
+  ],
   ['automatic restore', (writer) => restoreConsentedAccount(writer, emptyPersonalLibrary(), head, member, () => true)],
   ['upload acknowledgment', (writer) => acknowledgeScopedUpload(writer, 0, head)],
   ['remote adoption', (writer) => adoptScopedRemote(writer, emptyPersonalLibrary(), head, 0)],
@@ -76,8 +109,9 @@ describe('account device-copy writer retirement', () => {
     const fresh = await openScopedLibrary(scope);
     expect(fresh.writerGeneration).toBe(writer.generation + 1);
     await expect(mutate(writer)).rejects.toMatchObject({ name: 'PersonalLibraryWriterRetiredError' });
-    await expect(commitScopedAction(scope, { type: 'rate-game', record: game, score: 9 }))
-      .rejects.toMatchObject({ name: 'PersonalLibraryWriterRetiredError' });
+    await expect(commitScopedAction(scope, { type: 'rate-game', record: game, score: 9 })).rejects.toMatchObject({
+      name: 'PersonalLibraryWriterRetiredError',
+    });
     expect(await loadScopedLibrary(scopedWriter(fresh))).toEqual(fresh);
     const saved = await commitScopedAction(scopedWriter(fresh), { type: 'rate-game', record: game, score: 4 });
     expect(saved.state.ranking[0]?.score).toBe(4);
@@ -90,8 +124,12 @@ describe('account device-copy writer retirement', () => {
     const heldSave = () => commitScopedAction(writer, { type: 'rate-game', record: game, score: 8 });
     const remove = vi.fn(() => deleteScopedLibrary(writer));
     await signOutTransition(false, {
-      current: () => true, waitForWrites: () => Promise.resolve(), readDeviceCopy: () => loadScopedLibrary(writer),
-      suspend: () => [], signOut: () => Promise.resolve(), removeDeviceCopy: remove,
+      current: () => true,
+      waitForWrites: () => Promise.resolve(),
+      readDeviceCopy: () => loadScopedLibrary(writer),
+      suspend: () => [],
+      signOut: () => Promise.resolve(),
+      removeDeviceCopy: remove,
     });
     const saved = await heldSave();
     expect(remove).not.toHaveBeenCalled();
@@ -106,8 +144,9 @@ describe('account device-copy writer retirement', () => {
     await deleteScopedLibrary(oldWriter, opened.state.revision);
     const fresh = await openScopedLibrary(scope);
     expect(fresh.state.revision).toBe(opened.state.revision);
-    await expect(deleteScopedLibrary(oldWriter, fresh.state.revision))
-      .rejects.toMatchObject({ name: 'PersonalLibraryWriterRetiredError' });
+    await expect(deleteScopedLibrary(oldWriter, fresh.state.revision)).rejects.toMatchObject({
+      name: 'PersonalLibraryWriterRetiredError',
+    });
     expect(await loadScopedLibrary(scopedWriter(fresh))).toEqual(fresh);
   });
 
@@ -150,7 +189,9 @@ describe('account device-copy writer retirement', () => {
     await accountStorageTransaction(scope, (_value, store) => {
       store.put({ version: 1, generation: -1, retired: false }, accountWriterKey(scope));
     });
-    await expect(commitScopedAction(scopedWriter(opened), { type: 'set-motion', motion: 'lite' })).rejects.toThrow(/marker/);
+    await expect(commitScopedAction(scopedWriter(opened), { type: 'set-motion', motion: 'lite' })).rejects.toThrow(
+      /marker/,
+    );
     await expect(openScopedLibrary(scope)).rejects.toThrow(/marker/);
     expect(await accountStorageTransaction(scope, (value) => value)).toEqual(opened);
   });

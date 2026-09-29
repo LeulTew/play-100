@@ -92,9 +92,9 @@ export function useCloudSync(
   const enabled = Boolean(snapshot?.sync.enabled && verified);
   const initialProbe = Boolean(verified && isInitialAccountCache(snapshot) && restoreInitial);
   const epoch = snapshot?.sync.epoch ?? 0;
-  const writerGeneration = snapshot ? snapshot.writerGeneration ?? 0 : null;
+  const writerGeneration = snapshot ? (snapshot.writerGeneration ?? 0) : null;
   const writer = useMemo(
-    () => scope && writerGeneration !== null ? { scope, generation: writerGeneration } : null,
+    () => (scope && writerGeneration !== null ? { scope, generation: writerGeneration } : null),
     [scope, writerGeneration],
   );
   // A fresh lease invalidates pending work when ownership or consent changes, not on ordinary data edits.
@@ -277,7 +277,8 @@ export function useCloudSync(
   );
 
   const sync = useCallback(async () => {
-    if (!writer || !store || !verified || !owns() || uploading.current?.lifetime === lifetime || document.hidden) return;
+    if (!writer || !store || !verified || !owns() || uploading.current?.lifetime === lifetime || document.hidden)
+      return;
     if (hardBlocked(lifetime.block)) return;
     if (!navigator.onLine) {
       setStatus('offline');

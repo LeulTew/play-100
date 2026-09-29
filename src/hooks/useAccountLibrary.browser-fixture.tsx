@@ -16,7 +16,13 @@ export interface AccountWriterFixture {
   reopen(): void;
   save(score: number): Promise<boolean>;
   refresh(): Promise<void>;
-  inspect(): Promise<{ present: boolean; score: number | null; guestRecords: number; hint: string | null; pins: string | null }>;
+  inspect(): Promise<{
+    present: boolean;
+    score: number | null;
+    guestRecords: number;
+    hint: string | null;
+    pins: string | null;
+  }>;
   commandsStable(): boolean;
 }
 declare global {
@@ -27,14 +33,21 @@ declare global {
 
 const scope = accountScope('two-tab-writer', 'demo-play100');
 const game: LibraryRecord = {
-  id: 'synthetic-canonical', source: 'collection', sourceId: 'synthetic-canonical',
-  title: 'Synthetic canonical game', year: 2020, studio: null, genre: null, sourceUrl: null, collectionRank: 1,
+  id: 'synthetic-canonical',
+  source: 'collection',
+  sourceId: 'synthetic-canonical',
+  title: 'Synthetic canonical game',
+  year: 2020,
+  studio: null,
+  genre: null,
+  sourceUrl: null,
+  collectionRank: 1,
 };
 let held: (() => Promise<boolean>) | null = null;
 let firstPerform: unknown;
 let firstRestore: unknown;
 
-function Fixture() {
+export default function Fixture() {
   const [session, setSession] = useState({ signedIn: true, generation: 0 });
   const identityIsCurrent = useCallback(() => session.signedIn, [session.signedIn]);
   const account = useAccountLibrary(session.signedIn ? scope : null, 'lite', identityIsCurrent, session.generation);
@@ -65,7 +78,9 @@ function Fixture() {
           waitForWrites: account.waitForWrites,
           readDeviceCopy: () => loadScopedLibrary(writer),
           suspend: () => [],
-          signOut: async () => { setSession((prior) => ({ ...prior, signedIn: false })); },
+          signOut: async () => {
+            setSession((prior) => ({ ...prior, signedIn: false }));
+          },
           removeDeviceCopy: (revision) => deleteScopedLibrary(writer, revision),
         });
         return result.complete;
@@ -78,13 +93,25 @@ function Fixture() {
       async inspect() {
         const row = await accountStorageTransaction(scope, (value) => value);
         const guest = await loadPersonalLibrary([]);
-        const ranking = row && typeof row === 'object' && 'state' in row &&
-          row.state && typeof row.state === 'object' && 'ranking' in row.state && Array.isArray(row.state.ranking)
-          ? row.state.ranking : [];
-        const entry: unknown = ranking.find((value: unknown) => value && typeof value === 'object' && 'id' in value && value.id === game.id);
+        const ranking =
+          row &&
+          typeof row === 'object' &&
+          'state' in row &&
+          row.state &&
+          typeof row.state === 'object' &&
+          'ranking' in row.state &&
+          Array.isArray(row.state.ranking)
+            ? row.state.ranking
+            : [];
+        const entry: unknown = ranking.find(
+          (value: unknown) => value && typeof value === 'object' && 'id' in value && value.id === game.id,
+        );
         return {
           present: row !== undefined,
-          score: entry && typeof entry === 'object' && 'score' in entry && typeof entry.score === 'number' ? entry.score : null,
+          score:
+            entry && typeof entry === 'object' && 'score' in entry && typeof entry.score === 'number'
+              ? entry.score
+              : null,
           guestRecords: Object.keys(guest.state.records).length,
           hint: localStorage.getItem(motionHintKey(scope)),
           pins: localStorage.getItem(compareTrayStorageKey(scope)),
@@ -93,12 +120,18 @@ function Fixture() {
       commandsStable: () => perform === firstPerform && account.controller.restore === firstRestore,
     };
   }, [account, session]);
-  return <main>
-    <h1>Account writer fixture</h1>
-    <p role="status">{!session.signedIn ? 'Signed out' : account.error ?? account.controller.status}</p>
-  </main>;
+  return (
+    <main>
+      <h1>Account writer fixture</h1>
+      <p role="status">{!session.signedIn ? 'Signed out' : (account.error ?? account.controller.status)}</p>
+    </main>
+  );
 }
 
 const mount = document.getElementById('mount');
 if (!mount) throw new Error('Account writer fixture mount is missing.');
-createRoot(mount).render(<StrictMode><Fixture /></StrictMode>);
+createRoot(mount).render(
+  <StrictMode>
+    <Fixture />
+  </StrictMode>,
+);

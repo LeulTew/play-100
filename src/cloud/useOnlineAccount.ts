@@ -260,12 +260,16 @@ export function useOnlineAccount({
         )
           return;
         caching = fingerprint;
-        void cacheScopedProfile(scopedWriter(local), next, () => alive && cloudAuth.currentUser?.uid === uid).catch((cause) => {
-          if (alive && cloudAuth.currentUser?.uid === uid) {
-            caching = '';
-            setError(`Your online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`);
-          }
-        });
+        void cacheScopedProfile(scopedWriter(local), next, () => alive && cloudAuth.currentUser?.uid === uid).catch(
+          (cause) => {
+            if (alive && cloudAuth.currentUser?.uid === uid) {
+              caching = '';
+              setError(
+                `Your online profile loaded, but its copy on this device could not update. ${onlineError(cause)}`,
+              );
+            }
+          },
+        );
       },
       (cause) => {
         if (alive && cloudAuth.currentUser?.uid === uid) reportProfileError(cause);

@@ -3,7 +3,13 @@ import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import type { LibraryController } from '../lib/library-controller';
 import type { PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 import { emptyPersonalLibrary } from '../lib/personal-library';
-import { commitScopedAction, loadScopedLibrary, openScopedLibrary, restoreScopedLibrary, scopedWriter } from '../lib/scoped-library';
+import {
+  commitScopedAction,
+  loadScopedLibrary,
+  openScopedLibrary,
+  restoreScopedLibrary,
+  scopedWriter,
+} from '../lib/scoped-library';
 import type { AccountWriter } from '../lib/scoped-library';
 import { subscribePersonalLibrary } from '../lib/personal-db';
 import type { MotionPreference } from '../lib/types';
@@ -12,7 +18,10 @@ class AccountOpening {
   writer: AccountWriter | null = null;
   pending: Promise<ScopedLibrary> | null = null;
 
-  constructor(readonly scope: LibraryScope | null, readonly authGeneration: number) {}
+  constructor(
+    readonly scope: LibraryScope | null,
+    readonly authGeneration: number,
+  ) {}
 
   async read(motion: MotionPreference, isCurrent: () => boolean): Promise<ScopedLibrary> {
     if (!this.scope) throw new Error('Open an account before saving its device copy.');
@@ -119,17 +128,18 @@ export function useAccountLibrary(
   const writerGeneration = current?.writerGeneration ?? 0;
   const ready = current !== null;
   const writer = useMemo<AccountWriter | null>(
-    () => scope && ready ? { scope, generation: writerGeneration } : null,
+    () => (scope && ready ? { scope, generation: writerGeneration } : null),
     [scope, ready, writerGeneration],
   );
   const retired = Boolean(failure?.lifetime === lifetime && failure.retired);
   const perform = useCallback(
-    (action: PersonalAction) => enqueue(() => writer && !retired ? commitScopedAction(writer, action) : unavailableAccount()),
+    (action: PersonalAction) =>
+      enqueue(() => (writer && !retired ? commitScopedAction(writer, action) : unavailableAccount())),
     [writer, retired, enqueue],
   );
   const restore = useCallback(
     (state: PersonalLibraryState) =>
-      enqueue(() => writer && !retired ? restoreScopedLibrary(writer, state) : unavailableAccount()),
+      enqueue(() => (writer && !retired ? restoreScopedLibrary(writer, state) : unavailableAccount())),
     [writer, retired, enqueue],
   );
   const reset = useCallback(() => restore(emptyPersonalLibrary()), [restore]);

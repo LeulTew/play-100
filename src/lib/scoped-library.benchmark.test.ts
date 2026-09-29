@@ -17,11 +17,14 @@ const action: PersonalAction = { type: 'edit-ranking', id: 'manual:dense-5000', 
 async function beforeOptimization(): Promise<ScopedLibrary> {
   const saved = await accountStorageTransaction(scope, (value, store) => {
     const current = parseScopedLibrary(value, scope);
-    const next = parseScopedLibrary({
-      ...current,
-      state: applyPersonalAction(current.state, action),
-      sync: { ...current.sync, dirty: true, dataRevision: current.sync.dataRevision + 1 },
-    }, scope);
+    const next = parseScopedLibrary(
+      {
+        ...current,
+        state: applyPersonalAction(current.state, action),
+        sync: { ...current.sync, dirty: true, dataRevision: current.sync.dataRevision + 1 },
+      },
+      scope,
+    );
     const ranked = new Set(next.state.ranking.map((entry) => entry.id));
     const removed = current.state.ranking.filter((entry) => !ranked.has(entry.id)).map((entry) => entry.id);
     recordFriendRemovals(store, scope, removed, current.state.revision, next.state.revision);
@@ -38,7 +41,12 @@ async function beforeOptimization(): Promise<ScopedLibrary> {
 beforeEach(() => {
   closePersonalLibrary();
   vi.stubGlobal('indexedDB', new IDBFactory());
-  vi.stubGlobal('localStorage', { getItem: () => null, removeItem: () => undefined });
+  const storage = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+  });
   vi.stubGlobal('window', undefined);
 });
 afterEach(() => {
@@ -52,30 +60,43 @@ it('reports before/after dense account-edit timing without a timing threshold', 
   for (let index = 0; index < 10_000; index += 1) {
     const id = `manual:dense-${index}`;
     state.records[id] = {
-      id, source: 'manual', sourceId: `dense-${index}`, title: `Synthetic game ${index}`,
-      year: 2020, studio: null, genre: null, sourceUrl: null, collectionRank: null,
+      id,
+      source: 'manual',
+      sourceId: `dense-${index}`,
+      title: `Synthetic game ${index}`,
+      year: 2020,
+      studio: null,
+      genre: null,
+      sourceUrl: null,
+      collectionRank: null,
     };
     state.progress[id] = { played: true, completed: index % 2 === 0, later: true };
     state.queueOrder.push(id);
     state.ranking.push({
-      id, score: index % 11, manualPosition: index === 0 ? 1 : null,
+      id,
+      score: index % 11,
+      manualPosition: index === 0 ? 1 : null,
       note: `Synthetic private opinion ${index}. `.repeat(4),
     });
   }
   const seed: ScopedLibrary = {
-    ...await loadScopedLibrary(scope),
+    ...(await loadScopedLibrary(scope)),
     state: parsePersonalLibrary(state),
   };
-  const reset = () => accountStorageTransaction(scope, (_value, store) => {
-    store.put(seed, scope);
-  });
+  const reset = () =>
+    accountStorageTransaction(scope, (_value, store) => {
+      store.put(seed, scope);
+    });
   const operations = [beforeOptimization, () => commitScopedAction(scope, action)];
   const samples: [number[], number[]] = [[], []];
-  const expected = parseScopedLibrary({
-    ...seed,
-    state: applyPersonalAction(seed.state, action),
-    sync: { ...seed.sync, dirty: true, dataRevision: seed.sync.dataRevision + 1 },
-  }, scope);
+  const expected = parseScopedLibrary(
+    {
+      ...seed,
+      state: applyPersonalAction(seed.state, action),
+      sync: { ...seed.sync, dirty: true, dataRevision: seed.sync.dataRevision + 1 },
+    },
+    scope,
+  );
   // One untimed warmup per path, followed by three alternating before/after pairs.
   for (const operation of operations) {
     await reset();

@@ -133,9 +133,13 @@ describe('explicit account scopes in the existing local database', () => {
     ['invalid sync metadata', (current) => ({ ...current, sync: { ...current.sync, dirty: 'false' } })],
     ['invalid stored state', (current) => ({ ...current, state: { ...current.state, ranking: 'invalid' } })],
     ['unknown state field', (current) => ({ ...current, state: { ...current.state, unexpected: true } })],
-    ['invalid recovery state', (current) => ({
-      ...current, recovery: { state: { ...current.state, records: null }, savedAt: 1, reason: 'Previous copy' },
-    })],
+    [
+      'invalid recovery state',
+      (current) => ({
+        ...current,
+        recovery: { state: { ...current.state, records: null }, savedAt: 1, reason: 'Previous copy' },
+      }),
+    ],
     ['invalid profile', (current) => ({ ...current, profile: { displayName: 'Account', avatar: 'invalid' } })],
   ])('rejects %s during an edit without overwriting the stored envelope', async (_, corrupt) => {
     const initial = await loadScopedLibrary(alice);
@@ -153,7 +157,10 @@ describe('explicit account scopes in the existing local database', () => {
     const stored = { ...initial, sync: { ...initial.sync, dataRevision: Number.MAX_SAFE_INTEGER } };
     await accountStorageTransaction(alice, (_value, store) => store.put(stored, alice));
     const put = vi.spyOn(FakeObjectStore.prototype, 'put');
-    await expect(commitScopedAction(alice, { type: 'rate-game', record: game, score: 8 })).rejects.toThrow(/metadata/);
+    await expect(commitScopedAction(alice, { type: 'rate-game', record: game, score: 8 })).rejects.toMatchObject({
+      name: 'PersonalLibraryStorageError',
+      cause: { message: 'Account sync metadata is invalid. Existing local data is retained.' },
+    });
     expect(put).not.toHaveBeenCalled();
     put.mockRestore();
     expect(await loadScopedLibrary(alice)).toEqual(stored);
@@ -161,23 +168,31 @@ describe('explicit account scopes in the existing local database', () => {
 
   it('continues to reject invalid restored data before replacing the saved account', async () => {
     const before = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 7 });
-    expect(() => restoreScopedLibrary(alice, {
-      ...before.state, records: { [game.id]: { ...game, title: '' } },
-    })).toThrow(/title/i);
+    expect(() =>
+      restoreScopedLibrary(alice, {
+        ...before.state,
+        records: { [game.id]: { ...game, title: '' } },
+      }),
+    ).toThrow(/title/i);
     expect(await loadScopedLibrary(alice)).toEqual(before);
   });
 
   it('upgrades a validated v2 input while preserving removal bookkeeping inputs', async () => {
     const initial = await loadScopedLibrary(alice);
-    await accountStorageTransaction(alice, (_value, store) => store.put({
-      ...initial,
-      state: {
-        ...initial.state,
-        version: 2,
-        records: { [game.id]: game },
-        ranking: [{ id: game.id, score: 7, note: 'Legacy opinion' }],
-      },
-    }, alice));
+    await accountStorageTransaction(alice, (_value, store) =>
+      store.put(
+        {
+          ...initial,
+          state: {
+            ...initial.state,
+            version: 2,
+            records: { [game.id]: game },
+            ranking: [{ id: game.id, score: 7, note: 'Legacy opinion' }],
+          },
+        },
+        alice,
+      ),
+    );
     const after = await commitScopedAction(alice, { type: 'edit-ranking', id: game.id, score: 8 });
     expect(after.state.version).toBe(3);
     expect(after.state.ranking).toEqual([{ id: game.id, score: 8, note: 'Legacy opinion', manualPosition: 1 }]);
