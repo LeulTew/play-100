@@ -128,7 +128,7 @@ function fixture() {
   const context = {
     identity,
     identityRef: { current: identity as AccountIdentity | null | undefined },
-    scope: 'account:demo-play100:alpha',
+    scope: 'account:demo-play100:alpha' as AccountDeletionContext['scope'],
     currentEpoch: { current: 2 },
     authSessionEpochRef: { current: 4 },
     state: {
@@ -304,6 +304,27 @@ describe('ordered account deletion orchestration', () => {
     expect(await f.remove()).toBe(false);
     expect(f.context.sync.suspend).not.toHaveBeenCalled();
   });
+  // G11 SEC2 item 7: removeDeletedAccountCopy removes a copy at any generation, so the deletion binds it to the signed-in
+  // uid itself instead of relying on the scope and identity coming from the same session.
+  it.each(['verified', 'unverified'] as const)(
+    'refuses a %s deletion whose device-copy scope names another account, before deleting anything',
+    async (kind) => {
+      const f = fixture();
+      f.context.scope = 'account:demo-play100:beta';
+      if (kind === 'unverified') f.context.identityRef.current = { ...identity, verified: false };
+      expect(await f.remove()).toBe(false);
+      expect(f.failures).toHaveLength(1);
+      expect(String(f.failures[0])).toContain('The signed-in account changed. Nothing was deleted.');
+      expect(calls.reauthenticate).not.toHaveBeenCalled();
+      expect(calls.cancel).not.toHaveBeenCalled();
+      expect(calls.deleteUser).not.toHaveBeenCalled();
+      expect(calls.deleteDevice).not.toHaveBeenCalled();
+      expect(f.context.sync.store.cleanup).not.toHaveBeenCalled();
+      expect(f.context.sync.suspend).not.toHaveBeenCalled();
+      expect(f.context.setIdentity).not.toHaveBeenCalled();
+      expect(deviceLeftovers()).toBeNull();
+    },
+  );
   it('removes a cancelled registration without running content cleanup', async () => {
     const f = fixture();
     calls.cancelled.mockResolvedValue({ complete: true });

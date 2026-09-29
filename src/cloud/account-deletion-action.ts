@@ -3,6 +3,7 @@ import { deleteUser, EmailAuthProvider, getIdTokenResult, reauthenticateWithCred
 import type { User } from 'firebase/auth';
 import type { AppPage } from '../lib/types';
 import type { LibraryScope, ScopedLibrary, SyncHead } from '../lib/cloud-types';
+import { scopeUid } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import type { FriendShelfConfig } from '../lib/friend-shelf-types';
 import { pauseScopedLibrary, removeDeletedAccountCopy, scopedWriter } from '../lib/scoped-library';
@@ -65,6 +66,13 @@ export interface AccountDeletionContext {
   onNavigate: (page: AppPage) => void;
 }
 
+// removeDeletedAccountCopy removes a copy at any generation, so it may only remove the copy of the account whose sign-in
+// is being deleted: the scope must name that uid. As in removeCancelledRegistration, a mismatch removes nothing.
+function deletedAccountCopy(scope: LibraryScope, uid: string): LibraryScope {
+  if (scopeUid(scope) !== uid) throw new Error('The signed-in account changed. Nothing was deleted.');
+  return scope;
+}
+
 export function createAccountDeletion({
   identity,
   identityRef,
@@ -105,6 +113,8 @@ export function createAccountDeletion({
       const signedIn = cloudAuth.currentUser;
       if (!signedIn || signedIn.uid !== identityRef.current?.uid || !scope)
         throw new Error('Sign in to the account you want to delete.');
+      // Checked before anything is deleted, and again where the copy goes.
+      deletedAccountCopy(scope, signedIn.uid);
       // Pausing needs the copy this account opened. Once the account itself is deleted, its copy goes at whichever
       // generation it reached, opened or not (removeDeletedAccountCopy).
       const writer = account.snapshot ? scopedWriter(account.snapshot) : null;
@@ -170,7 +180,7 @@ export function createAccountDeletion({
         }
         await cancelUnusedRegistration(cloudDb, signedIn.uid);
         await deleteUser(signedIn);
-        const removal = await removeDeletedAccountCopy(scope);
+        const removal = await removeDeletedAccountCopy(deletedAccountCopy(scope, signedIn.uid));
         await rememberOnlineRequest(false);
         setIdentity(null);
         leave(removal);
@@ -306,7 +316,7 @@ export function createAccountDeletion({
           }
           throw cause;
         }
-        const removal = await removeDeletedAccountCopy(scope);
+        const removal = await removeDeletedAccountCopy(deletedAccountCopy(scope, user.uid));
         await rememberOnlineRequest(false);
         setIdentity(null);
         leave(removal);
