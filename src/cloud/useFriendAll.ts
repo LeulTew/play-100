@@ -11,7 +11,7 @@ import {
 } from '../lib/friend-all';
 import type { FriendAllEligibility, FriendAllPolicy } from '../lib/friend-all';
 import type { FriendAllHead } from '../lib/friend-all-transport';
-import { loadScopedLibrary } from '../lib/scoped-library';
+import { accountJournal, loadScopedLibrary, scopedWriter } from '../lib/scoped-library';
 import { hasPendingEdits, usePendingEdits } from '../hooks/useExitSave';
 import { SyncWorkQueue, syncFailure } from '../lib/sync-retry';
 import { FriendAllCommittedError, FriendAllStore } from './friend-all-store';
@@ -245,7 +245,11 @@ export function useFriendAll(
           !current.current.games.length
         )
           return;
-        const cooldown = await readFriendAllCooldown(scope);
+        const opened = current.current.snapshot;
+        if (!opened) return;
+        // The retry state belongs to the device copy this account opened, whose writer it carries.
+        const journal = accountJournal(scopedWriter(opened));
+        const cooldown = await readFriendAllCooldown(journal);
         if (!valid()) return;
         if (cooldown?.epoch === policy.epoch && cooldown.nextAttemptAt > Date.now()) {
           setState((old) => (old?.key === key ? { ...old, status: 'quota', error: FRIEND_ALL_QUOTA_MESSAGE } : old));
@@ -296,7 +300,7 @@ export function useFriendAll(
           progress,
         );
         if (!publicationCurrent()) return;
-        await saveFriendAllCooldown(scope, null);
+        await saveFriendAllCooldown(journal, null);
         work.succeeded();
         setState((old) => (old?.key === key ? { ...old, status: 'saved', error: '', games: saved, ranking } : old));
       },
@@ -309,8 +313,9 @@ export function useFriendAll(
               ? 'transient'
               : syncFailure(cause);
         work.failed(failure);
-        if (failure === 'quota')
-          void saveFriendAllCooldown(scope, {
+        const opened = current.current.snapshot;
+        if (failure === 'quota' && opened)
+          void saveFriendAllCooldown(accountJournal(scopedWriter(opened)), {
             version: 2,
             epoch: policy.epoch,
             nextAttemptAt: work.nextAttemptAt ?? Date.now() + 60_000,

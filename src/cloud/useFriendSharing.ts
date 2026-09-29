@@ -3,7 +3,7 @@ import type { Game } from '../lib/types';
 import type { LibraryScope, ScopedLibrary } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import { projectFriendRanking } from '../lib/friend-types';
-import { loadScopedLibrary } from '../lib/scoped-library';
+import { accountJournal, loadScopedLibrary, scopedWriter } from '../lib/scoped-library';
 import { pendingFriendRemovals, updateFriendSelectionCache } from '../lib/friend-selection-cache';
 import { createFriendWorkGeneration } from '../lib/friend-read-guard';
 import { hasPendingEdits, usePendingEdits } from '../hooks/useExitSave';
@@ -59,14 +59,15 @@ export function useFriendSharing(
     settingsNow.current = next;
     setValue({ uid: owner, settings: next });
     setFailure(null);
-    const target = current.current.scope;
-    if (next && target && current.current.snapshot)
+    // The journal belongs to the device copy this account opened, whose writer it carries.
+    const local = current.current.snapshot;
+    if (next && local && local.scope === current.current.scope)
       void updateFriendSelectionCache(
-        target,
+        accountJournal(scopedWriter(local)),
         next.revision,
         next.selectedIds,
         explicitThroughRevision,
-        current.current.snapshot.state.revision,
+        local.state.revision,
       ).catch((cause) => {
         if (current.current.uid === owner) {
           setFailure({ uid: owner, message: onlineError(cause) });
@@ -78,16 +79,21 @@ export function useFriendSharing(
   useEffect(() => {
     // Seed from the current snapshot; later library edits advance their own removal journal.
     const local = current.current.snapshot;
-    if (!uid || !scope || settingsRevision === undefined || !selectedIds || !snapshotReady || !local) return;
-    void updateFriendSelectionCache(scope, settingsRevision, selectedIds, undefined, local.state.revision).catch(
-      (cause) => {
-        if (current.current.uid === uid) {
-          setFailure({ uid, message: onlineError(cause) });
-          setStatus('error');
-          queue.current?.failed('blocked');
-        }
-      },
-    );
+    if (!uid || !scope || settingsRevision === undefined || !selectedIds || !snapshotReady || local?.scope !== scope)
+      return;
+    void updateFriendSelectionCache(
+      accountJournal(scopedWriter(local)),
+      settingsRevision,
+      selectedIds,
+      undefined,
+      local.state.revision,
+    ).catch((cause) => {
+      if (current.current.uid === uid) {
+        setFailure({ uid, message: onlineError(cause) });
+        setStatus('error');
+        queue.current?.failed('blocked');
+      }
+    });
   }, [uid, scope, settingsRevision, selectedIds, snapshotReady]);
   useEffect(() => {
     if (!uid || !verified) return;
@@ -187,7 +193,7 @@ export function useFriendSharing(
           if (!control?.enabled || control.deleted) return;
         }
         const local = await loadScopedLibrary(target);
-        const removed = await pendingFriendRemovals(target, local.state.revision);
+        const removed = await pendingFriendRemovals(accountJournal(scopedWriter(local)), local.state.revision);
         let control = settingsNow.current;
         if (
           !isCurrent() ||

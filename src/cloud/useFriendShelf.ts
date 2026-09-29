@@ -12,7 +12,7 @@ import {
 } from '../lib/friend-shelf-types';
 import type { FriendShelfJournal } from '../lib/friend-shelf-selection';
 import { createFriendWorkGeneration } from '../lib/friend-read-guard';
-import { loadScopedLibrary } from '../lib/scoped-library';
+import { accountJournal, loadScopedLibrary, scopedWriter } from '../lib/scoped-library';
 import { hasPendingEdits, usePendingEdits } from '../hooks/useExitSave';
 import { SyncWorkQueue } from '../lib/sync-retry';
 import { FriendShelfStore } from './friend-shelf-store';
@@ -95,13 +95,15 @@ export function useFriendShelf(
       if (!owns() || !scope || (next && controlNow.current && next.revision < controlNow.current.revision)) return;
       controlNow.current = next;
       setValue({ key, config: next });
-      if (next)
+      // The journal belongs to the device copy this account opened, whose writer it carries.
+      const local = current.current.snapshot;
+      if (next && local)
         await journal.update(
-          scope,
+          accountJournal(scopedWriter(local)),
           next.revision,
           next.selectedIds,
           explicitThroughRevision,
-          current.current.snapshot?.state.revision ?? 0,
+          local.state.revision,
         );
       if (owns() && recovery.current?.key !== key) setFailure(null);
     },
@@ -173,9 +175,15 @@ export function useFriendShelf(
     };
   }, [uid, scope, verified, snapshotReady, owns, key, visibleTools, config?.enabled, store, acceptConfig, reload]);
   useEffect(() => {
-    if (!uid || !scope || !config || !snapshot) return;
+    if (!uid || !scope || !config || snapshot?.scope !== scope) return;
     void journal
-      .update(scope, config.revision, config.selectedIds, undefined, snapshot.state.revision)
+      .update(
+        accountJournal(scopedWriter(snapshot)),
+        config.revision,
+        config.selectedIds,
+        undefined,
+        snapshot.state.revision,
+      )
       .catch((cause) => {
         if (owns()) {
           setFailure({ key, message: onlineError(cause) });
@@ -217,7 +225,7 @@ export function useFriendShelf(
           local.state.revision !== current.current.snapshot?.state.revision
         )
           return;
-        const removed = await journal.pending(scope, local.state.revision);
+        const removed = await journal.pending(accountJournal(scopedWriter(local)), local.state.revision);
         const fresh = await store.config(uid);
         if (!isCurrent()) return;
         await acceptConfig(fresh);

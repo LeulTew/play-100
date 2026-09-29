@@ -1,5 +1,5 @@
-import type { LibraryScope } from './cloud-types';
 import { friendAllWorkStorageTransaction } from './personal-db';
+import type { AccountJournal } from './personal-db';
 
 export interface FriendAllCooldown {
   version: 2;
@@ -28,13 +28,18 @@ export function parseFriendAllCooldown(value: unknown): FriendAllCooldown | null
   }
   return { version: 2, epoch: value.epoch, nextAttemptAt: value.nextAttemptAt };
 }
-export function readFriendAllCooldown(scope: LibraryScope) {
-  return friendAllWorkStorageTransaction(scope, (current) => parseFriendAllCooldown(current));
+export function readFriendAllCooldown(journal: AccountJournal) {
+  return friendAllWorkStorageTransaction(journal, (current) => parseFriendAllCooldown(current));
 }
-export function saveFriendAllCooldown(scope: LibraryScope, value: FriendAllCooldown | null) {
-  return friendAllWorkStorageTransaction(scope, (_, store) => {
-    const key = `friends-all-work:v2:${scope}`;
-    if (value) store.put(parseFriendAllCooldown(value), key);
-    else store.delete(key);
-  });
+/** Saves the retry state, or with null clears it, which a removed device copy still allows. */
+export function saveFriendAllCooldown(journal: AccountJournal, value: FriendAllCooldown | null) {
+  return friendAllWorkStorageTransaction(
+    journal,
+    (_, store) => {
+      const key = `friends-all-work:v2:${journal.scope}`;
+      if (value) store.put(parseFriendAllCooldown(value), key);
+      else store.delete(key);
+    },
+    value === null,
+  );
 }

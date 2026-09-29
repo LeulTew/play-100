@@ -21,16 +21,16 @@ function selectionWork<T>(work: () => T): T {
 }
 
 export const friendShelfJournal: FriendShelfJournal = {
-  update(scope, revision, selected, explicitThroughRevision, initialStateRevision = 0) {
-    return friendShelfSelectionStorageTransaction(scope, (current, store) => {
+  update(journal, revision, selected, explicitThroughRevision, initialStateRevision = 0) {
+    return friendShelfSelectionStorageTransaction(journal, (current, store) => {
       const next = selectionWork(() =>
         rememberShelfSelection(current, revision, selected, initialStateRevision, explicitThroughRevision),
       );
-      store.put(next, friendShelfSelectionKey(scope));
+      store.put(next, friendShelfSelectionKey(journal.scope));
     });
   },
-  pending(scope, stateRevision) {
-    return friendShelfSelectionStorageTransaction(scope, (current) =>
+  pending(journal, stateRevision) {
+    return friendShelfSelectionStorageTransaction(journal, (current) =>
       selectionWork(() => pendingShelfRemovals(current, stateRevision)),
     );
   },

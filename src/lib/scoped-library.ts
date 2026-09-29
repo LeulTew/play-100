@@ -1,4 +1,5 @@
 import { accountStorageTransaction, accountWriterKey, publishLibraryChange } from './personal-db';
+import type { AccountJournal } from './personal-db';
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { PersonalAction, PersonalLibraryState } from './personal-types';
 import type { LibraryScope, ScopedLibrary, SyncHead, SyncMetadata } from './cloud-types';
@@ -59,6 +60,25 @@ function writerStatus(value: unknown): WriterStatus {
 
 export function scopedWriter(snapshot: ScopedLibrary): AccountWriter {
   return { scope: snapshot.scope, generation: snapshot.writerGeneration ?? 0 };
+}
+
+/**
+ * The sharing journals of a writer's device copy (personal-db's AccountJournal). A journal belongs to its copy: a copy
+ * that was removed, or never opened, starts no journal, and a copy reopened since this writer opened it belongs to a
+ * newer writer. Once the copy is gone, cleanup may still delete what a journal holds.
+ */
+export function accountJournal(target: AccountTarget): AccountJournal {
+  const writer = targetWriter(target);
+  return {
+    scope: writer.scope,
+    check(marker, row, cleanup) {
+      if (row === undefined) {
+        if (cleanup) return;
+        throw retiredWriter();
+      }
+      requireWriter(writer, marker, row);
+    },
+  };
 }
 
 // Scope-only callers belong to the original generation; they cannot adopt a reopened cache.
@@ -537,6 +557,22 @@ function removeLocalCopy(scope: LibraryScope): DeviceCopyRemoval {
   return complete ? { complete: true } : { complete: false, retry: () => removeLocalCopy(scope) };
 }
 
+// The sharing journals of an account's device copy, which go with it.
+function removeJournals(store: IDBObjectStore, scope: LibraryScope): void {
+  store.delete(`friends-selection:v1:${scope}`);
+  store.delete(friendShelfSelectionKey(scope));
+  store.delete(`friends-all-work:v2:${scope}`);
+}
+
+// Retires the copy's writer, so that no older writer recreates it, and removes it with its sharing journals.
+function retireCopy(store: IDBObjectStore, scope: LibraryScope, status: WriterStatus): void {
+  if (status.generation >= Number.MAX_SAFE_INTEGER)
+    throw conflict('The device-copy generation limit was reached. No data was removed.');
+  store.put({ version: 1, generation: status.generation + 1, retired: true }, accountWriterKey(scope));
+  store.delete(scope);
+  removeJournals(store, scope);
+}
+
 export async function deleteScopedLibrary(
   target: AccountTarget,
   expectedRevision?: number,
@@ -545,7 +581,11 @@ export async function deleteScopedLibrary(
   const scope = writer.scope;
   await accountStorageTransaction(scope, (value, store, marker) => {
     const status = writerStatus(marker);
-    if (status.retired && value === undefined) return;
+    // Already removed: a journal an earlier release left behind still goes.
+    if (status.retired && value === undefined) {
+      removeJournals(store, scope);
+      return;
+    }
     requireWriter(writer, marker, value);
     if (expectedRevision !== undefined && value !== undefined) {
       const current = parseScopedLibrary(value, scope);
@@ -555,13 +595,7 @@ export async function deleteScopedLibrary(
         );
       }
     }
-    if (status.generation >= Number.MAX_SAFE_INTEGER)
-      throw conflict('The device-copy generation limit was reached. No data was removed.');
-    store.put({ version: 1, generation: status.generation + 1, retired: true }, accountWriterKey(scope));
-    store.delete(scope);
-    store.delete(`friends-selection:v1:${scope}`);
-    store.delete(friendShelfSelectionKey(scope));
-    store.delete(`friends-all-work:v2:${scope}`);
+    retireCopy(store, scope, status);
   });
   const removal = removeLocalCopy(scope);
   publishLibraryChange(scope);

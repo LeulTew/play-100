@@ -794,6 +794,17 @@ account's data is still on this device and offers Try again, bound to that
 account's scope. A refused retry points to clearing the site's data in the
 browser settings. Any sign-in withdraws the offer, and the retry removes only
 that account's pins and motion hint, never guest or another account's data.
+Since G10 SEC-F1 (R22), the account's three sharing journals (the friends
+selection, the shared-games selection and the automatic sharing retry state)
+follow the same writer retirement as the copy. Each journal read or write
+carries the writer of the copy its tab opened, and checks that writer against
+the account's row and writer marker in the journal's own transaction. So a
+journal write another tab started before a removal, but whose transaction runs
+after it, is refused rather than recreating the journal. A copy that was
+removed or never opened starts no journal, and a copy reopened since belongs to
+its new writer. Clearing the retry state is only cleanup and stays allowed on a
+removed copy. Removing a copy that is already removed deletes any journal an
+earlier release left behind.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
 ## Ordered parent-only rollout

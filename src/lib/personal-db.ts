@@ -5,6 +5,7 @@ import {
   parsePersonalLibrary,
 } from './personal-library';
 import type { LibraryRecord, PersonalAction, PersonalLibraryLoad, PersonalLibraryState } from './personal-types';
+import type { LibraryScope } from './cloud-types';
 import { STORAGE_KEY } from './storage';
 import { rememberMotionHint } from './motion-hint';
 import { STORAGE_DENIED_MESSAGE } from './storage-notices';
@@ -400,31 +401,75 @@ export function accountWriterKey(scope: string): string {
   return `account-writer:v1:${scope}`;
 }
 
-export function friendSelectionStorageTransaction<T>(
-  scope: string,
+/**
+ * An account's sharing journal, as the writer of the device copy it belongs to uses it. `check` is given that copy's
+ * writer marker and library row as the journal's own transaction reads them, and throws unless this writer may use the
+ * journal: to read or change it, or with `cleanup`, only to delete what it holds.
+ */
+export interface AccountJournal {
+  readonly scope: LibraryScope;
+  check(marker: unknown, row: unknown, cleanup: boolean): void;
+}
+
+// Checks the journal's writer against the account's row and writer marker, then reads and changes the journal, in one
+// readwrite transaction: a removal in another tab lands either before the check or after the change, never between.
+function accountJournalTransaction<T>(
+  journal: AccountJournal,
+  key: string,
+  cleanup: boolean,
   work: (current: unknown, store: IDBObjectStore) => T,
 ): Promise<T> {
-  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope))
+  let result: { value: T } | undefined;
+  let failure: unknown;
+  return accountStorageTransaction(journal.scope, (row, store, marker) => {
+    journal.check(marker, row, cleanup);
+    const request = store.get(key);
+    request.onsuccess = () => {
+      try {
+        result = { value: work(request.result, store) };
+      } catch (cause) {
+        failure = cause;
+        store.transaction.abort();
+      }
+    };
+  }).then(
+    () => {
+      if (!result) throw storageError(new Error('The transaction completed without a result.'));
+      return result.value;
+    },
+    (error: unknown) => {
+      throw failure === undefined ? error : storageError(failure);
+    },
+  );
+}
+
+export function friendSelectionStorageTransaction<T>(
+  journal: AccountJournal,
+  work: (current: unknown, store: IDBObjectStore) => T,
+): Promise<T> {
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(journal.scope))
     return Promise.reject(namedError('PersonalLibraryValidationError', 'The friends selection scope is invalid.'));
-  return transaction(work, `friends-selection:v1:${scope}`);
+  return accountJournalTransaction(journal, `friends-selection:v1:${journal.scope}`, false, work);
 }
 
 export function friendShelfSelectionStorageTransaction<T>(
-  scope: string,
+  journal: AccountJournal,
   work: (current: unknown, store: IDBObjectStore) => T,
 ): Promise<T> {
-  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope))
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(journal.scope))
     return Promise.reject(namedError('PersonalLibraryValidationError', 'The shared games selection scope is invalid.'));
-  return transaction(work, `friends-shelf-selection:v1:${scope}`);
+  return accountJournalTransaction(journal, `friends-shelf-selection:v1:${journal.scope}`, false, work);
 }
 
+/** With `cleanup`, `work` may only delete the retry state, which a removed device copy still allows. */
 export function friendAllWorkStorageTransaction<T>(
-  scope: string,
+  journal: AccountJournal,
   work: (current: unknown, store: IDBObjectStore) => T,
+  cleanup = false,
 ): Promise<T> {
-  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope))
+  if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(journal.scope))
     return Promise.reject(namedError('PersonalLibraryValidationError', 'The automatic sharing scope is invalid.'));
-  return transaction(work, `friends-all-work:v2:${scope}`);
+  return accountJournalTransaction(journal, `friends-all-work:v2:${journal.scope}`, cleanup, work);
 }
 
 export function saveOnlineLoadHint(requested: boolean): Promise<void> {

@@ -221,3 +221,43 @@ describe('mixed Release 6 and current tabs', () => {
     }, true);
   });
 });
+
+// G10 SEC-F1: the sharing journals follow the same writer retirement as the account copy.
+describe('cross-tab sharing-journal retirement', () => {
+  const saved = { selection: true, shelf: true, cooldown: true };
+  const none = { selection: false, shelf: false, cooldown: false };
+
+  it('refuses journal writes another tab held until after the removal, and keeps no journal', async () => {
+    await twoTabs(async (remover, editor) => {
+      expect(await editor.evaluate(() => window.accountWriterFixture.writeJournals())).toEqual(saved);
+      await editor.evaluate(() => window.accountWriterFixture.holdJournals());
+      expect(await remover.evaluate(() => window.accountWriterFixture.signOut(true))).toBe(true);
+      expect(await remover.evaluate(() => window.accountWriterFixture.inspectJournals())).toEqual(none);
+      expect(await editor.evaluate(() => window.accountWriterFixture.releaseJournals())).toEqual(none);
+      expect(await remover.evaluate(() => window.accountWriterFixture.inspectJournals())).toEqual(none);
+    });
+  });
+
+  it('keeps held journal writes retired after another tab reopens a new generation', async () => {
+    await twoTabs(async (remover, editor) => {
+      await editor.evaluate(() => window.accountWriterFixture.holdJournals());
+      expect(await remover.evaluate(() => window.accountWriterFixture.signOut(true))).toBe(true);
+      await remover.evaluate(() => window.accountWriterFixture.reopen());
+      await browserExpect(remover.getByRole('status')).toHaveText('ready');
+      expect(await editor.evaluate(() => window.accountWriterFixture.releaseJournals())).toEqual(none);
+      expect(await remover.evaluate(() => window.accountWriterFixture.inspectJournals())).toEqual(none);
+      // The reopened copy's own writer starts its journals.
+      expect(await remover.evaluate(() => window.accountWriterFixture.writeJournals())).toEqual(saved);
+      expect(await remover.evaluate(() => window.accountWriterFixture.inspectJournals())).toEqual(saved);
+    });
+  });
+
+  it('keeps the journals, and lands held journal writes, on ordinary sign-out', async () => {
+    await twoTabs(async (remover, editor) => {
+      await editor.evaluate(() => window.accountWriterFixture.holdJournals());
+      expect(await remover.evaluate(() => window.accountWriterFixture.signOut(false))).toBe(true);
+      expect(await editor.evaluate(() => window.accountWriterFixture.releaseJournals())).toEqual(saved);
+      expect(await remover.evaluate(() => window.accountWriterFixture.inspectJournals())).toEqual(saved);
+    });
+  });
+});

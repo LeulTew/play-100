@@ -1,15 +1,16 @@
 import type { LibraryScope } from './cloud-types';
+import type { AccountJournal } from './personal-db';
 import { shelfSelection } from './friend-shelf-types';
 
 export interface FriendShelfJournal {
   update(
-    scope: LibraryScope,
+    journal: AccountJournal,
     revision: number,
     selected: readonly string[],
     explicitThroughRevision?: number,
     initialStateRevision?: number,
   ): Promise<void>;
-  pending(scope: LibraryScope, stateRevision: number): Promise<ReadonlySet<string>>;
+  pending(journal: AccountJournal, stateRevision: number): Promise<ReadonlySet<string>>;
 }
 export interface ShelfSelectionCache {
   version: 1;

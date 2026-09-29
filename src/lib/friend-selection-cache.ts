@@ -1,4 +1,5 @@
 import { friendSelectionStorageTransaction } from './personal-db';
+import type { AccountJournal } from './personal-db';
 import type { LibraryScope } from './cloud-types';
 
 interface SelectionCache {
@@ -53,13 +54,13 @@ function parse(value: unknown): SelectionCache | null {
   };
 }
 export function updateFriendSelectionCache(
-  scope: LibraryScope,
+  journal: AccountJournal,
   revision: number,
   selected: readonly string[],
   explicitThroughRevision?: number,
   initialStateRevision = 0,
 ): Promise<void> {
-  return friendSelectionStorageTransaction(scope, (value, store) => {
+  return friendSelectionStorageTransaction(journal, (value, store) => {
     let current: SelectionCache | null;
     try {
       current = parse(value);
@@ -87,15 +88,15 @@ export function updateFriendSelectionCache(
         selected: [...selected],
         removed,
       },
-      `friends-selection:v1:${scope}`,
+      `friends-selection:v1:${journal.scope}`,
     );
   });
 }
 export function pendingFriendRemovals(
-  scope: LibraryScope,
+  journal: AccountJournal,
   currentStateRevision?: number,
 ): Promise<ReadonlySet<string>> {
-  return friendSelectionStorageTransaction(scope, (value) => {
+  return friendSelectionStorageTransaction(journal, (value) => {
     const current = parse(value);
     if (current && currentStateRevision !== undefined && current.observedStateRevision !== currentStateRevision)
       return invalid(
