@@ -12,11 +12,18 @@ that ignores composite indexes is not that proof.
 
 ## Promotion order
 
-The GitHub workflows (CI, CodeQL, Dependency review, Secret scan) remain in the
-repository but are disabled by the owner; no hosted check gates a release. The
-gate is the local suites plus review (README "Quality checks"): unit/browser,
+The stale CI workflow was removed. CodeQL, Dependency review and Secret scan
+remain in the repository but are disabled by the owner; no hosted check gates a
+release. The committed local `release:gate` runner and review (README "Quality
+checks") cover unit/browser,
 cloud emulator, e2e production and development, cloud-UI, `tsc`, lint, build,
-`check:csp`, `check:budgets`, and `npm audit` / `npm audit signatures` at install.
+`check:csp` and `check:budgets`. Before other checks, the gate verifies
+`npm audit signatures` in both installed checkouts and retains hashed exit
+receipts. It then runs `npm audit --json --audit-level=info` in each checkout
+and records the native JSON, real exit code, UTC dates and lockfile digest in
+the release manifest. Valid advisory reports require owner review; registry
+failures and malformed reports stop the gate. Run `npm audit` locally after
+each install as well.
 The parent's Gitleaks full-history scan remains a pre-merge step. Keep the
 scanner's redacted JSON report and command log with the release evidence: a
 receipt that summarizes the result is not the scanner's report. Each promotion's

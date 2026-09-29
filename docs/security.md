@@ -3,8 +3,8 @@
 ## Anonymous operational signals
 
 The main document policy reports to the first-party `/api/csp-report` endpoint
-using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback. Existing
-inline script/style hashes are unchanged. Only POSTs with CSP report media types
+using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback.
+Only POSTs with CSP report media types
 are accepted, with a 16 KiB body cap, a three-second read deadline, at most 16
 reports per batch and per-instance admission (4 active / 30 per minute). The
 handler emits one structured counts line containing only a known directive,
@@ -23,10 +23,10 @@ the production auth handler twice, Wikidata site information and FreeToGame game
 the same nonce checks as `release:verify`, and bounded valid catalog responses.
 It logs one structured OK/FAIL result, never response bodies, URLs or credentials.
 Public callers cannot choose destinations or query parameters. Both success and
-failure are cached for 15 minutes per instance; concurrent calls share a probe,
-and admission caps active requests at 4 / 12 per minute. Per-instance limits do
-not replace the global WAF control. These checks report faults, not successful
-real-user sign-in.
+failure are cached for 15 minutes per instance. Cached replies do not consume
+admission; uncached calls share a probe and are capped at 4 active / 12 per
+minute. Per-instance limits do not replace the global WAF control. These checks
+report faults, not successful real-user sign-in.
 
 Production error boundaries also send anonymous counts to the first-party
 `/api/client-error-report` endpoint. The only fields are a fixed error class,

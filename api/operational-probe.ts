@@ -71,6 +71,14 @@ export function createOperationalProbe(
       response.writeHead(request.method !== 'GET' ? 405 : 400).end();
       return;
     }
+    const respond = (result: Health) => {
+      response.setHeader('Content-Type', 'application/json');
+      response.writeHead(Object.values(result).every(Boolean) ? 200 : 503).end(JSON.stringify(result));
+    };
+    if (cached && cached.until > now()) {
+      respond(cached.result);
+      return;
+    }
     const release = admission.acquire();
     if (!release) {
       response.setHeader('Retry-After', '60');
@@ -78,29 +86,24 @@ export function createOperationalProbe(
       return;
     }
     try {
-      if (!cached || cached.until <= now()) {
-        pending ??= Promise.resolve()
-          .then(probe)
-          .catch(() => ({ auth: false, wikidata: false, freetogame: false }))
-          .then((result) => {
-            cached = { until: now() + CACHE_MS, result };
-            log(
-              JSON.stringify({
-                event: 'operational-probe',
-                status: Object.values(result).every(Boolean) ? 'OK' : 'FAIL',
-                ...result,
-              }),
-            );
-            return result;
-          })
-          .finally(() => {
-            pending = undefined;
-          });
-        await pending;
-      }
-      const result = cached!.result;
-      response.setHeader('Content-Type', 'application/json');
-      response.writeHead(Object.values(result).every(Boolean) ? 200 : 503).end(JSON.stringify(result));
+      pending ??= Promise.resolve()
+        .then(probe)
+        .catch(() => ({ auth: false, wikidata: false, freetogame: false }))
+        .then((result) => {
+          cached = { until: now() + CACHE_MS, result };
+          log(
+            JSON.stringify({
+              event: 'operational-probe',
+              status: Object.values(result).every(Boolean) ? 'OK' : 'FAIL',
+              ...result,
+            }),
+          );
+          return result;
+        })
+        .finally(() => {
+          pending = undefined;
+        });
+      respond(await pending);
     } finally {
       release();
     }

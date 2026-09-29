@@ -253,7 +253,7 @@ describe('anonymous first-party CSP counts', () => {
 });
 
 describe('credential-free operational probe', () => {
-  it('coalesces concurrent callers, caches failures too and admits only a bounded public request rate', async () => {
+  it('serves cached failures without consuming admission and refreshes exactly at expiry', async () => {
     let time = 1;
     let release!: (result: { auth: boolean; wikidata: boolean; freetogame: boolean }) => void;
     const probe = vi.fn(
@@ -275,16 +275,73 @@ describe('credential-free operational probe', () => {
     expect(log).toHaveBeenCalledWith(
       JSON.stringify({ event: 'operational-probe', status: 'FAIL', auth: false, wikidata: true, freetogame: true }),
     );
-    for (let i = 0; i < 9; i++) await nativeFetch(base);
-    expect((await nativeFetch(base)).status).toBe(429);
+    for (let i = 0; i < 24; i++) {
+      const response = await nativeFetch(base);
+      expect(response.status).toBe(503);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.json()).toEqual({ auth: false, wikidata: true, freetogame: true });
+    }
+    expect(probe).toHaveBeenCalledOnce();
+    expect(log).toHaveBeenCalledOnce();
     expect((await nativeFetch(`${base}?url=https://other.test`)).status).toBe(400);
     expect((await nativeFetch(base, { method: 'POST' })).status).toBe(405);
-    time += 15 * 60_000;
+    time += 15 * 60_000 - 1;
+    expect((await nativeFetch(base)).status).toBe(503);
+    expect(probe).toHaveBeenCalledOnce();
+    time++;
     probe.mockResolvedValue({ auth: true, wikidata: true, freetogame: true });
     expect((await nativeFetch(base)).status).toBe(200);
     expect(probe).toHaveBeenCalledTimes(2);
     expect(log).toHaveBeenCalledTimes(2);
   });
+
+  it.each([true, false])(
+    'bounds uncached callers, then serves cached health=%s beyond the admission limit',
+    async (healthy) => {
+      const result = { auth: healthy, wikidata: true, freetogame: true };
+      let release!: (value: typeof result) => void;
+      const probe = vi.fn(
+        () =>
+          new Promise<typeof result>((resolve) => {
+            release = resolve;
+          }),
+      );
+      const log = vi.fn();
+      const handler = createOperationalProbe(probe, () => 1, log);
+      const sockets: Socket[] = [];
+      const call = () => {
+        const socket = new Socket();
+        sockets.push(socket);
+        const request = new IncomingMessage(socket);
+        request.method = 'GET';
+        request.url = '/';
+        const response = new ServerResponse(request);
+        return { response, done: handler(request, response) };
+      };
+      try {
+        const pending = Array.from({ length: 4 }, call);
+        const rejected = call();
+        await rejected.done;
+        expect(rejected.response.statusCode).toBe(429);
+        expect(rejected.response.getHeader('Retry-After')).toBe('60');
+        await vi.waitFor(() => expect(probe).toHaveBeenCalledOnce());
+        release(result);
+        await Promise.all(pending.map(({ done }) => done));
+        for (const { response } of pending) expect(response.statusCode).toBe(healthy ? 200 : 503);
+        for (let i = 0; i < 24; i++) {
+          const cached = call();
+          await cached.done;
+          expect(cached.response.statusCode).toBe(healthy ? 200 : 503);
+          expect(cached.response.getHeader('Content-Type')).toBe('application/json');
+          expect(cached.response.getHeader('Retry-After')).toBeUndefined();
+        }
+        expect(probe).toHaveBeenCalledOnce();
+        expect(log).toHaveBeenCalledOnce();
+      } finally {
+        sockets.forEach((socket) => socket.destroy());
+      }
+    },
+  );
 
   it('uses only four fixed credential-free requests and requires fresh nonce CSPs', async () => {
     let nonce = 0;
