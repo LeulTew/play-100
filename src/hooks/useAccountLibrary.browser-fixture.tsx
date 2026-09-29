@@ -9,7 +9,7 @@ import { updateFriendSelectionCache } from '../lib/friend-selection-cache';
 import { friendShelfJournal } from '../lib/friend-shelf-selection-cache';
 import { friendShelfSelectionKey } from '../lib/friend-shelf-selection';
 import { saveFriendAllCooldown } from '../lib/friend-all-work';
-import { readStoredValue } from '../lib/device-store-inspection';
+import { readStoredValue } from '../../tests/fixtures/device-store-inspection';
 import { compareTrayStorageKey, serializeCompareTray } from '../lib/compare-tray';
 import { motionHintKey } from '../lib/motion-hint';
 import type { LibraryRecord } from '../lib/personal-types';

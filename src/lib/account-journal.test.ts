@@ -17,7 +17,7 @@ import { updateFriendSelectionCache } from './friend-selection-cache';
 import { friendShelfJournal } from './friend-shelf-selection-cache';
 import { friendShelfSelectionKey } from './friend-shelf-selection';
 import { readFriendAllCooldown, saveFriendAllCooldown } from './friend-all-work';
-import { readStoredValue, writeStoredValue } from './device-store-inspection';
+import { readStoredValue, writeStoredValue } from '../../tests/fixtures/device-store-inspection';
 
 const scope = accountScope('journal-owner');
 const selected = 'manual:journal-game';

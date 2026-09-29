@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import { closePersonalLibrary } from './personal-db';
-import { readStoredValue as stored } from './device-store-inspection';
+import { readStoredValue as stored } from '../../tests/fixtures/device-store-inspection';
 import { parseFriendAllCooldown, readFriendAllCooldown, saveFriendAllCooldown } from './friend-all-work';
 import { accountJournal, deleteScopedLibrary, loadScopedLibrary, scopedWriter } from './scoped-library';
 

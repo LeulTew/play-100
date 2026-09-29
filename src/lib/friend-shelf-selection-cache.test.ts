@@ -15,7 +15,7 @@ import {
   restoreScopedLibrary,
 } from './scoped-library';
 import { friendShelfJournal } from './friend-shelf-selection-cache';
-import { readStoredValue } from './device-store-inspection';
+import { readStoredValue } from '../../tests/fixtures/device-store-inspection';
 import { friendShelfSelectionKey } from './friend-shelf-selection';
 import { pendingFriendRemovals, updateFriendSelectionCache } from './friend-selection-cache';
 import type { LibraryRecord, PersonalAction } from './personal-types';
