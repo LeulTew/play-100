@@ -25,6 +25,31 @@ function deferred<T>() {
 }
 
 describe('lazy bounded public seed loading', () => {
+  it('isolates legacy cancellation while other callers finish and reuse the catalog', async () => {
+    const response = deferred<Response>();
+    const fetcher = vi.fn().mockReturnValue(response.promise);
+    vi.stubGlobal('fetch', fetcher);
+    const load = createDiscoveryLoader();
+    const canceled = new AbortController();
+    const current = new AbortController();
+    for (const controller of [canceled, current]) {
+      Object.defineProperties(controller.signal, {
+        throwIfAborted: { value: undefined },
+        reason: { value: undefined },
+      });
+    }
+    const first = load(canceled.signal);
+    const second = load(current.signal);
+    canceled.abort();
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    response.resolve(new Response(JSON.stringify(catalogFixture)));
+    const catalog = await second;
+    expect(catalog).toEqual(catalogFixture);
+    expect(await load(current.signal)).toBe(catalog);
+    await expect(load(canceled.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
   it('shares one fetch and parse across concurrent first callers and then uses the cache', async () => {
     const response = deferred<Response>();
     const parser = await import('./discovery-catalog');

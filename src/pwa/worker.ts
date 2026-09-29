@@ -213,6 +213,12 @@ function documentResponse(response: Response, policy: PwaDocumentPolicy, status 
   return new Response(response.body, { status, headers });
 }
 
+// Keep the worker self-contained and compatible with signals before throwIfAborted/reason.
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted)
+    throw signal.reason === undefined ? new DOMException('The operation was aborted.', 'AbortError') : signal.reason;
+}
+
 export async function verifiedPwaResponse(
   response: Response,
   asset: PwaAsset,
@@ -244,10 +250,10 @@ export async function verifiedPwaResponse(
   let offset = 0;
   try {
     if (signal?.aborted) cancel();
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     for (;;) {
       const part = await reader.read();
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       if (part.done) break;
       if (offset + part.value.byteLength > asset.bytes) {
         await reader.cancel();
@@ -263,7 +269,7 @@ export async function verifiedPwaResponse(
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('');
-  signal?.throwIfAborted();
+  throwIfAborted(signal);
   if (offset !== asset.bytes || hash !== asset.sha256) throw new Error('An offline asset did not match this release.');
   const headers = new Headers({
     'Content-Type': response.headers.get('content-type') ?? '',

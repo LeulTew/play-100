@@ -260,6 +260,8 @@ described:
 - **`scrollbar-gutter`** (Safari 18.2). The ratings table does not reserve its scrollbar's width.
 - **`AbortSignal.timeout()`** and **`requestIdleCallback()`** are feature-detected and fall back to
   timers.
+- **Abort checks** use `signal.aborted`, not `throwIfAborted()` (Chrome 100+); cancellation preserves
+  the signal's reason when available, or throws an `AbortError` on older browsers.
 
 [DESIGN.md](DESIGN.md) takes this policy as given: a new feature above the floor needs a fallback, or
 an entry here saying what the older browsers get.

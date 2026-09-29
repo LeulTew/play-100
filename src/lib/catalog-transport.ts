@@ -1,3 +1,5 @@
+import { abortReason, throwIfAborted } from './abort';
+
 export type CatalogFailure = 'offline' | 'timeout' | 'rate-limited' | 'unavailable' | 'invalid';
 
 export class CatalogRequestError extends Error {
@@ -16,17 +18,22 @@ export async function fetchCatalogJson(
   maxBytes: number,
   timeoutMs = 12_000,
 ): Promise<unknown> {
-  signal.throwIfAborted();
+  throwIfAborted(signal);
   const controller = new AbortController();
-  const cancel = () => controller.abort(signal.reason);
+  // Older controllers discard abort(reason), so retain the transport's own cause.
+  let abortCause: unknown;
+  const cancel = () => {
+    abortCause = abortReason(signal);
+    controller.abort(abortCause);
+  };
   signal.addEventListener('abort', cancel, { once: true });
-  const timeout = setTimeout(
-    () => controller.abort(new CatalogRequestError('The catalog took too long to reply. Try again.', 'timeout')),
-    timeoutMs,
-  );
+  const timeout = setTimeout(() => {
+    abortCause = new CatalogRequestError('The catalog took too long to reply. Try again.', 'timeout');
+    controller.abort(abortCause);
+  }, timeoutMs);
   let onAbort: () => void = () => undefined;
   const aborted = new Promise<never>((_, reject) => {
-    onAbort = () => reject(controller.signal.reason);
+    onAbort = () => reject(abortCause);
     controller.signal.addEventListener('abort', onAbort, { once: true });
   });
   const read = async () => {
@@ -99,8 +106,8 @@ export async function fetchCatalogJson(
   try {
     return await Promise.race([read(), aborted]);
   } catch (error: unknown) {
-    if (signal.aborted) throw signal.reason;
-    if (controller.signal.aborted) throw controller.signal.reason;
+    throwIfAborted(signal);
+    if (controller.signal.aborted) throw abortCause;
     if (error instanceof CatalogRequestError) throw error;
     throw new CatalogRequestError(
       'Offline or unable to reach the catalog. Check your connection and try again.',

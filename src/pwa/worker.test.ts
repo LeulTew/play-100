@@ -291,6 +291,66 @@ describe('PWA positive cache boundaries', () => {
     Object.defineProperty(redirected, 'redirected', { value: true });
     await expect(verifiedPwaResponse(redirected, asset, `${origin}${asset.url}`, webcrypto, policy)).rejects.toThrow();
   });
+
+  it('verifies an asset with a live signal without throwIfAborted or reason', async () => {
+    const controller = new AbortController();
+    Object.defineProperties(controller.signal, {
+      throwIfAborted: { value: undefined },
+      reason: { value: undefined },
+    });
+    const asset = assets[2]!;
+    await expect(
+      verifiedPwaResponse(
+        new Response(fixtureBytes, { headers: { 'Content-Type': 'application/json' } }),
+        asset,
+        `${origin}${asset.url}`,
+        webcrypto,
+        policy,
+        controller.signal,
+      ),
+    ).resolves.toBeInstanceOf(Response);
+  });
+
+  for (const phase of ['before-read', 'during-read', 'during-digest'] as const) {
+    it.each([false, true])(`rejects cancellation ${phase} without throwIfAborted, reason supported=%s`, async (hasReason) => {
+      const controller = new AbortController();
+      Object.defineProperty(controller.signal, 'throwIfAborted', { value: undefined });
+      if (!hasReason) Object.defineProperty(controller.signal, 'reason', { value: undefined });
+      const reason = new Error('obsolete offline asset');
+      const asset = assets[2]!;
+      let reading: () => void = () => {};
+      const started = new Promise<void>((resolve) => { reading = resolve; });
+      const cancel = vi.fn();
+      const body = phase === 'during-read'
+        ? new ReadableStream<Uint8Array>({
+            pull() { reading(); },
+            cancel,
+          })
+        : fixtureBytes;
+      const crypto: PwaWorkerHost['crypto'] = {
+        subtle: {
+          async digest(algorithm, data) {
+            const result = await webcrypto.subtle.digest(algorithm, data);
+            if (phase === 'during-digest') controller.abort(reason);
+            return result;
+          },
+        },
+      };
+      if (phase === 'before-read') controller.abort(reason);
+      const response = new Response(body, { headers: { 'Content-Type': 'application/json' } });
+      const task = verifiedPwaResponse(response, asset, `${origin}${asset.url}`, crypto, policy, controller.signal);
+      const rejected = hasReason
+        ? expect(task).rejects.toBe(reason)
+        : expect(task).rejects.toMatchObject({ name: 'AbortError' });
+      if (phase === 'during-read') {
+        await started;
+        controller.abort(reason);
+      }
+      await rejected;
+      expect(response.body?.locked).toBe(false);
+      if (phase === 'during-read') expect(cancel).toHaveBeenCalledOnce();
+    });
+  }
 });
 
 describe('version-bound offline security headers', () => {

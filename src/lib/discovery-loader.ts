@@ -2,12 +2,13 @@ import { DISCOVERY_CATALOG_URL, DISCOVERY_LIMITS } from './discovery-catalog-sha
 import type { DiscoveryCatalog } from './discovery-catalog';
 import { fetchCatalogJson } from './catalog-transport';
 import { loadDiscoveryParser } from './discovery-parser-preload';
+import { abortReason, throwIfAborted } from './abort';
 
 export function createDiscoveryLoader() {
   let cached: DiscoveryCatalog | null = null;
   let pending: Promise<DiscoveryCatalog> | null = null;
   return async (signal: AbortSignal): Promise<DiscoveryCatalog> => {
-    signal.throwIfAborted();
+    throwIfAborted(signal);
     if (cached) return cached;
     pending ??= (async () => {
       // Callers cancel their wait, not this shared, size-limited and timed transport.
@@ -25,13 +26,13 @@ export function createDiscoveryLoader() {
     });
     let abort: () => void = () => undefined;
     const canceled = new Promise<never>((_, reject) => {
-      abort = () => reject(signal.reason);
+      abort = () => reject(abortReason(signal));
       signal.addEventListener('abort', abort, { once: true });
       if (signal.aborted) abort();
     });
     try {
       const catalog = await Promise.race([pending, canceled]);
-      signal.throwIfAborted();
+      throwIfAborted(signal);
       return catalog;
     } finally {
       signal.removeEventListener('abort', abort);
