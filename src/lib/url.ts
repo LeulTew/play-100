@@ -1,6 +1,9 @@
-import type { AppPage, Filters, SortOrder } from './types';
-import { parseProgressFilter } from './game-progress';
-import { appRoute } from './routes';
+import type { AppPage, Filters, SortOrder } from './types.js';
+import { parseProgressFilter } from './game-progress.js';
+import { appRoute } from './routes.js';
+
+// Error reports read the route list from here so it stays in this eager chunk rather than a chunk of its own.
+export { APP_ROUTES, appRoute } from './routes.js';
 
 export const SORT_ORDERS = [
   'rank',
