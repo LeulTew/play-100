@@ -674,7 +674,7 @@ the browser rather than requiring a server renderer.
 
 ## Private library durability
 
-Database `play100-personal`, version 2, contains the `library` object store and
+Database `play100-personal`, version 3, contains the `library` object store and
 the original guest `state` record with application schema version 3. Account
 keys coexist without renaming or overwriting it. A complete domain snapshot keeps
 queue order, record metadata, independent played/completed/later flags, personal
@@ -682,6 +682,11 @@ rank order, optional 0-10 scores, notes and preferences in one atomic transactio
 Writes read the latest snapshot inside a read-write transaction and report
 success only after commit. Concurrent tabs do not replace each other's unrelated
 updates. Ordering commands use IDs against the latest order, not stale arrays.
+The version-3 writer barrier prevents older clients from recreating removed
+account data; blocked upgrades retain saved data and ask visitors to close other
+tabs and retry. Rollbacks must retain this barrier: see the
+[R22-or-later rollback floor](docs/release-operations.md#r22-indexeddb-compatibility-and-rollback-floor)
+and [mixed-version behavior](docs/pwa.md#mixed-application-versions-and-private-libraries).
 
 Played status uses one shared persisted value across cards, list/table views,
 details, the library, personal rankings and catalog entries. Unchecking Played
