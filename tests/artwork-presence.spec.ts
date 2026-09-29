@@ -57,6 +57,64 @@ async function singleLibrary(page: Page, records: LibraryRecord[]) {
   });
 }
 
+for (const view of ['grid', 'table']) {
+  test(`saved Discover artwork stays available on The 100 without a search in ${view} view`, async ({ page }) => {
+    await singleLibrary(page, []);
+    await page.goto(`/discover?catalogs=off&q=${encodeURIComponent(illustratedItem.record.title)}`);
+    const discoveryCard = page.locator(`[data-catalog-id="${illustratedItem.record.id}"]`);
+    await expect(discoveryCard.locator('.discovery-card-art img')).toHaveAttribute('src', illustratedArtwork.src);
+    await discoveryCard
+      .getByRole('button', { name: `Add to My games: ${illustratedItem.record.title}`, exact: true })
+      .click();
+    await expect
+      .poll(async () => (await readLibrary(page)).records[illustratedItem.record.id])
+      .toEqual(illustratedItem.record);
+    const before = await readLibrary(page);
+    const requests = requestLedger(page);
+    await page.goto(`/?catalogs=off&view=${view}`);
+    for (const visit of [1, 2]) {
+      if (visit === 2) await page.reload();
+      const beyond = page.getByRole('region', { name: 'Beyond The 100', exact: true });
+      await beyond.scrollIntoViewIfNeeded();
+      const saved = beyond.locator(`[data-unranked-id="${illustratedItem.record.id}"]`);
+      const image = saved.locator('.discovery-card-art img');
+      await expect(image).toHaveAttribute('src', illustratedArtwork.src);
+      await image.scrollIntoViewIfNeeded();
+      await expect(image).toHaveJSProperty('complete', true);
+      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+      await saved.locator('.discovery-card-details > summary').click();
+      await expect(saved.locator('.discovery-card-source')).toContainText(illustratedArtwork.credit);
+      await expect(saved.getByRole('link', { name: illustratedArtwork.license, exact: true })).toHaveAttribute(
+        'href',
+        illustratedArtwork.licenseUrl,
+      );
+      expect(new URL(page.url()).searchParams.has('q')).toBe(false);
+      await expect(page.getByRole('searchbox', { name: 'Search games, studios or genres', exact: true })).toHaveValue(
+        '',
+      );
+      expect(requests).toHaveLength(visit);
+      expect(await readLibrary(page)).toEqual(before);
+    }
+  });
+}
+
+test('blank The 100 lists manual and known no-art additions without loading an artwork catalog', async ({ page }) => {
+  const sameTitle = { ...manual, title: illustratedItem.record.title };
+  await singleLibrary(page, [sameTitle, noArtRecord]);
+  const before = await readLibrary(page);
+  const requests = requestLedger(page);
+  await page.goto('/?catalogs=off');
+  const beyond = page.getByRole('region', { name: 'Beyond The 100', exact: true });
+  await beyond.scrollIntoViewIfNeeded();
+  for (const record of [sameTitle, noArtRecord]) {
+    const card = beyond.locator(`[data-unranked-id="${record.id}"]`);
+    await expect(card.getByText('Artwork unavailable', { exact: true })).toBeVisible();
+    await expect(card.locator('.discovery-card-art img')).toHaveCount(0);
+  }
+  expect(requests).toEqual([]);
+  expect(await readLibrary(page)).toEqual(before);
+});
+
 test('known no-art dense Library preview and Pin need no complete catalog request or metadata override', async ({
   page,
 }, info) => {
