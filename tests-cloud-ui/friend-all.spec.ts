@@ -535,6 +535,8 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
   page,
   request,
 }) => {
+  // Two full deletions, each a chain of emulator writes.
+  test.setTimeout(120000);
   const email = emailFor('all-cleanup-retry');
   await createAccount(page, email);
   await verifyEmail(page, request, email);
@@ -581,8 +583,10 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
   await page.getByRole('button', { name: 'Delete online copy', exact: true }).click();
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
+  // The deletion runs up to the interrupted All cleanup before it reports: as long as finishing it, below.
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText(
     'Synthetic resumable All cleanup interruption',
+    { timeout: 30000 },
   );
   await expect(
     page
@@ -595,13 +599,22 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
   await expect(page.getByRole('heading', { name: "Deletion isn't finished", exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Finish deleting', exact: true }).click();
   await page.getByLabel('Confirm your password', { exact: true }).fill(password);
-  await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
+  const confirmation = page.getByRole('dialog');
+  await confirmation.getByRole('button', { name: 'Confirm deletion', exact: true }).click();
+  // Finishing repeats the whole deletion, a chain of emulator reads, transactions and batched deletes with no waits or
+  // retries of its own, and the dialog closes only once it resolves. Under load that can outlast the default wait, so
+  // wait for the deletion's own outcome: the deleted status, or a refusal, which keeps the dialog open with its reason
+  // and fails here at once. The first attempt's error stays in the dialog until this attempt starts.
+  const deleted = page
+    .getByRole('status')
+    .filter({ hasText: 'Your online copy was deleted. The copy on this device is still here.' });
+  const refused = confirmation
+    .getByRole('alert')
+    .filter({ hasNotText: 'Synthetic resumable All cleanup interruption' });
+  await expect(deleted.or(refused)).toBeVisible({ timeout: 30000 });
+  expect(await refused.allTextContents()).toEqual([]);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(
-    page
-      .getByRole('status')
-      .filter({ hasText: 'Your online copy was deleted. The copy on this device is still here.' }),
-  ).toBeVisible();
+  await expect(deleted).toBeVisible();
   expect(await sdk(page, 'heads')).toEqual({ games: null, ranking: null });
   expect((await readAccount(page, uid)).state.records['manual:cleanup']).toBeTruthy();
 });
