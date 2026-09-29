@@ -37,7 +37,7 @@ function withStore(mode: IDBTransactionMode, work: (store: IDBObjectStore) => ID
       let tx: IDBTransaction | undefined;
       try {
         tx = db.transaction(STORE_NAME, mode);
-        let request: IDBRequest | void;
+        const request = work(tx.objectStore(STORE_NAME));
         tx.oncomplete = () => {
           db.close();
           resolve(request?.result);
@@ -46,7 +46,6 @@ function withStore(mode: IDBTransactionMode, work: (store: IDBObjectStore) => ID
           db.close();
           reject(tx?.error);
         };
-        request = work(tx.objectStore(STORE_NAME));
       } catch (cause) {
         tx?.abort();
         db.close();

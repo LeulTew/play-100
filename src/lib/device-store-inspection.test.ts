@@ -15,7 +15,10 @@ async function createStore(store = true) {
     open.onupgradeneeded = () => {
       if (store) open.result.createObjectStore(STORE_NAME);
     };
-    open.onsuccess = () => { open.result.close(); resolve(); };
+    open.onsuccess = () => {
+      open.result.close();
+      resolve();
+    };
     open.onerror = () => reject(open.error);
   });
 }
@@ -52,14 +55,18 @@ describe('device store inspection fixture', () => {
   it('rejects a synchronous transaction failure rather than leaving the promise pending', async () => {
     await createStore();
     const failure = new DOMException('Database closed', 'InvalidStateError');
-    vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(() => { throw failure; });
+    vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(() => {
+      throw failure;
+    });
     await expect(readStoredValue('key')).rejects.toBe(failure);
   });
 
   it('aborts and rejects a synchronous fixture write failure', async () => {
     await createStore();
     const failure = new DOMException('Storage full', 'QuotaExceededError');
-    const put = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => { throw failure; });
+    const put = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
+      throw failure;
+    });
     await expect(writeStoredValue('key', 'value')).rejects.toBe(failure);
     put.mockRestore();
     expect(await readStoredValue('key')).toBeUndefined();
@@ -67,7 +74,9 @@ describe('device store inspection fixture', () => {
 
   it('rejects a denied open explicitly', async () => {
     const failure = new DOMException('Denied', 'SecurityError');
-    vi.spyOn(indexedDB, 'open').mockImplementation(() => { throw failure; });
+    vi.spyOn(indexedDB, 'open').mockImplementation(() => {
+      throw failure;
+    });
     await expect(readStoredValue('key')).rejects.toBe(failure);
   });
 });
