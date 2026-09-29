@@ -8,6 +8,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 import { GATE_NODE, refuseBusyPorts } from './release-gate';
 import { parseSwArguments, parseSwInput, verifySwBuild, type SwBuild } from './release-sw-inputs';
 import { startSwServer } from './release-sw-server';
+import { RELEASE6_COMMIT, runMixedVersionPhases } from './release-sw-mixed';
 import {
   cacheInventory,
   documentInfo,
@@ -34,7 +35,13 @@ export async function releaseSwProbe(inputFile: string) {
     '',
     'Commit tracked runner changes before the campaign.',
   );
-  const sourceFiles = ['release-sw-probe.ts', 'release-sw-inputs.ts', 'release-sw-server.ts', 'release-sw-browser.ts'];
+  const sourceFiles = [
+    'release-sw-probe.ts',
+    'release-sw-inputs.ts',
+    'release-sw-server.ts',
+    'release-sw-browser.ts',
+    'release-sw-mixed.ts',
+  ];
   git('ls-files', '--error-unmatch', '--', ...sourceFiles.map((file) => `scripts/${file}`));
   const sourceIdentity = async () =>
     Object.fromEntries(
@@ -49,6 +56,7 @@ export async function releaseSwProbe(inputFile: string) {
   };
   const A = await verifySwBuild(options.baseline, false, repository);
   const B = await verifySwBuild(options.candidate, true, repository);
+  assert.equal(A.commit, RELEASE6_COMMIT, 'The mixed-version campaign requires the exact Release 6 baseline.');
   assert.notEqual(A.pwaVersion, B.pwaVersion, 'Different worker versions are required.');
   assert.notEqual(A.entry, B.entry, 'Different module entries are required for document identity.');
   await refuseBusyPorts([options.port]);
@@ -364,6 +372,14 @@ export async function releaseSwProbe(inputFile: string) {
     }
     await stopServer();
     await coldOffline(B, 'B');
+    await runMixedVersionPhases({
+      A,
+      B,
+      port: options.port,
+      evidence: options.evidence,
+      phases: receipt.phases,
+      check,
+    });
   } catch (error) {
     receipt.errors.push(String(error));
   } finally {

@@ -160,6 +160,9 @@ export const swProtocolChecks = [
   'offlineBMyGames',
   'serverStopped',
   'inputsUnchanged',
+  'mixedVersion',
+  'blockedUpgrade',
+  'blockedReload',
 ] as const;
 
 export function failedSwChecks(checks: Readonly<Record<string, boolean>>) {

@@ -39,6 +39,17 @@ export async function startSwServer(build: SwBuild, port: number) {
         response.writeHead(405).end();
         return;
       }
+      if (pathname === '/__release-probe/blank') {
+        requests.push({ path: pathname, status: 200 });
+        response
+          .writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+          })
+          .end('<!doctype html><title>Isolated release storage fixture</title>');
+        return;
+      }
       // This local probe never proxies production Functions or authenticates a visitor.
       if (pathname.startsWith('/api/')) {
         requests.push({ path: pathname, status: 503 });
@@ -47,7 +58,7 @@ export async function startSwServer(build: SwBuild, port: number) {
           .end('{"error":"Local SW probe has no API upstream"}');
         return;
       }
-      const filePath = pathname === '/' || pathname === '/my-games' ? '/index.html' : pathname;
+      const filePath = ['/', '/my-games', '/my-rankings'].includes(pathname) ? '/index.html' : pathname;
       const file = path.join(build.root, filePath);
       let status = 200,
         bytes: Buffer;

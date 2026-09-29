@@ -139,7 +139,7 @@ describe('two-version release probe acceptance', () => {
     const server = await startSwServer(build, 0);
     try {
       const origin = server.origin;
-      for (const pathname of ['/', '/my-games', '/sw.js']) {
+      for (const pathname of ['/', '/my-games', '/my-rankings', '/sw.js']) {
         const response = await fetch(origin + pathname);
         expect(response.status).toBe(200);
         expect(response.headers.get('content-security-policy')).toBe(build.csp);
@@ -148,6 +148,10 @@ describe('two-version release probe acceptance', () => {
       }
       expect((await fetch(origin + '/api/catalog')).status).toBe(503);
       expect((await fetch(origin + '/unknown')).status).toBe(404);
+      const blank = await fetch(origin + '/__release-probe/blank');
+      expect(blank.status).toBe(200);
+      expect(await blank.text()).not.toContain('<script');
+      expect(blank.headers.get('cache-control')).toBe('no-store');
       expect(server.errors).toEqual([]);
     } finally {
       await server.stop();

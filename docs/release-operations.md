@@ -233,13 +233,19 @@ resolve beside the receipt. The candidate also requires
 The latter two must equal the complete archive fingerprint made by the gate.
 As in the gate, fingerprint path separators are host-native: retain the same
 host platform rather than reinterpreting an archived fingerprint.
+The baseline must be Release 6 commit
+`129e73eebbf6c8c7eef5fc3eda1d4ab45f8161fe`: the mixed-version phase runs that
+actual version-2 client, not a reconstructed old app or the current source
+with its database version changed. The candidate must include the blocked
+library notice's **Try again** action. A candidate without it holds this
+expanded campaign; the separate reload case is not a substitute.
 The exact `vercel.json` bytes must belong to the supplied commit in local Git
 history; the companion does not fetch. Baseline and candidate worker versions
 and module-entry paths must differ. Missing, extra, changed or linked build
 files fail admission. Inputs and full archives are checked again after execution.
 
 The runner binds only `127.0.0.1` and refuses an occupied port. It exclusively
-creates the evidence directory and two persistent profiles, never reusing a
+creates the evidence directory and persistent profiles, never reusing a
 partial run. It serves A, enables offline access through the real app UI, checks
 the documented initially uncontrolled page, reopens under A, and stops the
 server before cold-offline `/` and `/my-games`. It then serves B on the same
@@ -252,9 +258,54 @@ B before cold-offline checks of both routes. Every phase retains CSP,
 navigation, worker, cache and error observations; online and offline documents
 must use their bound policy.
 
+After that original SW sequence, three fresh profiles exercise the database
+writer barrier without a service worker intercepting the two versions:
+
+- **Mixed version:** a synthetic, script-free loopback setup page saves a valid
+  two-game guest library in IndexedDB v2. Tab A then runs the actual Release 6
+  ranking page, holds its real database connection and edits a note without
+  leaving the field. A read-only snapshot proves it is still pending. The server
+  switches to the candidate on the same origin while A stays open; new tab B
+  opens the candidate and upgrades the database to v3. Native-call observation
+  records the old connection's `versionchange` and its own `close()` call, and a
+  read-only transaction attempt on that retained handle must throw
+  `InvalidStateError`. The observer does not close connections or suppress events.
+  B removes that game's ranking through the confirmation dialog and durably
+  saves a different game's note. A then attempts its pending save by leaving
+  the note field: its actual v2 reopen must fail with `VersionError`, the visible
+  note error must invite retry/copy, and the pending text must stay in the editor.
+  Every IndexedDB row after that failure must equal B's saved snapshot; the
+  removed ranking cannot reappear and B's note cannot disappear.
+- **Blocked upgrade with in-page retry:** a synthetic setup page deliberately
+  retains a v2 connection and ignores `versionchange`. Candidate tab B must show
+  the plain-language “Close other Play 100 tabs…” notice, explaining saved data
+  is unchanged. Clicking its **Try again** button while still blocked must keep
+  the notice, focus and stored rows. After the synthetic connection closes, the
+  same button must reopen v3, restore both saved rankings and dismiss the blocked
+  notice without a document reload. No temporary edits are made during this
+  recovery test.
+- **Blocked upgrade with reload:** repeat from a separate fresh v2 profile,
+  record the same blocked notice, close the synthetic connection, and explicitly
+  reload the candidate. The v3 snapshot must contain all original rows unchanged.
+  This records browser-reload recovery separately; it does not certify the
+  in-page button by proxy.
+
+All three are required checks (`mixedVersion`, `blockedUpgrade`, `blockedReload`).
+The receipt retains full **synthetic** IndexedDB key/value snapshots before
+upgrade, after upgrade, after B's changes, after A's failed save, while blocked
+and after recovery, plus connection events, draft/error text and screenshots.
+It never attaches to real visitor profiles. Each mode has its own retained
+profile, and a failure remains `HOLD` with partial observations. Pure unit tests
+reject false-positive evidence such as an unrelated connection closing, a close
+before `versionchange`, a lost draft, an unattempted save, resurrected ranking,
+changed candidate rows, a fabricated blocked condition or destructive recovery.
+An isolated fake-indexeddb test also proves the observer itself cannot unblock
+an ignored `versionchange`. These unit results do not claim real-browser proof:
+the expanded campaign must run at GO against the final candidate archive.
+
 `sw-probe.json` contains input/build identities, browser identity, all required
 check results, failure details and server request records; update screenshots
-and both profiles remain alongside it. Missing checks or any captured
+and all five profiles remain alongside it. Missing checks or any captured
 page/server/CSP error produce `HOLD` and a nonzero exit. There are no automatic
 retries or deployments. Preserve an incomplete run; investigate and authorize
 a new evidence directory rather than replacing it. Admission failures before
@@ -263,7 +314,8 @@ command log. Attach the receipt and its SHA-256 to the candidate release packet;
 `gate-complete.json` alone does not certify this campaign.
 
 **Porting boundary:** the companion preserves the R22 SW campaign's phase order
-and assertions, consolidating its 39 checks into 27 required checks. It derives
+and assertions, consolidating its 39 checks into 27 required checks, then adding
+the three mixed-version/blocked-recovery checks above (30 total). It derives
 from the reviewed `r22-swl-probe.mjs` SHA-256
 `8dfbc25f7475d3271078ed89326cd6923e6837a8b55a6a9f7080bc0cf3657eae`
 and `r22-swl-tools.mjs`
@@ -279,7 +331,8 @@ It requires retaining the previous ready core (rather than allowing its absence)
 and page errors now hold instead of producing `PASSED_WITH_FINDINGS`.
 These are deliberate stronger acceptance checks, not historical receipt edits.
 The cold-offline phases prove the browser uses the installed worker, not a
-mocked response. They do not certify multi-window edits or a deployed rollback.
+mocked response. The mixed-version phase covers one pending guest note in two
+versioned tabs; it does not certify every multi-window/account edit or a deployed rollback.
 Unit coverage exercises input/digest/source binding, archive integrity, local
 serving and fail-closed check accounting; the browser campaign must be run in an
 approved host window before claiming a two-version pass for this port.
