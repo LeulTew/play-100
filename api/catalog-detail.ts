@@ -38,6 +38,13 @@ interface SharedLookup {
 const inflight = new Map<string, SharedLookup>();
 const SHARED_DEADLINE_MS = 8500;
 
+const REPORTED_FAILURES = ['rate-limited', 'timeout', 'invalid', 'unsupported'] as const;
+type SourceFailure = (typeof REPORTED_FAILURES)[number] | 'unavailable';
+
+function isReportedFailure(code: string): code is (typeof REPORTED_FAILURES)[number] {
+  return (REPORTED_FAILURES as readonly string[]).includes(code);
+}
+
 function sourceState(
   source: EnrichmentSource,
   status: EnrichmentSourceState['status'],
@@ -74,22 +81,10 @@ async function provider<T>(
   try {
     return { value: await work(), error: null };
   } catch (error) {
-    const code =
-      error instanceof CatalogError && ['rate-limited', 'timeout', 'invalid', 'unsupported'].includes(error.code)
-        ? error.code
-        : 'unavailable';
+    const code: SourceFailure =
+      error instanceof CatalogError && isReportedFailure(error.code) ? error.code : 'unavailable';
     const retryAfter = error instanceof CatalogError ? Math.min(300, error.retryAfter) : 0;
     if (code === 'rate-limited') cooldown.set(source, Date.now() + Math.max(1, retryAfter) * 1000);
-    const failure: EnrichmentSourceState['code'] =
-      code === 'rate-limited'
-        ? 'rate-limited'
-        : code === 'timeout'
-          ? 'timeout'
-          : code === 'invalid'
-            ? 'invalid'
-            : code === 'unsupported'
-              ? 'unsupported'
-              : 'unavailable';
     const message =
       error instanceof CatalogError
         ? error.message
@@ -97,7 +92,7 @@ async function provider<T>(
     if (!(error instanceof CatalogError)) console.warn('Public catalog detail source failed.', { source });
     return {
       value: null,
-      error: sourceState(source, code === 'unsupported' ? 'unavailable' : 'error', message, failure, retryAfter),
+      error: sourceState(source, code === 'unsupported' ? 'unavailable' : 'error', message, code, retryAfter),
     };
   }
 }

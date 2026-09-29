@@ -1,3 +1,9 @@
+/**
+ * Read-only acceptance gate for a finished build (docs/first-paint-shell.md): every HTML document
+ * in dist must work under the main-document policy in vercel.json, and dist/pwa-assets.json must
+ * embed that same policy for the documents the service worker serves. It prints every inline
+ * <script> and <style> with its CSP hash so two builds can be compared.
+ */
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,13 +49,6 @@ export function reportingProblems(configuration: unknown): string[] {
     ? []
     : ['CSP reports must use the first-party csp endpoint and report-uri fallback.'];
 }
-
-/**
- * Read-only acceptance gate for a finished build (docs/first-paint-shell.md): every HTML document
- * in dist must work under the main-document policy in vercel.json, and dist/pwa-assets.json must
- * embed that same policy for the documents the service worker serves. It prints every inline
- * <script> and <style> with its CSP hash so two builds can be compared.
- */
 
 async function htmlDocuments(root: string, relative = ''): Promise<string[]> {
   const files: string[] = [];
