@@ -7,7 +7,7 @@ import { createShareLink } from './lib/url';
 import { pageDestination } from './lib/page-navigation';
 import { appDocumentTitle } from './lib/document-title';
 import type { AppPage, Filters } from './lib/types';
-import type { LibraryRecord, PersonalAction } from './lib/personal-types';
+import type { LibraryRecord } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
 import { useAppPanel } from './hooks/useAppPanel';
 import { usePwa } from './pwa/usePwa';
@@ -30,7 +30,7 @@ import { AppMotionBindings } from './AppMotionBindings';
 import { MotionProvider } from './motion';
 import './motion/motion.css';
 import { useNavigationScope } from './hooks/useNavigationScope';
-import { actionMessage } from './lib/action-message';
+import { useLibrarySave } from './hooks/useLibrarySave';
 import { enableOnlineDetails, enterAccount, startComparison } from './lib/app-commands';
 import type { AccountInvocation } from './lib/app-commands';
 import { sameFields, useEquivalentValue } from './hooks/useEquivalentValue';
@@ -96,18 +96,7 @@ export default function App() {
   const [toolFailure, setToolFailure] = useState<{ scope: string; page: AppPage } | null>(null);
   const { share, manualLink, closeManualLink, sharing } = useShare(notify);
   const games = collection.data?.games;
-  const perform = useStableHandler(async (action: PersonalAction, announce = true) => {
-    if (onlineOpening) {
-      notify('Wait for the account library to finish opening before changing saved data.');
-      return false;
-    }
-    const success = await library.perform(action);
-    if (success && activeScope.current === libraryScope && announce)
-      notify(
-        `${actionMessage(action)}${library.status === 'temporary' ? ' This tab only: export a backup to keep it.' : ''}`,
-      );
-    return success;
-  });
+  const perform = useLibrarySave({ library, opening: onlineOpening, notify, activeScope, scope: libraryScope });
   const detail = useDetailSelection({
     selectedSlug,
     page,
@@ -165,7 +154,7 @@ export default function App() {
       },
       invocation,
     );
-  const commands = useStableHandlers<AppCommands>({
+  const handlers = useStableHandlers<Omit<AppCommands, 'perform'>>({
     navigate,
     navigateLink: (event, next, patch = {}, commit = () => navigate(next, patch)) => {
       if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
@@ -224,7 +213,6 @@ export default function App() {
         },
         records,
       ),
-    perform,
     performDetailAction: detail.performDetailAction,
     enablePublicDetails: () => enableOnlineDetails({ captureFocusGuard, notify }),
     applyPwaUpdate: () => pwa.applyUpdate(captureSettingsUpdateGuard()),
@@ -257,6 +245,8 @@ export default function App() {
     resetLibrary: () => library.reset(),
     restoreLibrary: (...args) => library.restore(...args),
   });
+  // The save is the one command bound to its library, so the record changes only when that library does.
+  const commands = useMemo<AppCommands>(() => ({ ...handlers, perform }), [handlers, perform]);
   // Once that account has opened, the tray's own checks continue the comparison (useCompareContinuation).
   useCompareContinuation({
     compareSignIn: signIn.compareSignIn,
