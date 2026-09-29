@@ -15,6 +15,7 @@ import {
 import { routeGoogleProvider } from './google-provider-fixture';
 import { readLibrary } from '../tests/library-helpers';
 import { DB_NAME, DB_VERSION } from '../src/lib/personal-db';
+import { PERSONAL_RATING_DEBOUNCE_MS } from '../src/components/personal/PersonalRatingInput';
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -165,17 +166,17 @@ test('a guest inline rating keeps its original save target while another tab res
   const peer = await context.newPage();
   try {
     // Playwright's clock is context-wide, so pausing it also froze the peer tab's sign-in. Hold only this tab's
-    // 650 ms rating debounce instead: the edit stays pending until the account restore makes its field exit and save.
-    await page.evaluate(() => {
+    // declared rating debounce instead: the edit stays pending until the account restore makes its field exit and save.
+    await page.evaluate((debounceMs) => {
       const schedule = window.setTimeout.bind(window);
       const held = { count: 0 };
       Object.assign(window, { heldRatingSaves: held });
       window.setTimeout = ((handler: TimerHandler, timeout?: number, ...rest: unknown[]) => {
-        if (timeout !== 650) return schedule(handler, timeout, ...rest);
+        if (timeout !== debounceMs) return schedule(handler, timeout, ...rest);
         held.count += 1;
         return 0;
       }) as typeof window.setTimeout;
-    });
+    }, PERSONAL_RATING_DEBOUNCE_MS);
     await page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('7.2');
     await expect
       .poll(() =>

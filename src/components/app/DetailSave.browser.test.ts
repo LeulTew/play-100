@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../../lib/test-server-ports';
+import { PERSONAL_RATING_DEBOUNCE_MS } from '../personal/PersonalRatingInput';
 
 declare global {
   interface Window {
@@ -87,12 +88,12 @@ describe('the detail dialog save', () => {
     );
     try {
       await page.goto(`${origin}/__detail-save`);
-      // Hold the field's 650 ms debounced save, so only the dialog's exit saves the draft.
-      await page.evaluate(() => {
+      // Hold only the field's declared debounce, so the dialog's exit saves the draft.
+      await page.evaluate((debounceMs) => {
         const schedule = window.setTimeout.bind(window);
         window.setTimeout = ((handler: TimerHandler, timeout?: number, ...rest: unknown[]) =>
-          timeout === 650 ? 0 : schedule(handler, timeout, ...rest)) as typeof window.setTimeout;
-      });
+          timeout === debounceMs ? 0 : schedule(handler, timeout, ...rest)) as typeof window.setTimeout;
+      }, PERSONAL_RATING_DEBOUNCE_MS);
       await page.getByRole('spinbutton').fill('8.3');
       await page.evaluate(() => window.detailSaveFixture.signOutElsewhere());
       await browserExpect(page.locator('#scope')).toHaveText('guest');

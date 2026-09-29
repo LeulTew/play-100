@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useExitSave } from '../../hooks/useExitSave';
 
+export const PERSONAL_RATING_DEBOUNCE_MS = 650;
+
 export function PersonalRatingInput({
   title,
   value,
@@ -80,7 +82,7 @@ export function PersonalRatingInput({
     if (next !== null && (!Number.isFinite(next) || next < 0 || next > 10)) return;
     const timer = window.setTimeout(() => {
       void save();
-    }, 650);
+    }, PERSONAL_RATING_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [edited, draft, editVersion, busy, error, save]);
   useExitSave(() => (error ? Promise.resolve(false) : save()), edited, input);
