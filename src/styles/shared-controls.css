@@ -398,13 +398,6 @@
 .ratings-table :focus-visible {
   outline-offset: -3px;
 }
-.table-footnote {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.6;
-  margin-top: 13px;
-  max-width: 95ch;
-}
 
 .app-page {
   max-width: 1440px;
@@ -423,9 +416,6 @@
   font: 700 52px/0.99 var(--display);
   letter-spacing: -0.02em;
   max-width: 24ch;
-}
-.page-heading h1 span {
-  color: var(--sage);
 }
 .page-heading h1:focus {
   outline: none;
@@ -613,20 +603,6 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-}
-.catalog-art {
-  height: 110px;
-  display: flex;
-  align-items: center;
-  padding: 22px;
-  justify-content: space-between;
-  margin-block: 20px;
-  background: var(--lime-tint);
-  color: var(--moss);
-  border-radius: 4px;
-}
-.catalog-art span {
-  font: 700 39px/1 var(--display);
 }
 .catalog-detail-rating {
   display: flex;

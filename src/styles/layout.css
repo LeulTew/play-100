@@ -186,7 +186,6 @@
 .collection-section {
   min-height: 100vh;
   padding: 22px var(--gutter) 54px;
-  scroll-margin-top: 80px;
 }
 .collection-title-line {
   display: flex;

@@ -83,7 +83,6 @@
 .friend-shelf-editor .button-row,
 .friend-shelf-cards .button-row,
 .friend-shelf-preview .button-row {
-  flex-wrap: wrap;
   gap: 8px 16px;
 }
 .dialog.friend-shelf-preview {

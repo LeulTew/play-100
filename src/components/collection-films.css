@@ -165,7 +165,6 @@
 @media (max-width: 760px) {
   .films-list {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
   }
   .film-poster {
     flex-basis: 40%;

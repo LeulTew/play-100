@@ -127,9 +127,6 @@
     font-size: 12px;
     font-variant-numeric: tabular-nums;
   }
-  .ratings-table .table-game > span {
-    font-size: 12px;
-  }
   .ratings-table thead .table-game {
     white-space: normal;
   }
@@ -147,9 +144,6 @@
   .table-sort {
     font-size: 12px;
   }
-  .table-footnote {
-    font-size: 12px;
-  }
   .app-page {
     padding-top: 27px;
     padding-bottom: 35px;
@@ -161,10 +155,6 @@
   }
   .page-heading h1 {
     font-size: 41px;
-  }
-  .page-heading h1 > span,
-  .page-heading h1 > br {
-    display: none;
   }
   .page-heading p {
     font-size: 14px;
@@ -259,9 +249,6 @@
   }
   .personal-tabs {
     gap: 14px;
-  }
-  .personal-tabs > button {
-    font-size: 12px;
   }
 }
 .friend-sharing-summary {

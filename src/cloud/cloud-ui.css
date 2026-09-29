@@ -857,7 +857,6 @@
     margin-top: 6px;
   }
   .public-ranking-tools .button-row {
-    flex-wrap: wrap;
     width: 100%;
   }
   .public-ranking-tools .button {
