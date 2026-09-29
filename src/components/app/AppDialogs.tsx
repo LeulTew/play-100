@@ -1,16 +1,20 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import { visibleMenuTrigger } from '../../lib/dialog-focus';
 import { ONLINE_AVAILABLE } from '../../lib/online-availability';
 import type { MotionOriginLease } from '../../motion';
 import { useNotice } from '../../hooks/useNotice';
+import type { ExtendedSearchResults } from '../../hooks/useExtendedSearch';
+import { filterGames } from '../../lib/collection';
+import { catalogProgress } from '../../lib/catalog-identity';
 import { SavedCatalogCopies } from '../catalog/SavedCatalogCopies';
 import type { AppModel } from './app-model';
 import { DialogHost } from './DialogHost';
 
 export interface AppDialogsProps {
   app: AppModel;
+  searchResults: ExtendedSearchResults | null;
   origin: MotionOriginLease | undefined;
   artwork: ReadonlyMap<string, CatalogArtwork>;
   previewLoading: boolean;
@@ -21,6 +25,7 @@ export interface AppDialogsProps {
 /** The detail dialogs, Menu, credits, Settings and share fallback. Only an open detail reads the notice. */
 export function AppDialogs({
   app,
+  searchResults,
   origin,
   artwork,
   previewLoading,
@@ -36,6 +41,21 @@ export function AppDialogs({
   const gameOpen = Boolean(selectedGame && selectedPersonalRecord && !onlineOpening);
   const catalogOpen = Boolean(!selectedGame && selectedRecord && !onlineOpening);
   const notice = useNotice(app.notices, gameOpen || catalogOpen);
+  const results = useMemo(
+    () =>
+      page === 'collection'
+        ? filterGames(
+            games ?? [],
+            app.filters,
+            catalogProgress(library.state, app.ownership),
+            new Set(
+              searchResults?.query === app.filters.q.trim() ? searchResults.records.map((record) => record.id) : [],
+            ),
+          )
+        : (games ?? []),
+    [page, games, app.filters, library.state, app.ownership, searchResults],
+  );
+  const resultIndex = results.findIndex((game) => game.slug === selectedGame?.slug);
   return (
     <DialogHost
       page={page}
@@ -47,8 +67,9 @@ export function AppDialogs({
                 game: selectedGame,
                 motionOrigin: origin,
                 state: library.state.progress[selectedPersonalRecord.id],
-                previous: games?.[selectedGame.rank - 2],
-                next: games?.[selectedGame.rank],
+                previous: resultIndex > 0 ? results[resultIndex - 1] : undefined,
+                next: resultIndex >= 0 ? results[resultIndex + 1] : undefined,
+                position: resultIndex >= 0 ? { current: resultIndex + 1, total: results.length } : null,
                 onClose: closeGame,
                 onOpen: openGame,
                 onToggle: commands.toggle,

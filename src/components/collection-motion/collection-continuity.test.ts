@@ -69,6 +69,7 @@ describe('collection continuity preserves the public presentation', () => {
         state,
         previous: undefined,
         next: undefined,
+        position: { current: 1, total: 1 },
         onClose: vi.fn(),
         onOpen: vi.fn(),
         onToggle: vi.fn(),
@@ -91,6 +92,7 @@ describe('collection continuity preserves the public presentation', () => {
         state: { played: completed, completed, later: false },
         previous: undefined,
         next: undefined,
+        position: { current: 1, total: 1 },
         onClose: vi.fn(),
         onOpen: vi.fn(),
         onToggle: vi.fn(),
@@ -146,7 +148,7 @@ describe('collection continuity preserves the public presentation', () => {
     },
   );
 
-  it('keeps raw author ratings, critic scores and the personal editor independent', () => {
+  it('rounds the source-rating explanation without changing its data or the personal editor', () => {
     const game = gameAt(2);
     const onRate = vi.fn(async () => true);
     const html = renderToStaticMarkup(
@@ -155,6 +157,7 @@ describe('collection continuity preserves the public presentation', () => {
         state: undefined,
         previous: gameAt(1),
         next: gameAt(3),
+        position: { current: 2, total: games.length },
         onClose: vi.fn(),
         onOpen: vi.fn(),
         onToggle: vi.fn(),
@@ -165,14 +168,14 @@ describe('collection continuity preserves the public presentation', () => {
       }),
     );
     expect(html).toContain('data-motion-owned');
-    expect(html).toContain('9.9696969696969688');
+    expect(html).not.toContain('9.9696969696969688');
+    expect(html).toContain('Original workbook rating: <strong>9.97</strong>, shown as 10.0 / 10.');
+    expect(game.authorRating?.rawValue).toBe('9.9696969696969688');
     expect(html).toContain('Leul&#x27;s original rating');
     expect(html).toContain('Original workbook score, based on the game&#x27;s rank.');
     expect(html).not.toContain('Workbook rank-based rating.');
     expect(html).toContain('Workbook snapshot. Not live or independently verified.');
-    expect(html).toContain(
-      'Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.',
-    );
+    expect(html).toContain('Your rating ranks this game; it doesn&#x27;t mark it played.');
     expect(html).toContain(`aria-label="Your rating / 10 for ${game.title}"`);
     expect(html).toContain('value="4.25"');
     expect(html.match(/<input\b/g)).toHaveLength(1);
@@ -215,6 +218,7 @@ describe('collection continuity preserves the public presentation', () => {
         state: undefined,
         previous: undefined,
         next: undefined,
+        position: null,
         onClose: vi.fn(),
         onOpen: vi.fn(),
         onToggle: vi.fn(),
@@ -226,8 +230,8 @@ describe('collection continuity preserves the public presentation', () => {
     );
     expect(html).toContain('HITMAN III-branded artwork');
     expect(html).toContain('lists 2016');
-    expect(html).toContain('the workbook calls this “Hitman: World of Assassination”,');
-    expect(html).toContain('The source column was headed “my rating(based on rank)”;');
+    expect(html).toContain('the workbook calls this &quot;Hitman: World of Assassination&quot;,');
+    expect(html).toContain('workbook&#x27;s &quot;my rating(based on rank)&quot; column');
     expect(html).toContain('We preserve all three rather than infer a release or edition.');
   });
 
@@ -239,6 +243,7 @@ describe('collection continuity preserves the public presentation', () => {
         state: undefined,
         previous: undefined,
         next: undefined,
+        position: { current: 1, total: 1 },
         onClose: vi.fn(),
         onOpen: vi.fn(),
         onToggle: vi.fn(),

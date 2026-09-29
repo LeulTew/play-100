@@ -19,6 +19,7 @@ interface GameDetailProps {
   state: GameProgress | undefined;
   previous: Game | undefined;
   next: Game | undefined;
+  position: { current: number; total: number } | null;
   onClose: () => void;
   onOpen: (slug: string) => void;
   onToggle: (slug: string, key: 'later' | 'completed', value?: boolean) => void;
@@ -40,6 +41,7 @@ export function GameDetail({
   state,
   previous,
   next,
+  position,
   onClose,
   onOpen,
   onToggle,
@@ -136,7 +138,9 @@ export function GameDetail({
               <strong>{author.shortName}'s original rating</strong>
               <p>Original workbook score, based on the game's rank.</p>
             </div>
-            <span title={game.authorRating?.rawValue}>
+            <span
+              title={game.authorRating ? `Original workbook rating: ${game.authorRating.value.toFixed(2)}` : undefined}
+            >
               {authorRatingText(game.authorRating)}
               {game.authorRating && <small> / 10</small>}
             </span>
@@ -154,7 +158,7 @@ export function GameDetail({
               <p className="rationale">{game.rationale}</p>
               {game.slug === 'hitman-world-of-assassination' && (
                 <p className="source-note">
-                  Source caveat: the workbook calls this “Hitman: World of Assassination”, lists 2016 and supplies
+                  Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies
                   HITMAN III-branded artwork. We preserve all three rather than infer a release or edition.
                 </p>
               )}
@@ -226,7 +230,7 @@ export function GameDetail({
             busy={Boolean(busy)}
             onCommit={onRate}
           />
-          <p>Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.</p>
+          <p>Your rating ranks this game; it doesn't mark it played.</p>
         </div>
         {shareFeedback && (
           <p className="detail-share-notice" role="status">
@@ -271,12 +275,12 @@ export function GameDetail({
             aggregate or an average of independent publications.
           </p>
           <p>
-            {author.shortName}'s original rating is preserved separately from those critics. The source column was
-            headed “my rating(based on rank)”; its actual cached number is used, including any rounded text result, not
-            a reconstructed curve.{' '}
+            {author.shortName}'s ratings come from the workbook's "my rating(based on rank)" column and stay separate
+            from critics' scores.{' '}
             {game.authorRating && (
               <>
-                Original cached value: <strong>{game.authorRating.rawValue}</strong>.
+                Original workbook rating: <strong>{game.authorRating.value.toFixed(2)}</strong>, shown as{' '}
+                {authorRatingText(game.authorRating)} / 10.
               </>
             )}
           </p>
@@ -302,7 +306,7 @@ export function GameDetail({
           <Icon name="back" />
           Previous game
         </button>
-        <span>{game.rank} / 100</span>
+        <span>{position ? `${position.current} of ${position.total}` : 'Not in these results'}</span>
         <button
           className="text-button"
           disabled={!next || navigating}

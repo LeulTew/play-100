@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { LibraryRecord } from '../../lib/personal-types';
@@ -7,6 +7,8 @@ import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR } from '../../lib/online-availabi
 import { prefetchAppTools } from '../../lib/app-tool-preload';
 import type { MotionBindings } from '../../AppMotionBindings';
 import { useStableHandler } from '../../hooks/useLatest';
+import { ExtendedSearchResultsContext } from '../../hooks/useExtendedSearch';
+import type { ExtendedSearchResults } from '../../hooks/useExtendedSearch';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { SiteFooter } from '../SiteFooter';
 import { AppDialogs } from './AppDialogs';
@@ -31,6 +33,7 @@ export interface AppShellProps {
 
 /** The page App renders: header, banners, the route, footer, mobile navigation, dialogs and the toast. */
 export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, previewModuleError }: AppShellProps) {
+  const [searchResults, setSearchResults] = useState<ExtendedSearchResults | null>(null);
   const { page, panel, manualLink, selectedSlug, onlineOpening, commands, notices } = app;
   const pin = useStableHandler((record: LibraryRecord) => {
     if (!commands.pinAllowed()) {
@@ -86,7 +89,7 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
     void commands.accountEntry();
   };
   return (
-    <>
+    <ExtendedSearchResultsContext.Provider value={setSearchResults}>
       <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>
         Skip to {page === 'collection' ? 'the collection' : 'page content'}
       </a>
@@ -160,6 +163,7 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
       )}
       <AppDialogs
         app={app}
+        searchResults={searchResults}
         origin={motion.origin}
         artwork={artwork}
         previewLoading={previewLoading}
@@ -172,6 +176,6 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
           Opening sharing options…
         </span>
       )}
-    </>
+    </ExtendedSearchResultsContext.Provider>
   );
 }
