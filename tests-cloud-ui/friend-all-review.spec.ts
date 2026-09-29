@@ -35,7 +35,8 @@ async function mount(
     const clientPath = '/src/cloud/firebase-client.ts';
     const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
     await client.cloudAuth.authStateReady();
-    const uid = client.cloudAuth.currentUser?.uid;
+    // Typed string, not narrowed: the harness's hoisted functions below don't keep a narrowing.
+    const uid = client.cloudAuth.currentUser?.uid ?? '';
     if (!uid) throw new Error('The current synthetic account is missing.');
     const loaded = (pathname: string) => {
       const url = window

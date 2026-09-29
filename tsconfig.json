@@ -13,6 +13,7 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.cloud-ui.json" },
     { "path": "./tsconfig.functions.json" }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.node.json",
+  "include": [
+    "playwright.cloud.config.ts",
+    "playwright.compare-fixture.config.ts",
+    "tests-cloud-ui/**/*.ts",
+    "src/vite-env.d.ts"
+  ]
+}
