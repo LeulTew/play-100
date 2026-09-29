@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
 import { requireObject } from '../src/lib/guards.js';
 import { summarizeNpmAudit, summarizePlaywright, summarizeVitest } from './release-manifest';
+import { prepareGitleaks, gitleaksSummary } from './release-gitleaks';
 
 export const GATE_NODE = 'v24.21.0';
 const ports = [4187, 9199, 8188, 4417, 4517, 9150];
@@ -16,7 +17,7 @@ type Profile = 'configured' | 'offline' | 'emulator';
 export interface GateStep {
   name: string;
   profile: Profile;
-  tool: 'npm' | 'vitest' | 'playwright' | 'emulators';
+  tool: 'npm' | 'vitest' | 'playwright' | 'emulators' | 'gitleaks';
   args: string[];
   report?: 'vitest' | 'playwright';
   expectedPassed?: number;
@@ -52,6 +53,12 @@ export function gatePlan(): GateStep[] {
     tool: 'vitest',
     args: ['run', '--maxWorkers=1'],
     report: 'vitest',
+  });
+  steps.splice(4, 0, {
+    name: 'history-secret-scan',
+    profile: 'configured',
+    tool: 'gitleaks',
+    args: ['git', '--redact', '--no-banner', '--log-level=info', '--config', '.gitleaks.toml', '--exit-code=1'],
   });
   steps.push({ name: 'cloud', profile: 'emulator', tool: 'emulators', args: [], report: 'vitest' });
   for (const [name, count] of [
@@ -139,6 +146,25 @@ export function commandReceipt(name: string, exitCode: number | null, log: Buffe
   return { name, exitCode, logSha256: hash(log), logBytes: log.length, ...(error ? { error } : {}) };
 }
 
+export function evidenceLogHeader(identity: unknown): string {
+  const record = requireObject(identity);
+  if (![record.sha, record.tree].every((value) => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value)))
+    throw new Error('Evidence logs require the full candidate commit and tree.');
+  return `commit: ${record.sha}\ntree: ${record.tree}\n\n`;
+}
+
+export async function stampLogs(directory: string, header: string) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) await stampLogs(file, header);
+    else if (entry.isFile() && entry.name.endsWith('.log')) {
+      const bytes = await readFile(file);
+      if (!bytes.subarray(0, Buffer.byteLength(header)).equals(Buffer.from(header)))
+        await writeFile(file, Buffer.concat([Buffer.from(header), bytes]));
+    }
+  }
+}
+
 export async function refuseBusyPorts(list: number[] = ports) {
   for (const port of list) {
     for (const host of ['127.0.0.1', '::1']) {
@@ -167,7 +193,7 @@ async function cleanCheckout(cwd: string, sha: string) {
   }
 }
 
-async function runCommand(
+export async function runCommand(
   name: string,
   cwd: string,
   evidence: string,
@@ -178,7 +204,9 @@ async function runCommand(
 ) {
   const logPath = path.join(evidence, `${name}.log`);
   // Reserve before spawning; a failed attempt is never overwritten or retried.
-  await writeFile(logPath, '', { flag: 'wx' });
+  await writeFile(logPath, evidenceLogHeader(JSON.parse(await readFile(path.join(evidence, 'plan.json'), 'utf8'))), {
+    flag: 'wx',
+  });
   const output = createWriteStream(logPath, { flags: 'a' });
   const startedAt = new Date().toISOString();
   let exitCode: number | null = null;
@@ -259,13 +287,13 @@ function cli(cwd: string, tool: 'npm' | 'vitest' | 'playwright' | 'firebase') {
   );
 }
 
-function reporterArgs(step: GateStep, evidence: string) {
+export function reporterArgs(step: GateStep, evidence: string) {
   if (step.report === 'vitest')
     return ['--reporter=default', '--reporter=json', `--outputFile=${path.join(evidence, `${step.name}.json`)}`];
   return [
     '--project=desktop',
     '--project=mobile',
-    '--workers=2',
+    `--workers=${step.tool === 'emulators' ? 1 : 2}`,
     '--retries=0',
     '--reporter=list,json',
     `--output=${path.join(evidence, `${step.name}-results`)}`,
@@ -371,7 +399,7 @@ async function runInner(step: GateStep, evidence: string) {
       root,
       evidence,
       process.execPath,
-      [cli(root, 'playwright'), ...args, ...reporterArgs(step, evidence), '--workers=1'],
+      [cli(root, 'playwright'), ...args, ...reporterArgs(step, evidence)],
       env,
     );
   } finally {
@@ -411,6 +439,7 @@ export async function releaseGate(evidence: string, offline: string) {
       throw new Error('Load reviewed public Production Firebase values first.');
   }
   const sha = git(root, 'rev-parse', 'HEAD');
+  const tree = git(root, 'rev-parse', 'HEAD^{tree}');
   await cleanCheckout(root, sha);
   await cleanCheckout(offline, sha);
   if ((await realpath(root)) === (await realpath(offline)))
@@ -434,7 +463,7 @@ export async function releaseGate(evidence: string, offline: string) {
   await json(path.join(evidence, 'plan.json'), {
     node: GATE_NODE,
     sha,
-    tree: git(root, 'rev-parse', 'HEAD^{tree}'),
+    tree,
     steps,
   });
   await json(path.join(evidence, 'driver.json'), {
@@ -463,24 +492,66 @@ export async function releaseGate(evidence: string, offline: string) {
         await copyFile(path.join(root, file), path.join(local, file));
       }
       const command = innerEmulatorCommand(root, step.name, evidence);
+      try {
+        await runCommand(
+          step.name,
+          local,
+          evidence,
+          process.execPath,
+          [
+            cli(root, 'firebase'),
+            'emulators:exec',
+            '--project',
+            'demo-play100',
+            '--only',
+            'auth,firestore',
+            '--config',
+            path.join(local, 'firebase.json'),
+            command,
+          ],
+          env,
+        );
+      } finally {
+        await stampLogs(local, evidenceLogHeader({ sha, tree }));
+      }
+    } else if (step.tool === 'gitleaks') {
+      const prepared = await prepareGitleaks(root, evidence, process.env.PLAY100_GITLEAKS_ARCHIVE);
+      const logOpts = `--full-history ${sha}`;
+      await json(path.join(evidence, `${step.name}-tool.json`), {
+        ...prepared.receipt,
+        scannedRef: sha,
+        logOpts,
+      });
       await runCommand(
         step.name,
-        local,
+        cwd,
         evidence,
-        process.execPath,
+        prepared.executable,
         [
-          cli(root, 'firebase'),
-          'emulators:exec',
-          '--project',
-          'demo-play100',
-          '--only',
-          'auth,firestore',
-          '--config',
-          path.join(local, 'firebase.json'),
-          command,
+          ...args,
+          `--log-opts=${logOpts}`,
+          '--report-format=json',
+          `--report-path=${path.join(evidence, `${step.name}.json`)}`,
+          '.',
         ],
-        env,
+        {
+          ...env,
+          GOMAXPROCS: '2',
+          GITLEAKS_CONFIG: undefined,
+          GITLEAKS_CONFIG_TOML: undefined,
+          GITLEAKS_ENABLE_COMMENTS: undefined,
+        },
       );
+      await json(path.join(evidence, `${step.name}-summary.json`), {
+        ...prepared.receipt,
+        ...gitleaksSummary(
+          root,
+          sha,
+          await readFile(path.join(evidence, `${step.name}.log`), 'utf8'),
+          JSON.parse(await readFile(path.join(evidence, `${step.name}.json`), 'utf8')),
+        ),
+        logOpts,
+      });
     } else {
       if (step.report) args.push(...reporterArgs(step, evidence));
       if (step.name.endsWith('check-budgets')) args.push('--', '--json', path.join(evidence, `${step.name}.json`));
@@ -540,6 +611,10 @@ export async function releaseGate(evidence: string, offline: string) {
         args.push(step.report === 'vitest' ? '--vitest' : '--playwright', path.join(evidence, `${step.name}.json`));
       if (step.audit) args.push('--audit', path.join(evidence, `${step.name}.json`));
       else args.push('--receipt', `${step.name}=${path.join(evidence, `${step.name}-exit.json`)}`);
+      if (step.tool === 'gitleaks') {
+        for (const suffix of ['', '-summary', '-tool'])
+          args.push('--receipt', `${step.name}${suffix}=${path.join(evidence, `${step.name}${suffix}.json`)}`);
+      }
       if (step.tool === 'emulators')
         args.push('--receipt', `${step.name}-tests=${path.join(evidence, `${step.name}-tests-exit.json`)}`);
       if (step.name === 'cloud-ui') {

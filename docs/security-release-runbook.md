@@ -24,7 +24,8 @@ and records the native JSON, real exit code, UTC dates and lockfile digest in
 the release manifest. Valid advisory reports require owner review; registry
 failures and malformed reports stop the gate. Run `npm audit` locally after
 each install as well.
-The parent's Gitleaks full-history scan remains a pre-merge step. Keep the
+The gate's checksum-pinned Gitleaks full-history scan records the candidate ref,
+tool version and reachable/scanned commit counts. Keep the
 scanner's redacted JSON report and command log with the release evidence: a
 receipt that summarizes the result is not the scanner's report. Each promotion's
 readback, checks and pending owner actions are recorded in the

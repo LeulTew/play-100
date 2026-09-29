@@ -125,7 +125,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Browser install failed' }
 
 Use an existing Chrome installation or the documented owner-approved
 `npx --no-install playwright install chrome` step. Retain the install audit and
-Node/npm versions. The maintainer must also retain the full-history Gitleaks
+Node/npm versions. The gate retains the full-history Gitleaks
 scan described in [Quality checks](../README.md#quality-checks): the scanner's
 redacted JSON report and command log, not only a summary of its result.
 
@@ -144,6 +144,14 @@ never installs dependencies or creates worktrees. Both checkouts must have no
 calling environment. Java 21 and the installed browsers must already be available.
 Use the pinned runtime's bundled npm. Do not invoke this full gate during another
 lane's bounded-check or quiet window.
+
+Download the matching Gitleaks 8.30.1 release archive separately from
+`https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1` and set
+`PLAY100_GITLEAKS_ARCHIVE` to its absolute path. Windows x64, Linux x64 and macOS
+x64/arm64 archives are pinned in `scripts/release-gitleaks.ts`; unreviewed
+platforms or mismatched bytes stop the gate. `tar` must be available to extract
+the verified executable into the new evidence directory. The gate neither
+downloads nor installs a scanner and refuses shallow history.
 
 ```powershell
 npm run release:gate -- --dry-run
@@ -165,6 +173,7 @@ block for already-documented advisories. The owner must review changed/new
 advisories before release and record any acceptance. Registry/network failures,
 malformed reports and unexpected exits still stop the gate; the manifest refuses
 audit evidence for another lockfile. It then runs
+Gitleaks over the exact candidate SHA and its full ancestry, followed by
 static checks, unit/browser tests, cloud rules and the handle
 race x5 / convergence x20, both independent builds with CSP/budget checks,
 production/development e2e, cloud-UI with freshly allocated comparison actors,
@@ -176,6 +185,20 @@ offline release manifests bind the results. No automatic carry-forward is used.
 `gate-complete.json` exists only after both manifests succeed. The two-version
 service-worker campaign and owner/live-provider checks remain separately
 commissioned evidence, not something this single-candidate runner claims.
+
+Every command log starts with the full candidate commit and tree; emulator
+debug logs receive the same header when that partition stops, even on failure.
+Native JSON reports remain unmodified. `history-secret-scan-tool.json` retains
+the archive/executable digests and version; `history-secret-scan-summary.json`
+records the scanned ref, reachable commits and the scanner's own count.
+Binary-only PNG commits have no text patch and do not enter that count (the
+reviewed R21 history had 2 such commits among 910 reachable). The receipt lists
+binary-only and no-file-patch commit IDs rather than assuming those historical
+numbers still apply. Empty/merge commits and commits without additions can
+also be absent from the scanner count; binary contents are not claimed as
+text coverage. The native redacted report, summary and tool identity are bound
+into the configured manifest. A nonzero scanner exit or nonempty findings
+report stops the gate.
 
 The explicit commands below document the partitions for diagnosis; running the
 runner does not require copying them into additional terminals.

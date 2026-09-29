@@ -1008,10 +1008,11 @@ the real exit code, UTC dates and lockfile digest, in the release manifest.
 Valid advisory reports remain visible as requiring owner review; they are not
 silently converted to a clean audit. Registry failures and malformed reports
 stop the gate. Run `npm audit` locally after each install as well (README
-"Quality checks"). The
-maintainer's full-history Gitleaks scan remains a pre-merge step. Its evidence
-is the scanner's redacted JSON report and command log; a summary of the result
-is a reading of the scan, not the scanner's output.
+"Quality checks"). The gate also runs checksum-pinned Gitleaks 8.30.1 against
+the full candidate ancestry. Its evidence includes the scanned ref, tool
+version, reachable and scanned commit counts, redacted JSON report and command
+log; binary-only commits without a text patch are identified separately.
+A summary of the result is a reading of the scan, not the scanner's output.
 Registry availability/signature failures remain real failures for review, not
 reasons to bypass integrity. This does not replace Dependabot, code scanning or
 runtime testing.

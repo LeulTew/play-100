@@ -321,10 +321,15 @@ requests or pushes. Release gating uses the runner and review:
   (`tests-cloud-ui`, `playwright.cloud.config.ts`);
 - `tsc -b`, `npm run lint`, `npm run build`, `npm run check:csp` and
   `npm run check:budgets`;
-- `npm audit`, run locally after each install, and `npm audit signatures`,
-  which the runner requires in both installed checkouts before other checks.
+- `npm audit signatures`, followed by `npm audit --json --audit-level=info`
+  in both installed checkouts, with native audit reports, exits and lockfile
+  digests retained by the runner. Run `npm audit` after each install as well;
+- checksum-pinned Gitleaks 8.30.1 over the candidate's full reachable history,
+  with the scanned ref, tool version, commit counts and redacted native report.
 
-A full-history Gitleaks scan by the maintainer remains a pre-merge step.
+Prepare the reviewed Gitleaks release archive before the gate and set
+`PLAY100_GITLEAKS_ARCHIVE` to its path; the gate verifies its committed SHA-256
+before extracting or executing it. See [Release operations](docs/release-operations.md).
 Dependabot's version-update configuration (`.github/dependabot.yml`) is unchanged.
 
 The disabled jobs, for reference if they are re-enabled: SHA-pinned GitHub
@@ -635,7 +640,13 @@ Source updates must still contain the intended 100 author-ordered records.
 | `src\lib\snapshot-transport.ts` | Deterministic bounded chunk transport and integrity checks |
 | `firestore.rules`, `tests-cloud` | Server-enforced data boundaries and actual emulator regression gates |
 | `src\components\avatar` | Locally generated, version-pinned Critters and controlled avatar picker |
-| `api\catalog.ts` | Fixed-host, bounded, read-only catalog adapters |
+| `api\catalog.ts`, `api\catalog-detail.ts` | Fixed-host, bounded, read-only catalog adapters |
+| `api\auth-helper.ts` | Same-origin authentication helper with fresh CSP nonces |
+| `api\csp-report.ts`, `api\client-error-report.ts`, `api\operational-probe.ts` | Privacy-bounded CSP/client-fault counts and cached dependency health |
+| `src\pwa` | Versioned offline worker, caches, update/recovery flow and bounded downloads |
+| `src\first-paint` | Early static-shell boot and font readiness |
+| `src\motion` | Shared motion and reduced-motion behavior |
+| `scripts` | Data preparation, first-paint build, CSP/budget checks and candidate-bound release evidence |
 | `src\components\scene` | Authored Three.js folios, static SVG, lifecycle and frame budget |
 | `src\components\bits` | Customized, attributed React Bits components |
 | `src\generated\cover-metadata.json` | Actual native artwork dimensions |

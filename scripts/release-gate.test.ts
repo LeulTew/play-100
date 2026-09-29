@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
   checkGateReport,
   commandReceipt,
@@ -6,6 +9,10 @@ import {
   gatePlan,
   GATE_NODE,
   innerEmulatorCommand,
+  evidenceLogHeader,
+  reporterArgs,
+  runCommand,
+  stampLogs,
 } from './release-gate';
 
 describe('candidate release gate planning', () => {
@@ -32,11 +39,12 @@ describe('candidate release gate planning', () => {
     const plan = gatePlan();
     const names = plan.map((step) => step.name);
     expect(new Set(names).size).toBe(names.length);
-    expect(names.slice(0, 11)).toEqual([
+    expect(names.slice(0, 12)).toEqual([
       'configured-audit-signatures',
       'offline-audit-signatures',
       'configured-dependency-audit',
       'offline-dependency-audit',
+      'history-secret-scan',
       'types',
       'lint',
       'typecheck-functions',
@@ -66,6 +74,59 @@ describe('candidate release gate planning', () => {
       ['configured', ['audit', '--json', '--audit-level=info']],
       ['offline', ['audit', '--json', '--audit-level=info']],
     ]);
+  });
+
+  it('uses exactly one worker option per browser partition', () => {
+    for (const step of gatePlan().filter((step) => step.report === 'playwright')) {
+      expect(reporterArgs(step, 'evidence').filter((arg) => arg.startsWith('--workers='))).toEqual([
+        step.tool === 'emulators' ? '--workers=1' : '--workers=2',
+      ]);
+    }
+  });
+
+  it('rejects incomplete log provenance and prefixes real success and failure logs', async () => {
+    expect(() => evidenceLogHeader({ sha: 'short', tree: 'short' })).toThrow('full candidate');
+    const identity = { sha: 'a'.repeat(40), tree: 'b'.repeat(40) };
+    const directory = await mkdtemp(path.join(tmpdir(), 'gate-log-'));
+    try {
+      await writeFile(path.join(directory, 'plan.json'), JSON.stringify(identity));
+      for (const code of [0, 1]) {
+        const name = `command-${code}`;
+        const run = runCommand(
+          name,
+          directory,
+          directory,
+          process.execPath,
+          ['-e', `console.log('native output'); process.exitCode = ${code}`],
+          process.env,
+        );
+        if (code) await expect(run).rejects.toThrow('failed; retain');
+        else await run;
+        const bytes = await readFile(path.join(directory, `${name}.log`));
+        expect(bytes.toString()).toBe(`${evidenceLogHeader(identity)}native output\n`);
+        const receipt = JSON.parse(await readFile(path.join(directory, `${name}-exit.json`), 'utf8'));
+        expect(receipt).toMatchObject(commandReceipt(name, code, bytes));
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('stamps nested emulator logs once without changing native JSON reports', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'gate-native-log-'));
+    try {
+      const nested = path.join(directory, 'emulators');
+      await mkdir(nested);
+      await writeFile(path.join(nested, 'firestore-debug.log'), 'native diagnostic\n');
+      await writeFile(path.join(nested, 'report.json'), '{"success":false}\n');
+      const header = evidenceLogHeader({ sha: 'a'.repeat(40), tree: 'b'.repeat(40) });
+      await stampLogs(directory, header);
+      await stampLogs(directory, header);
+      expect(await readFile(path.join(nested, 'firestore-debug.log'), 'utf8')).toBe(`${header}native diagnostic\n`);
+      expect(await readFile(path.join(nested, 'report.json'), 'utf8')).toBe('{"success":false}\n');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('removes stale test overrides and isolates configured, offline and emulator environments', () => {

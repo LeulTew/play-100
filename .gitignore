@@ -3,8 +3,7 @@ dist/
 .build-meta/
 /budget-report.json
 .vercel/
-.env
-.env.*
+.env*
 !.env.example
 test-results/
 playwright-report/
@@ -16,8 +15,6 @@ __pycache__/
 .playwright-mcp/
 .impeccable/hook.cache.json
 data/previews/
-.vercel
-.env*
 firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
