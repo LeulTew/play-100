@@ -1,8 +1,8 @@
 /** A single value that components read with useSyncExternalStore, so writers never re-render the whole app. */
 export interface ValueStore<T> {
-  get(): T;
-  set(next: T): void;
-  subscribe(listener: () => void): () => void;
+  get: () => T;
+  set: (next: T) => void;
+  subscribe: (listener: () => void) => () => void;
 }
 
 export function createValueStore<T>(initial: T): ValueStore<T> {

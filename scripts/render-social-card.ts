@@ -205,8 +205,8 @@ try {
     `Comparison: PNG byte-identical=${png.equals(baseline)}, PNG changed pixels=${pngPixels}; outlined SVG changed pixels=${svgPixels}/756000.`,
   );
   if (process.env.SOCIAL_CARD_EVIDENCE_DIR) {
-    const { join } = await import('node:path');
-    await writeFile(join(process.env.SOCIAL_CARD_EVIDENCE_DIR, 'standalone-social-card.png'), svgPng);
+    const path = await import('node:path');
+    await writeFile(path.join(process.env.SOCIAL_CARD_EVIDENCE_DIR, 'standalone-social-card.png'), svgPng);
   }
   await writeFile(svgTemporary, outlined, { flag: 'wx' });
   await writeFile(temporary, png, { flag: 'wx' });

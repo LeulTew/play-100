@@ -72,8 +72,8 @@ interface Services {
   store: CompareTrayStore;
   drag: CompareDragSession;
   runtime: MotionRuntime;
-  isCurrent(): boolean;
-  interaction(): CompareInteractionGate | undefined;
+  isCurrent: () => boolean;
+  interaction: () => CompareInteractionGate | undefined;
 }
 
 const excluded =
@@ -521,10 +521,10 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
     finish(gesture);
   };
   return {
-    resume() {
+    resume: () => {
       alive = true;
     },
-    dispose() {
+    dispose: () => {
       alive = false;
       cancel();
       clearTail();
@@ -534,31 +534,31 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       dock = null;
       arrival = null;
     },
-    refresh() {
+    refresh: () => {
       if (active && !current(active)) cancel();
     },
-    refreshSource(source: CompareSource) {
+    refreshSource: (source: CompareSource) => {
       if (active?.source === source && !current(active)) cancel();
     },
     cancelSource,
     cancel,
     consumeClick,
-    canPin() {
+    canPin: () => {
       return alive && isCurrent() && interaction()?.enabled !== false;
     },
-    pin(record: LibraryRecord) {
+    pin: (record: LibraryRecord) => {
       const before = store.getSnapshot().items;
       const accepted = store.pin(record);
       if (accepted) added(before);
       return accepted;
     },
-    clear(status?: string) {
+    clear: (status?: string) => {
       cancel();
       settleSession?.cancel();
       pendingSettle = null;
       return store.clear(status);
     },
-    setDock(node: HTMLElement | null) {
+    setDock: (node: HTMLElement | null) => {
       dock = node;
       if (!node && active) {
         const gesture = active;
@@ -568,12 +568,12 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         });
       }
     },
-    setArrivalTarget(id: string | undefined, node: HTMLElement | null) {
+    setArrivalTarget: (id: string | undefined, node: HTMLElement | null) => {
       if (node && id) arrival = { id, node };
       else if (!id || arrival?.id === id) arrival = null;
       startSettle();
     },
-    pointerDown(source: CompareSource, event: PointerEvent) {
+    pointerDown: (source: CompareSource, event: PointerEvent) => {
       if (event.button !== 0 || !event.isPrimary || modified(event)) return;
       const mouse = event.pointerType === 'mouse' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       // Touch and pen use the grip's native Pin click, even on mixed-pointer devices.
@@ -617,7 +617,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         if (canceled.pointerId === gesture.pointerId && !gesture.native) cancelSource(source);
       });
     },
-    touchStart(source: CompareSource, event: TouchEvent) {
+    touchStart: (source: CompareSource, event: TouchEvent) => {
       if (event.touches.length !== 1 || source.read().node?.hasAttribute('data-compare-drag-grip')) return;
       const touch = event.touches[0];
       if (!touch) return;
@@ -648,7 +648,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       );
       listen(gesture, 'touchcancel', () => cancelSource(source));
     },
-    nativeStart(source: CompareSource, event: DragEvent) {
+    nativeStart: (source: CompareSource, event: DragEvent) => {
       const gesture = active;
       if (!gesture || gesture.source !== source) return;
       if (gesture.kind !== 'mouse') {
@@ -682,12 +682,12 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
         cancel();
       }
     },
-    nativeEnd(source: CompareSource, event: DragEvent) {
+    nativeEnd: (source: CompareSource, event: DragEvent) => {
       if (active?.source !== source || !active.native) return;
       active.point = pointOf(event);
       finish(active);
     },
-    nativeOver(event: DragEvent) {
+    nativeOver: (event: DragEvent) => {
       if (
         !active?.native ||
         !active.token ||
@@ -700,7 +700,7 @@ export function createCompareDragController({ store, drag, runtime, isCurrent, i
       event.dataTransfer.dropEffect = 'copy';
       active.point = pointOf(event);
     },
-    nativeDrop(event: DragEvent) {
+    nativeDrop: (event: DragEvent) => {
       if (
         !active?.native ||
         !current(active) ||

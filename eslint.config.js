@@ -7,9 +7,10 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 // Files that no tsconfig project covers are linted without type information (README, Quality checks).
 const untypedFiles = ['**/*.{js,mjs,cjs}', 'tests-cloud/**/*.ts', 'vitest.cloud.config.ts'];
 
+const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/**/*.ts', 'tests-cloud-ui/**/*.ts'];
+
 const pendingTypedRules = [
   'no-unsafe-assignment',
-  'unbound-method',
   'require-await',
   'no-unsafe-member-access',
   'prefer-promise-reject-errors',
@@ -43,6 +44,11 @@ export default tseslint.config(
   {
     // Type-aware rules still being brought to zero (CODE-03); each is removed from this list once it is clean.
     rules: Object.fromEntries(pendingTypedRules.map((rule) => [`@typescript-eslint/${rule}`, 'off'])),
+  },
+  {
+    // Tests pass methods to expect() and capture prototype methods to restore or call with .call(); neither loses this.
+    files: testFiles,
+    rules: { '@typescript-eslint/unbound-method': 'off' },
   },
   {
     files: untypedFiles,

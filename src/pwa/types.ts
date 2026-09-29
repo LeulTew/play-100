@@ -40,13 +40,13 @@ export interface PwaUpdateGuard {
 }
 
 export interface PwaController {
-  getSnapshot(): PwaState;
-  subscribe(listener: () => void): () => void;
-  connect(): () => void;
-  install(): Promise<'accepted' | 'dismissed' | 'instructions' | 'unavailable'>;
-  prepareOffline(): Promise<boolean>;
-  checkForUpdate(): Promise<void>;
-  applyUpdate(guard: PwaUpdateGuard): Promise<boolean>;
+  getSnapshot: () => PwaState;
+  subscribe: (listener: () => void) => () => void;
+  connect: () => () => void;
+  install: () => Promise<'accepted' | 'dismissed' | 'instructions' | 'unavailable'>;
+  prepareOffline: () => Promise<boolean>;
+  checkForUpdate: () => Promise<void>;
+  applyUpdate: (guard: PwaUpdateGuard) => Promise<boolean>;
 }
 
 export interface BeforeInstallPromptEvent extends Event {

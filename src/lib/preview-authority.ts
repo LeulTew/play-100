@@ -5,8 +5,8 @@ export interface PreviewAuthority {
   readonly scope: LibraryScope;
   readonly ownerUid: string;
   readonly authGeneration: number;
-  permits(id: string): boolean;
-  subscribe(listener: () => void): () => void;
+  readonly permits: (id: string) => boolean;
+  readonly subscribe: (listener: () => void) => () => void;
 }
 
 export function createShelfPreviewAuthority(scope: LibraryScope, ownerUid: string, authGeneration = 0) {

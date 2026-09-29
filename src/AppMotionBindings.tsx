@@ -24,9 +24,9 @@ interface OriginTicket extends PreparedPreview {
 }
 
 export interface MotionBindings {
-  openCollection(slug: string, hint?: MotionOriginHint): void;
-  preview(record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint): void;
-  previewFromDiscover(record: LibraryRecord, hint?: MotionOriginHint): void;
+  openCollection: (slug: string, hint?: MotionOriginHint) => void;
+  preview: (record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint) => void;
+  previewFromDiscover: (record: LibraryRecord, hint?: MotionOriginHint) => void;
   origin: MotionOriginLease | undefined;
   interaction: CompareInteractionGate;
 }
