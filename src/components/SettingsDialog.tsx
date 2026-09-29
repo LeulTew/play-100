@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionPreference } from '../lib/types';
 import { Dialog } from './Dialog';
@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import BackupPanel from './personal/BackupPanel';
 import { useLibraryMode } from '../lib/library-mode';
+import { foregroundDialog } from './dialog-layer';
 import './settings-controls.css';
 
 interface SettingsDialogProps {
@@ -55,7 +56,43 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const motionId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
-  const [resetMessage, setResetMessage] = useState('');
+  const [resetResult, setResetResult] = useState<'saved' | 'failed' | null>(null);
+  const [resetPending, setResetPending] = useState(false);
+  const resetting = useRef(false);
+  const resetTrigger = useRef<HTMLButtonElement>(null);
+  const keepData = useRef<HTMLButtonElement>(null);
+  const resetFocusRequested = useRef(false);
+  useLayoutEffect(() => {
+    if (!resetFocusRequested.current) return;
+    resetFocusRequested.current = false;
+    const target = confirmReset ? keepData.current : resetTrigger.current;
+    if (!target || target.closest('dialog') !== foregroundDialog()) return;
+    if (confirmReset)
+      target
+        .closest('.reset-confirmation')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    target.focus({ preventScroll: true });
+  }, [confirmReset]);
+  const closeReset = () => {
+    resetFocusRequested.current = true;
+    setConfirmReset(false);
+  };
+  const reset = async () => {
+    if (busy || resetting.current) return;
+    resetting.current = true;
+    setResetPending(true);
+    try {
+      setResetResult((await onReset()) ? 'saved' : 'failed');
+    } catch (error: unknown) {
+      console.error('The active library could not be reset.', error);
+      setResetResult('failed');
+    } finally {
+      resetting.current = false;
+      setResetPending(false);
+      closeReset();
+    }
+  };
   const [pendingMotion, setPendingMotion] = useState<MotionPreference | null>(null);
   const [motionFeedback, setMotionFeedback] = useState<'saved' | 'failed' | null>(null);
   const savingMotion = useRef(false);
@@ -109,7 +146,7 @@ export function SettingsDialog({
       <h2 id="settings-title" data-autofocus tabIndex={-1}>
         Settings &amp; backups
       </h2>
-      <p className="dialog-lead">Your collection, your preferences, your saved data.</p>
+      <p className="dialog-lead">Backups, offline access and display settings for this device.</p>
       <div role="status">
         {status && !recovery && <p className={status && statusError ? 'inline-error' : undefined}>{status}</p>}
         {motionFeedback && (
@@ -141,7 +178,7 @@ export function SettingsDialog({
         busy={busy}
         persistent={persistent}
         onRestore={onRestore}
-        onActionStart={() => setResetMessage('')}
+        onActionStart={() => setResetResult(null)}
       />
       <fieldset className="motion-options">
         <legend>Visual experience</legend>
@@ -191,13 +228,13 @@ export function SettingsDialog({
       <section className="device-settings">
         <h3>{mode.scope === 'guest' ? 'Only on this device' : 'This account library'}</h3>
         <p>
-          {saved} saved for later. {completed} marked completed.
+          {saved} in Play later · {completed} completed.
         </p>
         <p>
           {mode.scope === 'guest'
             ? 'This guest copy is device-only. Online saving is optional and requires a separate sign-in and consent. Clearing site data can remove this local copy.'
             : 'Account edits save locally first and upload only while online saving is enabled. Sign out to return to the untouched guest library; manage cloud deletion from Account.'}{' '}
-          Saving and completion are independent, so a favorite can stay on your replay list.
+          Completed games can stay in Play later for a replay.
         </p>
         {warning && (
           <p className="storage-warning" role="alert">
@@ -205,9 +242,9 @@ export function SettingsDialog({
           </p>
         )}
         {confirmReset ? (
-          <div className="reset-confirmation">
-            <p>
-              <strong>Reset the active library, queue, personal rankings and preferences?</strong>{' '}
+          <div className="reset-confirmation" role="group" aria-labelledby={`${motionId}-reset`}>
+            <p id={`${motionId}-reset`}>
+              <strong>Reset the active library, Play later, personal rankings and preferences?</strong>{' '}
               {mode.scope !== 'guest' &&
                 'If online saving is enabled, this empty account library will sync online. The guest library stays untouched.'}{' '}
               This cannot be undone. Export a backup first if needed. The public collection is not affected.
@@ -215,31 +252,47 @@ export function SettingsDialog({
             <div className="button-row">
               <button
                 className="button button-danger"
-                disabled={busy}
+                aria-disabled={busy || resetPending || undefined}
                 onClick={() => {
-                  void onReset().then((success) => {
-                    setConfirmReset(false);
-                    setResetMessage(
-                      success
-                        ? 'Your active library, queue, ranking and preferences have been reset.'
-                        : 'Reset failed. Your saved data has not been removed.',
-                    );
-                  });
+                  void reset();
                 }}
               >
                 {mode.scope === 'guest' ? 'Yes, reset device data' : 'Yes, reset this account library'}
               </button>
-              <button className="button button-outline" disabled={busy} onClick={() => setConfirmReset(false)}>
+              <button
+                ref={keepData}
+                className="button button-outline"
+                aria-disabled={busy || resetPending || undefined}
+                onClick={() => {
+                  if (!busy && !resetting.current) closeReset();
+                }}
+              >
                 Keep my data
               </button>
             </div>
           </div>
         ) : (
-          <button className="text-button danger-text" onClick={() => setConfirmReset(true)}>
+          <button
+            ref={resetTrigger}
+            className="text-button danger-text"
+            aria-disabled={busy || undefined}
+            onClick={() => {
+              if (busy) return;
+              resetFocusRequested.current = true;
+              setResetResult(null);
+              setConfirmReset(true);
+            }}
+          >
             {mode.scope === 'guest' ? 'Reset device data' : 'Reset this account library'}
           </button>
         )}
-        {resetMessage && <p role="status">{resetMessage}</p>}
+        {resetResult && (
+          <p role={resetResult === 'failed' ? 'alert' : 'status'}>
+            {resetResult === 'saved'
+              ? 'Your active library, Play later, ranking and preferences have been reset.'
+              : 'Reset failed. Your saved data has not been removed.'}
+          </p>
+        )}
       </section>
       <button className="text-button" onClick={onAbout}>
         Source, methodology &amp; credits

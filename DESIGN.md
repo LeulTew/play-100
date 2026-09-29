@@ -395,7 +395,12 @@ behavior are unchanged.
 Personal-workspace document titles follow the resolved Library, Queue or Ranking
 tab, including legacy `list=later` links and history navigation.
 Starting a backup export, import or restore clears the superseded reset result
-in Settings. Backup and reset outcomes retain their polite status regions.
+in Settings. Successful backup and reset outcomes retain their polite status
+regions; a failed reset has an alert. Reset confirmation focuses **Keep my data**
+and reveals the whole confirmation inside the sheet, without a motion delay.
+Cancel or a finished reset returns focus to its trigger only while Settings is
+still the foreground dialog. Pending reset controls stay focusable but ignore
+repeat activation, and a failed reset never reports that data was removed.
 Adjacent groups use one rule: Settings account context has no trailing border,
 and My games rows own their leading divider, leaving the manual-add group's
 existing top rule as the only separator below the final row.
@@ -474,6 +479,19 @@ Long detail copy and previous/next navigation wrap without pushing controls
 outside the native dialog. Private ratings and notes commit on editor exit as well
 as their normal save triggers. Unordered library views omit disabled drag/move
 chrome; actual play queues retain all existing ordering affordances.
+
+On The 100, **Previous game** and **Next game** follow all matching canonical
+results in the active filter and sort order, not just the loaded card page.
+Their position reads **3 of 10**, separate from the game's permanent collection
+rank. Original-genre, year, tier, search and private progress restrictions stay
+in the URL during navigation. The collection's existing search shares its local
+and online matches with the dialog; saved provider-copy progress uses the same
+matching rules as the cards. Opening a detail starts no second online search.
+A valid deep link outside those results still opens, but its
+neighbors are disabled and its position says **Not in these results**.
+Other routes keep their existing whole-collection navigation. Next/Previous
+replace the open detail's history entry only after pending edits save; Back,
+Forward, close and direct links retain their existing behavior.
 
 Private-library removal is a deliberate destructive action, not a bookmark
 toggle. A restrained trash control opens a confirmation naming affected games

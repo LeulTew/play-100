@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { realpathSync } from 'node:fs';
 import { chromium, expect as browserExpect } from '@playwright/test';
 import type { Browser, Page } from '@playwright/test';
 import react from '@vitejs/plugin-react';
@@ -28,6 +29,9 @@ declare global {
       externalBusy(value: boolean): void;
       restoreCalls: number;
       finishRestore(result: boolean): void;
+      resetCalls: number;
+      holdReset(): void;
+      finishReset(result: boolean | 'reject'): void;
     };
   }
 }
@@ -68,7 +72,12 @@ beforeAll(async () => {
             },
           },
         ],
-        server: { host: '127.0.0.1', port: 0, watch: null },
+        server: {
+          host: '127.0.0.1',
+          port: 0,
+          watch: null,
+          fs: { allow: [process.cwd(), realpathSync('node_modules')] },
+        },
       }),
     )
   ).server;
@@ -109,7 +118,7 @@ for (const mobile of [false, true]) {
     async function withPage(work: (page: Page) => Promise<void>) {
       if (!browser) throw new Error('Settings fixture browser unavailable.');
       const context = await browser.newContext({
-        viewport: { width: mobile ? 393 : 1440, height: 900 },
+        viewport: { width: mobile ? 393 : 1440, height: mobile ? 851 : 900 },
         isMobile: mobile,
         hasTouch: mobile,
         reducedMotion: 'reduce',
@@ -134,6 +143,97 @@ for (const mobile of [false, true]) {
       }
     }
 
+    it('focuses Keep my data, reveals the entire confirmation and returns focus after cancel', async () => {
+      await withPage(async (page) => {
+        const settings = page.getByRole('dialog', { name: 'Settings & backups', exact: true });
+        await browserExpect(settings.locator('.dialog-lead')).toHaveText(
+          'Backups, offline access and display settings for this device.',
+        );
+        await browserExpect(settings.locator('.device-settings')).toContainText('0 in Play later · 0 completed.');
+        expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(mobile);
+        const trigger = settings.getByRole('button', { name: 'Reset device data', exact: true });
+        if (mobile) await trigger.tap();
+        else {
+          await trigger.focus();
+          await page.keyboard.press('Enter');
+        }
+        const keep = settings.getByRole('button', { name: 'Keep my data', exact: true });
+        await browserExpect(keep).toBeFocused();
+        const geometry = await settings.evaluate((dialog) => {
+          const panel = dialog.querySelector('.reset-confirmation')!;
+          const bounds = panel.getBoundingClientRect();
+          return {
+            top: bounds.top,
+            bottom: bounds.bottom,
+            viewTop: dialog.querySelector('.dialog-close-rail')!.getBoundingClientRect().bottom,
+            viewBottom: Math.min(innerHeight, dialog.getBoundingClientRect().bottom),
+            width: innerWidth,
+            height: innerHeight,
+            controls: [...panel.querySelectorAll('button')].map((button) => {
+              const rect = button.getBoundingClientRect();
+              return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+            }),
+          };
+        });
+        expect(geometry.width).toBe(mobile ? 393 : 1440);
+        expect(geometry.height).toBe(mobile ? 851 : 900);
+        expect(geometry.top).toBeGreaterThanOrEqual(geometry.viewTop);
+        expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewBottom);
+        expect(geometry.controls).toEqual([true, true]);
+        await keep.press('Enter');
+        await browserExpect(settings.locator('.reset-confirmation')).toHaveCount(0);
+        await browserExpect(trigger).toBeFocused();
+        expect(await page.evaluate(() => window.settingsRadioFixture.resetCalls)).toBe(0);
+      });
+    });
+
+    it.each([true, false, 'reject'] as const)(
+      'keeps pending reset focus, ignores repeats and returns to the trigger on result %s',
+      async (result) => {
+        await withPage(async (page) => {
+          await page.evaluate(() => window.settingsRadioFixture.holdReset());
+          const trigger = page.getByRole('button', { name: 'Reset device data', exact: true });
+          await trigger.click();
+          const keep = page.getByRole('button', { name: 'Keep my data', exact: true });
+          await browserExpect(keep).toBeFocused();
+          const reset = page.getByRole('button', { name: 'Yes, reset device data', exact: true });
+          await reset.focus();
+          await reset.press('Enter');
+          await browserExpect(reset).toHaveAttribute('aria-disabled', 'true');
+          await browserExpect(keep).toHaveAttribute('aria-disabled', 'true');
+          await browserExpect(reset).toBeFocused();
+          await reset.press('Enter');
+          await keep.press('Enter');
+          expect(await page.evaluate(() => window.settingsRadioFixture.resetCalls)).toBe(1);
+          await browserExpect(page.locator('.reset-confirmation')).toBeVisible();
+          await page.evaluate((value) => window.settingsRadioFixture.finishReset(value), result);
+          await browserExpect(page.locator('.reset-confirmation')).toHaveCount(0);
+          await browserExpect(trigger).toBeFocused();
+          await browserExpect(
+            page.locator('.device-settings').getByRole(result === true ? 'status' : 'alert'),
+          ).toHaveText(
+            result === true
+              ? 'Your active library, Play later, ranking and preferences have been reset.'
+              : 'Reset failed. Your saved data has not been removed.',
+          );
+        });
+      },
+    );
+
+    it('does not reclaim focus when a reset finishes after Settings has closed', async () => {
+      await withPage(async (page) => {
+        await page.evaluate(() => window.settingsRadioFixture.holdReset());
+        await page.getByRole('button', { name: 'Reset device data', exact: true }).click();
+        await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
+        await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        const next = page.getByRole('button', { name: 'Continue browsing', exact: true });
+        await next.focus();
+        await page.evaluate(() => window.settingsRadioFixture.finishReset(true));
+        await browserExpect(page.getByRole('dialog')).toHaveCount(0);
+        await browserExpect(next).toBeFocused();
+      });
+    });
+
     for (const action of ['Export my library', 'Import backup'] as const) {
       it(`${action} clears the previous reset result when it starts`, async () => {
         await withPage(async (page) => {
@@ -141,7 +241,7 @@ for (const mobile of [false, true]) {
           await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
           const resetStatus = page.locator('.device-settings').getByRole('status');
           await browserExpect(resetStatus).toHaveText(
-            'Your active library, queue, ranking and preferences have been reset.',
+            'Your active library, Play later, ranking and preferences have been reset.',
           );
           if (action === 'Export my library') {
             const pending = page.waitForEvent('download');

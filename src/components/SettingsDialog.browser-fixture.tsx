@@ -8,6 +8,8 @@ import '../styles.css';
 import '../shared-ui.css';
 let finish: (result: boolean | 'reject') => void;
 let finishRestore: (result: boolean) => void;
+let finishReset: (result: boolean | 'reject') => void;
+let deferReset = false;
 let setExternalBusy: (value: boolean) => void;
 let setPersistent: (value: boolean) => void;
 let saved = 'auto',
@@ -17,6 +19,7 @@ let saved = 'auto',
 const calls: string[] = [];
 const frames: Window['settingsRadioFixture']['frames'] = [];
 export function App() {
+  const [open, setOpen] = useState(true);
   const [motion, setMotion] = useState<MotionPreference>('auto');
   const [busy, setBusy] = useState(false);
   const [persistent, updatePersistent] = useState(true);
@@ -24,6 +27,7 @@ export function App() {
     setPersistent = updatePersistent;
     setExternalBusy = setBusy;
   }, []);
+  if (!open) return <button id="after-settings">Continue browsing</button>;
   return (
     <SettingsDialog
       motion={motion}
@@ -54,7 +58,18 @@ export function App() {
           };
         });
       }}
-      onReset={async () => true}
+      onReset={() => {
+        window.settingsRadioFixture.resetCalls += 1;
+        if (!deferReset) return Promise.resolve(true);
+        setBusy(true);
+        return new Promise((resolve, reject) => {
+          finishReset = (result) => {
+            setBusy(false);
+            if (result === 'reject') reject(new Error('Synthetic reset rejection'));
+            else resolve(result);
+          };
+        });
+      }}
       onRestore={() => {
         window.settingsRadioFixture.restoreCalls += 1;
         setBusy(true);
@@ -66,7 +81,7 @@ export function App() {
         });
       }}
       onAbout={() => {}}
-      onClose={() => {}}
+      onClose={() => setOpen(false)}
     />
   );
 }
@@ -97,5 +112,10 @@ window.settingsRadioFixture = {
   temporary: () => setPersistent(false),
   restoreCalls: 0,
   finishRestore: (result) => finishRestore(result),
+  resetCalls: 0,
+  holdReset: () => {
+    deferReset = true;
+  },
+  finishReset: (result) => finishReset(result),
 };
 createRoot(fixtureElement('mount')).render(h(App));
