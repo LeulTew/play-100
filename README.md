@@ -498,7 +498,8 @@ accounts. The headed native-hidden-window case remains opt-in and is not a
 headless proof. Profile-specific desktop/mobile skips retain their intent.
 `check:budgets` reads the existing `dist` without rebuilding or network access;
 `budgets.json` records the enforced eager JS+CSS/PWA caps and provisional
-270f app-CSS/lazy limits. App CSS is the Vite output under `assets`; standalone
+270f app-CSS/lazy limits, and [Performance budgets](docs/performance.md) sets
+how they move. App CSS is the Vite output under `assets`; standalone
 `pwa` stylesheets have a separate measured cap and must be in the PWA core.
 They may be linked only by the offline document or the app's `noscript` fallback,
 not active app documents, chunk dependencies or CSS imports. Combined CSS
