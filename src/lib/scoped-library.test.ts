@@ -1,7 +1,7 @@
 import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
-import type { SyncHead } from './cloud-types';
+import type { ScopedLibrary, SyncHead } from './cloud-types';
 import {
   accountStorageTransaction,
   closePersonalLibrary,
@@ -20,9 +20,10 @@ import {
   parseScopedLibrary,
   pauseScopedLibrary,
   rebaseScopedLibrary,
+  restoreScopedLibrary,
 } from './scoped-library';
-import { emptyPersonalLibrary } from './personal-library';
-import type { LibraryRecord } from './personal-types';
+import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
+import type { LibraryRecord, PersonalAction } from './personal-types';
 import { compareTrayStorageKey, serializeCompareTray } from './compare-tray';
 import { motionHintKey } from './motion-hint';
 
@@ -71,6 +72,116 @@ afterEach(() => {
 });
 
 describe('explicit account scopes in the existing local database', () => {
+  it.each<PersonalAction>([
+    { type: 'edit-ranking', id: game.id, score: 8.5 },
+    { type: 'edit-ranking', id: game.id, note: 'Updated opinion' },
+    { type: 'set-motion', motion: 'lite' },
+    { type: 'remove-ranking', ids: [game.id] },
+    { type: 'remove-records', ids: [game.id] },
+  ])('validates and copies the active library once per ordinary account edit ($type)', async (action) => {
+    const before = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 7 });
+    const descriptor = Object.getOwnPropertyDescriptor;
+    const revisions: number[] = [];
+    const validation = vi.spyOn(Object, 'getOwnPropertyDescriptor').mockImplementation((value, key) => {
+      const revision = key === 'records' ? descriptor(value, 'revision')?.value : undefined;
+      if (typeof revision === 'number') revisions.push(revision);
+      return descriptor(value, key);
+    });
+    let after: ScopedLibrary;
+    try {
+      parsePersonalLibrary(before.state);
+      expect(revisions).toEqual([before.state.revision]);
+      revisions.length = 0;
+      after = await commitScopedAction(alice, action);
+      expect(revisions).toEqual([before.state.revision]);
+    } finally {
+      validation.mockRestore();
+    }
+    expect(after.state.revision).toBe(before.state.revision + 1);
+    expect(after.state.records).not.toBe(before.state.records);
+    expect(before.state.ranking).toEqual([{ id: game.id, score: 7, note: '', manualPosition: null }]);
+    expect(after.sync.dataRevision).toBe(before.sync.dataRevision + (action.type === 'set-motion' ? 0 : 1));
+    expect(after.sync.dirty).toBe(true);
+    expect(await loadScopedLibrary(alice)).toEqual(after);
+  });
+
+  it('still validates a stored recovery library separately, without revalidating either trusted result', async () => {
+    const original = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 7 });
+    const before = await restoreScopedLibrary(alice, original.state);
+    const descriptor = Object.getOwnPropertyDescriptor;
+    const revisions: number[] = [];
+    const validation = vi.spyOn(Object, 'getOwnPropertyDescriptor').mockImplementation((value, key) => {
+      const revision = key === 'records' ? descriptor(value, 'revision')?.value : undefined;
+      if (typeof revision === 'number') revisions.push(revision);
+      return descriptor(value, key);
+    });
+    try {
+      const after = await commitScopedAction(alice, { type: 'edit-ranking', id: game.id, score: 9 });
+      expect(revisions).toEqual([original.state.revision, before.state.revision]);
+      expect(after.recovery).toEqual(before.recovery);
+      expect(after.recovery?.state).not.toBe(before.recovery?.state);
+    } finally {
+      validation.mockRestore();
+    }
+  });
+
+  it.each<[string, (current: ScopedLibrary) => unknown]>([
+    ['foreign scope', (current) => ({ ...current, scope: bob })],
+    ['unknown envelope field', (current) => ({ ...current, unexpected: true })],
+    ['invalid sync metadata', (current) => ({ ...current, sync: { ...current.sync, dirty: 'false' } })],
+    ['invalid stored state', (current) => ({ ...current, state: { ...current.state, ranking: 'invalid' } })],
+    ['unknown state field', (current) => ({ ...current, state: { ...current.state, unexpected: true } })],
+    ['invalid recovery state', (current) => ({
+      ...current, recovery: { state: { ...current.state, records: null }, savedAt: 1, reason: 'Previous copy' },
+    })],
+    ['invalid profile', (current) => ({ ...current, profile: { displayName: 'Account', avatar: 'invalid' } })],
+  ])('rejects %s during an edit without overwriting the stored envelope', async (_, corrupt) => {
+    const initial = await loadScopedLibrary(alice);
+    const stored = corrupt(initial);
+    await accountStorageTransaction(alice, (_value, store) => store.put(stored, alice));
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put');
+    await expect(commitScopedAction(alice, { type: 'set-motion', motion: 'lite' })).rejects.toThrow();
+    expect(put).not.toHaveBeenCalled();
+    put.mockRestore();
+    expect(await accountStorageTransaction(alice, (value) => value)).toEqual(stored);
+  });
+
+  it('rejects an overflowing sync revision after the reducer without writing state or journals', async () => {
+    const initial = await loadScopedLibrary(alice);
+    const stored = { ...initial, sync: { ...initial.sync, dataRevision: Number.MAX_SAFE_INTEGER } };
+    await accountStorageTransaction(alice, (_value, store) => store.put(stored, alice));
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put');
+    await expect(commitScopedAction(alice, { type: 'rate-game', record: game, score: 8 })).rejects.toThrow(/metadata/);
+    expect(put).not.toHaveBeenCalled();
+    put.mockRestore();
+    expect(await loadScopedLibrary(alice)).toEqual(stored);
+  });
+
+  it('continues to reject invalid restored data before replacing the saved account', async () => {
+    const before = await commitScopedAction(alice, { type: 'rate-game', record: game, score: 7 });
+    expect(() => restoreScopedLibrary(alice, {
+      ...before.state, records: { [game.id]: { ...game, title: '' } },
+    })).toThrow(/title/i);
+    expect(await loadScopedLibrary(alice)).toEqual(before);
+  });
+
+  it('upgrades a validated v2 input while preserving removal bookkeeping inputs', async () => {
+    const initial = await loadScopedLibrary(alice);
+    await accountStorageTransaction(alice, (_value, store) => store.put({
+      ...initial,
+      state: {
+        ...initial.state,
+        version: 2,
+        records: { [game.id]: game },
+        ranking: [{ id: game.id, score: 7, note: 'Legacy opinion' }],
+      },
+    }, alice));
+    const after = await commitScopedAction(alice, { type: 'edit-ranking', id: game.id, score: 8 });
+    expect(after.state.version).toBe(3);
+    expect(after.state.ranking).toEqual([{ id: game.id, score: 8, note: 'Legacy opinion', manualPosition: 1 }]);
+    expect(await loadScopedLibrary(alice)).toEqual(after);
+  });
+
   it('removes only the confirmed clean device copy and blocks dirty or concurrently changed revisions', async () => {
     await loadPersonalLibrary([game]);
     const guest = await commitPersonalAction({ type: 'rate-game', record: game, score: 9 });

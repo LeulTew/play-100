@@ -73,6 +73,13 @@ temporary edits stay in the tab rather than claiming a durable save. The opened
 library is published as a transition.
 [useAccountLibrary](../src/hooks/useAccountLibrary.ts) reads and writes a separate
 account scope through [scoped-library](../src/lib/scoped-library.ts).
+Ordinary account edits validate the envelope, then let the personal reducer
+validate and copy the active state once. Its trusted result is not parsed again;
+updated sync counters still pass metadata validation before any write. Stored
+recovery copies and restored or remote replacements retain full validation.
+State, dirty markers and both friend-removal journals still share one transaction.
+The dense account-edit unit benchmark reports three before/after samples using
+10,000 synthetic records in fake IndexedDB; timing is diagnostic, not a pass gate.
 App keeps the guest hook mounted and selects the account controller when present;
 it does not copy one library into the other when switching the active view.
 

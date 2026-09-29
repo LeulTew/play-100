@@ -1,7 +1,7 @@
 import { accountStorageTransaction, publishLibraryChange } from './personal-db';
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { PersonalAction, PersonalLibraryState } from './personal-types';
-import type { LibraryScope, ScopedLibrary, SyncHead } from './cloud-types';
+import type { LibraryScope, ScopedLibrary, SyncHead, SyncMetadata } from './cloud-types';
 import { scopeUid } from './cloud-types';
 import type { MotionPreference } from './types';
 import { parseAvatarDescriptor } from './avatar';
@@ -38,23 +38,17 @@ function initial(scope: LibraryScope, motion: MotionPreference = 'auto'): Scoped
   };
 }
 
-export function parseScopedLibrary(value: unknown, scope: LibraryScope): ScopedLibrary {
-  scopeUid(scope);
+type ScopedEnvelope = Omit<ScopedLibrary, 'state'> & { state: unknown };
+interface RemovalState {
+  revision: number;
+  ranking: readonly { id: string }[];
+  records: Record<string, unknown>;
+}
+
+function parseSyncMetadata(value: unknown): SyncMetadata {
   if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error("This account's copy on this device is unreadable. It has not been overwritten.");
-  const row = value as Record<string, unknown>;
-  if (
-    row.version !== 1 ||
-    row.scope !== scope ||
-    !['recovery,scope,state,sync,version', 'profile,recovery,scope,state,sync,version'].includes(
-      Object.keys(row).sort().join(','),
-    ) ||
-    !row.sync ||
-    typeof row.sync !== 'object' ||
-    Array.isArray(row.sync)
-  )
-    throw new Error('This cache belongs to a different account or storage version. Nothing was changed.');
-  const meta = row.sync as Record<string, unknown>;
+    throw new Error('Account sync metadata is invalid. Existing local data is retained.');
+  const meta = value as Record<string, unknown>;
   if (
     Object.keys(meta).sort().join(',') !==
       'baseRemoteRevision,dataRevision,dirty,displayName,enabled,epoch,lastSyncedAt,remoteGeneration' ||
@@ -76,6 +70,35 @@ export function parseScopedLibrary(value: unknown, scope: LibraryScope): ScopedL
     (meta.lastSyncedAt !== null && (typeof meta.lastSyncedAt !== 'number' || !Number.isFinite(meta.lastSyncedAt)))
   )
     throw new Error('Account sync metadata is invalid. Existing local data is retained.');
+  return {
+    enabled: meta.enabled,
+    dirty: meta.dirty,
+    dataRevision: meta.dataRevision,
+    displayName: meta.displayName,
+    epoch: meta.epoch,
+    baseRemoteRevision: meta.baseRemoteRevision,
+    remoteGeneration: meta.remoteGeneration,
+    lastSyncedAt: meta.lastSyncedAt,
+  };
+}
+
+function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelope {
+  scopeUid(scope);
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error("This account's copy on this device is unreadable. It has not been overwritten.");
+  const row = value as Record<string, unknown>;
+  if (
+    row.version !== 1 ||
+    row.scope !== scope ||
+    !['recovery,scope,state,sync,version', 'profile,recovery,scope,state,sync,version'].includes(
+      Object.keys(row).sort().join(','),
+    ) ||
+    !row.sync ||
+    typeof row.sync !== 'object' ||
+    Array.isArray(row.sync)
+  )
+    throw new Error('This cache belongs to a different account or storage version. Nothing was changed.');
+  const sync = parseSyncMetadata(row.sync);
   let recovery: ScopedLibrary['recovery'] = null;
   let profile: ScopedLibrary['profile'] = null;
   if (row.profile !== undefined && row.profile !== null) {
@@ -110,37 +133,42 @@ export function parseScopedLibrary(value: unknown, scope: LibraryScope): ScopedL
   return {
     version: 1,
     scope,
-    state: parsePersonalLibrary(row.state),
+    state: row.state,
     recovery,
     profile,
-    sync: {
-      enabled: meta.enabled,
-      dirty: meta.dirty,
-      dataRevision: meta.dataRevision,
-      displayName: meta.displayName,
-      epoch: meta.epoch,
-      baseRemoteRevision: meta.baseRemoteRevision,
-      remoteGeneration: meta.remoteGeneration,
-      lastSyncedAt: meta.lastSyncedAt,
-    },
+    sync,
   };
 }
 
-async function update(scope: LibraryScope, change: (current: ScopedLibrary) => ScopedLibrary): Promise<ScopedLibrary> {
+export function parseScopedLibrary(value: unknown, scope: LibraryScope): ScopedLibrary {
+  const envelope = parseScopedEnvelope(value, scope);
+  return { ...envelope, state: parsePersonalLibrary(envelope.state) };
+}
+
+async function writeScopedUpdate(
+  scope: LibraryScope,
+  prepare: (value: unknown) => { previous: RemovalState; next: ScopedLibrary },
+): Promise<ScopedLibrary> {
   const saved = await accountStorageTransaction(scope, (value, store) => {
-    const current = value === undefined ? initial(scope) : parseScopedLibrary(value, scope);
-    const next = parseScopedLibrary(change(current), scope);
+    const { previous, next } = prepare(value);
     const ranked = new Set(next.state.ranking.map((entry) => entry.id));
-    const removed = current.state.ranking.filter((entry) => !ranked.has(entry.id)).map((entry) => entry.id);
-    recordFriendRemovals(store, scope, removed, current.state.revision, next.state.revision);
-    const removedRecords = Object.keys(current.state.records).filter((id) => !Object.hasOwn(next.state.records, id));
-    recordFriendShelfRemovals(store, scope, removedRecords, current.state.revision, next.state.revision);
+    const removed = previous.ranking.filter((entry) => !ranked.has(entry.id)).map((entry) => entry.id);
+    recordFriendRemovals(store, scope, removed, previous.revision, next.state.revision);
+    const removedRecords = Object.keys(previous.records).filter((id) => !Object.hasOwn(next.state.records, id));
+    recordFriendShelfRemovals(store, scope, removedRecords, previous.revision, next.state.revision);
     store.put(next, scope);
     return next;
   });
   rememberMotionHint(scope, saved.state.motion);
   publishLibraryChange(scope);
   return saved;
+}
+
+function update(scope: LibraryScope, change: (current: ScopedLibrary) => ScopedLibrary): Promise<ScopedLibrary> {
+  return writeScopedUpdate(scope, (value) => {
+    const current = value === undefined ? initial(scope) : parseScopedLibrary(value, scope);
+    return { previous: current.state, next: parseScopedLibrary(change(current), scope) };
+  });
 }
 
 export async function loadScopedLibrary(
@@ -158,15 +186,19 @@ export async function loadScopedLibrary(
 }
 
 export function commitScopedAction(scope: LibraryScope, action: PersonalAction): Promise<ScopedLibrary> {
-  return update(scope, (current) => ({
-    ...current,
-    state: applyPersonalAction(current.state, action),
-    sync: {
+  return writeScopedUpdate(scope, (value) => {
+    const current = value === undefined ? initial(scope) : parseScopedEnvelope(value, scope);
+    const state = applyPersonalAction(current.state, action);
+    const sync = parseSyncMetadata({
       ...current.sync,
       dirty: action.type === 'set-motion' ? current.sync.dirty : true,
       dataRevision: current.sync.dataRevision + (action.type === 'set-motion' ? 0 : 1),
-    },
-  }));
+    });
+    // The reducer validated the raw state into its own copy. Only these unchanged
+    // input fields are read for removal journals; v2 and v3 share their shapes.
+    const previous = current.state as RemovalState;
+    return { previous, next: { ...current, state, sync } };
+  });
 }
 
 export function restoreScopedLibrary(
