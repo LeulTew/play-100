@@ -51,7 +51,7 @@ describe('public social metadata', () => {
   });
 
   it('matches the hero and social artwork tagline and declares both SVG and PNG favicons', () => {
-    expect(html).toContain('<title>Good games. Great escapes. | Play 100</title>');
+    expect(html).toContain('<title>The 100 | Play 100</title>');
     const card = readFileSync(new URL('../public/social-card.svg', import.meta.url), 'utf8');
     expect(card).toContain('aria-label="GOOD GAMES."');
     expect(card).toContain('aria-label="GREAT ESCAPES."');
