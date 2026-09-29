@@ -45,4 +45,24 @@ describe.each(['guest', 'account'] as const)('%s committed feedback', (scope) =>
     await expect(commit({ type: 'rate-game', record: discoveryFixture.record, score: 8 }, feedback)).rejects.toThrow();
     expect(feedback.message).toBeUndefined();
   });
+
+  it('names the committed game and actual ranking position for single changes', async () => {
+    const commit = await start();
+    const record = discoveryFixture.record;
+    const feedback: ActionFeedback = {};
+    const earlier = Array.from({ length: 3 }, (_, index) => ({
+      ...record,
+      id: `manual:earlier-${index}`,
+      title: `Earlier ${index}`,
+    }));
+    await commit({ type: 'add-ranking', records: earlier });
+    await commit({ type: 'add-records', records: [record] }, feedback);
+    expect(feedback.message).toBe(`${record.title} added to My games.`);
+    await commit({ type: 'add-ranking', records: [record] }, feedback);
+    expect(feedback.message).toBe(`${record.title} added to your ranking at #4.`);
+    await commit({ type: 'edit-ranking', id: record.id, note: 'Private draft' }, feedback);
+    expect(feedback.message).toBe(`${record.title}: note saved.`);
+    await commit({ type: 'remove-ranking', ids: [record.id] }, feedback);
+    expect(feedback.message).toBe(`${record.title} removed from your ranking.`);
+  });
 });

@@ -72,12 +72,12 @@ describe('catalog detail artwork continuity surface', () => {
 
   it.each([
     ['pending', 'status', 'Saving changes…'],
-    ['saved', 'status', '1 game added to My games.'],
+    ['saved', 'status', `${discoveryFixture.record.title} added to My games.`],
     ['failed', 'alert', 'Device storage is full.'],
   ] as const)('announces its own %s mutation inside the dialog', (result, role, text) => {
     vi.mocked(useState).mockReturnValueOnce([result, vi.fn()]);
     const { html } = renderDetail({
-      feedback: '1 game added to My games.',
+      feedback: `${discoveryFixture.record.title} added to My games.`,
       error: result === 'failed' ? 'Device storage is full.' : '',
       publicLookup: { online: false, scopeKey: 'guest:0:0', onEnableOnline: vi.fn() },
     });

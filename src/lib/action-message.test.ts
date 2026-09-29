@@ -37,7 +37,7 @@ describe('committed action wording', () => {
       `${record.title} ${key === 'later' ? 'added to Play later' : `marked ${key}`}.`,
     );
     expect(actionMessage(action, after, applyPersonalAction(after, action))).toBe(
-      `${record.title} ${key === 'later' ? 'removed from Play later' : `unmarked ${key}`}.`,
+      `${record.title} ${key === 'later' ? 'removed from Play later' : `is no longer marked ${key}`}.`,
     );
   });
 
@@ -49,10 +49,10 @@ describe('committed action wording', () => {
       value: true,
     });
     expect(actionMessage({ type: 'set-progress', records: [record], key: 'completed', value: true }, before)).toBe(
-      `${record.title} was already marked completed.`,
+      `${record.title} is already marked completed.`,
     );
     expect(actionMessage({ type: 'set-progress', records: [record], key: 'completed', value: false }, before)).toBe(
-      `${record.title} unmarked completed.`,
+      `${record.title} is no longer marked completed.`,
     );
   });
 
@@ -62,5 +62,55 @@ describe('committed action wording', () => {
         `${list === 'queue' ? 'Play later' : 'Ranking'} order updated.`,
       );
     }
+  });
+
+  it('names one game added to or already in My games', () => {
+    const action: PersonalAction = { type: 'add-records', records: [record, record] };
+    const after = applyPersonalAction(empty, action);
+    expect(actionMessage(action, empty, after)).toBe(`${record.title} added to My games.`);
+    expect(actionMessage(action, after, after)).toBe(`${record.title} is already in My games.`);
+  });
+
+  it('names a ranking addition, position, and removal without an unrelated played disclaimer', () => {
+    const action: PersonalAction = { type: 'add-ranking', records: [record] };
+    const after = applyPersonalAction(empty, action);
+    expect(actionMessage(action, empty, after)).toBe(`${record.title} added to your ranking at #1.`);
+    expect(actionMessage(action, after, after)).toBe(`${record.title} is already in your ranking at #1.`);
+    expect(actionMessage({ type: 'remove-ranking', ids: [record.id] }, after, empty)).toBe(
+      `${record.title} removed from your ranking.`,
+    );
+    expect(actionMessage({ type: 'remove-records', ids: [record.id] }, after, empty)).toBe(
+      `${record.title} removed from My games.`,
+    );
+  });
+
+  it('identifies notes and ratings without repeating private fields', () => {
+    const before = applyPersonalAction(empty, { type: 'add-ranking', records: [record] });
+    expect(actionMessage({ type: 'edit-ranking', id: record.id, note: 'PRIVATE CONTENT' }, before, before)).toBe(
+      `${record.title}: note saved.`,
+    );
+    expect(actionMessage({ type: 'edit-ranking', id: record.id, score: 7 }, before, before)).toBe(
+      `${record.title}: rating saved.`,
+    );
+    expect(actionMessage({ type: 'edit-ranking', id: record.id, score: 7, note: 'PRIVATE' }, before, before)).toBe(
+      `${record.title}: rating and note saved.`,
+    );
+    expect(actionMessage({ type: 'rate-game', record, score: null }, before, before)).toBe(
+      `${record.title}: rating saved.`,
+    );
+  });
+
+  it('counts bulk ranking additions and uses grammatical unchanged progress wording', () => {
+    const before = applyPersonalAction(empty, { type: 'add-ranking', records: [record] });
+    const action: PersonalAction = { type: 'add-ranking', records: [record, second] };
+    expect(actionMessage(action, before, applyPersonalAction(before, action))).toBe(
+      '1 game added to your ranking; 1 was already there.',
+    );
+    expect(
+      actionMessage({ type: 'set-progress', records: [record, second], key: 'completed', value: false }, before),
+    ).toBe('0 games no longer marked completed; 2 were not marked completed.');
+    expect(actionMessage({ type: 'set-progress', records: [record], key: 'later', value: false }, before)).toBe(
+      `${record.title} is not in Play later.`,
+    );
   });
 });

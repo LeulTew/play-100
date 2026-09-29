@@ -55,7 +55,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
     await expect(saved).toBeDisabled();
     await expect(saved).not.toHaveAttribute('disabled');
     if (input === 'keyboard') await expect(saved).toBeFocused();
-    await expect(dialog.locator('.detail-share-notice')).toHaveText('1 game added to My games.');
+    await expect(dialog.locator('.detail-share-notice')).toHaveText(`${record.title} added to My games.`);
     await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
     await expect(dialog.locator('.device-note')).toHaveText('Saved in My games. The 100 stays unchanged.');
     const after = await readLibrary(page);
@@ -236,7 +236,7 @@ const mutationCases: {
     after: `In My games: ${record.title}`,
     key: 'Enter',
     action: { type: 'add-records', records: [record] },
-    message: '1 game added to My games.',
+    message: `${record.title} added to My games.`,
   },
   {
     name: 'queue',
@@ -260,7 +260,7 @@ const mutationCases: {
     after: 'Your rank: #1',
     key: 'Enter',
     action: { type: 'add-ranking', records: [record] },
-    message: 'Your ranking has been updated. Games are not automatically marked played.',
+    message: `${record.title} added to your ranking at #1.`,
   },
 ];
 
