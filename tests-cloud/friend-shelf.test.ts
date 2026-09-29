@@ -38,6 +38,7 @@ import { FriendShelfCommittedError } from '../src/lib/friend-shelf-types';
 import type { FriendShelfConfig, FriendShelfEntry } from '../src/lib/friend-shelf-types';
 import { parseCollection } from '../src/lib/collection';
 import { friendPairId } from '../src/lib/friend-types';
+import { untilSignInNewerThan } from './fixtures/auth-time';
 
 vi.mock('firebase/firestore', async (original) => {
   const actual = await original<typeof import('firebase/firestore')>();
@@ -539,7 +540,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
       }),
     );
     await assertFails(b.store.head(a.uid));
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await untilSignInNewerThan(tombstone.updatedAt);
     const signedIn = await signInWithEmailAndPassword(
       a.auth,
       a.auth.currentUser!.email!,

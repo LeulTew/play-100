@@ -29,6 +29,7 @@ import { CloudStore, RemoteConflict, SyncRevoked } from '../src/cloud/cloud-stor
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import { applyPersonalAction, emptyPersonalLibrary } from '../src/lib/personal-library';
 import type { LibraryRecord } from '../src/lib/personal-types';
+import { untilSignInNewerThan } from './fixtures/auth-time';
 
 // A pass-through, so one test can hold a transaction between its reads and its commit.
 vi.mock('firebase/firestore', async (original) => {
@@ -366,7 +367,7 @@ describe('real Auth and Firestore snapshot transactions', () => {
       }),
     );
     expect(await first.store.head()).toMatchObject({ enabled: false, deleted: true, revision: deleted.revision });
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await untilSignInNewerThan(stored.updatedAt);
     const fresh = await client(first.email);
     expect(await fresh.store.enable(deleted)).toMatchObject({
       enabled: true,
