@@ -19,6 +19,12 @@ restores a usable focus target. A keyed dialog boundary reports the existing
 available. The existing guarded reload control explains recovery outside the
 closed dialog; opening another dialog or changing scope does not inherit its
 failed render state. Module-load failures retain their specific recovery UI.
+Catalog and public-detail retries retain the same focusable button while a
+request is pending, with guarded `aria-disabled` and `aria-busy`. A failed
+retry keeps its focus; a successful retry that removes the control moves focus
+to its result status or section heading only if the removed button still owned
+focus. A newer focus choice, another modal or an unmounted section cancels that
+handoff. Loading a new result does not focus anything by itself.
 A known catalog preview uses a native, cancellable loading dialog while its
 detail module loads, without mounting private editors. Close or Escape clears
 the selection; late module completion cannot reopen the dismissed detail.

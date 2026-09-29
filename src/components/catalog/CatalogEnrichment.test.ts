@@ -66,6 +66,25 @@ describe('display-only external score precision', () => {
 });
 
 describe('separate public review provenance', () => {
+  it.each([
+    { status: 'error', connected: true, blocked: false },
+    { status: 'loading', connected: true, blocked: true },
+    { status: 'offline', connected: false, blocked: true },
+  ] as const)(
+    'guards the public retry without disabling its native focus in $status',
+    ({ status, connected, blocked }) => {
+      const enrichment = { ...state(), status, connected, error: 'A source could not be reached.' };
+      const html = renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment, lookup }));
+      const retry = html.match(/<button\b[^>]*>Retry public details<\/button>/)?.[0];
+      expect(retry).toBeDefined();
+      expect(retry?.includes('aria-disabled="true"')).toBe(blocked);
+      expect(retry).toContain(`aria-busy="${status === 'loading'}"`);
+      expect(retry).not.toContain(' disabled=');
+      expect(html).toContain('id="catalog-enrichment-title" tabindex="-1"');
+      expect(enrichment.retry).not.toHaveBeenCalled();
+    },
+  );
+
   it('is absent without the explicit public lookup gate', () => {
     expect(renderToStaticMarkup(createElement(CatalogEnrichment, { enrichment: state() }))).toBe('');
   });

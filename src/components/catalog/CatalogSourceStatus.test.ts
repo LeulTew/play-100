@@ -1,11 +1,48 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { CatalogSourceStatus } from './CatalogSourceStatus';
+import { CatalogRetry, CatalogSourceStatus } from './CatalogSourceStatus';
 import { emptySources } from '../../lib/catalog-search-session';
 import { discoveryFixture } from '../../lib/discovery-test-fixtures';
 
 describe('new online matches status', () => {
+  it.each([
+    { busy: false, disabled: false },
+    { busy: true, disabled: false },
+    { busy: false, disabled: true },
+  ])('keeps the retry natively focusable for $busy/$disabled', ({ busy, disabled }) => {
+    const onRetry = vi.fn();
+    const html = renderToStaticMarkup(
+      createElement(CatalogRetry, {
+        needed: true,
+        busy,
+        disabled,
+        label: 'Retry Wikidata',
+        onRetry,
+        returnFocus: { current: null },
+      }),
+    );
+    expect(html).toContain('>Retry Wikidata</button>');
+    expect(html).toContain(`aria-busy="${busy}"`);
+    expect(html.includes('aria-disabled="true"')).toBe(busy || disabled);
+    expect(html).not.toContain(' disabled=');
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('does not add Retry for a fresh successful or loading request (loading=%s)', (busy) => {
+    expect(
+      renderToStaticMarkup(
+        createElement(CatalogRetry, {
+          needed: false,
+          busy,
+          label: 'Retry Wikidata',
+          onRetry: vi.fn(),
+          returnFocus: { current: null },
+        }),
+      ),
+    ).toBe('');
+  });
+
   it.each([
     [0, 'No new online matches'],
     [1, '1 new online match'],
@@ -45,5 +82,8 @@ describe('new online matches status', () => {
     expect(html).toContain('Loading');
     expect(html).toContain('Timed out');
     expect(html).not.toContain('No new online matches');
+    expect(html).toContain('role="status" tabindex="-1"');
+    expect(html).toContain('Retry FreeToGame');
+    expect(html).not.toContain('Retry Wikidata');
   });
 });

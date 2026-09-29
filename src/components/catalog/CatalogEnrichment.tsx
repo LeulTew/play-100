@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CatalogExternalRating, ExternalCatalogArtwork as Artwork } from '../../lib/catalog-enrichment';
 import type { PublicCatalogLookup, useCatalogEnrichment } from '../../hooks/useCatalogEnrichment';
 import { GameArtworkCredit } from '../games/GameArtwork';
 import { Icon } from '../Icon';
+import { CatalogRetry } from './CatalogSourceStatus';
 import './catalog-enrichment.css';
 
 export function ExternalCatalogArtwork({ artwork }: { artwork: Artwork }) {
@@ -71,15 +72,17 @@ export function CatalogEnrichment({
   enrichment: ReturnType<typeof useCatalogEnrichment>;
   lookup?: PublicCatalogLookup;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
   if (!lookup) return null;
   const { data, status, error, cached, connected, retry } = enrichment;
-  const canRetry = lookup.online && connected && status !== 'loading';
   const ratingSourceFailed = data?.sources.some(
     (source) => (source.source === 'wikidata' || source.source === 'steam') && source.status === 'error',
   );
   return (
     <section className="catalog-enrichment" aria-labelledby="catalog-enrichment-title">
-      <h3 id="catalog-enrichment-title">Ratings from other sites</h3>
+      <h3 id="catalog-enrichment-title" ref={heading} tabIndex={-1}>
+        Ratings from other sites
+      </h3>
       <p className="catalog-enrichment-note">
         Source scores stay separate. They do not change the original collection or your rating.
       </p>
@@ -211,11 +214,14 @@ export function CatalogEnrichment({
             ))}
         </>
       )}
-      {canRetry && (error || data?.sources.some((source) => source.status === 'error')) && (
-        <button className="text-button" onClick={retry}>
-          Retry public details
-        </button>
-      )}
+      <CatalogRetry
+        needed={lookup.online && Boolean(error || data?.sources.some((source) => source.status === 'error'))}
+        busy={status === 'loading'}
+        disabled={!lookup.online || !connected}
+        label="Retry public details"
+        onRetry={retry}
+        returnFocus={heading}
+      />
     </section>
   );
 }
