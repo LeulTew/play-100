@@ -125,7 +125,10 @@ of substituting private data or silently switching account scope.
 Offline, a navigation to an unknown path (not an app route in `vercel.json`, and
 not a file) gets the same not-found page Vercel serves online, `public/404.html`,
 with status 404 and the embedded policy. The worker carries its own copy, so the
-404 page adds no core file; a unit test keeps the copy identical.
+404 page adds no core file; a unit test keeps the copy identical. Both link
+`/pwa/fallback.css` in source; the build points them at the app's entry
+stylesheet, which is precached, so the page wears the app's fonts, wordmark and
+buttons online and offline without adding CSS.
 
 Videos, spreadsheets, 3D and the online controller are not precached. Existing
 media/download behavior is unchanged. The public Data use page bypasses PWA

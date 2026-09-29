@@ -332,10 +332,10 @@ export async function measureBuild(
         )
           continue;
         const href = localFile(attributes.get('href')!);
-        // 404.html, Vercel's not-found page, shares the offline page's stylesheet and nothing else.
-        if (standalone(href) && (document !== '404.html' || href !== 'pwa/fallback.css')) {
+        // 404.html, Vercel's not-found page, is built to link the app's own entry stylesheet (scripts/pwa-build.ts).
+        if (standalone(href)) {
           throw new Error(
-            `Standalone stylesheet is only allowed in offline.html, 404.html (fallback.css) or index.html noscript: ${document}`,
+            `Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`,
           );
         }
       }

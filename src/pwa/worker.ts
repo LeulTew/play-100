@@ -60,6 +60,7 @@ const shellRoutes = new Set<string>([
   ...APP_ROUTES.filter((route) => route.shell).map((route) => route.path),
 ]);
 // The worker is emitted as one self-contained file, so it keeps a copy of public/404.html (worker.test.ts checks they match).
+// The build points both copies' stylesheet at the app's own (scripts/pwa-build.ts, styleNotFoundPage).
 export const PWA_NOT_FOUND_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -72,11 +73,17 @@ export const PWA_NOT_FOUND_HTML = `<!doctype html>
   <link rel="stylesheet" href="/pwa/fallback.css">
 </head>
 <body class="offline-page">
-  <main>
-    <p><a href="/">Play 100</a></p>
-    <h1>This page doesn't exist.</h1>
-    <p>The link may be old or mistyped. All 100 games, Discover and your games are still here.</p>
-    <p><a href="/">Open The 100</a><a href="/discover">Open Discover</a><a href="/my-games">Open My games</a></p>
+  <header class="site-header">
+    <a class="wordmark" href="/"><span class="logo-symbol" aria-hidden="true"><span></span></span>PLAY<span>100</span><i aria-hidden="true">.</i><span class="sr-only"> Home</span></a>
+  </header>
+  <main class="app-page">
+    <div class="page-heading">
+      <div>
+        <h1>This page doesn't exist.</h1>
+        <p>The link may be old or mistyped. All 100 games, Discover and your games are still here.</p>
+      </div>
+    </div>
+    <p class="hero-actions"><a class="button button-dark" href="/">Open The 100</a><a class="button button-outline" href="/discover">Open Discover</a><a class="button button-outline" href="/my-games">Open My games</a></p>
   </main>
 </body>
 </html>

@@ -37,7 +37,7 @@ const source: Record<string, string> = {
   'assets/lazy-12345678.css': '.lazy { color: green; }',
   'data/collection.json': '{"games":[]}',
   'pwa/offline.html': '<link rel="stylesheet" href="/pwa/fallback.css"><h1>Offline</h1>',
-  '404.html': '<link rel="stylesheet" href="/pwa/fallback.css"><h1>Page not found</h1>',
+  '404.html': '<link rel="stylesheet" href="/assets/main-12345678.css"><h1>Page not found</h1>',
   'pwa/fallback.css': '.fallback { color: black; }',
 };
 // What the build records for the fixture's index.html; fixture() binds it to the document it writes.
@@ -498,7 +498,7 @@ describe('offline built-output budgets', () => {
     ['index.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
     ['extra.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
     ['extra.html', '<noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>'],
-    ['404.html', '<link rel="stylesheet" href="/pwa/other.css">'],
+    ['404.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
   ])('rejects a standalone stylesheet outside the allowed document scopes: %s', async (file, markup) => {
     const directory = await fixture();
     await writeFile(path.join(directory, file), (file === 'index.html' ? source[file]! : '') + markup);

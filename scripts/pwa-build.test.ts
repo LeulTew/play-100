@@ -10,6 +10,7 @@ import {
   pwaCorePaths,
   pwaDocumentPolicy,
   PWA_ROOTS,
+  styleNotFoundPage,
 } from './pwa-build';
 import { PWA_ICONS, renderBrowserIcons, renderPwaIcons } from './pwa-icons';
 import { myGamesTab } from '../src/lib/my-games-navigation';
@@ -377,5 +378,24 @@ describe('self-contained offline worker', () => {
         './a.ts': 'export const a = 1;\n',
       }),
     ).toBe('const a = 1;\nexport const b = a;\n');
+  });
+  it("points 404.html and the worker's copy at the app's stylesheets, identically", async () => {
+    const root = fileURLToPath(new URL('..', import.meta.url));
+    const sheets = ['assets/index-12345678.css'];
+    const page = styleNotFoundPage(await readFile(new URL('../public/404.html', import.meta.url), 'utf8'), sheets);
+    expect(page).toContain('<link rel="stylesheet" href="/assets/index-12345678.css">');
+    expect(page).not.toContain('fallback.css');
+    const script = styleNotFoundPage(await emitPwaWorker(root), sheets);
+    const worker = (await import(`data:text/javascript,${encodeURIComponent(script)}`)) as {
+      PWA_NOT_FOUND_HTML: string;
+    };
+    expect(worker.PWA_NOT_FOUND_HTML).toBe(page);
+    expect(page).toMatch(/class="wordmark"[\s\S]*class="button button-dark" href="\/">Open The 100</);
+  });
+  it('refuses a not-found page without exactly one source stylesheet, or no app stylesheet', () => {
+    const link = '<link rel="stylesheet" href="/pwa/fallback.css">';
+    expect(() => styleNotFoundPage('<h1>Missing</h1>', ['assets/a.css'])).toThrow('exactly once');
+    expect(() => styleNotFoundPage(link + link, ['assets/a.css'])).toThrow('exactly once');
+    expect(() => styleNotFoundPage(link, [])).toThrow('entry stylesheet');
   });
 });

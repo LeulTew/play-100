@@ -175,6 +175,20 @@ export async function emitPwaWorker(root: string): Promise<string> {
   return inlinePwaWorkerImports(worker, modules);
 }
 
+const NOT_FOUND_SOURCE_STYLESHEET = '<link rel="stylesheet" href="/pwa/fallback.css">';
+
+/**
+ * public/404.html and the worker's copy of it link the plain offline stylesheet in source. The built page links the
+ * app's own entry stylesheets instead, so it wears the app's type, wordmark and buttons; they are eager, so the
+ * worker has them cached for its offline copy too.
+ */
+export function styleNotFoundPage(text: string, stylesheets: readonly string[]): string {
+  if (!stylesheets.length) throw new Error('The not-found page needs the app entry stylesheet.');
+  const parts = text.split(NOT_FOUND_SOURCE_STYLESHEET);
+  if (parts.length !== 2) throw new Error(`The not-found page must link /pwa/fallback.css exactly once.`);
+  return parts.join(stylesheets.map((file) => `<link rel="stylesheet" href="/${file}">`).join('\n  '));
+}
+
 export async function generatePwaBuild(root: string, output: string): Promise<PwaBuildManifest> {
   const viteManifest = await retainBuildManifest(output);
   await writePwaIcons(root, output);
@@ -190,7 +204,12 @@ export async function generatePwaBuild(root: string, output: string): Promise<Pw
     }
   }
   images.sort((a, b) => a.url.localeCompare(b.url));
-  const workerText = await emitPwaWorker(root);
+  const entryStylesheets = eagerHtmlFiles(await readFile(path.join(output, 'index.html'), 'utf8')).filter((file) =>
+    file.endsWith('.css'),
+  );
+  const notFound = path.join(output, '404.html');
+  await writeFile(notFound, styleNotFoundPage(await readFile(notFound, 'utf8'), entryStylesheets));
+  const workerText = styleNotFoundPage(await emitPwaWorker(root), entryStylesheets);
   const documentPolicy = pwaDocumentPolicy(JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8')));
   const manifest: PwaBuildManifest = {
     format: 1,
