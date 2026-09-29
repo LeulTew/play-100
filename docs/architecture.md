@@ -47,6 +47,18 @@ not-found checks, and the client error reports' route templates all read it;
 cannot import it, so [routes.test.ts](../src/lib/routes.test.ts) fails when its
 `index.html` rewrites and the list differ. A new page is added there first.
 
+App's commands are stable (`useStableHandlers`), so children that receive them
+do not re-render, except those that can write a library: perform, restore,
+reset, or a command that calls one. Those are named in `LibraryCommand` and
+bound with `useBoundHandlers` to the library they were rendered with. An editor
+that saves while another tab signs out or switches account then writes to the
+account it was opened for, not to whichever library is current when it runs.
+A new command that can reach a library writer goes in `LibraryCommand`.
+[app-command-binding.test.ts](../src/app-command-binding.test.ts) type-checks
+App and fails if a stable command can reach one, and
+[AppDetailSave.browser.test.ts](../src/components/app/AppDetailSave.browser.test.ts)
+holds a catalog-detail rating in the real App across a cross-tab sign-out.
+
 Ranking also mounts at most 25 rows. Its page and search are lightweight,
 scope-local workspace state, independent of the Library URL page. Global rank
 numbers, boundary move arrows and within-page keyboard/drag sorting preserve
@@ -420,6 +432,8 @@ guard also checks the current Settings panel, busy state and new input events.
 | Native dialog input and close remain independent of motion completion. | [Dialog lifecycle](../src/motion/Dialog.browser.test.ts) |
 | PWA connection and update work respect cleanup and currentness guards. | [Deferred controller](../src/pwa/deferred-controller.test.ts), [client lifecycle](../src/pwa/client.test.ts) |
 | Typing during an update defers its reload; a later request reloads. | [Update input guard](../src/pwa/update-guard.browser.test.ts) |
+| An App command that can write a library saves to the library it was rendered with. | [Command binding](../src/app-command-binding.test.ts), [real App detail save](../src/components/app/AppDetailSave.browser.test.ts) |
+| Router, offline worker, error reports and `vercel.json` rewrites share one route list. | [Route manifest](../src/lib/routes.test.ts), [offline worker](../scripts/pwa-build.test.ts) |
 
 The controller tests exercise supplied update guards. The mounted guard test runs
 the App's input-generation hook and `createPwaUpdateGuard` through the real
