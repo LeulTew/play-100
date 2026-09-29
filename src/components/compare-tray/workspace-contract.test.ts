@@ -223,9 +223,9 @@ describe('workspace embedding contract', () => {
   it('maps a queue view to existing order and disables reordering only for a filtered queue', () => {
     const queue = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue' }));
     expect(queue.indexOf('Beta game')).toBeLessThan(queue.indexOf('Alpha game'));
-    expect(queue).toContain('Drag Beta game to reorder your queue');
-    expect(queue).toContain('Search your queue');
-    expect(queue).toContain('placeholder="Find a game in your queue…"');
+    expect(queue).toContain('Drag Beta game to reorder Play later');
+    expect(queue).toContain('Search Play later');
+    expect(queue).toContain('placeholder="Find a game in Play later..."');
     expect(queue).not.toContain('Search your library');
     const completed = renderToStaticMarkup(
       h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue', completedOnly: true }),
@@ -238,12 +238,12 @@ describe('workspace embedding contract', () => {
   it('names the Queue trash action as queue-only while Library retains its full-removal action', () => {
     const queue = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue' }));
     const library = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'library' }));
-    expect(queue).toContain('aria-label="Remove from queue: Alpha game" title="Remove from queue"');
+    expect(queue).toContain('aria-label="Remove from Play later: Alpha game" title="Remove from Play later"');
     expect(queue).not.toContain('aria-label="Remove Alpha game from my library"');
     expect(queue).not.toContain('aria-label="Play later: Alpha game"');
     expect(library).toContain('aria-label="Remove Alpha game from my library"');
     expect(library).toContain('aria-label="Play later: Alpha game"');
-    expect(library).not.toContain('aria-label="Remove from queue: Alpha game"');
+    expect(library).not.toContain('aria-label="Remove from Play later: Alpha game"');
   });
   it('keeps the Library tree present and mounts only the active clean Ranking pane without nested page headings', () => {
     for (const view of ['library', 'queue', 'ranking'] as const) {
@@ -251,7 +251,7 @@ describe('workspace embedding contract', () => {
       expect(html.match(/<h1\b/g)).toHaveLength(1);
       expect(html).toContain('>My games</h1>');
       expect(html).toContain('aria-label="My games views"');
-      for (const name of ['Library, 2', 'Queue, 2', 'Ranking, 1']) {
+      for (const name of ['Library, 2', 'Play later, 2', 'Ranking, 1']) {
         const [label, count] = name.split(', ');
         expect(html).toContain(`aria-label="${name}"`);
         // Label in Name: the visible label and count stay word-separated so they read inside the name.
@@ -334,7 +334,7 @@ describe('workspace embedding contract', () => {
     // An unvisited Ranking pane renders no rows, so the queue view mounts only its own slots.
     expect(html.match(/data-compare-drag="/g)).toHaveLength(2);
     expect(renderDragHandle.mock.calls.map(([record]) => record.id)).toEqual(['beta', 'alpha']);
-    expect(html).toContain('Drag Beta game to reorder your queue');
+    expect(html).toContain('Drag Beta game to reorder Play later');
     expect(html).not.toContain('reorder your ranking');
     const ranking = renderToStaticMarkup(
       h(MyGamesPage, {
@@ -363,6 +363,19 @@ describe('workspace embedding contract', () => {
 });
 
 describe('tray and image rendering contract', () => {
+  it.each([false, true])('shows the compact Pin label on coarse pointers only (%s)', (coarsePointer) => {
+    const html = renderToStaticMarkup(
+      h(MotionPolicyContext.Provider, {
+        value: { ...staticMotionPolicy, coarsePointer },
+        children: h(CompareTrayContext.Provider, {
+          value: { ...value, items: [] },
+          children: h(ComparePinButton, { record: alpha, compact: true }),
+        }),
+      }),
+    );
+    expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
+    expect(html.includes('</svg>Pin</button>')).toBe(coarsePointer);
+  });
   const value = {
     currentScope: 'guest',
     items: [alpha],

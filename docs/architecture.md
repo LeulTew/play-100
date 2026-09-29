@@ -57,6 +57,17 @@ still detect the mounted unsubmitted form. Paging flushes registered editors
 before replacing rows; a dirty note keeps its row mounted even when a saved
 score changes its global rank.
 
+My games consistently labels its queue **Play later**, including page counts,
+navigation and action notices; adding a record is instead **Add to My games**.
+Reorder arrows use guarded `aria-disabled` while saving and at list edges, keeping
+native focus intact. After a saved move, focus follows the same row's arrow,
+including across page boundaries, or its opposite arrow at an edge. A deliberate
+focus change while saving is not overridden. Drag and numeric-position moves
+retain their existing title-focus behavior when they cross pages.
+Mobile rows group Rank and delete with the move controls and omit the redundant
+progress summary; Played and Completed remain individually labeled controls.
+Compact comparison buttons expose **Pin** on coarse pointers.
+
 The personal page bodies delegate paging and guarded commands to
 [useLibraryPage](../src/components/personal/useLibraryPage.ts) and
 [useRankingsPage](../src/components/personal/useRankingsPage.ts). Record and ranking

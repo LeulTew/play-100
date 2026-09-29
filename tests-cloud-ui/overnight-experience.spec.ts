@@ -352,7 +352,7 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await tab(page, 'Library').click();
   await expect(workspace(page).getByLabel('Game title', { exact: true })).toHaveValue('Unsubmitted manual draft');
   await workspace(page).getByLabel('Game title', { exact: true }).fill('QA added without ranking');
-  await workspace(page).locator('.manual-add').getByRole('button', { name: 'Add to my library', exact: true }).click();
+  await workspace(page).locator('.manual-add').getByRole('button', { name: 'Add to My games', exact: true }).click();
   await expect(row(page)).toBeVisible();
   await row(page)
     .getByRole('button', { name: `Play later: ${title}`, exact: true })
@@ -360,10 +360,10 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await row(page)
     .getByRole('button', { name: `Completed: ${title}`, exact: true })
     .click();
-  await tab(page, 'Queue').click();
+  await tab(page, 'Play later').click();
   const progress = page.getByRole('combobox', { name: 'Progress', exact: true });
   await progress.selectOption('completed');
-  await expect(tab(page, 'Queue')).toHaveAttribute('aria-current', 'page');
+  await expect(tab(page, 'Play later')).toHaveAttribute('aria-current', 'page');
   await expect(row(page)).toBeVisible();
   await expect(page).toHaveURL(/[?&]tab=queue(?:&|$)/);
   await expect(page).toHaveURL(/[?&]progress=completed(?:&|$)/);
@@ -381,7 +381,7 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await tab(page, 'Ranking').click();
   await row(page).locator('.ranking-note > summary').click();
   await row(page).getByRole('textbox').fill('Keep this note through view changes.');
-  await tab(page, 'Queue').click();
+  await tab(page, 'Play later').click();
   await expect
     .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === kcd)?.note)
     .toBe('Keep this note through view changes.');
@@ -579,10 +579,7 @@ test('revoked unsaved manual shelf previews close on Stop and block without dele
   await workspace(page).locator('.manual-add > summary').click();
   for (const name of ['QA transient manual preview', 'QA independent saved copy']) {
     await workspace(page).getByLabel('Game title', { exact: true }).fill(name);
-    await workspace(page)
-      .locator('.manual-add')
-      .getByRole('button', { name: 'Add to my library', exact: true })
-      .click();
+    await workspace(page).locator('.manual-add').getByRole('button', { name: 'Add to My games', exact: true }).click();
     await expect(workspace(page).getByRole('button', { name, exact: true })).toBeVisible();
   }
   await expect.poll(async () => (await readAccount(page, owner.uid)).sync.dirty).toBe(false);

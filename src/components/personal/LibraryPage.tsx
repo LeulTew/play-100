@@ -104,7 +104,7 @@ export default function LibraryPage(props: LibraryPageProps) {
     <section className={embedded ? 'my-games-editor' : 'app-page'} aria-labelledby="library-title">
       {embedded ? (
         <h2 id="library-title" className="sr-only">
-          {workspaceView === 'queue' ? 'Queue' : 'Library'}
+          {workspaceView === 'queue' ? 'Play later' : 'Library'}
         </h2>
       ) : (
         <div className="page-heading">
@@ -149,12 +149,12 @@ export default function LibraryPage(props: LibraryPageProps) {
           <div className="search-field">
             <Icon name="search" />
             <label className="sr-only" htmlFor="library-search">
-              {tab === 'later' ? 'Search your queue' : 'Search your library'}
+              {tab === 'later' ? 'Search Play later' : 'Search your library'}
             </label>
             <input
               id="library-search"
               type="search"
-              placeholder={tab === 'later' ? 'Find a game in your queue…' : 'Find a game in your library…'}
+              placeholder={tab === 'later' ? 'Find a game in Play later...' : 'Find a game in your library...'}
               value={query}
               maxLength={160}
               onChange={(event) => setQuery(event.target.value)}
@@ -183,13 +183,13 @@ export default function LibraryPage(props: LibraryPageProps) {
       {tab === 'later' && records.length > 0 && (
         <p className="queue-instructions">
           {canReorder
-            ? 'Drag and keyboard sorting stay on this page; move arrows can cross pages. Completed games can stay here for a replay.'
+            ? 'Drag within this page, or use the arrows to move across pages.'
             : 'Clear search, progress filters and selection to reorder.'}
         </p>
       )}
       {tab === 'later' && pendingEdits && (
         <p className="section-help" role="status">
-          Pending edits keep the current queue rows visible. Finish or retry the unsaved edit to update the results.
+          Finish or retry your unsaved edit to update the Play later results.
         </p>
       )}
       {selecting && (
@@ -214,19 +214,24 @@ export default function LibraryPage(props: LibraryPageProps) {
       )}
       <div ref={pageBoundary} className="library-results-boundary">
         <h3 ref={resultsHeading} tabIndex={-1}>
-          {tab === 'later' ? 'Your queue results' : 'Your library results'}
+          {tab === 'later' ? 'Play later results' : 'Your library results'}
         </h3>
         <p className={page.pageCount > 1 ? 'sr-only' : 'library-results-count'} role="status" aria-atomic="true">
           {records.length > 1 ? 'Showing ' : ''}
-          {formatResultRange(records.length, page.start, page.end, tab === 'later' ? 'queued game' : 'matching game')}
+          {formatResultRange(
+            records.length,
+            page.start,
+            page.end,
+            tab === 'later' ? 'Play later game' : 'matching game',
+          )}
         </p>
         <LocalPager
           total={records.length}
           pageSize={LIBRARY_PAGE_SIZE}
           offset={page.offset}
           disabled={tab === 'later' ? !active || moving : busy}
-          label={tab === 'later' ? 'Queue pages' : 'Library pages'}
-          itemLabel={tab === 'later' ? 'queued game' : 'matching game'}
+          label={tab === 'later' ? 'Play later pages' : 'Library pages'}
+          itemLabel={tab === 'later' ? 'Play later game' : 'matching game'}
           onOffsetChange={changePage}
         />
       </div>
@@ -250,8 +255,8 @@ export default function LibraryPage(props: LibraryPageProps) {
                 const index = (queuePositions.get(id) ?? 0) - 1;
                 return { previous: state.queueOrder[index - 1], next: state.queueOrder[index + 1] };
               }}
-              onMove={(id, overId) => {
-                void move(id, overId);
+              onMove={(id, overId, direction) => {
+                void move(id, overId, direction);
               }}
             >
               {renderRecord}
@@ -269,7 +274,7 @@ export default function LibraryPage(props: LibraryPageProps) {
       ) : (
         <div className="empty-state">
           <Icon name={tab === 'completed' ? 'check' : 'bookmark'} width="42" height="42" />
-          <h2>{filtered ? 'No matches' : tab === 'later' ? 'Queue empty' : 'No games yet'}</h2>
+          <h2>{filtered ? 'No matches' : tab === 'later' ? 'Play later is empty' : 'No games yet'}</h2>
           <p>
             {filtered
               ? 'Try another progress filter or clear your search. Your saved games are unchanged.'
@@ -292,13 +297,13 @@ export default function LibraryPage(props: LibraryPageProps) {
         pageSize={LIBRARY_PAGE_SIZE}
         offset={page.offset}
         disabled={tab === 'later' ? !active || moving : busy}
-        label={tab === 'later' ? 'Queue pages, end of list' : 'Library pages, end of list'}
-        itemLabel={tab === 'later' ? 'queued game' : 'matching game'}
+        label={tab === 'later' ? 'Play later pages, end of list' : 'Library pages, end of list'}
+        itemLabel={tab === 'later' ? 'Play later game' : 'matching game'}
         onOffsetChange={changePage}
       />
       <ManualGameForm
         busy={busy}
-        actionLabel={tab === 'later' ? 'Add to my play queue' : 'Add to my library'}
+        actionLabel={tab === 'later' ? 'Add to Play later' : 'Add to My games'}
         onAdd={(record) =>
           onAction(
             tab === 'later'

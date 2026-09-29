@@ -120,7 +120,7 @@ export default function AddGamesPanel({
             draft={manualDraft}
             onDraftChange={(next) => updateView({ manualDraft: next })}
             onAdd={(record) => onAdd([record])}
-            actionLabel={kind === 'ranking' ? 'Add to my ranking' : 'Add to my library'}
+            actionLabel={kind === 'ranking' ? 'Add to my ranking' : 'Add to My games'}
           />
         </div>
       )}

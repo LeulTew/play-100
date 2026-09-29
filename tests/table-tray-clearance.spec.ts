@@ -255,7 +255,7 @@ for (const viewport of [
     try {
       if (isMobile) await later.tap();
       else await later.click();
-      await expect(page.locator('.toast-visible')).toContainText('Your library is updated.');
+      await expect(page.locator('.toast-visible')).toContainText('Play later updated.');
       const samples = await observation.evaluate((probe) => probe.finished);
       expect(samples.some((sample) => sample.running && sample.translated)).toBe(true);
       expect(

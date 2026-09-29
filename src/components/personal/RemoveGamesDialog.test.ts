@@ -36,7 +36,7 @@ describe('private library removal copy', () => {
   it('uses singular consequences and cancellation for one remaining game', () => {
     const html = render(records.slice(0, 1));
     expect(html).toContain('Remove this game?</h2>');
-    expect(html).toContain('its saved entry, queue position, played/completed marks, personal rating and note');
+    expect(html).toContain('its saved entry, Play later position, played/completed marks, personal rating and note');
     expect(html).toContain('Keep game</button>');
     expect(html).not.toContain('Keep games');
     expect(html).toContain('Remove 1 game</button>');
@@ -46,7 +46,9 @@ describe('private library removal copy', () => {
   it('preserves plural consequences and cancellation for multiple games', () => {
     const html = render(records);
     expect(html).toContain('Remove 2 games?</h2>');
-    expect(html).toContain('their saved entries, queue positions, played/completed marks, personal ratings and notes');
+    expect(html).toContain(
+      'their saved entries, Play later positions, played/completed marks, personal ratings and notes',
+    );
     expect(html).toContain('Keep games</button>');
     expect(html).toContain('Remove 2 games</button>');
   });

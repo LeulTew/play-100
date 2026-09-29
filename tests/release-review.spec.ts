@@ -126,7 +126,7 @@ test('temporary user edits survive a later successful author-data retry', async 
   }
   await page.getByText('Add a game manually', { exact: true }).click();
   await page.getByLabel('Game title', { exact: true }).fill('Temporary game to retain');
-  await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to My games', exact: true }).click();
   await page.locator('.discovery-heading').getByRole('button', { name: 'My games', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Temporary game to retain', exact: true })).toBeVisible();
   await page.locator('.wordmark').first().click();
@@ -214,7 +214,7 @@ test('every primary surface keeps visible labels inside accessible names', async
 
   for (const [tab, name] of [
     ['library', /^Library, \d+$/],
-    ['queue', /^Queue, \d+$/],
+    ['queue', /^Play later, \d+$/],
     ['ranking', /^Ranking, \d+$/],
   ] as const) {
     await page.goto(`/my-games?tab=${tab}&catalogs=off`);

@@ -60,7 +60,7 @@ export default function BackupPanel({
     link.download = `Play-100-My-Library-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setMessage('Backup download started. It includes your games, queue, rankings, notes and preferences.');
+    setMessage('Backup download started. It includes My games, Play later, rankings, notes and preferences.');
   };
   const readBackup = async (file: File | undefined) => {
     onActionStart?.();

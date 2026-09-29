@@ -47,7 +47,7 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain(
       saved
         ? 'Saved in My games.'
-        : 'Preview only. Add to My games to keep this game without changing your progress, queue or ranking.',
+        : 'Preview only. Add to My games to keep this game without changing your progress, Play later or ranking.',
     );
     expect(props.onAction).not.toHaveBeenCalled();
   });
@@ -72,12 +72,12 @@ describe('catalog detail artwork continuity surface', () => {
 
   it.each([
     ['pending', 'status', 'Saving changes…'],
-    ['saved', 'status', '1 game added to your library.'],
+    ['saved', 'status', '1 game added to My games.'],
     ['failed', 'alert', 'Device storage is full.'],
   ] as const)('announces its own %s mutation inside the dialog', (result, role, text) => {
     vi.mocked(useState).mockReturnValueOnce([result, vi.fn()]);
     const { html } = renderDetail({
-      feedback: '1 game added to your library.',
+      feedback: '1 game added to My games.',
       error: result === 'failed' ? 'Device storage is full.' : '',
       publicLookup: { online: false, scopeKey: 'guest:0:0', onEnableOnline: vi.fn() },
     });
@@ -186,11 +186,9 @@ describe('catalog detail artwork continuity surface', () => {
     expect(html).toContain('Play later');
     expect(html).toContain('Completed');
     expect(html).toContain(`Your rating / 10 for ${discoveryFixture.record.title}`);
-    expect(html).toContain(
-      'Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.',
-    );
+    expect(html).toContain('Your rating ranks this game; it doesn&#x27;t mark it played.');
     expect(html).toContain('Preview only.');
-    expect(html).toContain('Add to My games to keep this game without changing your progress, queue or ranking.');
+    expect(html).toContain('Add to My games to keep this game without changing your progress, Play later or ranking.');
     expect(html).not.toContain('Add to My games from Discover');
     expect(html).toContain('The 100 stays unchanged.');
   });

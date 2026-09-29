@@ -40,7 +40,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
     await expect(dialog.locator('#catalog-game-title')).toBeFocused();
     await expect(add).toBeEnabled();
     await expect(dialog.locator('.device-note')).toContainText(
-      'Add to My games to keep this game without changing your progress, queue or ranking.',
+      'Add to My games to keep this game without changing your progress, Play later or ranking.',
     );
     if (input === 'keyboard') {
       for (let step = 0; step < 12; step++) {
@@ -55,7 +55,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
     await expect(saved).toBeDisabled();
     await expect(saved).not.toHaveAttribute('disabled');
     if (input === 'keyboard') await expect(saved).toBeFocused();
-    await expect(dialog.locator('.detail-share-notice')).toHaveText('1 game added to your library.');
+    await expect(dialog.locator('.detail-share-notice')).toHaveText('1 game added to My games.');
     await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
     await expect(dialog.locator('.device-note')).toHaveText('Saved in My games. The 100 stays unchanged.');
     const after = await readLibrary(page);
@@ -236,7 +236,7 @@ const mutationCases: {
     after: `In My games: ${record.title}`,
     key: 'Enter',
     action: { type: 'add-records', records: [record] },
-    message: '1 game added to your library.',
+    message: '1 game added to My games.',
   },
   {
     name: 'queue',
@@ -244,7 +244,7 @@ const mutationCases: {
     after: 'Play later',
     key: 'Space',
     action: { type: 'toggle-progress', record, key: 'later' },
-    message: 'Your library is updated.',
+    message: 'Play later updated.',
   },
   {
     name: 'completion',

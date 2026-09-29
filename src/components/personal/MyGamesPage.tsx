@@ -154,7 +154,7 @@ function MyGamesWorkspace({
     queue: props.state.queueOrder.length,
     ranking: props.state.ranking.length,
   };
-  const titles: Record<MyGamesView, string> = { library: 'Library', queue: 'Queue', ranking: 'Ranking' };
+  const titles: Record<MyGamesView, string> = { library: 'Library', queue: 'Play later', ranking: 'Ranking' };
   const editorBusy = props.busy || switching;
   const onFilters = (patch: Partial<Filters>, method?: 'push' | 'replace') => {
     void change(() => props.onFilters(patch, method));

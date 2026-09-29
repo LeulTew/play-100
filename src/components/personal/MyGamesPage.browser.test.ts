@@ -16,6 +16,9 @@ declare global {
       releaseEditor(): void;
       finishEditor(saved: boolean): void;
       hasUnsubmittedForm(): boolean;
+      holdMoves(): void;
+      finishMove(saved: boolean): void;
+      moveCount(): number;
     };
     myGamesPaging: { arm(): void; settled(): Promise<PagingTurn> };
   }
@@ -146,6 +149,47 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
 }
 
 describe('My games exit guard', () => {
+  for (const view of ['queue', 'ranking'] as const) {
+    it(`${view} move arrows retain focus while saving, at edges, and after a refused save`, async () => {
+      await withPage(
+        async (page) => {
+          const list = page.getByRole('list', {
+            name: view === 'queue' ? 'Your Play later games' : 'Your ranked games',
+          });
+          const beta = list.locator('[data-record-id="beta"]');
+          const up = beta.locator('[data-move-direction="up"]');
+          const down = beta.locator('[data-move-direction="down"]');
+          await page.evaluate(() => window.myGamesFixture.holdMoves());
+          await up.focus();
+          await up.press('Enter');
+          await browserExpect(up).toHaveAttribute('aria-disabled', 'true');
+          await browserExpect(up).toBeFocused();
+          await up.press('Enter');
+          expect(await page.evaluate(() => window.myGamesFixture.moveCount())).toBe(1);
+          await page.evaluate(() => window.myGamesFixture.finishMove(true));
+          await browserExpect(beta).toHaveAttribute('aria-posinset', '1');
+          await browserExpect(down).toBeFocused();
+          await down.press('Enter');
+          await browserExpect(down).toBeFocused();
+          await page.evaluate(() => window.myGamesFixture.finishMove(true));
+          await browserExpect(beta).toHaveAttribute('aria-posinset', '2');
+          await browserExpect(down).toBeFocused();
+          await down.press('Enter');
+          await page.evaluate(() => window.myGamesFixture.finishMove(true));
+          await browserExpect(beta).toHaveAttribute('aria-posinset', '3');
+          await browserExpect(up).toBeFocused();
+          await up.press('Enter');
+          await page.evaluate(() => window.myGamesFixture.finishMove(false));
+          await browserExpect(page.getByRole('alert')).toContainText('could not be saved');
+          await browserExpect(up).toBeFocused();
+          await browserExpect(beta).toHaveAttribute('aria-posinset', '3');
+        },
+        view,
+        '&records=1&moves',
+      );
+    });
+  }
+
   it('keeps a failed note draft through Find games, Publish, Discover and a row-hiding search', async () => {
     await withPage(async (page) => {
       await rankedRow(page, 'alpha').locator('.ranking-note > summary').click();

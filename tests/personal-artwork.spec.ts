@@ -22,7 +22,7 @@ const artwork = illustrated.artwork;
 const noArt = missing.record;
 const original = authored;
 const otherProvider = secondIllustrated.record;
-const views = ['Library', 'Queue', 'Ranking'] as const;
+const views = ['Library', 'Play later', 'Ranking'] as const;
 type View = (typeof views)[number];
 
 test.beforeEach(async ({ page, baseURL }) => {
@@ -49,7 +49,7 @@ function identity(page: Page, id: string) {
 }
 
 async function openView(page: Page, view: View) {
-  await page.goto(`/my-games?catalogs=off&tab=${view.toLowerCase()}`);
+  await page.goto(`/my-games?catalogs=off&tab=${view === 'Play later' ? 'queue' : view.toLowerCase()}`);
   await expect(page.getByRole('heading', { name: 'My games', exact: true })).toBeVisible();
   await expect(
     page.getByRole('navigation', { name: 'My games views', exact: true }).getByRole('button', {

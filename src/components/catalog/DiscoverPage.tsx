@@ -671,7 +671,7 @@ export default function DiscoverPage({
       <ManualGameForm
         busy={busy}
         onAdd={(record) => onAction({ type: 'add-records', records: [record] })}
-        actionLabel="Add to my library"
+        actionLabel="Add to My games"
       />
       {onCommunity && (
         <footer className="discovery-footer">

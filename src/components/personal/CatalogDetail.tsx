@@ -237,13 +237,13 @@ export default function CatalogDetail({
           busy={blocked}
           onCommit={(score) => mutate({ type: 'rate-game', record, score })}
         />
-        <p>Rating adds this game to Ranking in My games. It does not mark it played or change a fixed position.</p>
+        <p>Your rating ranks this game; it doesn't mark it played.</p>
       </div>
       <p className="device-note">
         {saved
           ? 'Saved in My games.'
           : canAddToLibrary
-            ? 'Preview only. Add to My games to keep this game without changing your progress, queue or ranking.'
+            ? 'Preview only. Add to My games to keep this game without changing your progress, Play later or ranking.'
             : 'Preview only. Rate or mark progress here to keep this game.'}{' '}
         The 100 stays unchanged.
       </p>

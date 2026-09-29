@@ -104,8 +104,8 @@ export function RemoveRankingDialog({
     >
       <h2 id={titleId}>Remove {record.title} from ranking?</h2>
       <p id={descriptionId}>
-        This removes its rating, note and ranking position. The game stays in your Library. Played, Completed and Queue
-        stay unchanged.
+        This removes its rating, note and ranking position. The game stays in your Library. Played, Completed and Play
+        later stay unchanged.
       </p>
       <p className="removal-warning">
         This cannot be undone. To keep a copy, choose Keep ranking and export a backup from Settings first.

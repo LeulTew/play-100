@@ -2,6 +2,7 @@ import type { LibraryRecord } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { useCompareTray } from './compare-tray-context';
 import { canonicalCatalogId } from '../../lib/catalog-identity';
+import { useMotionPolicy } from '../../motion';
 
 export function ComparePinButton({
   record,
@@ -13,12 +14,13 @@ export function ComparePinButton({
   disabled?: boolean;
 }) {
   const { items, pin, unpin } = useCompareTray();
+  const { coarsePointer } = useMotionPolicy();
   const pinned = items.some((item) => canonicalCatalogId(item.id) === canonicalCatalogId(record.id));
   const label = pinned ? 'Unpin from comparison' : 'Pin for comparison';
   return (
     <button
       type="button"
-      className={compact ? 'icon-button' : 'button button-outline'}
+      className={compact ? (coarsePointer ? 'text-button' : 'icon-button') : 'button button-outline'}
       disabled={disabled}
       aria-pressed={pinned}
       aria-label={`${label}: ${record.title}`}
@@ -29,7 +31,7 @@ export function ComparePinButton({
       }}
     >
       <Icon name="stack" width="19" height="19" fill={pinned ? 'currentColor' : 'none'} />
-      {!compact && label}
+      {compact ? coarsePointer && 'Pin' : label}
     </button>
   );
 }

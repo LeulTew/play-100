@@ -6,7 +6,7 @@ import type { Filters } from '../../lib/types';
 import type { MyGamesView } from './MyGamesPage';
 import MyGamesPage from './MyGamesPage.tsx';
 import { registerPendingEditor } from '../../hooks/useExitSave.ts';
-import { emptyPersonalLibrary } from '../../lib/personal-library.ts';
+import { applyPersonalAction, emptyPersonalLibrary } from '../../lib/personal-library.ts';
 import { hasUnsubmittedPwaForm } from '../../lib/pwa-update-guard.ts';
 import '../../styles.css';
 import '../../shared-ui.css';
@@ -52,6 +52,12 @@ const initial: PersonalLibraryState = {
     { id: 'beta', note: '', score: 5, manualPosition: null },
   ],
 };
+if (params.has('moves')) {
+  const ids = Object.keys(initial.records);
+  initial.queueOrder = ids;
+  initial.progress = Object.fromEntries(ids.map((id) => [id, { later: true, played: false, completed: false }]));
+  initial.ranking = ids.map((id) => ({ id, note: '', score: null, manualPosition: null }));
+}
 const filters: Filters = {
   q: '',
   genre: 'all',
@@ -66,6 +72,29 @@ const filters: Filters = {
 const exits: string[] = [],
   saves: string[] = [];
 let accept = false;
+class MoveControl {
+  held = false;
+  count = 0;
+  pending: ((saved: boolean) => void) | null = null;
+  request(): Promise<boolean> {
+    this.count += 1;
+    return this.held
+      ? new Promise((resolve) => {
+          this.pending = resolve;
+        })
+      : Promise.resolve(true);
+  }
+  hold() {
+    this.held = true;
+  }
+  finish(saved: boolean) {
+    if (!this.pending) throw new Error('There is no held move.');
+    const resolve = this.pending;
+    this.pending = null;
+    resolve(saved);
+  }
+}
+const moves = new MoveControl();
 // ?probe counts render commits and records every layout-reading call between arm() and the frame after the next click.
 type PagingTurn = Awaited<ReturnType<Window['myGamesPaging']['settled']>>;
 const probe: { armed: boolean; commits: number; reads: PagingTurn['reads']; done: Promise<PagingTurn> | null } = {
@@ -175,6 +204,11 @@ export function App() {
     onBrowse: () => exits.push('browse'),
     onPublish: () => exits.push('publish'),
     async onAction(action) {
+      if (action.type === 'move-item') {
+        const saved = await moves.request();
+        if (saved) setState((prior) => applyPersonalAction(prior, action));
+        return saved;
+      }
       if (action.type !== 'edit-ranking') return true;
       saves.push(JSON.stringify({ id: action.id, note: action.note, score: action.score }));
       if (!accept) return false;
@@ -212,6 +246,13 @@ let finishHeld: (saved: boolean) => void = () => {};
 window.myGamesFixture = {
   exits,
   saves,
+  holdMoves() {
+    moves.hold();
+  },
+  finishMove(saved) {
+    moves.finish(saved);
+  },
+  moveCount: () => moves.count,
   accept: (value) => {
     accept = value;
   },

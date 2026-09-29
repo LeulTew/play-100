@@ -22,7 +22,7 @@ test('a cross-tab identity change flushes the old account draft without exposing
   await page.goto('/my-library');
   await page.locator('.manual-add summary').click();
   await page.getByLabel('Game title', { exact: true }).fill(title);
-  await page.getByRole('button', { name: 'Add to my library', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to My games', exact: true }).click();
   await expect(page.getByRole('button', { name: title, exact: true })).toBeVisible();
   await page.getByRole('button', { name: title, exact: true }).click();
   await page.getByRole('dialog').getByRole('spinbutton').fill('5');

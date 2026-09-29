@@ -74,7 +74,7 @@ test('Menu keeps guest, Alpha and Beta drafts in their own scopes through real e
   expect((await readAccount(page, alpha.uid!)).state).toEqual(beforeAlpha.state);
   const score = beforeAlpha.state.ranking.find((entry) => entry.id === game.id)?.score === 8.45 ? 8.65 : 8.45;
   await rating(page).fill(String(score));
-  await followMenu(page, 'Queue');
+  await followMenu(page, 'Play later');
   await expect(page).toHaveURL(/\/my-games\?tab=queue$/);
   const afterAlpha = await readAccount(page, alpha.uid!);
   expect(afterAlpha.state.ranking.find((entry) => entry.id === game.id)?.score).toBe(score);

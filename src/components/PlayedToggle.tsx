@@ -47,7 +47,7 @@ export function PlayedToggle({
       {review.key === key && review.open && eligible && (
         <Dialog open titleId={titleId} className="info-dialog" onClose={() => reviewOpen(false)}>
           <h2 id={titleId}>Mark {title} not played?</h2>
-          <p>This also clears Completed. Your play queue, rating, notes and ranking position stay unchanged.</p>
+          <p>This also clears Completed. Play later, rating, notes and ranking position stay unchanged.</p>
           <div className="button-row">
             <button data-autofocus className="button button-outline" onClick={() => reviewOpen(false)}>
               Keep completed

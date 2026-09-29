@@ -210,7 +210,7 @@ test('a quota-refused manual save keeps the open form and every typed field unti
   await withQuota(page, new URL(baseURL!).origin, 0, info, async ({ lift }) => {
     // Real Chromium backend TTL: page.clock cannot advance IndexedDB's cached disk-space estimate.
     await page.waitForTimeout(indexedDbSpaceCacheMs);
-    await manual.getByRole('button', { name: 'Add to my library', exact: true }).click();
+    await manual.getByRole('button', { name: 'Add to My games', exact: true }).click();
     await expect(manual.getByRole('alert')).toHaveText(manualFailed);
     await expect(manual).toHaveAttribute('open', '');
     await expect(manual.getByLabel('Game title', { exact: true })).toHaveValue(title);
@@ -219,7 +219,7 @@ test('a quota-refused manual save keeps the open form and every typed field unti
     expect(await readLibrary(page)).toEqual(before);
 
     await lift();
-    await manual.getByRole('button', { name: 'Add to my library', exact: true }).click();
+    await manual.getByRole('button', { name: 'Add to My games', exact: true }).click();
     await expect(manual.getByRole('alert')).toHaveCount(0);
     await expect(manual.getByLabel('Game title', { exact: true })).toHaveValue('');
     await expect(manual.getByLabel('Year (optional)', { exact: true })).toHaveValue('');

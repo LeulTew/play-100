@@ -176,7 +176,9 @@ test('saved opinion survives Keep and Escape; confirmation removes it once and r
   const trigger = await openRemoval(page);
   const dialog = confirmation(page);
   await expect(dialog).toContainText('rating, note and ranking position');
-  await expect(dialog).toContainText('The game stays in your Library. Played, Completed and Queue stay unchanged.');
+  await expect(dialog).toContainText(
+    'The game stays in your Library. Played, Completed and Play later stay unchanged.',
+  );
   await expect(dialog.getByRole('button', { name: 'Keep ranking', exact: true })).toBeFocused();
   expect((await new AxeBuilder({ page }).include('.ranking-removal-dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('ranking-confirmation.png') });

@@ -164,7 +164,7 @@ test('bulk Mark played is independent on collection, imported Discovery and save
   await page.goto('/my-games');
   await editor(page).locator('.manual-add > summary').click();
   await editor(page).getByLabel('Game title', { exact: true }).fill('Manual progress fixture');
-  await editor(page).getByRole('button', { name: 'Add to my library', exact: true }).click();
+  await editor(page).getByRole('button', { name: 'Add to My games', exact: true }).click();
   await expect(editor(page).getByRole('button', { name: 'Manual progress fixture', exact: true })).toBeVisible();
   await editor(page).getByRole('button', { name: 'Select games', exact: true }).click();
   await editor(page).getByRole('checkbox', { name: 'Select Manual progress fixture', exact: true }).check();

@@ -287,7 +287,7 @@ for (const kind of ['queue', 'ranking'] as const) {
     const editor = page.locator('.my-games-editor:visible');
     await expect(editor).toHaveCount(1);
     const list = editor.getByRole('list', {
-      name: kind === 'queue' ? 'Your play order' : 'Your ranked games',
+      name: kind === 'queue' ? 'Your Play later games' : 'Your ranked games',
       exact: true,
     });
     await expect(list.locator('.personal-row')).toHaveCount(3);

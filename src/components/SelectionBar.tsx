@@ -61,7 +61,7 @@ export function SelectionBar({
         {context === 'library' && (
           <>
             <button className="text-button" disabled={!count || busy} onClick={() => onAction('remove-later')}>
-              Remove from queue
+              Remove from Play later
             </button>
             <button className="text-button" disabled={!count || busy} onClick={() => onAction('uncomplete')}>
               Unmark completed

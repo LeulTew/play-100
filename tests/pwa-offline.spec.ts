@@ -104,7 +104,7 @@ test('explicit offline preparation preserves guest data and serves fresh local r
   const manual = page.locator('.my-games-editor:visible .manual-add');
   await manual.locator('summary').click();
   await manual.getByLabel('Game title', { exact: true }).fill(title);
-  await manual.getByRole('button', { name: 'Add to my library', exact: true }).click();
+  await manual.getByRole('button', { name: 'Add to My games', exact: true }).click();
   await expect
     .poll(async () => Object.values((await readLibrary(page)).records).some((record) => record.title === title))
     .toBe(true);
@@ -167,7 +167,7 @@ test('explicit offline preparation preserves guest data and serves fresh local r
       page.getByRole('navigation', { name: 'My games views' }).getByRole('button', { name: /^Library/ }),
     ).toHaveAttribute('aria-current', 'page');
     for (const [tab, label] of [
-      ['queue', 'Queue'],
+      ['queue', 'Play later'],
       ['ranking', 'Ranking'],
     ] as const) {
       await page.goto(`/my-games?tab=${tab}&catalogs=off`);

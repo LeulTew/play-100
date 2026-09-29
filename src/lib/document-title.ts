@@ -23,7 +23,7 @@ const pageTitles: Record<AppPage, string> = {
 };
 const workspaceTitles: Record<MyGamesTab, string> = {
   library: 'My games · Library',
-  queue: 'My games · Queue',
+  queue: 'My games · Play later',
   ranking: 'My games · Ranking',
 };
 const panelTitles: Record<Exclude<AppPanel, null> | 'compare-tray', string> = {

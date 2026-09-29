@@ -46,9 +46,9 @@ export function RemoveGamesDialog({
       <h2 id="remove-games-title">{remaining.length ? title : 'Already removed.'}</h2>
       <p id="remove-games-description">
         {remaining.length === 1
-          ? 'This deletes its saved entry, queue position, played/completed marks, personal rating and note from this browser. The original 100 and its ratings never change.'
+          ? 'This deletes its saved entry, Play later position, played/completed marks, personal rating and note from this browser. The original 100 and its ratings never change.'
           : remaining.length
-            ? 'This deletes their saved entries, queue positions, played/completed marks, personal ratings and notes from this browser. The original 100 and its ratings never change.'
+            ? 'This deletes their saved entries, Play later positions, played/completed marks, personal ratings and notes from this browser. The original 100 and its ratings never change.'
             : 'These games are no longer in your private library. No other games will be removed.'}
       </p>
       {mode.scope !== 'guest' && (

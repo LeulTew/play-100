@@ -30,12 +30,12 @@ test('queue badge stays exact and its header action never waits for the visual c
   await page.locator('.saved-nav').click();
   await expect.poll(() => new URL(page.url()).searchParams.get('tab')).toBe('queue');
   const queue = page.locator('.my-games-editor:visible');
-  await expect(queue.getByRole('list', { name: 'Your play order', exact: true }).locator('.personal-row')).toHaveCount(
-    1,
-  );
+  await expect(
+    queue.getByRole('list', { name: 'Your Play later games', exact: true }).locator('.personal-row'),
+  ).toHaveCount(1);
   expect((await readLibrary(page)).queueOrder).toEqual(['red-dead-redemption-2']);
   await expect(visual).toHaveText('1');
-  await queue.getByRole('button', { name: 'Remove from queue: Red Dead Redemption 2', exact: true }).click();
+  await queue.getByRole('button', { name: 'Remove from Play later: Red Dead Redemption 2', exact: true }).click();
   await expect(accessible).toHaveText('0');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');

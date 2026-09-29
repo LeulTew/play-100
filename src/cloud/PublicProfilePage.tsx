@@ -93,7 +93,7 @@ export function PublicProfilePage({
       const records = values.map((entry) => recordFromPublic(entry, games));
       if (await library.perform({ type: 'set-progress', records, key: 'later', value: true })) {
         setMessage(
-          `${records.length} ${records.length === 1 ? 'game added' : 'games added'} to your play queue. The publisher's scores were not copied.`,
+          `${records.length} ${records.length === 1 ? 'game added' : 'games added'} to Play later. The publisher's scores were not copied.`,
         );
         setSelected(new Set());
       } else setError('These games could not be saved. Your previous library is unchanged; check the storage warning.');

@@ -420,9 +420,9 @@ test('Library manual drafts and saved Ranking opinions survive tab unmounts; det
   await expect(pager(page).getByRole('combobox')).toHaveValue('2');
   await expect(title).toHaveValue('');
   await page.goto('/my-library?list=later');
-  await expect(tab(page, 'Queue')).toHaveAttribute('aria-current', 'page');
+  await expect(tab(page, 'Play later')).toHaveAttribute('aria-current', 'page');
   await expect(pager(page)).toHaveCount(0);
-  await expect(page.getByRole('list', { name: 'Your play order' }).locator('.personal-row')).toHaveCount(3);
+  await expect(page.getByRole('list', { name: 'Your Play later games' }).locator('.personal-row')).toHaveCount(3);
   await page.goto('/my-rankings');
   await expect(tab(page, 'Ranking')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.ranking-row-content')).toHaveCount(3);
@@ -656,14 +656,14 @@ test('Queue uses its own bounded pager and retains global arrow order', async ({
   await installGuestLibrary(page, fixture);
   await visitRanking(page);
   await selectPage(page, 2);
-  await tab(page, 'Queue').click();
-  const queue = page.getByRole('list', { name: 'Your play order', exact: true });
+  await tab(page, 'Play later').click();
+  const queue = page.getByRole('list', { name: 'Your Play later games', exact: true });
   await expect(queue.locator('.personal-row')).toHaveCount(25);
-  const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+  const queuePager = page.getByRole('navigation', { name: 'Play later pages', exact: true });
   await expect(queuePager.getByRole('combobox')).toHaveValue('1');
   await expect(pager(page)).toHaveCount(0);
   const first = fixture.records[fixture.queueOrder[0]!]!;
-  await queue.getByRole('button', { name: `Move ${first.title} down in queue`, exact: true }).click();
+  await queue.getByRole('button', { name: `Move ${first.title} down in Play later`, exact: true }).click();
   await expect
     .poll(() => readLibrary(page))
     .toEqual(
@@ -671,7 +671,7 @@ test('Queue uses its own bounded pager and retains global arrow order', async ({
     );
   await queuePager.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(queue.locator('.personal-row')).toHaveCount(1);
-  await expect(page.getByRole('heading', { name: 'Your queue results', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Play later results', exact: true })).toBeFocused();
   expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await tab(page, 'Library').click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
@@ -691,8 +691,8 @@ for (const saved of [true, false]) {
       value: true,
     });
     await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
-    const queue = page.getByRole('list', { name: 'Your play order', exact: true });
-    const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+    const queue = page.getByRole('list', { name: 'Your Play later games', exact: true });
+    const queuePager = page.getByRole('navigation', { name: 'Play later pages', exact: true });
     const ids = await queue
       .locator('.personal-row')
       .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id')));
@@ -706,7 +706,7 @@ for (const saved of [true, false]) {
     await finishEditor(page, saved);
     if (saved) {
       await expect(queuePager.getByRole('combobox')).toHaveValue('2');
-      await expect(page.getByRole('heading', { name: 'Your queue results', exact: true })).toBeFocused();
+      await expect(page.getByRole('heading', { name: 'Play later results', exact: true })).toBeFocused();
     } else {
       await expect(page.getByRole('alert').filter({ hasText: 'Your edit has not saved' })).toBeVisible();
       await expect(queuePager.getByRole('combobox')).toHaveValue('1');
@@ -732,22 +732,22 @@ test('Queue search retains the bounded rows while an editor is pending and appli
     value: true,
   });
   await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
-  const queue = page.getByRole('list', { name: 'Your play order', exact: true });
-  const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+  const queue = page.getByRole('list', { name: 'Your Play later games', exact: true });
+  const queuePager = page.getByRole('navigation', { name: 'Play later pages', exact: true });
   await queuePager.getByRole('combobox').selectOption('2');
   const ids = await queue
     .locator('.personal-row')
     .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id')));
   await heldEditor(page);
   const first = fixture.records[fixture.queueOrder[0]!]!;
-  await page.getByRole('searchbox', { name: 'Search your queue', exact: true }).fill(first.title);
+  await page.getByRole('searchbox', { name: 'Search Play later', exact: true }).fill(first.title);
   expect(
     await queue.locator('.personal-row').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-record-id'))),
   ).toEqual(ids);
   await expect(queue.locator('.personal-row')).toHaveCount(25);
   await releaseEditor(page);
   await expect(queue.locator('.personal-row').first()).toHaveAttribute('data-record-id', first.id);
-  await page.getByRole('searchbox', { name: 'Search your queue', exact: true }).fill('');
+  await page.getByRole('searchbox', { name: 'Search Play later', exact: true }).fill('');
   await expect(queuePager.getByRole('combobox')).toHaveValue('1');
   expect(await readLibrary(page)).toEqual(fixture);
 });
@@ -761,12 +761,12 @@ test('a queued boundary move cannot follow or steal focus after a native-history
     value: true,
   });
   await installGuestLibrary(page, fixture);
-  await tab(page, 'Queue').click();
-  const queuePager = page.getByRole('navigation', { name: 'Queue pages', exact: true });
+  await tab(page, 'Play later').click();
+  const queuePager = page.getByRole('navigation', { name: 'Play later pages', exact: true });
   await queuePager.getByRole('combobox').selectOption('2');
   const moved = fixture.records[fixture.queueOrder[25]!]!;
   await heldEditor(page);
-  await page.getByRole('button', { name: `Move ${moved.title} up in queue`, exact: true }).click();
+  await page.getByRole('button', { name: `Move ${moved.title} up in Play later`, exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-library-flush-count', '1');
   await page.goBack();
   await expect(tab(page, 'Library')).toHaveAttribute('aria-current', 'page');

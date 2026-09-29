@@ -150,8 +150,7 @@ export default function RankingsPage(props: RankingsPageProps) {
                   Games without a fixed position follow scores, highest first. Unrated comes last, not zero. Drag or use
                   arrows to set a position when search and filters are clear. Manual positions stay fixed until you
                   choose Use rating order for a game or for all. Scores save automatically. Ranking or rating never
-                  marks a game played. Drag and keyboard sorting stay on this page; move arrows and Move to position can
-                  cross pages.
+                  marks a game played. Drag within this page, or use the arrows to move across pages.
                 </p>
               </details>
             </div>
@@ -223,8 +222,8 @@ export default function RankingsPage(props: RankingsPageProps) {
               const position = rankingById.get(id)?.position ?? 0;
               return { previous: state.ranking[position - 2]?.id, next: state.ranking[position]?.id };
             }}
-            onMove={(id, overId) => {
-              void move(id, overId);
+            onMove={(id, overId, direction) => {
+              void move(id, overId, direction);
             }}
           >
             {(record) => {

@@ -27,7 +27,7 @@ test('account sync keeps Played and Completed distinct and excludes both from Al
   const editor = page.locator('.my-games-editor:visible');
   await editor.locator('.manual-add > summary').click();
   await editor.getByLabel('Game title', { exact: true }).fill('Sync progress fixture');
-  await editor.getByRole('button', { name: 'Add to my library', exact: true }).click();
+  await editor.getByRole('button', { name: 'Add to My games', exact: true }).click();
   await expect(page.locator('.friend-sharing-summary')).toContainText('Up to date', { timeout: 30000 });
   const record = Object.values((await readAccount(page, uid)).state.records).find(
     (record) => record.title === 'Sync progress fixture',

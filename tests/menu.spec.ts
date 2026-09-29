@@ -112,7 +112,7 @@ test('Menu is secondary, grouped, current, keyboard-operable and does not bootst
   await expect(menu(page).getByRole('navigation', { name: 'All navigation' })).toBeVisible();
   await expect(menu(page).getByRole('menu')).toHaveCount(0);
   await expect(menu(page).locator('#menu-title')).toBeFocused();
-  await expect(menu(page).locator('[aria-current="page"]')).toHaveText('QueueCurrent');
+  await expect(menu(page).locator('[aria-current="page"]')).toHaveText('Play laterCurrent');
   const hrefs = await menu(page)
     .locator('a')
     .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
@@ -145,7 +145,7 @@ test('every applicable route uses its real target and only one current link', as
   const destinations = [
     ['Discover', '/discover?catalogs=off'],
     ['Library', '/my-games?catalogs=off'],
-    ['Queue', '/my-games?catalogs=off&tab=queue'],
+    ['Play later', '/my-games?catalogs=off&tab=queue'],
     ['Ranking', '/my-games?catalogs=off&tab=ranking'],
     ...(online
       ? [
@@ -209,7 +209,7 @@ test('Settings, credits, Data use and both actual workbook downloads retain thei
 test('legacy Library, Queue and Ranking links keep their location and Back history', async ({ page }) => {
   for (const [path, current] of [
     ['/my-library?list=completed&catalogs=off', 'Library'],
-    ['/my-library?list=later&catalogs=off', 'Queue'],
+    ['/my-library?list=later&catalogs=off', 'Play later'],
     ['/my-rankings?catalogs=off', 'Ranking'],
   ]) {
     await page.goto(path!);
@@ -283,7 +283,7 @@ test('invalid ratings block destinations and Settings without losing the draft, 
   await expect(rating(page)).toHaveAttribute('aria-invalid', 'true');
   await rating(page).fill('9.25');
   await openMenu(page);
-  await menu(page).getByRole('link', { name: 'Queue', exact: true }).click();
+  await menu(page).getByRole('link', { name: 'Play later', exact: true }).click();
   await expect(page).toHaveURL(/\/my-games\?catalogs=off&tab=queue$/);
   expect((await readLibrary(page)).ranking.find((entry) => entry.id === first.id)?.score).toBe(9.25);
 });

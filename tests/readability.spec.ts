@@ -28,7 +28,7 @@ const providerRecord = provider.record;
 async function surfaces(page: Page, spacing = false) {
   const audit = async (name: string) => expectReadableSurface(page, name, spacing);
   if (spacing) await page.addStyleTag({ content: textSpacingCSS });
-  for (const name of ['Queue', 'Library', 'Ranking']) {
+  for (const name of ['Play later', 'Library', 'Ranking']) {
     await page
       .getByRole('navigation', { name: 'My games views' })
       .getByRole('button', { name: new RegExp(`^${name}`) })

@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { Icon } from '../Icon';
+import type { MoveDirection } from './reorder-focus';
 
 interface ReorderListProps {
   records: LibraryRecord[];
@@ -29,7 +30,7 @@ interface ReorderListProps {
   positionFor: (id: string) => number | null;
   neighborsFor?: (id: string) => { previous?: string; next?: string };
   totalItems?: number;
-  onMove: (id: string, overId: string) => void;
+  onMove: (id: string, overId: string, direction?: MoveDirection) => void;
   children: (record: LibraryRecord) => ReactNode;
 }
 
@@ -82,7 +83,7 @@ export default function ReorderList({
       }}
     >
       <SortableContext items={records.map((record) => record.id)} strategy={verticalListSortingStrategy}>
-        <ol className="personal-records" aria-label={kind === 'queue' ? 'Your play order' : 'Your ranked games'}>
+        <ol className="personal-records" aria-label={kind === 'queue' ? 'Your Play later games' : 'Your ranked games'}>
           {records.map((record, index) => (
             <ReorderRow
               key={record.id}
@@ -136,7 +137,7 @@ function ReorderRow({
   kind: 'queue' | 'ranking';
   previous?: string;
   next?: string;
-  onMove: (id: string, overId: string) => void;
+  onMove: (id: string, overId: string, direction?: MoveDirection) => void;
   children: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -159,8 +160,8 @@ function ReorderRow({
           className="icon-button drag-handle"
           {...attributes}
           {...listeners}
-          aria-label={`Drag ${title} to reorder your ${kind}`}
-          disabled={disabled}
+          aria-label={`Drag ${title} to reorder ${kind === 'queue' ? 'Play later' : 'your ranking'}`}
+          aria-disabled={disabled}
         >
           <Icon name="grip" width="18" height="18" />
         </button>
@@ -175,19 +176,23 @@ function ReorderRow({
       <div className="move-buttons">
         <button
           className="icon-button"
-          disabled={disabled || !previous}
-          aria-label={`Move ${title} up in ${kind}`}
+          aria-disabled={disabled || !previous}
+          aria-label={`Move ${title} up in ${kind === 'queue' ? 'Play later' : kind}`}
           data-move-direction="up"
-          onClick={() => previous && onMove(id, previous)}
+          onClick={() => {
+            if (!disabled && previous) onMove(id, previous, 'up');
+          }}
         >
           <Icon name="up" width="17" height="17" />
         </button>
         <button
           className="icon-button"
-          disabled={disabled || !next}
-          aria-label={`Move ${title} down in ${kind}`}
+          aria-disabled={disabled || !next}
+          aria-label={`Move ${title} down in ${kind === 'queue' ? 'Play later' : kind}`}
           data-move-direction="down"
-          onClick={() => next && onMove(id, next)}
+          onClick={() => {
+            if (!disabled && next) onMove(id, next, 'down');
+          }}
         >
           <Icon name="down" width="17" height="17" />
         </button>

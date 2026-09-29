@@ -7,10 +7,10 @@ import { installGuestLibrary } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 const recordId = (position: number) => `manual:queue-page-${String(position).padStart(5, '0')}`;
-const queue = (page: Page) => page.getByRole('list', { name: 'Your play order', exact: true });
+const queue = (page: Page) => page.getByRole('list', { name: 'Your Play later games', exact: true });
 const row = (page: Page, position: number) => queue(page).locator(`[data-record-id="${recordId(position)}"]`);
-const pager = (page: Page) => page.getByRole('navigation', { name: 'Queue pages', exact: true });
-const search = (page: Page) => page.getByRole('searchbox', { name: 'Search your queue', exact: true });
+const pager = (page: Page) => page.getByRole('navigation', { name: 'Play later pages', exact: true });
+const search = (page: Page) => page.getByRole('searchbox', { name: 'Search Play later', exact: true });
 const views = (page: Page) => page.getByRole('navigation', { name: 'My games views', exact: true });
 
 function queueFixture(total = 60) {
@@ -40,7 +40,7 @@ function queueFixture(total = 60) {
 async function openQueue(page: Page, total = 60) {
   await installGuestLibrary(page, queueFixture(total));
   await views(page)
-    .getByRole('button', { name: /^Queue,/ })
+    .getByRole('button', { name: /^Play later,/ })
     .click();
   await expect(queue(page).locator('.personal-row')).toHaveCount(Math.min(total, 25));
 }
@@ -61,15 +61,18 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
-for (const view of ['Library', 'Queue'] as const) {
+for (const view of ['Library', 'Play later'] as const) {
   test(`${view} bottom pager continues from page 2 to page 3 and returns focus to the results`, async ({ page }) => {
-    const isQueue = view === 'Queue';
+    const isQueue = view === 'Play later';
     if (isQueue) await openQueue(page);
     else await installGuestLibrary(page, queueFixture(), '/my-games?catalogs=off&page=2');
     const top = page.getByRole('navigation', { name: `${view} pages`, exact: true });
     const bottom = page.getByRole('navigation', { name: `${view} pages, end of list`, exact: true });
-    const heading = page.getByRole('heading', { name: `Your ${view.toLowerCase()} results`, exact: true });
-    const itemLabel = isQueue ? 'queued games' : 'matching games';
+    const heading = page.getByRole('heading', {
+      name: isQueue ? 'Play later results' : 'Your library results',
+      exact: true,
+    });
+    const itemLabel = isQueue ? 'Play later games' : 'matching games';
     if (isQueue) await top.getByRole('combobox').selectOption('2');
     await expect(top).toHaveCount(1);
     await expect(bottom).toHaveCount(1);
@@ -94,14 +97,16 @@ for (const view of ['Library', 'Queue'] as const) {
     await expect(bottom.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
     expect(new URL(page.url()).searchParams.get('page')).toBe(isQueue ? null : '3');
     expect(await readLibrary(page)).toEqual(before);
-    await page.getByRole('searchbox', { name: `Search your ${view.toLowerCase()}`, exact: true }).fill('00060');
+    await page
+      .getByRole('searchbox', { name: isQueue ? 'Search Play later' : 'Search your library', exact: true })
+      .fill('00060');
     await expect(page.locator('.personal-row')).toHaveCount(1);
     await expect(top).toHaveCount(0);
     await expect(bottom).toHaveCount(0);
   });
 }
 
-test('10,000 queued games stay bounded through last-page navigation, boundary moves and search', async ({
+test('10,000 Play later games stay bounded through last-page navigation, boundary moves and search', async ({
   page,
 }, info) => {
   test.setTimeout(120000);
@@ -110,28 +115,28 @@ test('10,000 queued games stay bounded through last-page navigation, boundary mo
   const before = await readLibrary(page);
   const openStarted = performance.now();
   await views(page)
-    .getByRole('button', { name: /^Queue,/ })
+    .getByRole('button', { name: /^Play later,/ })
     .click();
   await expect(page.locator('.personal-row')).toHaveCount(25);
-  await expect(pager(page)).toContainText('1–25 of 10000 queued games');
+  await expect(pager(page)).toContainText('1–25 of 10000 Play later games');
   const openMs = performance.now() - openStarted;
   await pager(page).getByRole('button', { name: 'Last', exact: true }).click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('400');
-  await expect(page.getByRole('heading', { name: 'Your queue results', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Play later results', exact: true })).toBeFocused();
   await expect(page.locator('.personal-row')).toHaveCount(25);
   await expect(row(page, 10000)).toHaveAttribute('aria-posinset', '10000');
   await expect(row(page, 10000)).toHaveAttribute('aria-setsize', '10000');
-  await expect(row(page, 10000).getByRole('button', { name: /down in queue$/ })).toBeDisabled();
+  await expect(row(page, 10000).getByRole('button', { name: /down in Play later$/ })).toBeDisabled();
   expect(await readLibrary(page)).toEqual(before);
 
   await pager(page).getByRole('combobox').selectOption('2');
   const moveStarted = performance.now();
   await row(page, 26)
-    .getByRole('button', { name: /up in queue$/ })
+    .getByRole('button', { name: /up in Play later$/ })
     .click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await expect(row(page, 26)).toHaveAttribute('aria-posinset', '25');
-  await expect(row(page, 26).locator('.record-title')).toBeFocused();
+  await expect(row(page, 26).locator('[data-move-direction="up"]')).toBeFocused();
   await expect(page.locator('.personal-row')).toHaveCount(25);
   const moveMs = performance.now() - moveStarted;
   const moved = await readLibrary(page);
@@ -142,11 +147,11 @@ test('10,000 queued games stay bounded through last-page navigation, boundary mo
   expect(moved.progress).toEqual(before.progress);
   expect(moved.ranking).toEqual(before.ranking);
   await row(page, 26)
-    .getByRole('button', { name: /down in queue$/ })
+    .getByRole('button', { name: /down in Play later$/ })
     .click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('2');
   await expect(row(page, 26)).toHaveAttribute('aria-posinset', '26');
-  await expect(row(page, 26).locator('.record-title')).toBeFocused();
+  await expect(row(page, 26).locator('[data-move-direction="down"]')).toBeFocused();
   await expect(page.locator('.personal-row')).toHaveCount(25);
   expect((await readLibrary(page)).queueOrder).toEqual(before.queueOrder);
 
@@ -154,11 +159,11 @@ test('10,000 queued games stay bounded through last-page navigation, boundary mo
   const filterStarted = performance.now();
   await search(page).fill('Synthetic queued game 000');
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
-  await expect(pager(page)).toContainText('1–25 of 99 queued games');
+  await expect(pager(page)).toContainText('1–25 of 99 Play later games');
   await expect(page.locator('.personal-row')).toHaveCount(25);
   await expect(row(page, 1)).toBeVisible();
   const filterMs = performance.now() - filterStarted;
-  await expect(row(page, 1).getByRole('button', { name: /up in queue$/ })).toBeDisabled();
+  await expect(row(page, 1).getByRole('button', { name: /up in Play later$/ })).toBeDisabled();
   await expect(row(page, 1).getByRole('button', { name: /^Drag / })).toBeDisabled();
   expect(new URL(page.url()).searchParams.has('q')).toBe(false);
   expect(new URL(page.url()).searchParams.has('page')).toBe(false);
@@ -242,7 +247,7 @@ test('Queue filtering resets the page and selection spans all matching pages wit
   await pager(page).getByRole('combobox').selectOption('3');
   await page.getByLabel('Progress', { exact: true }).selectOption('completed');
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
-  await expect(pager(page)).toContainText('1–25 of 30 queued games');
+  await expect(pager(page)).toContainText('1–25 of 30 Play later games');
   await expect(row(page, 2)).toBeVisible();
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
   await page.getByRole('button', { name: 'Select all 30 matching games (all 2 pages)', exact: true }).click();
@@ -274,7 +279,7 @@ test('a rejected boundary move retains the original Queue page and retries witho
     document.documentElement.dataset.rejectQueueWrite = 'yes';
   });
   await row(page, 26)
-    .getByRole('button', { name: /up in queue$/ })
+    .getByRole('button', { name: /up in Play later$/ })
     .click();
   await expect(page.getByRole('alert').filter({ hasText: 'The position could not be saved' })).toBeVisible();
   await expect(pager(page).getByRole('combobox')).toHaveValue('2');
@@ -284,10 +289,10 @@ test('a rejected boundary move retains the original Queue page and retries witho
     document.documentElement.dataset.rejectQueueWrite = 'no';
   });
   await row(page, 26)
-    .getByRole('button', { name: /up in queue$/ })
+    .getByRole('button', { name: /up in Play later$/ })
     .click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
-  await expect(row(page, 26).locator('.record-title')).toBeFocused();
+  await expect(row(page, 26).locator('[data-move-direction="up"]')).toBeFocused();
   await expect(page.getByRole('alert').filter({ hasText: 'The position could not be saved' })).toHaveCount(0);
 });
 
@@ -296,7 +301,7 @@ test('removing the last Queue page clamps its view without removing the stored g
   await pager(page).getByRole('button', { name: 'Last', exact: true }).click();
   await expect(queue(page).locator('.personal-row')).toHaveCount(1);
   await row(page, 26)
-    .getByRole('button', { name: /^Remove from queue:/ })
+    .getByRole('button', { name: /^Remove from Play later:/ })
     .click();
   await expect(queue(page).locator('.personal-row')).toHaveCount(25);
   await expect(pager(page)).toHaveCount(0);
@@ -315,8 +320,8 @@ test('Queue removal preserves every non-queue field, while Library removal still
   fixture.ranking = [{ id, manualPosition: 1, score: 8.5, note: 'Keep this private opinion and fixed position.' }];
   await installGuestLibrary(page, fixture, '/my-games?tab=queue&catalogs=off');
   const before = await readLibrary(page);
-  const remove = row(page, 2).getByRole('button', { name: `Remove from queue: ${record.title}`, exact: true });
-  await expect(remove).toHaveAttribute('title', 'Remove from queue');
+  const remove = row(page, 2).getByRole('button', { name: `Remove from Play later: ${record.title}`, exact: true });
+  await expect(remove).toHaveAttribute('title', 'Remove from Play later');
   await expect(row(page, 2).getByRole('button', { name: /^Play later:/ })).toHaveCount(0);
   await expect(row(page, 2).getByRole('button', { name: /from my library$/ })).toHaveCount(0);
   const bounds = await remove.boundingBox();
@@ -327,7 +332,7 @@ test('Queue removal preserves every non-queue field, while Library removal still
   await expect.poll(() => readLibrary(page)).toEqual(expected);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(row(page, 2)).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('1 game updated in your play queue.');
+  await expect(page.locator('.toast')).toContainText('1 game removed from Play later.');
   const removedFromQueue = await readLibrary(page);
   expect(removedFromQueue.records).toEqual(before.records);
   expect(removedFromQueue.ranking).toEqual(before.ranking);

@@ -57,7 +57,7 @@ export function LibraryRecordRow({
           <div className="record-actions">
             {onPin && (
               <button
-                className="icon-button"
+                className="text-button"
                 disabled={pinnedIds?.has(record.id) && !onUnpin}
                 aria-pressed={onUnpin ? (pinnedIds?.has(record.id) ?? false) : undefined}
                 aria-label={`${pinnedIds?.has(record.id) && !onUnpin ? 'Pinned' : 'Pin'} for comparison: ${record.title}`}
@@ -68,6 +68,7 @@ export function LibraryRecordRow({
                 }}
               >
                 <Icon name="stack" width="19" height="19" fill={pinnedIds?.has(record.id) ? 'currentColor' : 'none'} />
+                Pin
               </button>
             )}
             {renderDragHandle?.(record)}
@@ -109,31 +110,34 @@ export function LibraryRecordRow({
                 />
               </button>
             )}
-            <button
-              className="icon-button"
-              disabled={busy || ranked}
-              aria-label={`Add ${record.title} to my ranking`}
-              onClick={() => {
-                void onAction({ type: 'add-ranking', records: [record] });
-              }}
-            >
-              <Icon name="rank" width="20" height="20" />
-            </button>
-            <button
-              className="icon-button remove-library-action"
-              disabled={busy}
-              aria-label={
-                tab === 'later' ? `Remove from queue: ${record.title}` : `Remove ${record.title} from my library`
-              }
-              title={tab === 'later' ? 'Remove from queue' : undefined}
-              onClick={(event) => {
-                if (tab === 'later') {
-                  void onAction({ type: 'set-progress', records: [record], key: 'later', value: false });
-                } else requestRemoval([record], event.currentTarget);
-              }}
-            >
-              <Icon name="trash" width="19" height="19" />
-            </button>
+            <span className="record-tail">
+              <button
+                className="text-button"
+                disabled={busy || ranked}
+                aria-label={`Add ${record.title} to my ranking`}
+                onClick={() => {
+                  void onAction({ type: 'add-ranking', records: [record] });
+                }}
+              >
+                <Icon name="rank" width="20" height="20" />
+                Rank
+              </button>
+              <button
+                className="icon-button remove-library-action"
+                disabled={busy}
+                aria-label={
+                  tab === 'later' ? `Remove from Play later: ${record.title}` : `Remove ${record.title} from my library`
+                }
+                title={tab === 'later' ? 'Remove from Play later' : undefined}
+                onClick={(event) => {
+                  if (tab === 'later') {
+                    void onAction({ type: 'set-progress', records: [record], key: 'later', value: false });
+                  } else requestRemoval([record], event.currentTarget);
+                }}
+              >
+                <Icon name="trash" width="19" height="19" />
+              </button>
+            </span>
           </div>
           <span className={`play-state ${state.progress[record.id]?.completed ? 'state-completed' : ''}`}>
             {state.progress[record.id]?.completed

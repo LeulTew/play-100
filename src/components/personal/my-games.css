@@ -168,7 +168,8 @@
 .drag-handle:active {
   cursor: grabbing;
 }
-.drag-handle:disabled {
+.drag-handle[aria-disabled='true'],
+.move-buttons [aria-disabled='true'] {
   cursor: default;
   opacity: 0.25;
 }
@@ -267,7 +268,8 @@
   flex: 1;
   min-width: 200px;
 }
-.record-actions {
+.record-actions,
+.record-tail {
   display: flex;
   gap: 3px;
 }
@@ -437,9 +439,6 @@
     height: 49px;
     flex-basis: 38px;
   }
-  .record-label p {
-    font-size: 12px;
-  }
   .library-row-content {
     gap: 7px;
   }
@@ -448,15 +447,13 @@
   }
   .record-actions {
     margin-left: 0;
-    gap: 1px;
+    gap: 4px;
+  }
+  .record-tail {
+    padding-right: 88px;
   }
   .play-state {
-    margin-left: 0;
-    padding-inline-start: 0;
-    min-width: auto;
-    text-align: left;
-    font-size: 12px;
-    flex: 1;
+    display: none;
   }
   .ranking-row-content {
     grid-template-columns: 88px minmax(0, 1fr) 44px;
@@ -479,7 +476,7 @@
   .ranking-note:not([open]) {
     padding-right: 96px;
   }
-  .personal-row:has(.ranking-row-content) .move-buttons {
+  .personal-row .move-buttons {
     position: absolute;
     bottom: 12px;
     right: 0;

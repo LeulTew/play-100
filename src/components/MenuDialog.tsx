@@ -174,7 +174,7 @@ export function MenuDialog({
             <h3 id="menu-games">My games</h3>
             <ul className="menu-links">
               {link('Library', 'games', {}, personalPage && gamesView === 'library')}
-              {link('Queue', 'games', { list: 'later' }, personalPage && gamesView === 'queue')}
+              {link('Play later', 'games', { list: 'later' }, personalPage && gamesView === 'queue')}
               {link('Ranking', 'rankings', {}, personalPage && gamesView === 'ranking')}
             </ul>
           </section>

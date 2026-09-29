@@ -73,13 +73,13 @@ test('a boundary move up and down changes the global slot and follows the game a
     .click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
   await expect(row(page, 26)).toHaveAttribute('aria-posinset', '25');
-  await expect(row(page, 26).locator('.record-title')).toBeFocused();
+  await expect(row(page, 26).locator('[data-move-direction="up"]')).toBeFocused();
   await row(page, 26)
     .getByRole('button', { name: /down in ranking$/ })
     .click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('2');
   await expect(row(page, 26)).toHaveAttribute('aria-posinset', '26');
-  await expect(row(page, 26).locator('.record-title')).toBeFocused();
+  await expect(row(page, 26).locator('[data-move-direction="down"]')).toBeFocused();
   const state = await readLibrary(page);
   expect(state.ranking[25]?.id).toBe(recordId(26));
   expect(state.ranking[25]?.manualPosition).toBe(26);

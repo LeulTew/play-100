@@ -11,6 +11,8 @@ import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
 import { focusPendingEditor } from '../../lib/dialog-focus';
 import { getLocalPage } from '../../lib/local-pagination';
 import { useRetainedRecords } from './useRetainedRecords';
+import { focusMovedRecord } from './reorder-focus';
+import type { MoveDirection } from './reorder-focus';
 
 export const RANKING_PAGE_SIZE = 25;
 
@@ -58,6 +60,8 @@ export function useRankingsPage({
     manualBefore: number | null;
     offset: number;
     revision: number;
+    direction?: MoveDirection;
+    origin: Element | null;
     isCurrent: () => boolean;
   } | null>(null);
   const followedMove = useRef<typeof followMove>(null);
@@ -173,6 +177,8 @@ export function useRankingsPage({
         return;
       const offset = Math.floor((moved.position - 1) / RANKING_PAGE_SIZE) * RANKING_PAGE_SIZE;
       if (offset === followMove.offset) {
+        if (followMove.direction)
+          focusMovedRecord(results.current, followMove.id, followMove.direction, followMove.origin);
         followedMove.current = followMove;
         return;
       }
@@ -180,11 +186,7 @@ export function useRankingsPage({
         updateView({ offset });
         return;
       }
-      const title = results.current?.querySelector<HTMLElement>(
-        `[data-record-id="${CSS.escape(followMove.id)}"] .record-title`,
-      );
-      if (!title) return;
-      focusPendingEditor(title);
+      if (!focusMovedRecord(results.current, followMove.id, followMove.direction, followMove.origin)) return;
       followedMove.current = followMove;
     } else if (focusAfterPage.current) {
       focusAfterPage.current = false;
@@ -234,8 +236,9 @@ export function useRankingsPage({
       return true;
     }, true);
   };
-  const move = (id: string, destination: string | number) =>
-    change(async (isCurrent) => {
+  const move = (id: string, destination: string | number, direction?: MoveDirection) => {
+    const origin = document.activeElement;
+    return change(async (isCurrent) => {
       const ranking = current.current.state.ranking;
       const from = ranking.findIndex((entry) => entry.id === id);
       const to =
@@ -263,10 +266,13 @@ export function useRankingsPage({
         manualBefore: ranking[from]?.manualPosition ?? null,
         offset: page.offset,
         revision,
+        direction,
+        origin,
         isCurrent,
       });
       return true;
     });
+  };
   const applyRatingOrder = (id?: string) => {
     void change(async (isCurrent) => {
       const saved = await onAction(id ? { type: 'use-rating-order', id } : { type: 'use-rating-order' });

@@ -150,7 +150,7 @@ test('Menu is usable during its 180ms entry and rapid Escape/reopen leaves no lo
   for (let cycle = 0; cycle < 3; cycle += 1) {
     await menuTrigger(page).click();
     await expectEntry(page, 'menu-title', 180);
-    await expect(menu(page).getByRole('link', { name: 'Queue', exact: true })).toBeVisible();
+    await expect(menu(page).getByRole('link', { name: 'Play later', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
     await page.keyboard.press('Escape');
     await expect(menu(page)).toHaveCount(0);
@@ -161,7 +161,7 @@ test('Menu is usable during its 180ms entry and rapid Escape/reopen leaves no lo
   expect(await readLibrary(page)).toEqual(before);
   await menuTrigger(page).click();
   await expectEntry(page, 'menu-title', 180);
-  await menu(page).getByRole('link', { name: 'Queue', exact: true }).click();
+  await menu(page).getByRole('link', { name: 'Play later', exact: true }).click();
   await expect(page).toHaveURL(/\/my-games\?catalogs=off&tab=queue$/);
   await expect(menu(page)).toHaveCount(0);
   await expectNoActiveEntry(page, 'menu-title');

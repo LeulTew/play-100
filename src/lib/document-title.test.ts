@@ -5,10 +5,10 @@ import { pageFromPath } from './url';
 
 describe('committed-state document titles', () => {
   it.each([
-    ['/my-library', '?list=later&catalogs=off', 'Queue'],
-    ['/my-library/', '?list=later', 'Queue'],
-    ['/my-games', '?tab=queue', 'Queue'],
-    ['/my-games', '?list=later', 'Queue'],
+    ['/my-library', '?list=later&catalogs=off', 'Play later'],
+    ['/my-library/', '?list=later', 'Play later'],
+    ['/my-games', '?tab=queue', 'Play later'],
+    ['/my-games', '?list=later', 'Play later'],
     ['/my-games', '?tab=library&list=later', 'Library'],
     ['/my-games', '?tab=ranking&list=later', 'Ranking'],
     ['/my-rankings', '?list=later', 'Ranking'],

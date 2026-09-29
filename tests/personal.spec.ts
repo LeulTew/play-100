@@ -104,7 +104,7 @@ test('bulk selection updates queue, completion and own ranking without changing 
   await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(3);
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
   await page.getByRole('button', { name: 'Select all 3 matching games', exact: true }).click();
-  await page.getByRole('button', { name: 'Remove from queue', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove from Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([]);
   expect(Object.values((await readLibrary(page)).progress).every((entry) => entry.completed)).toBe(true);
 });
@@ -113,9 +113,9 @@ test('play queue reorders by keyboard and accessible arrows, then survives reloa
   await seedLegacy(page);
   await page.goto('/my-library?list=later');
   await expect(page.locator('.personal-row')).toHaveCount(3);
-  await expect(page.getByRole('navigation', { name: 'Queue pages', exact: true })).toHaveCount(0);
-  await expect(page.locator('.library-results-count')).toHaveText('Showing 1–3 of 3 queued games');
-  const handle = page.getByRole('button', { name: 'Drag Red Dead Redemption 2 to reorder your queue', exact: true });
+  await expect(page.getByRole('navigation', { name: 'Play later pages', exact: true })).toHaveCount(0);
+  await expect(page.locator('.library-results-count')).toHaveText('Showing 1–3 of 3 Play later games');
+  const handle = page.getByRole('button', { name: 'Drag Red Dead Redemption 2 to reorder Play later', exact: true });
   await page.evaluate(() => document.fonts.ready);
   await handle.focus();
   await page.keyboard.press('Space', { delay: 70 });
@@ -125,14 +125,14 @@ test('play queue reorders by keyboard and accessible arrows, then survives reloa
   await expect(page.locator('[id^="DndLiveRegion-"]')).toContainText('Over position 2');
   await page.keyboard.press('Space');
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([second, first, third]);
-  await page.getByRole('button', { name: 'Move Red Dead Redemption 2 up in queue', exact: true }).click();
+  await page.getByRole('button', { name: 'Move Red Dead Redemption 2 up in Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([first, second, third]);
   await page.reload();
   await expect(page.locator('.personal-row').first()).toHaveAttribute('data-record-id', first);
-  await page.getByRole('searchbox', { name: 'Search your queue' }).fill('Mass');
+  await page.getByRole('searchbox', { name: 'Search Play later' }).fill('Mass');
   await expect(page.locator('.personal-row')).toHaveCount(1);
   await expect(
-    page.getByRole('button', { name: 'Drag Mass Effect 2 to reorder your queue', exact: true }),
+    page.getByRole('button', { name: 'Drag Mass Effect 2 to reorder Play later', exact: true }),
   ).toBeDisabled();
   expect(new URL(page.url()).searchParams.has('q')).toBe(false);
 });
@@ -141,7 +141,7 @@ test('play queue supports actual mouse and touch drag gestures', async ({ page, 
   await seedLegacy(page);
   await page.goto('/my-library?list=later');
   await expect(page.locator('.personal-row')).toHaveCount(3);
-  const handle = page.getByRole('button', { name: 'Drag Red Dead Redemption 2 to reorder your queue', exact: true });
+  const handle = page.getByRole('button', { name: 'Drag Red Dead Redemption 2 to reorder Play later', exact: true });
   await page.evaluate(() => document.fonts.ready);
   await handle.scrollIntoViewIfNeeded();
   const start = await handle.boundingBox();

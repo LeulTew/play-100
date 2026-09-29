@@ -19,7 +19,8 @@ import { usePendingEdits } from '../../hooks/useExitSave';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
 import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
 import { useLibraryMode } from '../../lib/library-mode';
-import { focusPendingEditor } from '../../lib/dialog-focus';
+import { focusMovedRecord } from './reorder-focus';
+import type { MoveDirection } from './reorder-focus';
 import { useRetainedRecords } from './useRetainedRecords';
 import { resolveLibraryPageCursor } from './library-page-cursor';
 
@@ -77,6 +78,8 @@ export function useLibraryPage({
     position: number;
     offset: number;
     revision: number;
+    direction?: MoveDirection;
+    origin: Element | null;
     isCurrent: () => boolean;
   } | null>(null);
   const followedMove = useRef<typeof followMove>(null);
@@ -208,6 +211,8 @@ export function useLibraryPage({
     if (state.revision <= followMove.revision || position !== followMove.position) return;
     const offset = Math.floor((position - 1) / LIBRARY_PAGE_SIZE) * LIBRARY_PAGE_SIZE;
     if (offset === followMove.offset) {
+      if (followMove.direction)
+        focusMovedRecord(queueResults.current, followMove.id, followMove.direction, followMove.origin);
       followedMove.current = followMove;
       return;
     }
@@ -217,11 +222,7 @@ export function useLibraryPage({
       setQueuePage(offset / LIBRARY_PAGE_SIZE + 1);
       return;
     }
-    const title = queueResults.current?.querySelector<HTMLElement>(
-      `[data-record-id="${CSS.escape(followMove.id)}"] .record-title`,
-    );
-    if (!title) return;
-    focusPendingEditor(title);
+    if (!focusMovedRecord(queueResults.current, followMove.id, followMove.direction, followMove.origin)) return;
     followedMove.current = followMove;
   }, [followMove, active, busy, moving, pendingEdits, tab, queuePositions, state.revision, page.offset]);
   useEffect(() => {
@@ -261,8 +262,9 @@ export function useLibraryPage({
     setRemoving(chosen);
   };
   const canReorder = tab === 'later' && !query && !selecting && progressView === 'all';
-  const move = async (id: string, overId: string) => {
+  const move = async (id: string, overId: string, direction?: MoveDirection) => {
     if (!active || busy || !canReorder || moveCommand.current) return;
+    const origin = document.activeElement;
     const request = generation.current;
     const scopeAndNavigation = captureFocusGuard();
     const isCurrent = () =>
@@ -278,20 +280,20 @@ export function useLibraryPage({
       const from = queueOrder.indexOf(id);
       const to = queueOrder.indexOf(overId);
       if (from < 0 || to < 0) {
-        setMoveError('That queue position is no longer available. Choose a current position and retry.');
+        setMoveError('That Play later position is no longer available. Choose a current position and retry.');
         return;
       }
       if (from === to) return;
       const moved = await onAction({ type: 'move-item', list: 'queue', id, overId });
       if (!isCurrent()) return;
       if (!moved) {
-        setMoveError('The position could not be saved. Your queue has not moved; retry.');
+        setMoveError('The position could not be saved. Play later has not changed; retry.');
         return;
       }
-      setFollowMove({ id, position: to + 1, offset: current.current.offset, revision, isCurrent });
+      setFollowMove({ id, position: to + 1, offset: current.current.offset, revision, direction, origin, isCurrent });
     } catch (cause) {
       console.error('The Queue change could not finish.', cause);
-      if (isCurrent()) setMoveError('The queue could not be changed. Your current view is still open; retry.');
+      if (isCurrent()) setMoveError('Play later could not be changed. Your current view is still open; retry.');
     } finally {
       moveCommand.current = false;
       if (mounted.current) setMoving(false);
