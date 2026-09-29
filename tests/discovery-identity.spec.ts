@@ -36,7 +36,7 @@ async function installLibrary(page: Page, state: PersonalLibraryState) {
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, version);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction(store, 'readwrite');
@@ -45,7 +45,7 @@ async function installLibrary(page: Page, state: PersonalLibraryState) {
             db.close();
             resolve();
           };
-          tx.onerror = () => reject(tx.error);
+          tx.onerror = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         };
       }),
     { name: DB_NAME, version: DB_VERSION, store: STORE_NAME, key: STATE_KEY, state },

@@ -75,7 +75,7 @@ function openForTest(version = DB_VERSION): Promise<IDBDatabase> {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
   });
 }
 
@@ -95,7 +95,7 @@ async function stored(write?: { value: unknown }): Promise<unknown> {
     };
     tx.onabort = () => {
       connection.close();
-      reject(tx.error);
+      reject(tx.error ?? new Error('IndexedDB operation failed'));
     };
   });
 }
@@ -284,7 +284,7 @@ describe('IndexedDB initialization and migration', () => {
         connection.close();
         resolve();
       };
-      tx.onabort = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
     });
     const loaded = await loadPersonalLibrary(canonical);
     expect(loaded.migrated).toBe(true);
@@ -719,7 +719,7 @@ describe('connection lifecycle and local notifications', () => {
       vi.useRealTimers();
       const deleted = new Promise<void>((resolve, reject) => {
         deletion.onsuccess = () => resolve();
-        deletion.onerror = () => reject(deletion.error);
+        deletion.onerror = () => reject(deletion.error ?? new Error('IndexedDB operation failed'));
       });
       closePersonalLibrary();
       blocker.close();

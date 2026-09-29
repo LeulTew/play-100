@@ -88,7 +88,7 @@ export async function readAccount(page: Page, uid: string): Promise<ScopedLibrar
     ({ key, name, version }) =>
       new Promise<ScopedLibrary>((resolve, reject) => {
         const open = indexedDB.open(name, version);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const transaction = db.transaction('library', 'readonly');
@@ -98,7 +98,7 @@ export async function readAccount(page: Page, uid: string): Promise<ScopedLibrar
             else reject(new Error('Account cache is missing.'));
           };
           transaction.oncomplete = () => db.close();
-          transaction.onabort = () => reject(transaction.error);
+          transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB operation failed'));
         };
       }),
     { key: `account:demo-play100:${uid}`, name: DB_NAME, version: DB_VERSION },

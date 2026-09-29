@@ -59,7 +59,7 @@ window.legacyWriterFixture = {
         const value = release6.parseScopedLibrary(request.result, scope);
         resolve(value.state.ranking[0]?.score ?? null);
       };
-      tx.onabort = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
     });
   },
   releaseBlocker() {
@@ -75,7 +75,7 @@ async function start() {
     blocker = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(legacyDatabase.DB_NAME, legacyDatabase.DB_VERSION);
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
     });
     blocker.onversionchange = () => {};
   }

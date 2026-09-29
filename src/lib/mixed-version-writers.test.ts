@@ -204,7 +204,7 @@ function rawConnection(version: number): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, version);
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
   });
 }
 
@@ -213,6 +213,6 @@ function rawRead(db: IDBDatabase, key: string): Promise<unknown> {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const request = tx.objectStore(STORE_NAME).get(key);
     tx.oncomplete = () => resolve(request.result);
-    tx.onabort = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
   });
 }

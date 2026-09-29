@@ -83,7 +83,7 @@ async function holdDeviceLibraries(page: Page) {
     ({ name, version }) =>
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, version);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const database = open.result;
           const transaction = database.transaction('library', 'readwrite');

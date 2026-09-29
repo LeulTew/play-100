@@ -142,7 +142,7 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open('play100-personal', 1);
         open.onupgradeneeded = () => open.result.createObjectStore('library');
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction('library', 'readwrite');
@@ -165,7 +165,7 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
             db.close();
             resolve();
           };
-          tx.onabort = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         };
       }),
     { records, a: a.id, b: b.id },

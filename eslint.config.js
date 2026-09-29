@@ -13,7 +13,6 @@ const pendingTypedRules = [
   'no-unsafe-assignment',
   'require-await',
   'no-unsafe-member-access',
-  'prefer-promise-reject-errors',
   'no-unsafe-return',
   'no-unsafe-argument',
   'no-unsafe-call',
@@ -43,7 +42,11 @@ export default tseslint.config(
   },
   {
     // Type-aware rules still being brought to zero (CODE-03); each is removed from this list once it is clean.
-    rules: Object.fromEntries(pendingTypedRules.map((rule) => [`@typescript-eslint/${rule}`, 'off'])),
+    rules: {
+      // Forwarding an abort reason or a caught value keeps its identity; literal non-Error rejections are still refused.
+      '@typescript-eslint/prefer-promise-reject-errors': ['error', { allowThrowingAny: true, allowThrowingUnknown: true }],
+      ...Object.fromEntries(pendingTypedRules.map((rule) => [`@typescript-eslint/${rule}`, 'off'])),
+    },
   },
   {
     // Tests pass methods to expect() and capture prototype methods to restore or call with .call(); neither loses this.

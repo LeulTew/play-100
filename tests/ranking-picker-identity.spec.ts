@@ -48,7 +48,7 @@ async function openPicker(page: Page, state = emptyPersonalLibrary()) {
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, version);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction(store, 'readwrite');
@@ -59,7 +59,7 @@ async function openPicker(page: Page, state = emptyPersonalLibrary()) {
           };
           tx.onabort = () => {
             db.close();
-            reject(tx.error);
+            reject(tx.error ?? new Error('IndexedDB operation failed'));
           };
         };
       }),
