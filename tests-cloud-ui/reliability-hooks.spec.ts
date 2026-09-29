@@ -565,11 +565,13 @@ async function mountSharing(page: Page) {
         },
         inspect: async () => {
           await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-          const value = await db.friendSelectionStorageTransaction(scope, (value) => value);
+          // The journal as the writer of this page's device copy reads it, like the hook's own reads.
+          const journal = library.accountJournal(library.scopedWriter(current));
+          const value = await db.friendSelectionStorageTransaction(journal, (value) => value);
           return {
             writes,
             cache: value ?? null,
-            removed: [...(await cache.pendingFriendRemovals(scope))],
+            removed: [...(await cache.pendingFriendRemovals(journal))],
             error: api.error,
           };
         },

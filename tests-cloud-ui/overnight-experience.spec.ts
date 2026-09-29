@@ -559,9 +559,10 @@ test('account export and reversible/full deletion include the independent shelf 
   await expect(page).toHaveURL('http://127.0.0.1:4187/');
   expect((await readLibrary(page)).records[kcd]?.title).toBe(title);
   const remaining = await page.evaluate(async (uid) => {
-    const modulePath = '/src/lib/personal-db.ts';
-    const source: typeof import('../src/lib/personal-db') = await import(modulePath);
-    return source.friendShelfSelectionStorageTransaction(`account:demo-play100:${uid}`, (value) => value !== undefined);
+    // The stored journal key itself: a journal transaction would now refuse the deleted account's retired copy.
+    const modulePath = '/src/lib/device-store-inspection.ts';
+    const inspection: typeof import('../src/lib/device-store-inspection') = await import(modulePath);
+    return (await inspection.readStoredValue(`friends-shelf-selection:v1:account:demo-play100:${uid}`)) !== undefined;
   }, owner.uid);
   expect(remaining).toBe(false);
 });

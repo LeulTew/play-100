@@ -71,7 +71,8 @@ async function mount(
       const cooldown: typeof import('../src/lib/friend-all-work') = await import(cooldownPath);
       const policy = await store.policy(uid);
       if (!policy) throw new Error('Expected active fixture policy.');
-      await cooldown.saveFriendAllCooldown(scope, {
+      // The retry state belongs to the device copy this page opened, as the hook's own writes do.
+      await cooldown.saveFriendAllCooldown(scoped.accountJournal(scoped.scopedWriter(initial)), {
         version: 2,
         epoch: policy.epoch,
         nextAttemptAt: Date.now() + 60_000,
