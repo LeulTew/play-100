@@ -293,12 +293,13 @@ export default function App() {
     overlayKey: manualLink ? 'share' : panel,
   });
   const motionBlocked = privateLoading || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
+  const catalogs = filters.catalogs;
   const pageHref = useCallback(
     (next: AppPage, patch: Partial<Filters> = {}) => {
-      const destination = pageDestination(next, filters, patch);
+      const destination = pageDestination(next, { catalogs }, patch);
       return `${destination.path}${destination.search}`;
     },
-    [filters],
+    [catalogs],
   );
   const renderDragHandle = useCallback(
     (record: LibraryRecord) => !onlineOpening && <CompareDragHandle record={record} compact />,

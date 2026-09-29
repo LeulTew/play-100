@@ -15,6 +15,7 @@ import { STORAGE_DENIED_MESSAGE, temporaryLibraryWarning } from '../../lib/stora
 
 const dialogs = (): DialogHostProps => ({
   page: 'collection',
+  scope: 'guest',
   game: null,
   catalog: null,
   loadingGame: false,

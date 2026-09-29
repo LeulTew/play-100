@@ -8,6 +8,17 @@ previews and account state. It composes `MotionProvider`, `AppMotionBindings`,
 [RouteHost](../src/components/app/RouteHost.tsx) selects page content and loads
 the online controller lazily. [DialogHost](../src/components/app/DialogHost.tsx)
 renders the selected detail or utility dialog without owning its saved data.
+Collection search publishes its current matches to a shell-local value store,
+not shell state. Only a mounted canonical detail subscribes, selecting the
+current query's records; typing and background matches do not repaint the
+header, footer or mobile navigation. The existing result order, aliases,
+private progress filters and pending-edit navigation guards remain unchanged.
+A dialog render failure unmounts only that dialog, clears its open request and
+restores a usable focus target. A keyed dialog boundary reports the existing
+`route` error category and leaves the shell, other dialogs and saved libraries
+available. The existing guarded reload control explains recovery outside the
+closed dialog; opening another dialog or changing scope does not inherit its
+failed render state. Module-load failures retain their specific recovery UI.
 A known catalog preview uses a native, cancellable loading dialog while its
 detail module loads, without mounting private editors. Close or Escape clears
 the selection; late module completion cannot reopen the dismissed detail.

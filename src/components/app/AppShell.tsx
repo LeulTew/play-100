@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { LibraryRecord } from '../../lib/personal-types';
@@ -6,9 +6,10 @@ import { catalogPinnedIds } from '../../lib/catalog-identity';
 import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR } from '../../lib/online-availability';
 import { prefetchAppTools } from '../../lib/app-tool-preload';
 import type { MotionBindings } from '../../AppMotionBindings';
-import { useStableHandler } from '../../hooks/useLatest';
+import { useStableHandler, useStableHandlers } from '../../hooks/useLatest';
 import { ExtendedSearchResultsContext } from '../../hooks/useExtendedSearch';
 import type { ExtendedSearchResults } from '../../hooks/useExtendedSearch';
+import { createValueStore } from '../../lib/value-store';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { SiteFooter } from '../SiteFooter';
 import { AppDialogs } from './AppDialogs';
@@ -20,6 +21,11 @@ import type { CompareTray } from './CompareTrayBindings';
 import { GlobalBanners } from './GlobalBanners';
 import { MobileNav } from './MobileNav';
 import { TrayHost } from './TrayHost';
+
+const Header = memo(AppHeader);
+const Footer = memo(SiteFooter);
+const Navigation = memo(MobileNav);
+const Banners = memo(GlobalBanners);
 
 export interface AppShellProps {
   app: AppModel;
@@ -33,7 +39,7 @@ export interface AppShellProps {
 
 /** The page App renders: header, banners, the route, footer, mobile navigation, dialogs and the toast. */
 export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, previewModuleError }: AppShellProps) {
-  const [searchResults, setSearchResults] = useState<ExtendedSearchResults | null>(null);
+  const [searchResults] = useState(() => createValueStore<ExtendedSearchResults | null>(null));
   const { page, panel, manualLink, selectedSlug, onlineOpening, commands, notices } = app;
   const pin = useStableHandler((record: LibraryRecord) => {
     if (!commands.pinAllowed()) {
@@ -82,18 +88,29 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
       onKeepEditing={() => commands.setPanel(null)}
     />
   );
-  const onNavigateLink = (event: Parameters<AppModel['commands']['navigateLink']>[0], next: AppModel['page']) => {
-    void commands.navigateLink(event, next);
-  };
-  const onAccount = () => {
-    void commands.accountEntry();
-  };
+  const chrome = useStableHandlers({
+    onNavigateLink: (event: Parameters<AppModel['commands']['navigateLink']>[0], next: AppModel['page']) => {
+      void commands.navigateLink(event, next);
+    },
+    onAccount: () => {
+      void commands.accountEntry();
+    },
+    onQueue: () => {
+      void commands.guardedNavigation(() => commands.navigate('library', { list: 'later' }));
+    },
+    onMenu: () => commands.setPanel('menu'),
+    onSettings: () => commands.setPanel('settings'),
+    onAbout: () => commands.setPanel('about'),
+    onBrowseLink: (event: Parameters<AppModel['commands']['navigateLink']>[0]) => {
+      void commands.navigateLink(event, 'collection', {}, commands.browse);
+    },
+  });
   return (
-    <ExtendedSearchResultsContext.Provider value={setSearchResults}>
+    <ExtendedSearchResultsContext.Provider value={searchResults}>
       <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>
         Skip to {page === 'collection' ? 'the collection' : 'page content'}
       </a>
-      <AppHeader
+      <Header
         page={page}
         onlineAvailable={ONLINE_AVAILABLE}
         libraryScope={app.libraryScope}
@@ -106,22 +123,20 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
         animate={animate}
         menuOpen={panel === 'menu'}
         pageHref={app.pageHref}
-        onNavigateLink={onNavigateLink}
-        onQueue={() => {
-          void commands.guardedNavigation(() => commands.navigate('library', { list: 'later' }));
-        }}
-        onMenu={() => commands.setPanel('menu')}
-        onAccount={onAccount}
+        onNavigateLink={chrome.onNavigateLink}
+        onQueue={chrome.onQueue}
+        onMenu={chrome.onMenu}
+        onAccount={chrome.onAccount}
         onIntent={prefetchAppTools}
       />
-      <GlobalBanners
+      <Banners
         warning={app.warning}
         onlineConfigError={ONLINE_CONFIG_ERROR}
         offline={app.pwaEnabled && !app.pwa.online}
         offlineReady={app.pwa.offlineState === 'ready'}
         hintError={app.hintError}
-        onSettings={() => commands.setPanel('settings')}
-        onAccount={onAccount}
+        onSettings={chrome.onSettings}
+        onAccount={chrome.onAccount}
         onDeviceOnly={commands.onDeviceOnly}
       />
       <main id="page-main" ref={mainRef}>
@@ -139,23 +154,17 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
           comparisonTray={inlineTray ? comparisonTray : undefined}
         />
       </main>
-      <SiteFooter
-        onAbout={() => commands.setPanel('about')}
-        onEffects={() => commands.setPanel('settings')}
-        effects={app.library.state.motion}
-      />
-      <MobileNav
+      <Footer onAbout={chrome.onAbout} onEffects={chrome.onSettings} effects={app.library.state.motion} />
+      <Navigation
         page={page}
         personalPage={app.personalPage}
         gamesView={app.gamesView}
         onlineAvailable={ONLINE_AVAILABLE}
         menuOpen={panel === 'menu'}
         pageHref={app.pageHref}
-        onNavigateLink={onNavigateLink}
-        onBrowseLink={(event) => {
-          void commands.navigateLink(event, 'collection', {}, commands.browse);
-        }}
-        onMenu={() => commands.setPanel('menu')}
+        onNavigateLink={chrome.onNavigateLink}
+        onBrowseLink={chrome.onBrowseLink}
+        onMenu={chrome.onMenu}
         onIntent={prefetchAppTools}
       />
       {!inlineTray && trayHasContent && (
@@ -163,7 +172,6 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
       )}
       <AppDialogs
         app={app}
-        searchResults={searchResults}
         origin={motion.origin}
         artwork={artwork}
         previewLoading={previewLoading}
