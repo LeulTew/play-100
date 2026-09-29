@@ -186,6 +186,175 @@ offline release manifests bind the results. No automatic carry-forward is used.
 service-worker campaign and owner/live-provider checks remain separately
 commissioned evidence, not something this single-candidate runner claims.
 
+### Two-version service-worker companion
+
+`npm run release:sw-probe -- --input <input.json>` runs the committed
+`scripts/release-sw-probe.ts` companion on Node 24.21.0. It requires the host's
+browser window/lock separately from the single-candidate gate. It does not build,
+install, deploy, run emulators, use a visitor profile or contact production APIs.
+Use the installed Playwright Chromium and a clean, committed source checkout;
+the receipt records the runner commit, tree and script hashes. Prefer a short
+evidence path on Windows for Chromium's persistent profile files.
+Both archived builds must already exist;
+the candidate must be the configured build bound to its passed gate receipt.
+
+Prepare a JSON input outside the checkout, with this shape (all digests and
+commits below are placeholders, not usable release evidence):
+
+```json
+{
+  "version": 1,
+  "port": 4290,
+  "evidence": "fresh-sw-evidence",
+  "baseline": {
+    "commit": "<full baseline commit>",
+    "receipt": "baseline-build-receipt.json",
+    "receiptSha256": "<64 hex characters>",
+    "vercel": "baseline-vercel.json",
+    "vercelSha256": "<64 hex characters>"
+  },
+  "candidate": {
+    "commit": "<full candidate commit>",
+    "receipt": "candidate-build-receipt.json",
+    "receiptSha256": "<64 hex characters>",
+    "vercel": "candidate-vercel.json",
+    "vercelSha256": "<64 hex characters>"
+  }
+}
+```
+
+Input paths are relative to the input file. Each build receipt uses the retained
+archive contract: `Passed: true`, `Source` equal to the full commit, and
+`Build.Archive.{Root,Path,SHA256}`. `Path` names a manifest with
+`Files: [{File,SHA256}]`; `Root` names the archived dist. Relative archive paths
+resolve beside the receipt. The candidate also requires
+`Status: "CONFIGURED_BUILD_PASSED"`, `Build.{IndexHtml,SwJs,PwaVersion}`,
+`Fingerprints.Archive`, and `Gate.ConfiguredIdentity.fingerprint`.
+The latter two must equal the complete archive fingerprint made by the gate.
+As in the gate, fingerprint path separators are host-native: retain the same
+host platform rather than reinterpreting an archived fingerprint.
+The exact `vercel.json` bytes must belong to the supplied commit in local Git
+history; the companion does not fetch. Baseline and candidate worker versions
+and module-entry paths must differ. Missing, extra, changed or linked build
+files fail admission. Inputs and full archives are checked again after execution.
+
+The runner binds only `127.0.0.1` and refuses an occupied port. It exclusively
+creates the evidence directory and two persistent profiles, never reusing a
+partial run. It serves A, enables offline access through the real app UI, checks
+the documented initially uncontrolled page, reopens under A, and stops the
+server before cold-offline `/` and `/my-games`. It then serves B on the same
+port, observes A controlling the old document with B waiting, uses the app's
+check/review/save-update controls, requires exactly one reload and B's controller
+and document identity, and verifies old-image eviction with the two-core cache
+contract. A separate fresh profile must have no preparation requests,
+registration or caches before intent, including after relaunch. Finally it stops
+B before cold-offline checks of both routes. Every phase retains CSP,
+navigation, worker, cache and error observations; online and offline documents
+must use their bound policy.
+
+`sw-probe.json` contains input/build identities, browser identity, all required
+check results, failure details and server request records; update screenshots
+and both profiles remain alongside it. Missing checks or any captured
+page/server/CSP error produce `HOLD` and a nonzero exit. There are no automatic
+retries or deployments. Preserve an incomplete run; investigate and authorize
+a new evidence directory rather than replacing it. Admission failures before
+directory creation are reported on stderr and must be retained in the operator's
+command log. Attach the receipt and its SHA-256 to the candidate release packet;
+`gate-complete.json` alone does not certify this campaign.
+
+**Porting boundary:** the companion preserves the R22 SW campaign's phase order
+and assertions, consolidating its 39 checks into 27 required checks. It derives
+from the reviewed `r22-swl-probe.mjs` SHA-256
+`8dfbc25f7475d3271078ed89326cd6923e6837a8b55a6a9f7080bc0cf3657eae`
+and `r22-swl-tools.mjs`
+`3e2d5312152302e8a6f0e9f2e0a8a16468800fe71beddd409eb183ecab602aaf`.
+These are the port's source snapshots; reconcile them with the final R22 report
+if its active campaign changes the source artifacts.
+Release-specific paths and historical authority chains are replaced by explicit
+pinned inputs. Unlike the historical external server, the committed local server
+never proxies public API requests: those return an explicit 503; browser DNS is
+restricted to loopback. It does not emulate Vercel Functions, compression, ranges
+or conditional responses and is not a film-download transport probe.
+It requires retaining the previous ready core (rather than allowing its absence),
+and page errors now hold instead of producing `PASSED_WITH_FINDINGS`.
+These are deliberate stronger acceptance checks, not historical receipt edits.
+The cold-offline phases prove the browser uses the installed worker, not a
+mocked response. They do not certify multi-window edits or a deployed rollback.
+Unit coverage exercises input/digest/source binding, archive integrity, local
+serving and fail-closed check accounting; the browser campaign must be run in an
+approved host window before claiming a two-version pass for this port.
+
+### Local database-v3 recovery drill
+
+Run `npm run release:rollback-drill` in both the candidate and the approved
+R22-compatible recovery source checkout, retaining each native Vitest JSON report
+with its full source commit and the release packet:
+
+```powershell
+npm run release:rollback-drill -- --reporter=json --outputFile="$evidence\recovery-drill.json"
+if ($LASTEXITCODE -ne 0) { throw 'Database recovery drill failed' }
+```
+
+The isolated fake-indexeddb drill executes the actual product storage APIs. It
+seeds guest, account and recovery-copy records in v2, opens them with the v3
+client, proves the old connection closes and a version-2 reopen fails, and checks
+that all saved rows remain unchanged. Compatible v3 reopening must read both
+libraries and recovery data and commit a new edit. A second case proves account
+retirement survives reopening, an old writer cannot save or delete a newly opened
+generation, and explicit account reopening uses the new generation.
+It never opens, deletes or renames real visitor storage. The old-client open is
+modeled by its version-2 IndexedDB request, not a claim to execute Release 6's
+bundle. This is a local storage/fix-forward rehearsal, **not** a Vercel rollback
+or real-browser disk-persistence receipt. The eligibility/approval and live
+readback requirements in §9 still apply.
+
+### APB2 v3.2 campaign protocol
+
+APB2 remains a separately frozen performance campaign, not a result implied by
+`release:gate` or the SW probe. The committed runner port is **pending**; do not
+substitute a smaller benchmark or claim a campaign pass from unit checks.
+Until the full fixture/collector graph is ported, retain the reviewed v3.2 frozen
+artifact set and its native suite, freeze, preview, source-binding and capture
+receipts together. Do not use files still changing during the active gate.
+
+The v3.2 amendment changes only fixture IndexedDB opens to the source-bound
+`DB_VERSION` (3 for R22), read lazily through validated
+`APB2_FIXTURE_DB_VERSION`. Both `seedGuest`/`guestState` and the hint-contract
+seed/read paths use this value; the driver and startup call sites stay unchanged.
+A version-2 fixture reopen against a v3 app is a fixture failure, not a measured
+performance regression. Do not downgrade the product or wipe/reseed after the
+measurement starts to make it pass.
+
+Freeze the full fixture inventory after a clean dry run and before preview or
+official validation. Retain hashes of protocol, collectors, source-export facts,
+amendment and runner; pure-suite read traces must not leak imports from older
+v3/v3.1 or unfrozen originals. The protocol JSON remains
+`5c6a9739a0b7c464af44f2ca4850fe149c2577bd30a860aa0ee84dfd0c9045df`;
+budgets, schedules, aggregation and the collector's 1 ms block-then-cancel window
+are not changed by the database amendment.
+
+Preserve eight repetitions and nearest-rank p75 (sixth of eight), native input,
+the 1200 ms action / 160 ms drain / 500 ms quiet windows and zero retries or
+replacement runs. Any failed run fails its cap. Profiles remain fine
+1440×900/CPU1 and coarse 393×851/CPU4, with the inherited APB1 budgets.
+Each block orders static control, first visit, dense-500 library, collection
+title, discovery title, menu, queue, ready account, ordinary Pin, and the
+informational returning-without-hint case when enabled. A stage has a 19-minute
+cap and reserves 120 seconds before starting another run; a predeclared split
+retains all eight repetitions. Do not extend a stage retrospectively.
+
+Event Timing remains `FINITE`, `BELOW_THRESHOLD` or `UNKNOWN`.
+`BELOW_THRESHOLD` requires the live 16 ms observer, exactly one completed native
+interaction, trusted trigger identity, matching document and complete observation
+window; it is not a fabricated zero. Preserve intervals through aggregation.
+First-visit FCP/LCP and static controls are informational, with the frozen
+500 ms quiet / 10 s hard-cap paint stop rule. FP–DCL gaps over 500 ms are labeled,
+never removed or replaced. The startup gate still measures the first unhinted
+app document; warm second-navigation deltas cannot replace it. Hint-on/off
+populations retain P0–P3 read-only observations and require complete matching
+eight-run cohorts before reporting a delta. These rules and the local v3 fixture
+amendment must survive any future committed port.
+
 Every command log starts with the full candidate commit and tree; emulator
 debug logs receive the same header when that partition stops, even on failure.
 Native JSON reports remain unmodified. `history-secret-scan-tool.json` retains
