@@ -86,7 +86,7 @@ export function gatePlan(): GateStep[] {
   }
   steps.push(
     { name: 'cloud-ui', profile: 'emulator', tool: 'emulators', args: [], report: 'playwright' },
-    { name: 'sync-20', profile: 'emulator', tool: 'emulators', args: [], report: 'playwright', expectedPassed: 40 },
+    { name: 'sync-20', profile: 'emulator', tool: 'emulators', args: [], report: 'playwright', expectedPassed: 80 },
     {
       name: 'offline-navigation',
       profile: 'offline',

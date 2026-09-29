@@ -177,7 +177,7 @@ Gitleaks over the exact candidate SHA and its full ancestry, followed by
 static checks, unit/browser tests, cloud rules and the handle
 race x5 / convergence x20, both independent builds with CSP/budget checks,
 production/development e2e, cloud-UI with freshly allocated comparison actors,
-the cross-tab identity case x20 on both projects, and offline navigation plus
+both cross-tab identity cases x20 on both projects (80 cases), and offline navigation plus
 offline unit/browser tests. Every emulator partition owns a fresh config/log
 directory. Native reports, exact-count loop checks, log hashes, exit receipts,
 tested rules and both build fingerprints are retained; separate configured and

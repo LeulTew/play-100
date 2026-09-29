@@ -221,7 +221,7 @@ describe('candidate release gate planning', () => {
         },
       ],
     };
-    expect(() => checkGateReport(step, report)).toThrow('expected 40');
+    expect(() => checkGateReport(step, report)).toThrow('expected 80');
     expect(checkGateReport({ ...step, expectedPassed: 1 }, report).passed).toBe(1);
     report.suites[0]!.specs[0]!.tests[0]!.status = 'flaky';
     report.stats.expected = 0;
