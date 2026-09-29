@@ -21,6 +21,8 @@ import {
   pauseScopedLibrary,
   rebaseScopedLibrary,
   restoreScopedLibrary,
+  openScopedLibrary,
+  scopedWriter,
 } from './scoped-library';
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord, PersonalAction } from './personal-types';
@@ -194,9 +196,10 @@ describe('explicit account scopes in the existing local database', () => {
     await deleteScopedLibrary(alice);
     expect((await loadPersonalLibrary([game])).state).toEqual(guest);
     expect(await loadScopedLibrary(bob)).toEqual(other);
-    const empty = await loadScopedLibrary(alice);
-    await deleteScopedLibrary(alice, empty.state.revision);
-    expect((await loadScopedLibrary(alice)).state.ranking).toEqual([]);
+    await expect(loadScopedLibrary(alice)).rejects.toMatchObject({ name: 'PersonalLibraryWriterRetiredError' });
+    const empty = await openScopedLibrary(alice);
+    await deleteScopedLibrary(scopedWriter(empty), empty.state.revision);
+    expect((await openScopedLibrary(alice)).state.ranking).toEqual([]);
   });
   it("removes the account's saved Compare tray pins with its device copy, and keeps them when removal is refused", async () => {
     // The tray's own key function names the keys, so deleteScopedLibrary's spelled-out key must match it.

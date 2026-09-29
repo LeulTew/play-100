@@ -178,9 +178,10 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 async function transaction<T>(
-  work: (current: unknown, store: IDBObjectStore) => T,
+  work: (current: unknown, store: IDBObjectStore, companion?: unknown) => T,
   key = STATE_KEY,
   mode: IDBTransactionMode = 'readwrite',
+  companionKey?: string,
 ): Promise<T> {
   const connection = await openDatabase();
   return new Promise<T>((resolve, reject) => {
@@ -215,7 +216,19 @@ async function transaction<T>(
       request.onsuccess = () => {
         try {
           const current: unknown = request.result;
-          outcome = { value: work(current, store) };
+          if (companionKey) {
+            const companion = store.get(companionKey);
+            companion.onerror = () => {
+              failure = companion.error;
+            };
+            companion.onsuccess = () => {
+              try {
+                outcome = { value: work(current, store, companion.result) };
+              } catch (cause) {
+                abort(cause);
+              }
+            };
+          } else outcome = { value: work(current, store) };
         } catch (cause) {
           abort(cause);
         }
@@ -365,14 +378,18 @@ export function subscribePersonalLibrary(listener: () => void, scope = 'guest'):
 
 export function accountStorageTransaction<T>(
   scope: string,
-  work: (current: unknown, store: IDBObjectStore) => T,
+  work: (current: unknown, store: IDBObjectStore, writer: unknown) => T,
 ): Promise<T> {
   if (!/^account:(?:play100-online-48823b32|demo-play100):[A-Za-z0-9_-]{1,128}$/.test(scope)) {
     return Promise.reject(
       namedError('PersonalLibraryValidationError', 'The requested account storage scope is invalid.'),
     );
   }
-  return transaction(work, scope);
+  return transaction(work, scope, 'readwrite', accountWriterKey(scope));
+}
+
+export function accountWriterKey(scope: string): string {
+  return `account-writer:v1:${scope}`;
 }
 
 export function friendSelectionStorageTransaction<T>(

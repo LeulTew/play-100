@@ -1,4 +1,4 @@
-import { accountStorageTransaction, publishLibraryChange } from './personal-db';
+import { accountStorageTransaction, accountWriterKey, publishLibraryChange } from './personal-db';
 import { applyPersonalAction, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { PersonalAction, PersonalLibraryState } from './personal-types';
 import type { LibraryScope, ScopedLibrary, SyncHead, SyncMetadata } from './cloud-types';
@@ -17,11 +17,66 @@ function conflict(message: string): Error {
   return error;
 }
 
-function initial(scope: LibraryScope, motion: MotionPreference = 'auto'): ScopedLibrary {
+export interface AccountWriter {
+  readonly scope: LibraryScope;
+  readonly generation: number;
+}
+
+type AccountTarget = LibraryScope | AccountWriter;
+interface WriterStatus {
+  version: 1;
+  generation: number;
+  retired: boolean;
+}
+
+function retiredWriter(): Error {
+  const error = new Error(
+    "This account's device copy was removed in another tab. This older edit was not saved. Sign in again to open a new copy.",
+  );
+  error.name = 'PersonalLibraryWriterRetiredError';
+  return error;
+}
+
+function writerStatus(value: unknown): WriterStatus {
+  if (value === undefined) return { version: 1, generation: 0, retired: false };
+  if (
+    !value || typeof value !== 'object' || Array.isArray(value) ||
+    Object.keys(value).sort().join(',') !== 'generation,retired,version' ||
+    !('version' in value) || value.version !== 1 ||
+    !('generation' in value) || typeof value.generation !== 'number' ||
+    !Number.isSafeInteger(value.generation) || value.generation < 0 ||
+    !('retired' in value) || typeof value.retired !== 'boolean'
+  ) throw conflict('The account writer marker is invalid. Its saved data has not been changed.');
+  return { version: 1, generation: value.generation, retired: value.retired };
+}
+
+export function scopedWriter(snapshot: ScopedLibrary): AccountWriter {
+  return { scope: snapshot.scope, generation: snapshot.writerGeneration ?? 0 };
+}
+
+// Scope-only callers belong to the original generation; they cannot adopt a reopened cache.
+function targetWriter(target: AccountTarget): AccountWriter {
+  const writer = typeof target === 'string' ? { scope: target, generation: 0 } : target;
+  scopeUid(writer.scope);
+  if (!Number.isSafeInteger(writer.generation) || writer.generation < 0) throw retiredWriter();
+  return { scope: writer.scope, generation: writer.generation };
+}
+
+function requireWriter(writer: AccountWriter, value: unknown, row: unknown): WriterStatus {
+  const status = writerStatus(value);
+  if (status.retired || status.generation !== writer.generation) throw retiredWriter();
+  if (row && typeof row === 'object' &&
+      ('writerGeneration' in row ? row.writerGeneration : 0) !== writer.generation) throw retiredWriter();
+  if (row === undefined && writer.generation !== 0) throw retiredWriter();
+  return status;
+}
+
+function initial(scope: LibraryScope, motion: MotionPreference = 'auto', writerGeneration = 0): ScopedLibrary {
   scopeUid(scope);
   return {
     version: 1,
     scope,
+    writerGeneration,
     state: { ...emptyPersonalLibrary(), motion },
     sync: {
       enabled: false,
@@ -90,7 +145,10 @@ function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelop
   if (
     row.version !== 1 ||
     row.scope !== scope ||
-    !['recovery,scope,state,sync,version', 'profile,recovery,scope,state,sync,version'].includes(
+    ![
+      'recovery,scope,state,sync,version', 'profile,recovery,scope,state,sync,version',
+      'recovery,scope,state,sync,version,writerGeneration', 'profile,recovery,scope,state,sync,version,writerGeneration',
+    ].includes(
       Object.keys(row).sort().join(','),
     ) ||
     !row.sync ||
@@ -98,6 +156,9 @@ function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelop
     Array.isArray(row.sync)
   )
     throw new Error('This cache belongs to a different account or storage version. Nothing was changed.');
+  const writerGeneration = row.writerGeneration === undefined ? 0 : row.writerGeneration;
+  if (typeof writerGeneration !== 'number' || !Number.isSafeInteger(writerGeneration) || writerGeneration < 0)
+    throw conflict('The account writer generation is invalid. Its saved data has not been changed.');
   const sync = parseSyncMetadata(row.sync);
   let recovery: ScopedLibrary['recovery'] = null;
   let profile: ScopedLibrary['profile'] = null;
@@ -133,6 +194,7 @@ function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelop
   return {
     version: 1,
     scope,
+    writerGeneration,
     state: row.state,
     recovery,
     profile,
@@ -146,17 +208,22 @@ export function parseScopedLibrary(value: unknown, scope: LibraryScope): ScopedL
 }
 
 async function writeScopedUpdate(
-  scope: LibraryScope,
+  target: AccountTarget,
   prepare: (value: unknown) => { previous: RemovalState; next: ScopedLibrary },
 ): Promise<ScopedLibrary> {
-  const saved = await accountStorageTransaction(scope, (value, store) => {
+  const writer = targetWriter(target);
+  const scope = writer.scope;
+  const saved = await accountStorageTransaction(scope, (value, store, marker) => {
+    const status = requireWriter(writer, marker, value);
     const { previous, next } = prepare(value);
+    if ((next.writerGeneration ?? 0) !== writer.generation) throw retiredWriter();
     const ranked = new Set(next.state.ranking.map((entry) => entry.id));
     const removed = previous.ranking.filter((entry) => !ranked.has(entry.id)).map((entry) => entry.id);
     recordFriendRemovals(store, scope, removed, previous.revision, next.state.revision);
     const removedRecords = Object.keys(previous.records).filter((id) => !Object.hasOwn(next.state.records, id));
     recordFriendShelfRemovals(store, scope, removedRecords, previous.revision, next.state.revision);
     store.put(next, scope);
+    if (marker === undefined) store.put(status, accountWriterKey(scope));
     return next;
   });
   rememberMotionHint(scope, saved.state.motion);
@@ -164,29 +231,59 @@ async function writeScopedUpdate(
   return saved;
 }
 
-function update(scope: LibraryScope, change: (current: ScopedLibrary) => ScopedLibrary): Promise<ScopedLibrary> {
-  return writeScopedUpdate(scope, (value) => {
+function update(target: AccountTarget, change: (current: ScopedLibrary) => ScopedLibrary): Promise<ScopedLibrary> {
+  const { scope } = targetWriter(target);
+  return writeScopedUpdate(target, (value) => {
     const current = value === undefined ? initial(scope) : parseScopedLibrary(value, scope);
     return { previous: current.state, next: parseScopedLibrary(change(current), scope) };
   });
 }
 
 export async function loadScopedLibrary(
-  scope: LibraryScope,
+  target: AccountTarget,
   deviceMotion: MotionPreference = 'auto',
 ): Promise<ScopedLibrary> {
-  const loaded = await accountStorageTransaction(scope, (value, store) => {
+  const writer = targetWriter(target);
+  const scope = writer.scope;
+  const loaded = await accountStorageTransaction(scope, (value, store, marker) => {
+    const reading = typeof target === 'string' ? { scope, generation: writerStatus(marker).generation } : writer;
+    const status = requireWriter(reading, marker, value);
     if (value !== undefined) return parseScopedLibrary(value, scope);
     const empty = initial(scope, deviceMotion);
     store.put(empty, scope);
+    store.put(status, accountWriterKey(scope));
     return empty;
   });
   rememberMotionHint(scope, loaded.state.motion);
   return loaded;
 }
 
-export function commitScopedAction(scope: LibraryScope, action: PersonalAction): Promise<ScopedLibrary> {
-  return writeScopedUpdate(scope, (value) => {
+/** Only an explicit account-opening lifetime may reactivate a retired device copy. */
+export async function openScopedLibrary(
+  scope: LibraryScope,
+  deviceMotion: MotionPreference = 'auto',
+  isCurrent: () => boolean = () => true,
+): Promise<ScopedLibrary> {
+  scopeUid(scope);
+  const opened = await accountStorageTransaction(scope, (value, store, marker) => {
+    if (!isCurrent()) throw retiredWriter();
+    const status = writerStatus(marker);
+    if (!status.retired && value !== undefined) {
+      requireWriter({ scope, generation: status.generation }, marker, value);
+      return parseScopedLibrary(value, scope);
+    }
+    const next = initial(scope, deviceMotion, status.generation);
+    store.put({ ...status, retired: false }, accountWriterKey(scope));
+    store.put(next, scope);
+    return next;
+  });
+  rememberMotionHint(scope, opened.state.motion);
+  return opened;
+}
+
+export function commitScopedAction(target: AccountTarget, action: PersonalAction): Promise<ScopedLibrary> {
+  const { scope } = targetWriter(target);
+  return writeScopedUpdate(target, (value) => {
     const current = value === undefined ? initial(scope) : parseScopedEnvelope(value, scope);
     const state = applyPersonalAction(current.state, action);
     const sync = parseSyncMetadata({
@@ -202,12 +299,12 @@ export function commitScopedAction(scope: LibraryScope, action: PersonalAction):
 }
 
 export function restoreScopedLibrary(
-  scope: LibraryScope,
+  target: AccountTarget,
   state: PersonalLibraryState,
   reason = 'Before replacing this account library',
 ): Promise<ScopedLibrary> {
   const validated = parsePersonalLibrary(state);
-  return update(scope, (current) => ({
+  return update(target, (current) => ({
     ...current,
     state: { ...validated, revision: current.state.revision + 1 },
     sync: { ...current.sync, dirty: true, dataRevision: current.sync.dataRevision + 1 },
@@ -216,7 +313,7 @@ export function restoreScopedLibrary(
 }
 
 export function connectScopedLibrary(
-  scope: LibraryScope,
+  target: AccountTarget,
   state: PersonalLibraryState,
   head: SyncHead,
   displayName: string,
@@ -224,7 +321,7 @@ export function connectScopedLibrary(
   expected: { localRevision: number; epoch: number; enabled: boolean },
 ): Promise<ScopedLibrary> {
   const validated = parsePersonalLibrary(state);
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (
       current.state.revision !== expected.localRevision ||
       current.sync.epoch !== expected.epoch ||
@@ -267,12 +364,13 @@ export function isInitialAccountCache(current: ScopedLibrary | null): boolean {
 }
 
 export function restoreConsentedAccount(
-  scope: LibraryScope,
+  target: AccountTarget,
   state: PersonalLibraryState,
   head: SyncHead,
   member: Member,
   isCurrent: () => boolean,
 ): Promise<ScopedLibrary> {
+  const { scope } = targetWriter(target);
   const validated = parsePersonalLibrary(state);
   if (member.uid !== scopeUid(scope) || member.consentVersion !== 1 || !head.enabled || head.deleted || !head.current) {
     return Promise.reject(
@@ -280,7 +378,7 @@ export function restoreConsentedAccount(
     );
   }
   const generation = head.current.generation;
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (!isCurrent() || !isInitialAccountCache(current)) {
       throw conflict(
         'This account copy changed or was previously connected. Its data and connection choice are retained.',
@@ -305,12 +403,12 @@ export function restoreConsentedAccount(
 }
 
 export function acknowledgeScopedUpload(
-  scope: LibraryScope,
+  target: AccountTarget,
   uploadedDataRevision: number,
   head: SyncHead,
   isCurrent: () => boolean = () => true,
 ): Promise<ScopedLibrary> {
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (!isCurrent())
       throw conflict('The account session changed before acknowledging the upload. Its pending copy is retained.');
     if (!current.sync.enabled || current.sync.epoch !== head.epoch || head.revision < current.sync.baseRemoteRevision)
@@ -329,7 +427,7 @@ export function acknowledgeScopedUpload(
 }
 
 export function adoptScopedRemote(
-  scope: LibraryScope,
+  target: AccountTarget,
   state: PersonalLibraryState,
   head: SyncHead,
   expectedLocalRevision: number,
@@ -337,7 +435,7 @@ export function adoptScopedRemote(
   canAdopt: () => boolean = () => true,
 ): Promise<ScopedLibrary> {
   const validated = parsePersonalLibrary(state);
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (
       !canAdopt() ||
       !current.sync.enabled ||
@@ -374,11 +472,11 @@ export function adoptScopedRemote(
 }
 
 export function pauseScopedLibrary(
-  scope: LibraryScope,
+  target: AccountTarget,
   expectedEpoch?: number,
   isCurrent: () => boolean = () => true,
 ): Promise<ScopedLibrary> {
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (!isCurrent() || (expectedEpoch !== undefined && current.sync.epoch !== expectedEpoch))
       throw conflict('The online session changed before it could be paused. Its current state is retained.');
     return { ...current, sync: { ...current.sync, enabled: false } };
@@ -386,12 +484,12 @@ export function pauseScopedLibrary(
 }
 
 export function rebaseScopedLibrary(
-  scope: LibraryScope,
+  target: AccountTarget,
   head: SyncHead,
   expectedLocalRevision: number,
   isCurrent: () => boolean = () => true,
 ): Promise<ScopedLibrary> {
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (
       !isCurrent() ||
       !current.sync.enabled ||
@@ -432,9 +530,13 @@ function removeLocalCopy(scope: LibraryScope): DeviceCopyRemoval {
   return complete ? { complete: true } : { complete: false, retry: () => removeLocalCopy(scope) };
 }
 
-export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?: number): Promise<DeviceCopyRemoval> {
-  scopeUid(scope);
-  await accountStorageTransaction(scope, (value, store) => {
+export async function deleteScopedLibrary(target: AccountTarget, expectedRevision?: number): Promise<DeviceCopyRemoval> {
+  const writer = targetWriter(target);
+  const scope = writer.scope;
+  await accountStorageTransaction(scope, (value, store, marker) => {
+    const status = writerStatus(marker);
+    if (status.retired && value === undefined) return;
+    requireWriter(writer, marker, value);
     if (expectedRevision !== undefined && value !== undefined) {
       const current = parseScopedLibrary(value, scope);
       if (current.sync.dirty || current.state.revision !== expectedRevision) {
@@ -443,6 +545,9 @@ export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?
         );
       }
     }
+    if (status.generation >= Number.MAX_SAFE_INTEGER)
+      throw conflict('The device-copy generation limit was reached. No data was removed.');
+    store.put({ version: 1, generation: status.generation + 1, retired: true }, accountWriterKey(scope));
     store.delete(scope);
     store.delete(`friends-selection:v1:${scope}`);
     store.delete(friendShelfSelectionKey(scope));
@@ -454,13 +559,14 @@ export async function deleteScopedLibrary(scope: LibraryScope, expectedRevision?
 }
 
 export function cacheScopedProfile(
-  scope: LibraryScope,
+  target: AccountTarget,
   member: Member,
   isCurrent: () => boolean = () => true,
 ): Promise<ScopedLibrary> {
+  const { scope } = targetWriter(target);
   if (scopeUid(scope) !== member.uid)
     return Promise.reject(conflict('A profile from another account cannot be cached here.'));
-  return update(scope, (current) => {
+  return update(target, (current) => {
     if (!isCurrent()) throw conflict('The account changed before its profile could be cached.');
     return { ...current, profile: { displayName: member.displayName, avatar: parseAvatarDescriptor(member.avatar) } };
   });

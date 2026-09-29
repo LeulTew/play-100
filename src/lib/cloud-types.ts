@@ -72,6 +72,8 @@ export interface SyncMetadata {
 export interface ScopedLibrary {
   version: 1;
   scope: LibraryScope;
+  /** Absent only in pre-retirement caches; those writers belong to generation zero. */
+  writerGeneration?: number;
   state: PersonalLibraryState;
   sync: SyncMetadata;
   recovery: { state: PersonalLibraryState; savedAt: number; reason: string } | null;
