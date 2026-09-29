@@ -47,6 +47,27 @@ permits one separately retained diagnostic rerun for this known pre-existing
 test; it does not erase the failed attempt or make a stopped committed gate a
 clean pass. All other failures still require investigation, not automatic retries.
 
+Further retained diagnostics on the R20 app:
+
+- `films-closeall-netlog/run2.txt` stopped after two captured failures.
+  Both downloads had one ordinary GET, no `Range`/`If-Range` retry, and
+  `ERR_INVALID_HTTP_RESPONSE` (-370). In `net-12.json` and `net-16.json`,
+  the socket previously served a VTT 304 with `Connection: keep-alive`;
+  the next MP4 request received body bytes from offsets 177792 and 195312
+  instead of headers. Vite's `preview.headers` callback is bypassed by
+  sirv's early 304 response, so that "close-all" experiment did not isolate
+  every connection. `two-failure-transactions.json` retains the extracted
+  request/response sequence. No download-progress events were emitted to
+  the passive CDP listener, and those netlogs contain no `DOWNLOAD_*` events.
+- A separate `maxRequestsPerSocket = 1` preview-hook experiment passed its
+  wire check: 200, conditional 304 and 206 all carried `Connection: close`,
+  with three requests on three distinct sockets (`films-socketguard-wire.json`).
+  Nevertheless the unchanged film test failed 5/40
+  (`films-r20-socketguard-x20-a.txt`, Node 24.21.0, two workers).
+  The conditional second 40-case run was not started. The guard and its
+  throwaway wire regression were removed; this is not a verified fix.
+  Cause remains unresolved.
+
 Run the exact convergence test 20 times against the candidate rules using
 [Release operations: convergence loop](release-operations.md#friend-default-convergence-loop).
 This register adds no executed result. A failure must retain the emulator
