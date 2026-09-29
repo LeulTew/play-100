@@ -3,7 +3,7 @@ import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { assertDeferredBundleModules, eagerHtmlFiles } from './check-budgets.ts';
 import { assertPublicBuildOutput, assertPublicPrecachePaths, retainBuildManifest } from './build-metadata.ts';
-import ts from 'typescript';
+import { build } from 'vite';
 import type { Manifest, Plugin, ResolvedConfig } from 'vite';
 import { PWA_ICONS, writePwaIcons } from './pwa-icons.ts';
 import {
@@ -141,44 +141,43 @@ async function describeAsset(output: string, url: string): Promise<PwaAsset> {
   return { url, bytes: bytes.byteLength, sha256: digest(bytes), type: assetType(url) };
 }
 
-// sw.js has to be one self-contained file, so the worker may import only these dependency-free modules, which
-// are transpiled and inlined in place of their import statement.
-export const PWA_WORKER_INLINE_IMPORTS = ['../lib/routes.ts'] as const;
-
-function transpileWorkerModule(source: string, name: string): string {
-  const result = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, removeComments: true },
-    reportDiagnostics: true,
-  });
-  if (result.diagnostics?.some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)) {
-    throw new Error(`The offline worker could not be emitted (${name}).`);
-  }
-  return result.outputText;
-}
-
-export function inlinePwaWorkerImports(worker: string, modules: Readonly<Record<string, string>>): string {
-  const statement = /^import\s[^;]*?\sfrom\s'([^']+)';\n?/gm;
-  const inlined = worker.replace(statement, (_, specifier: string) => {
-    const module = modules[specifier];
-    if (module === undefined) throw new Error(`The offline worker can't import ${specifier}.`);
-    if (/^\s*import\s/m.test(module)) throw new Error(`${specifier} must not import anything to be inlined.`);
-    return module.replace(/^export\s+(?=(?:const|function|let|class)\s)/gm, '');
-  });
-  if (/^\s*import[\s({]/m.test(inlined)) throw new Error('The offline worker has an import it could not inline.');
-  return inlined;
-}
-
+/**
+ * sw.js, the worker as one self-contained ES module: Rolldown (through Vite's build API) bundles src/pwa/worker.ts and
+ * the modules it imports, such as the route list in src/lib/routes.ts, and keeps the worker's exports. The build fails
+ * if the bundle would load anything else.
+ */
 export async function emitPwaWorker(root: string): Promise<string> {
-  const directory = path.join(root, 'src', 'pwa');
-  const modules: Record<string, string> = {};
-  for (const specifier of PWA_WORKER_INLINE_IMPORTS) {
-    const file = path.resolve(directory, specifier);
-    modules[specifier] = transpileWorkerModule(await readFile(file, 'utf8'), specifier);
-  }
-  const worker = transpileWorkerModule(await readFile(path.join(directory, 'worker.ts'), 'utf8'), 'worker.ts');
-  return inlinePwaWorkerImports(worker, modules);
+  const result = await build({
+    configFile: false,
+    envFile: false,
+    root,
+    logLevel: 'silent',
+    publicDir: false,
+    build: {
+      write: false,
+      emptyOutDir: false,
+      copyPublicDir: false,
+      reportCompressedSize: false,
+      minify: false,
+      target: 'es2022',
+      lib: { entry: path.join(root, 'src', 'pwa', 'worker.ts'), formats: ['es'], fileName: () => 'sw.js' },
+      rolldownOptions: { output: { codeSplitting: false, comments: false } },
+    },
+  });
+  const files = (Array.isArray(result) ? result : [result]).flatMap((output) =>
+    'output' in output ? output.output : [],
+  );
+  const [chunk] = files;
+  if (
+    files.length !== 1 ||
+    chunk?.type !== 'chunk' ||
+    chunk.imports.length ||
+    chunk.dynamicImports.length ||
+    /^\s*import[\s({]/m.test(chunk.code)
+  )
+    throw new Error('The offline worker must bundle into one self-contained module.');
+  return chunk.code;
 }
-
 const NOT_FOUND_SOURCE_STYLESHEET = '<link rel="stylesheet" href="/pwa/fallback.css">';
 
 /**

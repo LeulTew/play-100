@@ -54,7 +54,7 @@ Scope or navigation changes cancel a pending handoff.
 [routes.ts](../src/lib/routes.ts) is the one list of pages served from
 `index.html`. The router (`pageFromPath`), the offline worker's shell and
 not-found checks, and the client error reports' route templates all read it;
-`scripts/pwa-build.ts` inlines it into the self-contained `sw.js`. `vercel.json`
+`scripts/pwa-build.ts` bundles it into the self-contained `sw.js`. `vercel.json`
 cannot import it, so [routes.test.ts](../src/lib/routes.test.ts) fails when its
 `index.html` rewrites and the list differ. A new page is added there first.
 

@@ -17,7 +17,9 @@ or an app shell. They still exclude private/account data, online-only pages,
 sign-in details, live catalog results, films and workbooks from offline preparation.
 
 Preparing offline access is explicit, not a first-visit download. The build
-generates `sw.js` and `pwa-assets.json` from Vite's manifest. Named roots are the
+generates `sw.js` and `pwa-assets.json` from Vite's manifest; `sw.js` is
+`src/pwa/worker.ts` and the modules it imports, bundled by Rolldown into one
+self-contained ES module that keeps the worker's exports. Named roots are the
 main entry, Discover, CatalogDetail and MyGames (Library, Queue and Ranking),
 the guarded update executor, deferred catalog/intent utilities and the Data use
 disclosure body, including their static imports, CSS and WOFF2 fonts. The

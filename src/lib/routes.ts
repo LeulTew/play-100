@@ -1,6 +1,6 @@
 // The one list of pages the app serves from index.html. The router (url.ts), the offline worker and client error
 // reports read it. vercel.json can't import it, so routes.test.ts checks its rewrites against this list.
-// No runtime imports: scripts/pwa-build.ts inlines this module into the self-contained sw.js.
+// scripts/pwa-build.ts bundles this module into the self-contained sw.js, so keep it free of runtime imports.
 export const APP_ROUTES = [
   { path: '/', page: 'collection', shell: true },
   { path: '/my-games', page: 'games', shell: true },
