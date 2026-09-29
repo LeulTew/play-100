@@ -1,9 +1,7 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isIP } from 'node:net';
 import { nullableObject } from '../src/lib/guards.js';
-import { createAdmission } from './_lib/admission.js';
 import type { Admission } from './_lib/admission.js';
-import { readReport, ReportFailure } from './_lib/report-body.js';
+import { createReportHandler } from './_lib/report-handler.js';
 import { reportRouteTemplate } from '../src/lib/client-error-schema.js';
 
 const MAX_BYTES = 16 * 1024;
@@ -99,52 +97,16 @@ export function cspCounts(input: unknown, batch: boolean) {
   return [...counts.values()];
 }
 
-export function createCspReportHandler(
-  admission: Admission = createAdmission({ maxActive: 4, maxPerWindow: 30, windowMs: 60_000 }),
-  log: (line: string) => void = console.log,
-) {
-  return async (request: IncomingMessage, response: ServerResponse) => {
-    response.setHeader('Cache-Control', 'no-store');
-    response.setHeader('X-Content-Type-Options', 'nosniff');
-    if (request.method !== 'POST') {
-      response.setHeader('Allow', 'POST');
-      response.writeHead(405).end();
-      return;
-    }
-    const contentType = request.headers['content-type']?.split(';')[0]?.trim().toLowerCase();
-    if (!['application/csp-report', 'application/reports+json'].includes(contentType ?? '')) {
-      response.writeHead(415).end();
-      return;
-    }
-    if (Number(request.headers['content-length']) > MAX_BYTES || request.headers['content-encoding']) {
-      response.writeHead(413).end();
-      return;
-    }
-    const release = admission.acquire();
-    if (!release) {
-      response.setHeader('Retry-After', '60');
-      response.writeHead(429).end();
-      return;
-    }
-    try {
-      const raw = await readReport(request, MAX_BYTES);
-      let rows: ReturnType<typeof cspCounts>;
-      try {
-        rows = cspCounts(JSON.parse(raw.toString('utf8')), contentType === 'application/reports+json');
-      } catch {
-        throw new ReportFailure(400);
-      }
-      log(JSON.stringify({ event: 'csp-count', counts: rows }));
-      response.writeHead(204).end();
-    } catch (cause) {
-      if (!(cause instanceof ReportFailure)) {
-        console.error(JSON.stringify({ event: 'csp-report-error', count: 1 }));
-      }
-      if (!response.destroyed) response.writeHead(cause instanceof ReportFailure ? cause.status : 500).end();
-    } finally {
-      release();
-    }
-  };
+export function createCspReportHandler(admission?: Admission, log?: (line: string) => void) {
+  return createReportHandler({
+    contentTypes: ['application/csp-report', 'application/reports+json'],
+    maxBytes: MAX_BYTES,
+    parse: (body, contentType) => cspCounts(body, contentType === 'application/reports+json'),
+    entry: (counts) => ({ event: 'csp-count', counts }),
+    errorEvent: 'csp-report-error',
+    admission,
+    log,
+  });
 }
 
 export default createCspReportHandler();
