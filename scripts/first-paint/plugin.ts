@@ -10,7 +10,14 @@ import { minifySync } from 'vite';
 import type { Plugin, ResolvedConfig } from 'vite';
 import { textDigest, writeFirstPaintRecord } from '../build-metadata.ts';
 import type { FirstPaintRecord } from '../build-metadata.ts';
-import { allowsInlineStyles, cspProblems, inlineBlocks, mainDocumentPolicy, sha256Source } from './csp.ts';
+import {
+  allowsInlineStyles,
+  cspProblems,
+  inlineBlocks,
+  mainDocumentPolicy,
+  sha256Source,
+  withInlineHashes,
+} from './csp.ts';
 import {
   ROOT_OPEN,
   SHELL_OPEN,
@@ -38,7 +45,8 @@ import type { ShellVariant } from './shell-html.ts';
  *    and for the failure notice that follows it in #root, and src/first-paint/shell.css, whose
  *    metric-matched local faces are the only fonts it declares;
  *  - fails the build unless vercel.json allows the inline script by its exact hash (and, under a
- *    strict style-src, exactly the inline styles of both variants), unless the <meta charset>
+ *    strict style-src, exactly the inline styles of both variants; npm run csp:write writes them
+ *    there, scripts/first-paint/write-csp.ts), unless the <meta charset>
  *    declaration fits within the document's first 1024 bytes, unless each emitted entry
  *    stylesheet is free of @import and leaves the root font stacks to shell.css, and unless each
  *    font preload makes exactly the request an @font-face of the entry stylesheet makes;
@@ -703,9 +711,15 @@ export interface FirstPaintShellOptions {
    * online configuration banner), which removes the shell from the build.
    */
   readonly variant: ShellVariant | null;
+  /**
+   * What the build does when vercel.json does not list the hashes of the shell's inline blocks. 'fail', the default,
+   * fails the build. 'record', which only `npm run csp:write` sets (scripts/first-paint/write-csp.ts), checks the policy
+   * as it would read with this build's hashes, so any other problem still fails, and records them for the writer.
+   */
+  readonly cspMismatch?: 'fail' | 'record';
 }
 
-export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
+export function firstPaintShell({ variant, cspMismatch = 'fail' }: FirstPaintShellOptions): Plugin {
   let root = process.cwd();
   let outDir = path.resolve('dist');
   let logger: ResolvedConfig['logger'] | undefined;
@@ -742,11 +756,19 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
         };
         const result = await inlineFirstPaintShell({ ...input, variant });
         const charset = assertCharsetDeclaration(result.html);
-        const policy = mainDocumentPolicy(JSON.parse(source('vercel.json')));
+        const committed = mainDocumentPolicy(JSON.parse(source('vercel.json')));
         // A strict style-src must list the other variant's inline style too (vercel.json serves both
         // kinds of build), and nothing else. check:budgets gates both variants' style as well.
         const other = variant === 'online' ? 'offline' : 'online';
         const otherStyle = (await inlineFirstPaintShell({ ...input, variant: other })).style;
+        const styleOf = (name: ShellVariant) => (name === variant ? result.style : otherStyle);
+        const policy =
+          cspMismatch === 'record'
+            ? withInlineHashes(committed, {
+                script: [sha256Source(result.script)],
+                style: [sha256Source(styleOf('online')), sha256Source(styleOf('offline'))],
+              })
+            : committed;
         const otherVariantStyles = allowsInlineStyles(policy) ? [] : [sha256Source(otherStyle)];
         const problems = cspProblems([{ name: 'index.html', html: result.html }], policy, { otherVariantStyles });
         if (problems.length)
@@ -758,10 +780,12 @@ export function firstPaintShell({ variant }: FirstPaintShellOptions): Plugin {
         const deferred = STARTUP_KINDS.map(
           (kind) => `${result.startup.filter((tag) => tag.kind === kind).length} ${kind}`,
         ).join(', ');
+        const pending =
+          policy === committed ? '' : '; vercel.json does not list these hashes yet, which csp:write writes';
         logger?.info(
-          `first-paint shell: ${variant} header; <meta charset> at byte ${charset}; deferred ${deferred}; ${blocks.join('; ')}${others}`,
+          `first-paint shell: ${variant} header; <meta charset> at byte ${charset}; deferred ${deferred}; ${blocks.join('; ')}${others}${pending}`,
         );
-        const style = (name: ShellVariant) => textDigest(name === variant ? result.style : otherStyle);
+        const style = (name: ShellVariant) => textDigest(styleOf(name));
         inlined = {
           format: 1,
           variant,

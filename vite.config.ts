@@ -107,8 +107,12 @@ export default defineConfig(({ mode }) => {
         },
       },
       // The header React's first commit renders, or no shell when that commit shows the online
-      // configuration banner (cloud-test builds only; other modes throw above).
-      firstPaintShell({ variant: firstPaintVariant(mode, environment.VITE_USE_FIREBASE_EMULATORS, online) }),
+      // configuration banner (cloud-test builds only; other modes throw above). npm run csp:write sets
+      // PLAY100_CSP_WRITE for the build whose inline-block hashes it writes into vercel.json.
+      firstPaintShell({
+        variant: firstPaintVariant(mode, environment.VITE_USE_FIREBASE_EMULATORS, online),
+        cspMismatch: process.env.PLAY100_CSP_WRITE === '1' ? 'record' : 'fail',
+      }),
     ],
     build: {
       target: 'es2022',

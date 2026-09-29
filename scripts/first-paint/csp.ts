@@ -131,6 +131,42 @@ export function allowsInlineStyles(policy: string): boolean {
   );
 }
 
+/** The inline blocks the first-paint shell needs the main-document policy to allow, by their CSP hash sources. */
+export interface InlineHashes {
+  /** The boot script. */
+  readonly script: readonly string[];
+  /** The inline style of each shell variant: online, then offline. */
+  readonly style: readonly string[];
+}
+
+/**
+ * The policy with these hashes in place of the hashes its script-src and style-src list now, every other source and
+ * directive as it was; a directive that lists the same hashes in another order stays as it is. A style-src with
+ * 'unsafe-inline' needs no hashes, so it keeps its sources. It throws when the policy has no script-src or style-src to
+ * hold them.
+ */
+export function withInlineHashes(policy: string, hashes: InlineHashes): string {
+  const found = new Set<string>();
+  const parts = policy.split(';').map((part) => {
+    const match = /^(\s*)(\S+)(.*)$/s.exec(part);
+    const directive = match?.[2];
+    const name = directive?.toLowerCase();
+    if (!match || !directive || (name !== 'script-src' && name !== 'style-src')) return part;
+    found.add(name);
+    const sources = (match[3] ?? '').trim().split(/\s+/).filter(Boolean);
+    if (name === 'style-src' && sources.includes("'unsafe-inline'")) return part;
+    const kept = sources.filter((source) => !HASH_SOURCE.test(source));
+    const added = [...new Set(name === 'script-src' ? hashes.script : hashes.style)];
+    // The same hashes in another order need no change.
+    const listed = sources.filter((source) => HASH_SOURCE.test(source));
+    if (listed.length === added.length && added.every((source) => listed.includes(source))) return part;
+    return `${match[1] ?? ''}${directive} ${[...kept, ...added].join(' ')}`;
+  });
+  for (const name of ['script-src', 'style-src'])
+    if (!found.has(name)) throw new Error(`The main-document policy has no ${name} to hold the first-paint hashes.`);
+  return parts.join(';');
+}
+
 export function cspProblems(
   documents: readonly CspDocument[],
   policy: string,

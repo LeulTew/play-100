@@ -797,8 +797,12 @@ describe('first-paint index.html', () => {
       await mkdir(path.join(root, 'src', 'first-paint'), { recursive: true });
       await writeFile(path.join(root, 'src', 'first-paint', 'shell.css'), shellCss);
       await writeFile(path.join(root, 'src', 'first-paint', 'boot.js'), bootJs);
-      const build = async (styleSources: string) => {
-        const csp = `default-src 'self'; script-src 'self' ${sha256Source(minifyBootScript(bootJs))}; style-src 'self' ${styleSources}`;
+      const build = async (
+        styleSources: string,
+        cspMismatch: 'fail' | 'record' = 'fail',
+        scriptSource = sha256Source(minifyBootScript(bootJs)),
+      ) => {
+        const csp = `default-src 'self'; script-src 'self' ${scriptSource}; style-src 'self' ${styleSources}`;
         await writeFile(
           path.join(root, 'vercel.json'),
           JSON.stringify({
@@ -810,7 +814,7 @@ describe('first-paint index.html', () => {
             ],
           }),
         );
-        const plugin = firstPaintShell({ variant: 'offline' });
+        const plugin = firstPaintShell({ variant: 'offline', cspMismatch });
         const logged: string[] = [];
         if (typeof plugin.configResolved !== 'function')
           throw new Error('The shell plugin must read the resolved root.');
@@ -861,6 +865,16 @@ describe('first-paint index.html', () => {
       await expect(build(`${styles.offline} ${styles.online} ${sha256Source('old{}')}`)).rejects.toThrow(
         `${sha256Source('old{}')}, which matches no inline style`,
       );
+      // npm run csp:write builds in record mode: stale hashes are recorded for the writer instead of failing the build,
+      // and any other policy problem still fails it.
+      const recorded = await build(sha256Source('old{}'), 'record', sha256Source('old boot'));
+      expect(recorded.logged[0]).toContain('vercel.json does not list these hashes yet');
+      expect(await readFirstPaintRecord(path.join(root, 'dist'))).toMatchObject({
+        script: { source: sha256Source(script) },
+        styles: { offline: { source: styles.offline }, online: { source: styles.online } },
+      });
+      expect((await build(`${styles.offline} ${styles.online}`, 'record')).logged[0]).not.toContain('does not list');
+      await expect(build(`'unsafe-inline' ${styles.offline}`, 'record')).rejects.toThrow("mixes 'unsafe-inline'");
     } finally {
       await rm(root, { recursive: true, force: true, maxRetries: 5 });
     }

@@ -12,6 +12,7 @@ import {
   inlineBlocks,
   mainDocumentPolicy,
   sha256Source,
+  withInlineHashes,
 } from './csp.ts';
 import { minifyBootScript } from './plugin.ts';
 import vercel from '../../vercel.json';
@@ -222,6 +223,43 @@ describe('CSP problems', () => {
         policy,
       ),
     ).toEqual([expect.stringContaining('inline event-handler attribute')]);
+  });
+});
+
+describe('writing inline hashes into a policy', () => {
+  const [boot, online, offline] = ['boot', 'online', 'offline'].map((text) => sha256Source(text)) as [
+    string,
+    string,
+    string,
+  ];
+  const hashes = { script: [boot], style: [online, offline] };
+
+  it('replaces the hashes of script-src and style-src and keeps every other source and directive', () => {
+    const before = `default-src 'self'; script-src 'self' https://apis.google.com ${sha256Source('x')}; style-src 'self' ${sha256Source('y')}; report-to csp`;
+    expect(withInlineHashes(before, hashes)).toBe(
+      `default-src 'self'; script-src 'self' https://apis.google.com ${boot}; style-src 'self' ${online} ${offline}; report-to csp`,
+    );
+    expect(withInlineHashes(withInlineHashes(before, hashes), hashes)).toBe(withInlineHashes(before, hashes));
+    // The same hashes in another order are already right.
+    const reordered = `script-src 'self' ${boot}; style-src 'self' ${offline} ${online}`;
+    expect(withInlineHashes(reordered, hashes)).toBe(reordered);
+    // Both variants may inline the same style; the policy lists it once.
+    expect(withInlineHashes(before, { script: [boot], style: [online, online] })).toContain(
+      `style-src 'self' ${online};`,
+    );
+  });
+
+  it("leaves a style-src with 'unsafe-inline' alone, and needs both directives to hold the hashes", () => {
+    const loose = `script-src 'self' ${sha256Source('x')}; style-src 'self' 'unsafe-inline'`;
+    expect(withInlineHashes(loose, hashes)).toBe(`script-src 'self' ${boot}; style-src 'self' 'unsafe-inline'`);
+    expect(() => withInlineHashes("default-src 'self'; style-src 'self'", hashes)).toThrow('no script-src');
+    expect(() => withInlineHashes("script-src 'self'", hashes)).toThrow('no style-src');
+  });
+
+  it('writes hashes that the checks then accept for both shell variants', () => {
+    const html = `<!doctype html><style>online</style><script>boot</script>`;
+    const policy = withInlineHashes(`script-src 'self' ${sha256Source('x')}; style-src 'self'`, hashes);
+    expect(cspProblems([{ name: 'index.html', html }], policy, { otherVariantStyles: [offline] })).toEqual([]);
   });
 });
 

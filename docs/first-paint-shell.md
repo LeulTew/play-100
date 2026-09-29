@@ -201,8 +201,19 @@ stale ones to the build.
 After a build, `npm run check:csp` re-checks every document in `dist` against
 `vercel.json` and against the policy `dist/pwa-assets.json` embeds for the
 documents the service worker serves, and prints each inline block with its hash.
-Changing `boot.js` therefore means updating the hash in `vercel.json`; the build
-error names the source to add. Because the boot script starts the app, a policy
+Changing `boot.js`, `shell.css` or the entry stylesheet's rules that the shell
+inlines therefore changes a hash. `npm run csp:write`
+([`write-csp.ts`](../scripts/first-paint/write-csp.ts)) writes the new hashes
+into `vercel.json` instead of by hand. It builds once with `PLAY100_CSP_WRITE=1`,
+which records hashes `vercel.json` does not list yet instead of failing; any
+other policy problem still fails that build. It then replaces only the `sha256`
+sources of the main-document `script-src` and `style-src`, online style before
+offline, and leaves every other byte of `vercel.json` as it was. Last, it builds
+again as usual, so the guard checks the result and `dist` embeds the new policy
+for the documents the service worker serves. One build computes both variants'
+styles, so it needs no Firebase configuration. Without `PLAY100_CSP_WRITE`, a
+build with a missing or stale hash still fails, and its error names the source
+to add or drop. Because the boot script starts the app, a policy
 that blocked it would leave every route without React: the build hash sync,
 `check:csp` and the browser spec, which loads `/` and `/?catalogs=off` under the
 production policy and uses the page, guard against that. The failure notice needs
