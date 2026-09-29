@@ -100,7 +100,7 @@ export function parseHandle(value: string): string {
 }
 
 export function isValidHandle(value: string): boolean {
-  return /^[a-z][a-z0-9_]{2,23}$/i.test(value.trim());
+  return /^[a-z][a-z0-9_]{2,23}$/.test(value.trim().toLowerCase());
 }
 
 function sourceUrl(record: Pick<LibraryRecord, 'source' | 'sourceId' | 'sourceUrl'>): string | null {

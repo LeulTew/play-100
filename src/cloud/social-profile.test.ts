@@ -59,7 +59,7 @@ describe('public profile existence privacy', () => {
       expect(read).not.toHaveBeenCalled();
     },
   );
-  it.each(['abc', 'a'.repeat(24), ' Legacy_123 ', 'leul_tew'])(
+  it.each(['abc', 'a'.repeat(24), ' Legacy_123 ', 'leul_tew', '\u212Aelvin'])(
     'still accepts valid and legacy public handles: %s',
     (handle) => {
       expect(isValidHandle(handle)).toBe(true);
