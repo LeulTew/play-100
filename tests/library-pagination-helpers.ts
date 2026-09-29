@@ -20,6 +20,13 @@ export const libraryRecords = [
 ].slice(0, 500);
 export const rankedRecords = libraryRecords.slice(0, 3);
 
+/** A fixture record by position; a shorter bundled collection fails here rather than as an undefined deep in a test. */
+export function libraryRecord(index: number) {
+  const record = libraryRecords[index];
+  if (!record) throw new Error(`The library fixture has no record at ${index}.`);
+  return record;
+}
+
 export function libraryFixture(total = 500): PersonalLibraryState {
   const records = libraryRecords.slice(0, total);
   const ranked = rankedRecords.filter((record) => records.some((candidate) => candidate.id === record.id));

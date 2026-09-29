@@ -64,6 +64,7 @@ export function parseVerifyArguments(args: string[]): VerifyOptions {
     const flag = args[i];
     const value = args[i + 1];
     if (
+      !flag ||
       !['--url', '--bypass-env', '--expect-index', '--json'].includes(flag) ||
       flags.has(flag) ||
       !value ||
@@ -173,11 +174,12 @@ export function inspectHtml(html: string) {
       continue;
     }
     const attrs = new Map<string, string>();
-    let rest = token[2].trim().replace(/\/$/, '').trim();
+    let rest = (token[2] ?? '').trim().replace(/\/$/, '').trim();
     while (rest) {
       const attr = /^([^\s=/'"<>`]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/.exec(rest);
-      if (!attr || attrs.has(attr[1].toLowerCase())) throw new Error('Malformed HTML attributes.');
-      attrs.set(attr[1].toLowerCase(), attr[2] ?? attr[3] ?? attr[4] ?? '');
+      const key = attr?.[1]?.toLowerCase();
+      if (!attr || !key || attrs.has(key)) throw new Error('Malformed HTML attributes.');
+      attrs.set(key, attr[2] ?? attr[3] ?? attr[4] ?? '');
       rest = rest.slice(attr[0].length).trimStart();
     }
     const inactive = Boolean(stack.at(-1)?.inactive) || name === 'noscript';
@@ -231,7 +233,7 @@ export function inspectHtml(html: string) {
     }
   }
   return {
-    entry: entries.length === 1 ? entries[0] : null,
+    entry: entries.length === 1 ? (entries[0] ?? null) : null,
     bootErrorHidden: notices === 1 && hiddenNotices === 1,
     shellDisabled: shellCount === 1 && shellButtons > 0 && enabledButtons === 0 && inert === 0,
     shellButtons,

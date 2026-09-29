@@ -29,7 +29,7 @@ describe('deployed release verification, without network', () => {
   it('compares every declared document header and every CSP hash exactly', () => {
     expect(compareDocumentHeaders(new Headers(policy), policy).every((check) => check.pass)).toBe(true);
     const actual = new Headers(policy);
-    actual.set('content-security-policy', policy['content-security-policy'].replace(/sha256-[^']+/, 'sha256-wrong'));
+    actual.set('content-security-policy', policy['content-security-policy']!.replace(/sha256-[^']+/, 'sha256-wrong'));
     const csp = compareDocumentHeaders(actual, policy).find((check) => check.name.endsWith('content-security-policy'));
     expect(csp?.pass).toBe(false);
   });

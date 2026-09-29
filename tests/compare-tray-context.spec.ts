@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { closeDialog } from './readability-helpers';
 import { emptyCatalogs } from './catalog-helpers';
@@ -17,7 +17,7 @@ test('the tray limit message spans the list and aligns its dismissal with row ac
   await page.getByRole('button', { name: '6 games in Compare tray', exact: true }).click();
   const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expect(tray.locator('.compare-tray-error')).toContainText('six games');
-  await expect(tray.locator('.compare-tray-games li').first()).toContainText(`Leul's 100 · ${libraryRecords[0]!.year}`);
+  await expect(tray.locator('.compare-tray-games li').first()).toContainText(`Leul's 100 · ${libraryRecord(0).year}`);
   const alignment = await tray.evaluate((dialog) => {
     const error = dialog.querySelector('.compare-tray-error')!;
     const text = error.querySelector('p')!;
@@ -545,7 +545,7 @@ for (const width of [320, 393, 768, 1440]) {
 
     const dock = page.locator('.compare-tray-dock');
     await expect(page.locator('.toast-visible')).toContainText('six games');
-    const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true });
+    const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecord(6).title}`, exact: true });
     await expect(failedPin).toBeFocused();
     const failedHit = await failedPin.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
@@ -647,7 +647,7 @@ for (const width of [320, 393]) {
       'Requires the centrally configured online build; no remote account requests are allowed.',
     );
     await page.goto('/?catalogs=off');
-    await page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
+    await page.getByRole('button', { name: `Pin for comparison: ${libraryRecord(0).title}`, exact: true }).click();
     const before = await readLibrary(page);
     for (const route of ['/my-games?tab=library&catalogs=off', '/?q=NoMatchContextFixture&catalogs=off']) {
       await page.goto(route);

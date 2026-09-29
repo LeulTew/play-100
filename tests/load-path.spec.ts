@@ -22,9 +22,9 @@ test('production HTML preloads the landing fonts as their faces request them, an
     })),
   );
   expect(fonts).toHaveLength(LANDING_FONTS.length);
-  fonts.forEach((font, index) => {
-    expect(font.href).toMatch(LANDING_FONTS[index]);
-    expect(font).toMatchObject({ type: 'font/woff2', crossorigin: 'anonymous' });
+  LANDING_FONTS.forEach((expected, index) => {
+    expect(fonts[index]?.href).toMatch(expected);
+    expect(fonts[index]).toMatchObject({ type: 'font/woff2', crossorigin: 'anonymous' });
   });
   // Each preload names a URL an @font-face of the app's stylesheets requests (the build checks the bytes).
   const faceUrls = await page.evaluate(() =>

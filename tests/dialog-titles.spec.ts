@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { parseCollection } from '../src/lib/collection';
 import { emptyCatalogs } from './catalog-helpers';
 import { openMenu } from './readability-helpers';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord } from './library-pagination-helpers';
 
 const games = parseCollection(
   JSON.parse(readFileSync(new URL('../data/collection.json', import.meta.url), 'utf8')),
@@ -265,7 +265,7 @@ test('Menu, Compare tray and signed-out Sign in titles restore their underlying 
   await expect(page).toHaveTitle('My games · Library | Play 100');
 
   await page.goto('/?catalogs=off');
-  const game = libraryRecords[0];
+  const game = libraryRecord(0);
   const card = page.locator(`.game-card[data-game="${game.id}"]`);
   await card.getByRole('button', { name: `Pin for comparison: ${game.title}`, exact: true }).click();
   const chip = page.getByRole('button', { name: '1 game in Compare tray', exact: true });

@@ -220,7 +220,7 @@ for (const [total, bundledCount] of [
   [1, 1],
   [5, 1],
   [5, 5],
-]) {
+] as const) {
   test(`Discover counts ${total} matches shown with ${bundledCount} bundled duplicates`, async ({ page }) => {
     const remote = Array.from({ length: total }, (_, index) =>
       catalogRecord('wikidata', `Q9100000${index + 1}`, `Scope count ${index + 1}`),
@@ -277,7 +277,7 @@ test('same-title cards show their sources with actions closed and missing years 
   await page.goto('/discover?q=Gwent&catalogs=off');
   await expect(page.locator('[data-catalog-id]')).toHaveCount(2);
   for (const [index, source] of ['Wikidata', 'FreeToGame'].entries()) {
-    const card = page.locator(`[data-catalog-id="${records[index].id}"]`);
+    const card = page.locator(`[data-catalog-id="${records[index]?.id}"]`);
     await expect(card.locator('.discovery-card-meta')).toContainText(source);
     await expect(card.locator('.discovery-card-meta')).toBeVisible();
     await expect(card.locator('details')).not.toHaveAttribute('open');

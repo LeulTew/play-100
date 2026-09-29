@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readLibrary } from './library-helpers';
 import { expectStorageDenial } from './storage-banner-helpers';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord } from './library-pagination-helpers';
 import AxeBuilder from '@axe-core/playwright';
 
 const id = 'red-dead-redemption-2';
@@ -189,7 +189,7 @@ test('every primary surface keeps visible labels inside accessible names', async
 
   await page.goto('/?catalogs=off');
   await expect(page.locator('.game-card')).toHaveCount(24);
-  await page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
+  await page.getByRole('button', { name: `Pin for comparison: ${libraryRecord(0).title}`, exact: true }).click();
   const opener = page.locator('.compare-tray-expand');
   await expect(opener).toHaveAccessibleName('1 game in Compare tray');
   await expectLabelInName(page, 'collection grid');

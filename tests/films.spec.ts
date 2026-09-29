@@ -137,7 +137,9 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
     await page.keyboard.press('Space');
     await expect.poll(() => video.evaluate((player: HTMLVideoElement) => player.paused)).toBe(true);
     await video.evaluate((player: HTMLVideoElement) => {
-      player.textTracks[0].mode = 'showing';
+      const track = player.textTracks[0];
+      if (!track) throw new Error('The film has no caption track.');
+      track.mode = 'showing';
     });
     await expect
       .poll(() => video.evaluate((player: HTMLVideoElement) => player.textTracks[0]?.cues?.length ?? 0))
@@ -163,7 +165,7 @@ test('optional films stay unloaded until Watch, play and seek natively, switch w
     createHash('sha256')
       .update(await readFile(file!))
       .digest('hex'),
-  ).toBe(collectionFilms[1].video.sha256);
+  ).toBe(collectionFilms[1]?.video.sha256);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(video).toHaveCount(0);

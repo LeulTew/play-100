@@ -68,7 +68,7 @@ async function settleNativeScroll(page: Page) {
   );
 }
 
-async function assertClearIdentity(page: Page, identity: Locator) {
+async function assertClearIdentity(identity: Locator) {
   const bounds = await identity.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const target = element.closest('a') ?? element;
@@ -115,7 +115,7 @@ for (const width of [320, 393]) {
         expect(targets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
         await page.getByRole('link', { name: 'Explore all 100', exact: true }).tap();
         await settleNativeScroll(page);
-        await assertClearIdentity(page, page.locator('.game-card h3').first());
+        await assertClearIdentity(page.locator('.game-card h3').first());
         if (total > 100)
           await expect(page.locator('.result-summary [role="status"]')).toHaveText(
             `100 in The 100 · ${total - 100} beyond The 100`,
@@ -130,7 +130,7 @@ for (const width of [320, 393]) {
         await page.getByRole('link', { name: 'Explore all 100', exact: true }).tap();
         await expect(page.locator('.game-card')).toHaveCount(24);
         await settleNativeScroll(page);
-        await assertClearIdentity(page, page.locator('.game-card h3').first());
+        await assertClearIdentity(page.locator('.game-card h3').first());
         await expect(page.getByRole('button', { name: 'List view', exact: true })).toHaveAttribute(
           'aria-pressed',
           'true',
@@ -139,7 +139,7 @@ for (const width of [320, 393]) {
         await expect(page.locator('.ratings-table')).toBeVisible();
         await page.locator('.mobile-nav').getByRole('link', { name: 'The 100', exact: true }).tap();
         await settleNativeScroll(page);
-        await assertClearIdentity(page, page.locator('tbody .table-game').first());
+        await assertClearIdentity(page.locator('tbody .table-game').first());
         expect(await readLibrary(page)).toEqual(before);
       });
     }

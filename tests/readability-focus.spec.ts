@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord } from './library-pagination-helpers';
 import {
   closeDialog,
   expectReadableSurface,
@@ -22,7 +22,7 @@ for (const mode of ['full', 'lite', 'reduced'] as const) {
       await page
         .locator('.game-card')
         .first()
-        .getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true })
+        .getByRole('button', { name: `Pin for comparison: ${libraryRecord(0).title}`, exact: true })
         .click();
       await page.evaluate(() => document.fonts.ready);
       const normal = await page.locator('.mobile-nav').evaluate((element) => ({

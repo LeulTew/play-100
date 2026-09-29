@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { expectReadableSurface, textSpacingCSS } from './readability-helpers';
 
@@ -38,7 +38,7 @@ for (const forcedColors of ['none', 'active'] as const) {
       expect(bounds.right).toBeLessThanOrEqual(320);
     }
     const before = await readLibrary(page);
-    const first = libraryRecords[0];
+    const first = libraryRecord(0);
     const toggle = page.getByRole('button', { name: `Completed: ${first.title}`, exact: true });
     await toggle.focus();
     await expect(toggle).toBeFocused();

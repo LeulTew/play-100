@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
-import { libraryRecords } from './library-pagination-helpers';
+import { libraryRecord } from './library-pagination-helpers';
 
 test.beforeEach(async ({ page }) => {
   await emptyCatalogs(page);
@@ -17,7 +17,7 @@ for (const view of ['grid', 'list', 'table'] as const) {
     await more.press('Enter');
     await expect(rows).toHaveCount(48);
     const appended = rows.nth(24);
-    await expect(appended).toHaveAttribute('data-game', libraryRecords[24].id);
+    await expect(appended).toHaveAttribute('data-game', libraryRecord(24).id);
     const title = appended.locator(view === 'table' ? '.table-game a' : '.game-link');
     await expect(title).toBeFocused();
     await expect(title).toBeInViewport();
@@ -62,7 +62,7 @@ test('keyboard Show more lands on the first new table game once the table tools 
   await expect(more).toBeFocused();
   release();
   const appended = rows.nth(24);
-  await expect(appended).toHaveAttribute('data-game', libraryRecords[24].id);
+  await expect(appended).toHaveAttribute('data-game', libraryRecord(24).id);
   const title = appended.locator('.table-game a');
   await expect(title).toBeFocused();
   await expect(title).toBeInViewport();

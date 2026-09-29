@@ -39,7 +39,22 @@ afterEach(async () => {
 });
 
 function vitestReport() {
-  return {
+  return vitestFixture().report;
+}
+
+/** A passing Vitest report and handles to its first file and assertion, for tests that corrupt one of them. */
+function vitestFixture() {
+  const assertion = { status: 'passed', failureMessages: [] as string[] };
+  const file = {
+    name: '/source/example.test.ts',
+    status: 'passed',
+    assertionResults: [
+      assertion,
+      { status: 'skipped', failureMessages: [] as string[] },
+      { status: 'todo', failureMessages: [] as string[] },
+    ],
+  };
+  const report = {
     numTotalTestSuites: 2,
     numPassedTestSuites: 2,
     numFailedTestSuites: 0,
@@ -50,22 +65,19 @@ function vitestReport() {
     numPendingTests: 1,
     numTodoTests: 1,
     success: true,
-    testResults: [
-      {
-        name: '/source/example.test.ts',
-        status: 'passed',
-        assertionResults: [
-          { status: 'passed', failureMessages: [] },
-          { status: 'skipped', failureMessages: [] },
-          { status: 'todo', failureMessages: [] },
-        ],
-      },
-    ],
+    testResults: [file],
   };
+  return { report, file, assertion };
 }
 
 function playwrightReport() {
-  return {
+  return playwrightFixture().report;
+}
+
+/** A Playwright report and a handle to its first test, for tests that corrupt it. */
+function playwrightFixture() {
+  const first = { expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed' }] };
+  const report = {
     errors: [] as { message: string }[],
     stats: { expected: 1, unexpected: 0, flaky: 1, skipped: 1 },
     suites: [
@@ -78,7 +90,7 @@ function playwrightReport() {
                 file: 'example.spec.ts',
                 ok: true,
                 tests: [
-                  { expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed' }] },
+                  first,
                   { expectedStatus: 'passed', status: 'flaky', results: [{ status: 'failed' }, { status: 'passed' }] },
                   { expectedStatus: 'skipped', status: 'skipped', results: [] },
                 ],
@@ -89,6 +101,7 @@ function playwrightReport() {
       },
     ],
   };
+  return { report, first };
 }
 
 async function fixture() {
@@ -133,16 +146,16 @@ describe('native release result summaries', () => {
   );
 
   it.each(['failed', 'pending', 'unknown'])('refuses Vitest assertion status %s', (status) => {
-    const report = vitestReport();
-    report.testResults[0].assertionResults[0].status = status;
+    const { report, assertion } = vitestFixture();
+    assertion.status = status;
     expect(() => summarizeVitest(report)).toThrow();
   });
 
   it('rejects unsuccessful, empty and file-level failing Vitest reports', () => {
     expect(() => summarizeVitest({ ...vitestReport(), success: false })).toThrow();
     expect(() => summarizeVitest({ ...vitestReport(), testResults: [] })).toThrow();
-    const report = vitestReport();
-    report.testResults[0].status = 'failed';
+    const { report, file } = vitestFixture();
+    file.status = 'failed';
     expect(() => summarizeVitest(report)).toThrow();
     expect(() => summarizeVitest({ ...vitestReport(), snapshot: { failure: true } })).toThrow('snapshot failure');
   });
@@ -152,8 +165,8 @@ describe('native release result summaries', () => {
   });
 
   it.each(['unexpected', 'timedOut', 'interrupted', 'unknown'])('refuses Playwright outcome %s', (status) => {
-    const report = playwrightReport();
-    report.suites[0].suites[0].specs[0].tests[0].status = status;
+    const { report, first } = playwrightFixture();
+    first.status = status;
     expect(() => summarizePlaywright(report)).toThrow();
   });
 
@@ -164,14 +177,14 @@ describe('native release result summaries', () => {
   });
 
   it('refuses a last interrupted attempt hidden behind an expected outcome', () => {
-    const report = playwrightReport();
-    report.suites[0].suites[0].specs[0].tests[0].results[0].status = 'interrupted';
+    const { report, first } = playwrightFixture();
+    first.results = [{ status: 'interrupted' }];
     expect(() => summarizePlaywright(report)).toThrow('unfinished');
   });
 
   it('refuses expected failures, inconsistent counts and empty Playwright reports', () => {
-    const report = playwrightReport();
-    report.suites[0].suites[0].specs[0].tests[0].expectedStatus = 'failed';
+    const { report, first } = playwrightFixture();
+    first.expectedStatus = 'failed';
     expect(() => summarizePlaywright(report)).toThrow('expected failure');
     expect(() => summarizePlaywright({ ...playwrightReport(), stats: { expected: 100 } })).toThrow();
     expect(() => summarizePlaywright({ ...playwrightReport(), suites: [] })).toThrow();
