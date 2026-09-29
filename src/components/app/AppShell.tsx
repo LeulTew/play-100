@@ -43,7 +43,8 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
   const inlineTray = page === 'collection' && app.filters.view === 'table' && app.collection.status === 'ready';
   const trayHidden = onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
   const trayHasContent = tray.items.length > 0 || Boolean(tray.warning) || Boolean(tray.error);
-  const trayError = !app.motionBlocked ? tray.error : null;
+  // The table's inline strip shows its own error, so the toast doesn't repeat it (UX-007).
+  const trayError = !app.motionBlocked && (!inlineTray || trayHidden) ? tray.error : null;
   const compare = useCallback(
     (records: LibraryRecord[]) => {
       void commands.compareGames(records);

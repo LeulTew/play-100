@@ -5,7 +5,9 @@ import { readLibrary } from './library-helpers';
 
 for (const width of [1440, 393]) {
   for (const mode of ['full', 'lite'] as const) {
-    test(`table pin limit stays visible without moving focus at ${width}px in ${mode}`, async ({ page }) => {
+    test(`table pin limit is refused once, in the strip, without moving focus at ${width}px in ${mode}`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width, height: width === 393 ? 851 : 900 });
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await emptyCatalogs(page);
@@ -40,61 +42,55 @@ for (const width of [1440, 393]) {
       if (!pinBefore) throw new Error('The seventh pin must be visible before activation.');
       await pin.press('Enter');
       const message = 'The Compare tray holds six games. Unpin one before adding another.';
-      const toast = page.locator('.toast-visible');
-      await expect(toast).toContainText(message);
+      // The strip shows the one visible refusal; the toast doesn't repeat it over the strip (UX-007).
+      const refusal = page
+        .getByRole('complementary', { name: 'Pinned games for comparison' })
+        .locator('.compare-tray-error');
+      await expect(refusal).toContainText(message);
+      await expect(page.locator('.toast-visible')).toHaveCount(0);
+      await expect(page.locator('.toast')).not.toContainText(message);
       await expect(page.locator('.sr-only[role="status"]').filter({ hasText: message })).toHaveAttribute(
         'aria-live',
         'polite',
       );
       await expect(pin).toBeFocused();
       await expect(pin).toHaveAttribute('aria-pressed', 'false');
-      // Read before any further action could reveal the error or return focus to the rejected pin.
+      // Read before any further action could return focus to the rejected pin.
       const pinAfter = await pin.boundingBox();
       if (!pinAfter) throw new Error('The rejected pin must remain visible.');
-      expect(Math.abs(pinAfter.y - pinBefore.y)).toBeLessThanOrEqual(1);
+      // Only the page may scroll, just enough to show the whole refusal; the table and the pin's place in it stay put.
+      const scrollAfter = await page.evaluate(() => ({
+        page: scrollY,
+        table: document.querySelector('.ratings-scroll')!.scrollTop,
+        header: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
+      }));
+      expect(scrollAfter.table).toBe(scrollBefore.table);
+      expect(scrollAfter.page).toBeGreaterThanOrEqual(scrollBefore.page);
+      expect(Math.abs(pinAfter.y + (scrollAfter.page - scrollBefore.page) - pinBefore.y)).toBeLessThanOrEqual(1);
       expect(Math.abs(pinAfter.x - pinBefore.x)).toBeLessThanOrEqual(1);
-      expect(
-        await page.evaluate(() => ({
-          page: scrollY,
-          table: document.querySelector('.ratings-scroll')!.scrollTop,
-        })),
-      ).toEqual(scrollBefore);
+      expect(pinAfter.y).toBeGreaterThanOrEqual(scrollAfter.header);
       await expect
         .poll(() =>
-          toast.evaluate((element) => {
+          refusal.evaluate((element) => {
             const bounds = element.getBoundingClientRect();
             const navigation = document.querySelector('.mobile-nav')?.getBoundingClientRect();
-            const text = element.querySelector('span')!.getBoundingClientRect();
-            const dismiss = element.querySelector('button')!;
-            const button = dismiss.getBoundingClientRect();
+            const dismiss = element.querySelector('button')!.getBoundingClientRect();
             return (
               bounds.top >= 0 &&
               bounds.left >= 0 &&
               bounds.right <= innerWidth &&
               bounds.bottom <= (navigation?.height ? navigation.top : innerHeight) &&
-              text.top >= bounds.top &&
-              text.bottom <= bounds.bottom &&
-              getComputedStyle(element).pointerEvents === 'none' &&
-              dismiss.contains(document.elementFromPoint(button.x + button.width / 2, button.y + button.height / 2))
+              element.contains(document.elementFromPoint(dismiss.x + dismiss.width / 2, dismiss.y + dismiss.height / 2))
             );
           }),
         )
         .toBe(true);
-      await toast.evaluate((element) =>
-        Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
-      );
       await expect(pin).toBeFocused();
-      expect(
-        await page.evaluate(() => ({
-          page: scrollY,
-          table: document.querySelector('.ratings-scroll')!.scrollTop,
-        })),
-      ).toEqual(scrollBefore);
       expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toBe(pins);
       expect(await readLibrary(page)).toEqual(before);
-      await toast.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
-      await expect(toast).toHaveCount(0);
-      await expect(page.locator('.compare-tray-error')).toHaveCount(0);
+      await refusal.getByRole('button', { name: 'Dismiss Compare tray message', exact: true }).click();
+      await expect(refusal).toHaveCount(0);
+      await expect(page.locator('.toast-visible')).toHaveCount(0);
       await expect(page.locator('.compare-tray-expand')).toContainText('6 games');
     });
   }

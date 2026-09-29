@@ -118,6 +118,11 @@ function ScopedCompareTray({
       )
         focused.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
     }
+    // The table's strip is the only place a tray error shows (UX-007), so bring all of it into view.
+    if (error && layout === 'inline' && !hidden)
+      node
+        ?.querySelector('.compare-tray-error')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     const observer = new ResizeObserver(measure);
     [header, navigation, toast, node].forEach((element) => {
       if (element) observer.observe(element);
