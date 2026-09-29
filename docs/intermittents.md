@@ -36,6 +36,17 @@ test's current line. A repair commit is not execution evidence.
 
 ## Candidate gate
 
+FLAKE-01's final discriminating diagnostic on `2c15f1a4` explicitly paused the
+video, removed its `src` and called `load()` before the native download click.
+It still failed 2/40 (`films-r20-unload-x20.txt`, Node 24.21.0, 20 repeats on
+each project, two workers), compared with the unchanged baseline's 3/40.
+Active media loading is therefore not an established cause or a verified fix.
+The diagnostic was removed; playback, switching, focus, native download and
+SHA-256 checks are unchanged. No 40/40 repair receipt exists. The coordinator
+permits one separately retained diagnostic rerun for this known pre-existing
+test; it does not erase the failed attempt or make a stopped committed gate a
+clean pass. All other failures still require investigation, not automatic retries.
+
 Run the exact convergence test 20 times against the candidate rules using
 [Release operations: convergence loop](release-operations.md#friend-default-convergence-loop).
 This register adds no executed result. A failure must retain the emulator
