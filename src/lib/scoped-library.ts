@@ -602,6 +602,44 @@ export async function deleteScopedLibrary(
   return removal;
 }
 
+/**
+ * Removes a deleted account's device copy, at whichever generation it reached and whatever its row holds: after an
+ * earlier removal here, the copy may have been reopened, by this tab or another, and may since have become unreadable.
+ * Only for an account whose sign-in is itself deleted, so that no sign-in can open that copy again.
+ */
+export async function deleteAccountCopy(scope: LibraryScope): Promise<DeviceCopyRemoval> {
+  scopeUid(scope);
+  await accountStorageTransaction(scope, (value, store, marker) => {
+    const status = writerStatus(marker);
+    if (status.retired && value === undefined) removeJournals(store, scope);
+    else retireCopy(store, scope, status);
+  });
+  const removal = removeLocalCopy(scope);
+  publishLibraryChange(scope);
+  return removal;
+}
+
+/** A deleted account's device-copy removal. When the device database refused it, `retry` tries it all again. */
+export type DeletedCopyRemoval =
+  | { readonly complete: true }
+  | { readonly complete: false; readonly retry: () => DeletedCopyRemoval | Promise<DeletedCopyRemoval> };
+
+/**
+ * deleteAccountCopy, for a deletion that has already happened: a removal the device database refuses is reported as
+ * incomplete, with a retry, instead of failing a deletion that stands either way.
+ */
+export async function removeDeletedAccountCopy(scope: LibraryScope): Promise<DeletedCopyRemoval> {
+  try {
+    return await deleteAccountCopy(scope);
+  } catch (cause) {
+    console.error(
+      "The deleted account's device copy could not be removed.",
+      cause instanceof Error ? cause.message : 'Unknown storage failure.',
+    );
+    return { complete: false, retry: () => removeDeletedAccountCopy(scope) };
+  }
+}
+
 export function cacheScopedProfile(
   target: AccountTarget,
   member: Member,

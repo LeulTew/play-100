@@ -15,7 +15,7 @@ vi.mock('firebase/firestore', async (original) => ({
   getDocFromServer: calls.read,
   runTransaction: calls.transaction,
 }));
-vi.mock('../lib/scoped-library', () => ({ deleteScopedLibrary: calls.deleteDevice }));
+vi.mock('../lib/scoped-library', () => ({ removeDeletedAccountCopy: calls.deleteDevice }));
 const app = initializeApp({ projectId: 'demo-play100' }, 'cancelled-lifecycle-unit');
 const db = getFirestore(app);
 const token: IdTokenResult = {

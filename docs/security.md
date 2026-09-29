@@ -805,6 +805,11 @@ removed or never opened starts no journal, and a copy reopened since belongs to
 its new writer. Clearing the retry state is only cleanup and stays allowed on a
 removed copy. Removing a copy that is already removed deletes any journal an
 earlier release left behind.
+Account deletion (G10 SEC2 item 8) removes the account's copy at whichever
+generation it reached, even when the copy did not open or has become
+unreadable: its sign-in is gone, so nothing can open that copy again. A removal
+the device database refuses is reported on Account like the localStorage case,
+and its Try again repeats the whole removal.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
 ## Ordered parent-only rollout

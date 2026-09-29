@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
-import type { DeviceCopyRemoval } from '../lib/scoped-library';
+
+/** Removes what stayed of an account, as far as it can: complete once none of it is left on this device. */
+type LeftoverRetry = () => { readonly complete: boolean } | Promise<{ readonly complete: boolean }>;
 
 /**
  * What the signed-out Account page reports after an account's sign-out and removal, or its deletion, left some of its
- * data on this device: deleteScopedLibrary removed its library, but localStorage refused the rest. The sign-out or
- * deletion itself stands. The retry stays bound to that account, and any sign-in withdraws the offer
+ * data on this device: localStorage refused part of it, or, for a deletion, the device database refused the removal.
+ * The sign-out or deletion itself stands. The retry stays bound to that account, and any sign-in withdraws the offer
  * (OnlineController): that account's next copy is not what the removal left behind.
  */
 export interface DeviceLeftovers {
@@ -13,7 +15,7 @@ export interface DeviceLeftovers {
   readonly state: 'left' | 'still-left' | 'removed';
 }
 
-let offer: { readonly view: DeviceLeftovers; readonly retry: () => DeviceCopyRemoval } | null = null;
+let offer: { readonly view: DeviceLeftovers; readonly retry: LeftoverRetry } | null = null;
 const listeners = new Set<() => void>();
 
 function publish(next: typeof offer): void {
@@ -21,15 +23,30 @@ function publish(next: typeof offer): void {
   for (const listener of listeners) listener();
 }
 
-export function reportDeviceLeftovers(after: DeviceLeftovers['after'], retry: () => DeviceCopyRemoval): void {
+export function reportDeviceLeftovers(after: DeviceLeftovers['after'], retry: LeftoverRetry): void {
   publish({ view: { after, state: 'left' }, retry });
 }
 
-export function retryDeviceLeftovers(): void {
+/**
+ * Retries the removal. A retry that waits on the device database settles later: the returned promise resolves once the
+ * offer shows its outcome. An outcome for an offer since withdrawn or replaced is dropped.
+ */
+export function retryDeviceLeftovers(): Promise<void> | undefined {
   const current = offer;
-  if (!current || current.view.state === 'removed') return;
-  const removed = current.retry().complete;
-  publish({ view: { ...current.view, state: removed ? 'removed' : 'still-left' }, retry: current.retry });
+  if (!current || current.view.state === 'removed') return undefined;
+  const settle = (removed: boolean) => {
+    if (offer?.retry !== current.retry) return;
+    publish({ view: { ...current.view, state: removed ? 'removed' : 'still-left' }, retry: current.retry });
+  };
+  const result = current.retry();
+  if (!(result instanceof Promise)) {
+    settle(result.complete);
+    return undefined;
+  }
+  return result.then(
+    (removal) => settle(removal.complete),
+    () => settle(false),
+  );
 }
 
 export function withdrawDeviceLeftovers(): void {

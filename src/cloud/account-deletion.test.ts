@@ -17,7 +17,7 @@ import type { GoogleDeletionApproval } from './account-deletion';
 import { createAccountDeletion } from './account-deletion-action';
 import type { AccountDeletionContext } from './account-deletion-action';
 import { deviceLeftovers, retryDeviceLeftovers, withdrawDeviceLeftovers } from './device-leftovers';
-import type { DeviceCopyRemoval } from '../lib/scoped-library';
+import type { DeletedCopyRemoval, DeviceCopyRemoval } from '../lib/scoped-library';
 
 const calls = vi.hoisted(() => ({
   auth: { currentUser: null as { uid: string; email: string } | null },
@@ -25,11 +25,11 @@ const calls = vi.hoisted(() => ({
   reauthenticate: vi.fn(async () => {}),
   token: vi.fn(async () => ({ claims: { auth_time: 100, email_verified: false } })),
   redirect: vi.fn(async () => {}),
-  cancelled: vi.fn(async (): Promise<DeviceCopyRemoval | false> => false),
+  cancelled: vi.fn(async (): Promise<DeletedCopyRemoval | false> => false),
   cancel: vi.fn(async () => {}),
   activity: vi.fn(async () => {}),
   deleteUser: vi.fn(async () => {}),
-  deleteDevice: vi.fn(async (): Promise<DeviceCopyRemoval> => ({ complete: true })),
+  deleteDevice: vi.fn(async (): Promise<DeletedCopyRemoval> => ({ complete: true })),
   deleteMember: vi.fn(async () => {}),
   pause: vi.fn(async () => {}),
   remember: vi.fn(async () => true),
@@ -47,7 +47,7 @@ vi.mock('firebase/auth', () => ({
 vi.mock('../hooks/useExitSave', () => ({ hasPendingEdits: calls.pending }));
 vi.mock('../lib/online-availability', () => ({ rememberOnlineRequest: calls.remember }));
 vi.mock('../lib/scoped-library', () => ({
-  deleteScopedLibrary: calls.deleteDevice,
+  removeDeletedAccountCopy: calls.deleteDevice,
   pauseScopedLibrary: calls.pause,
   scopedWriter: (snapshot: ScopedLibrary) => ({ scope: snapshot.scope, generation: snapshot.writerGeneration ?? 0 }),
 }));
@@ -339,6 +339,34 @@ describe('ordered account deletion orchestration', () => {
       expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'removed' });
     },
   );
+  // G10 SEC2 item 8: with no opened copy, the removal after the account's deletion names only the account, so it goes at
+  // whichever generation an earlier removal left; one the device database refuses is reported with a full retry.
+  it.each(['verified', 'unverified', 'cancelled'] as const)(
+    'removes a %s account copy that did not open, and reports a refused removal with a retry that finishes it',
+    async (kind) => {
+      const f = fixture();
+      expect(f.context.account.snapshot).toBeNull();
+      let refused = true;
+      const retry = vi.fn(async (): Promise<DeletedCopyRemoval> =>
+        refused ? { complete: false, retry } : { complete: true },
+      );
+      const removal = { complete: false as const, retry };
+      if (kind === 'cancelled') calls.cancelled.mockResolvedValueOnce(removal);
+      else calls.deleteDevice.mockResolvedValueOnce(removal);
+      if (kind === 'unverified') f.context.identityRef.current = { ...identity, verified: false };
+      expect(await f.remove()).toBe(true);
+      if (kind !== 'cancelled') expect(calls.deleteDevice).toHaveBeenCalledExactlyOnceWith(f.context.scope);
+      expect(f.context.setIdentity).toHaveBeenCalledWith(null);
+      expect(f.context.onNavigate, 'Account stays open to say what stayed').not.toHaveBeenCalled();
+      expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'left' });
+      await retryDeviceLeftovers();
+      expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'still-left' });
+      refused = false;
+      await retryDeviceLeftovers();
+      expect(retry).toHaveBeenCalledTimes(2);
+      expect(deviceLeftovers()).toEqual({ after: 'deletion', state: 'removed' });
+    },
+  );
   it.each([false, true])('rechecks an unverified registration token, now verified=%s', async (verified) => {
     const f = fixture();
     f.context.identityRef.current = { ...identity, verified: false };
@@ -350,7 +378,7 @@ describe('ordered account deletion orchestration', () => {
     } else {
       expect(calls.cancel).toHaveBeenCalledWith({}, 'alpha');
       expect(calls.deleteUser).toHaveBeenCalled();
-      expect(calls.deleteDevice).toHaveBeenCalledWith({ scope: f.context.scope, generation: 0 });
+      expect(calls.deleteDevice).toHaveBeenCalledWith(f.context.scope);
     }
     expect(f.context.sync.store.cleanup).not.toHaveBeenCalled();
   });

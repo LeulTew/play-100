@@ -1,13 +1,15 @@
-import { IDBFactory } from 'fake-indexeddb';
+import { IDBFactory, IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { accountScope } from './cloud-types';
 import type { LibraryScope } from './cloud-types';
 import { accountWriterKey, closePersonalLibrary } from './personal-db';
 import {
   accountJournal,
+  deleteAccountCopy,
   deleteScopedLibrary,
   loadScopedLibrary,
   openScopedLibrary,
+  removeDeletedAccountCopy,
   scopedWriter,
 } from './scoped-library';
 import type { AccountWriter } from './scoped-library';
@@ -153,5 +155,48 @@ describe("sharing journals follow their device copy's writer", () => {
     // Ordinary sign-out keeps the copy; its writer is not retired.
     expect(await release(held)).toEqual(['saved', 'saved', 'saved']);
     expect(await journals()).toEqual(all);
+  });
+});
+
+// G10 SEC2 item 8: account deletion falls back to generation 0 when the copy did not open.
+describe("a deleted account's device copy", () => {
+  it('goes at the generation an earlier removal left, even when the reopened copy is unreadable', async () => {
+    const opened = await loadScopedLibrary(scope);
+    await deleteScopedLibrary(scopedWriter(opened));
+    const reopened = await openScopedLibrary(scope);
+    await release(hold(scopedWriter(reopened), reopened.state.revision));
+    await writeStoredValue(scope, { broken: 'deliberately unreadable device copy' });
+    // What account deletion used to do with no opened copy: the removal refuses the reopened generation.
+    await expect(deleteScopedLibrary({ scope, generation: 0 })).rejects.toThrow(/removed in another tab/);
+    expect(await deleteAccountCopy(scope)).toEqual({ complete: true });
+    expect(await readStoredValue(scope)).toBeUndefined();
+    expect(await journals()).toEqual(none);
+    expect(await readStoredValue(accountWriterKey(scope))).toEqual({ version: 1, generation: 2, retired: true });
+    // Again, as a retry would: nothing is left to remove, and nothing is reopened.
+    expect(await deleteAccountCopy(scope)).toEqual({ complete: true });
+    expect(await readStoredValue(accountWriterKey(scope))).toEqual({ version: 1, generation: 2, retired: true });
+  });
+
+  it('is reported with a retry when the device database refuses it, and the retry removes it', async () => {
+    const opened = await loadScopedLibrary(scope);
+    await release(hold(scopedWriter(opened), opened.state.revision));
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const put = vi.spyOn(FakeObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('Synthetic storage full', 'QuotaExceededError');
+    });
+    const removal = await removeDeletedAccountCopy(scope);
+    put.mockRestore();
+    if (removal.complete) throw new Error('The refused removal was reported as complete.');
+    expect(logged).toHaveBeenCalledOnce();
+    expect(await readStoredValue(scope)).toBeDefined();
+    expect(await journals()).toEqual(all);
+    expect(await removal.retry()).toEqual({ complete: true });
+    expect(await readStoredValue(scope)).toBeUndefined();
+    expect(await journals()).toEqual(none);
+  });
+  it('goes even when it was never opened on this device', async () => {
+    expect(await deleteAccountCopy(scope)).toEqual({ complete: true });
+    expect(await readStoredValue(scope)).toBeUndefined();
+    expect(await readStoredValue(accountWriterKey(scope))).toEqual({ version: 1, generation: 1, retired: true });
   });
 });

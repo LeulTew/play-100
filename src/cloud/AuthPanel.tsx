@@ -28,9 +28,13 @@ function DeviceLeftoverNotice() {
   const notice = useRef<HTMLElement>(null);
   if (!leftovers) return null;
   const retry = () => {
-    retryDeviceLeftovers();
     // Once a retry works its button goes: focus stays on the notice, which now confirms the removal.
-    if (deviceLeftovers()?.state === 'removed') notice.current?.focus();
+    const confirm = () => {
+      if (deviceLeftovers()?.state === 'removed') notice.current?.focus();
+    };
+    const settling = retryDeviceLeftovers();
+    if (settling) void settling.then(confirm);
+    else confirm();
   };
   return (
     <section ref={notice} className="account-notice" role="alert" tabIndex={-1}>

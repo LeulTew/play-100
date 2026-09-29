@@ -5,8 +5,8 @@ import type { AppPage } from '../lib/types';
 import type { LibraryScope, ScopedLibrary, SyncHead } from '../lib/cloud-types';
 import type { FriendSettings } from '../lib/friend-types';
 import type { FriendShelfConfig } from '../lib/friend-shelf-types';
-import { deleteScopedLibrary, pauseScopedLibrary, scopedWriter } from '../lib/scoped-library';
-import type { DeviceCopyRemoval } from '../lib/scoped-library';
+import { pauseScopedLibrary, removeDeletedAccountCopy, scopedWriter } from '../lib/scoped-library';
+import type { DeletedCopyRemoval } from '../lib/scoped-library';
 import { rememberOnlineRequest } from '../lib/online-availability';
 import { hasPendingEdits } from '../hooks/useExitSave';
 import { cloudAuth, cloudDb } from './firebase-client';
@@ -90,7 +90,7 @@ export function createAccountDeletion({
 }: AccountDeletionContext) {
   // The account is gone either way. Only a complete removal leaves Account, which otherwise, now signed out, says what
   // stayed on this device and retries it.
-  const leave = (removal: DeviceCopyRemoval) => {
+  const leave = (removal: DeletedCopyRemoval) => {
     if (removal.complete) onNavigate('collection');
     else reportDeviceLeftovers('deletion', removal.retry);
   };
@@ -105,7 +105,9 @@ export function createAccountDeletion({
       const signedIn = cloudAuth.currentUser;
       if (!signedIn || signedIn.uid !== identityRef.current?.uid || !scope)
         throw new Error('Sign in to the account you want to delete.');
-      const writer = account.snapshot ? scopedWriter(account.snapshot) : { scope, generation: 0 };
+      // Pausing needs the copy this account opened. Once the account itself is deleted, its copy goes at whichever
+      // generation it reached, opened or not (removeDeletedAccountCopy).
+      const writer = account.snapshot ? scopedWriter(account.snapshot) : null;
       deletionProbe.current = null;
       setNotice(null);
       const session = authSessionEpochRef.current;
@@ -151,7 +153,7 @@ export function createAccountDeletion({
             session,
             authSessionEpochRef.current,
           );
-        const cancelled = await removeCancelledRegistration(cloudDb, signedIn, writer, current);
+        const cancelled = await removeCancelledRegistration(cloudDb, signedIn, scope, current);
         if (cancelled) {
           await rememberOnlineRequest(false);
           setIdentity(null);
@@ -168,7 +170,7 @@ export function createAccountDeletion({
         }
         await cancelUnusedRegistration(cloudDb, signedIn.uid);
         await deleteUser(signedIn);
-        const removal = await deleteScopedLibrary(writer);
+        const removal = await removeDeletedAccountCopy(scope);
         await rememberOnlineRequest(false);
         setIdentity(null);
         leave(removal);
@@ -224,7 +226,7 @@ export function createAccountDeletion({
         )
       )
         throw new Error('The signed-in account changed. Return to the same account before continuing.');
-      if (account.snapshot) await pauseScopedLibrary(writer);
+      if (writer) await pauseScopedLibrary(writer);
       await ensureAccountActivity(cloudDb, user.uid);
       await social.unpublish(user.uid, await social.control(user.uid), true);
       const deleting = await store.revoke(await store.head(), true);
@@ -304,7 +306,7 @@ export function createAccountDeletion({
           }
           throw cause;
         }
-        const removal = await deleteScopedLibrary(writer);
+        const removal = await removeDeletedAccountCopy(scope);
         await rememberOnlineRequest(false);
         setIdentity(null);
         leave(removal);
