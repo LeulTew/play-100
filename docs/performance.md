@@ -24,22 +24,44 @@ Caps only move down.
 - **CSS.** Before adding a rule, check whether one already sets the value: a base rule, a shorter media query that
   already covers the width, or a later rule in `shared-responsive.css`. Delete styles with the markup they style.
   `npx tsx scripts/css-unused.ts` lists classes that no source file produces.
-- **Chunks.** Rolldown chooses the chunks. When it splits modules the entry shares with lazy chunks into small chunks
-  of their own, the `app-shared` group in [`vite.config.ts`](../vite.config.ts) keeps them in one chunk instead of
-  adding imports that only steer chunking. [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists
-  them.
+- **Chunks.** Rolldown chooses the chunks. The `app-shared` group in [`vite.config.ts`](../vite.config.ts) keeps the
+  entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
+  and no import exists only to steer chunking. [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists
+  the modules that anchor it; dynamic imports stay separate, and the eager-module guard checks that boundary.
 
 ## R22 figures
 
-Configured build of the R22 integration tree:
+Configured build of the R22 candidate (tree `63c5500d`), the release figures. Every figure is within its cap, 14 of 14:
 
 | Metric | Measured | Cap |
 | --- | ---: | ---: |
-| `eagerCombinedGzipBytes` | 176,221 | 175,542 |
+| `eagerCombinedGzipBytes` | 173,072 | 175,542 |
 | `cssRawBytes` | 133,777 | 135,115 |
 | `cssGzipBytes` | 27,969 | 28,249 |
 | `standaloneCssRawBytes` | 574 | 603 |
 | `standaloneCssGzipBytes` | 314 | 330 |
+| `pwaCoreBytes` | 1,783,068 | 2,097,152 |
+| `pwaCoreFiles` | 46 | 51 |
+| `largestLazyRawBytes` | 571,597 | 577,308 |
+| `largestLazyGzipBytes` | 144,991 | 146,453 |
+| `indexHtmlRawBytes` | 32,776 | 33,399 |
+| `indexHtmlGzipBytes` | 9,162 | 9,386 |
+| `inlineStyleRawBytes` | 18,271 | 18,527 |
+| `inlineScriptRawBytes` | 3,329 | 3,585 |
+| `largestRouteGzipBytes` | 279,232 | 282,325 |
+
+Eager is 155,764 bytes of JavaScript and 17,308 of CSS, gzip9; the offline build measures 172,978. The offline core is
+44 public files plus 2 metadata entries.
+
+The caps were lowered on an intermediate tree (sim `db0ea42a` with the first `app-shared` group and the CSS removals)
+and stayed there. App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that never applied and
+merging rules written twice, and each cap with room dropped to its measurement there plus the margin:
+
+| Metric | Intermediate `db0ea42a` | Cap |
+| --- | ---: | ---: |
+| `eagerCombinedGzipBytes` | 176,221 | 175,542 |
+| `cssRawBytes` | 133,777 | 135,115 |
+| `cssGzipBytes` | 27,969 | 28,249 |
 | `pwaCoreBytes` | 1,783,539 | 2,097,152 |
 | `pwaCoreFiles` | 50 | 51 |
 | `largestLazyRawBytes` | 571,592 | 577,308 |
@@ -50,6 +72,9 @@ Configured build of the R22 integration tree:
 | `inlineScriptRawBytes` | 3,329 | 3,585 |
 | `largestRouteGzipBytes` | 279,529 | 282,325 |
 
-App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that never applied and merging rules written
-twice. Eager JavaScript grew by about 2.9 KB gzip9 in R22 (156,053 to 158,913), which puts the eager total over its
-cap; `budgets.json` `notes.r22` records where it grew.
+That tree's eager total was over its cap: R22 had added about 2.9 KB of eager JavaScript gzip9 (156,053 to 158,913).
+The candidate brought it back under the unchanged cap with two changes in `ae1dd74d`. Beyond The 100's saved additions
+load their artwork through the existing dynamic catalog module instead of a static hook import. The `app-shared`
+group takes the entry's whole static closure (`includeDependenciesRecursively`), so the eager code ships as the
+entry, `app-shared` and the Rolldown runtime rather than as separate shared chunks. `budgets.json` `notes.r22` and
+`notes.r22Release` record both measurements.
