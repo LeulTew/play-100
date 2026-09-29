@@ -151,11 +151,24 @@ it does not copy one library into the other when switching the active view.
 
 Public collection metadata comes from [useCollection](../src/hooks/useCollection.ts),
 which renders the ready collection as a transition.
-The visible saved additions in Beyond The 100 use the same exact-ID artwork
-loader as My games, even with a blank search or online lookup disabled.
+The visible saved additions in Beyond The 100 dynamically import the existing
+catalog module from an effect only when a saved provider row needs artwork. It shares the
+same exact-ID presence check and bounded catalog transport as My games, even
+with a blank search or online lookup disabled. There is no static hook import
+from the additions list, so its artwork code stays outside the eager graph.
 The bundled catalog is loaded only for records with known local artwork; manual
 and known no-art records do not cause a metadata fetch. Artwork completion
 updates only the additions, not AppShell's search state or saved library data.
+Unmount or a changed row set cancels only that caller, retaining shared loads
+for other views. A failed module or catalog load leaves the rows and editors
+mounted with the existing guarded reload control. The catalog module is already
+an offline core root and is checked by the deferred-module build guard, so this
+adds no new public chunk solely for artwork.
+The existing `app-shared` group includes the entry's static closure, rather
+than compressing already-eager modules as separate files. Dynamic catalog,
+route and scene imports stay separate and the eager-module guard checks that
+boundary. This reduces transfer bytes and offline file count without changing
+which features load on demand.
 Unsaved previews are bounded, scope-qualified metadata in App, not library imports.
 [PreviewAuthority](../src/lib/preview-authority.ts) supplies a revocable subscription
 for shared previews; it does not persist records.

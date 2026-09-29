@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
@@ -6,6 +7,7 @@ import { emptyPersonalLibrary } from '../src/lib/personal-library';
 import type { LibraryRecord } from '../src/lib/personal-types';
 import { installGuestLibrary, libraryFixture } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
+import { readBuildManifest } from '../scripts/build-metadata';
 
 const catalog = parseDiscoveryCatalog(
   JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')),
@@ -56,6 +58,84 @@ async function singleLibrary(page: Page, records: LibraryRecord[]) {
     records: Object.fromEntries(records.map((record) => [record.id, record])),
   });
 }
+
+test('the saved artwork module waits for listed additions and leaves an active rating mounted', async ({ page }) => {
+  const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
+  const module = manifest['src/lib/discovery-catalog.ts'];
+  if (!module?.isDynamicEntry) throw new Error('Saved artwork must remain a separate on-demand module.');
+  await singleLibrary(page, [illustratedItem.record]);
+  await expect(page.locator('.record-thumb img')).toHaveAttribute('src', illustratedArtwork.src);
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === `/${module.file}`) requests.push(request.url());
+  });
+  await page.goto('/?catalogs=off&tier=core');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await expect(page.locator('[data-unranked-id]')).toHaveCount(0);
+  expect(requests).toEqual([]);
+  let release: () => void = () => {
+    throw new Error('No artwork module hold.');
+  };
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/${module.file}`, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.goto('/?catalogs=off');
+    const beyond = page.getByRole('region', { name: 'Beyond The 100', exact: true });
+    await beyond.scrollIntoViewIfNeeded();
+    const saved = beyond.locator(`[data-unranked-id="${illustratedItem.record.id}"]`);
+    await expect.poll(() => requests.length).toBe(1);
+    await saved.locator('.discovery-card-details > summary').click();
+    const input = saved.getByRole('spinbutton');
+    await page.clock.install({ time: new Date('2026-09-29T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-09-29T12:00:10Z'));
+    await input.fill('7.25');
+    await input.evaluate((node) => {
+      node.dataset.artworkEditor = 'retained';
+    });
+    release();
+    await expect(saved.locator('.discovery-card-art img')).toHaveAttribute('src', illustratedArtwork.src);
+    await expect(input).toHaveAttribute('data-artwork-editor', 'retained');
+    await expect(input).toHaveValue('7.25');
+    await expect(input).toBeFocused();
+    expect((await readLibrary(page)).ranking).toEqual([]);
+    await input.press('Enter');
+    await expect
+      .poll(
+        async () => (await readLibrary(page)).ranking.find((entry) => entry.id === illustratedItem.record.id)?.score,
+      )
+      .toBe(7.25);
+  } finally {
+    release();
+  }
+});
+
+test('a failed saved artwork module retains games and offers guarded recovery', async ({ page }) => {
+  const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
+  const module = manifest['src/lib/discovery-catalog.ts'];
+  if (!module?.isDynamicEntry) throw new Error('Saved artwork must remain a separate on-demand module.');
+  await singleLibrary(page, [illustratedItem.record]);
+  const before = await readLibrary(page);
+  await page.route(`**/${module.file}`, (route) => route.abort('failed'));
+  await page.goto('/?catalogs=off');
+  const beyond = page.getByRole('region', { name: 'Beyond The 100', exact: true });
+  await beyond.scrollIntoViewIfNeeded();
+  await expect(beyond.getByRole('alert')).toHaveText(
+    "Saved game artwork couldn't load. Your games are still available.",
+  );
+  const saved = beyond.locator(`[data-unranked-id="${illustratedItem.record.id}"]`);
+  await expect(saved.getByRole('button', { name: illustratedItem.record.title, exact: true })).toBeEnabled();
+  expect(await readLibrary(page)).toEqual(before);
+  await page.context().setOffline(true);
+  await beyond.getByRole('button', { name: 'Reload this page', exact: true }).click();
+  await expect(beyond.getByRole('status')).toHaveText("You're offline. Reconnect, then try again.");
+  await expect(saved).toHaveCount(1);
+  expect(await readLibrary(page)).toEqual(before);
+});
 
 for (const view of ['grid', 'table']) {
   test(`saved Discover artwork stays available on The 100 without a search in ${view} view`, async ({ page }) => {

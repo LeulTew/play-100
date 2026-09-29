@@ -1,14 +1,13 @@
 /**
- * Modules the entry chunk shares with most lazy chunks, which the build keeps together in one `app-shared` chunk
+ * The entry and its shared modules form one static closure in `app-shared`
  * (vite.config.ts, `build.rolldownOptions.output.codeSplitting`).
  *
- * Rolldown merged these modules into the entry chunk until 3a12ac44 (ExtendedResults importing useDiscoveryArtwork)
- * stopped that merge. It then emitted them as four small chunks (Dialog, Icon, library-mode and useExitSave), which
- * pushed the offline core past its 51-file budget. One chunk, which the entry loads as it loaded the four, keeps the
- * file count within the budget without steering imports. A path that no longer exists fails
- * scripts/app-shared-chunk.test.ts, so the list cannot drift silently.
+ * Separate shared chunks add gzip overhead and offline entries without deferring any code. Including the entry's
+ * static dependencies compresses them together; dynamic imports remain separate. The eager-module guard rejects
+ * deferred bodies and app-tool-loading checks the online graph. A missing path fails app-shared-chunk.test.ts.
  */
 export const APP_SHARED_MODULES: readonly string[] = [
+  'src/main.tsx',
   'src/components/Dialog.tsx',
   'src/components/dialog-layer.ts',
   'src/components/dialog-lifecycle.ts',

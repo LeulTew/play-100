@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MotionOriginHint } from '../../motion';
 import type { useExtendedSearch } from '../../hooks/useExtendedSearch';
-import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
+import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
 import { collidingCatalogTitles, newOnlineMatchCounts } from '../../lib/catalog-identity';
+import { ChunkRecovery } from '../ChunkRecovery';
+import { loadSavedDiscoveryArtwork } from '../../lib/saved-discovery-artwork';
 
 export default function ExtendedResults({
   records,
@@ -40,13 +42,44 @@ export default function ExtendedResults({
   embedded?: boolean;
 }) {
   const [page, setPage] = useState({ queryKey, limit: 24 });
+  const [savedArtwork, setSavedArtwork] = useState<ReadonlyMap<string, CatalogArtwork> | null>(null);
+  const [artworkFailed, setArtworkFailed] = useState(false);
   const localLimit = page.queryKey === queryKey ? page.limit : 24;
   if (page.queryKey !== queryKey) setPage({ queryKey, limit: 24 });
   const failed = online.sources.some((source) => source.status === 'error');
   // Keep mounted rating drafts in place when another provider finishes.
   const limit = localLimit + online.sources.reduce((count, source) => count + source.records.length, 0);
   const shown = records.slice(0, limit);
-  const savedArtwork = useDiscoveryArtwork(shown, online.artwork.size === 0);
+  const missingArtworkIds = useMemo(
+    () =>
+      records
+        .slice(0, limit)
+        .filter(
+          (record) =>
+            state.records[record.id] &&
+            record.source !== 'manual' &&
+            record.source !== 'collection' &&
+            !online.artwork.has(record.id),
+        )
+        .map((record) => record.id),
+    [records, limit, state.records, online.artwork],
+  );
+  useEffect(() => {
+    if (!missingArtworkIds.length) return;
+    const controller = new AbortController();
+    void loadSavedDiscoveryArtwork(missingArtworkIds, controller.signal)
+      .then((artwork) => {
+        if (controller.signal.aborted) return;
+        setSavedArtwork(artwork);
+        setArtworkFailed(false);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        console.error('Saved game artwork could not load.', error);
+        setArtworkFailed(true);
+      });
+    return () => controller.abort();
+  }, [missingArtworkIds]);
   const collisions = collidingCatalogTitles(records);
   const newMatches = newOnlineMatchCounts(
     online.sources,
@@ -62,7 +95,7 @@ export default function ExtendedResults({
               key={record.id}
               record={record}
               showSource={collisions.has(record.id)}
-              artwork={online.artwork.get(record.id) ?? savedArtwork.get(record.id)}
+              artwork={online.artwork.get(record.id) ?? savedArtwork?.get(record.id)}
               state={state}
               busy={busy}
               selecting={selecting}
@@ -76,6 +109,9 @@ export default function ExtendedResults({
             />
           ))}
         </ul>
+      )}
+      {artworkFailed && missingArtworkIds.length > 0 && (
+        <ChunkRecovery message="Saved game artwork couldn't load. Your games are still available." />
       )}
       {records.length > limit && (
         <button className="text-button" onClick={() => setPage({ queryKey, limit: localLimit + 24 })}>

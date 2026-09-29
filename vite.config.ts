@@ -120,11 +120,10 @@ export default defineConfig(({ mode }) => {
           codeSplitting: {
             groups: [
               {
-                // One chunk for the modules the entry shares with most lazy chunks (scripts/app-shared-chunk.ts); their
-                // dependencies keep their own chunks.
+                // Compress the entry's static closure together; the deferred-module guard rejects lazy bodies here.
                 name: 'app-shared',
                 test: isAppSharedModule,
-                includeDependenciesRecursively: false,
+                includeDependenciesRecursively: true,
               },
             ],
           },

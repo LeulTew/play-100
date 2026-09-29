@@ -2,6 +2,8 @@ export const DEFERRED_SOURCE_MODULES = [
   'src/components/CollectionExtras.tsx',
   'src/components/RatingsTable.tsx',
   'src/components/catalog/ExtendedResults.tsx',
+  'src/lib/discovery-catalog.ts',
+  'src/lib/saved-discovery-artwork.ts',
   'src/components/CollectionFilms.tsx',
   'src/components/AboutDialog.tsx',
   'src/components/SettingsDialog.tsx',

@@ -13,10 +13,15 @@ describe('app-shared chunk modules', () => {
   });
 
   it('matches the listed modules by their whole path, with either separator', () => {
+    expect(isAppSharedModule(`${root}src/main.tsx`)).toBe(true);
     expect(isAppSharedModule(`${root}src/components/Dialog.tsx`)).toBe(true);
     expect(isAppSharedModule('C:\\repo\\src\\motion\\runtime.ts')).toBe(true);
     expect(isAppSharedModule('/repo/src/components/Dialog.tsx?used')).toBe(false);
     expect(isAppSharedModule('/repo/src/components/SettingsDialog.tsx')).toBe(false);
+    expect(isAppSharedModule('/repo/src/components/catalog/ExtendedResults.tsx')).toBe(false);
+    expect(isAppSharedModule('/repo/src/lib/saved-discovery-artwork.ts')).toBe(false);
+    expect(isAppSharedModule('/repo/src/lib/discovery-catalog.ts')).toBe(false);
+    expect(isAppSharedModule('/repo/src/cloud/OnlineController.tsx')).toBe(false);
     expect(isAppSharedModule('/repo/src/components/IconButton.tsx')).toBe(false);
     expect(isAppSharedModule('/repo/node_modules/react/index.js')).toBe(false);
   });
