@@ -55,6 +55,30 @@ const queryKeys = new Set([
   'include100',
 ]);
 const shellRoutes = new Set(['/', '/index.html', '/discover', '/my-games', '/my-library', '/my-rankings']);
+const appRoutes =
+  /^\/(?:|index\.html|discover|my-games|my-library|my-rankings|data-use|friends(?:\/sharing(?:\/games)?|\/[^/]+)?|invite|compare|account|publish|community|creator|u\/[^/]+)\/?$/;
+// The worker is emitted as one self-contained file, so it keeps a copy of public/404.html (worker.test.ts checks they match).
+export const PWA_NOT_FOUND_HTML = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f3e9">
+  <meta name="robots" content="noindex">
+  <title>Page not found | Play 100</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/pwa/fallback.css">
+</head>
+<body class="offline-page">
+  <main>
+    <p><a href="/">Play 100</a></p>
+    <h1>This page doesn't exist.</h1>
+    <p>The link may be old or mistyped. All 100 games, Discover and your games are still here.</p>
+    <p><a href="/">Open The 100</a><a href="/discover">Open Discover</a><a href="/my-games">Open My games</a></p>
+  </main>
+</body>
+</html>
+`;
 const publicFiles = new Set([
   '/index.html',
   '/favicon.svg',
@@ -92,6 +116,10 @@ export function isPwaShellNavigation(url: URL, origin: string): boolean {
         url.searchParams.getAll('page').length === 1 &&
         /^[1-9]\d{0,3}$/.test(url.searchParams.get('page') ?? '')))
   );
+}
+
+export function isPwaNotFoundNavigation(url: URL, origin: string): boolean {
+  return url.origin === origin && !appRoutes.test(url.pathname) && !/\.[A-Za-z0-9]+$/.test(url.pathname);
 }
 
 export function pwaAppWindows(clients: readonly PwaWorkerClient[], origin: string): PwaWorkerClient[] | null {
@@ -480,6 +508,14 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
     const windows = pwaAppWindows(await scope.clients.matchAll({ type: 'window', includeUncontrolled: true }), origin);
     return windows !== null && windows.length === 1 && windows[0]?.id === id;
   };
+  const notFound = () =>
+    documentResponse(
+      new Response(PWA_NOT_FOUND_HTML, {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+      }),
+      manifest.documentPolicy,
+    );
   const fallback = async () => {
     const html = await (await scope.caches.open(coreName)).match(`${origin}/pwa/offline.html`);
     return documentResponse(
@@ -682,7 +718,8 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
             await bindClients([id], 'network');
             return online;
           } catch {
-            return fallback();
+            // Offline, an unknown page gets the same not-found page Vercel serves online.
+            return isPwaNotFoundNavigation(url, origin) ? notFound() : fallback();
           }
         })();
       event.respondWith(

@@ -54,6 +54,9 @@ export async function checkCsp(root: string, configuration: unknown): Promise<{ 
     documents.push({ name, html: await readFile(path.join(root, ...name.split('/')), 'utf8') });
   if (!documents.some((entry) => entry.name === 'index.html'))
     throw new Error(`No index.html in ${root}. Build before checking the CSP.`);
+  // Vercel serves 404.html for unknown paths under the same main-document policy.
+  if (!documents.some((entry) => entry.name === '404.html'))
+    throw new Error(`No 404.html in ${root}. Build before checking the CSP.`);
   // One build holds one shell variant, so stale style hashes are left to the build, which knows both.
   const problems = cspProblems(documents, policy, { otherVariantStyles: 'unchecked' });
   problems.push(...reportingProblems(configuration));

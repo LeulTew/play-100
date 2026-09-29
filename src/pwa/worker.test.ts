@@ -1,4 +1,5 @@
 import { createHash, webcrypto } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { setImmediate } from 'node:timers/promises';
 import { describe, expect, it, vi } from 'vitest';
 import { libraryPageSearch, myGamesSearch, parseLibraryPage } from '../lib/my-games-navigation';
@@ -6,11 +7,13 @@ import { defaultFilters } from '../lib/url';
 import {
   installPwaWorker,
   isPublicPwaFile,
+  isPwaNotFoundNavigation,
   isPwaShellNavigation,
   pwaAppWindows,
   pwaAssetDeadlineMs,
   PWA_BUDGET,
   PWA_CACHE_PREFIX,
+  PWA_NOT_FOUND_HTML,
   validatePwaManifest,
   verifiedPwaResponse,
 } from './worker';
@@ -440,6 +443,40 @@ describe('version-bound offline security headers', () => {
       expect(response?.headers.get('Set-Cookie')).toBeNull();
     }
     expect(fallback?.headers.get('Cache-Control')).toBe('no-store');
+  });
+  it('serves the not-found page offline for unknown paths, with the embedded policy (UX-004)', async () => {
+    const fixture = workerFixture();
+    await fixture.lifetime('install');
+    fixture.fetch.mockRejectedValue(new Error('Offline'));
+    const missing = await fixture.response(navigation(`${origin}/settings`));
+    expect(missing?.status).toBe(404);
+    expect(missing?.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
+    expect(missing?.headers.get('Cache-Control')).toBe('no-store');
+    for (const header of policy.headers) expect(missing?.headers.get(header.name)).toBe(header.value);
+    expect(await missing?.text()).toBe(PWA_NOT_FOUND_HTML);
+    // App routes that need a connection keep the offline page, and files keep failing as files.
+    expect((await fixture.response(navigation(`${origin}/friends/someone`)))?.status).toBe(503);
+    expect((await fixture.response(navigation(`${origin}/missing.png`)))?.status).toBe(503);
+  });
+  it('keeps the offline not-found page identical to public/404.html', () => {
+    expect(PWA_NOT_FOUND_HTML).toBe(readFileSync(new URL('../../public/404.html', import.meta.url), 'utf8'));
+  });
+  it('treats exactly the app routes from vercel.json as known pages', () => {
+    const vercel = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8')) as {
+      rewrites: { source: string; destination: string }[];
+    };
+    const routes = vercel.rewrites
+      .filter((rewrite) => rewrite.destination === '/index.html')
+      .map((rewrite) => rewrite.source.replace(/:[a-z]+/, 'value'));
+    // trailingSlash: false redirects these online, so they aren't missing pages either.
+    for (const path of ['/', '/index.html', '/my-games/', ...routes]) {
+      expect(isPwaNotFoundNavigation(new URL(`${origin}${path}`), origin), path).toBe(false);
+    }
+    for (const path of ['/settings', '/discover/extra', '/friends/a/b', '/u/', '/ACCOUNT']) {
+      expect(isPwaNotFoundNavigation(new URL(`${origin}${path}`), origin), path).toBe(true);
+    }
+    expect(isPwaNotFoundNavigation(new URL('https://elsewhere.test/settings'), origin)).toBe(false);
+    expect(isPwaNotFoundNavigation(new URL(`${origin}/robots.txt`), origin)).toBe(false);
   });
   it('serves a paged Library offline without caching the query or allowing a private query key', async () => {
     const fixture = workerFixture();

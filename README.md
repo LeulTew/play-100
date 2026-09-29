@@ -509,6 +509,8 @@ is listed ([route costs](docs/architecture.md#route-costs)).
 the `vercel.json` main-document policy, including the
 [first-paint shell](docs/first-paint-shell.md) boot script by its exact hash, and
 `pwa-assets.json` must embed that same policy. It prints each inline block's hash.
+It fails without `404.html`, the not-found page Vercel serves for unknown paths,
+which the service worker also serves offline for them.
 The PWA browser spec checks explicit preparation and
 offline local routes in isolated contexts, not OS installation or update races.
 See [the remaining manual PWA release checks](docs/pwa.md#manual-release-checks).

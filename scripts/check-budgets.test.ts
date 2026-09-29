@@ -37,6 +37,7 @@ const source: Record<string, string> = {
   'assets/lazy-12345678.css': '.lazy { color: green; }',
   'data/collection.json': '{"games":[]}',
   'pwa/offline.html': '<link rel="stylesheet" href="/pwa/fallback.css"><h1>Offline</h1>',
+  '404.html': '<link rel="stylesheet" href="/pwa/fallback.css"><h1>Page not found</h1>',
   'pwa/fallback.css': '.fallback { color: black; }',
 };
 // What the build records for the fixture's index.html; fixture() binds it to the document it writes.
@@ -497,10 +498,21 @@ describe('offline built-output budgets', () => {
     ['index.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
     ['extra.html', '<link rel="stylesheet" href="/pwa/fallback.css">'],
     ['extra.html', '<noscript><link rel="stylesheet" href="/pwa/fallback.css"></noscript>'],
-  ])('rejects a standalone stylesheet outside the two allowed document scopes: %s', async (file, markup) => {
+    ['404.html', '<link rel="stylesheet" href="/pwa/other.css">'],
+  ])('rejects a standalone stylesheet outside the allowed document scopes: %s', async (file, markup) => {
     const directory = await fixture();
     await writeFile(path.join(directory, file), (file === 'index.html' ? source[file]! : '') + markup);
     await expect(measureBuild(directory)).rejects.toThrow(/Standalone stylesheet is only allowed/);
+  });
+
+  it('requires the not-found page and measures it with the other documents (UX-004)', async () => {
+    const directory = await fixture();
+    const measured = await measureBuild(directory);
+    expect(measured.html.find((asset) => asset.file === '404.html')?.rawBytes).toBe(
+      Buffer.byteLength(source['404.html']!),
+    );
+    await rm(path.join(directory, '404.html'));
+    await expect(measureBuild(directory)).rejects.toThrow(/Missing built 404\.html/);
   });
 
   it('rejects app chunk and CSS-import references to standalone styles', async () => {

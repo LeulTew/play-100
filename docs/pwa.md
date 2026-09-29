@@ -122,6 +122,10 @@ engine. Existing guest/account libraries, save validation, backups and consent
 remain independent of CacheStorage. Signing in offline is not promised.
 Uncached account/sharing pages show a connection-required explanation instead
 of substituting private data or silently switching account scope.
+Offline, a navigation to an unknown path (not an app route in `vercel.json`, and
+not a file) gets the same not-found page Vercel serves online, `public/404.html`,
+with status 404 and the embedded policy. The worker carries its own copy, so the
+404 page adds no core file; a unit test keeps the copy identical.
 
 Videos, spreadsheets, 3D and the online controller are not precached. Existing
 media/download behavior is unchanged. The public Data use page bypasses PWA
@@ -145,7 +149,7 @@ continues using network-only requests and exact manifest checksums rather than
 trusting those browser-cache bytes. No cover paths, image bytes or PWA policy
 are changed by this HTTP cache rule.
 
-`/pwa/fallback.css` belongs to the standalone offline document and the app's
+`/pwa/fallback.css` belongs to the standalone offline and not-found documents and the app's
 `noscript` fallback, not the JavaScript-enabled app stylesheet graph. Its
 separate byte gate does not exempt it from the core entry/byte budget. Active
 app references to that stylesheet fail the build-budget check.

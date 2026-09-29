@@ -221,10 +221,11 @@ describe('CSP problems', () => {
 });
 
 describe('check:csp', () => {
-  async function dist(files: Record<string, string>) {
+  async function dist(files: Record<string, string | null>) {
     const root = await mkdtemp(path.join(tmpdir(), 'play100-csp-test-'));
     folders.push(root);
-    for (const [file, content] of Object.entries(files)) {
+    for (const [file, content] of Object.entries({ '404.html': '<h1>Page not found</h1>', ...files })) {
+      if (content === null) continue;
       await mkdir(path.dirname(path.join(root, file)), { recursive: true });
       await writeFile(path.join(root, file), content);
     }
@@ -276,6 +277,16 @@ describe('check:csp', () => {
     });
   });
 
+  it('requires the not-found page and checks it like every other document (UX-004)', async () => {
+    const missing = await dist({ 'index.html': page, '404.html': null, 'pwa-assets.json': manifest(policy) });
+    await expect(checkCsp(missing, configuration)).rejects.toThrow(/No 404\.html/);
+    const inline = await dist({
+      'index.html': page,
+      '404.html': '<script>alert(1)</script>',
+      'pwa-assets.json': manifest(policy),
+    });
+    expect((await checkCsp(inline, configuration)).problems).toEqual([expect.stringContaining('404.html')]);
+  });
   it('accepts a strict style-src that also lists the other shell variant, but not a missing style hash', async () => {
     const strict = policy.replace("'unsafe-inline'", `${sha256Source('a{color:red}')} ${sha256Source('other{}')}`);
     const strictConfiguration = configured(strict);

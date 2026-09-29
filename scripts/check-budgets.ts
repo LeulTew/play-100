@@ -309,6 +309,7 @@ export async function measureBuild(
     sizes.set(file, result);
     return result;
   };
+  if (!files.has('404.html')) throw new Error('Missing built 404.html, the not-found page for unknown paths.');
   const html = await readFile(path.join(root, 'index.html'), 'utf8');
   const eagerFiles = new Set(eagerHtmlFiles(html));
   const inlineCss: AssetSize[] = [];
@@ -330,8 +331,12 @@ export async function measureBuild(
           !rel.some((value) => ['stylesheet', 'preload', 'prefetch'].includes(value))
         )
           continue;
-        if (standalone(localFile(attributes.get('href')!))) {
-          throw new Error(`Standalone stylesheet is only allowed in offline.html or index.html noscript: ${document}`);
+        const href = localFile(attributes.get('href')!);
+        // 404.html, Vercel's not-found page, shares the offline page's stylesheet and nothing else.
+        if (standalone(href) && (document !== '404.html' || href !== 'pwa/fallback.css')) {
+          throw new Error(
+            `Standalone stylesheet is only allowed in offline.html, 404.html (fallback.css) or index.html noscript: ${document}`,
+          );
         }
       }
       for (const [index, { css }] of scan.styles.filter((entry) => !entry.inNoscript).entries()) {
