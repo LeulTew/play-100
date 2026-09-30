@@ -229,22 +229,28 @@ export function assertBlockedEvidence(facts: {
   blocked: DatabaseSnapshot;
   afterRetry: DatabaseSnapshot;
   notice: string;
+  blockedNoticeCount: number;
+  recoveredNoticeCount: number;
   versionchanges: number;
   retry: string;
   retryReloads: number;
   stillBlockedAfterRetry?: DatabaseSnapshot;
   retryFocused?: boolean;
+  reblockedNoticeCount?: number;
 }) {
   assert.equal(facts.before.version, 2);
   assert.deepEqual(facts.blocked, facts.before, 'Blocked upgrade must not change saved rows.');
   assert.ok(facts.versionchanges > 0, 'The synthetic connection did not block a real upgrade.');
   assert.match(facts.notice, /Close other Play 100 tabs.*retry/);
   assert.match(facts.notice, /saved data has not been (changed|overwritten)/);
+  assert.equal(facts.blockedNoticeCount, 1, 'Exactly one blocked notice must explain the whole opening failure.');
+  assert.equal(facts.recoveredNoticeCount, 0, 'Recovery must dismiss the blocked opening notice.');
   assert.ok(['explicit-browser-reload', 'blocked-notice-button'].includes(facts.retry));
   assert.equal(facts.retryReloads, facts.retry === 'blocked-notice-button' ? 0 : 1);
   if (facts.retry === 'blocked-notice-button') {
     assert.deepEqual(facts.stillBlockedAfterRetry, facts.before, 'The still-blocked retry changed saved data.');
     assert.equal(facts.retryFocused, true, 'The blocked retry lost its action focus.');
+    assert.equal(facts.reblockedNoticeCount, 1, 'A still-blocked retry must not duplicate the notice.');
   }
   assert.equal(facts.afterRetry.version, 3);
   assert.deepEqual(facts.afterRetry.rows, facts.before.rows, 'Retry must recover, not replace the saved library.');
@@ -304,36 +310,33 @@ export async function runMixedVersionPhases(options: {
       phase.candidateEvents = events;
       await candidate.goto(`${origin}/my-rankings`, { waitUntil: 'load' });
       if (blocked) {
-        const banner = candidate.locator('.global-storage > .storage-banner[role="alert"]').filter({
+        const banner = candidate.locator('.storage-banner[role="alert"]').filter({
           hasText: /Close other Play 100 tabs/,
-          has: candidate.getByRole('button', { name: 'Settings', exact: true }),
         });
+        await expect(banner).toHaveCount(1, { timeout: 30000 });
         await expect(banner).toBeVisible({ timeout: 30000 });
+        const blockedNoticeCount = await banner.count();
         const notice = await banner.innerText(),
           blockedState = await snapshotDatabase(old, true);
         const versionchanges = await old.evaluate(() => window.__mixedBlockedChanges);
-        Object.assign(phase, { notice, blocked: blockedState, versionchanges });
+        Object.assign(phase, { notice, blocked: blockedState, versionchanges, blockedNoticeCount });
         await candidate.screenshot({ path: path.join(evidence, `${name}.png`) });
-        // A blocked database also prevents reading the account hint. Choose the
-        // guest scope explicitly before exercising device-library recovery.
-        const deviceChoice = candidate.getByRole('button', { name: 'Use this device only', exact: true });
-        await expect(deviceChoice).toBeVisible();
-        await deviceChoice.click();
-        phase.scopeChoice = 'Use this device only';
-        assert.deepEqual(await snapshotDatabase(old, true), before, 'Choosing the guest scope altered saved rows.');
         const retryButton = banner.getByRole('button', { name: 'Try again', exact: true });
         let stillBlockedAfterRetry: DatabaseSnapshot | undefined;
         let retryFocused: boolean | undefined;
+        let reblockedNoticeCount: number | undefined;
         if (retry === 'blocked-notice-button') {
           await expect(retryButton).toBeEnabled();
           await retryButton.click();
           // The product deliberately waits five seconds before classifying a blocked reopen.
           await expect(retryButton).not.toHaveAttribute('aria-disabled', 'true', { timeout: 15000 });
+          await expect(banner).toHaveCount(1);
           await expect(banner).toContainText(/Close other Play 100 tabs/);
           await expect(retryButton).toBeFocused();
           stillBlockedAfterRetry = await snapshotDatabase(old, true);
           retryFocused = await retryButton.evaluate((element) => element === document.activeElement);
-          Object.assign(phase, { stillBlockedAfterRetry, retryFocused });
+          reblockedNoticeCount = await banner.count();
+          Object.assign(phase, { stillBlockedAfterRetry, retryFocused, reblockedNoticeCount });
           assert.deepEqual(stillBlockedAfterRetry, before, 'Retry while blocked altered saved data.');
         }
         await old.evaluate(() => window.__mixedBlocker.close());
@@ -347,14 +350,19 @@ export async function runMixedVersionPhases(options: {
         } else await candidate.reload({ waitUntil: 'load' });
         await expect(candidate.locator('.ranking-row-content')).toHaveCount(2);
         await expect(banner).toHaveCount(0);
+        const recoveredNoticeCount = await banner.count();
         const afterRetry = await snapshotDatabase(candidate);
         phase.afterRetry = afterRetry;
         phase.retryReloads = events.loads - loads;
+        phase.recoveredNoticeCount = recoveredNoticeCount;
         assertBlockedEvidence({
           before,
           blocked: blockedState,
           afterRetry,
           notice,
+          blockedNoticeCount,
+          recoveredNoticeCount,
+          reblockedNoticeCount,
           versionchanges,
           retry,
           retryReloads: events.loads - loads,

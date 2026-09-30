@@ -130,6 +130,9 @@ describe('mixed-version phase acceptance', () => {
       notice:
         'Close other Play 100 tabs to finish updating this device library, then retry. Your saved data has not been changed.',
       versionchanges: 1,
+      blockedNoticeCount: 1,
+      recoveredNoticeCount: 0,
+      reblockedNoticeCount: 1,
       retry,
       retryReloads: retry === 'blocked-notice-button' ? 0 : 1,
       stillBlockedAfterRetry: structuredClone(before),
@@ -140,11 +143,16 @@ describe('mixed-version phase acceptance', () => {
     expect(() => assertBlockedEvidence({ ...facts, blocked: { ...before, version: 3 } })).toThrow();
     expect(() => assertBlockedEvidence({ ...facts, afterRetry: { version: 3, rows: [] } })).toThrow();
     expect(() => assertBlockedEvidence({ ...facts, notice: 'Storage unavailable' })).toThrow();
+    for (const blockedNoticeCount of [0, 2])
+      expect(() => assertBlockedEvidence({ ...facts, blockedNoticeCount })).toThrow();
+    expect(() => assertBlockedEvidence({ ...facts, recoveredNoticeCount: 1 })).toThrow();
     expect(() => assertBlockedEvidence({ ...facts, retry: 'reset-database' })).toThrow();
     expect(() => assertBlockedEvidence({ ...facts, retryReloads: 2 })).toThrow();
     if (retry === 'blocked-notice-button') {
       expect(() => assertBlockedEvidence({ ...facts, retryFocused: false })).toThrow();
       expect(() => assertBlockedEvidence({ ...facts, stillBlockedAfterRetry: undefined })).toThrow();
+      for (const reblockedNoticeCount of [undefined, 0, 2])
+        expect(() => assertBlockedEvidence({ ...facts, reblockedNoticeCount })).toThrow();
     }
   });
 });
