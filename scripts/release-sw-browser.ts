@@ -60,34 +60,39 @@ export function track(page: Page) {
 export async function workers(page: Page) {
   return page.evaluate(async () => {
     type Status = { version?: string; clientVersion?: string; ready?: boolean };
-    const ask = (
-      worker: ServiceWorker | null | undefined,
-    ): Promise<null | { scriptURL: string; state: string; reply: Status | null; timedOut: boolean }> => {
-      if (!worker) return Promise.resolve(null);
-      return new Promise((resolve, reject) => {
-        const ports = new MessageChannel();
-        const finish = (reply: Status | null, timedOut: boolean) => {
-          clearTimeout(timer);
-          ports.port1.close();
-          resolve({ scriptURL: worker.scriptURL, state: worker.state, reply, timedOut });
-        };
-        const timer = setTimeout(() => finish(null, true), 5000);
-        ports.port1.onmessage = (event: MessageEvent<Status>) => finish(event.data, false);
-        try {
-          worker.postMessage({ channel: 'play100-pwa-v1', type: 'STATUS' }, [ports.port2]);
-        } catch (error) {
-          clearTimeout(timer);
-          ports.port1.close();
-          reject(error);
-        }
-      });
+    // Object methods serialize without tsx's external function-name helper.
+    const status = {
+      ask(
+        worker: ServiceWorker | null | undefined,
+      ): Promise<null | { scriptURL: string; state: string; reply: Status | null; timedOut: boolean }> {
+        if (!worker) return Promise.resolve(null);
+        return new Promise((resolve, reject) => {
+          const ports = new MessageChannel();
+          const response = {
+            finish(reply: Status | null, timedOut: boolean) {
+              clearTimeout(timer);
+              ports.port1.close();
+              resolve({ scriptURL: worker.scriptURL, state: worker.state, reply, timedOut });
+            },
+          };
+          const timer = setTimeout(() => response.finish(null, true), 5000);
+          ports.port1.onmessage = (event: MessageEvent<Status>) => response.finish(event.data, false);
+          try {
+            worker.postMessage({ channel: 'play100-pwa-v1', type: 'STATUS' }, [ports.port2]);
+          } catch (error) {
+            clearTimeout(timer);
+            ports.port1.close();
+            reject(error);
+          }
+        });
+      },
     };
     const registration = await navigator.serviceWorker.getRegistration('/');
     return {
       registrations: (await navigator.serviceWorker.getRegistrations()).length,
-      controller: await ask(navigator.serviceWorker.controller),
-      active: await ask(registration?.active),
-      waiting: await ask(registration?.waiting),
+      controller: await status.ask(navigator.serviceWorker.controller),
+      active: await status.ask(registration?.active),
+      waiting: await status.ask(registration?.waiting),
       caches: (await caches.keys()).filter((name) => name.startsWith('play100-pwa-v1-')),
     };
   });

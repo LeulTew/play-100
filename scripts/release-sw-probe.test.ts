@@ -83,6 +83,21 @@ async function fixture() {
 }
 
 describe('two-version release probe acceptance', () => {
+  it('serializes the worker status callback without external tsx helpers', () => {
+    const source = execFileSync(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        '--input-type=module',
+        '-e',
+        "import {workers} from './scripts/release-sw-browser.ts'; await workers({evaluate: fn => console.log(fn.toString())});",
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(source).toContain('MessageChannel');
+    expect(source).not.toMatch(/\b__(?:name|awaiter|async)\b/);
+  });
   it('admits explicit tool-validation builds without inventing gate evidence', async () => {
     const { dir, input, receipt } = await fixture();
     const validation = {
