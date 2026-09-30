@@ -118,7 +118,10 @@ Move to position summary receives focus. Drag moves retain title focus when
 they cross pages.
 Mobile rows group Rank and delete with the move controls and omit the redundant
 progress summary; Played and Completed remain individually labeled controls.
-Compact comparison buttons expose **Pin / Pinned** on coarse pointers. One
+Compact card comparison buttons expose **Pin / Pinned** on coarse pointers.
+The ratings table uses a fixed icon button on every pointer type, matching its
+loading fallback without widening the Your list column when pinned or selected.
+Its accessible Pin/Pinned name, pressed state and native activation are unchanged. One
 `ComparePinButton` is both the immediate click/keyboard toggle and fine-mouse
 drag source, with its visible Pin/Pinned state in the accessible name and
 `aria-pressed`. Touch and pen never arm a held drag on this control; existing card/title hold-drag remains

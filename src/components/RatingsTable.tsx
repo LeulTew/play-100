@@ -292,7 +292,7 @@ export default function RatingsTable({
                           fill={progress[game.slug]?.later ? 'currentColor' : 'none'}
                         />
                       </button>
-                      {compareRecord && <ComparePinButton record={compareRecord} compact disabled={busy} />}
+                      {compareRecord && <ComparePinButton record={compareRecord} compact="icon" disabled={busy} />}
                     </div>
                   </td>
                 </tr>

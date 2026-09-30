@@ -17,7 +17,7 @@ export function ComparePinButton({
   onUnpin,
 }: {
   record: LibraryRecord;
-  compact?: boolean;
+  compact?: boolean | 'icon';
   disabled?: boolean;
   variant?: 'button' | 'text';
   pinned?: boolean;
@@ -34,6 +34,7 @@ export function ComparePinButton({
     ? tray.items.some((item) => canonicalCatalogId(item.id) === canonicalCatalogId(record.id))
     : Boolean(suppliedPinned);
   const blocked = disabled || !enabled || !pin || (pinned && !unpin);
+  const showLabel = !compact || (coarsePointer && compact !== 'icon');
   const sourceRef = useRef<HTMLButtonElement>(null);
   const source = useCompareDragSource({ record, sourceRef, disabled: blocked });
   return (
@@ -42,7 +43,7 @@ export function ComparePinButton({
       {...source.surfaceProps}
       data-compare-drag-grip=""
       type="button"
-      className={`compare-pin ${compact ? (coarsePointer ? 'text-button' : 'icon-button') : variant === 'text' ? 'text-button' : 'button button-outline'}`}
+      className={`compare-pin ${compact ? (showLabel ? 'text-button' : 'icon-button') : variant === 'text' ? 'text-button' : 'button button-outline'}`}
       aria-disabled={blocked || undefined}
       aria-pressed={pinned}
       aria-label={`${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}`}
@@ -56,7 +57,7 @@ export function ComparePinButton({
       }}
     >
       <Icon name="stack" width="19" height="19" fill={pinned ? 'currentColor' : 'none'} />
-      {(!compact || coarsePointer) && (pinned ? 'Pinned' : 'Pin')}
+      {showLabel && (pinned ? 'Pinned' : 'Pin')}
     </button>
   );
 }

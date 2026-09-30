@@ -13,6 +13,8 @@ import coverMetadata from '../../generated/cover-metadata.json';
 import * as compareSource from '../compare-tray/useCompareDragSource';
 import { CompareTrayContext } from '../compare-tray/compare-tray-context';
 import type { LibraryRecord } from '../../lib/personal-types';
+import { recordFromGame } from '../../lib/personal-types';
+import { MotionPolicyContext, staticMotionPolicy } from '../../motion/context';
 
 const raw: unknown = JSON.parse(readFileSync(new URL('../../../data/collection.json', import.meta.url), 'utf8'));
 const games = parseCollection(raw).games;
@@ -27,6 +29,63 @@ function gameAt(rank: number): Game {
 }
 
 describe('collection continuity preserves the public presentation', () => {
+  it.each([false, true])(
+    'keeps table Pins icon-only before/after selection and pinning (coarse=%s)',
+    (coarsePointer) => {
+      const game = gameAt(1);
+      const record = recordFromGame(game);
+      for (const selecting of [false, true]) {
+        for (const pinned of [false, true]) {
+          const pin = vi.fn(() => true);
+          const unpin = vi.fn(() => true);
+          const html = renderToStaticMarkup(
+            h(MotionPolicyContext.Provider, {
+              value: { ...staticMotionPolicy, coarsePointer },
+              children: h(CompareTrayContext.Provider, {
+                value: {
+                  currentScope: 'guest',
+                  items: pinned ? [record] : [],
+                  persistent: true,
+                  warning: null,
+                  error: null,
+                  status: '',
+                  dragging: false,
+                  pin,
+                  unpin,
+                  clear: vi.fn(() => true),
+                  dismissError: vi.fn(),
+                },
+                children: h(RatingsTable, {
+                  games: [game],
+                  filters: { ...defaultFilters, view: 'table' },
+                  progress: {},
+                  selecting,
+                  selected: new Set<string>(),
+                  busy: false,
+                  onSelect: vi.fn(),
+                  onOpen: vi.fn(),
+                  onToggle: vi.fn(),
+                  onSort: vi.fn(),
+                  getCompareRecord: () => record,
+                }),
+              }),
+            }),
+          );
+          const button = html
+            .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
+            ?.find((markup) => markup.includes('class="compare-pin icon-button"'));
+          expect(button).toBeDefined();
+          expect(button).toContain(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: ${game.title}"`);
+          expect(button).toContain(`aria-pressed="${pinned}"`);
+          expect(button).toContain('</svg></button>');
+          expect(html.includes('class="selection-column"')).toBe(selecting);
+          expect(pin).not.toHaveBeenCalled();
+          expect(unpin).not.toHaveBeenCalled();
+        }
+      }
+    },
+  );
+
   it.each([false, true])('keeps card, table and detail queue names stable with pressed=%s', (selected) => {
     const game = gameAt(2);
     const state = { played: selected, completed: selected, later: selected };

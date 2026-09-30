@@ -62,9 +62,35 @@ test('at 1440px the table fits its scrollport, and with selection its Your list 
   const port = await openTable(page, 1440);
   expect(await port.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
   expect(await yourListInView(page)).toEqual({ whole: true, pinOnTop: true });
+  const pin = page.locator('.ratings-table tbody tr').first().locator('.compare-pin');
+  const title = libraryRecords[0].title;
+  await expect(pin).toHaveAccessibleName(`Pin for comparison: ${title}`);
+  await expect(pin).toHaveText('');
+  const pinBox = await pin.boundingBox();
+  if (!pinBox) throw new Error('The compact table Pin must have a visible target.');
+  expect(pinBox.width).toBe(44);
+  expect(pinBox.height).toBe(44);
+  await pin.focus();
+  await pin.press('Enter');
+  await expect(pin).toHaveAccessibleName(`Pinned for comparison: ${title}`);
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await expect(pin).toBeFocused();
+  await expect(pin).toHaveText('');
+  expect(await port.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
   // The selection column widens every row; any scores it pushes past the window scroll beneath Your list.
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
   await expect(page.locator('.ratings-table tbody .selection-column')).toHaveCount(24);
+  expect(await yourListInView(page)).toEqual({ whole: true, pinOnTop: true });
+  const selectionOverflow = await port.evaluate((element) => element.scrollWidth - element.clientWidth);
+  const selectedPinBox = await pin.boundingBox();
+  expect(selectedPinBox?.width).toBe(pinBox.width);
+  expect(selectedPinBox?.height).toBe(pinBox.height);
+  await pin.focus();
+  await pin.press('Enter');
+  await expect(pin).toHaveAccessibleName(`Pin for comparison: ${title}`);
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await expect(pin).toBeFocused();
+  expect(await port.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(selectionOverflow);
   expect(await yourListInView(page)).toEqual({ whole: true, pinOnTop: true });
 });
 

@@ -354,6 +354,28 @@ describe('workspace embedding contract', () => {
 });
 
 describe('tray and image rendering contract', () => {
+  it.each([false, true])('keeps the forced-icon Pin compact with either pressed state (coarse=%s)', (coarsePointer) => {
+    for (const pinned of [false, true]) {
+      const html = renderToStaticMarkup(
+        h(MotionPolicyContext.Provider, {
+          value: { ...staticMotionPolicy, coarsePointer },
+          children: h(CompareTrayContext.Provider, {
+            value: { ...value, items: pinned ? [alpha] : [] },
+            children: h(ComparePinButton, { record: alpha, compact: 'icon' }),
+          }),
+        }),
+      );
+      expect(html).toContain('class="compare-pin icon-button"');
+      expect(html).toContain(`aria-pressed="${pinned}"`);
+      expect(html).toContain(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: Alpha game"`);
+      expect(html).toContain(`title="${pinned ? 'Remove pin' : 'Pin for comparison'}"`);
+      expect(html).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
+      expect(html).toContain('</svg></button>');
+      expect(html).toContain('data-compare-drag-grip=""');
+      expect(html).not.toContain('tabindex="-1"');
+    }
+  });
+
   it.each([false, true])('shows the compact Pin/Pinned label on coarse pointers only (%s)', (coarsePointer) => {
     for (const pinned of [false, true]) {
       const html = renderToStaticMarkup(
