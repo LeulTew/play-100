@@ -96,6 +96,13 @@ describe('deployed release verification, without network', () => {
     expect(inspectHtml(input)).toEqual(inspectHtml(html));
   });
 
+  it('skips raw text to its literal end tag when minified code has "<" before a letter', () => {
+    const boot = "<script>for(var d=0;d<n.length;d+=1){if(n[d].id)s='</scriptx>'}</SCRIPT >";
+    const style = '<style>a<b{content:"x"}</style>';
+    expect(inspectHtml(`${boot}${style}${html}`)).toEqual(inspectHtml(html));
+    expect(inspectHtml(`${html}<script>if(a<b)c="it's"`)).toEqual(inspectHtml(html));
+  });
+
   it.each(['disabled', ' hidden'])('fails a missing required HTML attribute %s', (attribute) => {
     const changed =
       attribute === 'disabled'

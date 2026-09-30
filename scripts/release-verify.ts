@@ -148,7 +148,7 @@ export function inspectHtml(html: string) {
   let hiddenNotices = 0;
   const tokens = /<!--[\s\S]*?-->|<![^>]*>|<\/?([a-z][\w:-]*)\b((?:"[^"]*"|'[^']*'|[^'">])*)>/gi;
   let raw: string | null = null;
-  for (const token of html.matchAll(tokens)) {
+  for (let token = tokens.exec(html); token; token = tokens.exec(html)) {
     if (!token[1]) continue;
     const name = token[1].toLowerCase();
     const closing = token[0].startsWith('</');
@@ -189,7 +189,16 @@ export function inspectHtml(html: string) {
         entries.push(src);
       }
     }
-    if (['script', 'style', 'textarea', 'title'].includes(name)) raw = name;
+    if (['script', 'style', 'textarea', 'title'].includes(name)) {
+      raw = name;
+      // Raw text ends only at its literal end tag. Tokenizing it could read `d<n.length` in a
+      // minified script as a tag whose quoted "attributes" run past the real end tag.
+      const end = new RegExp(`</${name}[\\t\\n\\f\\r />]`, 'gi');
+      end.lastIndex = tokens.lastIndex;
+      const found = end.exec(html);
+      if (!found) break;
+      tokens.lastIndex = found.index;
+    }
     const voidTags = [
       'area',
       'base',
