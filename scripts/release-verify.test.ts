@@ -10,6 +10,7 @@ import {
   inspectHtml,
   parseVerifyArguments,
   serializeReceipt,
+  sourcemapNotServed,
 } from './release-verify';
 
 const config: unknown = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
@@ -131,6 +132,19 @@ describe('deployed release verification, without network', () => {
       '/.git/HEAD',
       '/provider/google.svg',
     ]);
+  });
+
+  it('treats the entry sourcemap as served unless it is 404 or refused exactly like an absent map', () => {
+    const refusal = { status: 403, body: new Uint8Array([10]) };
+    expect(sourcemapNotServed({ status: 404, body: new Uint8Array() }, null)).toBe(true);
+    expect(sourcemapNotServed(refusal, { status: 403, body: new Uint8Array([10]) })).toBe(true);
+    expect(sourcemapNotServed(refusal, { status: 404, body: new Uint8Array() })).toBe(false);
+    expect(sourcemapNotServed(refusal, { status: 403, body: new Uint8Array([32]) })).toBe(false);
+    expect(sourcemapNotServed(refusal, null)).toBe(false);
+    const large = { status: 403, body: new Uint8Array(65) };
+    expect(sourcemapNotServed(large, { status: 403, body: new Uint8Array(65) })).toBe(false);
+    expect(sourcemapNotServed({ status: 200, body: new Uint8Array([123]) }, refusal)).toBe(false);
+    expect(sourcemapNotServed(null, refusal)).toBe(false);
   });
 
   it('accepts a protected HTTPS candidate without adding the bypass variable to the receipt', () => {

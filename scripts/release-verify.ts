@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,17 @@ export const exposurePaths = [
 const digest = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
+
+type MapProbe = { status: number; body: Uint8Array } | null;
+
+// Vercel's protected source maps refuse every *.map path with the same short 403, whether or not the
+// file exists, so an identical 403 for a random absent map shows the entry map is not served either.
+export function sourcemapNotServed(map: MapProbe, absent: MapProbe): boolean {
+  if (map?.status === 404) return true;
+  return (
+    map?.status === 403 && absent?.status === 403 && map.body.length <= 64 && digest(map.body) === digest(absent.body)
+  );
+}
 
 export function parseVerifyArguments(args: string[]): VerifyOptions {
   const flags = new Map<string, string>();
@@ -350,11 +361,21 @@ export async function verifyDeployment(options: VerifyOptions, config: unknown, 
       record('Emitted HTML structure', false);
     }
   }
-  for (const pathname of [...exposurePaths, ...(entry ? [`${entry}.map`] : [])]) {
+  for (const pathname of exposurePaths) {
     const result = await get(pathname, `Exposure ${pathname} transport`);
     record(`Exposure ${pathname} 404`, result?.status === 404, { status: result?.status ?? null });
   }
-  if (!entry) record('Entry sourcemap exposure', false, { entryMissing: true });
+  if (entry) {
+    const map = await get(`${entry}.map`, `Exposure ${entry}.map transport`);
+    const absent =
+      map?.status === 403
+        ? await get(`/assets/p100-absent-${randomUUID()}.js.map`, 'Absent sourcemap transport')
+        : null;
+    record(`Exposure ${entry}.map not served`, sourcemapNotServed(map, absent), {
+      status: map?.status ?? null,
+      absentStatus: absent?.status ?? null,
+    });
+  } else record('Entry sourcemap exposure', false, { entryMissing: true });
   const security = await get('/.well-known/security.txt', 'Security contact transport');
   record(
     'Security contact 200 text/plain',
