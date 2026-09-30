@@ -8,6 +8,170 @@ the owner's email, so they stay out of this file. Operator steps follow the
 rollback and readback, and the
 [security release runbook](security-release-runbook.md#promotion-order).
 
+## Release 7: 2026-09-30
+
+| Field | Value |
+| --- | --- |
+| Commit | `b08efa853977255795d32d15fce41b7ed7e5af8c` (tree `f8080b53409edfb44551601304a1c1afe4655e59`) |
+| Merge | PR #12 (`leultew-r23-candidate`) into `main`, a plain fast-forward of 410 commits from `129e73ee`, merged 2026-09-30 21:05:33Z. `main` then fast-forwarded to the verifier fixes `815759102e365aff02c3c311b5cc65060ae45e03` and `d107420bc22722adf377f89d512c5f8a8d7f11ea` and this ledger commit, which change only tools and docs; the deployment is built from `b08efa85` |
+| Build | Remote Vercel build from a clean export, Vercel CLI 59.16 |
+| Production deployment | `dpl_7hhPp9x8WdEfSghV278GpSvbE4wz` |
+| Promoted | 2026-09-30 21:07:08Z with `vercel promote` (CLI 59.16.0), started 21:06:59Z |
+| Previous production | `dpl_9Hh23osGZT4xU51H5iw3dHNK5ZSr` (Release 6). **Not a safe rollback target**: it predates the R22 device-library barrier (see [release operations](release-operations.md#r22-indexeddb-compatibility-and-rollback-floor)) |
+| Rollback target | `dpl_8SCr4VKs5FdnW8m8ay8y61VVyM45`: the approved R22-compatible recovery deployment of `352117813fde9bf9233e3347abaed1eb2d7ee8c1` (tree `63c5500d4de6a602954a10b686a3519c06095861`), deployed with `--skip-domain` and never promoted. Recovery is `vercel promote` of this ID with the owner's approval; the Hobby `vercel rollback` would pick Release 6 |
+| Rollback floor | The R22 barrier commit `da8e4623f537c0b4b527cc67697c2bf18eba4c92`, an ancestor of both `35211781` and `b08efa85` |
+| Strict inline hashes | Against Release 6, all three changed: style-src online `sha256-OacfOkjAw9OUAck+TQpYFF2s+FkEgqPI4t1v2slL10E=` (18,271 B), offline `sha256-+BwkV9HHDm2yb6YFzDgoK5/tZNyMAJCnYrUIsgE5XGo=`; script-src boot script `sha256-5tbIxOoix2rQeTWRkLG3C7Wy3wXZkuMmDMCEEeJAVuo=` (3,329 B, unchanged since R22) |
+| Release manifest | None: an owner-authorized lean release path replaced the committed gate and its manifest (below) |
+
+**What shipped.** The R13–R23 work; PR #12 has the summary.
+- Device library: `play100-personal` moves to version 3 as a writer barrier.
+  Release 6 tabs close on `versionchange` and can't write again, and a blocked
+  upgrade explains how to recover without clearing saved data.
+- Online saving, sync, friends and sharing: an identical upload from another
+  writer settles instead of asking for a choice, a publication made on another
+  device settles cleanly, and a deleted online copy stays deleted for older
+  sessions.
+- Rules: expression-limit fixes for saves and moderation, and name and title
+  hygiene.
+- Performance, accessibility and first paint: optional code loads when needed
+  under lower bundle caps, contrast and busy-state fixes, and a failure notice
+  when the entry stylesheet fails.
+- Release operations: the committed local release gate with a Gitleaks history
+  scan, two-version worker companions, CSP counts, health probes and bounded
+  anonymous fault reports.
+
+**Readback.**
+- Alias `play-100-collection.vercel.app` resolves to
+  `dpl_7hhPp9x8WdEfSghV278GpSvbE4wz`, confirmed by both the Vercel API and
+  `vercel inspect`.
+- Five consecutive public `/` responses matched the release's index from
+  21:07:17Z, with no stale response.
+- Production `/` index.html SHA-256:
+  `1da5b6af8221ce80f349ab0ccb8fa93e5650985b85a15b7ba78ce7552bd45e15`, the
+  candidate's and the local configured build's. Entry `/assets/index-CXM-K923.js`.
+- CSP header SHA-256:
+  `8a075117d371a1ffdddb2744f9f57737f1042ce1254142f3f8dc419801139f4d`.
+- `/sw.js` SHA-256
+  `2cde7a9a0bd78b8bc18ca64309befdbac26ccc1e4cceab20ebbb0176e1bb0dee`.
+  `/pwa-assets.json` SHA-256
+  `5a92639493c545e6acc9c19e30bb8814641e5bf67a1bf3e608d339e5b17c5c45`, PWA
+  version `a3158d3e06e2728b1301b15724935b331f1c6815acbe578a4ef027b5588814db`.
+
+**Post-promotion production checks.** With the first verifier fix, the
+integrator's `npm run release:verify` (Node 24.21.0) passed 43 of 44 and the
+integrator's cross-check 49 of 50. Both missed only the source-map row:
+`/assets/index-CXM-K923.js.map` answered 403 instead of 404. The project has
+Vercel's protected source maps on (`protectedSourcemaps`), so every public
+`*.map` path answers the same 1-byte 403, even for files that don't exist,
+while other missing paths answer 404; the build contains no source maps. The
+coordinator checked production independently, ruled the 403 not an exposure and
+fixed the verifier forward in `d107420b`: the row now passes on a 404, or when
+the entry map and a random absent map return an identical 403 body of 64 bytes
+or less, and still fails on a 200, a large body or a 403 unlike the absent
+map's. From `d107420b`, the coordinator's production `release:verify` passed
+44/44, with the map row measuring 403 for both. The verifiers agree on the
+index, the worker, the PWA assets and the version.
+
+**Service-worker update probe: passed.** One pass on the public alias with no
+bypass, in headless Chromium with a persistent profile, across the promotion:
+
+1. Armed on Release 6: offline files ready in 12.8 s, with the controller on
+   Release 6's PWA version `b3036a0b…`, and no CSP violations.
+2. After promotion, the waiting Release 7 worker was applied through the app
+   with exactly one reload. The controller moved to `a3158d3e…`, Release 7's
+   `/pwa-assets.json` version.
+3. Cold offline launch: `/` and `/my-games` loaded from the worker on Release
+   7's entry. No CSP violations.
+
+The probe uses one tab. An old Release 6 tab held open across the upgrade (the
+blocked-upgrade path) is covered by the gate's browser tests, not by this probe.
+
+**Verifier fixes.** On `b08efa85`, `release:verify` failed two rows on correct
+HTML: "Boot error initially hidden" and "Shell buttons disabled without inert".
+Its tokenizer read `d<n.length` in the minified inline boot script as a tag
+whose quoted "attributes" ran past the real `</script>`, so it skipped the rest
+of the page. A spec parser found one hidden boot notice and five disabled shell
+buttons, and the coordinator reproduced the fault independently (changing only
+`d<n.length` to `d< n.length` made both rows pass) and ruled the two rows false
+negatives. The fix `81575910` makes raw-text elements jump to their literal end
+tag and adds a regression test. With it, the candidate passed 44/44 (42/44
+before). The R22 recovery deployment passed 44/44 from R22's own checkout with
+exactly the fix's verifier patch applied, because the verifier reads the
+checkout's `vercel.json` and R22's header group and CSP hashes differ (42/44
+before); the coordinator accepted that deviation. The second fix, `d107420b`,
+is described under the production checks above.
+
+**Pre-promotion evidence: owner-authorized deviation.** The owner's release
+order of 2026-09-30 replaced the committed gate with this lean path.
+- The coordinator's pre-flight on the identical tree (Node 24.21.0): static
+  checks pass; unit 3,323; browser 249 (one load-timing miss passed 3 of 3 on
+  re-run); configured and offline builds with `check:csp` and budgets 14/14;
+  production e2e 1,282 passed, 0 failed; development 189/0; offline 36/36;
+  cloud-UI desktop 0 failures and mobile 124/0 (a first mobile run lost its dev
+  server mid-run); emulator rules 10/10.
+- The integrator's configured build of `b08efa85`: build, `check:csp` and
+  `check:budgets` pass, and the Vercel build printed the same first-paint
+  hashes.
+- Candidate verification: 44/44 with the fixed verifier, and the 50-row
+  cross-check 50/50, including a real-browser boot on desktop and mobile.
+- Not run: the sync-20 partition, the APB2 v3.2 campaign, the rollback drill and
+  the release manifest.
+
+**Validation stops.**
+- The R22 committed gate stopped twice on intermittents: FLAKE-01's seek-stall
+  variant (`films.spec.ts:73`), and in cloud-UI a Firestore-emulator
+  transaction-lock contention in `friendships.spec.ts:49` (REL-08) plus
+  `review-repairs.spec.ts:312` (REL-09). All three are registered in
+  [intermittents](intermittents.md).
+- Harness faults in the integrator's own scripts: a cold WSL start timed out the
+  first owner-API readback before the candidate deployment, a CSP lookup used
+  Release 6's rule source, and a status comparison expected an untrimmed
+  string. None changed a result or a deployment.
+
+**Receipts,** kept outside the repository:
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Promotion receipt (binds every step's receipt and the coordinator's messages) | `7719a193aa04429fddbfdd46b4eeaf99e8232922c7cf92206eafa85fb9838e09` |
+| Push and PR | `4f91be24b6a5d6ef5280457bf8c9c4997b8166c7ba8dbba8047bcb436579c05a` |
+| Push of the second verifier fix | `a011a8fdc4649e9bf04ab069690afb47fbd4031e962abf27ff3ab78c7e50b921` |
+| Release deployment | `999ea930fd55251b59865f8e6a18d0912c14f4afe5c651e07b126acb8a42a1b2` |
+| Recovery deployment (R22) | `d178173e2b6b89e90482aba7098764a5cafa74d98a36c5b182ee587b00146815` |
+| Candidate `release:verify`, fixed verifier | `fd57ff75c23e366a01e154cc02b381b7ed70d26d739d8b6f97bc23a064e8ac03` |
+| Candidate cross-check | `169409353e31af89f48d6483d0ccf7d53324690f64f88cb4a638ddfb39d77152` |
+| Recovery deployment `release:verify`, fixed verifier | `7fbb17ea928409165b6552fa837af33543dfef1edc753c8cee5ca8a8d161b740` |
+| Verifier defect record | `a824540aeee3eed018fb5974d13fac71f37e036cd174210de67249832abf0804` |
+| Promotion, readback and settle | `2542be6fe63517f1faa1d572c8413aac6e071f9a336dc39665f6e86ba4e095bd` |
+| Production `release:verify` (first fix, 43/44) | `969845d7d16a0d76fafe3345dc2f46ca70fad23e85c1f67cf30040504f336049` |
+| Production `release:verify` (`d107420b`, 44/44, the coordinator's) | `806be219664e5746f04f4e1b6b9d43e331714a3fe7a7ed540ebe55f59d38afd6` |
+| Production cross-check (49/50) | `96278b7925dfa879b2df21e10ed8a6efc7b48b1a19819533815ac95880024e19` |
+| Service-worker arm | `868618fca2df03b8bd69a170eae3fb85eeb1ffec791f7b5ea22c70126e630864` |
+| Service-worker probe | `b3ccba96a5ae39356d1913bc3efb727bb1efaf0d8abefc08c534ba4c2f740bde` |
+
+**Rules: published.** The owner's signed-in Firebase console published
+`firestore.rules` at 2026-09-30 21:11:28Z, while Release 7 was serving
+(project `play100-online-48823b32`, default database). The console loaded the
+reviewed file from a local server and checked its hash before inserting it,
+and the editor showed no errors or warnings. Readback after a full reload:
+SHA-256 `c6368628bcbc7a22896ab19ab569c20b24f2d6f33fdfcee2cad5b7e98754abb1`
+(111,757 bytes), the reviewed R20 hash, as a new top history entry. The
+previously published rules were the 270f baseline
+`971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`
+(85,444 bytes, published 2026-09-22 21:37Z). Both files are archived outside
+the repository. Indexes are unchanged. Pending action 3 is done; don't publish
+any other rules hash.
+
+**Waivers.** As for Release 6: no physical-device, iOS Safari, screen-reader or
+OS install and launch runs; the release coordinator waived them. The real
+Google smoke is still pending action 5.
+
+**Known issues at release.**
+- FLAKE-01 (`tests/films.spec.ts:73`) is an open test intermittent in the native
+  film download and seek.
+- REL-08 and REL-09 are open cloud-UI test intermittents from the R22 gate.
+
+All three are registered in [intermittents](intermittents.md).
+
 ## Release 6: 2026-09-27
 
 | Field | Value |
@@ -722,7 +886,12 @@ Do these in runbook order and record each readback.
    - `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`
 
    Add nothing else and delete nothing. Readback: every one shows **Enabled**.
-3. **Rules.** Publish `firestore.rules` from the R20 tree, and only while
+3. **Rules.** Done: published 2026-09-30 21:11:28Z while Release 7 was serving;
+   readback SHA-256 `c6368628bcbc7a22896ab19ab569c20b24f2d6f33fdfcee2cad5b7e98754abb1`
+   (111,757 bytes). See [Release 7](#release-7-2026-09-30). The instruction as
+   written before publication:
+
+   Publish `firestore.rules` from the R20 tree, and only while
    Release 7 or later is serving. Its SHA-256 is
    `c6368628bcbc7a22896ab19ab569c20b24f2d6f33fdfcee2cad5b7e98754abb1`
    (111,757 bytes). It supersedes the unpublished R13 rules (`75381577…`),
