@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { textDigest, writeFirstPaintRecord } from '../build-metadata.ts';
-import { mainDocumentPolicy, sha256Source } from './csp.ts';
+import { MAIN_DOCUMENT_RULE, mainDocumentPolicy, sha256Source } from './csp.ts';
 import { writeCsp, writeFirstPaintHashes } from './write-csp.ts';
 
 const hash = (text: string) => sha256Source(text);
@@ -15,7 +15,7 @@ const vercel = (script: string, online: string, offline: string) =>
   `{
   "headers": [
     {
-      "source": "/((?!__/auth/).*)",
+      "source": ${JSON.stringify(MAIN_DOCUMENT_RULE)},
       "headers": [
         { "key": "Reporting-Endpoints", "value": "csp=\\"/api/csp-report\\"" },
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://apis.google.com ${script}; style-src 'self' ${online} ${offline}; img-src 'self' data:; report-uri /api/csp-report; report-to csp" }
@@ -49,7 +49,7 @@ describe('first-paint CSP writer', () => {
   });
 
   it('refuses a vercel.json whose main-document policy it cannot find exactly once', () => {
-    expect(() => writeFirstPaintHashes('{ "headers": [] }', record)).toThrow('exactly one /((?!__/auth/).*) rule');
+    expect(() => writeFirstPaintHashes('{ "headers": [] }', record)).toThrow(`exactly one ${MAIN_DOCUMENT_RULE} rule`);
     const twice = stale.replace(
       '"source": "/pwa/offline.html"',
       `"source": "/pwa/offline.html", "note": ${JSON.stringify(mainDocumentPolicy(JSON.parse(stale)))}`,
