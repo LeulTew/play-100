@@ -332,7 +332,13 @@ test('a clean failed online check stays paused after a fresh unchanged head and 
     });
     expect(invalid.ok()).toBe(true);
     needsRestore = true;
-    await page.getByRole('button', { name: 'Sync now', exact: true }).click();
+    const syncNow = page.getByRole('button', { name: 'Sync now', exact: true });
+    await syncNow.click();
+    // The head listener can pause saving on the invalid head before this click lands. Sync now then checks the head
+    // again, after refreshing the device copy and a short delay. Once the button is enabled again, that retry has
+    // settled on a failed check, so restoring the head below cannot turn it into a success (docs/intermittents.md,
+    // REL-09).
+    await expect(syncNow).toBeEnabled();
     await expect(page.locator('.sync-state')).toHaveText('Online saving paused');
     expect((await readAccount(page, uid)).sync.dirty).toBe(false);
     const restored = await request.patch(url, { headers, data: { fields: saved.fields } });
