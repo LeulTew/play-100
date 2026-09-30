@@ -204,6 +204,8 @@ Settings reset clears that active scope's Compare pins after its library reset
 commits. A failed library reset leaves pins intact, and an old completion cannot
 clear a newer account binding. If the saved tray cannot be removed, Settings
 reports the partial reset instead of claiming all device data was cleared.
+Failed or partial reset feedback and any storage warning share one alert in
+Settings, preserving both the outcome and the storage recovery instructions.
 Its binding becomes active in a layout effect and is revoked during cleanup:
 constructing an abandoned replacement does not invalidate the displayed tray.
 Neither binding construction nor an inactive binding can read or write storage.

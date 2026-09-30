@@ -58,6 +58,7 @@ export function SettingsDialog({
   const motionId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetResult, setResetResult] = useState<'saved' | 'failed' | 'pins-retained' | null>(null);
+  const resetFailed = resetResult === 'failed' || resetResult === 'pins-retained';
   const [resetPending, setResetPending] = useState(false);
   const resetting = useRef(false);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -238,7 +239,7 @@ export function SettingsDialog({
             : 'Account edits save locally first and upload only while online saving is enabled. Sign out to return to the untouched guest library; manage cloud deletion from Account.'}{' '}
           Completed games can stay in Play later for a replay.
         </p>
-        {warning && (
+        {warning && !resetFailed && (
           <p className="storage-warning" role="alert">
             {warning}
           </p>
@@ -289,12 +290,13 @@ export function SettingsDialog({
           </button>
         )}
         {resetResult && (
-          <p role={resetResult === 'saved' ? 'status' : 'alert'}>
+          <p role={resetFailed ? 'alert' : 'status'}>
             {resetResult === 'saved'
               ? 'Your active library, Play later, ranking, Compare pins and preferences have been reset.'
               : resetResult === 'pins-retained'
                 ? 'Your library and preferences were reset, but saved Compare pins could not be cleared. Allow storage and try Reset again.'
                 : 'Reset failed. Your saved data has not been removed.'}
+            {resetFailed && warning && <> {warning}</>}
           </p>
         )}
       </section>

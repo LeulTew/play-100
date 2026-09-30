@@ -174,8 +174,10 @@ test('a rejected library reset leaves its Compare pins intact', async ({ page })
     await page.getByRole('button', { name: 'Yes, reset device data', exact: true }).click();
     await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
     await held.evaluate((probe) => probe.release());
-    await expect(page.locator('.device-settings').getByRole('alert')).toHaveText(
-      'Reset failed. Your saved data has not been removed.',
+    const resetAlert = page.locator('.device-settings').getByRole('alert');
+    await expect(resetAlert).toHaveCount(1);
+    await expect(resetAlert).toHaveText(
+      'Reset failed. Your saved data has not been removed. Device storage is full. Your changes were not saved. Free some space and try again.',
     );
     expect(await readLibrary(page)).toEqual(before);
     expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(pins);
