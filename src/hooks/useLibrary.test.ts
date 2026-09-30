@@ -12,6 +12,7 @@ import { discoveryFixture } from '../lib/discovery-test-fixtures';
 import { temporaryLibraryWarning } from '../lib/storage-notices';
 import type { PersonalLibraryLoad } from '../lib/personal-types';
 import { retryAccountOpening } from '../lib/storage-recovery-actions';
+import type { OnlineBridge } from '../cloud/ui-types';
 
 const hooks = vi.hoisted(() => ({
   values: [] as unknown[],
@@ -106,8 +107,8 @@ describe('deferred account opening', () => {
           resolve = done;
         }),
     );
-    const first = retryAccountOpening(state, open);
-    expect(retryAccountOpening(state, open)).toBe(first);
+    const first = retryAccountOpening(state, open, null);
+    expect(retryAccountOpening(state, open, null)).toBe(first);
     expect(open).toHaveBeenCalledOnce();
     resolve(true);
     expect(await first).toBe(true);
@@ -124,12 +125,98 @@ describe('deferred account opening', () => {
         new Promise<boolean>((done) => {
           resolve = done;
         }),
+      null,
     );
     state.hintSequence.current += 1;
     resolve(true);
     expect(await pending).toBe(false);
     expect(state.resolveHint).not.toHaveBeenCalled();
     expect(state.setRequested).not.toHaveBeenCalled();
+  });
+
+  const account = (uid = 'origin'): OnlineBridge => ({
+    loading: false,
+    identity: { uid, email: '', displayName: uid, verified: true, providers: [] },
+    controller: {
+      state: saved,
+      status: 'temporary',
+      warning: null,
+      error: blocked.message,
+      busy: false,
+      perform: vi.fn(async () => true),
+      restore: vi.fn(async () => true),
+      reset: vi.fn(async () => true),
+      retryOpen: vi.fn(async () => true),
+    },
+    scope: `account:demo-play100:${uid}`,
+    enabled: false,
+    status: 'error',
+    label: uid,
+    creator: false,
+    headerIdentity: null,
+  });
+
+  it.each(['guest-to-account', 'account-switch', 'writer-generation'] as const)(
+    'refuses an originating retry delivered after %s, before device or account reads',
+    async (change) => {
+      const state = context();
+      const origin = change === 'guest-to-account' ? null : account();
+      const replacement = account(change === 'account-switch' ? 'other' : 'origin');
+      state.currentOnline.current = replacement;
+      const open = vi.fn(async () => true);
+      expect(await retryAccountOpening(state, open, origin)).toBe(false);
+      expect(open).not.toHaveBeenCalled();
+      expect(state.resolveHint).not.toHaveBeenCalled();
+      expect(replacement.controller?.retryOpen).not.toHaveBeenCalled();
+      expect(state.setStage).not.toHaveBeenCalled();
+      expect(state.reportError).not.toHaveBeenCalled();
+    },
+  );
+
+  it('never switches account writers if a new generation arrives during the device read', async () => {
+    const state = context();
+    const origin = account();
+    const replacement = account();
+    state.currentOnline.current = origin;
+    let resolve!: (value: boolean) => void;
+    const pending = retryAccountOpening(
+      state,
+      () =>
+        new Promise<boolean>((done) => {
+          resolve = done;
+        }),
+      origin,
+    );
+    state.currentOnline.current = replacement;
+    resolve(true);
+    expect(await pending).toBe(false);
+    expect(origin.controller?.retryOpen).not.toHaveBeenCalled();
+    expect(replacement.controller?.retryOpen).not.toHaveBeenCalled();
+    expect(state.resolveHint).not.toHaveBeenCalled();
+  });
+
+  it('keeps a blocked account-opening lifetime valid when its initial writer becomes ready', async () => {
+    const state = context();
+    const origin = account();
+    if (!origin.controller) throw new Error('The account fixture needs a controller.');
+    const controller = origin.controller;
+    controller.retryOpen = vi.fn(async () => {
+      state.currentOnline.current = {
+        ...origin,
+        controller: { ...controller, status: 'ready', error: null, perform: vi.fn(async () => true) },
+      };
+      return true;
+    });
+    state.currentOnline.current = origin;
+    expect(
+      await retryAccountOpening(
+        state,
+        vi.fn(async () => true),
+        origin,
+      ),
+    ).toBe(true);
+    expect(controller.retryOpen).toHaveBeenCalledOnce();
+    expect(state.reportError).toHaveBeenCalledWith(null);
   });
 });
 

@@ -78,6 +78,13 @@ bound with `useBoundHandlers` to the library they were rendered with. An editor
 that saves while another tab signs out or switches account then writes to the
 account it was opened for, not to whichever library is current when it runs.
 A new command that can reach a library writer goes in `LibraryCommand`.
+Recovery uses a separate `RecoveryCommand` record, also bound to the originating
+`perform` through `useBoundHandlers`, never forwarded by the stable record.
+Its lazy orchestration retains the rendered account-opening lifetime (which owns
+the writer generation) across the import and every await; a superseded retry is
+cancelled before it can adopt another account or a reopened writer generation.
+The existing REL-01b guard is unchanged; `app-recovery-binding.test.ts` additionally
+checks the recovery record and detects forwarding it through stable handlers.
 [app-command-binding.test.ts](../src/app-command-binding.test.ts) type-checks
 App and fails if a stable command can reach one, and
 [AppDetailSave.browser.test.ts](../src/components/app/AppDetailSave.browser.test.ts)

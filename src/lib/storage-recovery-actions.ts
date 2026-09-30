@@ -39,13 +39,24 @@ const accountRetries = new WeakMap<object, Promise<boolean>>();
 export function retryAccountOpening(
   context: Parameters<typeof openAccount>[0],
   openDeviceLibrary: () => Promise<boolean>,
+  origin: OnlineBridge | null,
 ): Promise<boolean> {
+  // A retained command (including one waiting for this chunk) never adopts a new account-opening lifetime.
+  if (!context.alive.current || !sameOpening(context.currentOnline.current, origin)) return Promise.resolve(false);
   const prior = accountRetries.get(context.hintSequence);
   if (prior) return prior;
-  const task = openAccount(context, openDeviceLibrary);
+  const task = openAccount(context, openDeviceLibrary, origin);
   accountRetries.set(context.hintSequence, task);
   void task.then(() => accountRetries.delete(context.hintSequence));
   return task;
+}
+
+function sameOpening(current: OnlineBridge | null, origin: OnlineBridge | null): boolean {
+  return (
+    current?.identity?.uid === origin?.identity?.uid &&
+    current?.scope === origin?.scope &&
+    current?.controller?.retryOpen === origin?.controller?.retryOpen
+  );
 }
 
 async function openAccount(
@@ -60,16 +71,12 @@ async function openAccount(
     resolveHint: () => Promise<boolean>;
   },
   openDeviceLibrary: () => Promise<boolean>,
+  origin: OnlineBridge | null,
 ): Promise<boolean> {
   const { currentOnline, hintSequence, alive } = context;
   const sequence = ++hintSequence.current;
-  const identity = currentOnline.current?.identity?.uid;
-  const scope = currentOnline.current?.scope;
   const isCurrent = () =>
-    alive.current &&
-    sequence === hintSequence.current &&
-    currentOnline.current?.identity?.uid === identity &&
-    currentOnline.current?.scope === scope;
+    alive.current && sequence === hintSequence.current && sameOpening(currentOnline.current, origin);
   context.setStage('device');
   let finishing = false;
   try {
@@ -77,7 +84,7 @@ async function openAccount(
     if (!(await openDeviceLibrary()) || !isCurrent()) return false;
     const requested = await context.resolveHint();
     if (!isCurrent()) return false;
-    const controller = currentOnline.current?.controller;
+    const controller = origin?.controller;
     if (controller?.retryOpen && !(await controller.retryOpen())) return false;
     if (!isCurrent()) return false;
     if (requested) {

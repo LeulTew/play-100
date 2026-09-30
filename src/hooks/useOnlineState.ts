@@ -98,6 +98,7 @@ export function useOnlineState() {
               resolveHint: resolveOnlineRequest,
             },
             openDeviceLibrary,
+            online,
           ),
         )
         .catch((cause: unknown) => {
@@ -105,7 +106,7 @@ export function useOnlineState() {
           return false;
         });
     },
-    [currentOnline, reportHintError],
+    [currentOnline, reportHintError, online],
   );
   return {
     onlineRequested,

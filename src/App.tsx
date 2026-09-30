@@ -50,6 +50,7 @@ const sameCollection = (held: CollectionState, next: CollectionState) =>
 const sameFilters = (held: Filters, next: Filters) => JSON.stringify(held) === JSON.stringify(next);
 
 type LibraryCommand = 'perform' | 'performDetailAction' | 'toggle' | 'rankSelected' | 'resetLibrary' | 'restoreLibrary';
+type RecoveryCommand = 'retryLibraryOpening';
 
 export default function App() {
   const invitation = useInvitation();
@@ -157,7 +158,7 @@ export default function App() {
       },
       invocation,
     );
-  const handlers = useStableHandlers<Omit<AppCommands, LibraryCommand>>({
+  const handlers = useStableHandlers<Omit<AppCommands, LibraryCommand | RecoveryCommand>>({
     navigate,
     navigateLink: (event, next, patch = {}, commit = () => navigate(next, patch)) => {
       if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
@@ -229,6 +230,8 @@ export default function App() {
     onCompareSignIn: signIn.holdComparison,
     setCompareTrayVisible,
     pinAllowed: () => !onlineOpening && activeScope.current === libraryScope,
+  });
+  const recoveryHandlers = useBoundHandlers<typeof perform, Pick<AppCommands, RecoveryCommand>>(perform, {
     retryLibraryOpening: (discardRevision) => onlineState.retryOpening(() => guestLibrary.retry(discardRevision)),
   });
   // The commands that change a library are bound to it (useLibrarySave): an editor holding one saves where it began.
@@ -256,8 +259,8 @@ export default function App() {
     },
   );
   const commands = useMemo<AppCommands>(
-    () => ({ ...handlers, ...libraryHandlers, perform }),
-    [handlers, libraryHandlers, perform],
+    () => ({ ...handlers, ...recoveryHandlers, ...libraryHandlers, perform }),
+    [handlers, recoveryHandlers, libraryHandlers, perform],
   );
   // Once that account has opened, the tray's own checks continue the comparison (useCompareContinuation).
   useCompareContinuation({
