@@ -304,18 +304,23 @@ export async function runMixedVersionPhases(options: {
       phase.candidateEvents = events;
       await candidate.goto(`${origin}/my-rankings`, { waitUntil: 'load' });
       if (blocked) {
-        const banner = candidate
-          .locator('.global-storage > .storage-banner[role="alert"]')
-          .filter({
-            hasText: /Close other Play 100 tabs/,
-            has: candidate.getByRole('button', { name: 'Settings', exact: true }),
-          });
+        const banner = candidate.locator('.global-storage > .storage-banner[role="alert"]').filter({
+          hasText: /Close other Play 100 tabs/,
+          has: candidate.getByRole('button', { name: 'Settings', exact: true }),
+        });
         await expect(banner).toBeVisible({ timeout: 30000 });
         const notice = await banner.innerText(),
           blockedState = await snapshotDatabase(old, true);
         const versionchanges = await old.evaluate(() => window.__mixedBlockedChanges);
         Object.assign(phase, { notice, blocked: blockedState, versionchanges });
         await candidate.screenshot({ path: path.join(evidence, `${name}.png`) });
+        // A blocked database also prevents reading the account hint. Choose the
+        // guest scope explicitly before exercising device-library recovery.
+        const deviceChoice = candidate.getByRole('button', { name: 'Use this device only', exact: true });
+        await expect(deviceChoice).toBeVisible();
+        await deviceChoice.click();
+        phase.scopeChoice = 'Use this device only';
+        assert.deepEqual(await snapshotDatabase(old, true), before, 'Choosing the guest scope altered saved rows.');
         const retryButton = banner.getByRole('button', { name: 'Try again', exact: true });
         let stillBlockedAfterRetry: DatabaseSnapshot | undefined;
         let retryFocused: boolean | undefined;

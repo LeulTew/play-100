@@ -296,7 +296,12 @@ writer barrier without a service worker intercepting the two versions:
 - **Blocked upgrade with in-page retry:** a synthetic setup page deliberately
   retains a v2 connection and ignores `versionchange`. Candidate tab B must show
   the plain-language “Close other Play 100 tabs…” notice, explaining saved data
-  is unchanged. Clicking its **Try again** button while still blocked must keep
+  is unchanged. Because the blocked database also prevents reading the account
+  hint, first choose **Use this device only** through the real account-safety
+  notice and prove this leaves all saved rows unchanged. This selects the guest
+  scope, not an account bypass. Scope the device warning by its **Settings**
+  action: the separate account notice may repeat the same blocked text.
+  Clicking its **Try again** button while still blocked must keep
   the notice, focus and stored rows. After the synthetic connection closes, the
   same button must reopen v3, restore both saved rankings and dismiss the blocked
   notice without a document reload. No temporary edits are made during this
