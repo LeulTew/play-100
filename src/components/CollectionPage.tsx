@@ -77,7 +77,7 @@ function CollectionPage({
     selected,
     setSelected,
     collectionRef,
-    appendedFocus,
+    appendedFocusRef,
     markExtrasReady,
     games,
     ownership,
@@ -275,7 +275,7 @@ function CollectionPage({
                       className="button button-outline"
                       onClick={(event) => {
                         const next = results[visibleCount];
-                        appendedFocus.current =
+                        appendedFocusRef.current =
                           event.detail === 0 && next
                             ? { id: next.slug, signature, trigger: event.currentTarget }
                             : null;

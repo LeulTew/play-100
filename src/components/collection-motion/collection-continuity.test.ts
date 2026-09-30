@@ -334,7 +334,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).not.toMatch(/<tr\b[^>]*(?:tabindex|draggable)=/);
   });
 
-  it('binds only a table title to the exact supplied action record', () => {
+  it('binds the table title and disabled Pin to the exact supplied action record', () => {
     const game = gameAt(1);
     const owned: LibraryRecord = {
       id: 'wikidata:Q20612424',
@@ -384,6 +384,8 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html).toContain(`aria-label="Pin for comparison: ${game.title}"`);
     expect(tray.pin).not.toHaveBeenCalled();
     expect(resolve).toHaveBeenCalledExactlyOnceWith(game);
-    expect(binding).toHaveBeenCalledExactlyOnceWith({ record: owned, sourceRef: { current: null } });
+    expect(binding).toHaveBeenCalledTimes(2);
+    expect(binding).toHaveBeenNthCalledWith(1, { record: owned, sourceRef: { current: null } });
+    expect(binding).toHaveBeenNthCalledWith(2, { record: owned, sourceRef: { current: null }, disabled: true });
   });
 });

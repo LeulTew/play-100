@@ -46,7 +46,7 @@ export function useCollectionView({
   const [browseRequest, setBrowseRequest] = useState(0);
   const handledBrowseRequest = useRef(0);
   const collectionRef = useRef<HTMLElement>(null);
-  const appendedFocus = useRef<{ id: string; signature: string; trigger: HTMLButtonElement } | null>(null);
+  const appendedFocusRef = useRef<{ id: string; signature: string; trigger: HTMLButtonElement } | null>(null);
   const [extrasReady, setExtrasReady] = useState(() => collectionExtrasModule.peek() !== null);
   const markExtrasReady = useCallback(() => setExtrasReady(true), []);
   const games = collection.data?.games;
@@ -83,13 +83,13 @@ export function useCollectionView({
     setSelected(new Set());
   }
   useLayoutEffect(() => {
-    const requested = appendedFocus.current;
+    const requested = appendedFocusRef.current;
     if (!requested) return;
     if (
       requested.signature !== signature ||
       (document.activeElement !== requested.trigger && document.activeElement !== document.body)
     ) {
-      appendedFocus.current = null;
+      appendedFocusRef.current = null;
       return;
     }
     const title = collectionRef.current?.querySelector<HTMLAnchorElement>(
@@ -97,7 +97,7 @@ export function useCollectionView({
     );
     // The table's placeholder rows carry no data-game: keep the request until the loaded table commits.
     if (!title) return;
-    appendedFocus.current = null;
+    appendedFocusRef.current = null;
     title.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
     title.focus({ preventScroll: true });
   }, [visibleCount, signature, filters.view, extrasReady]);
@@ -174,7 +174,7 @@ export function useCollectionView({
     selected,
     setSelected,
     collectionRef,
-    appendedFocus,
+    appendedFocusRef,
     markExtrasReady,
     games,
     ownership,
