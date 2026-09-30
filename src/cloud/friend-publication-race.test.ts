@@ -159,23 +159,22 @@ beforeEach(() => {
   refuseTransaction = () => {};
   refuseBatch = () => {};
   vi.spyOn(crypto, 'randomUUID').mockReturnValue(generation);
-  vi.mocked(firestore.runTransaction).mockImplementation((async (
-    _db: firestore.Firestore,
-    update: (tx: Transaction) => Promise<unknown>,
-  ) => {
-    const writes: Write[] = [];
-    const tx = {
-      ...recorder(writes),
-      get: async (ref: DocumentReference) => {
-        const data = documents.get(ref.path);
-        return { exists: () => data !== undefined, data: () => data };
-      },
-    };
-    const result = await update(tx as unknown as Transaction);
-    refuseTransaction(writes);
-    apply(writes);
-    return result;
-  }) as unknown as typeof firestore.runTransaction);
+  vi.mocked(firestore.runTransaction).mockImplementation(
+    async (_db: firestore.Firestore, update: (tx: Transaction) => Promise<unknown>) => {
+      const writes: Write[] = [];
+      const tx = {
+        ...recorder(writes),
+        get: async (ref: DocumentReference) => {
+          const data = documents.get(ref.path);
+          return { exists: () => data !== undefined, data: () => data };
+        },
+      };
+      const result = await update(tx as unknown as Transaction);
+      refuseTransaction(writes);
+      apply(writes);
+      return result;
+    },
+  );
   vi.mocked(firestore.writeBatch).mockImplementation((() => {
     const writes: Write[] = [];
     return {

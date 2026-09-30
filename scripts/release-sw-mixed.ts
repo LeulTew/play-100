@@ -71,7 +71,10 @@ declare global {
 export function observeConnections() {
   window.__mixedConnections = [];
   window.__mixedEvents = [];
+  // Both originals run only through .call(this, ...) on the instance the patched method receives.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
   const originalOpen = IDBFactory.prototype.open,
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     originalClose = IDBDatabase.prototype.close;
   IDBFactory.prototype.open = function (name, version) {
     const request = version === undefined ? originalOpen.call(this, name) : originalOpen.call(this, name, version);
@@ -117,7 +120,7 @@ export async function snapshotDatabase(page: Page, held = false): Promise<Databa
             request.transaction?.abort();
             reject(new Error('Expected an existing database.'));
           };
-          request.onerror = () => reject(request.error);
+          request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
           request.onsuccess = () => resolve(request.result);
         });
     try {
@@ -126,7 +129,7 @@ export async function snapshotDatabase(page: Page, held = false): Promise<Databa
           store = tx.objectStore('library');
         const keys = store.getAllKeys(),
           values = store.getAll();
-        tx.onabort = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         tx.oncomplete = () =>
           resolve({ version: db.version, rows: keys.result.map((key, i) => [key, values.result[i]]) });
       });
@@ -145,14 +148,14 @@ async function seed(page: Page, origin: string, hold: boolean) {
       await new Promise<void>((resolve, reject) => {
         const request = indexedDB.open('play100-personal', 2);
         request.onupgradeneeded = () => request.result.createObjectStore('library');
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
         request.onsuccess = () => {
           const db = request.result,
             tx = db.transaction('library', 'readwrite');
           tx.objectStore('library').put(state, 'state');
           tx.onabort = () => {
             db.close();
-            reject(tx.error);
+            reject(tx.error ?? new Error('IndexedDB operation failed'));
           };
           tx.oncomplete = () => {
             if (hold) {
@@ -205,7 +208,7 @@ export function assertMixedEvidence(facts: {
   assert.ok(
     facts.events
       .slice(changed + 1)
-      .some((event) => event.kind === 'close' && event.connection === facts.events[changed].connection),
+      .some((event) => event.kind === 'close' && event.connection === facts.events[changed]?.connection),
     'The actual Release 6 connection did not close after versionchange.',
   );
   assert.equal(facts.closedHandleError, 'InvalidStateError');
@@ -379,7 +382,9 @@ export async function runMixedVersionPhases(options: {
           );
           if (!changed) return 'NoVersionChange';
           try {
-            window.__mixedConnections[changed.connection].db.transaction('library', 'readonly');
+            const connection = window.__mixedConnections[changed.connection];
+            if (!connection) return 'NoConnection';
+            connection.db.transaction('library', 'readonly');
             return 'StillOpen';
           } catch (error) {
             return error instanceof DOMException ? error.name : String(error);

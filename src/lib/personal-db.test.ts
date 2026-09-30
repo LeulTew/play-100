@@ -738,14 +738,14 @@ describe('connection lifecycle and local notifications', () => {
       store.put(state, STATE_KEY);
       store.put(extras, 'synthetic-other-rows');
       tx.oncomplete = () => resolve();
-      tx.onabort = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
     });
     const readBlocker = () =>
       new Promise<unknown[]>((resolve, reject) => {
         const tx = blocker.transaction(STORE_NAME, 'readonly');
         const read = tx.objectStore(STORE_NAME).getAll();
         tx.oncomplete = () => resolve(read.result);
-        tx.onabort = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
       });
     const original = await readBlocker();
     try {
@@ -772,7 +772,7 @@ describe('connection lifecycle and local notifications', () => {
         const tx = reopened.transaction(STORE_NAME, 'readonly');
         const read = tx.objectStore(STORE_NAME).getAll();
         tx.oncomplete = () => resolve(read.result);
-        tx.onabort = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
       });
       expect(rows).toEqual(original);
     } finally {
