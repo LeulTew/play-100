@@ -31,6 +31,7 @@ import {
   Timestamp,
   writeBatch,
 } from 'firebase/firestore';
+import type { Firestore, Transaction, TransactionOptions } from 'firebase/firestore';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FriendShelfStore } from '../src/cloud/friend-shelf-store';
 import { FriendStore } from '../src/cloud/friend-store';
@@ -135,6 +136,22 @@ async function client(anonymous = false) {
   return { uid: user.uid, db, store, friends, auth };
 }
 type Client = Awaited<ReturnType<typeof client>>;
+/** Another device signed in to the owner's account, with its own Firestore client. */
+async function sameAccount(owner: Client): Promise<Client> {
+  const app = initializeApp({ apiKey: 'demo-play100-key', projectId }, crypto.randomUUID());
+  apps.push(app);
+  const auth = initializeAuth(app, { persistence: inMemoryPersistence });
+  connectAuthEmulator(auth, `http://${authAddress}`, { disableWarnings: true });
+  const db = getFirestore(app);
+  connectFirestoreEmulator(db, host, Number(port));
+  const { user } = await signInWithEmailAndPassword(
+    auth,
+    owner.auth.currentUser!.email!,
+    'Emulator-only-passphrase-4382',
+  );
+  await getIdToken(user, true);
+  return { uid: user.uid, db, store: new FriendShelfStore(db), friends: new FriendStore(db), auth };
+}
 async function connect(a: Client, b: Client) {
   const request = await a.friends.sendRequest(a.uid, b.uid);
   return b.friends.respond(b.uid, a.uid, 'accept', request.epoch);
@@ -643,6 +660,50 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await a.store.cleanupSharing(a.uid);
     const fresh = await select(a, entries);
     await assertSucceeds(a.store.publish(a.uid, entries, fresh, { syncEpoch: 1, remoteRevision: 1 }, 0, () => true));
+  });
+  it('lets a device that loses a publication race to another device of its account take the same shelf as its result', async () => {
+    const a = await client();
+    const b = await client();
+    await connect(a, b);
+    const device = await sameAccount(a);
+    const config = await select(a, [entry]);
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    let staged!: () => void;
+    const held = new Promise<void>((resolve) => {
+      staged = resolve;
+    });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // The device's third transaction publishes its head: it reads, then commits only after the account's other device
+    // has published the same shelf.
+    let transactions = 0;
+    vi.mocked<RunTransaction>(runTransaction).mockImplementation(
+      async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+        db === device.db && ++transactions === 3
+          ? actual.runTransaction(
+              db,
+              async (tx) => {
+                const result = await operation(tx);
+                staged();
+                await released;
+                return result;
+              },
+              options,
+            )
+          : actual.runTransaction(db, operation, options),
+    );
+    const losing = device.store.publish(device.uid, [entry], config, source, 0, () => true);
+    await held;
+    const won = await a.store.publish(a.uid, [entry], config, source, 0, () => true);
+    release();
+    // The emulator judges the stale head commit against the winner's head and denies it. That lost race is not an
+    // authorization failure: the same shelf under the same configuration is the losing device's result.
+    await expect(losing).resolves.toEqual({ changed: false, head: won.head });
+    expect(won.changed).toBe(true);
+    expect(await a.store.head(a.uid)).toEqual(won.head);
+    expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
   });
   it('bounds the registry to three generations and prunes without replaying a publication', async () => {
     const a = await client();

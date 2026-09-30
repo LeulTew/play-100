@@ -42,6 +42,7 @@ import type {
 } from '../lib/friend-shelf-types';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseHead } from './cloud-store';
+import { contendedWrite, publishedAlready } from './friend-store-core';
 import { releaseIndexedPayload } from './generation-cleanup';
 
 function conflict(message = 'Shared games changed elsewhere. Refresh before trying again.'): never {
@@ -277,88 +278,120 @@ export class FriendShelfStore {
       expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
       checkSource(sync.data());
       const current = head.exists() ? parseFriendShelfHead(head.data()) : null;
-      if ((current?.revision ?? 0) !== expectedHeadRevision) conflict();
+      if (!publishedAlready(current, expected, digest) && (current?.revision ?? 0) !== expectedHeadRevision) conflict();
       return current;
     });
     guard();
-    if (
-      prior?.epoch === expected.epoch &&
-      prior.settingsRevision === expected.revision &&
-      prior.current?.digest === digest
-    )
-      return { changed: false, head: prior };
-    await this.prune(uid);
+    const published = publishedAlready(prior, expected, digest);
+    if (published) return { changed: false, head: published };
+    // Every device of this account publishes the shelf after the same change, so a refused step settles as a ranking
+    // publication's does (friend-ranking-share.ts; docs/intermittents.md, REL-08): the same content published by the
+    // other device is this publication's result, a changed configuration, source or head is a conflict, and an
+    // unchanged one gets one retry.
+    const settle = async (): Promise<FriendShelfHead | null> => {
+      guard();
+      const [config, head, sync] = await runTransaction(
+        this.db,
+        (tx) => Promise.all([tx.get(configRef), tx.get(headRef), tx.get(syncRef)]),
+        { maxAttempts: 3 },
+      );
+      expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
+      checkSource(sync.data());
+      const current = head.exists() ? parseFriendShelfHead(head.data()) : null;
+      const same = publishedAlready(current, expected, digest);
+      if (same) return same;
+      if ((current?.revision ?? 0) !== expectedHeadRevision) conflict();
+      guard();
+      return null;
+    };
+    const step = (write: () => Promise<FriendShelfHead | null | void>) => contendedWrite(write, settle);
+    const pruned = await step(async () => {
+      await this.prune(uid);
+    });
+    if (pruned) return { changed: false, head: pruned };
     guard();
     const id = crypto.randomUUID();
     const generationRef = doc(this.db, 'friendShelves', uid, 'generations', id);
     const registryRef = this.ref('friendShelfRegistry', uid);
-    await runTransaction(this.db, async (tx) => {
-      guard();
-      const [config, registry, sync] = await Promise.all([tx.get(configRef), tx.get(registryRef), tx.get(syncRef)]);
-      expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
-      checkSource(sync.data());
-      const ids = registry.exists() ? parseFriendRegistry(registry.data()) : [];
-      if (ids.length >= 3)
-        throw new FriendStoreError(
-          'limit',
-          'A shelf update is still pending. Shared games will retry after the upload expires.',
-        );
-      guard();
-      tx.set(registryRef, { ids: [...ids, id], revision: registry.exists() ? registry.data().revision + 1 : 1 });
-      tx.set(generationRef, {
-        epoch: expected.epoch,
-        settingsRevision: expected.revision,
-        source,
-        count: entries.length,
-        digest,
-        uploaded: 0,
-        ids: [],
-        status: entries.length ? 'staging' : 'ready',
-        createdAt: serverTimestamp(),
-      });
-    });
+    const registered = await step(() =>
+      runTransaction(this.db, async (tx) => {
+        guard();
+        const [config, registry, sync] = await Promise.all([tx.get(configRef), tx.get(registryRef), tx.get(syncRef)]);
+        expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
+        checkSource(sync.data());
+        const ids = registry.exists() ? parseFriendRegistry(registry.data()) : [];
+        if (ids.length >= 3)
+          throw new FriendStoreError(
+            'limit',
+            'A shelf update is still pending. Shared games will retry after the upload expires.',
+          );
+        guard();
+        tx.set(registryRef, { ids: [...ids, id], revision: registry.exists() ? registry.data().revision + 1 : 1 });
+        tx.set(generationRef, {
+          epoch: expected.epoch,
+          settingsRevision: expected.revision,
+          source,
+          count: entries.length,
+          digest,
+          uploaded: 0,
+          ids: [],
+          status: entries.length ? 'staging' : 'ready',
+          createdAt: serverTimestamp(),
+        });
+      }),
+    );
+    if (registered) return { changed: false, head: registered };
     for (let index = 0; index < Math.ceil(entries.length / FRIEND_SHELF_CHUNK_SIZE); index += 1) {
-      guard();
       const chunkEntries = entries.slice(index * FRIEND_SHELF_CHUNK_SIZE, (index + 1) * FRIEND_SHELF_CHUNK_SIZE);
-      const batch = writeBatch(this.db);
-      batch.set(doc(generationRef, 'chunks', String(index)), {
-        index,
-        entries: chunkEntries,
-        ids: chunkEntries.map((entry) => entry.id),
+      const uploaded = await step(() => {
+        guard();
+        const batch = writeBatch(this.db);
+        batch.set(doc(generationRef, 'chunks', String(index)), {
+          index,
+          entries: chunkEntries,
+          ids: chunkEntries.map((entry) => entry.id),
+        });
+        batch.update(generationRef, {
+          uploaded: index + 1,
+          ids: entries.slice(0, (index + 1) * FRIEND_SHELF_CHUNK_SIZE).map((entry) => entry.id),
+          status: (index + 1) * FRIEND_SHELF_CHUNK_SIZE >= entries.length ? 'ready' : 'staging',
+        });
+        return batch.commit();
       });
-      batch.update(generationRef, {
-        uploaded: index + 1,
-        ids: entries.slice(0, (index + 1) * FRIEND_SHELF_CHUNK_SIZE).map((entry) => entry.id),
-        status: (index + 1) * FRIEND_SHELF_CHUNK_SIZE >= entries.length ? 'ready' : 'staging',
-      });
-      await batch.commit();
+      if (uploaded) return { changed: false, head: uploaded };
     }
-    await runTransaction(this.db, async (tx) => {
-      guard();
-      const [config, head, generation, sync] = await Promise.all([
-        tx.get(configRef),
-        tx.get(headRef),
-        tx.get(generationRef),
-        tx.get(syncRef),
-      ]);
-      expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
-      checkSource(sync.data());
-      const current = head.exists() ? parseFriendShelfHead(head.data()) : null;
-      const gen = generation.exists() ? parseFriendGeneration(generation.data()) : null;
-      if ((current?.revision ?? 0) !== expectedHeadRevision || gen?.status !== 'ready') conflict();
-      guard();
-      tx.update(generationRef, { status: 'published' });
-      tx.set(headRef, {
-        format: 1,
-        epoch: expected.epoch,
-        settingsRevision: expected.revision,
-        source,
-        revision: expectedHeadRevision + 1,
-        current: { generation: id, digest, count: entries.length },
-        previous: current?.current ?? null,
-        updatedAt: serverTimestamp(),
-      });
-    });
+    const concurrent = await step(() =>
+      runTransaction(this.db, async (tx) => {
+        guard();
+        const [config, head, generation, sync] = await Promise.all([
+          tx.get(configRef),
+          tx.get(headRef),
+          tx.get(generationRef),
+          tx.get(syncRef),
+        ]);
+        expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
+        checkSource(sync.data());
+        const current = head.exists() ? parseFriendShelfHead(head.data()) : null;
+        const same = publishedAlready(current, expected, digest);
+        if (same) return same;
+        const gen = generation.exists() ? parseFriendGeneration(generation.data()) : null;
+        if ((current?.revision ?? 0) !== expectedHeadRevision || gen?.status !== 'ready') conflict();
+        guard();
+        tx.update(generationRef, { status: 'published' });
+        tx.set(headRef, {
+          format: 1,
+          epoch: expected.epoch,
+          settingsRevision: expected.revision,
+          source,
+          revision: expectedHeadRevision + 1,
+          current: { generation: id, digest, count: entries.length },
+          previous: current?.current ?? null,
+          updatedAt: serverTimestamp(),
+        });
+        return null;
+      }),
+    );
+    if (concurrent) return { changed: false, head: concurrent };
     const receipt: FriendShelfReceipt = {
       operation: 'publish-shelf',
       uid,

@@ -1,6 +1,6 @@
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { FriendStoreError } from '../lib/friend-types';
-import type { FriendPage, FriendSettings } from '../lib/friend-types';
+import type { FriendPage, FriendSettings, FriendShareHead } from '../lib/friend-types';
 
 // Checks and page shaping shared by FriendStore's operations.
 
@@ -24,6 +24,21 @@ export function expectedSettings(current: FriendSettings, expected: FriendSettin
 }
 export function permissionDenied(cause: unknown): boolean {
   return Boolean(cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied');
+}
+/**
+ * The head when it already publishes content with this digest under these settings, as another device of the account
+ * publishes it after the same settings change. Identical content is then a publication's result, not a conflict.
+ */
+export function publishedAlready(
+  head: FriendShareHead | null,
+  expected: Pick<FriendSettings, 'epoch' | 'revision'>,
+  digest: string,
+): FriendShareHead | null {
+  return head?.epoch === expected.epoch &&
+    head.settingsRevision === expected.revision &&
+    head.current?.digest === digest
+    ? head
+    : null;
 }
 /**
  * One write of a publication that another device of the account can be making at the same time. When the write is

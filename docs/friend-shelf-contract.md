@@ -99,6 +99,13 @@ Automatic selection shrink keeps the existing `consentSyncEpoch`; it must never
 adopt a new one. `FriendShelfConsentError` is an explicit review-required outcome.
 Ordinary `conflict` errors remain transient, not permanent scheduler blocks.
 
+Every signed-in device of the account runs the scheduler, so two devices publish
+one change at once. Publication settles that race as the friends-only ranking
+does ([friendships data contract](friendships-data-contract.md)): the same
+content already published under the same configuration epoch and revision is
+its result at every step, and a denied step reads the configuration, head and
+source again, then ends, reports a retryable conflict or retries once.
+
 Every configuration change also pulses an existing head's `revision` and
 `updatedAt` in the same transaction, leaving both manifests/source untouched.
 Rules require the pulse and prove the simultaneous control revision increment.

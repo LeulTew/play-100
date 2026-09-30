@@ -32,7 +32,14 @@ import type {
 } from '../lib/friend-types';
 import { parseHead } from './cloud-store';
 import type { FriendStore } from './friend-store';
-import { activeSettings, conflict, contendedWrite, expectedSettings, online } from './friend-store-core';
+import {
+  activeSettings,
+  conflict,
+  contendedWrite,
+  expectedSettings,
+  online,
+  publishedAlready,
+} from './friend-store-core';
 
 // The friends-only ranking share, which FriendStore's methods of the same names run: reading a shared ranking and
 // publishing one. A call to another store method goes through the store, as when these were its own methods, so a
@@ -43,19 +50,6 @@ async function contentDigest(entries: PublicEntry[]): Promise<string> {
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('');
-}
-// The head when it already publishes this content under these settings, as another device of this account publishes
-// it after the same settings change. Identical content is then this publication's result, not a conflict.
-function publishedAlready(
-  head: FriendShareHead | null,
-  expected: FriendSettings,
-  digest: string,
-): FriendShareHead | null {
-  return head?.epoch === expected.epoch &&
-    head.settingsRevision === expected.revision &&
-    head.current?.digest === digest
-    ? head
-    : null;
 }
 export async function ranking(store: FriendStore, ownerUid: string): Promise<FriendRanking> {
   const head = await store.shareHead(ownerUid);
