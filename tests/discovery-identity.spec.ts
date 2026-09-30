@@ -186,7 +186,10 @@ test('bulk Discover and main100 actions keep canonical IDs for MassEffect2 and G
     .toEqual(['grand-theft-auto-iv']);
   expect((await readLibrary(page)).progress['grand-theft-auto-iv']?.played ?? false).toBe(false);
   await page.goto('/?q=Grand%20Theft%20Auto%20IV&catalogs=off');
-  await expect(page.locator('.result-summary strong')).toHaveText('1');
+  await expect(page.locator('.result-summary strong')).toHaveText('2');
+  await expect(page.locator('.game-card[data-game="grand-theft-auto-iv"]')).toHaveCount(1);
+  await expect(page.locator('.game-card[data-game="grand-theft-auto-v"]')).toHaveCount(1);
+  await expect(page.locator('[data-unranked-id="wikidata:Q94797"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Select Grand Theft Auto IV', exact: true }).check();
   await page.getByRole('button', { name: 'Mark played', exact: true }).click();
