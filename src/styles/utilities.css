@@ -791,11 +791,6 @@ html[data-motion='off']
     outline: 1px solid CanvasText;
     outline-offset: 1px;
   }
-  :is(button, a, input, select, textarea, summary):focus-visible,
-  .search-field:focus-within {
-    outline: 3px solid Highlight;
-    outline-offset: 4px;
-  }
   :is(button, a)[aria-pressed='true'],
   :is(button, a)[aria-current='page'],
   button[aria-expanded='true'],
@@ -806,6 +801,11 @@ html[data-motion='off']
     outline-offset: -3px;
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+  :is(button, a, input, select, textarea, summary):focus-visible,
+  .search-field:focus-within {
+    outline: 3px solid Highlight;
+    outline-offset: 4px;
   }
   .collection-tabs button.is-active::after {
     border-bottom: 3px solid Highlight;
