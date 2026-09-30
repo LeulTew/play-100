@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { cloudUiServerProblem, compareFixtureGate, googleLiveCheck, localGateOptions } from './playwright-env.ts';
+import {
+  cloudUiServerProblem,
+  compareFixtureGate,
+  emulatorRulesGate,
+  googleLiveCheck,
+  localGateOptions,
+} from './playwright-env.ts';
 
 describe('local Playwright gate', () => {
   it('refuses .only and never reuses a server on the fixed port by default', () => {
@@ -51,6 +57,19 @@ describe('live Google check', () => {
     expect(googleLiveCheck({ PLAY100_GOOGLE_LIVE: 'true' })).toBe(false);
     expect(googleLiveCheck({ PLAY100_GOOGLE_LIVE: '1' })).toBe(true);
     expect(googleLiveCheck({ PLAY100_GOOGLE_LIVE: '1', PLAY100_RELEASE_GATE: '1' })).toBe(false);
+  });
+});
+
+describe('emulator rules gate', () => {
+  it('runs the rule-loading cases only in a one-worker run', () => {
+    expect(emulatorRulesGate({}, 1)).toBe('run');
+    expect(emulatorRulesGate({ PLAY100_RELEASE_GATE: '1' }, 1)).toBe('run');
+  });
+
+  it('skips them in any other run, and refuses them inside the release gate instead of skipping', () => {
+    expect(emulatorRulesGate({}, 2)).toBe('skip');
+    expect(emulatorRulesGate({ PLAY100_RELEASE_GATE: '' }, 4)).toBe('skip');
+    expect(emulatorRulesGate({ PLAY100_RELEASE_GATE: '1' }, 2)).toBe('refuse');
   });
 });
 

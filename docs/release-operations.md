@@ -597,6 +597,14 @@ without its six cases; ordinary runs without these variables still skip them.
 Expect no compare-orientation skip on desktop and one on mobile, whose
 single-matrix pixel case runs only on desktop.
 
+The configuration runs one worker, which the emulator's shared state needs:
+`security-migration.spec.ts` and `cancelled-registration.spec.ts` load Firestore
+rules for the whole `demo-play100` project. A faster run with `--workers=2` or
+more skips those `@emulator-rules` cases before they load anything, so cover
+them in a separate pass: `--workers=2 --grep-invert @emulator-rules`, then
+`--workers=1 --grep @emulator-rules`. With `PLAY100_RELEASE_GATE` set they fail
+instead of skipping.
+
 The gate's Google redirect cases (`identity.spec.ts`, `review-repairs.spec.ts`
 and `strict-style-csp.spec.ts`) use a controlled provider fixture,
 `tests-cloud-ui/google-provider-fixture.ts`, so no public host decides them. On

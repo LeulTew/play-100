@@ -561,7 +561,12 @@ at Release 1 (`2f727389`); receipts are in the [release ledger](releases.md#rele
 Rerun `npm run test:cloud` and the two UI specs on the separately configured
 local demo app after rule changes. These fixtures temporarily load old rules
 into `demo-play100` and restore candidate rules in teardown: run with one worker and exclusive ownership of those emulator ports,
-never alongside another validation or against production. No case inventories
+never alongside another validation or against production. The two UI specs
+enforce the worker count themselves: in a run with more than one worker they skip
+before loading any rules (the release gate fails them instead), and their
+`@emulator-rules` tag lets such a run cover them in a one-worker pass,
+`--workers=1 --grep @emulator-rules` (REL-10 in the
+[intermittent register](intermittents.md)). No case inventories
 real users or proves malformed/dangling legacy metadata recoverable. The
 12-generation case deliberately has valid manifests, payload and expired
 timestamps; young in-flight generations may need to age, and dangling registry

@@ -46,6 +46,17 @@ export function googleLiveCheck(environment: HarnessEnvironment): boolean {
   return environment[GOOGLE_LIVE_VARIABLE] === '1' && !environment[RELEASE_GATE_VARIABLE];
 }
 
+/**
+ * How cloud-UI cases that load Firestore rules into the demo-play100 emulator treat a run with `workers` workers. The
+ * emulator keeps one rule set for the project, so loading rules changes them for every test another worker runs
+ * meanwhile (docs/security.md): these cases run only in a one-worker run. Any other run skips them, to cover them in a
+ * one-worker pass of their own; inside the release gate they fail instead of being silently skipped.
+ */
+export function emulatorRulesGate(environment: HarnessEnvironment, workers: number): 'run' | 'skip' | 'refuse' {
+  if (workers <= 1) return 'run';
+  return environment[RELEASE_GATE_VARIABLE] ? 'refuse' : 'skip';
+}
+
 /** The dev-server module whose served source shows the mode it was started in. */
 export const CLOUD_UI_PROBE_PATH = '/src/lib/online-availability.ts';
 

@@ -3,22 +3,28 @@ import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { candidateRules, live270fRules } from '../tests-cloud/fixtures/migration-rules';
 import { authOrigin, emailFor, firestoreOrigin, password, signIn } from './helpers';
+import { EMULATOR_RULES_TAG, requireOnlyWorker } from './emulator-rules';
 
 for (const policy of ['candidate', 'live-270f'] as const)
-  test.describe(`cancelled recovery with ${policy} rules`, () => {
+  test.describe(`cancelled recovery with ${policy} rules`, { tag: EMULATOR_RULES_TAG }, () => {
     let environment: RulesTestEnvironment;
+    let loading = false;
     const target = new URL(firestoreOrigin);
     const configuration = (rules: string) => ({
       projectId: 'demo-play100',
       firestore: { host: target.hostname, port: Number(target.port), rules },
     });
     test.beforeAll(async () => {
+      requireOnlyWorker();
       if (target.hostname !== '127.0.0.1') throw new Error('Only the local demo rules may be changed by this fixture.');
+      loading = true;
       environment = await initializeTestEnvironment(
         configuration(policy === 'live-270f' ? live270fRules() : candidateRules()),
       );
     });
     test.afterAll(async () => {
+      // A group that skipped itself loaded no rules, so it has none to restore.
+      if (!loading) return;
       try {
         await environment?.cleanup();
       } finally {
