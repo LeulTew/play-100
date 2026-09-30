@@ -330,7 +330,7 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
   const card = page.locator('[data-catalog-id="wikidata:Q161234"]');
   await expect(card.locator('.compare-pin')).toHaveCount(1);
   await expect(card.locator('[data-compare-drag-grip]')).toHaveCount(1);
-  const pin = card.getByRole('button', { name: 'Pin for comparison: 0 A.D.', exact: true });
+  const pin = card.getByRole('button', { name: /^(?:Pin|Pinned) for comparison: 0 A\.D\.$/ });
   await pin.scrollIntoViewIfNeeded();
   const bounds = await pin.boundingBox();
   if (!bounds) throw new Error('The coarse Compare Pin has no hit target.');

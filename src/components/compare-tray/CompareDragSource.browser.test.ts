@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import { chromium, expect as browserExpect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import type { Browser, BrowserContext, BrowserServer, CDPSession, Locator, Page } from '@playwright/test';
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
@@ -271,6 +272,22 @@ async function observePinInput() {
 }
 
 describe('Compare source browser contract', () => {
+  it.each([false, true])('keeps the pinned label in its accessible name (touch=%s)', async (touch) => {
+    if (touch) {
+      await context.close();
+      await openFixture(true, 393);
+    }
+    const pin = page.getByRole('button', { name: 'Pin for comparison: Manual fixture title', exact: true });
+    await pin.click();
+    const pinned = page.getByRole('button', { name: 'Pinned for comparison: Manual fixture title', exact: true });
+    await browserExpect(pinned).toHaveText('Pinned');
+    await browserExpect(pinned).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      (await new AxeBuilder({ page }).include('#source-controls').withRules(['label-content-name-mismatch']).analyze())
+        .violations,
+    ).toEqual([]);
+  });
+
   it.each(['Enter', 'Space'])(
     'keeps ordinary %s Pin/unpin immediate, focused and free of drag feedback',
     async (key) => {
@@ -278,6 +295,7 @@ describe('Compare source browser contract', () => {
       await pin.focus();
       await pin.press(key);
       await browserExpect(pin).toHaveAttribute('aria-pressed', 'true');
+      await browserExpect(pin).toHaveAccessibleName('Pinned for comparison: Manual fixture title');
       await browserExpect(pin).toHaveText('Pinned');
       await browserExpect(pin).toBeFocused();
       expect(await page.evaluate(() => window.compareDragTest.items())).toEqual(['manual:drag-fixture']);

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { emptyCatalogs } from './catalog-helpers';
 import { readLibrary } from './library-helpers';
 
@@ -17,10 +18,18 @@ for (const view of ['grid', 'list', 'table'] as const) {
     const element = await pin.elementHandle();
     if (!element) throw new Error('The inline comparison toggle must be mounted.');
     await pin.press('Enter');
-    const unpin = row.getByRole('button', { name: 'Pin for comparison: Red Dead Redemption 2', exact: true });
+    const unpin = row.getByRole('button', { name: 'Pinned for comparison: Red Dead Redemption 2', exact: true });
     await expect(unpin).toHaveAttribute('aria-pressed', 'true');
     await expect(unpin).toBeEnabled();
     await expect(unpin).not.toHaveAttribute('aria-disabled');
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .include('[data-game="red-dead-redemption-2"]')
+          .withRules(['label-content-name-mismatch'])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
     expect(await element.evaluate((node) => node.isConnected && node === document.activeElement)).toBe(true);
     await expect(page.locator('.compare-tray-expand')).toContainText('1 game');
     await unpin.press('Enter');

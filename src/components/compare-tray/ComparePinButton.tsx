@@ -45,7 +45,7 @@ export function ComparePinButton({
       className={`compare-pin ${compact ? (coarsePointer ? 'text-button' : 'icon-button') : variant === 'text' ? 'text-button' : 'button button-outline'}`}
       aria-disabled={blocked || undefined}
       aria-pressed={pinned}
-      aria-label={`Pin for comparison: ${record.title}`}
+      aria-label={`${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}`}
       title={compact ? (pinned ? 'Remove pin' : 'Pin for comparison') : undefined}
       draggable={false}
       onClick={(event) => {

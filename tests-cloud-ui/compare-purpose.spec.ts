@@ -31,7 +31,7 @@ async function compareSignedOut(
       .first();
     const title = ((await pin.getAttribute('aria-label')) ?? '').replace('Pin for comparison: ', '');
     await pin.click();
-    await expect(games.getByRole('button', { name: `Pin for comparison: ${title}`, exact: true })).toBeVisible();
+    await expect(games.getByRole('button', { name: `Pinned for comparison: ${title}`, exact: true })).toBeVisible();
     titles.push(title);
   }
   if (table) await page.getByRole('button', { name: 'Compare rankings with friends', exact: true }).click();

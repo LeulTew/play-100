@@ -87,15 +87,17 @@ describe('tray first-paint isolation', () => {
 });
 
 describe('workspace embedding contract', () => {
-  it.each([false, true])('keeps editor Pin names stable with pressed=%s', (selected) => {
+  it.each([false, true])('includes the visible editor Pin state in its name with pressed=%s', (selected) => {
     const pinProps = { onPin: vi.fn(), onUnpin: vi.fn(), pinnedIds: new Set(selected ? ['alpha'] : []) };
     const library = renderToStaticMarkup(h(LibraryPage, { ...props, ...pinProps }));
     const ranking = renderToStaticMarkup(h(RankingsPage, { ...props, ...pinProps }));
     for (const html of [library, ranking]) {
-      expect(html).toContain(`aria-pressed="${selected}" aria-label="Pin for comparison: Alpha game"`);
+      expect(html).toContain(
+        `aria-pressed="${selected}" aria-label="${selected ? 'Pinned' : 'Pin'} for comparison: Alpha game"`,
+      );
       const pin = html
         .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
-        ?.find((button) => button.includes('aria-label="Pin for comparison: Alpha game"'));
+        ?.find((button) => button.includes(`aria-label="${selected ? 'Pinned' : 'Pin'} for comparison: Alpha game"`));
       expect(pin).toContain(`fill="${selected ? 'currentColor' : 'none'}"`);
     }
     expect(library).toContain(`</svg>${selected ? 'Pinned' : 'Pin'}</button>`);
@@ -110,7 +112,7 @@ describe('workspace embedding contract', () => {
     ]) {
       const pin = html
         .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
-        ?.find((button) => button.includes('aria-label="Pin for comparison: Alpha game"'));
+        ?.find((button) => button.includes(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: Alpha game"`));
       expect(pin).toBeDefined();
       expect(pin).toContain(`aria-pressed="${pinned}"`);
       expect(pin?.includes('aria-disabled="true"')).toBe(pinned);
@@ -313,7 +315,7 @@ describe('workspace embedding contract', () => {
         pinnedIds: new Set(['alpha']),
       }),
     );
-    expect(html).toContain('aria-pressed="true" aria-label="Pin for comparison: Alpha game"');
+    expect(html).toContain('aria-pressed="true" aria-label="Pinned for comparison: Alpha game"');
     expect(html).toContain('aria-pressed="false" aria-label="Pin for comparison: Beta game"');
     expect(onAction).not.toHaveBeenCalled();
   });
@@ -363,7 +365,7 @@ describe('tray and image rendering contract', () => {
           }),
         }),
       );
-      expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
+      expect(html).toContain(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: Alpha game"`);
       expect(html.includes(`</svg>${pinned ? 'Pinned' : 'Pin'}</button>`)).toBe(coarsePointer);
       expect(html).toContain(`aria-pressed="${pinned}"`);
     }
@@ -403,7 +405,9 @@ describe('tray and image rendering contract', () => {
           h(ComparePinButton, { record: alpha, compact }),
         ),
       );
-      expect(html).toContain(`aria-pressed="${pinned}" aria-label="Pin for comparison: Alpha game"`);
+      expect(html).toContain(
+        `aria-pressed="${pinned}" aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: Alpha game"`,
+      );
       if (compact) expect(html).toContain(`title="${pinned ? 'Remove pin' : 'Pin for comparison'}"`);
       else expect(html).not.toContain('title=');
       expect(html).toContain(`fill="${pinned ? 'currentColor' : 'none'}"`);
@@ -431,7 +435,7 @@ describe('tray and image rendering contract', () => {
       ),
     );
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('aria-pressed="true" aria-label="Pin for comparison: Alpha game"');
+    expect(html).toContain('aria-pressed="true" aria-label="Pinned for comparison: Alpha game"');
     expect(html).toContain('compare-tray-anchor');
     expect(html).not.toContain('compare-tray-reserve');
     expect(html).toContain('aria-haspopup="dialog"');
@@ -512,7 +516,7 @@ describe('tray and image rendering contract', () => {
         ),
       ),
     );
-    expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
+    expect(html).toContain('aria-label="Pinned for comparison: Alpha game"');
     expect(html).toContain('>Pinned</button>');
     expect(html).not.toContain('Drag to tray');
     expect(html).not.toContain('drag with a mouse');
@@ -536,7 +540,7 @@ describe('tray and image rendering contract', () => {
       );
       expect(html).not.toContain('tabindex="-1"');
       expect(html).toContain('title="Remove pin"');
-      expect(html).toContain('aria-label="Pin for comparison: Alpha game"');
+      expect(html).toContain('aria-label="Pinned for comparison: Alpha game"');
       expect(html).not.toContain('or drag with a mouse');
       expect(html).not.toContain('to the Compare tray');
     }

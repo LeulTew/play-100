@@ -71,26 +71,17 @@ for (const surface of ['Discover', 'Collection'] as const) {
     await page.keyboard.press('Enter');
     await expect(pin).toBeFocused();
     expect(await original.evaluate((node) => node.isConnected && node === document.activeElement)).toBe(true);
-    await expect(pin).toHaveAccessibleName(
-      `${surface === 'Collection' ? 'Unpin from' : 'Pinned for'} comparison: ${rdr.title}`,
-    );
-    if (surface === 'Collection') {
-      await expect(pin).toHaveAttribute('aria-pressed', 'true');
-      await expect(pin).not.toHaveAttribute('aria-disabled');
-    } else {
-      await expect(pin).toHaveAttribute('aria-disabled', 'true');
-      await expect(pin).not.toHaveAttribute('aria-pressed');
-    }
+    await expect(pin).toHaveAccessibleName(`Pinned for comparison: ${rdr.title}`);
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await expect(pin).not.toHaveAttribute('aria-disabled');
     await expect(pin).not.toHaveAttribute('disabled');
     const tray = page.locator('.compare-tray-expand');
     await expect(tray).toHaveAccessibleName('1 game in Compare tray');
     await page.keyboard.press('Enter');
     await expect(pin).toBeFocused();
-    if (surface === 'Collection') {
-      await expect(pin).toHaveAttribute('aria-pressed', 'false');
-      await expect(pin).toHaveAccessibleName(`Pin for comparison: ${rdr.title}`);
-      await expect(tray).toHaveCount(0);
-    } else await expect(tray).toHaveAccessibleName('1 game in Compare tray');
+    await expect(pin).toHaveAttribute('aria-pressed', 'false');
+    await expect(pin).toHaveAccessibleName(`Pin for comparison: ${rdr.title}`);
+    await expect(tray).toHaveCount(0);
     await page.keyboard.press('Tab');
     const next =
       surface === 'Discover'
@@ -119,7 +110,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
   expect((await readLibrary(page)).progress[canonical.id]?.played ?? false).toBe(false);
   await card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true }).click();
-  await expect(card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })).toHaveAttribute(
+  await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -156,7 +147,7 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await expect(page.locator('[data-game="red-dead-redemption-2"]')).toHaveCount(1);
   await expect(page.locator('[data-unranked-id]')).toHaveCount(0);
   await expect(page.locator('.result-summary strong')).toHaveText('1');
-  await expect(page.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/discover?q=Red%20Dead&catalogs=off&include100=on');
@@ -270,7 +261,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   await page.goto('/discover?q=RDR2&catalogs=off&include100=on');
   const card = cardFor(page);
   await expect(card.getByRole('button', { name: `In My games: ${rdr.title}`, exact: true })).toBeDisabled();
-  await expect(card.getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })).toHaveAttribute(
+  await expect(card.getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -404,7 +395,7 @@ test('both owned copies keep conflicting opinions and manual names remain separa
   await expect(page.locator('.my-games-editor:visible [data-record-id]')).toHaveCount(3);
   await page
     .locator(`.my-games-editor:visible [data-record-id="${canonical.id}"]`)
-    .getByRole('button', { name: `Pin for comparison: ${rdr.title}`, exact: true })
+    .getByRole('button', { name: `Pinned for comparison: ${rdr.title}`, exact: true })
     .click();
   await expect
     .poll(async () =>

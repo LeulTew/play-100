@@ -17,7 +17,7 @@ test('a visible success toast passes a rapid second card action through while it
   await expect(page.locator('.game-card')).toHaveCount(24);
   await page.evaluate(() => document.fonts.ready);
   const completed = page.getByRole('button', { name: 'Completed: Red Dead Redemption 2', exact: true });
-  const pin = page.getByRole('button', { name: /^Pin for comparison: Mass Effect 2$/ });
+  const pin = page.getByRole('button', { name: /^(?:Pin|Pinned) for comparison: Mass Effect 2$/ });
   await completed.click();
   const toast = page.locator('.toast-visible');
   await expect(toast).toContainText('Red Dead Redemption 2 marked completed.');
@@ -86,7 +86,7 @@ test('a visible success toast passes a rapid second card action through while it
   await expect(dismiss).toHaveCSS('pointer-events', 'auto');
   await dismiss.click();
   await expect(page.locator('.toast-visible')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pin for comparison: Mass Effect 2', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Pinned for comparison: Mass Effect 2', exact: true })).toBeEnabled();
 });
 
 test('Completed retains keyboard focus through a held save and ignores repeated activation until it settles', async ({

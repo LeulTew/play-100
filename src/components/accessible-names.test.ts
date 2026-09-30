@@ -65,7 +65,7 @@ describe('composite control accessible names', () => {
     );
     const pin = html
       .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
-      ?.find((button) => button.includes(`aria-label="Pin for comparison: ${record.title}"`));
+      ?.find((button) => button.includes(`aria-label="${pinned ? 'Pinned' : 'Pin'} for comparison: ${record.title}"`));
     expect(pin).toBeDefined();
     expect(pin).toContain(`</svg>${pinned ? 'Pinned' : 'Pin'}</button>`);
     expect(pin).toContain(`aria-pressed="${pinned}"`);

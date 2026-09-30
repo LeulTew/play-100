@@ -21,7 +21,8 @@ test('mobile Play later rows keep Rank and delete together without a repeated pr
     const rank = row.getByRole('button', { name: `Add ${record.title} to my ranking`, exact: true });
     const remove = row.getByRole('button', { name: `Remove from Play later: ${record.title}`, exact: true });
     await expect(rank).toHaveText('Rank');
-    const pin = row.getByRole('button', { name: `Pin for comparison: ${record.title}`, exact: true });
+    const pin = row.locator('.compare-pin');
+    await expect(pin).toHaveAccessibleName(`Pin for comparison: ${record.title}`);
     await expect(pin).toHaveText('Pin');
     await expect(row.locator('.compare-pin')).toHaveCount(1);
     const played = row.locator('.played-toggle');
@@ -30,6 +31,7 @@ test('mobile Play later rows keep Rank and delete together without a repeated pr
     expect(playedBox.y >= pinBox.y + pinBox.height || playedBox.x - (pinBox.x + pinBox.width) >= 16).toBe(true);
     await pin.click();
     await expect(pin).toHaveText('Pinned');
+    await expect(pin).toHaveAccessibleName(`Pinned for comparison: ${record.title}`);
     await expect(pin).toHaveAttribute('aria-pressed', 'true');
     await expect(pin).toBeFocused();
     const pinnedBox = await pin.boundingBox();

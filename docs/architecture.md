@@ -113,8 +113,8 @@ Mobile rows group Rank and delete with the move controls and omit the redundant
 progress summary; Played and Completed remain individually labeled controls.
 Compact comparison buttons expose **Pin / Pinned** on coarse pointers. One
 `ComparePinButton` is both the immediate click/keyboard toggle and fine-mouse
-drag source, with a stable accessible name and `aria-pressed`. Touch and pen
-never arm a held drag on this control; existing card/title hold-drag remains
+drag source, with its visible Pin/Pinned state in the accessible name and
+`aria-pressed`. Touch and pen never arm a held drag on this control; existing card/title hold-drag remains
 separate. Personal rows leave space between Pin and progress controls.
 
 Frequent card, detail, table and personal-row actions keep native focus during

@@ -35,7 +35,7 @@ for (const width of [320, 393, 768, 1024, 1440, 1920]) {
     await page.evaluate(() => document.fonts.ready);
     const card = cards.first();
     const pin = card.getByRole('button', { name: `Pin for comparison: ${items[0]!.record.title}`, exact: true });
-    const pinned = card.getByRole('button', { name: `Pin for comparison: ${items[0]!.record.title}`, exact: true });
+    const pinned = card.getByRole('button', { name: `Pinned for comparison: ${items[0]!.record.title}`, exact: true });
     const geometry = () =>
       cards.evaluateAll((elements) =>
         elements.map((element) => {

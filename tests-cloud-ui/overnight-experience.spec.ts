@@ -262,7 +262,7 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
     if (!target) throw new Error('The real tray drop target is not laid out.');
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
     await page.mouse.up();
-    await expect(card(page, ids[0]!).getByRole('button', { name: /^Pin for comparison: / })).toHaveAttribute(
+    await expect(card(page, ids[0]!).getByRole('button', { name: /^Pinned for comparison: / })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
