@@ -56,6 +56,7 @@ export interface AppCommands {
   setCompareTrayVisible(visible: boolean): void;
   /** False while the account opens or before the library shows the current scope. */
   pinAllowed(): boolean;
+  retryLibraryOpening(discardRevision?: number): Promise<boolean>;
   resetLibrary: Library['reset'];
   restoreLibrary: Library['restore'];
 }
@@ -87,6 +88,8 @@ export interface AppModel {
   onlineOpening: boolean;
   showOnline: boolean;
   hintError: string;
+  hintBlocked: boolean;
+  retryingLibraryOpening: boolean;
   headerIdentity: OnlineBridge['headerIdentity'];
   savedCount: number;
   completedCount: number;

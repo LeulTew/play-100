@@ -11,6 +11,7 @@ export interface LibraryController {
   perform: (action: PersonalAction, feedback?: ActionFeedback) => Promise<boolean>;
   restore: (state: PersonalLibraryState) => Promise<boolean>;
   reset: () => Promise<boolean>;
+  retryOpen?: () => Promise<boolean>;
 }
 
 export interface ActiveLibraryMode {

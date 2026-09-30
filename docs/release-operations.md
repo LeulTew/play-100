@@ -86,7 +86,10 @@ writes. It does not forcibly reload them or migrate unsaved in-memory drafts.
 An open connection that ignores `versionchange` blocks the upgrade. The UI
 reports "Close other Play 100 tabs to finish updating this device library, then
 retry. Your saved data has not been changed." Its **Try again** action reopens
-the library without reloading the page or clearing storage. It stays focused
+the device library and remembered-account check without reloading the page or
+clearing storage. A blocked account-hint read shares this notice instead of
+repeating it. No **Use this device only** choice is needed: a remembered,
+signed-in account resumes its own scope after the blocker closes. It stays focused
 while pending and after another blocked attempt; successful recovery moves
 focus to the current page heading only if the user has not focused elsewhere.
 Close the blocking tab, then try again. If temporary edits have already been

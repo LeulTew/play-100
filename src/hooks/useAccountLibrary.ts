@@ -58,17 +58,19 @@ export function useAccountLibrary(
   useLayoutEffect(() => {
     currentLifetime.current = lifetime;
   }, [lifetime]);
-  const refresh = useCallback(() => {
-    if (!scope) return Promise.resolve();
+  const retryOpen = useCallback(() => {
+    if (!scope) return Promise.resolve(false);
     return queue.current
       .then(async () => {
         const owns = () => currentLifetime.current === lifetime && identityIsCurrent();
-        if (!owns()) return;
+        if (!owns()) return false;
         const value = await lifetime.read(deviceMotion, owns);
         if (owns()) {
           setSnapshot({ lifetime, value });
           setFailure(null);
+          return true;
         }
+        return false;
       })
       .catch((error: unknown) => {
         if (currentLifetime.current === lifetime)
@@ -77,8 +79,12 @@ export function useAccountLibrary(
             message: error instanceof Error ? error.message : 'Account device storage is unavailable.',
             retired: error instanceof Error && error.name === 'PersonalLibraryWriterRetiredError',
           });
+        return false;
       });
   }, [scope, lifetime, deviceMotion, identityIsCurrent]);
+  const refresh = useCallback(async () => {
+    await retryOpen();
+  }, [retryOpen]);
   useEffect(() => {
     if (!scope) return;
     void refresh();
@@ -155,8 +161,9 @@ export function useAccountLibrary(
       perform,
       restore,
       reset,
+      retryOpen,
     }),
-    [current, error, retired, pending, perform, restore, reset],
+    [current, error, retired, pending, perform, restore, reset, retryOpen],
   );
   useEffect(() => {
     if (!pending) return;

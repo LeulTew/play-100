@@ -229,6 +229,7 @@ export default function App() {
     onCompareSignIn: signIn.holdComparison,
     setCompareTrayVisible,
     pinAllowed: () => !onlineOpening && activeScope.current === libraryScope,
+    retryLibraryOpening: (discardRevision) => onlineState.retryOpening(() => guestLibrary.retry(discardRevision)),
   });
   // The commands that change a library are bound to it (useLibrarySave): an editor holding one saves where it began.
   const libraryHandlers = useBoundHandlers<typeof perform, Omit<Pick<AppCommands, LibraryCommand>, 'perform'>>(
@@ -352,6 +353,8 @@ export default function App() {
                         onlineOpening,
                         showOnline: ONLINE_AVAILABLE && (onlineState.onlineRequested || cloudPage),
                         hintError: onlineState.hintError,
+                        hintBlocked: onlineState.hintBlocked,
+                        retryingLibraryOpening: onlineState.retryingOpening,
                         headerIdentity,
                         savedCount,
                         completedCount,

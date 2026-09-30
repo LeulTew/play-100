@@ -10,6 +10,7 @@ export interface GlobalBannersProps {
   offline: boolean;
   offlineReady: boolean;
   hintError: string;
+  hintBlocked?: boolean;
   onSettings: () => void;
   onAccount: () => void;
   onDeviceOnly: () => void;
@@ -26,6 +27,7 @@ export function GlobalBanners({
   offline,
   offlineReady,
   hintError,
+  hintBlocked = false,
   onSettings,
   onAccount,
   onDeviceOnly,
@@ -35,10 +37,13 @@ export function GlobalBanners({
   onDiscardTemporary,
   temporaryRevision = 0,
 }: GlobalBannersProps) {
+  const [retryWarning, setRetryWarning] = useState<string | null>(null);
+  const storageWarning = warning ?? (hintBlocked ? hintError : null) ?? (retryBusy ? retryWarning : null);
+  if (retryWarning && !retryBusy && !storageWarning) setRetryWarning(null);
   const [discardRevision, setDiscardRevision] = useState<number | null>(null);
   const discardTrigger = useRef<HTMLButtonElement>(null);
   const keepChanges = useRef<HTMLButtonElement>(null);
-  if (discardRevision !== null && (!onDiscardTemporary || !warning)) setDiscardRevision(null);
+  if (discardRevision !== null && !retryBusy && (!onDiscardTemporary || !storageWarning)) setDiscardRevision(null);
   useLayoutEffect(() => {
     if (discardRevision !== null) focusPendingEditor(keepChanges.current);
   }, [discardRevision]);
@@ -80,12 +85,12 @@ export function GlobalBanners({
   const accountChoice = 'Choose an account check or continue with this device explicitly.';
   return (
     <>
-      {warning && (
+      {storageWarning && (
         <div className="global-storage">
           <div className="storage-banner" role="alert">
             <Icon name="info" />
             <p>
-              {warning}
+              {storageWarning}
               {sharedDenial && ` ${accountChoice}`}
             </p>
             {onRetryLibrary && (
@@ -96,7 +101,10 @@ export function GlobalBanners({
                 aria-disabled={retryBusy || undefined}
                 aria-busy={retryBusy}
                 onClick={() => {
-                  if (!retryBusy) void onRetryLibrary();
+                  if (!retryBusy) {
+                    setRetryWarning(storageWarning);
+                    void onRetryLibrary();
+                  }
                 }}
               >
                 Try again
@@ -108,7 +116,7 @@ export function GlobalBanners({
             </button>
             {sharedDenial && accountActions}
           </div>
-          {onDiscardTemporary && (
+          {(onDiscardTemporary || (retryBusy && discardRevision !== null)) && (
             <div className="reset-confirmation" role="group" aria-label="Temporary library recovery">
               <button
                 ref={discardTrigger}
@@ -151,7 +159,10 @@ export function GlobalBanners({
                       aria-disabled={retryBusy || undefined}
                       aria-busy={retryBusy}
                       onClick={() => {
-                        if (!retryBusy) void onDiscardTemporary(discardRevision);
+                        if (!retryBusy && onDiscardTemporary) {
+                          setRetryWarning(storageWarning);
+                          void onDiscardTemporary(discardRevision);
+                        }
                       }}
                     >
                       Discard and try again
@@ -185,7 +196,7 @@ export function GlobalBanners({
           </div>
         </div>
       )}
-      {hintError && !sharedDenial && (
+      {hintError && !sharedDenial && !hintBlocked && (
         <div className="global-storage">
           <div className="storage-banner" role="alert">
             <Icon name="info" />

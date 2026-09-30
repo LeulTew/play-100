@@ -41,7 +41,7 @@ export interface AppShellProps {
 export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, previewModuleError }: AppShellProps) {
   const [searchResults] = useState(() => createValueStore<ExtendedSearchResults | null>(null));
   const { page, panel, manualLink, selectedSlug, onlineOpening, commands, notices } = app;
-  const libraryRecovery = app.libraryScope === 'guest' && !onlineOpening && app.guestLibrary.canRetry;
+  const libraryRecovery = app.guestLibrary.canRetry || app.hintBlocked || app.retryingLibraryOpening;
   const pin = useStableHandler((record: LibraryRecord) => {
     if (!commands.pinAllowed()) {
       notices.notify('Wait for the correct account before pinning a game.');
@@ -136,13 +136,16 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
         offline={app.pwaEnabled && !app.pwa.online}
         offlineReady={app.pwa.offlineState === 'ready'}
         hintError={app.hintError}
+        hintBlocked={app.hintBlocked}
         onSettings={chrome.onSettings}
         onAccount={chrome.onAccount}
         onDeviceOnly={commands.onDeviceOnly}
-        onRetryLibrary={libraryRecovery ? app.guestLibrary.retry : undefined}
-        retryBusy={libraryRecovery && app.guestLibrary.busy}
+        onRetryLibrary={libraryRecovery ? commands.retryLibraryOpening : undefined}
+        retryBusy={libraryRecovery && (app.guestLibrary.busy || app.retryingLibraryOpening)}
         captureRetryFocus={app.captureFocusGuard}
-        onDiscardTemporary={libraryRecovery && app.guestLibrary.discardRequired ? app.guestLibrary.retry : undefined}
+        onDiscardTemporary={
+          libraryRecovery && app.guestLibrary.discardRequired ? commands.retryLibraryOpening : undefined
+        }
         temporaryRevision={
           libraryRecovery && app.guestLibrary.discardRequired ? app.guestLibrary.state.revision : undefined
         }

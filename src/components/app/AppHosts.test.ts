@@ -40,6 +40,34 @@ const bannerProps = (): GlobalBannersProps => ({
 });
 
 describe('app status host', () => {
+  it.each([null, 'blocked', 'temporary edits'] as const)(
+    'merges a blocked account-hint read with the %s device notice',
+    (device) => {
+      const hintError =
+        'Close other Play 100 tabs to finish updating this device library, then retry. Your saved data has not been changed.';
+      const warning =
+        device === 'blocked'
+          ? temporaryLibraryWarning(hintError)
+          : device === 'temporary edits'
+            ? 'This tab has unsaved changes. Export a backup first.'
+            : null;
+      const html = renderToStaticMarkup(
+        createElement(GlobalBanners, {
+          ...bannerProps(),
+          warning,
+          hintError,
+          hintBlocked: true,
+          onRetryLibrary: vi.fn(async () => false),
+        }),
+      );
+      expect(html.match(/class="storage-banner" role="alert"/g)).toHaveLength(1);
+      expect(html).toContain(warning ?? hintError);
+      expect(html.match(/>Try again<\/button>/g)).toHaveLength(1);
+      expect(html).not.toContain('Use this device only');
+      expect((html.match(/Close other Play 100 tabs/g) ?? []).length).toBe(device === 'temporary edits' ? 0 : 1);
+    },
+  );
+
   it.each([false, true])('keeps blocked-library retry focusable while busy=%s', (retryBusy) => {
     const onRetryLibrary = vi.fn(async () => false);
     const warning =
