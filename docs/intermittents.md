@@ -32,21 +32,61 @@ test's current line. A repair commit is not execution evidence.
 | `tests/compare-tray-context.spec.ts:324` | R19 | Header geometry could be sampled before the dock settled after resize/drag/dialog close. `54c0380c` waits for two frame-separated readings to agree, preserving every original tolerance. | Repair recorded; no candidate-bound repetition receipt is claimed here. |
 | `tests-cloud-ui/review-repairs.spec.ts:37` | R19 | Reauthentication recurrence recorded by G9/G10; no new cause proved by that receipt. The controlled Google fixture removes the external loader dependency but does not by itself explain this recurrence. | Open monitoring. Earlier single reruns do not close this recurrence. |
 | `tests-cloud-ui/friend-all.spec.ts:534`: interrupted online-copy cleanup | R21 pre-flight | The dialog-close assertion waited 15 s for a long sequential deletion. `eaff3f94` waits up to 30 s for deletion's own success or refusal, fails with a refusal's text, then checks the dialog. | The isolated 3/3 result predates this repair. Repaired candidate verification remains required; do not relabel that earlier rerun. R23 loop (REL-07): 40/40, 20 on each project with two workers, Node 24.21.0, on the R23 integration tree `2c012012` (tree `31a80f38`), 2026-09-30 (CLOUD receipt `r23-go-2c012012/rel07-friend-all-534.txt`). That tree is not the final candidate. |
-| `tests/films.spec.ts:73`: native film download (FLAKE-01) | R20–R21, both projects; 7/38 recorded failures in the G10 report | Pre-existing: exact R20 `2c15f1a4` on Node 24.21.0 failed 3/40; R22's unchanged film source failed 4/40 on that runtime. Chrome netlogs show `ERR_INVALID_HTTP_RESPONSE` and MP4 body bytes parsed as HTTP headers, but the cause remains open. Media-only `Connection: close` failed 2/40, all-preview close failed 4/40, and a distinct `?download=1` URL failed 8/40. Those unsuccessful workarounds were discarded. | Open investigation, not an R22 regression. Native browser download and byte-identical SHA-256 assertions remain unchanged. Raw coordinator-held receipts: `films-r20-node24-x20.txt` (37/40), `films-node24-baseline-x20.txt` (36/40), `films-node24-closeall-x20.txt` (36/40), `films-70ce-x20-receipt.txt` (38/40), `films-distinct-url-x20-receipt.txt` (32/40). The earlier Node 24 8/8 diagnostic did not establish a fix. |
+| `tests/films.spec.ts:73`: native film download (FLAKE-01) | R20–R21, both projects; 7/38 recorded failures in the G10 report | Environment-level (Chrome network service or Windows loopback under automation), not the product or test servers; the exact responsible layer remains unresolved. Phase 1 established receive-side HTTP framing failure: `ERR_INVALID_HTTP_RESPONSE`, with interior MP4 bytes where headers belong. Phase 2: no variant eliminates it across 530 executions. Failures/executions: preview 13/270, different static server 1/40, no-store 1/40, cleanup 2/40, flush 1/40, Chrome IOCP 1/80. See [phase-2 evidence and limits](#flake-01-phase-2-conclusion). | Registered environment-level intermittent, not a verified fix. Playback, switching, focus, native browser download and byte-identical SHA-256 assertions remain unchanged. Gate rule: re-run the spec once, retain both attempts, and stop if it fails twice. WSL + Google Chrome and WFP filter enumeration remain untried discriminators. Historical raw receipts: `films-r20-node24-x20.txt` (37/40), `films-node24-baseline-x20.txt` (36/40), `films-node24-closeall-x20.txt` (36/40), `films-70ce-x20-receipt.txt` (38/40), `films-distinct-url-x20-receipt.txt` (32/40). |
 | `tests-cloud-ui/friendships.spec.ts:49` (REL-08): the receiver's `enableSelectedSharing` failed at `:46`, where "Sharing saved" never appeared (mobile; desktop passed) | R22 gate attempt 2, 2026-09-30 (first seen) | An overlap between two devices of one account, in the app; not a test race and not a seeding effect. The test signs the receiver in on two browser contexts (`other`, and the invitation's `receiving` context), and every signed-in device runs the sharing scheduler 1.2 s after a settings change. After "Agree & share" on `other` (02:02:53 local), both contexts published the same selection at once. Each context's generation cleanup, before its upload and again after publishing, re-checks the other context's new generation, the head and `friendSettings/<uid>` in a transaction. Meanwhile the other context's chunk batch writes that generation, and its rules read `friendSettings/<uid>` (`firestore.rules:590`). Under the emulator's pessimistic locks the two commits waited on each other. At 02:02:56 `other`'s cleanup commit aborted with "Transaction lock timeout", and the SDK retried it. At 02:02:58 `receiving`'s cleanup commit aborted the same way, and `other`'s chunk batch was denied because the rules `get()` failed with "Service call error". A denied write is not retried, so `other` showed "Sharing error" and "The server did not authorize this action", although `receiving` had already published the same ranking. Web SDK transactions hold no locks in production, so that denial is specific to the emulator. In production, the device that lost the race still reported "A newer shared ranking is already available", then published the same content again on retry. | Fixed in R23 (`friend-ranking-share.ts`). A publication takes the same content, already published under the same settings, as its result at every step. A denied step reads the settings, head and source again: identical content ends the publication, a change is a retryable conflict, and unchanged ones get one retry before the denial is reported as it came. The shared-games shelf, whose scheduler also runs on every device, settles its publication the same way (`friend-shelf-store.ts`). Regressions: `src/cloud/friend-publication-race.test.ts` for both publications, and cases in `tests-cloud/friendships.test.ts` and `tests-cloud/friend-shelf.test.ts` that hold one device's head commit until another device of the account has published. Evidence: the integrator's `r22-attempt2-stop.json`, and the trace and emulator excerpt in `r22-attempt2-cloud-ui-failures`. Loop on the R23 integration tree `2c012012` (tree `31a80f38`), 2026-09-30: `friendships.spec.ts` ×20 on each project with two workers, both of its tests, 80/80. The full `tests-cloud` suite passed 283/283 there, including the two new two-device cases (CLOUD receipts `r23-go-2c012012/rel08-friendships.txt` and `tests-cloud.txt`). |
 | `tests-cloud-ui/review-repairs.spec.ts:312` (REL-09): "a clean failed online check stays paused after a fresh unchanged head and a later edit until manual retry", failing at `:341`, where `.sync-state` read "Saved online" right after the test restored the valid head (mobile; desktop passed) | R22 gate attempt 2, 2026-09-30 (first seen) | A test race; restoring the head does not resume saving on its own. After a failed head check, saving is blocked until a manual retry: the head listener is detached, the work queue is blocked, and focus, online and visibility wake-ups return early. In the failing run the page's head listener rejected the invalid head before the test's "Sync now" click landed. The trace's DOM snapshots read "Saved online" at 23:17:25.647Z and "Online saving paused" at 25.843Z, just before the click was dispatched, so the assertion at `:336` passed at once. Sync now's own check was still running: its button stayed disabled from 25.917Z until after the failure, and that retry refreshes the device copy (since `49111956`) and then waits 200 ms before checking. The test restored the head at 26.081–26.086Z, so the retry read the valid, unchanged head and correctly reported "Saved online". On desktop the click evidently landed before the listener's failure, which then cancelled the queued check, so the pause held. | Test repaired in R23: after clicking Sync now, the test waits for the button to be enabled again before it asserts the pause and restores the head. By then the retry has settled on a failed check, and a later read cannot report success over it. Every assertion is unchanged. Evidence: the integrator's `r22-attempt2-stop.json`, and the trace and emulator excerpt in `r22-attempt2-cloud-ui-failures` (no lock timeout or service-call error in that window). Loop on the R23 integration tree `2c012012` (tree `31a80f38`), 2026-09-30: `review-repairs.spec.ts:312` ×20 on each project with two workers, 40/40 (CLOUD receipt `r23-go-2c012012/rel09-review-repairs-312.txt`). |
 
+## FLAKE-01 phase-2 conclusion
+
+On 2026-09-30, the coordinator reconstructed the phase-2 result from 41 batches
+after the investigator stopped before writing its report. The evidence folder is
+`C:\Users\USER-PC\.copilot\session-state\a0879c56-839e-45cd-9af6-df2b513e53e8\files\quality\flake01`.
+It contains `phase2-summary.md`, phase-1 `analysis.md`, `batch-summary.json`,
+`matrix-flushclean.jsonl` and the per-batch `receipt.json` files.
+
+The matrix covers `tests/films.spec.ts:73` on candidate `c75777ad`, Node 24.21.0,
+Chrome 154, desktop and mobile projects, with two workers:
+
+| Variant | Change from control | Executions | Failures | Failure rate |
+| --- | --- | --- | --- | --- |
+| Preview | Vite preview / sirv control | 270 | 13 | 4.8% |
+| Different static server | Node HTTP server with its own Range handling | 40 | 1 | 2.5% |
+| No-store | MP4/VTT no-store; no validators or conditionals reach the server | 40 | 1 | 2.5% |
+| Cleanup | Destroy the MP4 source stream when the response closes | 40 | 2 | 5.0% |
+| Flush | Investigator's flush variant | 40 | 1 | 2.5% |
+| IOCP | Chrome `TcpSocketIoCompletionPortWin` receive path | 80 | 1 | 1.25% |
+
+No variant eliminates the failure. The lower observed rates are not evidence of
+a fix or a statistically established improvement over control. Failures retained
+the known native `download.path: canceled` or transient media-stall signatures.
+Phase 1 established a receive-side HTTP framing failure: a fresh cache-disabled
+download GET, without Range or conditional headers, received interior MP4 bytes
+instead of HTTP headers, including on sockets whose only prior traffic was a
+clean caption 304. Together with the different-server and socket-path results,
+the conclusion is **environment-level (Chrome network service or Windows
+loopback under automation), not the product or test servers**. Which environment
+layer is responsible, and a reliable fix, remain unproved; the netlog is not an
+independent packet capture.
+
+No product or test-server workaround is retained. Playback, switching, focus,
+native download and SHA-256 assertions stay unchanged. Re-run the spec once,
+retain both attempts, and stop if it fails twice; do not retry until green.
+Two discriminators remain **untried**: the same test with Google Chrome under
+WSL/Linux, and elevated WFP filter enumeration (`netsh wfp show filters`).
+`winsock-catalog.txt` lists only Microsoft base providers; that does not
+substitute for inspecting WFP filters.
+
 ## Candidate gate
 
-FLAKE-01's final discriminating diagnostic on `2c15f1a4` explicitly paused the
+FLAKE-01's earlier R22 discriminating diagnostic on `2c15f1a4` explicitly paused the
 video, removed its `src` and called `load()` before the native download click.
 It still failed 2/40 (`films-r20-unload-x20.txt`, Node 24.21.0, 20 repeats on
 each project, two workers), compared with the unchanged baseline's 3/40.
-Cause unresolved. Active media loading is not an established cause or a verified fix.
+That attempt did not resolve the cause. Active media loading is not an established cause or a verified fix.
 The diagnostic was removed; playback, switching, focus, native download and
 SHA-256 checks are unchanged. No 40/40 repair receipt exists. The coordinator
-permits one separately retained diagnostic rerun for this known pre-existing
-test; it does not erase the failed attempt or make a stopped committed gate a
+permits one separately retained spec rerun for this known pre-existing
+test, then stops if it fails twice; it does not erase the failed attempt or make a stopped committed gate a
 clean pass. All other failures still require investigation, not automatic retries.
 
 Further retained diagnostics on the R20 app:
@@ -68,7 +108,8 @@ Further retained diagnostics on the R20 app:
   (`films-r20-socketguard-x20-a.txt`, Node 24.21.0, two workers).
   The conditional second 40-case run was not started. The guard and its
   throwaway wire regression were removed; this is not a verified fix.
-  Cause remains unresolved.
+  That attempt did not resolve the cause; the later environment-level conclusion
+  and its remaining uncertainty are recorded above.
 
 Run the exact convergence test 20 times against the candidate rules using
 [Release operations: convergence loop](release-operations.md#friend-default-convergence-loop).
