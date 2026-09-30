@@ -83,6 +83,21 @@ async function fixture() {
 }
 
 describe('two-version release probe acceptance', () => {
+  it('admits explicit tool-validation builds without inventing gate evidence', async () => {
+    const { dir, input, receipt } = await fixture();
+    const validation = {
+      ...receipt,
+      Purpose: 'tool-validation',
+      Status: 'CONFIGURED_VALIDATION_BUILD_PASSED',
+      Gate: undefined,
+    };
+    const text = JSON.stringify(validation);
+    await writeFile(input.receipt, text);
+    const bound = { ...input, receiptSha256: sha(text) };
+    await expect(verifySwBuild(bound, true, dir)).rejects.toThrow();
+    expect((await verifySwBuild(bound, true, dir, 'tool-validation')).files).toBe(5);
+    await expect(verifySwBuild(input, true, dir, 'tool-validation')).rejects.toThrow('digest');
+  });
   it('requires two immutable builds and a numeric loopback port', () => {
     const build = {
       receipt: 'r.json',

@@ -55,7 +55,7 @@ export async function releaseSwProbe(inputFile: string) {
     files: await sourceIdentity(),
   };
   const A = await verifySwBuild(options.baseline, false, repository);
-  const B = await verifySwBuild(options.candidate, true, repository);
+  const B = await verifySwBuild(options.candidate, true, repository, options.purpose);
   assert.equal(A.commit, RELEASE6_COMMIT, 'The mixed-version campaign requires the exact Release 6 baseline.');
   assert.notEqual(A.pwaVersion, B.pwaVersion, 'Different worker versions are required.');
   assert.notEqual(A.entry, B.entry, 'Different module entries are required for document identity.');
@@ -67,6 +67,8 @@ export async function releaseSwProbe(inputFile: string) {
   const origin = `http://127.0.0.1:${options.port}`;
   const receipt = {
     kind: 'LOCAL_SW_TWO_VERSION_PROBE',
+    purpose: options.purpose,
+    gateEligible: options.purpose === 'gate',
     runner,
     inputSha256: hash(inputBytes),
     runtime: process.version,
@@ -398,7 +400,7 @@ export async function releaseSwProbe(inputFile: string) {
     for (const item of servers) receipt.errors.push(...item.errors);
     try {
       const endA = await verifySwBuild(options.baseline, false, repository),
-        endB = await verifySwBuild(options.candidate, true, repository);
+        endB = await verifySwBuild(options.candidate, true, repository, options.purpose);
       receipt.checks.inputsUnchanged =
         endA.fingerprint === A.fingerprint &&
         endB.fingerprint === B.fingerprint &&
@@ -411,13 +413,18 @@ export async function releaseSwProbe(inputFile: string) {
     const result = {
       ...receipt,
       failedChecks,
-      status: failedChecks.length || receipt.errors.length ? 'HOLD' : 'PASSED',
+      status:
+        failedChecks.length || receipt.errors.length
+          ? 'HOLD'
+          : options.purpose === 'tool-validation'
+            ? 'VALIDATION_PASSED'
+            : 'PASSED',
       finishedAt: new Date().toISOString(),
     };
     const output = path.join(options.evidence, 'sw-probe.json');
     await writeFile(output, JSON.stringify(result, null, 2) + '\n', { flag: 'wx' });
     console.log(JSON.stringify({ output, status: result.status, failedChecks, errors: result.errors }));
-    if (result.status !== 'PASSED') failure = `SW probe held; retain ${output} and both profiles.`;
+    if (result.status === 'HOLD') failure = `SW probe held; retain ${output} and both profiles.`;
   }
   if (failure) throw new Error(failure);
 }

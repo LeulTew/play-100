@@ -29,6 +29,9 @@ export function parseSwArguments(args: string[]) {
 export function parseSwInput(value: unknown, directory: string) {
   const input = requireObject(value);
   assert.equal(input.version, 1, 'Unsupported SW probe input version.');
+  const purpose = input.purpose ?? 'gate';
+  assert.ok(purpose === 'gate' || purpose === 'tool-validation', 'Unsupported SW probe purpose.');
+  const validatedPurpose: 'gate' | 'tool-validation' = purpose;
   const build = (value: unknown): SwBuildInput => {
     const row = requireObject(value);
     const commit = requireText(row.commit);
@@ -49,7 +52,13 @@ export function parseSwInput(value: unknown, directory: string) {
   const baseline = build(input.baseline),
     candidate = build(input.candidate);
   assert.notEqual(baseline.commit, candidate.commit, 'Two different build commits are required.');
-  return { baseline, candidate, port, evidence: path.resolve(directory, requireText(input.evidence)) };
+  return {
+    baseline,
+    candidate,
+    port,
+    purpose: validatedPurpose,
+    evidence: path.resolve(directory, requireText(input.evidence)),
+  } as const;
 }
 
 export async function verifiedJson(file: string, expected: string): Promise<unknown> {
@@ -74,7 +83,12 @@ export async function buildInventory(directory: string) {
   return { rows, fingerprint: sha(rows.map((row) => `${row.File}:${row.SHA256}`).join('\n')) };
 }
 
-export async function verifySwBuild(input: SwBuildInput, candidate: boolean, repository: string) {
+export async function verifySwBuild(
+  input: SwBuildInput,
+  candidate: boolean,
+  repository: string,
+  purpose: 'gate' | 'tool-validation' = 'gate',
+) {
   const receipt = requireObject(await verifiedJson(input.receipt, input.receiptSha256));
   assert.equal(receipt.Passed, true, 'Build receipt did not pass.');
   assert.equal(receipt.Source, input.commit, 'Build receipt has the wrong source.');
@@ -125,13 +139,19 @@ export async function verifySwBuild(input: SwBuildInput, candidate: boolean, rep
   const entry = index.toString().match(/<script type="module"[^>]*src="([^"]+)"/)?.[1];
   assert.ok(entry, 'No module entry found in the built document.');
   if (candidate) {
-    assert.equal(receipt.Status, 'CONFIGURED_BUILD_PASSED');
-    const gate = requireObject(receipt.Gate);
-    assert.equal(
-      requireObject(gate.ConfiguredIdentity).fingerprint,
-      actual.fingerprint,
-      'Candidate differs from the gated configured build.',
-    );
+    if (purpose === 'gate') {
+      assert.equal(receipt.Status, 'CONFIGURED_BUILD_PASSED');
+      const gate = requireObject(receipt.Gate);
+      assert.equal(
+        requireObject(gate.ConfiguredIdentity).fingerprint,
+        actual.fingerprint,
+        'Candidate differs from the gated configured build.',
+      );
+    } else {
+      assert.equal(receipt.Status, 'CONFIGURED_VALIDATION_BUILD_PASSED');
+      assert.equal(receipt.Purpose, 'tool-validation');
+      assert.equal(receipt.Gate, undefined, 'Tool validation must not claim a gate identity.');
+    }
     assert.equal(requireObject(receipt.Fingerprints).Archive, actual.fingerprint);
     assert.equal(build.IndexHtml, sha(index));
     assert.equal(build.SwJs, sha(sw));

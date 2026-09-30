@@ -240,6 +240,14 @@ resolve beside the receipt. The candidate also requires
 `Status: "CONFIGURED_BUILD_PASSED"`, `Build.{IndexHtml,SwJs,PwaVersion}`,
 `Fingerprints.Archive`, and `Gate.ConfiguredIdentity.fingerprint`.
 The latter two must equal the complete archive fingerprint made by the gate.
+For an explicitly commissioned **tool shakeout only**, the input may set
+`"purpose": "tool-validation"` (omission means `"gate"`). Its candidate receipt
+must instead use `Status: "CONFIGURED_VALIDATION_BUILD_PASSED"` and
+`Purpose: "tool-validation"`, omit `Gate`, and retain the same complete archive,
+source-policy and build-identity bindings. Never fabricate a gate fingerprint for
+a standalone build. The result is marked `gateEligible: false` and, if clean,
+`VALIDATION_PASSED`, not `PASSED`. This runs every campaign check but cannot be
+used as R23 gate evidence. Normal gate admission still requires the gated build.
 As in the gate, fingerprint path separators are host-native: retain the same
 host platform rather than reinterpreting an archived fingerprint.
 The baseline must be Release 6 commit
