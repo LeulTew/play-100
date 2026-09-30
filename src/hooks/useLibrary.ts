@@ -13,8 +13,9 @@ import { temporaryLibraryWarning } from '../lib/storage-notices';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../lib/personal-types';
 import { actionMessage } from '../lib/action-message';
 import type { ActionFeedback } from '../lib/action-message';
+import { loadStorageRecovery } from '../lib/storage-recovery-preload';
 
-interface Snapshot {
+export interface LibrarySnapshot {
   state: PersonalLibraryState;
   status: 'loading' | 'ready' | 'temporary';
   warning: string | null;
@@ -28,7 +29,7 @@ function describeError(error: unknown): string {
 }
 
 export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: boolean) {
-  const [snapshot, setSnapshot] = useState<Snapshot>(() => ({
+  const [snapshot, setSnapshot] = useState<LibrarySnapshot>(() => ({
     state: emptyPersonalLibrary(),
     status: 'loading',
     warning: null,
@@ -49,7 +50,7 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     records.current = canonicalRecords;
   }, [canonicalRecords]);
 
-  const publish = useCallback((next: Snapshot) => {
+  const publish = useCallback((next: LibrarySnapshot) => {
     current.current = next;
     setSnapshot(next);
   }, []);
@@ -190,21 +191,8 @@ export function useLibrary(canonicalRecords: LibraryRecord[], canonicalLoading: 
     (discardRevision?: number): Promise<boolean> => {
       if (retryTask.current) return retryTask.current;
       const task = enqueue(async () => {
-        if (temporaryEdits.current && discardRevision !== current.current.state.revision) {
-          publish({ ...current.current, discardRequired: true });
-          throw new Error(
-            "This tab has unsaved changes. Export a backup in Settings first, then confirm if you want to discard only this tab's temporary changes and try again. Your saved library has not been changed.",
-          );
-        }
-        const result = await loadPersonalLibrary(records.current).catch((error: unknown) => {
-          const message =
-            error instanceof Error && error.name === 'PersonalLibraryBlockedError'
-              ? (current.current.warning ?? temporaryLibraryWarning(describeError(error)))
-              : temporaryLibraryWarning(describeError(error));
-          throw new Error(message, { cause: error });
-        });
-        temporaryEdits.current = false;
-        publish({ state: result.state, status: 'ready', warning: result.notice, error: null, canRetry: false });
+        const { retryDeviceLibrary } = await loadStorageRecovery();
+        await retryDeviceLibrary({ temporaryEdits, current, records, publish }, discardRevision);
       });
       retryTask.current = task;
       void task.then(() => {

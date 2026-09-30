@@ -1,4 +1,7 @@
 export const DEFERRED_SOURCE_MODULES = [
+  'src/components/app/StorageRecovery.tsx',
+  'src/lib/storage-recovery.ts',
+  'src/lib/storage-recovery-actions.ts',
   'src/components/CollectionExtras.tsx',
   'src/components/RatingsTable.tsx',
   'src/components/catalog/ExtendedResults.tsx',

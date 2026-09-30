@@ -98,6 +98,11 @@ use **Discard tab changes and try again** and confirm. Only a successful reopen
 discards those explicitly confirmed temporary changes; another blocked attempt
 keeps them. A newer temporary edit requires a fresh confirmation. Previously
 saved data is never cleared, and no copies are silently merged.
+The recovery controls and retry/discard machinery load only after a blocked
+state first appears; the original warning remains visible during that import.
+The recovery chunk is included in offline preparation, not in startup's eager
+graph. A failed import offers the existing guarded reload recovery and Settings
+without clearing either copy.
 The rejected open aborts if it later reaches the upgrade event, rather than
 silently migrating after its caller has already shown an error. Retain the
 mixed-version writer and blocked/retry browser-test receipts in the release gate.

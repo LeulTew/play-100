@@ -120,7 +120,7 @@ afterAll(async () => {
   if (errors.length) throw new AggregateError(errors, 'Library retry fixture cleanup failed.');
 }, 60_000);
 
-async function blockedFixture(mobile = false, signedIn = false, localHint = false) {
+async function blockedFixture(mobile = false, signedIn = false, localHint = false, failRecovery = false) {
   if (!browser) throw new Error('Library retry fixture browser unavailable.');
   const context = await browser.newContext({
     viewport: { width: mobile ? 393 : 1280, height: mobile ? 851 : 900 },
@@ -131,7 +131,10 @@ async function blockedFixture(mobile = false, signedIn = false, localHint = fals
   const errors: string[] = [];
   context.on('page', (page) => page.on('pageerror', (error) => errors.push(error.message)));
   await context.route('**/*', (route) =>
-    new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'),
+    new URL(route.request().url()).origin === origin &&
+    !(failRecovery && new URL(route.request().url()).pathname === '/src/lib/storage-recovery.ts')
+      ? route.continue()
+      : route.abort('blockedbyclient'),
   );
   const blocker = await context.newPage();
   await blocker.goto(`${origin}/__library-blocker`);
@@ -162,7 +165,8 @@ async function blockedFixture(mobile = false, signedIn = false, localHint = fals
   });
   await page.goto(`${origin}/__library-retry${signedIn ? '?signed-in=1' : ''}`);
   const banner = page.locator('.storage-banner[role="alert"]').filter({ hasText: /Close other Play 100 tabs/ });
-  await browserExpect(banner.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled();
+  if (failRecovery) await browserExpect(banner).toContainText("Device recovery tools didn't load.");
+  else await browserExpect(banner.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled();
   await browserExpect(page.locator('.storage-banner[role="alert"]')).toHaveCount(1);
   if (!localHint)
     await browserExpect
@@ -205,6 +209,39 @@ async function finish(context: BrowserContext, errors: string[]) {
 }
 
 describe('blocked library recovery', () => {
+  it('keeps the original notice and every row if the recovery chunk cannot load', async () => {
+    const { context, blocker, page, banner, errors } = await blockedFixture(false, false, false, true);
+    try {
+      await browserExpect(banner).toContainText('Close other Play 100 tabs');
+      await browserExpect(banner.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+      expect((await readRows(blocker, true)).version).toBe(2);
+      expect((await readRows(blocker, true)).rows).toEqual([saved, extra]);
+      await browserExpect(page.locator('#library-status')).toHaveText('temporary');
+    } finally {
+      await finish(context, errors);
+    }
+  });
+
+  it('does not request recovery machinery for a healthy guest library', async () => {
+    if (!browser) throw new Error('Library retry fixture browser unavailable.');
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const requests: string[] = [];
+    page.on('request', (request) => {
+      if (/StorageRecovery|storage-recovery-actions|storage-recovery\.ts/.test(request.url()))
+        requests.push(request.url());
+    });
+    try {
+      await page.goto(`${origin}/__library-retry`);
+      await browserExpect(page.locator('#opening-status')).toHaveText('Opened');
+      await browserExpect(page.locator('#library-status')).toHaveText('ready');
+      await browserExpect(page.locator('.storage-banner[role="alert"]')).toHaveCount(0);
+      expect(requests).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
   it.each([false, true])(
     'recovers the remembered signed-in account without choosing guest (local hint=%s)',
     async (localHint) => {

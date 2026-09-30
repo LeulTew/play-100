@@ -17,6 +17,7 @@ import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy } from '../src/pwa/t
 
 export const PWA_ROOTS = [
   'index.html',
+  'src/lib/storage-recovery.ts',
   'src/components/personal/MyGamesPage.tsx',
   'src/components/personal/CatalogDetail.tsx',
   'src/components/catalog/DiscoverPage.tsx',

@@ -11,6 +11,7 @@ import { applyPersonalAction, emptyPersonalLibrary } from '../lib/personal-libra
 import { discoveryFixture } from '../lib/discovery-test-fixtures';
 import { temporaryLibraryWarning } from '../lib/storage-notices';
 import type { PersonalLibraryLoad } from '../lib/personal-types';
+import { retryAccountOpening } from '../lib/storage-recovery-actions';
 
 const hooks = vi.hoisted(() => ({
   values: [] as unknown[],
@@ -42,6 +43,9 @@ vi.mock('react', () => ({
   },
 }));
 vi.mock('../lib/guest-library-startup', () => ({ takeGuestLibraryLoad: () => null }));
+vi.mock('../lib/storage-recovery-preload', () => ({
+  loadStorageRecovery: () => import('../lib/storage-recovery-actions'),
+}));
 vi.mock('../lib/personal-db', () => ({
   loadPersonalLibrary: vi.fn(),
   commitPersonalAction: vi.fn(),
@@ -81,6 +85,54 @@ async function blockedLibrary() {
   return library;
 }
 
+describe('deferred account opening', () => {
+  const context = (): Parameters<typeof retryAccountOpening>[0] => ({
+    currentOnline: { current: null },
+    hintSequence: { current: 0 },
+    alive: { current: true },
+    setStage: vi.fn(),
+    setChecking: vi.fn(),
+    setRequested: vi.fn(),
+    reportError: vi.fn(),
+    resolveHint: vi.fn(async () => false),
+  });
+
+  it('coalesces repeated activation in the deferred module', async () => {
+    const state = context();
+    let resolve!: (value: boolean) => void;
+    const open = vi.fn(
+      () =>
+        new Promise<boolean>((done) => {
+          resolve = done;
+        }),
+    );
+    const first = retryAccountOpening(state, open);
+    expect(retryAccountOpening(state, open)).toBe(first);
+    expect(open).toHaveBeenCalledOnce();
+    resolve(true);
+    expect(await first).toBe(true);
+    expect(state.resolveHint).toHaveBeenCalledOnce();
+    expect(state.setStage).toHaveBeenLastCalledWith('idle');
+  });
+
+  it('does not revive an account choice superseded during the device reopen', async () => {
+    const state = context();
+    let resolve!: (value: boolean) => void;
+    const pending = retryAccountOpening(
+      state,
+      () =>
+        new Promise<boolean>((done) => {
+          resolve = done;
+        }),
+    );
+    state.hintSequence.current += 1;
+    resolve(true);
+    expect(await pending).toBe(false);
+    expect(state.resolveHint).not.toHaveBeenCalled();
+    expect(state.setRequested).not.toHaveBeenCalled();
+  });
+});
+
 describe('device library retry', () => {
   it('retains the warning on another block and publishes a fresh ready read without writing', async () => {
     const library = await blockedLibrary();
@@ -93,6 +145,7 @@ describe('device library retry', () => {
       warning: temporaryLibraryWarning(blocked.message),
       error: temporaryLibraryWarning(blocked.message),
     });
+
     vi.mocked(loadPersonalLibrary).mockResolvedValueOnce({ state: saved, notice: null, migrated: false });
     expect(await library.retry()).toBe(true);
     expect(hooks.values[0]).toEqual({ state: saved, status: 'ready', warning: null, error: null, canRetry: false });

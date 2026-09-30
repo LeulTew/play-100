@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { GlobalBanners } from './GlobalBanners';
+import StorageRecovery from './StorageRecovery';
 import type { GlobalBannersProps } from './GlobalBanners';
 import { RouteFallback } from './RouteFallback';
 import { AppHeader } from './AppHeader';
@@ -40,6 +41,20 @@ const bannerProps = (): GlobalBannersProps => ({
 });
 
 describe('app status host', () => {
+  it('keeps recovery out of startup and preserves the blocked notice while its controls load', () => {
+    const warning = 'Close other Play 100 tabs to finish updating this device library.';
+    const html = renderToStaticMarkup(
+      createElement(GlobalBanners, {
+        ...bannerProps(),
+        warning,
+        onRetryLibrary: vi.fn(async () => false),
+      }),
+    );
+    expect(html).toContain(warning);
+    expect(html).toContain('Loading recovery controls');
+    expect(html).not.toContain('>Try again<');
+  });
+
   it.each([null, 'blocked', 'temporary edits'] as const)(
     'merges a blocked account-hint read with the %s device notice',
     (device) => {
@@ -52,7 +67,7 @@ describe('app status host', () => {
             ? 'This tab has unsaved changes. Export a backup first.'
             : null;
       const html = renderToStaticMarkup(
-        createElement(GlobalBanners, {
+        createElement(StorageRecovery, {
           ...bannerProps(),
           warning,
           hintError,
@@ -73,7 +88,7 @@ describe('app status host', () => {
     const warning =
       'Close other Play 100 tabs to finish updating this device library, then retry. Your saved data has not been changed.';
     const html = renderToStaticMarkup(
-      createElement(GlobalBanners, {
+      createElement(StorageRecovery, {
         ...bannerProps(),
         warning,
         retryBusy,
@@ -106,7 +121,7 @@ describe('app status host', () => {
   it('offers temporary discard only as an explicit, initially closed confirmation', () => {
     const onDiscardTemporary = vi.fn(async () => true);
     const html = renderToStaticMarkup(
-      createElement(GlobalBanners, {
+      createElement(StorageRecovery, {
         ...bannerProps(),
         warning: 'This tab has unsaved changes.',
         temporaryRevision: 7,
