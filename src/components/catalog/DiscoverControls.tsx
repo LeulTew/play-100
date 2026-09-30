@@ -15,7 +15,7 @@ type ProgressView = NonNullable<DiscoveryFilters['progress']>;
 export function DiscoverFilters({
   filters,
   filterId,
-  editing,
+  editingRef,
   showCollection,
   progressView,
   items,
@@ -23,7 +23,7 @@ export function DiscoverFilters({
 }: {
   filters: DiscoveryFilters;
   filterId: string;
-  editing: RefObject<boolean>;
+  editingRef: RefObject<boolean>;
   showCollection: boolean;
   progressView: ProgressView;
   items: ReturnType<typeof useDiscoverSearch>['items'];
@@ -50,7 +50,7 @@ export function DiscoverFilters({
         className="discovery-search"
         onSubmit={(event) => {
           event.preventDefault();
-          editing.current = false;
+          editingRef.current = false;
         }}
       >
         <label htmlFor="catalog-search">Find a game</label>
@@ -63,14 +63,14 @@ export function DiscoverFilters({
             maxLength={80}
             placeholder="Search games, studios or aliases…"
             onFocus={() => {
-              editing.current = false;
+              editingRef.current = false;
             }}
             onBlur={() => {
-              editing.current = false;
+              editingRef.current = false;
             }}
             onChange={(event) => {
-              change({ q: event.target.value, offset: 0, online: 'auto' }, editing.current ? 'replace' : 'push');
-              editing.current = true;
+              change({ q: event.target.value, offset: 0, online: 'auto' }, editingRef.current ? 'replace' : 'push');
+              editingRef.current = true;
             }}
           />
           {filters.q && (

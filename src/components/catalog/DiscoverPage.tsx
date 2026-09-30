@@ -75,7 +75,7 @@ export default function DiscoverPage({
     setSelectionScope(selectionKey);
     setSelected(new Set());
   }
-  const editing = useRef(false);
+  const editingRef = useRef(false);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const [pageRequest, setPageRequest] = useState<{ search: string; remote: boolean } | null>(null);
   const focusedRequest = useRef(pageRequest);
@@ -161,7 +161,7 @@ export default function DiscoverPage({
       <DiscoverFilters
         filters={filters}
         filterId={filterId}
-        editing={editing}
+        editingRef={editingRef}
         showCollection={showCollection}
         progressView={progressView}
         items={items}

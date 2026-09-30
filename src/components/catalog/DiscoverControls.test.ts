@@ -12,7 +12,7 @@ import { DiscoverFilters, DiscoverSources } from './DiscoverControls';
 const filterProps = (): ComponentProps<typeof DiscoverFilters> => ({
   filters: defaultDiscoveryFilters,
   filterId: 'catalog-filter',
-  editing: { current: false },
+  editingRef: { current: false },
   showCollection: false,
   progressView: 'all',
   items: [discoveryFixture],
