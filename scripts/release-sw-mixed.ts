@@ -327,7 +327,8 @@ export async function runMixedVersionPhases(options: {
         if (retry === 'blocked-notice-button') {
           await expect(retryButton).toBeEnabled();
           await retryButton.click();
-          await expect(retryButton).not.toHaveAttribute('aria-disabled', 'true');
+          // The product deliberately waits five seconds before classifying a blocked reopen.
+          await expect(retryButton).not.toHaveAttribute('aria-disabled', 'true', { timeout: 15000 });
           await expect(banner).toContainText(/Close other Play 100 tabs/);
           await expect(retryButton).toBeFocused();
           stillBlockedAfterRetry = await snapshotDatabase(old, true);
