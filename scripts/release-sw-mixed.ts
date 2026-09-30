@@ -306,7 +306,10 @@ export async function runMixedVersionPhases(options: {
       if (blocked) {
         const banner = candidate
           .locator('.global-storage > .storage-banner[role="alert"]')
-          .filter({ hasText: /Close other Play 100 tabs/ });
+          .filter({
+            hasText: /Close other Play 100 tabs/,
+            has: candidate.getByRole('button', { name: 'Settings', exact: true }),
+          });
         await expect(banner).toBeVisible({ timeout: 30000 });
         const notice = await banner.innerText(),
           blockedState = await snapshotDatabase(old, true);
@@ -337,9 +340,7 @@ export async function runMixedVersionPhases(options: {
           phase.retryReloads = events.loads - loads;
         } else await candidate.reload({ waitUntil: 'load' });
         await expect(candidate.locator('.ranking-row-content')).toHaveCount(2);
-        await expect(
-          candidate.locator('.global-storage > .storage-banner').filter({ hasText: /Close other Play 100 tabs/ }),
-        ).toHaveCount(0);
+        await expect(banner).toHaveCount(0);
         const afterRetry = await snapshotDatabase(candidate);
         phase.afterRetry = afterRetry;
         phase.retryReloads = events.loads - loads;
