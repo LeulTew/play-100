@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { Script } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import {
   DRIVER,
@@ -20,7 +21,7 @@ const deployment = JSON.parse(readFileSync(new URL('../vercel.json', import.meta
 describe('low-end phone profile', () => {
   it('compiles the page scripts it injects, as the browser will parse them', () => {
     for (const source of [DRIVER, initScript(true), initScript(false)])
-      expect(() => new Function(`return ${source}`)).not.toThrow();
+      expect(() => new Script(`(function () { return ${source}\n})`)).not.toThrow();
     expect(initScript(true)).toContain("classList.contains('p100-probe')");
   });
 
@@ -79,7 +80,7 @@ describe('low-end phone profile', () => {
     expect(phases.scrollDiscover).toEqual({ ms: 0, count: 0, worstMs: 0 });
     expect(phases.detail).toEqual({ ms: 70, count: 1, worstMs: 70 });
     expect(phases.myGames).toEqual({ ms: 51, count: 1, worstMs: 51 });
-    expect(phaseTasks({}, [[1, 60]]).startup.ms).toBeNaN();
+    expect(phaseTasks({}, [[1, 60]]).startup?.ms).toBeNaN();
     expect(SUMMARY_KEYS).toContain('phases.discover.ms');
   });
 });
