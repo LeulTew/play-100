@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { measureTrayMetrics, TRAY_METRIC_PROPERTIES } from './tray-metrics';
+import { measureTrayMetrics, scheduleTrayMetrics, TRAY_METRIC_PROPERTIES } from './tray-metrics';
 import type { TrayMetricTargets } from './tray-metrics';
 
 /**
@@ -137,5 +137,58 @@ describe('compare tray metrics', () => {
     const current = page({ header: 72, navigation: 66, toast: 48 });
     interleaved(current.targets);
     expect(current.forcedRecalcs()).toBe(2);
+  });
+});
+
+describe('compare tray metric scheduling', () => {
+  // Stands in for afterNextPaint: run() is the page's next paint.
+  const paints = () => {
+    const pending = new Set<() => void>();
+    return {
+      pending,
+      schedule: (callback: () => void) => {
+        pending.add(callback);
+        return () => void pending.delete(callback);
+      },
+      run: () => {
+        const callbacks = [...pending];
+        pending.clear();
+        callbacks.forEach((callback) => callback());
+      },
+    };
+  };
+
+  it('leaves the first measurement until after the next paint, once however often a notification comes', () => {
+    const scheduler = paints();
+    const measured = { current: false };
+    let count = 0;
+    const metrics = scheduleTrayMetrics(() => (count += 1), measured, scheduler.schedule);
+    metrics.resized();
+    metrics.resized();
+    expect(count).toBe(0);
+    expect(scheduler.pending.size).toBe(1);
+    scheduler.run();
+    expect(count).toBe(1);
+    expect(measured.current).toBe(true);
+    // Measured once, a notification measures in its own frame, as a ResizeObserver callback always did.
+    metrics.resized();
+    expect(count).toBe(2);
+    expect(scheduler.pending.size).toBe(0);
+  });
+
+  it('measures at once on request, dropping a pending wait, and cancels with the effect', () => {
+    const scheduler = paints();
+    const measured = { current: false };
+    let count = 0;
+    const metrics = scheduleTrayMetrics(() => (count += 1), measured, scheduler.schedule);
+    metrics.resized();
+    metrics.now();
+    expect(count).toBe(1);
+    expect(scheduler.pending.size).toBe(0);
+    const later = scheduleTrayMetrics(() => (count += 1), { current: false }, scheduler.schedule);
+    later.resized();
+    later.cancel();
+    scheduler.run();
+    expect(count).toBe(1);
   });
 });
