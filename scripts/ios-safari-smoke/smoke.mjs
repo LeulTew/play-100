@@ -149,7 +149,8 @@ async function metrics() {
     const state = window.__iosSmoke;
     return {
       url: location.href, userAgent: navigator.userAgent,
-      viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
+      viewport: { width: innerWidth, height: innerHeight, devicePixelRatio,
+        layoutWidth: root.clientWidth, layoutHeight: root.clientHeight },
       visualViewport: visualViewport ? {
         width: visualViewport.width, height: visualViewport.height, scale: visualViewport.scale,
         offsetLeft: visualViewport.offsetLeft, offsetTop: visualViewport.offsetTop,
@@ -205,7 +206,8 @@ async function tap(element, label) {
     };
     const viewport = visualViewport;
     return {
-      target: rect(element), anchor: rect(anchor), nativeType: aria ? 'XCUIElementTypeButton' : 'XCUIElementTypeStaticText',
+      target: rect(element.closest('.mobile-nav') ? element.querySelector('svg') : element),
+      anchor: rect(anchor), nativeType: aria ? 'XCUIElementTypeButton' : 'XCUIElementTypeStaticText',
       viewport: { offsetLeft: viewport.offsetLeft, offsetTop: viewport.offsetTop,
         width: viewport.width, height: viewport.height, scale: viewport.scale }
     };
@@ -353,7 +355,9 @@ try {
       return input?.value === 'portal' && cards.length && cards.some(card => /portal/i.test(card.innerText))
         ? cards.map(card => card.innerText) : null;
     `, 'Portal result cards');
-    return { query: 'portal', resultCards: titles, metrics: await metrics() };
+    return { query: 'portal', resultCards: titles,
+      inputFontSize: await execute('return getComputedStyle(document.querySelector("#catalog-search")).fontSize;'),
+      metrics: await metrics() };
   });
   await step('04-the-100', async () => {
     await dismissKeyboard();

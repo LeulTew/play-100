@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-export function tapCoordinates({ target, anchor, nativeAnchor, viewport }) {
+export function tapCoordinates({ target, anchor, nativeAnchor, viewport, label = 'control' }) {
   for (const rect of [target, anchor]) {
     for (const key of ['left', 'top', 'right', 'bottom']) assert.ok(Number.isFinite(rect[key]), `Invalid ${key}.`);
   }
@@ -13,7 +13,7 @@ export function tapCoordinates({ target, anchor, nativeAnchor, viewport }) {
   const right = Math.min(target.right, viewport.offsetLeft + viewport.width);
   const top = Math.max(target.top, viewport.offsetTop);
   const bottom = Math.min(target.bottom, viewport.offsetTop + viewport.height);
-  assert.ok(right > left && bottom > top, 'The target must intersect the visible viewport.');
+  assert.ok(right > left && bottom > top, `The "${label}" control must intersect the visible viewport.`);
   return {
     x: nativeAnchor.x + nativeAnchor.width / 2 +
       ((left + right) / 2 - (anchor.left + anchor.right) / 2) * viewport.scale,

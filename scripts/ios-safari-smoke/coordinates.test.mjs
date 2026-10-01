@@ -11,6 +11,15 @@ test('tap the whole navigation control rather than its text under Safari chrome'
   }), { x: 116, y: 534 });
 });
 
+test('tap the tab icon above the browser toolbar shadow on a large phone', () => {
+  assert.deepEqual(tapCoordinates({
+    target: { left: 126, right: 146, top: 708, bottom: 728 },
+    anchor: { left: 112, right: 160, top: 731, bottom: 747 },
+    nativeAnchor: { x: 112, y: 793, width: 48, height: 16 },
+    viewport: { offsetLeft: 0, offsetTop: 0, width: 440, height: 760, scale: 1 },
+  }), { x: 136, y: 780 });
+});
+
 test('use the visible part of a control after Safari zoom and horizontal pan', () => {
   const point = tapCoordinates({
     target: { left: 10, right: 80, top: 460, bottom: 510 },
