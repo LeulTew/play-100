@@ -1,5 +1,6 @@
 import { createSearch, PAGE_PATHS, parseUrl } from './url';
 import { GOOGLE_REDIRECT_KEY } from './google-intent-key';
+import { querySuffix } from './query-suffix';
 
 export { GOOGLE_REDIRECT_KEY } from './google-intent-key';
 export const GOOGLE_INTENT_LIFETIME = 15 * 60 * 1000;
@@ -38,7 +39,7 @@ export function googleReturnPath(value: string): string {
   if (url.pathname === '/compare' && group && /^[a-f0-9-]{36}$/.test(group)) search.set('group', group);
   const tab = url.searchParams.get('tab');
   if (url.pathname === '/my-games' && (tab === 'queue' || tab === 'ranking')) search.set('tab', tab);
-  return `${url.pathname}${search.size ? `?${search}` : ''}`;
+  return `${url.pathname}${querySuffix(search)}`;
 }
 
 export function parseGoogleIntent(raw: string | null, now = Date.now()): GoogleRedirectIntent | null {

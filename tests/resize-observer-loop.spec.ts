@@ -33,6 +33,8 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.addInitScript(() => {
+      // That phone's browser predates URLSearchParams.size (Chrome 113), which once left a detail's URL unchanged.
+      Reflect.deleteProperty(URLSearchParams.prototype, 'size');
       const errors: string[] = [];
       window.resizeObserverLoopErrors = errors;
       addEventListener('error', (event) => {
@@ -56,6 +58,7 @@ for (const viewport of [
     await expect(page.locator('.game-card')).toHaveCount(24);
     // As the Test Lab harness did: the document's first game link, clicked from script.
     await page.evaluate(() => document.querySelector<HTMLAnchorElement>('a[href*="game="]')!.click());
+    await expect(page).toHaveURL(/[?&]game=/);
     await expect(page.locator('.game-dialog[open]')).toBeVisible();
     await page.goBack();
     await expect(page.locator('dialog[open]')).toHaveCount(0);

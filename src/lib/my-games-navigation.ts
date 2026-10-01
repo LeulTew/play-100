@@ -1,5 +1,6 @@
 import type { Filters } from './types';
 import { createSearch } from './url';
+import { querySuffix } from './query-suffix';
 
 export type MyGamesTab = 'library' | 'queue' | 'ranking';
 
@@ -24,19 +25,19 @@ export function libraryPageSearch(search: string, page: number): string {
   const params = new URLSearchParams(search);
   if (page === 1) params.delete('page');
   else params.set('page', String(page));
-  return params.size ? `?${params}` : '';
+  return querySuffix(params);
 }
 
 export function myGamesSearch(filters: Filters, tab: MyGamesTab, game: string | null = null, libraryPage = 1): string {
   const list = filters.list === 'later' ? 'all' : filters.list;
   const params = new URLSearchParams(createSearch({ ...filters, list }, game));
   if (tab !== 'library') params.set('tab', tab);
-  return libraryPageSearch(params.size ? `?${params}` : '', tab === 'queue' ? 1 : libraryPage);
+  return libraryPageSearch(querySuffix(params), tab === 'queue' ? 1 : libraryPage);
 }
 
 export function gameDetailSearch(search: string, game: string | null): string {
   const params = new URLSearchParams(search);
   if (game === null) params.delete('game');
   else params.set('game', game);
-  return params.size ? `?${params}` : '';
+  return querySuffix(params);
 }

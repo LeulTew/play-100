@@ -1,4 +1,5 @@
 import type { FriendIdentity, FriendInvitation, FriendPair } from './friend-types';
+import { querySuffix } from './query-suffix';
 
 export type FriendsView = 'friends' | 'incoming' | 'sent' | 'invites' | 'blocked';
 export interface FriendsViewState {
@@ -26,7 +27,7 @@ export function friendsViewUrl(state: FriendsViewState): string {
   if (state.view !== 'friends') params.set('view', state.view);
   if (state.name) params.set('name', state.name.slice(0, 60));
   if (state.order !== 'recent') params.set('order', state.order);
-  return `/friends${params.size ? `?${params}` : ''}`;
+  return `/friends${querySuffix(params)}`;
 }
 export function friendPeer(pair: FriendPair, uid: string): string {
   return pair.a === uid ? pair.b : pair.a;

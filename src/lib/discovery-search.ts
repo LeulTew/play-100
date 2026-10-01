@@ -5,6 +5,7 @@ import { parseProgressFilter } from './game-progress';
 import type { ProgressFilter } from './game-progress';
 import { matchesDiscoveryGenre, parseDiscoveryGenreFamily } from './discovery-genres';
 import type { DiscoveryGenreFamily } from './discovery-genres';
+import { querySuffix } from './query-suffix';
 
 export const DISCOVERY_PAGE_SIZE = 24;
 export interface DiscoveryFilters {
@@ -63,7 +64,7 @@ export function createDiscoverySearch(filters: DiscoveryFilters): string {
     const value = filters[key] ?? defaultDiscoveryFilters[key];
     if (value !== undefined && value !== defaultDiscoveryFilters[key]) params.set(key, String(value));
   }
-  return params.size ? `?${params}` : '';
+  return querySuffix(params);
 }
 
 /**
@@ -81,7 +82,7 @@ export function patchDiscoverySearch(search: string, patch: Partial<DiscoveryFil
     const value = next.get(key);
     if (value !== null) params.set(key, value);
   }
-  return params.size ? `?${params}` : '';
+  return querySuffix(params);
 }
 
 export function shouldSearchOnline(
