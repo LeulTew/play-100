@@ -450,6 +450,9 @@ Keep failures too. A script or passing pure unit test is not OS-run evidence.
 
 The companion refuses to start while `%USERPROFILE%\.copilot\mizan-host.lock`
 exists or free RAM is below 6 GiB, and rechecks before install and relaunch.
+Only with explicit coordinator approval for a single-browser burst, set
+`PLAY100_OS_MIN_FREE_GIB=4`; the receipt records this threshold. The default
+remains six, and no other override is accepted.
 For a coordinator-reserved slot, acquire that file atomically with `CreateNew`;
 an unexpired lock owned by this lane is accepted only when its random `token`
 matches `PLAY100_HOST_LOCK_TOKEN` in the child environment. Never read another

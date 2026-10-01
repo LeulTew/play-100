@@ -25,11 +25,15 @@ export function chromeAppId(manifestId: string) {
     .slice(0, 32)
     .replace(/[0-9a-f]/g, (digit) => String.fromCharCode(97 + parseInt(digit, 16)));
 }
-export function assertOsHost(value: { lockPresent: boolean; lockOwned?: boolean; freeBytes: number }) {
+export function assertOsHost(value: { lockPresent: boolean; lockOwned?: boolean; freeBytes: number }, minimumGiB = 6) {
+  assert.ok(
+    minimumGiB === 4 || minimumGiB === 6,
+    'Only the default or explicitly approved four-GiB burst is supported.',
+  );
   assert.ok(!value.lockPresent || value.lockOwned === true, 'Host is reserved by Mizan.');
   assert.ok(
-    Number.isFinite(value.freeBytes) && value.freeBytes >= 6 * 1024 ** 3,
-    'At least 6 GiB free RAM is required.',
+    Number.isFinite(value.freeBytes) && value.freeBytes >= minimumGiB * 1024 ** 3,
+    `At least ${minimumGiB} GiB free RAM is required.`,
   );
 }
 export function assertAppWindow(
@@ -53,8 +57,9 @@ function windows(action: 'guard' | 'shortcuts', appId = ''): unknown {
 }
 function guard() {
   const value = windows('guard') as { lockPresent: boolean; freeBytes: number; platform: string };
-  assertOsHost(value);
-  return value;
+  const minimumGiB = Number(process.env.PLAY100_OS_MIN_FREE_GIB ?? 6);
+  assertOsHost(value, minimumGiB);
+  return { ...value, minimumGiB };
 }
 function shortcuts(appId: string) {
   const value = windows('shortcuts', appId);
