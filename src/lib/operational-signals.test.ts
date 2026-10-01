@@ -50,7 +50,7 @@ describe('first-party client error endpoint', () => {
     counts: [{ errorClass: 'TypeError', area: 'app', route: '/u/:handle', count: 2 }],
   };
   it('accepts dialog counts separately from route counts without accepting arbitrary area labels', async () => {
-    const log = vi.fn();
+    const log = vi.fn<(line: string) => void>();
     const base = await serve(createClientErrorHandler(undefined, log));
     const send = (counts: unknown[]) =>
       nativeFetch(base, {

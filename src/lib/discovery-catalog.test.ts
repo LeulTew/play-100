@@ -155,7 +155,7 @@ describe('discovery catalog boundary', () => {
     [
       'too many records',
       (x: DiscoveryCatalog) => {
-        x.items = Array(1001).fill(x.items[0]);
+        x.items = Array<(typeof x.items)[number]>(1001).fill(x.items[0]!);
       },
     ],
   ])('rejects %s', (_, change) => {

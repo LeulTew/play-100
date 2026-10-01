@@ -52,8 +52,8 @@ window.motionScrollFixture = {
     return {
       active: session.isCurrent(),
       originAborted: lease.signal.aborted,
-      reason: session.signal.reason ?? null,
-      originReason: lease.signal.reason ?? null,
+      reason: (session.signal.reason as string | undefined) ?? null,
+      originReason: (lease.signal.reason as string | undefined) ?? null,
       animation: animation.playState,
       events,
     };

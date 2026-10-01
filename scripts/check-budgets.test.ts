@@ -19,6 +19,29 @@ import type { BuildMeasurement } from './check-budgets';
 import { buildManifestPath, firstPaintRecordPath, textDigest } from './build-metadata';
 import type { FirstPaintRecord } from './build-metadata';
 
+interface BudgetReportRow {
+  metric: string;
+  measured: number;
+  cap: number;
+  headroom: number;
+  pass: boolean;
+}
+interface BudgetReportJson {
+  budgets: BudgetReportRow[];
+}
+interface PwaAssetEntry {
+  url: string;
+  bytes: number;
+}
+interface PwaAssetsJson {
+  core: PwaAssetEntry[];
+  coreBytes: number;
+  budget: { metadataBytes: number };
+}
+interface BuildManifestJson {
+  lazy: { css: string[] };
+}
+
 // The first-paint inline style and boot script the fixture's index.html carries, and the online header variant's
 // larger style, which only the build's record names.
 const SHELL_STYLE = '.first-paint-shell{display:contents}';
@@ -122,7 +145,7 @@ async function routeFixture() {
   for (const [file, content] of Object.entries(files))
     await writeFile(path.join(directory, ...file.split('/')), content);
   const manifestFile = buildManifestPath(directory);
-  const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
+  const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as Record<string, unknown>;
   Object.assign(manifest, {
     'route-a': {
       file: 'assets/route-a-12345678.js',
@@ -289,7 +312,7 @@ describe('offline built-output budgets', () => {
       const source = { sourceCommit: commit, dirty: false };
       expect(await reportBudgets(measured, measured.values, file, source)).toBe(0);
       const first = await readFile(file, 'utf8');
-      const report = JSON.parse(first);
+      const report = JSON.parse(first) as BudgetReportJson;
       expect(report).toEqual({
         schemaVersion: 1,
         sourceCommit: commit,
@@ -328,12 +351,12 @@ describe('offline built-output budgets', () => {
       const measured = measurement();
       const source = { sourceCommit: null, dirty: null };
       expect(await reportBudgets(measured, { ...measured.values, cssGzipBytes: 19 }, file, source)).toBe(1);
-      const report = JSON.parse(await readFile(file, 'utf8'));
+      const report = JSON.parse(await readFile(file, 'utf8')) as BudgetReportJson;
       expect(report).toMatchObject({ schemaVersion: 1, sourceCommit: null, dirty: null, pass: false });
-      expect(report.budgets.filter((row: { pass: boolean }) => !row.pass)).toEqual([
+      expect(report.budgets.filter((row) => !row.pass)).toEqual([
         { metric: 'cssGzipBytes', measured: 20, cap: 19, headroom: -1, pass: false },
       ]);
-      expect(report.budgets.filter((row: { pass: boolean }) => row.pass)).toHaveLength(13);
+      expect(report.budgets.filter((row) => row.pass)).toHaveLength(13);
     });
 
     it.each(['', ' M src/example.ts'])('records local HEAD and tracked dirty state %j', (status) => {
@@ -385,7 +408,7 @@ describe('offline built-output budgets', () => {
   it('rejects a generated precache metadata entry before trusting asset sizes', async () => {
     const directory = await fixture();
     const file = path.join(directory, 'pwa-assets.json');
-    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    const manifest = JSON.parse(await readFile(file, 'utf8')) as PwaAssetsJson;
     const original = await readFile(file, 'utf8');
     manifest.core.push({ url: '/.vite/manifest.json', bytes: 0 });
     await writeFile(file, JSON.stringify(manifest));
@@ -518,7 +541,7 @@ describe('offline built-output budgets', () => {
   it('rejects app chunk and CSS-import references to standalone styles', async () => {
     const directory = await fixture();
     const file = buildManifestPath(directory);
-    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    const manifest = JSON.parse(await readFile(file, 'utf8')) as BuildManifestJson;
     manifest.lazy.css.push('pwa/fallback.css');
     await writeFile(file, JSON.stringify(manifest));
     await expect(measureBuild(directory)).rejects.toThrow(/Standalone stylesheet referenced by Vite app chunk/);
@@ -704,17 +727,17 @@ describe('offline built-output budgets', () => {
   it('requires standalone styles to remain inside the bounded offline core', async () => {
     const directory = await fixture();
     const file = path.join(directory, 'pwa-assets.json');
-    const manifest = JSON.parse(await readFile(file, 'utf8'));
-    manifest.core = manifest.core.filter((asset: { url: string }) => asset.url !== '/pwa/fallback.css');
-    manifest.coreBytes = manifest.core.reduce((sum: number, asset: { bytes: number }) => sum + asset.bytes, 0);
+    const manifest = JSON.parse(await readFile(file, 'utf8')) as PwaAssetsJson;
+    manifest.core = manifest.core.filter((asset) => asset.url !== '/pwa/fallback.css');
+    manifest.coreBytes = manifest.core.reduce((sum, asset) => sum + asset.bytes, 0);
     await writeFile(file, JSON.stringify(manifest));
     await expect(measureBuild(directory)).rejects.toThrow(/Standalone CSS must also be included/);
   });
   it('fails inconsistent or missing output instead of trusting manifest byte declarations', async () => {
     const directory = await fixture();
     const file = path.join(directory, 'pwa-assets.json');
-    const manifest = JSON.parse(await readFile(file, 'utf8'));
-    manifest.core[0].bytes += 1;
+    const manifest = JSON.parse(await readFile(file, 'utf8')) as PwaAssetsJson;
+    manifest.core[0]!.bytes += 1;
     await writeFile(file, JSON.stringify(manifest));
     await expect(measureBuild(directory)).rejects.toThrow(/differs from disk/);
     await rm(path.join(directory, 'assets', 'main-12345678.js'));
@@ -724,7 +747,7 @@ describe('offline built-output budgets', () => {
   it.each([0, 32767, 32769])('rejects changing the fixed format-1 metadata reserve to %s', async (metadataBytes) => {
     const directory = await fixture();
     const file = path.join(directory, 'pwa-assets.json');
-    const manifest = JSON.parse(await readFile(file, 'utf8'));
+    const manifest = JSON.parse(await readFile(file, 'utf8')) as PwaAssetsJson;
     manifest.budget.metadataBytes = metadataBytes;
     await writeFile(file, JSON.stringify(manifest));
     await expect(measureBuild(directory)).rejects.toThrow('PWA format 1 must reserve exactly 32768 metadata bytes.');

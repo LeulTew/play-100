@@ -64,7 +64,7 @@ afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
   const failures = results
     .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-    .map((result) => result.reason);
+    .map((result): unknown => result.reason);
   if (failures.length) throw new AggregateError(failures, 'PWA fixture teardown failed.');
 }, 60_000);
 

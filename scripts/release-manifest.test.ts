@@ -14,6 +14,8 @@ import {
   writeReleaseManifest,
 } from './release-manifest';
 
+type ReleaseManifest = Awaited<ReturnType<typeof collectReleaseManifest>>;
+
 vi.mock('node:child_process', async (importOriginal) => ({
   ...(await importOriginal<typeof import('node:child_process')>()),
   execFileSync: vi.fn(),
@@ -347,7 +349,7 @@ describe('release manifest collection', () => {
       PRIVATE_TOKEN: 'never-export-this',
     });
     const receipt = await readFile(path.join(root, 'receipt.json'), 'utf8');
-    const manifest = JSON.parse(receipt);
+    const manifest = JSON.parse(receipt) as ReleaseManifest;
     expect(manifest.source).toEqual({ sha, tree, dirty: false });
     expect(manifest.versions).toEqual({
       node: process.versions.node,
@@ -380,7 +382,7 @@ describe('release manifest collection', () => {
     }
     expect(manifest.carryForward).toEqual([]);
     expect(manifest.waivers).toEqual([]);
-    expect(manifest.reports.map((report: { path: string }) => report.path)).toEqual(['vitest.json', 'playwright.json']);
+    expect(manifest.reports.map((report) => report.path)).toEqual(['vitest.json', 'playwright.json']);
   });
 
   it('rejects a dirty tree unless explicitly allowed and records the exception', async () => {

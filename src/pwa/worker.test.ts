@@ -119,7 +119,7 @@ function workerFixture(active = false, chosen: PwaBuildManifest = manifest) {
           : 'application/json';
     return new Response(fixtureBytes.slice(), { headers: { 'Content-Type': mime } });
   });
-  const on = vi.fn();
+  const on = vi.fn<(type: string, handler: (event: unknown) => void) => void>();
   const host: PwaWorkerHost = {
     location: { origin },
     caches,
@@ -1187,7 +1187,7 @@ describe('native worker install, offline and update lifetime', () => {
       resume.resolve();
       expect(await activation).toMatchObject({ accepted: false, reason: 'other-tabs' });
       expect(fixture.host.skipWaiting).not.toHaveBeenCalled();
-      const bindings = await (await cache.match(`${origin}/pwa/__clients__`))?.json();
+      const bindings = (await (await cache.match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(bindings).toHaveProperty('one');
       expect(bindings).not.toHaveProperty('network-newcomer');
     } finally {
@@ -1219,9 +1219,9 @@ describe('native worker install, offline and update lifetime', () => {
       'old metadata',
     );
     expect((await fixture.response(new Request(`${origin}/data/collection.json`), 'late-window'))?.status).toBe(503);
-    const bindings = await (
+    const bindings = (await (
       await (await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`)).match(`${origin}/pwa/__clients__`)
-    )?.json();
+    )?.json()) as Record<string, unknown>;
     expect(bindings).not.toHaveProperty('late-window');
     skip.mockRestore();
   });
@@ -1248,7 +1248,7 @@ describe('native worker install, offline and update lifetime', () => {
       expect(
         await (await fixture.response(navigation(`${origin}/my-games?tab=ranking`), 'one', 'reserved-two'))?.text(),
       ).toBe('public fixture');
-      const reservations = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const reservations = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(reservations).toHaveProperty('reserved-one');
       expect(reservations).toHaveProperty('reserved-two');
       resume.resolve();
@@ -1275,7 +1275,7 @@ describe('native worker install, offline and update lifetime', () => {
     }
     expect((await fixture.response(navigation(`${origin}/`), 'one', 'extra-reservation'))?.status).toBe(503);
     const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`);
-    const bindings = await (await cache.match(`${origin}/pwa/__clients__`))?.json();
+    const bindings = (await (await cache.match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
     expect(Object.keys(bindings)).toHaveLength(PWA_BUDGET.clients);
     expect(bindings).toHaveProperty('reserved-0');
     expect(bindings).not.toHaveProperty('extra-reservation');
@@ -1342,7 +1342,7 @@ describe('native worker install, offline and update lifetime', () => {
       await fixture.response(navigation(`${origin}/discover`), 'one', 'abandoned-page');
       clock.mockReturnValue(121001);
       await fixture.response(navigation(`${origin}/my-games`), 'one', 'fresh-page');
-      const bindings = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const bindings = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(bindings).toHaveProperty('held-page');
       expect(bindings).not.toHaveProperty('abandoned-page');
       resume.resolve();
@@ -1391,13 +1391,13 @@ describe('native worker install, offline and update lifetime', () => {
       installPwaWorker(fixture.host, manifest);
       clock.mockReturnValue(241000);
       await fixture.response(navigation(`${origin}/discover`), 'one', 'before-grace-end');
-      const during = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const during = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(during).toHaveProperty('post-response-page');
       expect(during['post-response-page']).toMatchObject({ version, observed: false });
 
       clock.mockReturnValue(241002);
       await fixture.response(navigation(`${origin}/my-games`), 'one', 'after-grace-end');
-      const after = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const after = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(after).not.toHaveProperty('post-response-page');
       expect(Object.keys(after).length).toBeLessThanOrEqual(PWA_BUDGET.clients);
     } finally {

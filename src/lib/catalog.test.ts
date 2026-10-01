@@ -16,7 +16,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('typed, bounded public catalog lookup', () => {
   it('constrains Wikidata to videogames and uses multilingual labels and preferred dates', async () => {
     const fetcher = vi
-      .fn()
+      .fn<(input: string | URL) => Promise<Response>>()
       .mockResolvedValueOnce(
         json({
           query: { search: [{ title: 'Q1' }, { title: 'Q2' }], searchinfo: { totalhits: 8 } },

@@ -104,7 +104,9 @@ describe('candidate release gate planning', () => {
         else await run;
         const bytes = await readFile(path.join(directory, `${name}.log`));
         expect(bytes.toString()).toBe(`${evidenceLogHeader(identity)}native output\n`);
-        const receipt = JSON.parse(await readFile(path.join(directory, `${name}-exit.json`), 'utf8'));
+        const receipt = JSON.parse(await readFile(path.join(directory, `${name}-exit.json`), 'utf8')) as ReturnType<
+          typeof commandReceipt
+        >;
         expect(receipt).toMatchObject(commandReceipt(name, code, bytes));
       }
     } finally {

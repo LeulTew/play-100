@@ -566,7 +566,7 @@ describe('single reducer validation boundary', () => {
     const counted = (value: PersonalLibraryState) => {
       let reads = 0;
       const proxy = new Proxy(value, {
-        get(target, key, receiver) {
+        get(target, key, receiver): unknown {
           if (key === 'records') reads += 1;
           return Reflect.get(target, key, receiver);
         },

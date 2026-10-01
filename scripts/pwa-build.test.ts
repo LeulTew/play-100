@@ -12,6 +12,14 @@ import {
   styleNotFoundPage,
 } from './pwa-build';
 import { PWA_ICONS, renderBrowserIcons, renderPwaIcons } from './pwa-icons';
+
+interface WebAppManifest {
+  icons: unknown[];
+  start_url: string;
+  screenshots?: unknown;
+  shortcuts: unknown[];
+  scope: string;
+}
 import { myGamesTab } from '../src/lib/my-games-navigation';
 import { pageFromPath } from '../src/lib/url';
 
@@ -216,7 +224,9 @@ describe('generated public PWA build closure', () => {
   });
 
   it('declares stable root installation identity and distinct any/maskable sizes', async () => {
-    const data = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+    const data = JSON.parse(
+      await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'),
+    ) as WebAppManifest;
     expect(data).toMatchObject({
       id: '/',
       scope: '/',
@@ -241,7 +251,9 @@ describe('generated public PWA build closure', () => {
   });
 
   it('uses existing in-scope My games tabs and already-precached icons for shortcuts', async () => {
-    const data = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+    const data = JSON.parse(
+      await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'),
+    ) as WebAppManifest;
     const shortcuts = [
       { name: 'Library', description: 'Open your saved games.', url: '/my-games', tab: 'library' },
       { name: 'Queue', description: 'Choose what to play next.', url: '/my-games?tab=queue', tab: 'queue' },
@@ -265,7 +277,9 @@ describe('generated public PWA build closure', () => {
   });
 
   it('maps every declared maskable icon to dedicated generated artwork in the existing core', async () => {
-    const data = JSON.parse(await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+    const data = JSON.parse(
+      await readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'),
+    ) as WebAppManifest;
     const declared = PWA_ICONS.filter((icon) => icon.file !== 'apple-touch-icon.png');
     expect(data.icons).toEqual(
       declared.map((icon) => ({

@@ -116,7 +116,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const errors = results.filter((result) => result.status === 'rejected').map((result) => result.reason);
+  const errors = results.filter((result) => result.status === 'rejected').map((result): unknown => result.reason);
   if (errors.length) throw new AggregateError(errors, 'Library retry fixture cleanup failed.');
 }, 60_000);
 

@@ -55,7 +55,7 @@ it('rejects malformed and private-data-shaped intents instead of routing arbitra
   expect(captureInviteContinuation()).toEqual({ capability: null, error: 'This invitation link is invalid.' });
   saveInviteContinuation(synthetic);
   const key = [...values.keys()][0]!;
-  const data = JSON.parse(values.get(key)!);
+  const data = JSON.parse(values.get(key)!) as Record<string, unknown>;
   values.set(key, JSON.stringify({ ...data, email: 'forbidden@example.invalid' }));
   expect(readInviteContinuation()).toBeNull();
 });

@@ -63,7 +63,7 @@ function rows(db: IDBDatabase) {
     const tx = db.transaction(STORE_NAME, 'readonly'),
       store = tx.objectStore(STORE_NAME);
     const keys = store.getAllKeys(),
-      values = store.getAll();
+      values: IDBRequest<unknown[]> = store.getAll();
     tx.oncomplete = () => resolve(keys.result.map((key, index) => [key, values.result[index]]));
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
   });

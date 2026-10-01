@@ -221,7 +221,7 @@ describe('conservative Commons rights and media boundary', () => {
       metadata.Credit.value = '';
       metadata.Attribution.value = '';
       metadata.Restrictions.value = '';
-      const requestRaster = vi.fn();
+      const requestRaster = vi.fn<(permission: unknown) => void>();
       expect(() => requestRaster(commonsRasterPermission(fixture, 'Example.png'))).toThrow('complete attribution');
       expect(requestRaster).not.toHaveBeenCalled();
     },
