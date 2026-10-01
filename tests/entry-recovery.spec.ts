@@ -238,19 +238,22 @@ test('a failed font or collection preload is not a failed start', async ({ page,
 for (const { name, userAgent, signal, copy } of [
   {
     name: 'a SyntaxError on Android',
-    userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-A105FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36',
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 10; SM-A105FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36',
     signal: 'syntax',
     copy: 'Update Chrome and Android System WebView from Google Play, then reload.',
   },
   {
     name: 'no Object.hasOwn on an iPhone',
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
     signal: 'hasOwn',
     copy: 'Update iOS in Settings, then reload.',
   },
   {
     name: 'a SyntaxError elsewhere',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36',
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36',
     signal: 'syntax',
     copy: 'Update this browser to its latest version, then reload.',
   },
@@ -265,7 +268,11 @@ for (const { name, userAgent, signal, copy } of [
         else
           document.addEventListener('DOMContentLoaded', () =>
             window.dispatchEvent(
-              new ErrorEvent('error', { error: new SyntaxError("Unexpected token '='"), message: "Unexpected token '='" }),
+              new ErrorEvent('error', {
+                error: new SyntaxError("Unexpected token '='"),
+                filename: `${location.origin}/assets/index.js`,
+                message: "Uncaught SyntaxError: Unexpected token '='",
+              }),
             ),
           );
       },

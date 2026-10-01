@@ -205,7 +205,9 @@ whose last child is not this notice.
 An engine below the [browser floor](../README.md#browser-support) cannot run the
 app at all: a Galaxy A10's WebView 81 throws `SyntaxError: Unexpected token '='`
 on the entry. The boot script listens for window `error` events, and a
-`SyntaxError` (other than `JSON.parse`'s), or a missing `Object.hasOwn`
+`SyntaxError` the engine reports for one of the app's `/assets/` scripts with no
+stack frame in that script (a parse error: a `SyntaxError` the app throws at
+runtime, from `JSON.parse`, `RegExp` or `URL`, has one), or a missing `Object.hasOwn`
 (Chromium 93 and older, Safari 15.3 and older), marks the engine outdated; it
 uses no `eval` or `new Function`, which the policy forbids. The notice then hides
 its generic alert and shows the second one, "This browser needs an update to open

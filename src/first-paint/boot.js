@@ -9,12 +9,17 @@
 // shows the shell, at once otherwise. When the app cannot start, it shows the failure notice that
 // index.html keeps hidden in #root instead.
 (function () {
-  // A module the engine cannot parse reports a SyntaxError here, and it can only mean an engine below the floor
-  // (README.md, Browser support); so does a missing Object.hasOwn (Chromium 93). Either picks the notice's
-  // outdated-browser copy. JSON.parse also throws SyntaxErrors, for bad data, not old engines.
+  // One of our modules the engine cannot parse reports a SyntaxError here, and it can only mean an engine below the
+  // floor (README.md, Browser support); so does a missing Object.hasOwn (Chromium 93). Either picks the notice's
+  // outdated-browser copy. Only a parse error counts: it is reported for an /assets/ script that never ran, so its
+  // stack names no frame in that file (Chromium, Firefox and WebKit). A SyntaxError thrown at runtime (JSON.parse,
+  // RegExp, URL) has a stack frame in the script that threw it, and other files are not ours.
   var old = !Object.hasOwn;
   window.addEventListener('error', function (event) {
-    if (event.error instanceof SyntaxError && !/JSON/.test(event.error.message)) old = true;
+    var file = event.filename;
+    var error = event.error;
+    if (typeof file !== 'string' || file.indexOf(window.location.origin + '/assets/') !== 0) return;
+    if (error ? error instanceof SyntaxError && String(error.stack || '').indexOf(file) < 0 : /SyntaxError/.test(event.message)) old = true;
   });
 
   // With web, the probes measure the web fonts instead (.p100-probe-web), once they have loaded. Fails with 0
@@ -147,7 +152,7 @@
       var go = function () {
         if (done) return;
         done = true;
-        window.clearTimeout(timer);
+        if (timer) window.clearTimeout(timer);
         add('script', 'module', 'src');
       };
       if (!retry) return go();

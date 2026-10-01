@@ -299,9 +299,13 @@ function run(environment: BootEnvironment = {}) {
     frame: () => {
       for (const callback of frames.splice(0)) callback();
     },
-    /** The window reports an uncaught error, as engines do for a module they cannot parse. */
-    uncaught: (error: unknown) => {
-      for (const listener of errorListeners) listener({ error, message: String(error) });
+    /** The window reports an uncaught error in a script, by default the entry, as engines do for one they cannot parse. */
+    uncaught: (
+      error: unknown,
+      filename = 'https://play-100.test/assets/index-A.js',
+      message = `Uncaught ${String(error)}`,
+    ) => {
+      for (const listener of errorListeners) listener({ error, filename, message });
     },
     reloads: () => reloads,
     shellRemoved: () => shellRemoved,
@@ -850,7 +854,10 @@ describe('first-paint web-font retry', () => {
     expect(result.entry()).toBeUndefined();
     fire(result, undefined);
     expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
-    expect(result.timers.map((timer) => timer.delay), 'the wait is over').toEqual([WATCHDOG]);
+    expect(
+      result.timers.map((timer) => timer.delay),
+      'the wait is over',
+    ).toEqual([WATCHDOG]);
     expect(result.notice.hidden).toBe(true);
   });
 
@@ -873,7 +880,10 @@ describe('first-paint web-font retry', () => {
     await result.fontsLoaded(loaded);
     expect(result.attributes).toEqual({});
     expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
-    expect(result.timers.map((timer) => timer.delay), 'the wait is over').toEqual([WATCHDOG]);
+    expect(
+      result.timers.map((timer) => timer.delay),
+      'the wait is over',
+    ).toEqual([WATCHDOG]);
   });
 
   it('never shows the shell over the failure notice', async () => {
@@ -911,8 +921,10 @@ describe('first-paint web-font retry', () => {
 
 describe('first-paint outdated-browser notice', () => {
   const OTHER_ROUTE = 'https://play-100.test/discover';
-  const ANDROID = 'Mozilla/5.0 (Linux; Android 10; SM-A105FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36';
-  const IPAD = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15';
+  const ANDROID =
+    'Mozilla/5.0 (Linux; Android 10; SM-A105FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36';
+  const IPAD =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15';
 
   /** The entry fails to parse: the engine reports a SyntaxError, then the script's load event fires. */
   function unparsed(environment: BootEnvironment) {
@@ -946,14 +958,36 @@ describe('first-paint outdated-browser notice', () => {
     expect(shown(result)).toEqual({ alerts: [true, false], copy: ['android'] });
   });
 
-  it.each([
-    ['a JSON SyntaxError', new SyntaxError('Unexpected token < in JSON at position 0')],
-    ['another error', new TypeError('x is not a function')],
-  ])('keeps the generic copy for %s', (_, error) => {
+  it('takes a parse error the engine reports without an error object', () => {
     const result = run({ url: OTHER_ROUTE, navigator: { userAgent: ANDROID } });
     result.settle('load');
     result.parsed();
-    result.uncaught(error);
+    result.uncaught(null, undefined, "Uncaught SyntaxError: Unexpected token '='");
+    result.entry()?.dispatch('load');
+    expect(shown(result).alerts).toEqual([true, false]);
+  });
+
+  /** A SyntaxError our code threw at runtime: its stack has a frame in the chunk that threw it. */
+  const thrown = (message: string, file: string) =>
+    Object.assign(new SyntaxError(message), { stack: `SyntaxError: ${message}\n    at parse (${file}:1:2048)` });
+  const CHUNK = 'https://play-100.test/assets/DiscoverPage-D.js';
+
+  it.each([
+    ['a JSON.parse error at runtime', thrown('Unexpected token < in JSON at position 0', CHUNK), CHUNK],
+    ['an invalid RegExp at runtime', thrown('Invalid regular expression: /(/: Unterminated group', CHUNK), CHUNK],
+    [
+      'an invalid URL at runtime, Firefox style',
+      Object.assign(new SyntaxError('URL is not valid'), { stack: `go@${CHUNK}:1:9\n` }),
+      CHUNK,
+    ],
+    ['a SyntaxError in another origin', new SyntaxError("Unexpected token '='"), 'https://cdn.example/assets/x.js'],
+    ['a SyntaxError outside /assets/', new SyntaxError("Unexpected token '='"), 'https://play-100.test/sw.js'],
+    ['another error', new TypeError('x is not a function'), 'https://play-100.test/assets/index-A.js'],
+  ])('keeps the generic copy for %s', (_, error, filename) => {
+    const result = run({ url: OTHER_ROUTE, navigator: { userAgent: ANDROID } });
+    result.settle('load');
+    result.parsed();
+    result.uncaught(error, filename);
     result.entry()?.dispatch('load');
     expect(result.notice.hidden).toBe(false);
     expect(shown(result).alerts).toEqual([false, true]);
