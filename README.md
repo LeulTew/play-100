@@ -343,7 +343,9 @@ requests or pushes. Release gating uses the runner and review:
 Prepare the reviewed Gitleaks release archive before the gate and set
 `PLAY100_GITLEAKS_ARCHIVE` to its path; the gate verifies its committed SHA-256
 before extracting or executing it. See [Release operations](docs/release-operations.md).
-Dependabot's version-update configuration (`.github/dependabot.yml`) is unchanged.
+Dependabot's version updates (`.github/dependabot.yml`) still run. They skip
+major updates of `@types/node`, which follows the Node 24 runtime, and of
+`typescript` until typescript-eslint supports TypeScript 7.
 
 The disabled jobs, for reference if they are re-enabled: SHA-pinned GitHub
 Actions with read-only repository access and no deployment credentials.
