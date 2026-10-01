@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { assertAppWindow, assertOsHost, chromeAppId, isLaunchedAppTarget, parseOsArguments } from './release-pwa-os';
+import {
+  assertAppWindow,
+  assertOsHost,
+  chromeAppId,
+  isLaunchedAppTarget,
+  osWorkBudget,
+  parseOsArguments,
+} from './release-pwa-os';
 
 const url = 'https://play-100-collection.vercel.app/';
 describe('Windows PWA evidence boundaries', () => {
@@ -45,5 +52,13 @@ describe('Windows PWA evidence boundaries', () => {
     expect(isLaunchedAppTarget({ targetId: 'page', type: 'page' }, 'app')).toBe(false);
     expect(isLaunchedAppTarget({ targetId: 'app', type: 'tab' }, 'app')).toBe(false);
     expect(isLaunchedAppTarget({ targetId: 'frame', parentId: 'app', type: 'iframe' }, 'app')).toBe(false);
+  });
+  it('reserves cleanup time before the owned host slot ends', () => {
+    const now = Date.parse('2026-10-01T19:00:00Z');
+    expect(osWorkBudget(now)).toBe(720000);
+    expect(osWorkBudget(now, '2026-10-01T19:10:00Z')).toBe(480000);
+    expect(osWorkBudget(now, '2026-10-01T19:03:00Z')).toBe(60000);
+    expect(() => osWorkBudget(now, '2026-10-01T19:02:59Z')).toThrow();
+    expect(() => osWorkBudget(now, 'invalid')).toThrow();
   });
 });

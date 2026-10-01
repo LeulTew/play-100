@@ -17,6 +17,7 @@ if ($Action -eq 'guard') {
   @{
     lockPresent = $present
     lockOwned = $owned
+    lockExpiresAt = $(if ($owned) { $lock.expectedRelease } else { $null })
     freeBytes = $memory
     platform = (Get-CimInstance Win32_OperatingSystem).Caption
   } | ConvertTo-Json -Compress

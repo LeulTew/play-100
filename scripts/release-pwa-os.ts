@@ -49,6 +49,14 @@ export function assertAppWindow(
 export function isLaunchedAppTarget(info: { targetId: string; parentId?: string; type: string }, launchedId: string) {
   return info.type === 'page' && (info.targetId === launchedId || info.parentId === launchedId);
 }
+export function osWorkBudget(now: number, lockExpiresAt?: string) {
+  const duration = Math.min(720000, lockExpiresAt ? Date.parse(lockExpiresAt) - now - 120000 : Infinity);
+  assert.ok(
+    Number.isFinite(duration) && duration >= 60000,
+    'Host slot has less than one work minute plus cleanup remaining.',
+  );
+  return duration;
+}
 type Shortcut = { path: string; arguments: string; target: string; startMenu: boolean };
 function windows(action: 'guard' | 'shortcuts', appId = ''): unknown {
   return JSON.parse(
@@ -60,7 +68,12 @@ function windows(action: 'guard' | 'shortcuts', appId = ''): unknown {
   );
 }
 function guard() {
-  const value = windows('guard') as { lockPresent: boolean; freeBytes: number; platform: string };
+  const value = windows('guard') as {
+    lockPresent: boolean;
+    freeBytes: number;
+    platform: string;
+    lockExpiresAt?: string;
+  };
   const minimumGiB = Number(process.env.PLAY100_OS_MIN_FREE_GIB ?? 6);
   assertOsHost(value, minimumGiB);
   return { ...value, minimumGiB };
@@ -135,6 +148,7 @@ export async function releasePwaOs(url: string) {
     'Commit tracked companion changes before capturing production evidence.',
   );
   const host = guard();
+  const stopAt = Date.now() + osWorkBudget(Date.now(), host.lockExpiresAt);
   const manifestResponse = await fetch(new URL('manifest.webmanifest', url), { signal: AbortSignal.timeout(30000) });
   assert.equal(manifestResponse.status, 200);
   const manifestText = await manifestResponse.text();
@@ -184,7 +198,7 @@ export async function releasePwaOs(url: string) {
             receipt.deadlineError = String(error);
           });
     },
-    12 * 60 * 1000,
+    Math.max(1, stopAt - Date.now()),
   );
   try {
     // Chrome exposes OS-mutating PWA commands only to its locally owned pipe client.
