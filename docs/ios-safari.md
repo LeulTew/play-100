@@ -70,6 +70,11 @@ are uploaded alongside screenshots for diagnosing missing or ambiguous targets.
 The search evidence records `visualViewport` scale and offsets rather than
 hiding zoom. Appium's redundant Safari reset is skipped: every job already
 creates a fresh simulator with no browsing history or production cache.
+The harness dismisses Safari 26's known first-run browser help popover through
+its native Close button and closes the search keyboard through Safari's Done
+button before returning to The 100. These browser-only actions are recorded
+separately; no application overlays, input styles or navigation state are
+modified.
 
 The image changes over time. The workflow therefore records its actual
 runtime inventory instead of claiming a permanently fixed device matrix.

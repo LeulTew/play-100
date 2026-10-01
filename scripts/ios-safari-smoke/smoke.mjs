@@ -20,6 +20,7 @@ const results = {
   pageErrors: [],
   errorAllowlist,
   nativeTaps: [],
+  browserActions: [],
   passed: false,
 };
 let session;
@@ -209,9 +210,7 @@ async function tap(element, label) {
         width: viewport.width, height: viewport.height, scale: viewport.scale }
     };
   `, element, label);
-  const context = await wd('GET', '/context');
-  await wd('POST', '/context', { name: 'NATIVE_APP' });
-  try {
+  await nativeAction(async () => {
     await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd('GET', '/source'));
     const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
     const deadline = Date.now() + 15_000;
@@ -223,14 +222,50 @@ async function tap(element, label) {
     assert.equal(elements.length, 1, `Expected one native accessibility anchor for ${label}.`);
     const id = elements[0]['element-6066-11e4-a52e-4f735466cecf'];
     const nativeAnchor = await wd('GET', `/element/${id}/rect`);
-    const coordinates = tapCoordinates({ ...measurements, nativeAnchor });
-    results.nativeTaps.push({ label, ...measurements, nativeAnchor, coordinates });
-    await execute('mobile: tap', coordinates);
+    const record = { label, ...measurements, nativeAnchor };
+    results.nativeTaps.push(record);
+    record.coordinates = tapCoordinates(record);
+    await execute('mobile: tap', record.coordinates);
+  });
+  await waitFor(`return window.__iosSmoke.clicks.slice(${before}).some(event => event.trusted);`,
+    'trusted touch click reached the document', 5000);
+}
+
+async function nativeAction(action) {
+  const context = await wd('GET', '/context');
+  await wd('POST', '/context', { name: 'NATIVE_APP' });
+  try {
+    return await action();
   } finally {
     await wd('POST', '/context', { name: context });
   }
-  await waitFor(`return window.__iosSmoke.clicks.slice(${before}).some(event => event.trusted);`,
-    'trusted touch click reached the document', 5000);
+}
+
+async function dismissSafariTip() {
+  await nativeAction(async () => {
+    const tips = await wd('POST', '/elements', { using: '-ios predicate string',
+      value: 'type == "XCUIElementTypeStaticText" AND visible == true AND label == "View Bookmarks, Share Menu, and Open Tabs"' });
+    if (!tips.length) return;
+    assert.equal(tips.length, 1, 'Expected one known Safari onboarding tip.');
+    const buttons = await wd('POST', '/elements', { using: '-ios class chain',
+      value: '**/XCUIElementTypePopover[`visible == true`]/**/XCUIElementTypeButton[`label == "Close"`]' });
+    assert.equal(buttons.length, 1, 'Safari onboarding must expose one Close button.');
+    await writeFile(`${output}/safari-onboarding.xml`, await wd('GET', '/source'));
+    await wd('POST', `/element/${buttons[0]['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+    results.browserActions.push({ action: 'dismiss Safari onboarding tip', at: new Date().toISOString() });
+  });
+}
+
+async function dismissKeyboard() {
+  await nativeAction(async () => {
+    if (!await execute('mobile: isKeyboardShown')) return;
+    const buttons = await wd('POST', '/elements', { using: '-ios predicate string',
+      value: 'type == "XCUIElementTypeButton" AND visible == true AND label == "Done"' });
+    assert.equal(buttons.length, 1, 'Safari keyboard must expose one Done button.');
+    await wd('POST', `/element/${buttons[0]['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+    assert.equal(await execute('mobile: isKeyboardShown'), false, 'Done must dismiss the Safari keyboard.');
+    results.browserActions.push({ action: 'dismiss search keyboard with Done', at: new Date().toISOString() });
+  });
 }
 
 async function navigation(label) {
@@ -303,6 +338,7 @@ try {
     return evidence;
   });
   await step('02-discover', async () => {
+    await dismissSafariTip();
     await navigation('Discover');
     await waitFor(`${visible} return visible(document.querySelector('#catalog-search'));`, 'Discover search');
     return { url: await wd('GET', '/url') };
@@ -320,6 +356,7 @@ try {
     return { query: 'portal', resultCards: titles, metrics: await metrics() };
   });
   await step('04-the-100', async () => {
+    await dismissKeyboard();
     await navigation('The 100');
     const card = await waitFor('return document.querySelector(".game-card");', 'collection card attached');
     await execute('arguments[0].scrollIntoView({ block: "center" });', card);
