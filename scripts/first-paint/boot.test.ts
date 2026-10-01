@@ -57,6 +57,12 @@ interface BootEnvironment {
   observer?: 'supported' | 'missing' | 'constructor throws' | 'observe throws';
   /** Whether #root holds the failure notice, as the shipped index.html does until React's first commit. */
   notice?: boolean;
+  /** The probe boxes in the web fonts (.p100-probe-web), once they have loaded. */
+  webProbes?: Readonly<Record<string, { width: number; height: number }>>;
+  /** Gives the document document.fonts, whose loads the test settles with fontsLoaded(). */
+  fonts?: boolean;
+  /** Object.hasOwn is missing, as in engines below Chromium 93. */
+  withoutHasOwn?: boolean;
 }
 
 interface FakeSpan {
@@ -129,7 +135,29 @@ function run(environment: BootEnvironment = {}) {
   };
   // #root holds the shell, then the failure notice with its Reload button (index.html).
   const reload = new FakeElement('BUTTON', { type: 'button' });
-  const notice = { hidden: true, querySelector: (selector: string) => (selector === 'button' ? reload : null) };
+  // Its first alert is the generic copy, its second the outdated-browser copy with one paragraph per platform.
+  const alerts = [{ hidden: false }, { hidden: true }];
+  const copies = ['android', 'ios', 'other'].map((os) => ({ os, hidden: false, getAttribute: () => os }));
+  const notice = {
+    hidden: true,
+    querySelector: (selector: string) => (selector === 'button' ? reload : null),
+    querySelectorAll: (selector: string): unknown[] =>
+      selector === '[role=alert]' ? alerts : selector === '[data-os]' ? copies : [],
+  };
+  const errorListeners: ((event: unknown) => void)[] = [];
+  const frames: (() => void)[] = [];
+  const fontLoads: string[] = [];
+  let settleFonts: (loaded: boolean) => void = () => undefined;
+  const fontsReady = new Promise<void>((resolve, reject) => {
+    settleFonts = (loaded) => (loaded ? resolve() : reject(new Error('A font failed to load.')));
+  });
+  fontsReady.catch(() => undefined);
+  const fonts = {
+    load: (font: string) => {
+      fontLoads.push(font);
+      return fontsReady;
+    },
+  };
   let shellRemoved = false;
   let reloads = 0;
   const shell = {
@@ -142,6 +170,7 @@ function run(environment: BootEnvironment = {}) {
   };
   const document = {
     documentElement: root,
+    fonts: environment.fonts ? fonts : undefined,
     // An inline <head> script runs while the document is still being parsed.
     readyState: environment.readyState ?? 'loading',
     visibilityState: environment.visibilityState ?? 'visible',
@@ -174,7 +203,8 @@ function run(environment: BootEnvironment = {}) {
         textContent: '',
         getBoundingClientRect: () => {
           if (environment.measureThrows) throw new Error('Layout is unavailable.');
-          const size = probes[span.className.split(' ')[1] ?? ''];
+          const [, name = '', web] = span.className.split(' ');
+          const size = (web === 'p100-probe-web' ? (environment.webProbes ?? ACCEPTED_PROBES) : probes)[name];
           if (!size) throw new Error(`Unexpected probe ${span.className}.`);
           return size;
         },
@@ -211,6 +241,10 @@ function run(environment: BootEnvironment = {}) {
     }),
     URLSearchParams,
     navigator: environment.navigator ?? {},
+    addEventListener: (type: string, listener: (event: unknown) => void) => {
+      if (type === 'error') errorListeners.push(listener);
+    },
+    requestAnimationFrame: (callback: () => void) => frames.push(callback),
     localStorage: {
       getItem: (key: string) => {
         if (environment.storageThrows) throw new Error('Storage is blocked.');
@@ -234,8 +268,14 @@ function run(environment: BootEnvironment = {}) {
       if (index !== -1) timers.splice(index, 1);
     },
   };
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- the test runs the built classic script text itself.
-  new Function('window', 'document', bootScript)(window, document);
+  const hasOwn = Object.hasOwn;
+  if (environment.withoutHasOwn) Reflect.deleteProperty(Object, 'hasOwn');
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- the test runs the built classic script text itself.
+    new Function('window', 'document', bootScript)(window, document);
+  } finally {
+    Object.hasOwn = hasOwn;
+  }
   if (!environment.measureThrows) expect(children, 'the probes are removed again').toEqual([]);
   const stylesheets = () => appended.filter((node) => node.getAttribute('rel') === 'stylesheet');
   return {
@@ -247,6 +287,22 @@ function run(environment: BootEnvironment = {}) {
     cleared,
     notice,
     reload,
+    alerts,
+    copies,
+    fontLoads,
+    /** The web font loads settle, and the boot script's callbacks run. */
+    fontsLoaded: async (loaded = true) => {
+      settleFonts(loaded);
+      await new Promise((resolve) => setTimeout(resolve));
+    },
+    /** The next frame renders: its callbacks run. */
+    frame: () => {
+      for (const callback of frames.splice(0)) callback();
+    },
+    /** The window reports an uncaught error, as engines do for a module they cannot parse. */
+    uncaught: (error: unknown) => {
+      for (const listener of errorListeners) listener({ error, message: String(error) });
+    },
     reloads: () => reloads,
     shellRemoved: () => shellRemoved,
     /** src/main.tsx ran to its end, which marks <html> before React's first commit. */
@@ -730,6 +786,11 @@ describe('first-paint failure notice', () => {
     expect(bootScript).toMatch(/document\.getElementById\((['"`])p100-boot-error\1\)/);
     expect(bootScript).toMatch(/document\.querySelector\((['"`])\.first-paint-shell\1\)/);
     expect(notice).toContain(`<div role="alert"><h1>The collection couldn't finish loading.</h1><p>`);
+    // The outdated-browser copy follows, hidden, with one paragraph per platform for the loader to pick.
+    expect(notice).toContain('<div role="alert" hidden><h1>This browser needs an update to open the collection.</h1>');
+    expect([...notice.matchAll(/<p data-os="([a-z]+)">/g)].map(([, os]) => os)).toEqual(['android', 'ios', 'other']);
+    expect(notice).toContain('Android System WebView');
+    expect([...notice.matchAll(/<div role="alert"/g)]).toHaveLength(2);
     // One Reload button for the loader to wire, and the workbook link, which needs no script.
     expect([...notice.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag)).toEqual([
       '<button type="button" class="button button-dark">',
@@ -745,5 +806,168 @@ describe('first-paint failure notice', () => {
     const mark = "document.documentElement.setAttribute('data-app-started', '');";
     expect(read('src/main.tsx').trimEnd().endsWith(`\n${mark}`)).toBe(true);
     expect(bootScript.match(/hasAttribute\((['"`])data-app-started\1\)/g)).toHaveLength(2);
+  });
+});
+
+describe('first-paint web-font retry', () => {
+  // The Galaxy A03s's local Roboto (Android 13, WebView 106) fails the display and bold probes.
+  const FAILING = {
+    ...ACCEPTED_PROBES,
+    'p100-probe-display': { width: 677.3, height: 120 },
+    'p100-probe-sans-bold': { width: 1287.6, height: 130.3 },
+  };
+
+  /** Runs the boot script with failing fallback faces until the stylesheet loaded and the document is parsed. */
+  function waiting(environment: BootEnvironment = {}) {
+    const result = run({ probes: FAILING, fonts: true, ...environment });
+    expect(result.attributes, 'the fallback faces fail, so the shell stays hidden').toEqual({});
+    expect(result.inserted(), 'the app starts at once').toEqual(STARTUP);
+    result.settle('load');
+    result.parsed();
+    return result;
+  }
+  /** Runs the timers set for delay, leaving the watchdog. */
+  const fire = (result: ReturnType<typeof run>, delay: number | undefined) => {
+    for (const timer of result.timers.filter((item) => item.delay === delay)) {
+      result.timers.splice(result.timers.indexOf(timer), 1);
+      timer.callback();
+    }
+  };
+
+  it('shows the shell once the web fonts have loaded and measure right, then adds the entry after the next frame', async () => {
+    const result = waiting();
+    expect(result.fontLoads).toEqual([
+      '800 1px "Barlow Condensed"',
+      '700 1px "Barlow Condensed"',
+      '1px "Hanken Grotesk Variable"',
+    ]);
+    expect(result.entry(), 'the entry waits for the web fonts').toBeUndefined();
+    expect(result.timers.map((timer) => timer.delay)).toEqual([WATCHDOG, 1500]);
+    await result.fontsLoaded();
+    expect(result.attributes).toEqual({ 'data-boot-art': 'pending', 'data-boot': 'landing' });
+    expect(result.entry(), 'the shell paints before the entry runs').toBeUndefined();
+    result.frame();
+    expect(result.entry()).toBeUndefined();
+    fire(result, undefined);
+    expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
+    expect(result.timers.map((timer) => timer.delay), 'the wait is over').toEqual([WATCHDOG]);
+    expect(result.notice.hidden).toBe(true);
+  });
+
+  it('adds the entry when the wait ends, and never shows the shell after that', async () => {
+    const result = waiting();
+    fire(result, 1500);
+    expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
+    await result.fontsLoaded();
+    result.frame();
+    fire(result, undefined);
+    expect(result.attributes, 'the app may already have committed').toEqual({});
+    expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
+  });
+
+  it.each([
+    ['the web fonts measure wrong too', { webProbes: FAILING }, true],
+    ['the web fonts fail to load', {}, false],
+  ] as const)('keeps the shell hidden and adds the entry at once when %s', async (_, environment, loaded) => {
+    const result = waiting(environment);
+    await result.fontsLoaded(loaded);
+    expect(result.attributes).toEqual({});
+    expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
+    expect(result.timers.map((timer) => timer.delay), 'the wait is over').toEqual([WATCHDOG]);
+  });
+
+  it('never shows the shell over the failure notice', async () => {
+    const result = waiting();
+    result.runTimers();
+    expect(result.notice.hidden, 'the watchdog ran first').toBe(false);
+    await result.fontsLoaded();
+    expect(result.attributes).toEqual({});
+  });
+
+  it('adds the entry at once without document.fonts', () => {
+    const result = waiting({ fonts: false });
+    expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
+    expect(result.attributes).toEqual({});
+  });
+
+  it.each([
+    ['another route', { url: 'https://play-100.test/discover' }],
+    ['an engine below the floor', { withoutHasOwn: true }],
+  ] as const)('does not wait on %s', (_, environment) => {
+    const result = run({ probes: FAILING, fonts: true, ...environment });
+    result.settle('load');
+    result.parsed();
+    expect(result.fontLoads).toEqual([]);
+    expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
+  });
+
+  it('measures the web fonts in their own probe class (shell.css)', () => {
+    const css = read('src/first-paint/shell.css');
+    expect(bootScript).toContain('p100-probe-web');
+    expect(css).toContain(".p100-probe-web { font-family: 'Hanken Grotesk Variable', monospace; }");
+    expect(css).toContain(".p100-probe-web.p100-probe-display { font-family: 'Barlow Condensed', monospace; }");
+  });
+});
+
+describe('first-paint outdated-browser notice', () => {
+  const OTHER_ROUTE = 'https://play-100.test/discover';
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 10; SM-A105FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36';
+  const IPAD = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15';
+
+  /** The entry fails to parse: the engine reports a SyntaxError, then the script's load event fires. */
+  function unparsed(environment: BootEnvironment) {
+    const result = run({ url: OTHER_ROUTE, ...environment });
+    result.settle('load');
+    result.parsed();
+    result.uncaught(new SyntaxError("Unexpected token '='"));
+    result.entry()?.dispatch('load');
+    expect(result.notice.hidden).toBe(false);
+    return result;
+  }
+  const shown = (result: ReturnType<typeof run>) => ({
+    alerts: result.alerts.map((alert) => alert.hidden),
+    copy: result.copies.filter((copy) => !copy.hidden).map((copy) => copy.os),
+  });
+
+  it.each([
+    ['Android', { userAgent: ANDROID }, 'android'],
+    ['iPhone', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)' }, 'ios'],
+    ['iPad with a desktop user agent', { userAgent: IPAD, maxTouchPoints: 5 }, 'ios'],
+    ['a Mac', { userAgent: IPAD, maxTouchPoints: 0 }, 'other'],
+    ['another browser', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0' }, 'other'],
+  ] as const)('tells %s what to update when the entry cannot be parsed', (_, navigator, os) => {
+    expect(shown(unparsed({ navigator }))).toEqual({ alerts: [true, false], copy: [os] });
+  });
+
+  it('shows the outdated copy without Object.hasOwn, whatever failed', () => {
+    const result = run({ url: OTHER_ROUTE, withoutHasOwn: true, navigator: { userAgent: ANDROID } });
+    result.modulepreload('/assets/index-A.js')?.dispatch('error');
+    result.parsed();
+    expect(shown(result)).toEqual({ alerts: [true, false], copy: ['android'] });
+  });
+
+  it.each([
+    ['a JSON SyntaxError', new SyntaxError('Unexpected token < in JSON at position 0')],
+    ['another error', new TypeError('x is not a function')],
+  ])('keeps the generic copy for %s', (_, error) => {
+    const result = run({ url: OTHER_ROUTE, navigator: { userAgent: ANDROID } });
+    result.settle('load');
+    result.parsed();
+    result.uncaught(error);
+    result.entry()?.dispatch('load');
+    expect(result.notice.hidden).toBe(false);
+    expect(shown(result).alerts).toEqual([false, true]);
+  });
+
+  it('changes nothing once the app has started', () => {
+    const result = run({ url: OTHER_ROUTE });
+    result.settle('load');
+    result.parsed();
+    result.appStarted();
+    result.uncaught(new SyntaxError("Unexpected token '='"));
+    result.entry()?.dispatch('load');
+    result.runTimers();
+    expect(result.notice.hidden).toBe(true);
+    expect(shown(result).alerts).toEqual([false, true]);
   });
 });
