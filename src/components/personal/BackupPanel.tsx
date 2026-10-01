@@ -113,7 +113,13 @@ export default function BackupPanel({
     setMessage('Backup download started. It includes My games, Play later, rankings, notes and preferences.');
   };
   const readBackup = async (file: File | undefined) => {
-    if (busy || restorePending.current) return;
+    // A file chosen while the library is busy, as when a deep-linked Settings dialog opens before the library has
+    // loaded, is still read: only its restore waits for the library. One chosen during a replacement is dropped, and
+    // the input clears, so choosing the same file again still reports a change.
+    if (restorePending.current) {
+      if (input.current) input.current.value = '';
+      return;
+    }
     onActionStart?.();
     setError('');
     setMessage('');
