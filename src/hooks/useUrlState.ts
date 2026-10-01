@@ -10,9 +10,15 @@ import {
 } from '../lib/my-games-navigation';
 import type { MyGamesTab } from '../lib/my-games-navigation';
 import { pageDestination } from '../lib/page-navigation';
-import { historyState } from '../lib/history-state';
+import { isRecord, type JsonObject } from '../lib/guards';
 
 const NAVIGATION_EVENT = 'play100:navigate';
+
+// history.state is typed any; entries the app did not write read as absent.
+function historyState(): JsonObject {
+  const state: unknown = window.history.state;
+  return isRecord(state) ? state : {};
+}
 
 function subscribe(listener: () => void): () => void {
   window.addEventListener('popstate', listener);
