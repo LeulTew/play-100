@@ -88,6 +88,54 @@ const SCENARIOS: readonly Scenario[] = [
   { name: 'reduced motion', hint: 'full', reducedMotion: true, art: () => 'reduced', fontSwap: true },
 ];
 
+/** Defines window.p100Capture, which records the boxes, text and look of the elements selectors match in #root. */
+function installCapture(): void {
+  const properties = [
+    'color',
+    'background-color',
+    'border-top-color',
+    'border-top-width',
+    'font-family',
+    'font-size',
+    'font-weight',
+    'font-style',
+    'letter-spacing',
+    'line-height',
+    'text-transform',
+    'text-decoration-line',
+    'visibility',
+    'box-shadow',
+  ];
+  window.p100Capture = (selectors) =>
+    selectors.flatMap((selector) =>
+      Array.from(document.querySelectorAll<HTMLElement>(`#root ${selector}`))
+        .filter((element) => element.getClientRects().length > 0)
+        .map((element, index) => {
+          const box = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          const before = getComputedStyle(element, '::before');
+          const after = getComputedStyle(element, '::after');
+          return {
+            key: `${selector} #${index}`,
+            text: element.innerText.replace(/\s+/g, ' ').trim(),
+            x: box.x + scrollX,
+            y: box.y + scrollY,
+            width: box.width,
+            height: box.height,
+            style: [
+              ...properties.map((name) => style.getPropertyValue(name)),
+              before.content,
+              before.backgroundColor,
+              after.content,
+              after.backgroundColor,
+            ].join(' | '),
+            disabled: element instanceof HTMLButtonElement && element.disabled,
+            opacity: style.opacity,
+          };
+        }),
+    );
+}
+
 /** Holds matching requests until the returned function releases them. */
 async function hold(page: Page, matches: (url: URL) => boolean): Promise<() => void> {
   let open = () => {};
@@ -170,52 +218,9 @@ for (const scenario of SCENARIOS) {
     }
     await emptyCatalogs(page);
     await page.emulateMedia({ reducedMotion: scenario.reducedMotion ? 'reduce' : 'no-preference' });
+    await page.addInitScript(installCapture);
     await page.addInitScript(
       ({ key, hint, saveData }) => {
-        const properties = [
-          'color',
-          'background-color',
-          'border-top-color',
-          'border-top-width',
-          'font-family',
-          'font-size',
-          'font-weight',
-          'font-style',
-          'letter-spacing',
-          'line-height',
-          'text-transform',
-          'text-decoration-line',
-          'visibility',
-          'box-shadow',
-        ];
-        window.p100Capture = (selectors) =>
-          selectors.flatMap((selector) =>
-            Array.from(document.querySelectorAll<HTMLElement>(`#root ${selector}`))
-              .filter((element) => element.getClientRects().length > 0)
-              .map((element, index) => {
-                const box = element.getBoundingClientRect();
-                const style = getComputedStyle(element);
-                const before = getComputedStyle(element, '::before');
-                const after = getComputedStyle(element, '::after');
-                return {
-                  key: `${selector} #${index}`,
-                  text: element.innerText.replace(/\s+/g, ' ').trim(),
-                  x: box.x + scrollX,
-                  y: box.y + scrollY,
-                  width: box.width,
-                  height: box.height,
-                  style: [
-                    ...properties.map((name) => style.getPropertyValue(name)),
-                    before.content,
-                    before.backgroundColor,
-                    after.content,
-                    after.backgroundColor,
-                  ].join(' | '),
-                  disabled: element instanceof HTMLButtonElement && element.disabled,
-                  opacity: style.opacity,
-                };
-              }),
-          );
         window.p100CspViolations = [];
         document.addEventListener('securitypolicyviolation', (event) => {
           window.p100CspViolations.push(`${event.effectiveDirective} ${event.blockedURI}`);
@@ -421,6 +426,93 @@ for (const scenario of SCENARIOS) {
     expect(errors).toEqual([]);
   });
 }
+
+// On some phones (a Galaxy A03s on Android 13) the local fallback faces fail the probes, so the shell stays hidden and
+// the app starts at once. The boot script then waits for the web fonts and, if they measure right before the entry
+// runs, shows the shell in them. React's first commit must then render exactly what that shell painted.
+test("a shell shown once the web fonts load equals React's first commit", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await emptyCatalogs(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(installCapture);
+  await page.addInitScript((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* Documents without storage (about:blank) never show the shell. */
+    }
+    // The display probe measures 11% wide in the fallback faces, as on the Galaxy A03s; the web-font probes are real.
+    const measure = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const box = measure.call(this);
+      return this.classList.contains('p100-probe-display') && !this.classList.contains('p100-probe-web')
+        ? new DOMRect(box.x, box.y, 677.3, box.height)
+        : box;
+    };
+    let total = 0;
+    const add = (entries: PerformanceEntryList) => {
+      for (const entry of entries) {
+        if ('value' in entry && typeof entry.value === 'number') total += entry.value;
+      }
+    };
+    const observer = new PerformanceObserver((list) => add(list.getEntries()));
+    observer.observe({ type: 'layout-shift', buffered: true });
+    window.p100TakeLayoutShift = () => {
+      add(observer.takeRecords());
+      return total;
+    };
+  }, motionHintKey('guest'));
+  await serveWithPolicy(page);
+  const built = await (await page.request.get('/')).text();
+  const deferred = /<template id="p100-deferred">([\s\S]*?)<\/template>/.exec(built)?.[1] ?? '';
+  const entryScript = /<script type="module" crossorigin src="(\/assets\/[^"]+\.js)"/.exec(deferred)?.[1];
+  if (!entryScript)
+    throw new Error('Build the app before this check: index.html has no startup template with an entry script.');
+  const releaseScript = await hold(page, (url) => url.pathname === entryScript);
+  const releaseCollection = await hold(page, (url) => url.pathname === '/data/collection.json');
+  try {
+    await page.goto('/', { waitUntil: 'commit' });
+    await page.waitForFunction(() => document.querySelector(`script[type="module"][src]`) !== null);
+    expect(
+      await page.evaluate(() => [document.documentElement.dataset.boot, document.documentElement.dataset.bootArt]),
+      'the shell shows in the web fonts before the entry is added',
+    ).toEqual(['landing', 'pending']);
+    await expect(page.locator('.first-paint-shell')).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        ['800 1px "Barlow Condensed"', '700 1px "Barlow Condensed"', '1px "Hanken Grotesk Variable"'].every((font) =>
+          document.fonts.check(font),
+        ),
+      ),
+      'the web fonts have loaded',
+    ).toBe(true);
+    await frames(page);
+    const shell = await capture(page, SHARED);
+    expect(shell.length).toBeGreaterThan(20);
+    await page.evaluate((selectors) => {
+      const root = document.getElementById('root');
+      if (!root) throw new Error('#root is missing.');
+      new MutationObserver((_, observer) => {
+        if (document.querySelector('.first-paint-shell') || !document.querySelector('#root > .site-header')) return;
+        observer.disconnect();
+        window.p100Commit = window.p100Capture(selectors);
+      }).observe(root, { childList: true });
+    }, SHARED);
+    releaseScript();
+    await page.waitForFunction(() => window.p100Commit !== undefined);
+    const commit = await page.evaluate(() => window.p100Commit ?? []);
+    expect(differences(shell, commit, 0.5, true), "React's first commit renders exactly what the shell painted").toEqual(
+      [],
+    );
+    await frames(page);
+    expect(await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN), 'layout shift').toBe(0);
+  } finally {
+    releaseScript();
+    releaseCollection();
+  }
+  expect(errors).toEqual([]);
+});
 
 // Before the library opens, the artifact caption names a visual mode only if the visitor chose one (G4-UI MOT-001).
 test('the startup artifact caption names Lite mode only when the visitor chose it', async ({ page, isMobile }) => {

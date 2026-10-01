@@ -231,3 +231,61 @@ test('a failed font or collection preload is not a failed start', async ({ page,
   expect([...refused].sort()).toEqual([...preloads].sort());
   expect(await violations.read()).toEqual([]);
 });
+
+// An engine below the floor (README.md, Browser support; a Galaxy A10 on WebView 81) cannot parse the entry and reports
+// a SyntaxError; one without Object.hasOwn is below it too. The notice then says what to update instead of its generic
+// copy. The entry here parses but never starts the app, as one that cannot be parsed would not.
+for (const { name, userAgent, signal, copy } of [
+  {
+    name: 'a SyntaxError on Android',
+    userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-A105FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Mobile Safari/537.36',
+    signal: 'syntax',
+    copy: 'Update Chrome and Android System WebView from Google Play, then reload.',
+  },
+  {
+    name: 'no Object.hasOwn on an iPhone',
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+    signal: 'hasOwn',
+    copy: 'Update iOS in Settings, then reload.',
+  },
+  {
+    name: 'a SyntaxError elsewhere',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36',
+    signal: 'syntax',
+    copy: 'Update this browser to its latest version, then reload.',
+  },
+] as const) {
+  test(`an engine below the floor shows the outdated-browser notice: ${name}`, async ({ page, baseURL }) => {
+    await emptyCatalogs(page);
+    const violations = await recordViolations(page, deployed ? null : productionPolicy, new URL(baseURL ?? '/').origin);
+    await page.addInitScript(
+      ({ agent, signal }) => {
+        Object.defineProperty(navigator, 'userAgent', { configurable: true, get: () => agent });
+        if (signal === 'hasOwn') Reflect.deleteProperty(Object, 'hasOwn');
+        else
+          document.addEventListener('DOMContentLoaded', () =>
+            window.dispatchEvent(
+              new ErrorEvent('error', { error: new SyntaxError("Unexpected token '='"), message: "Unexpected token '='" }),
+            ),
+          );
+      },
+      { agent: userAgent, signal },
+    );
+    const assets = await startupAssets(page);
+    await page.route(
+      (url) => url.pathname === assets.entry,
+      (route) => route.fulfill({ contentType: 'text/javascript', body: 'export {};' }),
+    );
+    await page.goto('/?catalogs=off');
+    const notice = page.locator('#p100-boot-error');
+    await expect(notice.getByRole('heading', { level: 1 })).toHaveText(
+      'This browser needs an update to open the collection.',
+    );
+    await expect(notice.getByText(copy, { exact: true })).toBeVisible();
+    await expect(notice.locator('p[data-os]:visible')).toHaveCount(1);
+    await expect(notice.getByText("The collection couldn't finish loading.")).toBeHidden();
+    await expect(notice.getByRole('button', { name: 'Reload the collection', exact: true })).toBeEnabled();
+    await expect(page.locator('html')).not.toHaveAttribute('data-app-started');
+    expect(await violations.read()).toEqual([]);
+  });
+}
