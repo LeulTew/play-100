@@ -63,7 +63,8 @@ test('at 1440px the table fits its scrollport, and with selection its Your list 
   expect(await port.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
   expect(await yourListInView(page)).toEqual({ whole: true, pinOnTop: true });
   const pin = page.locator('.ratings-table tbody tr').first().locator('.compare-pin');
-  const title = libraryRecords[0].title;
+  const title = libraryRecords[0]?.title;
+  if (!title) throw new Error('The table fixture must have a first record.');
   await expect(pin).toHaveAccessibleName(`Pin for comparison: ${title}`);
   await expect(pin).toHaveText('');
   const pinBox = await pin.boundingBox();
