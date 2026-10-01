@@ -208,6 +208,8 @@ try {
           'appium:nativeWebTap': true,
           'appium:newCommandTimeout': 120,
           'appium:wdaLaunchTimeout': 180_000,
+          'appium:wdaStartupRetries': 1,
+          'appium:showXcodeLog': true,
         } },
       });
       session = created.sessionId;
