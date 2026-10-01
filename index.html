@@ -87,10 +87,12 @@ explicitly authorized by the user.
         <button aria-haspopup="dialog" aria-expanded="false" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><span>Menu</span></button>
       </nav>
     </div>
-    <!-- The boot script's failure notice (docs/first-paint-shell.md). It replaces the shell only when the app cannot
-         start, and createRoot() replaces the shell and the notice with the app on its first commit. -->
+    <!-- The boot script's failure notice (docs/first-paint-shell.md), with its copy for browsers below the floor. It
+         replaces the shell only when the app cannot start, and createRoot() replaces the shell and the notice with
+         the app on its first commit. -->
     <main class="app-error" id="p100-boot-error" hidden>
       <div role="alert"><h1>The collection couldn't finish loading.</h1><p>Check your connection, then reload. Your saved device data has not been cleared.</p></div>
+      <div role="alert" hidden><h1>This browser needs an update to open the collection.</h1><p data-os="android">Update Chrome and Android System WebView from Google Play, then reload.</p><p data-os="ios">Update iOS in Settings, then reload.</p><p data-os="other">Update this browser to its latest version, then reload.</p></div>
       <button type="button" class="button button-dark">Reload the collection</button>
       <a href="/downloads/Play-100-Collection.xlsx" download="">Or download the workbook</a>
     </main></div><!--p100:stylesheets-->

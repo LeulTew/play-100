@@ -9,7 +9,17 @@
 // shows the shell, at once otherwise. When the app cannot start, it shows the failure notice that
 // index.html keeps hidden in #root instead.
 (function () {
-  var accept = function () {
+  // A module the engine cannot parse reports a SyntaxError here, and it can only mean an engine below the floor
+  // (README.md, Browser support); so does a missing Object.hasOwn (Chromium 93). Either picks the notice's
+  // outdated-browser copy. JSON.parse also throws SyntaxErrors, for bad data, not old engines.
+  var old = !Object.hasOwn;
+  window.addEventListener('error', function (event) {
+    if (event.error instanceof SyntaxError && !/JSON/.test(event.error.message)) old = true;
+  });
+
+  // With web, the probes measure the web fonts instead (.p100-probe-web), once they have loaded. Fails with 0
+  // when only the probes fail.
+  var accept = function (web) {
     var root = document.documentElement;
     var url = window.location;
     var params = new window.URLSearchParams(url.search);
@@ -51,7 +61,7 @@
     ];
     var spans = probes.map(function (probe) {
       var span = document.createElement('span');
-      span.className = 'p100-probe ' + probe[0];
+      span.className = 'p100-probe ' + probe[0] + (web ? ' p100-probe-web' : '');
       span.textContent = probe[1];
       return root.appendChild(span);
     });
@@ -60,7 +70,7 @@
     for (var index = 0; index < probes.length; index += 1) {
       var probe = probes[index];
       var box = boxes[index];
-      if (!(box.width >= probe[2] && box.width <= probe[3] && Math.abs(box.height - probe[4]) <= 2)) return false;
+      if (!(box.width >= probe[2] && box.width <= probe[3] && Math.abs(box.height - probe[4]) <= 2)) return 0;
     }
 
     root.setAttribute('data-boot-art', art);
@@ -84,6 +94,16 @@
     if (!notice || !notice.hidden || document.documentElement.hasAttribute('data-app-started')) return;
     var shell = document.querySelector('.first-paint-shell');
     if (shell) shell.parentNode.removeChild(shell);
+    if (old) {
+      var nav = window.navigator;
+      var os = /Android/.test(nav.userAgent) ? 'android'
+        : /iPhone|iPad|iPod/.test(nav.userAgent) || (/Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1) ? 'ios'
+          : 'other';
+      var alerts = notice.querySelectorAll('[role=alert]');
+      alerts[0].hidden = true;
+      alerts[1].hidden = false;
+      notice.querySelectorAll('[data-os]').forEach(function (copy) { copy.hidden = copy.getAttribute('data-os') !== os; });
+    }
     notice.hidden = false;
     notice.querySelector('button').addEventListener('click', function () { window.location.reload(); });
   };
@@ -122,7 +142,34 @@
     };
     var settle = function () {
       pending -= 1;
-      if (!pending) add('script', 'module', 'src');
+      if (pending) return;
+      var done = false;
+      var go = function () {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timer);
+        add('script', 'module', 'src');
+      };
+      if (!retry) return go();
+      // The fallback faces failed the probes, so the shell is hidden. The entry stylesheet has now brought the web
+      // fonts' @font-face rules, and the preloads have requested their files: wait up to 1.5 s for them, and when
+      // they measure as expected, show the shell, which then renders in the fonts React's first commit uses. The
+      // entry is added only after the next frame (or when the wait ends, if frames are throttled), so the shell
+      // paints before the entry runs and never appears after React's first commit.
+      var timer = window.setTimeout(go, 1500);
+      try {
+        var fonts = document.fonts;
+        Promise.all(['800 1px "Barlow Condensed"', '700 1px "Barlow Condensed"', '1px "Hanken Grotesk Variable"']
+          .map(function (font) { return fonts.load(font); }))
+          .then(function () {
+            var notice = document.getElementById('p100-boot-error');
+            if (done || !(notice && notice.hidden && accept(true))) return go();
+            window.requestAnimationFrame(function () { window.setTimeout(go); });
+          })
+          .then(null, go);
+      } catch {
+        go();
+      }
     };
     // The Data use page reads no collection data (src/main.tsx), so it starts without the fetch preloads.
     var dataUse = /^\/data-use\/?$/.test(window.location.pathname);
@@ -166,8 +213,11 @@
   };
 
   var deferred;
+  var retry;
   try {
-    deferred = accept() && afterPaint();
+    var accepted = accept();
+    deferred = accepted && afterPaint();
+    retry = accepted === 0 && !old;
   } catch {
     // Fail closed: without data-boot the shell keeps its hidden attribute, and the app starts now.
   }
