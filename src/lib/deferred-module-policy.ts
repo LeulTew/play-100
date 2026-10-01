@@ -8,6 +8,7 @@ export const DEFERRED_SOURCE_MODULES = [
   'src/lib/discovery-catalog.ts',
   'src/lib/saved-discovery-artwork.ts',
   'src/components/CollectionFilms.tsx',
+  'src/components/scene/ArtifactStill.tsx',
   'src/components/AboutDialog.tsx',
   'src/components/SettingsDialog.tsx',
   'src/components/personal/BackupPanel.tsx',

@@ -10,6 +10,7 @@ import { useStableHandler, useStableHandlers } from '../../hooks/useLatest';
 import { ExtendedSearchResultsContext } from '../../hooks/useExtendedSearch';
 import type { ExtendedSearchResults } from '../../hooks/useExtendedSearch';
 import { createValueStore } from '../../lib/value-store';
+import { AfterFirstPaint, FirstPaintGate } from '../AfterFirstPaint';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { SiteFooter } from '../SiteFooter';
 import { AppDialogs } from './AppDialogs';
@@ -107,95 +108,104 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
     },
   });
   return (
-    <ExtendedSearchResultsContext.Provider value={searchResults}>
-      <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>
-        Skip to {page === 'collection' ? 'the collection' : 'page content'}
-      </a>
-      <Header
-        page={page}
-        onlineAvailable={ONLINE_AVAILABLE}
-        libraryScope={app.libraryScope}
-        libraryLabel={app.libraryLabel}
-        syncStatus={app.online?.status ?? 'device'}
-        headerIdentity={app.headerIdentity}
-        savedCount={app.savedCount}
-        comparisonTray={!inlineTray && comparisonTray}
-        compareChip={!inlineTray && !trayHidden && (trayHasContent || tray.dragging)}
-        animate={animate}
-        menuOpen={panel === 'menu'}
-        pageHref={app.pageHref}
-        onNavigateLink={chrome.onNavigateLink}
-        onQueue={chrome.onQueue}
-        onMenu={chrome.onMenu}
-        onAccount={chrome.onAccount}
-        onIntent={prefetchAppTools}
-      />
-      <Banners
-        warning={app.warning}
-        onlineConfigError={ONLINE_CONFIG_ERROR}
-        offline={app.pwaEnabled && !app.pwa.online}
-        offlineReady={app.pwa.offlineState === 'ready'}
-        hintError={app.hintError}
-        hintBlocked={app.hintBlocked}
-        onSettings={chrome.onSettings}
-        onAccount={chrome.onAccount}
-        onDeviceOnly={commands.onDeviceOnly}
-        onRetryLibrary={libraryRecovery ? commands.retryLibraryOpening : undefined}
-        retryBusy={libraryRecovery && (app.guestLibrary.busy || app.retryingLibraryOpening)}
-        captureRetryFocus={app.captureFocusGuard}
-        onDiscardTemporary={
-          libraryRecovery && app.guestLibrary.discardRequired ? commands.retryLibraryOpening : undefined
-        }
-        temporaryRevision={
-          libraryRecovery && app.guestLibrary.discardRequired ? app.guestLibrary.state.revision : undefined
-        }
-      />
-      <main id="page-main" ref={mainRef}>
-        {app.toolFailure?.scope === app.libraryScope && app.toolFailure.page === page && (
-          <ChunkRecovery message="The comparison tools didn't load." />
-        )}
-        <AppRoute
-          app={app}
-          motion={motion}
-          signInGames={tray.items.length}
-          onPin={pin}
-          onUnpin={tray.unpin}
-          pinnedIds={pinnedIds}
-          artwork={artwork}
-          comparisonTray={inlineTray ? comparisonTray : undefined}
+    <FirstPaintGate>
+      <ExtendedSearchResultsContext.Provider value={searchResults}>
+        <a className="skip-link" href={page === 'collection' ? '#collection' : '#page-main'}>
+          Skip to {page === 'collection' ? 'the collection' : 'page content'}
+        </a>
+        <Header
+          page={page}
+          onlineAvailable={ONLINE_AVAILABLE}
+          libraryScope={app.libraryScope}
+          libraryLabel={app.libraryLabel}
+          syncStatus={app.online?.status ?? 'device'}
+          headerIdentity={app.headerIdentity}
+          savedCount={app.savedCount}
+          comparisonTray={!inlineTray && comparisonTray}
+          compareChip={!inlineTray && !trayHidden && (trayHasContent || tray.dragging)}
+          animate={animate}
+          menuOpen={panel === 'menu'}
+          pageHref={app.pageHref}
+          onNavigateLink={chrome.onNavigateLink}
+          onQueue={chrome.onQueue}
+          onMenu={chrome.onMenu}
+          onAccount={chrome.onAccount}
+          onIntent={prefetchAppTools}
         />
-      </main>
-      <Footer onAbout={chrome.onAbout} onEffects={chrome.onSettings} effects={app.library.state.motion} />
-      <Navigation
-        page={page}
-        personalPage={app.personalPage}
-        gamesView={app.gamesView}
-        onlineAvailable={ONLINE_AVAILABLE}
-        menuOpen={panel === 'menu'}
-        pageHref={app.pageHref}
-        onNavigateLink={chrome.onNavigateLink}
-        onBrowseLink={chrome.onBrowseLink}
-        onMenu={chrome.onMenu}
-        onIntent={prefetchAppTools}
-      />
-      {!inlineTray && trayHasContent && (
-        <div className="compare-tray-reserve" data-error={Boolean(tray.error)} aria-hidden="true" />
-      )}
-      <AppDialogs
-        app={app}
-        clearComparePins={tray.clear}
-        origin={motion.origin}
-        artwork={artwork}
-        previewLoading={previewLoading}
-        previewModuleError={previewModuleError}
-        panelRecovery={panelRecovery}
-      />
-      <AppToast app={app} trayError={trayError} onDismissTrayError={tray.dismissError} panelRecovery={panelRecovery} />
-      {app.sharing && (
-        <span className="sr-only" role="status">
-          Opening sharing options…
-        </span>
-      )}
-    </ExtendedSearchResultsContext.Provider>
+        <Banners
+          warning={app.warning}
+          onlineConfigError={ONLINE_CONFIG_ERROR}
+          offline={app.pwaEnabled && !app.pwa.online}
+          offlineReady={app.pwa.offlineState === 'ready'}
+          hintError={app.hintError}
+          hintBlocked={app.hintBlocked}
+          onSettings={chrome.onSettings}
+          onAccount={chrome.onAccount}
+          onDeviceOnly={commands.onDeviceOnly}
+          onRetryLibrary={libraryRecovery ? commands.retryLibraryOpening : undefined}
+          retryBusy={libraryRecovery && (app.guestLibrary.busy || app.retryingLibraryOpening)}
+          captureRetryFocus={app.captureFocusGuard}
+          onDiscardTemporary={
+            libraryRecovery && app.guestLibrary.discardRequired ? commands.retryLibraryOpening : undefined
+          }
+          temporaryRevision={
+            libraryRecovery && app.guestLibrary.discardRequired ? app.guestLibrary.state.revision : undefined
+          }
+        />
+        <main id="page-main" ref={mainRef}>
+          {app.toolFailure?.scope === app.libraryScope && app.toolFailure.page === page && (
+            <ChunkRecovery message="The comparison tools didn't load." />
+          )}
+          <AppRoute
+            app={app}
+            motion={motion}
+            signInGames={tray.items.length}
+            onPin={pin}
+            onUnpin={tray.unpin}
+            pinnedIds={pinnedIds}
+            artwork={artwork}
+            comparisonTray={inlineTray ? comparisonTray : undefined}
+          />
+        </main>
+        <AfterFirstPaint>
+          <Footer onAbout={chrome.onAbout} onEffects={chrome.onSettings} effects={app.library.state.motion} />
+        </AfterFirstPaint>
+        <Navigation
+          page={page}
+          personalPage={app.personalPage}
+          gamesView={app.gamesView}
+          onlineAvailable={ONLINE_AVAILABLE}
+          menuOpen={panel === 'menu'}
+          pageHref={app.pageHref}
+          onNavigateLink={chrome.onNavigateLink}
+          onBrowseLink={chrome.onBrowseLink}
+          onMenu={chrome.onMenu}
+          onIntent={prefetchAppTools}
+        />
+        {!inlineTray && trayHasContent && (
+          <div className="compare-tray-reserve" data-error={Boolean(tray.error)} aria-hidden="true" />
+        )}
+        <AppDialogs
+          app={app}
+          clearComparePins={tray.clear}
+          origin={motion.origin}
+          artwork={artwork}
+          previewLoading={previewLoading}
+          previewModuleError={previewModuleError}
+          panelRecovery={panelRecovery}
+        />
+        <AppToast
+          app={app}
+          trayError={trayError}
+          onDismissTrayError={tray.dismissError}
+          panelRecovery={panelRecovery}
+        />
+        {app.sharing && (
+          <span className="sr-only" role="status">
+            Opening sharing options…
+          </span>
+        )}
+      </ExtendedSearchResultsContext.Provider>
+    </FirstPaintGate>
   );
 }
