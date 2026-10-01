@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
@@ -154,22 +154,6 @@ export async function releasePwaOs(url: string) {
     'Application',
     'chrome.exe',
   );
-  const child = spawn(
-    executable,
-    [
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--enable-unsafe-swiftshader',
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  );
-  let launchError: Error | undefined;
-  child.once('error', (error) => {
-    launchError = error;
-  });
   // Keep enough time for uninstall and OS cleanup inside the fifteen-minute burst.
   let expired = false;
   const deadline = setTimeout(
@@ -184,21 +168,15 @@ export async function releasePwaOs(url: string) {
     12 * 60 * 1000,
   );
   try {
-    const port = await waitFor(
-      async () => {
-        if (launchError) throw launchError;
-        try {
-          return (await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0];
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-          return undefined;
-        }
-      },
-      (value) => !!value,
-    );
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
-    const control = browser.contexts()[0]!.pages()[0] ?? (await browser.contexts()[0]!.newPage());
-    session = await browser.contexts()[0]!.newCDPSession(control);
+    // Chrome exposes OS-mutating PWA commands only to its locally owned pipe client.
+    const ownedContext = await chromium.launchPersistentContext(profile, {
+      executablePath: executable,
+      headless: false,
+      args: ['--enable-unsafe-swiftshader'],
+      timeout: 30000,
+    });
+    browser = ownedContext.browser()!;
+    session = await browser.newBrowserCDPSession();
     receipt.chrome = await session.send('Browser.getVersion');
     guard();
     installAttempted = true;
@@ -289,9 +267,7 @@ export async function releasePwaOs(url: string) {
       failure ??= error;
     }
     try {
-      if (session) await session.send('Browser.close');
       await browser?.close();
-      if (child.exitCode === null && child.pid) child.kill();
       if (cleaned) await rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
       receipt.profileRemoved = cleaned;
     } catch (error) {

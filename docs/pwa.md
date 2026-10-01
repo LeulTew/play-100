@@ -429,6 +429,9 @@ This is an opt-in **real OS mutation**, not browser install-prompt emulation:
 the experimental Chrome CDP `PWA` domain installs the production manifest ID
 `https://play-100-collection.vercel.app/`, reads `PWA.getOsAppState`, opens a
 standalone app target with `PWA.launch`, then calls `PWA.uninstall`.
+Chrome is launched through a locally owned debugging pipe, not a network CDP
+endpoint: Chrome restricts these OS-mutating commands to pipe clients with
+`AllowUnsafeOperations`. No browser security settings or real profiles are changed.
 
 The companion always creates a temporary user-data directory; it never accepts
 an existing profile or signs in. It refuses an existing shortcut for the same
