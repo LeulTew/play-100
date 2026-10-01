@@ -11,6 +11,9 @@ export function createDiscoveryLoader() {
     throwIfAborted(signal);
     if (cached) return cached;
     pending ??= (async () => {
+      // The parser chunk loads alongside the data rather than after it: one round trip, not two.
+      const parser = loadDiscoveryParser();
+      parser.catch(() => undefined);
       // Callers cancel their wait, not this shared, size-limited and timed transport.
       const payload = await fetchCatalogJson(
         DISCOVERY_CATALOG_URL,
@@ -18,7 +21,7 @@ export function createDiscoveryLoader() {
         DISCOVERY_LIMITS.metadataBytes,
         8000,
       );
-      const { parseDiscoveryCatalog } = await loadDiscoveryParser();
+      const { parseDiscoveryCatalog } = await parser;
       cached = parseDiscoveryCatalog(payload);
       return cached;
     })().finally(() => {
@@ -41,3 +44,11 @@ export function createDiscoveryLoader() {
 }
 
 export const loadDiscoveryCatalog = createDiscoveryLoader();
+
+/**
+ * Starts the shared catalog load without waiting for it: the Discover page joins it when its own chunk arrives, so the
+ * page's code and its data download together. A failure is left to the page's own load, which reports it.
+ */
+export function warmDiscoveryCatalog(): void {
+  loadDiscoveryCatalog(new AbortController().signal).catch(() => undefined);
+}
