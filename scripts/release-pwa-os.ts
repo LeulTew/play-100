@@ -46,6 +46,9 @@ export function assertAppWindow(
   assert.equal(value.standalone, true, 'Not an installed standalone app window.');
   assert.equal(value.errorPage, false, 'Browser error page instead of app.');
 }
+export function isLaunchedAppTarget(info: { targetId: string; parentId?: string; type: string }, launchedId: string) {
+  return info.type === 'page' && (info.targetId === launchedId || info.parentId === launchedId);
+}
 type Shortcut = { path: string; arguments: string; target: string; startMenu: boolean };
 function windows(action: 'guard' | 'shortcuts', appId = ''): unknown {
   return JSON.parse(
@@ -87,7 +90,7 @@ async function appPage(browser: Browser, session: CDPSession, manifestId: string
           try {
             const info = (await cdp.send('Target.getTargetInfo')).targetInfo;
             if (!observed.includes(info.targetId)) observed.push(info.targetId);
-            if (info.targetId === targetId) return page;
+            if (isLaunchedAppTarget(info, targetId)) return page;
           } finally {
             await cdp.detach();
           }

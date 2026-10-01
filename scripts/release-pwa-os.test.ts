@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertAppWindow, assertOsHost, chromeAppId, parseOsArguments } from './release-pwa-os';
+import { assertAppWindow, assertOsHost, chromeAppId, isLaunchedAppTarget, parseOsArguments } from './release-pwa-os';
 
 const url = 'https://play-100-collection.vercel.app/';
 describe('Windows PWA evidence boundaries', () => {
@@ -37,5 +37,13 @@ describe('Windows PWA evidence boundaries', () => {
     expect(() => assertAppWindow(evidence, url)).not.toThrow();
     for (const change of [{ standalone: false }, { errorPage: true }, { title: 'Play 100' }, { url: `${url}my-games` }])
       expect(() => assertAppWindow({ ...evidence, ...change }, url)).toThrow();
+  });
+  it('binds a launched tab target to its child page without accepting unrelated targets', () => {
+    expect(isLaunchedAppTarget({ targetId: 'app', type: 'page' }, 'app')).toBe(true);
+    expect(isLaunchedAppTarget({ targetId: 'page', parentId: 'app', type: 'page' }, 'app')).toBe(true);
+    expect(isLaunchedAppTarget({ targetId: 'page', parentId: 'other', type: 'page' }, 'app')).toBe(false);
+    expect(isLaunchedAppTarget({ targetId: 'page', type: 'page' }, 'app')).toBe(false);
+    expect(isLaunchedAppTarget({ targetId: 'app', type: 'tab' }, 'app')).toBe(false);
+    expect(isLaunchedAppTarget({ targetId: 'frame', parentId: 'app', type: 'iframe' }, 'app')).toBe(false);
   });
 });
