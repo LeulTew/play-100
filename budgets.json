@@ -91,17 +91,17 @@
   "raises": [
     {
       "metric": "inlineScriptRawBytes",
-      "measured": 4444,
-      "reason": "R24 boot script (configured build of 43a71e78): when the fallback-font probes fail, as on a Galaxy A03s, it waits up to 1.5 s for the web fonts and re-probes them before revealing the shell, instead of leaving the first visit blank; it also recognises engines below the floor (no Object.hasOwn, or an entry SyntaxError) to show the update-your-browser notice."
+      "measured": 4564,
+      "reason": "R24 boot script (configured build of 9c72b005): when the fallback-font probes fail, as on a Galaxy A03s, it waits up to 1.5 s for the web fonts and re-probes them before revealing the shell, instead of leaving the first visit blank; it also recognises engines below the floor (no Object.hasOwn, or an entry SyntaxError) to show the update-your-browser notice."
     },
     {
       "metric": "indexHtmlRawBytes",
-      "measured": 34350,
+      "measured": 34470,
       "reason": "R24: the larger boot script above plus the second failure-notice copy for outdated browsers, with its per-OS update lines."
     },
     {
       "metric": "indexHtmlGzipBytes",
-      "measured": 9778,
+      "measured": 9830,
       "reason": "R24: the same boot script and outdated-browser notice growth as indexHtmlRawBytes."
     }
   ]
