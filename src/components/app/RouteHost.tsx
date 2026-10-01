@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense } from 'react';
+import { lazy, memo, Suspense, useEffect } from 'react';
 import type { ComponentProps } from 'react';
 import type { AppPage } from '../../lib/types';
 import CollectionPage from '../CollectionPage';
@@ -6,6 +6,7 @@ import { OnlineBoundary } from '../OnlineBoundary';
 import { RouteFallback } from './RouteFallback';
 import type { RouteFallbackProps } from './RouteFallback';
 import { createMemoizedModule } from '../../lib/memoized-module';
+import { warmDiscoveryCatalog } from '../../lib/discovery-loader';
 import { ChunkBoundary } from '../ChunkBoundary';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { routeBoundaryKey } from './route-boundary';
@@ -47,6 +48,12 @@ function publicContent(content: PublicContent, route: AppPage) {
   }
 }
 
+/** Starts Discover's catalog with its page chunk instead of after it, which was the route's slowest wait. */
+function DiscoverCatalogWarmup() {
+  useEffect(warmDiscoveryCatalog, []);
+  return null;
+}
+
 /** Memoised: App re-renders for dialogs, the tray and notices, and AppRoute keeps these props stable across them. */
 export const RouteHost = memo(function RouteHost({ route, scope, online, content }: RouteHostProps) {
   // The private placeholder is not page content: the lazy page that replaces it mounts a new Suspense
@@ -54,6 +61,7 @@ export const RouteHost = memo(function RouteHost({ route, scope, online, content
   const boundary = content?.kind === 'private-library' ? 'private' : 'page';
   return (
     <>
+      {content?.kind === 'discover' && <DiscoverCatalogWarmup />}
       {online && (
         <OnlineBoundary onDevice={online.onDevice} onFailedChange={online.onFailedChange}>
           <Suspense fallback={online.fallback ? <RouteFallback {...online.fallback} /> : null}>

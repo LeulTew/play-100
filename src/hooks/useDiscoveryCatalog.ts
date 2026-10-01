@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import type { DiscoveryCatalog } from '../lib/discovery-catalog';
 import type { LibraryRecord } from '../lib/personal-types';
 import { loadDiscoveryCatalog } from '../lib/discovery-loader';
@@ -28,7 +28,8 @@ export function useDiscoveryCatalog(enabled: boolean) {
     const controller = new AbortController();
     void loadDiscoveryCatalog(controller.signal)
       .then((catalog) => {
-        if (!controller.signal.aborted) setState({ status: 'ready', catalog, error: null });
+        // A loaded catalog re-renders Discover's whole result list; as a transition React renders it in slices.
+        if (!controller.signal.aborted) startTransition(() => setState({ status: 'ready', catalog, error: null }));
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
