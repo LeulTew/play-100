@@ -429,7 +429,13 @@ async function visit(browser: Browser, target: Target, options: { shell: boolean
     }
     await page.goto(`${target.origin}/`, { waitUntil: 'load', timeout: 180_000 });
     if (options.profile) {
-      await page.waitForFunction("'commitPaint' in window.__lowEnd.marks", null, { timeout: 120_000 });
+      // Polled from here: waitForFunction re-evaluates a string predicate inside the page at every poll, which a CSP
+      // without 'unsafe-eval' (production's) blocks. Each evaluate call runs as DevTools code instead.
+      const deadline = Date.now() + 120_000;
+      while (!(await page.evaluate<boolean>("'commitPaint' in window.__lowEnd.marks"))) {
+        if (Date.now() > deadline) throw new Error(`${target.name}: no React first paint within 120 s.`);
+        await page.waitForTimeout(250);
+      }
       await page.waitForTimeout(1000);
       // The profile ends at this reading, which places the page's marks on the profile's own clock.
       const stoppedAt = Math.round(await page.evaluate<number>('performance.now()'));
