@@ -83,7 +83,7 @@ function shortcuts(appId: string) {
   assert.ok(Array.isArray(value), 'Invalid shortcut inventory.');
   return value as Shortcut[];
 }
-async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean, timeout = 30000) {
+async function waitFor<T>(read: () => T | Promise<T>, accept: (value: T) => boolean, timeout = 30000) {
   const end = Date.now() + timeout;
   do {
     const value = await read();
@@ -91,6 +91,11 @@ async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean,
     await delay(250);
   } while (Date.now() < end);
   throw new Error('Timed out waiting for PWA lifecycle evidence.');
+}
+function describeFailure(value: unknown): string {
+  if (value instanceof Error) return `${value.name}: ${value.message}`;
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value) ?? typeof value;
 }
 async function appPage(browser: Browser, session: CDPSession, manifestId: string) {
   const { targetId } = await session.send('PWA.launch', { manifestId });
@@ -100,9 +105,10 @@ async function appPage(browser: Browser, session: CDPSession, manifestId: string
     let child: string | undefined;
     const receive = (event: { sessionId: string; message: string }) => {
       if (event.sessionId !== sessionId) return;
-      const message: { method?: string; params?: { targetInfo?: { type?: string; targetId?: string } } } = JSON.parse(
-        event.message,
-      );
+      const message = JSON.parse(event.message) as {
+        method?: string;
+        params?: { targetInfo?: { type?: string; targetId?: string } };
+      };
       if (
         message.method === 'Target.attachedToTarget' &&
         message.params?.targetInfo?.type === 'page' &&
@@ -125,7 +131,7 @@ async function appPage(browser: Browser, session: CDPSession, manifestId: string
         }),
       });
       const found = await waitFor(
-        async () => child,
+        () => child,
         (value) => !!value,
       );
       assert.ok(found, 'Launched tab did not expose its page target.');
@@ -260,7 +266,7 @@ export async function releasePwaOs(url: string) {
     receipt.appWindowPreference = 'standalone (temporary installed app only)';
     receipt.installedState = await session.send('PWA.getOsAppState', { manifestId });
     const installed = await waitFor(
-      async () => shortcuts(appId),
+      () => shortcuts(appId),
       (rows) => rows.some((row) => row.startMenu),
     );
     assert.ok(
@@ -325,7 +331,7 @@ export async function releasePwaOs(url: string) {
         assert.ok(session, 'No CDP session available for uninstall.');
         await session.send('PWA.uninstall', { manifestId });
         await waitFor(
-          async () => shortcuts(appId),
+          () => shortcuts(appId),
           (rows) => rows.length === 0,
         );
         let removedState = false;
@@ -363,7 +369,7 @@ export async function releasePwaOs(url: string) {
     if (expired) failure ??= new Error('The twelve-minute work deadline elapsed.');
     receipt.finishedAt = new Date().toISOString();
     receipt.status = failure ? 'HOLD' : 'PASSED';
-    if (failure) receipt.error = String(failure).replaceAll(profile, '[temporary-profile]');
+    if (failure) receipt.error = describeFailure(failure).replaceAll(profile, '[temporary-profile]');
     const output = path.join(evidence, 'receipt.json');
     const redacted = JSON.stringify(receipt, null, 2)
       .replaceAll(JSON.stringify(profile).slice(1, -1), '[temporary-profile]')
@@ -379,7 +385,7 @@ export async function releasePwaOs(url: string) {
       }),
     );
   }
-  if (failure) throw failure;
+  if (failure) throw failure instanceof Error ? failure : new Error(describeFailure(failure));
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   releasePwaOs(parseOsArguments(process.argv.slice(2))).catch((error: unknown) => {
