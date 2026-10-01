@@ -52,6 +52,11 @@
   box-shadow: 6px 8px 15px #16231530;
   transition: transform 350ms var(--ease-out);
 }
+/* A constrained device (useCapabilities) draws covers without the blurred shadow each card would raster as it scrolls
+   in. */
+html[data-constrained] .game-cover img {
+  box-shadow: none;
+}
 @media (hover: hover) and (pointer: fine) {
   html[data-motion='on'] .game-link:hover .game-cover img {
     transform: translate(-50%, -50%) rotate(0deg);
