@@ -193,10 +193,37 @@ actions on 2026-10-01:
 - **WAF: reviewed, switch scheduled.** No firewall events in the previous
   7 days. The switch to 429 runs on 2026-10-02 06:05Z (see
   [the runbook](security-release-runbook.md#vercel-waf-rate-limit-for-api-and-the-auth-helper)).
+- **Real low-end phones: tested.** Firebase Test Lab, physical devices,
+  2026-10-01 04:52Z and 05:06Z. A Game Loop harness (a WebView app, kept
+  outside the repository) opened the production site cold and logged timings
+  to logcat:
+  - **Samsung Galaxy A03s** (SM-A037U, Android 13, 2 GB, WebView Chrome 106):
+    the app works, but the first visit stays blank until the app's first
+    render, with first contentful paint at 8.0 and 8.2 s in two runs. Two of
+    the boot script's three fallback-font probes fail on this phone (display
+    677.3 px against 603.5–615.7; sans bold 1,287.6 against 1,291–1,313.3), so
+    it correctly keeps the static shell hidden; on this phone that means no
+    shell at all.
+    - Startup ran about 3–4 s of long tasks (worst 0.4–0.8 s).
+    - Scrolling measured 32–42 fps on the home page and 38–45 fps on Discover.
+    - Discover opened in about 3.2 s, The 100 in 0.9–1.4 s, My games in 0.1 s.
+  - **Samsung Galaxy A10** (SM-A105FN, Android 10, 2 GB, WebView Chrome 81,
+    below the Chromium 94 floor): the entry fails to parse
+    (`SyntaxError: Unexpected token '='`), and the boot script shows the
+    failure notice at 2.4 s, as designed.
+  - **TECNO POP 7** (Android 12): inconclusive on the lab's side.
 
-**Waivers.** As for Release 6: no physical-device, iOS Safari, screen-reader or
-OS install and launch runs; the release coordinator waived them. The real
-Google smoke is still pending action 5.
+  Follow-ups for the next round:
+  - a shell or neutral placeholder that still paints when the fallback
+    probes fail;
+  - less startup main-thread work on 2 GB phones;
+  - a notice that tells visitors on outdated browser engines to update
+    Chrome or Android System WebView.
+
+**Waivers.** As for Release 6: no iOS Safari, screen-reader or OS install and
+launch runs; the release coordinator waived them. The real-device evidence is
+the Test Lab runs above, not a hands-on session. The real mobile Google smoke
+is still pending action 5.
 
 **Known issues at release.**
 - FLAKE-01 (`tests/films.spec.ts:73`) is an open test intermittent in the native
