@@ -84,11 +84,11 @@ async function fixture(inline = '') {
   folders.push(workspace);
   const directory = path.join(workspace, 'dist');
   const contents: Record<string, string> = { ...source, 'index.html': source['index.html']! + inline };
-  for (const [file, content] of Object.entries(contents)) {
-    const target = path.join(directory, ...file.split('/'));
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, content);
-  }
+  const files = Object.entries(contents).map(([file, content]) => [path.join(directory, ...file.split('/')), content]);
+  await Promise.all(
+    [...new Set(files.map(([target]) => path.dirname(target!)))].map((dir) => mkdir(dir, { recursive: true })),
+  );
+  await Promise.all(files.map(([target, content]) => writeFile(target!, content!)));
   await mkdir(path.dirname(buildManifestPath(directory)), { recursive: true });
   await writeFile(
     buildManifestPath(directory),
@@ -142,8 +142,9 @@ async function routeFixture() {
     'assets/feature-12345678.js': 'export const feature = true;',
     'assets/feature-12345678.css': '.feature { color: teal; }',
   };
-  for (const [file, content] of Object.entries(files))
-    await writeFile(path.join(directory, ...file.split('/')), content);
+  await Promise.all(
+    Object.entries(files).map(([file, content]) => writeFile(path.join(directory, ...file.split('/')), content)),
+  );
   const manifestFile = buildManifestPath(directory);
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as Record<string, unknown>;
   Object.assign(manifest, {
@@ -718,7 +719,9 @@ describe('offline built-output budgets', () => {
     });
   });
 
-  it('costs every React.lazy() and guarded deferred root of the app', async () => {
+  // This reads the real source tree, not only the tiny build fixture: 1.58 s on the
+  // R24 Windows baseline. Allow >10x scheduling headroom without relaxing coverage.
+  it('costs every React.lazy() and guarded deferred root of the app', { timeout: 20_000 }, async () => {
     expect([...lazyRoots(), ...deferredRoots()].sort()).toEqual([...ROUTE_ROOTS].sort());
     const measured = await measureBuild(await fixture());
     expect(measured.routes.map((route) => route.root).sort()).toEqual([...ROUTE_ROOTS].sort());
