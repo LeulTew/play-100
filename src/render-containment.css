@@ -10,7 +10,13 @@
    footer always render: they are small, and skipped they showed as blank panels
    in full-page captures and fast scrolls (G7-UI UI-002). Each film keeps its
    poster frame, and its artwork still waits until the section nears the viewport
-   (CollectionFilms). */
+   (CollectionFilms).
+   Focus needs no override: auto visibility renders a card while it holds focus.
+   Making a focused card visible instead put it back under auto as focus moved
+   on, and Chromium then skipped it for a frame, at a stale remembered size, if
+   it had last seen the card off-screen. The cards after it jumped under the
+   pointer between press and release, and the click was lost
+   (unified-search.spec.ts, after a reload). */
 @media screen {
   .games-grid > .game-card:nth-child(n + 5) {
     content-visibility: auto;
@@ -28,9 +34,7 @@
     content-visibility: auto;
     contain-intrinsic-block-size: 220px;
   }
-  .games > .game-card:focus-within,
   .games > .game-card[data-compare-dragging],
-  .discovery-cards > .discovery-card:focus-within,
   .discovery-cards > .discovery-card[data-compare-dragging] {
     content-visibility: visible;
   }
