@@ -27,7 +27,9 @@ test('numeric versions and runtime/device compatibility select the exact coverag
 });
 
 test('one installed runtime is not duplicated', () => {
-  assert.equal(selectDevices({ devicetypes, runtimes: [runtime('16.4')] }, '/Xcode').include.length, 2);
+  const { include } = selectDevices({ devicetypes, runtimes: [runtime('16.4')] }, '/Xcode26', '/Xcode16');
+  assert.equal(include.length, 2);
+  assert.ok(include.every(({ developerDir }) => developerDir === '/Xcode16'));
 });
 
 test('missing runtimes or size coverage fail instead of silently skipping', () => {

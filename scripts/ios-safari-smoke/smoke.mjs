@@ -193,6 +193,9 @@ await mkdir(output, { recursive: true });
 await save();
 try {
   assert.ok(results.udid && results.runtime && results.device, 'Simulator identity is required.');
+  if (Number.parseInt(results.runtime, 10) >= 17) {
+    assert.ok(process.env.WDA_APP && process.env.WDA_BUNDLE_ID, 'Verified prebuilt simulator agent is required.');
+  }
   const deadline = Date.now() + 360_000;
   while (!session && Date.now() < deadline) {
     try {
@@ -210,6 +213,12 @@ try {
           'appium:wdaLaunchTimeout': 180_000,
           'appium:wdaStartupRetries': 1,
           'appium:showXcodeLog': true,
+          ...(Number.parseInt(results.runtime, 10) >= 17 ? {
+            'appium:usePreinstalledWDA': true,
+            'appium:prebuiltWDAPath': process.env.WDA_APP,
+            'appium:updatedWDABundleId': process.env.WDA_BUNDLE_ID,
+            'appium:updatedWDABundleIdSuffix': '',
+          } : {}),
         } },
       });
       session = created.sessionId;

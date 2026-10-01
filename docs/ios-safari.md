@@ -33,18 +33,25 @@ supports those entry types; unsupported metrics are `null`, not zero.
 
 ## Devices and runtimes
 
-The inventory job selects the newest complete stable Xcode installed on the image,
+The inventory job selects the newest stable Xcode installed on the image,
 then the newest and oldest available iOS runtimes at or above 16.4. Duplicate
 runtimes are tested once. For each, it selects iPhone SE (3rd generation)
 where supported, otherwise an iPhone mini or a supported non-Max/Plus phone,
 plus the newest supported Pro Max. Missing runtime/device coverage fails
 planning rather than quietly skipping it. `ios-simulator-inventory` contains
 the exact inventory and matrix; each device artifact records Xcode, driver
-version, runtime, UDID and returned WebDriver capabilities. The image's
-Xcode 26.3 failed WebDriverAgent builds because its simulator XCTest support
-was missing `lib_TestingInterop.dylib`. Installations at or above 26.3
-missing that library are excluded; `xcodes.json` records the exact reason.
-This excludes an incomplete toolchain, not an iOS runtime or phone.
+version, runtime, UDID and returned WebDriver capabilities.
+
+WebDriverAgent 16.12.11 is downloaded from its official simulator release
+asset with an architecture-specific SHA-256 check. iOS 17+ uses the
+preinstalled-agent path, avoiding local XCTest builds. On the current image,
+building this agent under Xcode 26.2/26.3 failed because its packaging expected
+`lib_TestingInterop.dylib`, which those Xcodes do not ship. The upstream
+[recommended prebuilt-agent workaround](https://github.com/appium/appium-xcuitest-driver/issues/2994)
+avoids modifying the agent or Xcode. If an iOS 16.4-16.x runtime is present,
+it uses the source-build path with the newest installed pre-26 Xcode instead,
+because current preinstalled-agent startup requires iOS 17+.
+`xcodes.json` and `wda.json` preserve toolchain and binary provenance.
 
 The first runner trials used Apple's `safaridriver` with `platformName: iOS`
 and `safari:useSimulator`. Navigation and screenshots worked, but element
@@ -73,7 +80,8 @@ The scheduled run is Monday at 08:00 UTC on the default branch. Inspect the
 device jobs and download the `ios-safari-*` artifacts. They are retained for
 30 days. To reproduce on a Mac, select an installed Xcode with
 `DEVELOPER_DIR`, create and boot a fresh simulator with `xcrun simctl`, install
-the pinned Appium and XCUITest versions above, start
+the pinned Appium and XCUITest versions above, download the verified simulator
+WebDriverAgent asset as in the workflow, set `WDA_APP` and `WDA_BUNDLE_ID`, start
 `appium --address 127.0.0.1 --port 4444`, set `IOS_UDID`, `IOS_DEVICE_NAME` and
 `IOS_VERSION`, then run `node scripts/ios-safari-smoke/smoke.mjs`.
 

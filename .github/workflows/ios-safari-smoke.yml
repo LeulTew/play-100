@@ -82,6 +82,24 @@ jobs:
           appium driver install xcuitest@12.13.3
           appium --version | tee ios-safari-artifacts/appium-version.txt
           appium driver list --installed 2>&1 | tee ios-safari-artifacts/appium-drivers.txt
+      - name: Download verified prebuilt simulator agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            arm64) arch=arm64; sha=fc47e5334061040c5c5da660b7d7b68bcc4e7252a06c1857fcd6bc9be18cafa3 ;;
+            x86_64) arch=x86_64; sha=33805030743aab14c59d8d5fc6436f6e840a09fa2c5ff697bb2e8f77923f7a33 ;;
+            *) echo "::error::Unsupported simulator host architecture"; exit 1 ;;
+          esac
+          url="https://github.com/appium/WebDriverAgent/releases/download/v16.12.11/WebDriverAgentRunner-Build-Sim-$arch.zip"
+          curl --fail --location --retry 3 "$url" -o "$RUNNER_TEMP/wda.zip"
+          printf '%s  %s\n' "$sha" "$RUNNER_TEMP/wda.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/wda.zip" -d "$RUNNER_TEMP/wda"
+          app="$RUNNER_TEMP/wda/WebDriverAgentRunner-Runner.app"
+          echo "WDA_APP=$app" >> "$GITHUB_ENV"
+          bundle=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
+          echo "WDA_BUNDLE_ID=$bundle" >> "$GITHUB_ENV"
+          printf '{"version":"16.12.11","url":"%s","sha256":"%s","bundleId":"%s"}\n' "$url" "$sha" "$bundle" > ios-safari-artifacts/wda.json
       - name: Exercise production in Mobile Safari
         shell: bash
         run: |
