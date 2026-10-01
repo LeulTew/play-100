@@ -205,9 +205,9 @@ export default function App() {
     enablePublicDetails: () => enableOnlineDetails({ captureFocusGuard, notify }),
     applyPwaUpdate: () => pwa.applyUpdate(captureSettingsUpdateGuard()),
     setPanel,
-    openSettings: (offline = false) => {
+    openSettings: (offline = false, opener?: HTMLElement) => {
       setOfflineSettings(offline);
-      setPanel('settings');
+      setPanel('settings', opener);
     },
     dismissPanelMessage: appPanel.dismissPanelMessage,
     closeManualLink,
@@ -335,6 +335,7 @@ export default function App() {
                         gamesView,
                         publicHandle: url.publicHandle,
                         openGame: url.openGame,
+                        getGameOpener: url.getGameOpener,
                         closeGame,
                         openProfile: url.openProfile,
                         updateFilters: url.updateFilters,

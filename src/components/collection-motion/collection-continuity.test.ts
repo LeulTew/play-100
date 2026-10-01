@@ -317,6 +317,11 @@ describe('collection continuity preserves the public presentation', () => {
     );
     const rationale = renderToStaticMarkup(h('p', { className: 'rationale' }, game.rationale));
     expect(html).toContain(rationale);
+    expect(html.split(rationale)).toHaveLength(2);
+    const dialog = html.match(/<dialog\b[^>]*>/)?.[0];
+    expect(dialog).toContain('aria-labelledby="game-title"');
+    expect(dialog).not.toContain('aria-describedby');
+    expect(dialog).not.toContain('aria-description');
     expect(html.match(/Why it made the list/g)).toHaveLength(1);
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Existing saved copies'));
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Play later'));

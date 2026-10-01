@@ -12,7 +12,7 @@ export function RecordIdentity({
 }: {
   record: LibraryRecord;
   artwork?: CatalogArtwork | null;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, opener?: HTMLElement) => void;
   compareDrag?: CompareTitleBinding;
 }) {
   const providerArtwork = record.source === 'collection' ? null : artwork;
@@ -25,7 +25,7 @@ export function RecordIdentity({
           {...compareDrag?.titleProps}
           onClick={(event) => {
             if (event.defaultPrevented || compareDrag?.consumeClick(event)) return;
-            onOpen(record.id);
+            onOpen(record.id, event.currentTarget);
           }}
         >
           {record.title}

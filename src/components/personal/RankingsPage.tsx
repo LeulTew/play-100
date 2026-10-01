@@ -26,7 +26,7 @@ export interface RankingsPageProps {
   persistent: boolean;
   animate: boolean;
   onAction: (action: PersonalAction) => Promise<boolean>;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, opener?: HTMLElement) => void;
   onDiscover: () => void;
   onPublish?: () => void;
   embedded?: boolean;

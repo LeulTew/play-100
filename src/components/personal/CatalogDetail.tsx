@@ -4,6 +4,7 @@ import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import type { MotionOriginLease } from '../../motion';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { Dialog } from '../Dialog';
+import { visibleGameTrigger } from '../../lib/dialog-focus';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
 import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
@@ -29,6 +30,7 @@ export interface CatalogDetailProps {
   motionOrigin?: MotionOriginLease;
   publicLookup?: PublicCatalogLookup;
   onClose: () => void;
+  getOpener?: () => HTMLElement | null;
   onAction: (action: PersonalAction) => Promise<boolean>;
   onRankings: () => void;
 }
@@ -46,6 +48,7 @@ export default function CatalogDetail({
   motionOrigin,
   publicLookup,
   onClose,
+  getOpener,
   onAction,
   onRankings,
 }: CatalogDetailProps) {
@@ -100,6 +103,8 @@ export default function CatalogDetail({
       open
       titleId="catalog-game-title"
       onClose={onClose}
+      getOpener={getOpener}
+      getFallbackFocus={() => visibleGameTrigger(record.id)}
       className="info-dialog catalog-detail-dialog"
       motion={{ preset: 'dialog', continuity: { target: artRef, lease: motionOrigin } }}
     >

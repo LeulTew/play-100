@@ -33,7 +33,7 @@ export default function ExtendedResults({
   selecting: boolean;
   selected: Set<string>;
   onSelect: (id: string) => void;
-  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onPin?: (record: LibraryRecord) => void;
   pinnedIds?: ReadonlySet<string>;
   onAction: (action: PersonalAction) => Promise<boolean>;

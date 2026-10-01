@@ -11,7 +11,7 @@ import { PersonalRatingInput } from './personal/PersonalRatingInput';
 import { useLibraryMode } from '../lib/library-mode';
 import { flushPendingEdits } from '../hooks/useExitSave';
 import { useNavigationScope } from '../hooks/useNavigationScope';
-import { focusPendingEditor } from '../lib/dialog-focus';
+import { focusPendingEditor, visibleGameTrigger } from '../lib/dialog-focus';
 import type { MotionOriginLease } from '../motion';
 
 interface GameDetailProps {
@@ -34,6 +34,7 @@ interface GameDetailProps {
   onRate: (score: number | null) => Promise<boolean>;
   savedCopies?: ReactNode;
   motionOrigin?: MotionOriginLease;
+  getOpener?: () => HTMLElement | null;
 }
 
 export function GameDetail({
@@ -56,6 +57,7 @@ export function GameDetail({
   onRate,
   savedCopies,
   motionOrigin,
+  getOpener,
 }: GameDetailProps) {
   const mode = useLibraryMode();
   const topRef = useRef<HTMLDivElement>(null);
@@ -116,6 +118,8 @@ export function GameDetail({
       open
       titleId="game-title"
       onClose={onClose}
+      getOpener={getOpener}
+      getFallbackFocus={() => visibleGameTrigger(game.slug)}
       className="game-dialog"
       motion={motionOrigin ? { preset: 'sheet', continuity: { lease: motionOrigin, target: artworkRef } } : false}
     >

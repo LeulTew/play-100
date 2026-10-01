@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { createSearch, PAGE_PATHS, pageFromPath, parseUrl } from '../lib/url';
 import type { AppPage, Filters } from '../lib/types';
 import {
@@ -28,6 +28,7 @@ function getSnapshot(): string {
 }
 
 export function useUrlState() {
+  const gameOpener = useRef<{ target: HTMLElement; path: string } | null>(null);
   const location = useSyncExternalStore(subscribe, getSnapshot, () => '/');
   const queryAt = location.indexOf('?');
   const path = queryAt < 0 ? location : location.slice(0, queryAt);
@@ -68,8 +69,9 @@ export function useUrlState() {
   );
 
   const openGame = useCallback(
-    (slug: string) => {
+    (slug: string, opener?: HTMLElement) => {
       const current = parseUrl(window.location.search);
+      if (!current.game) gameOpener.current = opener ? { target: opener, path: window.location.pathname } : null;
       const state = historyState();
       navigate(gameDetailSearch(window.location.search, slug), current.game ? 'replace' : 'push', {
         ...state,
@@ -77,6 +79,11 @@ export function useUrlState() {
       });
     },
     [navigate],
+  );
+
+  const getGameOpener = useCallback(
+    () => (gameOpener.current?.path === window.location.pathname ? gameOpener.current.target : null),
+    [],
   );
 
   const closeGame = useCallback(() => {
@@ -138,6 +145,7 @@ export function useUrlState() {
     publicHandle: page === 'profile' ? (path.split('/')[2] ?? '') : '',
     updateFilters,
     openGame,
+    getGameOpener,
     closeGame,
     goToPage,
     openProfile,

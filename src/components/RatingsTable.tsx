@@ -15,6 +15,7 @@ import { useNavigationScope } from '../hooks/useNavigationScope';
 import { flushPendingEdits } from '../hooks/useExitSave';
 import { useLibraryMode } from '../lib/library-mode';
 import { focusPendingEditor } from '../lib/dialog-focus';
+import type { MotionOriginHint } from '../motion';
 
 interface RatingsTableProps {
   games: Game[];
@@ -24,7 +25,7 @@ interface RatingsTableProps {
   selected: ReadonlySet<string>;
   busy: boolean;
   onSelect: (id: string) => void;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onToggle: (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => void;
   onSort: (patch: Partial<Filters>) => void;
   getCompareRecord?: (game: Game) => LibraryRecord;
@@ -319,7 +320,7 @@ function RatingsGameLink({
 }: {
   game: Game;
   filters: Filters;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   compareRecord?: LibraryRecord;
 }) {
   const sourceRef = useRef<HTMLAnchorElement>(null);
@@ -334,7 +335,7 @@ function RatingsGameLink({
         if (event.defaultPrevented || compareDrag.consumeClick(event)) return;
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
         event.preventDefault();
-        onOpen(game.slug);
+        onOpen(game.slug, undefined, event.currentTarget);
       }}
     >
       <span className="table-inline-rank" aria-hidden="true">

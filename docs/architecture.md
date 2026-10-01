@@ -8,6 +8,21 @@ previews and account state. It composes `MotionProvider`, `AppMotionBindings`,
 [RouteHost](../src/components/app/RouteHost.tsx) selects page content and loads
 the online controller lazily. [DialogHost](../src/components/app/DialogHost.tsx)
 renders the selected detail or utility dialog without owning its saved data.
+Dialog activation carries its actual link or button separately from motion
+origins and DOM focus. A screen reader's browse-mode click need not focus that
+element first. Detail navigation retains the original opener through Next and
+Previous; URL-based openings use a matching rendered card when available.
+Settings, About and Menu retain their initial trigger through delayed loads.
+Closing prefers the recorded opener without scrolling, while a missing opener
+uses the existing visible, scoped fallback and reveal behavior.
+
+The intended initial heading or safe action has native `autofocus` before
+`showModal()`. A fallback focus call runs only if the browser did not focus it,
+avoiding the former transient Close-button focus followed by heading focus.
+Multi-paragraph game details keep only their heading as the accessible dialog
+name, without a body-text description. Their rationale and source notes remain
+in the reading order exactly once; optional short descriptions for other dialog
+types remain supported.
 Collection search publishes its current matches to a shell-local value store,
 not shell state. Only a mounted canonical detail subscribes, selecting the
 current query's records; typing and background matches do not repaint the

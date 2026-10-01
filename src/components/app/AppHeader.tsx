@@ -18,7 +18,7 @@ export interface AppHeaderProps {
   pageHref: (page: AppPage) => string;
   onNavigateLink: (event: MouseEvent<HTMLAnchorElement>, page: AppPage) => void;
   onQueue: () => void;
-  onMenu: () => void;
+  onMenu: (opener?: HTMLElement) => void;
   onAccount: () => void;
   onIntent?: (page: AppPage) => void;
 }
@@ -117,7 +117,12 @@ export function AppHeader({
         >
           <Icon name="download" />
         </a>
-        <button className="menu-nav" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={onMenu}>
+        <button
+          className="menu-nav"
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          onClick={(event) => onMenu(event.currentTarget)}
+        >
           <Icon name="menu" width="20" height="20" />
           Menu
         </button>

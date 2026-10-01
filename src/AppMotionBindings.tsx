@@ -24,9 +24,9 @@ interface OriginTicket extends PreparedPreview {
 }
 
 export interface MotionBindings {
-  openCollection: (slug: string, hint?: MotionOriginHint) => void;
-  preview: (record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint) => void;
-  previewFromDiscover: (record: LibraryRecord, hint?: MotionOriginHint) => void;
+  openCollection: (slug: string, hint?: MotionOriginHint, opener?: HTMLElement) => void;
+  preview: (record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint, opener?: HTMLElement) => void;
+  previewFromDiscover: (record: LibraryRecord, hint?: MotionOriginHint, opener?: HTMLElement) => void;
   origin: MotionOriginLease | undefined;
   interaction: CompareInteractionGate;
 }
@@ -50,7 +50,7 @@ export function AppMotionBindings({
   motionLocation: MotionLocation;
   navigation: Readonly<{ current: number }>;
   blocked: boolean;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, opener?: HTMLElement) => void;
   preparePreview: (record: LibraryRecord, authority?: PreviewAuthority) => PreparedPreview | null;
   children: (bindings: MotionBindings) => ReactNode;
 }) {
@@ -102,26 +102,26 @@ export function AppMotionBindings({
   );
 
   const openCollection = useCallback(
-    (slug: string, hint?: MotionOriginHint) => {
+    (slug: string, hint?: MotionOriginHint, opener?: HTMLElement) => {
       capture({ requestedDetailKey: slug, displayedDetailKey: slug }, hint);
-      onOpen(slug);
+      onOpen(slug, opener);
     },
     [capture, onOpen],
   );
 
   const preview = useCallback(
-    (record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint) => {
+    (record: LibraryRecord, authority?: PreviewAuthority, hint?: MotionOriginHint, opener?: HTMLElement) => {
       const intent = preparePreview(record, authority);
       if (!intent) return;
       capture(intent, hint, authority);
-      onOpen(intent.requestedDetailKey);
+      onOpen(intent.requestedDetailKey, opener);
     },
     [preparePreview, capture, onOpen],
   );
 
   const previewFromDiscover = useCallback(
-    (record: LibraryRecord, hint?: MotionOriginHint) => {
-      preview(record, undefined, hint);
+    (record: LibraryRecord, hint?: MotionOriginHint, opener?: HTMLElement) => {
+      preview(record, undefined, hint, opener);
     },
     [preview],
   );

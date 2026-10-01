@@ -4,7 +4,7 @@ let originalPadding = '';
 
 export function showLockedDialog(
   dialog: Pick<HTMLDialogElement, 'showModal'>,
-  focusTarget: Pick<HTMLElement, 'focus'> | null,
+  focusTarget: Pick<HTMLElement, 'focus' | 'autofocus'> | null,
 ) {
   // Read before showModal invalidates the document for native modal inertness.
   const firstLock = bodyLocks === 0;
@@ -13,17 +13,26 @@ export function showLockedDialog(
     originalOverflow = document.body.style.overflow;
     originalPadding = document.body.style.paddingRight;
   }
-  dialog.showModal();
+  const autofocus = focusTarget?.autofocus ?? false;
+  // Avoid a transient first-control announcement before the intended heading or safe action.
+  if (focusTarget) focusTarget.autofocus = true;
+  try {
+    dialog.showModal();
+  } catch (error) {
+    if (focusTarget) focusTarget.autofocus = autofocus;
+    throw error;
+  }
   if (firstLock) {
     document.body.style.overflow = 'hidden';
     if (gap > 0) document.body.style.paddingRight = `${gap}px`;
   }
   bodyLocks += 1;
-  focusTarget?.focus({ preventScroll: true });
+  if (focusTarget && !Object.is(document.activeElement, focusTarget)) focusTarget.focus({ preventScroll: true });
   let released = false;
   return () => {
     if (released) return;
     released = true;
+    if (focusTarget) focusTarget.autofocus = autofocus;
     bodyLocks -= 1;
     if (bodyLocks === 0) {
       document.body.style.overflow = originalOverflow;

@@ -44,8 +44,8 @@ export interface AppCommands {
   performDetailAction: (action: PersonalAction) => Promise<boolean>;
   enablePublicDetails: () => Promise<void>;
   applyPwaUpdate: () => ReturnType<ReturnType<typeof usePwa>['applyUpdate']>;
-  setPanel: (next: AppPanel) => void;
-  openSettings: (offline?: boolean) => void;
+  setPanel: (next: AppPanel, opener?: HTMLElement) => void;
+  openSettings: (offline?: boolean, opener?: HTMLElement) => void;
   dismissPanelMessage: () => void;
   closeManualLink: () => void;
   onDevice: () => void;
@@ -70,6 +70,8 @@ export interface AppModel {
   selectedSlug: string | null;
   publicHandle: string;
   openGame: UrlState['openGame'];
+  getGameOpener: UrlState['getGameOpener'];
+  getPanelOpener: () => HTMLElement | null;
   closeGame: UrlState['closeGame'];
   openProfile: UrlState['openProfile'];
   updateFilters: UrlState['updateFilters'];

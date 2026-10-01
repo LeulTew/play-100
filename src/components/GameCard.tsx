@@ -17,7 +17,7 @@ interface GameCardProps {
   game: Game;
   filters: Filters;
   state: PersonalProgress | undefined;
-  onOpen: (slug: string, origin?: MotionOriginHint) => void;
+  onOpen: (slug: string, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onSave: (slug: string) => void;
   onPlayed: (slug: string, value: boolean) => void;
   onCompleted: (slug: string, value: boolean) => void;
@@ -76,7 +76,7 @@ export const GameCard = memo(function GameCard({
                 visual: { kind: 'jacket', rank: game.rank, variant: game.rank % 5 },
               })
             : null;
-          onOpen(game.slug, origin ?? undefined);
+          onOpen(game.slug, origin ?? undefined, event.currentTarget);
         }}
       >
         <span className="sr-only">

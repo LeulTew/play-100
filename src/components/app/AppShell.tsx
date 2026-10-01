@@ -99,9 +99,9 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
     onQueue: () => {
       void commands.guardedNavigation(() => commands.navigate('library', { list: 'later' }));
     },
-    onMenu: () => commands.setPanel('menu'),
-    onSettings: () => commands.setPanel('settings'),
-    onAbout: () => commands.setPanel('about'),
+    onMenu: (opener?: HTMLElement) => commands.setPanel('menu', opener),
+    onSettings: (opener?: HTMLElement) => commands.setPanel('settings', opener),
+    onAbout: (opener?: HTMLElement) => commands.setPanel('about', opener),
     onBrowseLink: (event: Parameters<AppModel['commands']['navigateLink']>[0]) => {
       void commands.navigateLink(event, 'collection', {}, commands.browse);
     },

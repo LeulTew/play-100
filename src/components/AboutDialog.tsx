@@ -5,9 +5,11 @@ import { author } from '../lib/author';
 export function AboutDialog({
   onClose,
   getReturnFocus,
+  getOpener,
 }: {
   onClose: () => void;
   getReturnFocus?: () => HTMLElement | null;
+  getOpener?: () => HTMLElement | null;
 }) {
   return (
     <Dialog
@@ -15,6 +17,7 @@ export function AboutDialog({
       titleId="about-title"
       onClose={onClose}
       getReturnFocus={getReturnFocus}
+      getOpener={getOpener}
       className="info-dialog"
       motion={{ preset: 'dialog', enterMs: 160 }}
     >

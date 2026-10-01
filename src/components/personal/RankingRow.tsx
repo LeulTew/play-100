@@ -37,7 +37,7 @@ export function RankingRow({
   completed: boolean;
   busy: boolean;
   active: boolean;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, opener?: HTMLElement) => void;
   onAction: (action: PersonalAction) => Promise<boolean>;
   position: number;
   total: number;

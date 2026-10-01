@@ -39,6 +39,7 @@ function fixture(gap = 15) {
     }),
   };
   const target = {
+    autofocus: false,
     focus: vi.fn(() => {
       calls.push('focus');
     }),
@@ -53,13 +54,40 @@ describe('native dialog body-lock phases', () => {
     try {
       expect(calls).toEqual(['measure', 'showModal', 'overflow:hidden', 'padding:15px', 'focus']);
       expect(target.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+      expect(target.autofocus).toBe(true);
     } finally {
       release();
     }
     expect(style).toMatchObject({ overflow: 'clip', paddingRight: '3px' });
+    expect(target.autofocus).toBe(false);
     const count = calls.length;
     release();
     expect(calls).toHaveLength(count);
+  });
+
+  it('lets showModal focus the intended heading natively without a second focus event', () => {
+    const { calls, dialog, target } = fixture();
+    dialog.showModal.mockImplementation(() => {
+      expect(target.autofocus).toBe(true);
+      calls.push('showModal');
+      Object.assign(document, { activeElement: target });
+    });
+    const release = showLockedDialog(dialog, target);
+    try {
+      expect(target.focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(target);
+    } finally {
+      release();
+    }
+    expect(target.autofocus).toBe(false);
+  });
+
+  it('preserves an explicit autofocus attribute after native dialog cleanup', () => {
+    const { dialog, target } = fixture();
+    target.autofocus = true;
+    const release = showLockedDialog(dialog, target);
+    release();
+    expect(target.autofocus).toBe(true);
   });
 
   it('does not measure or replace the original body styles for a nested lock', () => {
@@ -102,6 +130,7 @@ describe('native dialog body-lock phases', () => {
       ),
     ).toThrow('Native open failed');
     expect(calls).toEqual(['measure']);
+    expect(target.autofocus).toBe(false);
     const release = showLockedDialog(dialog, target);
     try {
       expect(calls.filter((call) => call === 'measure')).toHaveLength(2);

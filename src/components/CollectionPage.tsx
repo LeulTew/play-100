@@ -37,8 +37,8 @@ interface CollectionPageProps {
   constrained: boolean;
   onFilters: (patch: Partial<Filters>, method?: 'push' | 'replace') => void;
   onAction: (action: PersonalAction) => Promise<boolean>;
-  onOpen: (id: string, origin?: MotionOriginHint) => void;
-  onPreview: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  onOpen: (id: string, origin?: MotionOriginHint, opener?: HTMLElement) => void;
+  onPreview: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onShare: () => void;
   onFullLibrary: () => void;
   notify: (message: string) => void;
@@ -128,7 +128,11 @@ function CollectionPage({
                 <Icon name="down" width="19" height="19" />
               </a>
               <Magnet disabled={!animate || coarsePointer}>
-                <button className="button button-quiet" onClick={pick} disabled={!games}>
+                <button
+                  className="button button-quiet"
+                  onClick={(event) => pick(event.currentTarget)}
+                  disabled={!games}
+                >
                   <Icon name="shuffle" width="19" height="19" />
                   Pick for me
                 </button>
