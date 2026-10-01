@@ -62,7 +62,7 @@ test.beforeEach(async ({ context, page, baseURL }) => {
 });
 
 for (const width of [390, 1280]) {
-  test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the heading`, async ({
+  test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the rendered card`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -78,7 +78,7 @@ for (const width of [390, 1280]) {
     await page.goto(`/?game=${first.id}&catalogs=off`);
     await expect(page.locator('#game-title')).toBeFocused();
     await page.keyboard.press('Escape');
-    await expect(page.locator('#collection-title')).toBeFocused();
+    await expect(page.locator(`[data-game="${first.id}"] .game-link`)).toBeFocused();
     const footer = page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true });
     await footer.click();
     await expect(page.locator('#about-title')).toBeFocused();
