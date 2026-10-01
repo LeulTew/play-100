@@ -709,7 +709,7 @@
   font-size: 14px;
   line-height: 1.5;
   content-visibility: auto;
-  contain-intrinsic-size: auto 46px;
+  contain-intrinsic-size: 46px;
 }
 .publication-preview-list > li > span {
   min-width: 0;
