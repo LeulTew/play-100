@@ -94,6 +94,47 @@ async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean,
 }
 async function appPage(browser: Browser, session: CDPSession, manifestId: string) {
   const { targetId } = await session.send('PWA.launch', { manifestId });
+  let pageTargetId = targetId;
+  if ((await session.send('Target.getTargetInfo', { targetId })).targetInfo.type === 'tab') {
+    const { sessionId } = await session.send('Target.attachToTarget', { targetId, flatten: false });
+    let child: string | undefined;
+    const receive = (event: { sessionId: string; message: string }) => {
+      if (event.sessionId !== sessionId) return;
+      const message: { method?: string; params?: { targetInfo?: { type?: string; targetId?: string } } } = JSON.parse(
+        event.message,
+      );
+      if (
+        message.method === 'Target.attachedToTarget' &&
+        message.params?.targetInfo?.type === 'page' &&
+        typeof message.params.targetInfo.targetId === 'string'
+      )
+        child = message.params.targetInfo.targetId;
+    };
+    session.on('Target.receivedMessageFromTarget', receive);
+    try {
+      await session.send('Target.sendMessageToTarget', {
+        sessionId,
+        message: JSON.stringify({
+          id: 1,
+          method: 'Target.setAutoAttach',
+          params: {
+            autoAttach: true,
+            waitForDebuggerOnStart: false,
+            flatten: false,
+          },
+        }),
+      });
+      const found = await waitFor(
+        async () => child,
+        (value) => !!value,
+      );
+      assert.ok(found, 'Launched tab did not expose its page target.');
+      pageTargetId = found;
+    } finally {
+      session.off('Target.receivedMessageFromTarget', receive);
+      await session.send('Target.detachFromTarget', { sessionId });
+    }
+  }
   const observed: string[] = [];
   return waitFor(
     async () => {
@@ -103,7 +144,7 @@ async function appPage(browser: Browser, session: CDPSession, manifestId: string
           try {
             const info = (await cdp.send('Target.getTargetInfo')).targetInfo;
             if (!observed.includes(info.targetId)) observed.push(info.targetId);
-            if (isLaunchedAppTarget(info, targetId)) return page;
+            if (isLaunchedAppTarget(info, pageTargetId)) return page;
           } finally {
             await cdp.detach();
           }
