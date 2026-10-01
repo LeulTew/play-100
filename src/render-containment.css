@@ -1,5 +1,10 @@
-/* Native auto visibility retains find-in-page, focus and anchors. Remember the
-   real block size after first layout; estimates apply only to unvisited content.
+/* Native auto visibility retains find-in-page, focus and anchors. A skipped card
+   takes its estimated block size. The estimates are plain lengths, not "auto":
+   to remember sizes, Chromium observes every such card with a ResizeObserver of
+   its own. Chrome 106 delivered it in the page's loop, after the page's own
+   observers (later versions deliver it first), and on a Galaxy A03s's WebView
+   that loop reported "ResizeObserver loop limit exceeded" as each card list
+   first laid out.
    Keep the hero, first row, tables, sortable lists and dialog hosts uncontained.
    Only the long card lists are contained. The landing's films, workbook and
    footer always render: they are small, and skipped they showed as blank panels
@@ -9,19 +14,19 @@
 @media screen {
   .games-grid > .game-card:nth-child(n + 5) {
     content-visibility: auto;
-    contain-intrinsic-block-size: auto 430px;
+    contain-intrinsic-block-size: 430px;
   }
   .games-list > .game-card:nth-child(n + 5) {
     content-visibility: auto;
-    contain-intrinsic-block-size: auto 170px;
+    contain-intrinsic-block-size: 170px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
     content-visibility: auto;
-    contain-intrinsic-block-size: auto 400px;
+    contain-intrinsic-block-size: 400px;
   }
   .discovery-cards-list > .discovery-card:nth-child(n + 5) {
     content-visibility: auto;
-    contain-intrinsic-block-size: auto 220px;
+    contain-intrinsic-block-size: 220px;
   }
   .games > .game-card:focus-within,
   .games > .game-card[data-compare-dragging],
@@ -32,20 +37,20 @@
 }
 @media screen and (min-width: 761px) and (max-width: 1150px) {
   .games-grid > .game-card:nth-child(n + 5) {
-    contain-intrinsic-block-size: auto 400px;
+    contain-intrinsic-block-size: 400px;
   }
 }
 @media screen and (max-width: 760px) {
   .games-grid > .game-card:nth-child(n + 5) {
-    contain-intrinsic-block-size: auto 370px;
+    contain-intrinsic-block-size: 370px;
   }
   .games-list > .game-card:nth-child(n + 5) {
-    contain-intrinsic-block-size: auto 240px;
+    contain-intrinsic-block-size: 240px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
-    contain-intrinsic-block-size: auto 420px;
+    contain-intrinsic-block-size: 420px;
   }
   .discovery-cards-list > .discovery-card:nth-child(n + 5) {
-    contain-intrinsic-block-size: auto 280px;
+    contain-intrinsic-block-size: 280px;
   }
 }
