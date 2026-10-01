@@ -356,7 +356,10 @@ export const median = (values: number[]) => {
   const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
   if (!sorted.length) return null;
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  const upper = sorted[middle];
+  const lower = sorted[middle - 1];
+  if (upper === undefined) return null;
+  return sorted.length % 2 || lower === undefined ? upper : (lower + upper) / 2;
 };
 
 export const pick = (record: Measurement, key: string): number => {
@@ -429,15 +432,15 @@ async function visit(browser: Browser, target: Target, options: { shell: boolean
       await page.waitForFunction("'commitPaint' in window.__lowEnd.marks", null, { timeout: 120_000 });
       await page.waitForTimeout(1000);
       // The profile ends at this reading, which places the page's marks on the profile's own clock.
-      const stoppedAt = Math.round((await page.evaluate('performance.now()')) as number);
+      const stoppedAt = Math.round(await page.evaluate<number>('performance.now()'));
       const { profile } = await cdp.send('Profiler.stop');
-      const marks = { ...((await page.evaluate('window.__lowEnd.marks')) as Measurement), stoppedAt };
+      const marks = { ...(await page.evaluate<Measurement>('window.__lowEnd.marks')), stoppedAt };
       writeFileSync(`${options.profile}.cpuprofile`, JSON.stringify(profile));
       writeFileSync(`${options.profile}.marks.json`, JSON.stringify(marks));
       return { profile: `${options.profile}.cpuprofile`, ...marks };
     }
     await page.waitForTimeout(6000);
-    const result = (await page.evaluate(DRIVER)) as Measurement;
+    const result = await page.evaluate<Measurement>(DRIVER);
     result.phases = phaseTasks(
       (result.steps ?? {}) as Record<string, number>,
       (result.longTaskList ?? []) as [number, number][],

@@ -88,7 +88,7 @@ export function scheduleTrayMetrics(
   };
   return {
     now,
-    resized() {
+    resized: () => {
       if (measured.current) now();
       else pending ??= schedule(now);
     },
