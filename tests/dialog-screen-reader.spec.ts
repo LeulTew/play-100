@@ -21,9 +21,24 @@ async function activateWithoutFocus(page: Page, target: Locator) {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   });
   expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BODY');
-  const before = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
-  await target.evaluate((element: HTMLElement) => element.click());
-  return before;
+  // Scrolling to the footer first lays out skipped cards and anchors the viewport.
+  // Compare the dialog with the settled click position, not that earlier estimate.
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const before = [scrollX, scrollY, document.documentElement.scrollHeight];
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return [scrollX, scrollY, document.documentElement.scrollHeight].every(
+          (value, index) => value === before[index],
+        );
+      }),
+    )
+    .toBe(true);
+  return target.evaluate((element: HTMLElement) => {
+    const before = { x: scrollX, y: scrollY };
+    element.click();
+    return before;
+  });
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
@@ -145,8 +160,44 @@ for (const destination of ['Menu', 'Settings', 'About']) {
     await expect(dialog).toHaveCount(0);
     await expect(opener).toBeFocused();
     expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(scroll);
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
+    expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(scroll);
   });
 }
+
+test('footer return keeps exact scroll with unremembered skipped-card height estimates', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  await expect(page.locator('.game-card')).toHaveCount(24);
+  await page.evaluate(() => {
+    const card = document.querySelector('.games-grid > .game-card:nth-child(5)');
+    if (!card) throw new Error('Expected a contained collection card.');
+    const estimate = getComputedStyle(card).containIntrinsicBlockSize.replace(/^auto\s+/, '');
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(`.games-grid > .game-card:nth-child(n + 5) { contain-intrinsic-block-size: ${estimate}; }`);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  });
+  for (const destination of ['Settings', 'About']) {
+    const opener = page.locator('.site-footer').getByRole('button', {
+      name: destination === 'About' ? 'About & credits' : /^Effects:/,
+    });
+    const scroll = await activateWithoutFocus(page, opener);
+    const dialog = page.getByRole('dialog', {
+      name: destination === 'About' ? 'About & credits' : 'Settings & backups',
+      exact: true,
+    });
+    await expect(dialog.locator('[data-autofocus]')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(scroll);
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
+    expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(scroll);
+  }
+});
 
 for (const destination of ['Settings & backups', 'About & credits']) {
   test(`browse-mode Menu to ${destination} retains the original Menu opener`, async ({ page }) => {
