@@ -1,0 +1,103 @@
+name: iOS Safari smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1'
+  push:
+    branches: [leultew-r24-ios-smoke]
+    paths:
+      - .github/workflows/ios-safari-smoke.yml
+      - scripts/ios-safari-smoke/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-safari-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  devices:
+    runs-on: macos-15
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.2'
+      - name: Select installed iOS runtimes and iPhones
+        id: plan
+        run: |
+          node --test scripts/ios-safari-smoke/plan.test.mjs
+          node scripts/ios-safari-smoke/plan.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: ios-simulator-inventory
+          path: ios-safari-artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+  safari:
+    needs: devices
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.devices.outputs.matrix) }}
+    name: ${{ matrix.label }}
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: ${{ matrix.developerDir }}
+      IOS_RUNTIME: ${{ matrix.runtime }}
+      IOS_VERSION: ${{ matrix.version }}
+      IOS_DEVICE_TYPE: ${{ matrix.deviceType }}
+      IOS_DEVICE_NAME: ${{ matrix.deviceName }}
+      IOS_LABEL: ${{ matrix.label }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.2'
+      - name: Boot a fresh iPhone
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ios-safari-artifacts
+          xcodebuild -version | tee ios-safari-artifacts/xcode.txt
+          /usr/bin/safaridriver --version | tee ios-safari-artifacts/safaridriver-version.txt
+          udid=$(xcrun simctl create "Play 100 smoke" "$IOS_DEVICE_TYPE" "$IOS_RUNTIME")
+          echo "IOS_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          sudo /usr/bin/safaridriver --enable
+      - name: Exercise production in Mobile Safari
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/safaridriver --port 4444 > ios-safari-artifacts/safaridriver.log 2>&1 &
+          driver_pid=$!
+          trap 'kill "$driver_pid" 2>/dev/null || true' EXIT
+          node scripts/ios-safari-smoke/smoke.mjs
+      - name: Capture simulator on failure
+        if: failure() && env.IOS_UDID != ''
+        run: xcrun simctl io "$IOS_UDID" screenshot ios-safari-artifacts/simulator-failure.png
+      - name: Upload screenshots, results and diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-safari-${{ matrix.label }}
+          path: |
+            ios-safari-artifacts/
+            ~/Library/Logs/com.apple.WebDriver/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Shut down the test simulator
+        if: always() && env.IOS_UDID != ''
+        run: xcrun simctl shutdown "$IOS_UDID"
