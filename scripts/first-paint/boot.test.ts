@@ -61,6 +61,8 @@ interface BootEnvironment {
   webProbes?: Readonly<Record<string, { width: number; height: number }>>;
   /** Gives the document document.fonts, whose loads the test settles with fontsLoaded(). */
   fonts?: boolean;
+  /** What document.fonts.check() reports once the loads have settled: by default whether they loaded. */
+  fontsChecked?: boolean;
   /** Object.hasOwn is missing, as in engines below Chromium 93. */
   withoutHasOwn?: boolean;
 }
@@ -147,12 +149,22 @@ function run(environment: BootEnvironment = {}) {
   const errorListeners: ((event: unknown) => void)[] = [];
   const frames: (() => void)[] = [];
   const fontLoads: string[] = [];
+  const fontChecks: string[] = [];
+  let fontsInUse = false;
   let settleFonts: (loaded: boolean) => void = () => undefined;
   const fontsReady = new Promise<void>((resolve, reject) => {
-    settleFonts = (loaded) => (loaded ? resolve() : reject(new Error('A font failed to load.')));
+    settleFonts = (loaded) => {
+      fontsInUse = environment.fontsChecked ?? loaded;
+      if (loaded) resolve();
+      else reject(new Error('A font failed to load.'));
+    };
   });
   fontsReady.catch(() => undefined);
   const fonts = {
+    check: (font: string) => {
+      fontChecks.push(font);
+      return fontsInUse;
+    },
     load: (font: string) => {
       fontLoads.push(font);
       return fontsReady;
@@ -290,6 +302,7 @@ function run(environment: BootEnvironment = {}) {
     alerts,
     copies,
     fontLoads,
+    fontChecks,
     /** The web font loads settle, and the boot script's callbacks run. */
     fontsLoaded: async (loaded = true) => {
       settleFonts(loaded);
@@ -872,8 +885,50 @@ describe('first-paint web-font retry', () => {
     expect(result.inserted()).toEqual([...STARTUP, ENTRY]);
   });
 
+  // The Galaxy A03s's web fonts after loading (Test Lab, WebView 106 at DPR 1.75): whole-pixel advances leave the
+  // display string 0.5% short of the fallback range and the sans string 0.8% over it.
+  const A03S_WEB = {
+    'p100-probe-display': { width: 600.6, height: 120 },
+    'p100-probe-sans': { width: 948.9, height: 130.3 },
+    'p100-probe-sans-bold': { width: 1302.3, height: 130.3 },
+  };
+
+  it('accepts the web fonts the Galaxy A03s measures, which the fallback ranges reject', async () => {
+    expect(run({ probes: A03S_WEB }).attributes, 'the fallback ranges are strict').toEqual({});
+    const result = waiting({ webProbes: A03S_WEB });
+    await result.fontsLoaded();
+    expect(result.fontChecks).toEqual(result.fontLoads);
+    expect(result.attributes).toEqual({ 'data-boot-art': 'pending', 'data-boot': 'landing' });
+  });
+
+  it.each([
+    ['display', 594.3, true],
+    ['display', 594.4, false],
+    ['display', 624.8, false],
+    ['display', 624.9, true],
+    ['sans', 909, true],
+    ['sans', 955.8, true],
+    ['sans-bold', 1269.5, true],
+    ['sans-bold', 1334.8, true],
+  ] as const)(
+    'holds the web %s width %d to 2.5% of the expected width (rejected: %s)',
+    async (probe, width, rejected) => {
+      const webProbes = { ...A03S_WEB, [`p100-probe-${probe}`]: { ...A03S_WEB[`p100-probe-${probe}`], width } };
+      const result = waiting({ webProbes });
+      await result.fontsLoaded();
+      expect(result.attributes).toEqual(rejected ? {} : { 'data-boot-art': 'pending', 'data-boot': 'landing' });
+    },
+  );
+
   it.each([
     ['the web fonts measure wrong too', { webProbes: FAILING }, true],
+    ["the A03s's fallback faces measure in place of the web fonts", { webProbes: FAILING, fontsChecked: true }, true],
+    ['the web fonts are not in use', { webProbes: A03S_WEB, fontsChecked: false }, true],
+    [
+      'a web height is 2 px off',
+      { webProbes: { ...A03S_WEB, 'p100-probe-sans': { width: 948.9, height: 132.4 } } },
+      true,
+    ],
     ['the web fonts fail to load', {}, false],
   ] as const)('keeps the shell hidden and adds the entry at once when %s', async (_, environment, loaded) => {
     const result = waiting(environment);

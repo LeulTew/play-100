@@ -22,6 +22,8 @@
     if (error ? error instanceof SyntaxError && String(error.stack || '').indexOf(file) < 0 : /SyntaxError/.test(event.message)) old = true;
   });
 
+  var webFonts = ['800 1px "Barlow Condensed"', '700 1px "Barlow Condensed"', '1px "Hanken Grotesk Variable"'];
+
   // With web, the probes measure the web fonts instead (.p100-probe-web), once they have loaded. Fails with 0
   // when only the probes fail.
   var accept = function (web) {
@@ -64,6 +66,12 @@
       ['p100-probe-sans', 'Find your next world.', 923.1, 941.7, 130],
       ['p100-probe-sans-bold', 'GOOD THINGS, COLLECTED.', 1291, 1313.3, 130],
     ];
+    // The web fonts are what React's first commit renders in, so they only need to be in use: document.fonts has
+    // them loaded, and each box sits within 2.5% of the expected width, which still rejects any local fallback
+    // (Roboto's display string measures 11% wide). Android lays glyphs out on whole device pixels, so a long
+    // string's width drifts by about 1% at fractional ratios: on the Galaxy A03s (DPR 1.75) the web display
+    // and sans strings measure 600.6 and 948.9, outside the fallback faces' strict ranges.
+    if (web && !webFonts.every(function (font) { return document.fonts.check(font); })) return 0;
     var spans = probes.map(function (probe) {
       var span = document.createElement('span');
       span.className = 'p100-probe ' + probe[0] + (web ? ' p100-probe-web' : '');
@@ -75,7 +83,10 @@
     for (var index = 0; index < probes.length; index += 1) {
       var probe = probes[index];
       var box = boxes[index];
-      if (!(box.width >= probe[2] && box.width <= probe[3] && Math.abs(box.height - probe[4]) <= 2)) return 0;
+      var middle = (probe[2] + probe[3]) / 2;
+      var low = web ? middle * 0.975 : probe[2];
+      var high = web ? middle * 1.025 : probe[3];
+      if (!(box.width >= low && box.width <= high && Math.abs(box.height - probe[4]) <= 2)) return 0;
     }
 
     root.setAttribute('data-boot-art', art);
@@ -164,8 +175,7 @@
       var timer = window.setTimeout(go, 1500);
       try {
         var fonts = document.fonts;
-        Promise.all(['800 1px "Barlow Condensed"', '700 1px "Barlow Condensed"', '1px "Hanken Grotesk Variable"']
-          .map(function (font) { return fonts.load(font); }))
+        Promise.all(webFonts.map(function (font) { return fonts.load(font); }))
           .then(function () {
             var notice = document.getElementById('p100-boot-error');
             if (done || !(notice && notice.hidden && accept(true))) return go();

@@ -159,13 +159,19 @@ When only the probes fail on an accepted route (and the engine is not
 stylesheet has loaded, which brings the web fonts' `@font-face` rules while the
 preloads fetch their files, the boot script waits up to 1.5 s for
 `document.fonts.load()` of the three faces the shell uses. If they load in time,
-it measures the probes again in the web fonts (`.p100-probe-web`, the same
-expected boxes) and, when they pass and the notice is still hidden, shows the
+it checks that they are in use: `document.fonts.check()` passes for all three,
+and the probes measured again in the web fonts (`.p100-probe-web`) keep the
+expected heights within 2 px and widths within 2.5% of the expected middle.
+The web fonts need only that sanity band, not the fallback faces' strict
+ranges: Android lays glyphs out on whole device pixels, so on the Galaxy A03s
+(DPR 1.75) the web display and sans strings measure 600.6 and 948.9, 0.5% short
+of and 0.8% over those ranges, while the band still rejects a local fallback
+such as its Roboto display width, 677.3. When they pass and the notice is still hidden, shows the
 shell, which then renders in the fonts React's first commit uses, so nothing
 shifts. The module entry is added only after the next frame, or when the 1.5 s
 wait ends, so the shell can never appear after React's first commit or over the
 notice. A timeout, a rejected load, failing web probes or a missing
-`document.fonts` add the entry at once and leave the shell hidden. The wait makes
+`document.fonts`, or web fonts not in use, add the entry at once and leave the shell hidden. The wait makes
 no extra requests and writes no storage.
 
 ### The failure notice
