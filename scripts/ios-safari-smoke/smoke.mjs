@@ -183,23 +183,41 @@ async function click(selector) {
   `, `visible ${selector}`);
   const id = element['element-6066-11e4-a52e-4f735466cecf'];
   assert.ok(id, `No WebDriver element for ${selector}`);
-  await tap(id);
+  const label = await execute(`return arguments[0].getAttribute('aria-label') ||
+    arguments[0].querySelector('h3')?.textContent.trim() || arguments[0].innerText.trim();`, element);
+  await tap(label, !selector.includes('.game-link'));
   return element;
 }
 
-async function tap(id) {
+async function tap(label, exact = true) {
   const before = await execute('return window.__iosSmoke.clicks.length;');
-  await wd('POST', `/element/${id}/click`, {});
+  const context = await wd('GET', '/context');
+  await wd('POST', '/context', { name: 'NATIVE_APP' });
+  try {
+    await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd('GET', '/source'));
+    const value = `visible == true AND (type == "XCUIElementTypeLink" OR type == "XCUIElementTypeButton") AND label ${exact ? '==' : 'CONTAINS'} ${JSON.stringify(label)}`;
+    const deadline = Date.now() + 15_000;
+    let elements = [];
+    while (!elements.length && Date.now() < deadline) {
+      elements = await wd('POST', '/elements', { using: '-ios predicate string', value });
+      if (!elements.length) await delay(300);
+    }
+    assert.equal(elements.length, 1, `Expected one visible native accessibility target for ${label}.`);
+    const id = elements[0]['element-6066-11e4-a52e-4f735466cecf'];
+    await wd('POST', `/element/${id}/click`, {});
+  } finally {
+    await wd('POST', '/context', { name: context });
+  }
   await waitFor(`return window.__iosSmoke.clicks.slice(${before}).some(event => event.trusted);`,
     'trusted touch click reached the document', 5000);
 }
 
 async function navigation(label) {
-  const element = await waitFor(`${visible}
+  await waitFor(`${visible}
     return [...document.querySelectorAll('.mobile-nav a')]
       .find(element => visible(element) && element.textContent.trim() === ${JSON.stringify(label)}) || null;
   `, `bottom navigation ${label}`);
-  await tap(element['element-6066-11e4-a52e-4f735466cecf']);
+  await tap(label);
 }
 
 await mkdir(output, { recursive: true });
@@ -248,8 +266,7 @@ try {
   results.capabilities = created.capabilities;
   assert.ok(session, 'The automation server must return a session ID.');
   await wd('POST', '/timeouts', { implicit: 0, script: 30_000, pageLoad: 60_000 });
-  await execute('mobile: startAutomationSession');
-  results.interactionMode = 'WebKit Automation real touch';
+  results.interactionMode = 'XCUITest native accessibility tap';
   await step('01-cold-home', async () => {
     await wd('POST', '/url', { url: `${site}/` });
     await installCollector();
