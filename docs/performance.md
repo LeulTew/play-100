@@ -65,7 +65,7 @@ What changed for those phones (R24):
   a ResizeObserver of its own. Chrome 106 delivered that observer in the page's observer loop, after the page's own
   observers, and the loop reports "ResizeObserver loop limit exceeded" for any observation it has to skip
   (`LocalFrameView::NotifyResizeObservers` in Chromium 106.0.5249). Later versions deliver it first, and a current
-  Chromium does not report the error, so the replay checks it in a Chromium 106 build.
+  Chromium does not report the error; Chromium 106 does (below).
 - **Lighter paint where it costs most.** A constrained device draws game covers without their blurred shadow.
 - **Game details on older browsers.** On the Test Lab phone a game card's link opened nothing. Its click handler had
   prevented the link's own navigation, and the detail's URL came out unchanged, because the app built queries with
@@ -74,6 +74,30 @@ What changed for those phones (R24):
   Friends views and the Google sign-in return path lost their queries the same way. `querySuffix`
   ([`query-suffix.ts`](../src/lib/query-suffix.ts)) builds them from the parameters' text instead, and
   `resize-observer-loop.spec.ts` replays the visit without `URLSearchParams.size`.
+
+Measured on 2 October 2026 under that profile. Before is live production (Release 7); after is the integrated R24
+build (`43a71e78`), served locally with production headers. Playwright's Chromium gives medians of five first visits
+per build; Chromium 106.0.5249, the phone's engine, driven over the DevTools protocol, one visit per build:
+
+| Metric | Before | After | Change | Chromium 106, before → after |
+| --- | ---: | ---: | ---: | ---: |
+| React's first paint | 3,630 ms | 2,996 ms | −17% | 6,527 → 3,212 ms |
+| Long tasks before the first commit | 312 ms | 171 ms | −45% | 367 → 180 ms |
+| Blocking time before the first commit | 212 ms | 71 ms | −67% | 267 → 80 ms |
+| From the entry to React's first paint | 366 ms | 228 ms | −38% | 619 → 425 ms |
+| Opening Discover | 2,750 ms | 1,612 ms | −41% | 3,256 → 2,032 ms |
+| Scrolling the landing | 60 fps | 60 fps | | 54 → 54 fps |
+| Scrolling Discover | 60 fps | 60 fps | | 59 → 59 fps |
+| The first game link opens its detail | 5 of 5 | 5 of 5 | | no → in 348 ms |
+| ResizeObserver loop errors | 0 | 0 | | 4 → 0 |
+
+The two builds reach the browser differently, production over the internet and the R24 build from the same machine,
+both through Slow 4G, so the span from the entry to React's first paint is the like-for-like figure. Chromium 106
+reproduces both of the phone's failures in Release 7 and neither in the R24 build. The replay understates the phone:
+it spends 0.2–0.6 s between the entry and React's first paint, where the phone spent about 5 s, and CPU throttling
+doesn't slow raster, so neither build drops below 54 fps where the phone ran at 32–45. Discover still takes 1.6 s to
+open here and 2.0 s in Chromium 106, most of it network wait. In Chromium 106 the work moved past the first paint
+runs as two tasks of 250–300 ms, about a second after it.
 
 ## R22 figures
 
