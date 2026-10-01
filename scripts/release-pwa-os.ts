@@ -256,6 +256,8 @@ export async function releasePwaOs(url: string) {
     guard();
     installAttempted = true;
     await session.send('PWA.install', { manifestId, installUrlOrBundleUrl: url });
+    await session.send('PWA.changeAppUserSettings', { manifestId, displayMode: 'standalone' });
+    receipt.appWindowPreference = 'standalone (temporary installed app only)';
     receipt.installedState = await session.send('PWA.getOsAppState', { manifestId });
     const installed = await waitFor(
       async () => shortcuts(appId),

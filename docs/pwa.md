@@ -428,10 +428,13 @@ from a clean committed checkout on Windows with desktop Google Chrome installed.
 This is an opt-in **real OS mutation**, not browser install-prompt emulation:
 the experimental Chrome CDP `PWA` domain installs the production manifest ID
 `https://play-100-collection.vercel.app/`, reads `PWA.getOsAppState`, opens a
-standalone app target with `PWA.launch`, then calls `PWA.uninstall`.
+standalone app target with `PWA.launch`, then calls `PWA.uninstall`. The companion
+explicitly selects `standalone` through `PWA.changeAppUserSettings` for this
+temporary installation; a DevTools install otherwise can launch in a browser tab.
 Chrome is launched through a locally owned debugging pipe, not a network CDP
 endpoint: Chrome restricts these OS-mutating commands to pipe clients with
-`AllowUnsafeOperations`. No browser security settings or real profiles are changed.
+`AllowUnsafeOperations`. The normal Chrome sandbox stays enabled, and no real
+profile or pre-existing app preferences are changed.
 
 The companion always creates a temporary user-data directory; it never accepts
 an existing profile or signs in. It refuses an existing shortcut for the same
