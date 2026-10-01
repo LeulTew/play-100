@@ -27,6 +27,8 @@ import {
 } from '../lib/community';
 import type { AvatarValue, ProfileReport, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { cleanReportReason, displayNameProblem, rankingTitleProblem } from '../lib/text-controls';
+import { isSafeInteger, isStringArray } from '../lib/guards';
+import type { JsonObject } from '../lib/guards';
 import { ensureAccountActivity } from './account-lifecycle';
 import { creatorAccess } from './cloud-store';
 import { releaseIndexedPayload } from './generation-cleanup';
@@ -38,10 +40,10 @@ import type { SocialStore } from './social-store';
 // pages that use them and Account import this module, so the online controller that every page needs leaves it out.
 // A call between these methods goes through the store, as when they were the store's own.
 
-function parseControl(value: DocumentData): PublicControl {
+function parseControl(value: JsonObject): PublicControl {
   if (
     Object.keys(value).sort().join() !== 'deleted,epoch,hidden' ||
-    !Number.isSafeInteger(value.epoch) ||
+    !isSafeInteger(value.epoch) ||
     value.epoch < 0 ||
     typeof value.hidden !== 'boolean' ||
     typeof value.deleted !== 'boolean'
@@ -49,13 +51,13 @@ function parseControl(value: DocumentData): PublicControl {
     throw new Error('Publication permissions are unreadable.');
   return { epoch: value.epoch, hidden: value.hidden, deleted: value.deleted };
 }
-function publicationRegistry(value: DocumentData): { ids: string[]; revision: number } {
+function publicationRegistry(value: JsonObject): { ids: string[]; revision: number } {
   if (
     Object.keys(value).sort().join() !== 'ids,revision' ||
-    !Array.isArray(value.ids) ||
-    !value.ids.every((id: unknown) => typeof id === 'string' && /^[a-f0-9-]{36}$/.test(id)) ||
+    !isStringArray(value.ids) ||
+    !value.ids.every((id) => /^[a-f0-9-]{36}$/.test(id)) ||
     new Set(value.ids).size !== value.ids.length ||
-    !Number.isSafeInteger(value.revision) ||
+    !isSafeInteger(value.revision) ||
     value.revision < 1
   ) {
     throw new Error('Some publication settings could not be read. Try again later.');
@@ -76,8 +78,9 @@ export class SocialPublication {
     const handle = parseHandle(handleInput);
     try {
       const link = await getDocFromServer(doc(this.db, 'handles', handle));
-      if (!link.exists() || typeof link.data().uid !== 'string') return null;
-      const profile = await getDocFromServer(doc(this.db, 'publicProfiles', link.data().uid));
+      const uid: unknown = link.exists() ? link.data().uid : undefined;
+      if (typeof uid !== 'string') return null;
+      const profile = await getDocFromServer(doc(this.db, 'publicProfiles', uid));
       if (!profile.exists()) return null;
       const parsed = parseProfile(profile.data());
       return parsed.published && !parsed.hidden && parsed.handle === handle ? parsed : null;
@@ -345,13 +348,8 @@ export class SocialPublication {
       if (report.exists())
         throw new Error('You already reported this profile. The creator can review your existing report.');
       if (counted) {
-        const value = usage?.exists() ? usage.data() : { count: 0, revision: 0 };
-        if (
-          !Number.isSafeInteger(value.count) ||
-          value.count < 0 ||
-          !Number.isSafeInteger(value.revision) ||
-          value.revision < 0
-        )
+        const value: JsonObject = usage?.exists() ? usage.data() : { count: 0, revision: 0 };
+        if (!isSafeInteger(value.count) || value.count < 0 || !isSafeInteger(value.revision) || value.revision < 0)
           throw new Error('Your report count could not be read. Nothing was sent.');
         if (value.count >= ACCOUNT_LIMITS.reports) throw new AccountQuotaFull('reports');
         tx.set(quota, { count: value.count + 1, revision: value.revision + 1, lastReport: reportId });
@@ -390,7 +388,7 @@ export class SocialPublication {
       ),
     );
     const reports: ProfileReport[] = result.docs.map((row) => {
-      const data = row.data();
+      const data: JsonObject = row.data();
       if (
         typeof data.reporterUid !== 'string' ||
         typeof data.targetUid !== 'string' ||
@@ -415,9 +413,10 @@ export class SocialPublication {
       const ref = doc(this.db, 'reports', id);
       const report = await tx.get(ref);
       if (!report.exists()) throw new Error('This report is no longer available.');
-      const data = report.data();
+      const data: JsonObject = report.data();
+      // The reports rules only admit a document whose reporterUid is the signed-in uid.
       if (data.counted === true)
-        tx.update(quotaRef(this.db, data.reporterUid, 'reports'), {
+        tx.update(quotaRef(this.db, data.reporterUid as string, 'reports'), {
           count: increment(-1),
           revision: increment(1),
           lastReport: id,
@@ -540,7 +539,7 @@ export class SocialPublication {
         tx.delete(quota);
       }
       if (profile.exists()) {
-        tx.delete(doc(this.db, 'handles', profile.data().handle));
+        tx.delete(doc(this.db, 'handles', profile.data().handle as string));
         tx.delete(ref);
       }
     });

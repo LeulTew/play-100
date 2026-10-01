@@ -433,11 +433,14 @@ export function parseFriendChunk(value: unknown, index: number, count: number): 
     invalid();
   return entries;
 }
-export function parseFriendRegistry(value: unknown): string[] {
+export function parseFriendRegistryState(value: unknown): { ids: string[]; revision: number } {
   const row = object(value, 'ids,revision');
-  integer(row.revision, 1);
-  if (!Array.isArray(row.ids) || row.ids.length > 3 || new Set(row.ids).size !== row.ids.length) invalid();
-  return row.ids.map(friendUuid);
+  const revision = integer(row.revision, 1);
+  if (!isUnknownArray(row.ids) || row.ids.length > 3 || new Set(row.ids).size !== row.ids.length) invalid();
+  return { ids: row.ids.map(friendUuid), revision };
+}
+export function parseFriendRegistry(value: unknown): string[] {
+  return parseFriendRegistryState(value).ids;
 }
 export function parseFriendSlot(value: unknown): string {
   return friendToken(object(value, 'token').token);

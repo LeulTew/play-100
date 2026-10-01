@@ -1,5 +1,7 @@
 import { doc, getDocFromServer, runTransaction, writeBatch } from 'firebase/firestore';
 import type { DocumentData, DocumentReference } from 'firebase/firestore';
+import { isSafeInteger } from '../lib/guards';
+import type { JsonObject } from '../lib/guards';
 
 export const INDEXED_RELEASE_BATCH = 3;
 export const PRIVATE_RELEASE_BATCH = 2;
@@ -46,11 +48,11 @@ export async function releaseIndexedPayload(
 ): Promise<void> {
   // Public profiles and missing legacy shelf chunks both need access-call headroom.
   const batchSize = INDEXED_RELEASE_BATCH;
-  const remaining = (data: DocumentData | undefined): number => {
+  const remaining = (data: JsonObject | undefined): number => {
     if (
       !data ||
       data.status !== 'deleting' ||
-      !Number.isSafeInteger(data.uploaded) ||
+      !isSafeInteger(data.uploaded) ||
       data.uploaded < 0 ||
       data.uploaded > maximum
     ) {

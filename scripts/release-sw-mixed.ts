@@ -20,10 +20,12 @@ export function mixedFixture(): PersonalLibraryState {
     progress: {},
     queueOrder: [],
     records: Object.fromEntries(
-      [
-        [removed, 'Mixed removed'],
-        [retained, 'Mixed retained'],
-      ].map(([id, title]) => [
+      (
+        [
+          [removed, 'Mixed removed'],
+          [retained, 'Mixed retained'],
+        ] as const
+      ).map(([id, title]) => [
         id,
         {
           id,

@@ -18,7 +18,7 @@ import {
   parseFriendChunk,
   parseFriendGeneration,
   parseFriendHead,
-  parseFriendRegistry,
+  parseFriendRegistryState,
   parseFriendSettings,
   parseFriendSource,
   validateFriendEntries,
@@ -158,13 +158,15 @@ export async function publishRanking(
       const [settings, registry, sync] = await Promise.all([tx.get(settingsRef), tx.get(registryRef), tx.get(syncRef)]);
       checkSource(sync.data());
       expectedSettings(activeSettings(settings.exists() ? parseFriendSettings(settings.data()) : null), expected);
-      const ids = registry.exists() ? parseFriendRegistry(registry.data()) : [];
+      const { ids, revision } = registry.exists()
+        ? parseFriendRegistryState(registry.data())
+        : { ids: [], revision: 0 };
       if (ids.length >= 3)
         throw new FriendStoreError(
           'limit',
           'Another sharing update is in progress. Retry after it finishes or after five minutes.',
         );
-      tx.set(registryRef, { ids: [...ids, id], revision: registry.exists() ? registry.data().revision + 1 : 1 });
+      tx.set(registryRef, { ids: [...ids, id], revision: revision + 1 });
       guard();
       tx.set(generationRef, {
         epoch: expected.epoch,

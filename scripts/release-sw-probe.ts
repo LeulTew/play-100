@@ -46,7 +46,10 @@ export async function releaseSwProbe(inputFile: string) {
   const sourceIdentity = async () =>
     Object.fromEntries(
       await Promise.all(
-        sourceFiles.map(async (file) => [file, hash(await readFile(path.join(repository, 'scripts', file)))]),
+        sourceFiles.map(async (file): Promise<[string, string]> => [
+          file,
+          hash(await readFile(path.join(repository, 'scripts', file))),
+        ]),
       ),
     );
   const runner = {

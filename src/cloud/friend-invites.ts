@@ -239,7 +239,7 @@ export async function acceptInvite(store: FriendStore, uid: string, tokenInput: 
           state: 'accepted',
           epoch: (current?.epoch ?? 0) + 1,
           inviteSlot: invite.slot,
-          createdAt: pair.exists() ? pair.data().createdAt : serverTimestamp(),
+          createdAt: pair.exists() ? (pair.data().createdAt as unknown) : serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
         tx.update(inviteRef, { state: 'consumed', acceptedBy: uid });

@@ -27,6 +27,8 @@ import {
   releaseQuotaSlot,
   requireVisibleCapacity,
 } from './account-quota';
+import { isSafeInteger } from '../lib/guards';
+import type { JsonObject } from '../lib/guards';
 import type { FriendStore } from './friend-store';
 import { conflict, errorValue, online, page } from './friend-store-core';
 
@@ -89,13 +91,8 @@ export function watchRelations(
 export async function touchPairCount(store: FriendStore, tx: Transaction, uid: string, id: string, created: boolean) {
   const ref = quotaRef(store.db, uid, 'pairs');
   const snapshot = await tx.get(ref);
-  const value = snapshot.exists() ? snapshot.data() : { count: 0, revision: 0 };
-  if (
-    !Number.isSafeInteger(value.count) ||
-    value.count < 0 ||
-    !Number.isSafeInteger(value.revision) ||
-    value.revision < 0
-  ) {
+  const value: JsonObject = snapshot.exists() ? snapshot.data() : { count: 0, revision: 0 };
+  if (!isSafeInteger(value.count) || value.count < 0 || !isSafeInteger(value.revision) || value.revision < 0) {
     throw new FriendStoreError('invalid', 'Your connection count could not be read. Refresh the page, then try again.');
   }
   if (created && value.count >= ACCOUNT_LIMITS.pairs) throw new AccountQuotaFull('pairs');
@@ -170,7 +167,7 @@ export async function sendRequest(store: FriendStore, uid: string, otherUid: str
         state: 'pending',
         epoch: (current?.epoch ?? 0) + 1,
         inviteSlot: null,
-        createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(),
+        createdAt: snap.exists() ? (snap.data().createdAt as unknown) : serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       return (current?.epoch ?? 0) + 1;

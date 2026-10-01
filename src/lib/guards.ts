@@ -13,6 +13,15 @@ export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
+// Number.isInteger and Number.isSafeInteger return boolean, so they leave an unknown field unnarrowed.
+export function isInteger(value: unknown): value is number {
+  return Number.isInteger(value);
+}
+
+export function isSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value);
+}
+
 export function dictionary<T = unknown>(): Record<string, T> {
   return Object.create(null) as Record<string, T>;
 }

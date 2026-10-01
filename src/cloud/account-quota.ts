@@ -1,6 +1,8 @@
 import { doc, getDocFromServer } from 'firebase/firestore';
 import type { DocumentData, DocumentReference, Firestore, Transaction } from 'firebase/firestore';
 import { friendUid, friendUuid } from '../lib/friend-types';
+import { isSafeInteger, isUnknownArray } from '../lib/guards';
+import type { JsonObject } from '../lib/guards';
 
 export const ACCOUNT_LIMITS = { groups: 50, blocks: 1000, reports: 100, pairs: 1000 } as const;
 export type AccountQuotaKind = keyof typeof ACCOUNT_LIMITS;
@@ -48,12 +50,12 @@ export async function readQuotaSlots(
 ): Promise<QuotaSlots> {
   const snapshot = await tx.get(ref);
   if (!snapshot.exists()) return { ids: [], revision: 0 };
-  const value = snapshot.data();
+  const value: JsonObject = snapshot.data();
   if (
     Object.keys(value).sort().join() !== 'ids,revision' ||
-    !Array.isArray(value.ids) ||
+    !isUnknownArray(value.ids) ||
     new Set(value.ids).size !== value.ids.length ||
-    !Number.isSafeInteger(value.revision) ||
+    !isSafeInteger(value.revision) ||
     value.revision < 1
   ) {
     throw new Error('Account limits could not be read. Nothing was changed. Try again later.');

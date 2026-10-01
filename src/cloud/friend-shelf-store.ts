@@ -17,6 +17,7 @@ import {
   friendUid,
   parseFriendGeneration,
   parseFriendRegistry,
+  parseFriendRegistryState,
   parseFriendSource,
   retainsFriendGeneration,
 } from '../lib/friend-types';
@@ -319,14 +320,16 @@ export class FriendShelfStore {
         const [config, registry, sync] = await Promise.all([tx.get(configRef), tx.get(registryRef), tx.get(syncRef)]);
         expectedConfig(config.exists() ? parseFriendShelfConfig(config.data()) : null, expected);
         checkSource(sync.data());
-        const ids = registry.exists() ? parseFriendRegistry(registry.data()) : [];
+        const { ids, revision } = registry.exists()
+          ? parseFriendRegistryState(registry.data())
+          : { ids: [], revision: 0 };
         if (ids.length >= 3)
           throw new FriendStoreError(
             'limit',
             'A shelf update is still pending. Shared games will retry after the upload expires.',
           );
         guard();
-        tx.set(registryRef, { ids: [...ids, id], revision: registry.exists() ? registry.data().revision + 1 : 1 });
+        tx.set(registryRef, { ids: [...ids, id], revision: revision + 1 });
         tx.set(generationRef, {
           epoch: expected.epoch,
           settingsRevision: expected.revision,
@@ -462,12 +465,12 @@ export class FriendShelfStore {
       await runTransaction(this.db, async (tx) => {
         const registry = await tx.get(registryRef);
         if (!registry.exists()) return;
-        const current = parseFriendRegistry(registry.data());
-        if (!current.includes(id)) return;
+        const current = parseFriendRegistryState(registry.data());
+        if (!current.ids.includes(id)) return;
         tx.delete(ref);
         tx.update(registryRef, {
-          ids: current.filter((value) => value !== id),
-          revision: registry.data().revision + 1,
+          ids: current.ids.filter((value) => value !== id),
+          revision: current.revision + 1,
         });
       });
       deleted += 1;
