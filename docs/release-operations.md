@@ -52,6 +52,21 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
 
+For consented Windows OS evidence, run
+`npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
+and retain its redacted receipt and SHA-256. See
+[Windows OS installation companion](pwa.md#windows-os-installation-companion)
+for the actual CDP installation/shortcut/removal checks and offline-emulation
+boundary. The command requires no Mizan lock and at least 6 GiB free RAM;
+each foreground PWA or screen-reader burst must remain under fifteen minutes.
+Do not replace screen-reader evidence with an accessibility-tree snapshot:
+record NVDA/Narrator version, Windows/Chrome versions, exact speech output,
+keyboard steps and focus outcomes, with failures or omissions left visible.
+Use a checksum-verified official portable NVDA, isolated configuration,
+silent synthesis and input/output logging; remove its portable files and
+configuration after the journeys. Do not change global audio settings or use
+an owner's Chrome profile.
+
 Use the [security promotion order](security-release-runbook.md#promotion-order)
 for the owner operations and [manual PWA checks](pwa.md#manual-release-checks).
 Client rollback does not revert Firestore rules, indexes, WAF or private data.
