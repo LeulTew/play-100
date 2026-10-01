@@ -2,6 +2,12 @@ name: iOS Safari smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      target_origin:
+        description: HTTPS origin to test (production or a public candidate tunnel)
+        type: string
+        required: true
+        default: https://play-100-collection.vercel.app
   schedule:
     - cron: '0 8 * * 1'
   push:
@@ -58,6 +64,7 @@ jobs:
       IOS_DEVICE_TYPE: ${{ matrix.deviceType }}
       IOS_DEVICE_NAME: ${{ matrix.deviceName }}
       IOS_LABEL: ${{ matrix.label }}
+      IOS_TARGET_ORIGIN: ${{ inputs.target_origin || 'https://play-100-collection.vercel.app' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

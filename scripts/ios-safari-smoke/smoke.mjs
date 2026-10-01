@@ -3,14 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { tapCoordinates } from './coordinates.mjs';
+import { productionOrigin, targetOrigin } from './target.mjs';
 
-const site = 'https://play-100-collection.vercel.app';
+let site;
 const endpoint = 'http://127.0.0.1:4444';
 const output = 'ios-safari-artifacts';
 // Add only narrowly matched, justified exceptions with an issue reference.
 const errorAllowlist = [];
 const results = {
-  site,
+  site: null,
   device: process.env.IOS_DEVICE_NAME,
   runtime: process.env.IOS_VERSION,
   udid: process.env.IOS_UDID,
@@ -138,7 +139,7 @@ async function installCollector(previousTimeOrigin) {
     }
     return { timeOrigin: performance.timeOrigin, installedAtMs: window.__iosSmoke.installedAtMs,
       readyStateAtInstall: window.__iosSmoke.readyState };
-  `, 'install error collector in the new production document');
+  `, 'install error collector in the new target document');
   results.documents.push(document);
   return document;
 }
@@ -281,6 +282,8 @@ async function navigation(label) {
 await mkdir(output, { recursive: true });
 await save();
 try {
+  site = targetOrigin(process.env.IOS_TARGET_ORIGIN ?? productionOrigin);
+  results.site = site;
   assert.ok(results.udid && results.runtime && results.device, 'Simulator identity is required.');
   if (Number.parseInt(results.runtime, 10) >= 17) {
     assert.ok(process.env.WDA_APP && process.env.WDA_BUNDLE_ID, 'Verified prebuilt simulator agent is required.');

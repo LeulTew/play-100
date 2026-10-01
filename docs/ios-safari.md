@@ -4,7 +4,8 @@ The `iOS Safari smoke` workflow runs Apple's Mobile Safari with Appium 3.8.0
 and XCUITest driver 12.13.3 inside real iOS Simulator runtimes on `macos-15`.
 It does not use desktop
 WebKit with an iPhone user-agent override. It needs no secrets, downloads no
-app dependencies, and never deploys or changes production data.
+app dependencies, and never deploys or changes production data. Its default
+target is production; manual runs can use an HTTPS candidate origin instead.
 
 ## Coverage and evidence
 
@@ -30,6 +31,47 @@ document-start script injection API. Errors before that installation are not
 certified; `installedAtMs` and `readyStateAtInstall` make the observation gap
 explicit. Buffered paint observers retrieve earlier FCP/LCP when the runtime
 supports those entry types; unsupported metrics are `null`, not zero.
+
+## Production evidence: blocked, not green
+
+[The 2026-10-01 production run](https://github.com/LeulTew/play-100/actions/runs/36927938078)
+tested commit `a5d03ae4de76a264ccb2830463b1e335657626db` with Xcode 26.3
+(17C529). All four devices passed cold home, Discover navigation and Portal
+search using trusted native touches. All four then failed returning to
+The 100 because its tab icon did not intersect the recorded visible viewport.
+The toolbar hit-target harness issue is separated: tab-icon targeting passes
+Discover on all four configurations.
+
+| Device | iOS runtime | Reported loadEventEnd (ms) | FCP (ms) | LCP (ms) |
+| --- | --- | ---: | ---: | ---: |
+| iPhone SE (3rd generation) | 18.5 | 510 | 1393 | Unsupported |
+| iPhone 16 Pro Max | 18.5 | 363 | 1469 | Unsupported |
+| iPhone SE (3rd generation) | 26.2 | 305 | 2714 | 2714 |
+| iPhone 17 Pro Max | 26.2 | 215 | 950 | 950 |
+
+Reproduction: cold-load the target, open Discover, type `portal`, then tap
+Safari's Done button. The input's measured font size is `14px`; Safari zooms
+to approximately 1.143-1.144 and pans the page. After the keyboard is confirmed
+closed, content remains clipped horizontally and bottom navigation is partially
+cut off or hidden beneath browser chrome. The harness refuses an off-viewport
+tap; it does not repair styles, synthesize navigation or pinch away the finding.
+The page remains on `/discover?q=portal`.
+
+Each `ios-safari-{small|large}-ios-{18.5|26.2}` artifact contains
+`03-search-simulator.png`, `04-the-100-failure-simulator.png`,
+`native-target-4.xml` and `results.json`. The JSON preserves input font size,
+visual viewport, DOM and native target measurements, trusted clicks, and the
+native browser actions, including keyboard dismissal.
+
+No uncaught errors were observed after collector installation. Collectors were
+installed 8.392-19.439 seconds into already-complete documents, so this does
+not certify the earlier interval. Some iOS 18.5 network timing fields were
+negative relative to `timeOrigin`; their raw values are retained, not converted
+into inferred TTFB or network benchmarks.
+
+**The iOS waiver remains open.** Detail opening, focus return, My games and
+reload were not reached and are not certified. A first green run must come
+from the corrected candidate or production build; no product code was changed.
 
 ## Devices and runtimes
 
@@ -93,6 +135,21 @@ iOS Safari smoke -> Run workflow**, or use:
 ```text
 gh workflow run ios-safari-smoke.yml --ref main
 ```
+
+Before merge, use the iteration branch and the `target_origin` dispatch input
+to test a publicly reachable candidate tunnel. Use the CLI: the Actions UI's
+Run workflow button may be absent until the workflow exists on `main`.
+
+```text
+gh workflow run ios-safari-smoke.yml --ref leultew-r24-ios-smoke -f target_origin=https://YOUR-PUBLIC-TUNNEL-HOST
+```
+
+The URL must be an HTTPS origin without credentials, a path, query or fragment.
+The origin is passed through an environment variable, validated before Safari
+starts, and recorded in `results.json`; invalid input fails instead of falling
+back to production. Production remains the default for weekly and push runs.
+Set `IOS_TARGET_ORIGIN` for the same override when running the script on a Mac.
+The candidate must remain reachable for the entire matrix run.
 
 The scheduled run is Monday at 08:00 UTC on the default branch. Inspect the
 device jobs and download the `ios-safari-*` artifacts. They are retained for
