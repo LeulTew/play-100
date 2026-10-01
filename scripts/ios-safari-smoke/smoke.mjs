@@ -60,7 +60,8 @@ async function capture(name) {
 }
 
 async function collectErrors() {
-  const errors = await execute('return window.__iosSmoke ? window.__iosSmoke.errors.splice(0) : [];');
+  const errors = await execute('return window.__iosSmoke ? window.__iosSmoke.errors.splice(0) : null;');
+  assert.ok(errors, 'The page error collector must remain installed throughout the document.');
   results.pageErrors.push(...errors);
   const unexpected = results.pageErrors.filter(
     (error) => !errorAllowlist.some((allowed) => new RegExp(allowed.pattern).test(error.message)),
@@ -196,40 +197,43 @@ try {
   if (Number.parseInt(results.runtime, 10) >= 17) {
     assert.ok(process.env.WDA_APP && process.env.WDA_BUNDLE_ID, 'Verified prebuilt simulator agent is required.');
   }
-  const deadline = Date.now() + 360_000;
-  while (!session && Date.now() < deadline) {
+  const deadline = Date.now() + 60_000;
+  let serverReady = false;
+  while (!serverReady && Date.now() < deadline) {
     try {
-      const created = await command('POST', '/session', {
-        capabilities: { alwaysMatch: {
-          browserName: 'Safari',
-          platformName: 'iOS',
-          pageLoadStrategy: 'none',
-          'appium:automationName': 'XCUITest',
-          'appium:udid': results.udid,
-          'appium:deviceName': results.device,
-          'appium:platformVersion': results.runtime,
-          'appium:nativeWebTap': true,
-          'appium:newCommandTimeout': 120,
-          'appium:wdaLaunchTimeout': 180_000,
-          'appium:wdaStartupRetries': 1,
-          'appium:showXcodeLog': true,
-          ...(Number.parseInt(results.runtime, 10) >= 17 ? {
-            'appium:usePreinstalledWDA': true,
-            'appium:prebuiltWDAPath': process.env.WDA_APP,
-            'appium:updatedWDABundleId': process.env.WDA_BUNDLE_ID,
-            'appium:updatedWDABundleIdSuffix': '',
-          } : {}),
-        } },
-      });
-      session = created.sessionId;
-      results.capabilities = created.capabilities;
+      await command('GET', '/status');
+      serverReady = true;
     } catch (error) {
-      results.sessionStartupError = error.message;
-      await delay(2000);
+      results.serverStartupError = error.message;
+      await delay(1000);
     }
   }
-  assert.ok(session, `Could not create iOS Safari session: ${results.sessionStartupError}`);
-  delete results.sessionStartupError;
+  assert.ok(serverReady, `Automation server not ready: ${results.serverStartupError}`);
+  delete results.serverStartupError;
+  const created = await command('POST', '/session', {
+    capabilities: { alwaysMatch: {
+      browserName: 'Safari',
+      platformName: 'iOS',
+      pageLoadStrategy: 'none',
+      'appium:automationName': 'XCUITest',
+      'appium:udid': results.udid,
+      'appium:deviceName': results.device,
+      'appium:platformVersion': results.runtime,
+      'appium:nativeWebTap': true,
+      'appium:newCommandTimeout': 120,
+      'appium:wdaLaunchTimeout': 180_000,
+      'appium:wdaStartupRetries': 1,
+      'appium:showXcodeLog': true,
+      ...(Number.parseInt(results.runtime, 10) >= 17 ? {
+        'appium:usePreinstalledWDA': true,
+        'appium:prebuiltWDAPath': process.env.WDA_APP,
+        'appium:updatedWDABundleId': process.env.WDA_BUNDLE_ID.replace(/\.xctrunner$/, ''),
+      } : {}),
+    } },
+  });
+  session = created.sessionId;
+  results.capabilities = created.capabilities;
+  assert.ok(session, 'The automation server must return a session ID.');
   await wd('POST', '/timeouts', { implicit: 0, script: 30_000, pageLoad: 60_000 });
   await step('01-cold-home', async () => {
     await wd('POST', '/url', { url: `${site}/` });
