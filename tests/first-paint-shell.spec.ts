@@ -528,6 +528,13 @@ test("a shell shown once the web fonts load equals React's first commit", async 
       differences(shell, commit, 0.5, true),
       "React's first commit renders exactly what the shell painted",
     ).toEqual([]);
+    // Under load the account check can end after this commit; its library label then fills the header's reserved second
+    // line. Add it as the app would, so the check below covers that late label.
+    await page.evaluate(() => {
+      const copy = document.querySelector('#root > .site-header .account-nav-copy');
+      if (copy && !copy.querySelector('small'))
+        copy.append(' ', Object.assign(document.createElement('small'), { textContent: 'Device only' }));
+    });
     await frames(page);
     const shift = await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN);
     const movers = await page.evaluate(() => window.p100LayoutShiftSources?.() ?? []);

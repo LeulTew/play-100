@@ -84,6 +84,9 @@
   gap: 1px;
   width: 150px;
   min-width: 0;
+  /* Two 18px lines and the gap, held from first paint: the library label arrives once the account check ends, which
+     can be after the first commit, and must not move the name. */
+  min-height: 37px;
 }
 .account-nav-copy strong {
   font-size: 12px;
