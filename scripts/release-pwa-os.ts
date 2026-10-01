@@ -197,7 +197,8 @@ export async function releasePwaOs(url: string) {
       (value) => !!value,
     );
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
-    session = await browser.newBrowserCDPSession();
+    const control = browser.contexts()[0]!.pages()[0] ?? (await browser.contexts()[0]!.newPage());
+    session = await browser.contexts()[0]!.newCDPSession(control);
     receipt.chrome = await session.send('Browser.getVersion');
     guard();
     installAttempted = true;
