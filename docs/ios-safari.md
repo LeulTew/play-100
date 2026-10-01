@@ -1,4 +1,4 @@
-# iPhone Safari production smoke
+# iPhone Safari smoke
 
 The `iOS Safari smoke` workflow runs Apple's Mobile Safari with Appium 3.8.0
 and XCUITest driver 12.13.3 inside real iOS Simulator runtimes on `macos-15`.
@@ -9,7 +9,7 @@ target is production; manual runs can use an HTTPS candidate origin instead.
 
 ## Coverage and evidence
 
-Each fresh simulator cold-loads https://play-100-collection.vercel.app/ and
+Each fresh simulator cold-loads the selected origin (production by default) and
 checks both hero phrases, the hidden boot-error panel and app-started state.
 It uses the phone's bottom navigation to open Discover, types `portal` and
 checks matching cards, opens a detail from The 100, checks its heading,
@@ -26,13 +26,57 @@ matched, justified and linked to an issue.
 
 The script requests `pageLoadStrategy: none` and injects `error` and
 `unhandledrejection` listeners as soon as WebDriver can execute in each new
-production document, including after reload. This WebDriver path has no
+target document, including after reload. This WebDriver path has no
 document-start script injection API. Errors before that installation are not
 certified; `installedAtMs` and `readyStateAtInstall` make the observation gap
 explicit. Buffered paint observers retrieve earlier FCP/LCP when the runtime
 supports those entry types; unsupported metrics are `null`, not zero.
 
-## Production evidence: blocked, not green
+## First green candidate evidence
+
+[Run 36933031367, attempt 2](https://github.com/LeulTew/play-100/actions/runs/36933031367)
+is green across the inventory job and all four simulator jobs. It tested
+harness commit `60231f583bedee01c5184048b46644d3714fd7e0` against
+`https://mixing-copyright-conceptual-gamma.trycloudflare.com`, not production.
+The three other devices passed on attempt 1; the SE on iOS 26.2 passed on its
+rerun. These are candidate-build results, not evidence of a production deployment.
+
+All 32 smoke steps passed: cold hero and boot state, Discover, Portal
+search, The 100, game detail heading, close and exact-opener focus restoration,
+My games, and reload. Each successful device artifact contains `results.json`,
+eight WebDriver screenshots, eight native simulator screenshots, native
+accessibility trees and driver diagnostics.
+
+| Device | iOS | Steps | loadEventEnd (ms) | FCP (ms) | LCP (ms) | Artifact |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| iPhone SE (3rd generation) | 18.5 | 8/8 | 1703 | 2414 | Unsupported | `ios-safari-small-ios-18.5` |
+| iPhone 16 Pro Max | 18.5 | 8/8 | 513 | 1792 | Unsupported | `ios-safari-large-ios-18.5` |
+| iPhone SE (3rd generation) | 26.2 | 8/8 | 1983 | 3043 | 3043 | `ios-safari-small-ios-26.2` |
+| iPhone 17 Pro Max | 26.2 | 8/8 | 1833 | 2908 | 2908 | `ios-safari-large-ios-26.2` |
+
+For the SE on iOS 26.2, use the
+[passing rerun artifact, ID 11197801550](https://github.com/LeulTew/play-100/actions/runs/36933031367/artifacts/11197801550).
+The same run also retains a failed attempt-1 artifact with the identical name
+(ID 11197162663); do not use that older artifact as the green evidence.
+The inventory artifact is `ios-simulator-inventory`.
+
+All four devices recorded a `16px` search input, visual viewport scale `1`,
+successful exact-opener focus restoration, a real reload, zero observed
+uncaught errors and an empty error allowlist. Cold-document collectors were
+installed after 4.231-20.578 seconds; errors before installation remain
+uncertified. Timings above are reported browser metrics, not driver startup or
+screenshot durations, and are not physical-device performance benchmarks.
+
+The initial SE failure was a harness/browser-UI interception: Safari's native
+first-run help popover remained over Discover after a native Close command.
+`02-discover-failure-simulator.png` and `native-target-2.xml` show the popover,
+and `results.json` records no trusted app clicks. The initial attempt spent
+314.410 seconds creating its automation session, then 32.772 seconds in the
+cold-home step; the page reported loadEventEnd 1519 ms and FCP 2440 ms.
+This was not a five-minute application cold load or a new product failure.
+The rerun passed without changing the tested harness.
+
+## Historical production evidence: blocked
 
 [The 2026-10-01 production run](https://github.com/LeulTew/play-100/actions/runs/36927938078)
 tested commit `a5d03ae4de76a264ccb2830463b1e335657626db` with Xcode 26.3
@@ -69,9 +113,10 @@ not certify the earlier interval. Some iOS 18.5 network timing fields were
 negative relative to `timeOrigin`; their raw values are retained, not converted
 into inferred TTFB or network benchmarks.
 
-**The iOS waiver remains open.** Detail opening, focus return, My games and
-reload were not reached and are not certified. A first green run must come
-from the corrected candidate or production build; no product code was changed.
+**That production run did not close the waiver.** Detail opening, focus return,
+My games and reload were not reached in that run. The green candidate evidence
+above covers the corrected build, not the unchanged production site. No product
+code was changed by the smoke runner.
 
 ## Devices and runtimes
 
