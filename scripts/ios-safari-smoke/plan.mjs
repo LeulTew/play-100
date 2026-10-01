@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 
 export function compareVersions(a, b) {
   const left = a.split('.').map(Number);
@@ -53,8 +53,15 @@ if (process.argv[1]?.endsWith('plan.mjs')) {
     .map((name) => ({ name, version: /^Xcode_(\d+(?:\.\d+)*)\.app$/.exec(name)?.[1] }))
     .filter((xcode) => xcode.version)
     .sort((a, b) => compareVersions(a.version, b.version));
-  if (!xcodes.length) throw new Error('No versioned stable Xcode installation found.');
-  const developerDir = `/Applications/${xcodes.at(-1).name}/Contents/Developer`;
+  const usable = xcodes.filter((xcode) => {
+    const library = `/Applications/${xcode.name}/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/lib_TestingInterop.dylib`;
+    xcode.excludedReason = compareVersions(xcode.version, '26.3') >= 0 && !existsSync(library)
+      ? `Incomplete XCTest installation: missing ${library}` : null;
+    return !xcode.excludedReason;
+  });
+  writeFileSync('ios-safari-artifacts/xcodes.json', JSON.stringify(xcodes, null, 2));
+  if (!usable.length) throw new Error('No complete stable Xcode installation found.');
+  const developerDir = `/Applications/${usable.at(-1).name}/Contents/Developer`;
   const raw = execFileSync('xcrun', ['simctl', 'list', '--json'], {
     encoding: 'utf8',
     env: { ...process.env, DEVELOPER_DIR: developerDir },

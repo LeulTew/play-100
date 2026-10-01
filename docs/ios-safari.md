@@ -33,14 +33,18 @@ supports those entry types; unsupported metrics are `null`, not zero.
 
 ## Devices and runtimes
 
-The inventory job selects the newest stable Xcode installed on the image,
+The inventory job selects the newest complete stable Xcode installed on the image,
 then the newest and oldest available iOS runtimes at or above 16.4. Duplicate
 runtimes are tested once. For each, it selects iPhone SE (3rd generation)
 where supported, otherwise an iPhone mini or a supported non-Max/Plus phone,
 plus the newest supported Pro Max. Missing runtime/device coverage fails
 planning rather than quietly skipping it. `ios-simulator-inventory` contains
 the exact inventory and matrix; each device artifact records Xcode, driver
-version, runtime, UDID and returned WebDriver capabilities.
+version, runtime, UDID and returned WebDriver capabilities. The image's
+Xcode 26.3 failed WebDriverAgent builds because its simulator XCTest support
+was missing `lib_TestingInterop.dylib`. Installations at or above 26.3
+missing that library are excluded; `xcodes.json` records the exact reason.
+This excludes an incomplete toolchain, not an iOS runtime or phone.
 
 The first runner trials used Apple's `safaridriver` with `platformName: iOS`
 and `safari:useSimulator`. Navigation and screenshots worked, but element
