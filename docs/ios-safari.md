@@ -58,6 +58,9 @@ and `safari:useSimulator`. Navigation and screenshots worked, but element
 clicks returned success without activating Discover on all four simulator
 configurations. This workflow therefore uses XCUITest's `nativeWebTap: true`,
 not JavaScript-generated clicks, to exercise bottom navigation and dialogs.
+Native tap coordinates are explicitly recalibrated before each click to
+account for Safari's search-field zoom and browser chrome changes. The search
+evidence records `visualViewport` scale and offsets rather than hiding zoom.
 
 The image changes over time. The workflow therefore records its actual
 runtime inventory instead of claiming a permanently fixed device matrix.

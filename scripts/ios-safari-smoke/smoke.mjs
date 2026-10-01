@@ -147,6 +147,11 @@ async function metrics() {
     return {
       url: location.href, userAgent: navigator.userAgent,
       viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
+      visualViewport: visualViewport ? {
+        width: visualViewport.width, height: visualViewport.height, scale: visualViewport.scale,
+        offsetLeft: visualViewport.offsetLeft, offsetTop: visualViewport.offsetTop,
+        pageLeft: visualViewport.pageLeft, pageTop: visualViewport.pageTop
+      } : null,
       navigation: performance.getEntriesByType('navigation')[0]?.toJSON() || null,
       fcpMs: state.fcp, lcpMs: state.lcp, supportedEntryTypes: state.supportedEntryTypes,
       boot: { 'data-boot': root.getAttribute('data-boot'),
@@ -178,8 +183,13 @@ async function click(selector) {
   `, `visible ${selector}`);
   const id = element['element-6066-11e4-a52e-4f735466cecf'];
   assert.ok(id, `No WebDriver element for ${selector}`);
-  await wd('POST', `/element/${id}/click`, {});
+  await nativeTap(id);
   return element;
+}
+
+async function nativeTap(id) {
+  await execute('mobile: calibrateWebToRealCoordinatesTranslation');
+  await wd('POST', `/element/${id}/click`, {});
 }
 
 async function navigation(label) {
@@ -187,7 +197,7 @@ async function navigation(label) {
     return [...document.querySelectorAll('.mobile-nav a')]
       .find(element => visible(element) && element.textContent.trim() === ${JSON.stringify(label)}) || null;
   `, `bottom navigation ${label}`);
-  await wd('POST', `/element/${element['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+  await nativeTap(element['element-6066-11e4-a52e-4f735466cecf']);
 }
 
 await mkdir(output, { recursive: true });
@@ -220,6 +230,8 @@ try {
       'appium:deviceName': results.device,
       'appium:platformVersion': results.runtime,
       'appium:nativeWebTap': true,
+      'appium:nativeWebTapStrict': true,
+      'appium:webviewConnectTimeout': 60_000,
       'appium:newCommandTimeout': 120,
       'appium:wdaLaunchTimeout': 180_000,
       'appium:wdaStartupRetries': 1,
@@ -263,10 +275,12 @@ try {
       return input?.value === 'portal' && cards.length && cards.some(card => /portal/i.test(card.innerText))
         ? cards.map(card => card.innerText) : null;
     `, 'Portal result cards');
-    return { query: 'portal', resultCards: titles };
+    return { query: 'portal', resultCards: titles, metrics: await metrics() };
   });
   await step('04-the-100', async () => {
     await navigation('The 100');
+    const card = await waitFor('return document.querySelector(".game-card");', 'collection card attached');
+    await execute('arguments[0].scrollIntoView({ block: "center" });', card);
     await waitFor(`${visible} return visible(document.querySelector('.game-card .game-link'));`, 'collection card');
     return { url: await wd('GET', '/url') };
   });
