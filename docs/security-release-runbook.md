@@ -139,6 +139,13 @@ steps and the final marker succeed.
 
 ## Separately gated STORAGE-02 index overrides
 
+**Status: deployed 2026-10-01.** The before readback matched source apart from
+the 13 overrides, the source gate is the unit suite's
+`scripts/firestore-index-audit.test.ts`, and the after readback and production
+query smoke are recorded in
+[security](security.md#storage-02-accounting-deployed-2026-10-01). Rollback
+(step 6) still applies.
+
 This is not part of the accepted H5 baseline until the parent/I explicitly
 accept it into the queue after q3 before freeze; otherwise it is post-release.
 The source branch adds only the 13 exact paths listed in `security.md`. All ten

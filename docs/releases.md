@@ -940,7 +940,10 @@ Do these in runbook order and record each readback.
    `_owner/config`, add the string field
    `uid` set to the verified owner UID from Authentication > Users. Keep the
    `email` field. Readback: reopen the document and confirm both fields.
-2. **Composite indexes.** Create the 3 composite indexes exactly as listed in the
+2. **Composite indexes.** Done: read back 2026-10-01 21:03Z with `gcloud`.
+   All three show READY, alongside the seven earlier composites: ten in all,
+   exactly the `firestore.indexes.json` set, with nothing extra. The
+   instruction: create the 3 composite indexes exactly as listed in the
    [runbook table](security-release-runbook.md#promotion-order) and
    `firestore.indexes.json`, with scope **Collection**:
    - `entries`: `format ASC, epoch ASC, active ASC, entry.title ASC`

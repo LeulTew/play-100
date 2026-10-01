@@ -461,9 +461,21 @@ records, invite slots and the current handle. Platform document/index ceilings
 still supply a finite fallback if the detailed index inventory is unavailable,
 but that much looser bound is not a useful promise about Spark capacity.
 
-### STORAGE-02 candidate accounting, not a deployed saving
+### STORAGE-02 accounting (deployed 2026-10-01)
 
-This candidate changes only 13 exact single-field overrides: `entries.token`,
+**Deployed** 2026-10-01 between 20:53 and 20:55Z: the parent added the 13
+overrides below one by one with `gcloud firestore indexes fields update
+--disable-indexes`, changing no composite and no other override. All 18 field
+operations finished SUCCESSFUL by 21:03Z. Readback: the ten composites are
+READY and the 18 overrides equal `firestore.indexes.json` exactly. A read-only
+production query smoke on empty parent paths passed 13/13: ten client query
+shapes, including the format-2 rollback pages, returned results without an
+index error, and three negative controls on exempted fields (`entries.token`,
+`chunks.holder`, `generations.ranking`) were refused with
+`FAILED_PRECONDITION`. The figures below remain calculations, not measured
+storage.
+
+This change covers only 13 exact single-field overrides: `entries.token`,
 `entries.step`; `chunks.digest`, `bytes`, `createdAt`, `holder`, `holders`;
 `generations.private`, `generations.ranking`; `syncHeads.current`, `previous`;
 and `creatorRanks.current`, `previous`. There are no wildcard overrides or
