@@ -442,10 +442,12 @@ app ID rather than risking an owner's installation. It verifies a new
 Start-menu shortcut belongs to the temporary profile, checks the actual app
 window's standalone display mode, root start URL and `The 100 | Play 100`
 title, then prepares offline files through the real Settings control.
-It closes that window and launches a new OS app window with the temporary
-context offline, requiring the app shell, its service-worker controller and
-a failed network-only API fetch. This is CDP network emulation in a real
-installed app, **not a physical network disconnect or cold browser restart**.
+It closes Chrome, then restarts the temporary profile with browser-local DNS
+resolution disabled (`--host-resolver-rules=MAP * ~NOTFOUND`) before launching
+the OS app again. The check requires the app shell, its service-worker
+controller and a failed same-origin network-only API fetch. This is a cold
+browser restart with transport failure, **not a physical network disconnect**;
+`navigator.onLine` can remain true because the Windows network is unchanged.
 
 Uninstall must remove all matching Start-menu/desktop shortcuts and make a
 subsequent `PWA.launch` refuse the removed app. The owned Chrome process and

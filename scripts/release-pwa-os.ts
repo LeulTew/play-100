@@ -214,7 +214,7 @@ export async function releasePwaOs(url: string) {
     source: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     checks,
     notes:
-      'Temporary Chrome profile; no account sign-in. Offline relaunch is a new OS app window with CDP network emulation, not a machine-wide disconnect.',
+      'Temporary Chrome profile; no account sign-in. Offline relaunch restarts Chrome with browser-local DNS resolution disabled, not a machine-wide disconnect.',
   };
   let browser: Browser | undefined;
   let session: CDPSession | undefined;
@@ -287,8 +287,19 @@ export async function releasePwaOs(url: string) {
     checks.offlinePrepared = true;
     await page.close();
     guard();
-    const context = browser.contexts()[0]!;
-    await context.setOffline(true);
+    await browser.close();
+    browser = undefined;
+    session = undefined;
+    const offlineContext = await chromium.launchPersistentContext(profile, {
+      executablePath: executable,
+      headless: false,
+      chromiumSandbox: true,
+      args: ['--enable-unsafe-swiftshader', '--host-resolver-rules=MAP * ~NOTFOUND'],
+      timeout: 30000,
+    });
+    browser = offlineContext.browser()!;
+    session = await browser.newBrowserCDPSession();
+    receipt.offlineTransport = 'Cold browser restart; host-resolver-rules=MAP * ~NOTFOUND';
     page = await appPage(browser, session, manifestId);
     const offline = await windowState(page);
     assertAppWindow(offline, url);
@@ -301,12 +312,10 @@ export async function releasePwaOs(url: string) {
         () => true,
       ),
     }));
-    assert.equal(offlineState.online, false);
+    receipt.offline = { ...offline, ...offlineState };
     assert.equal(offlineState.controlled, true);
     assert.equal(offlineState.networkRefused, true);
-    receipt.offline = { ...offline, ...offlineState };
     checks.offlineRelaunch = true;
-    await context.setOffline(false);
   } catch (error) {
     failure = error;
   } finally {
