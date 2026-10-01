@@ -33,7 +33,7 @@ jobs:
       - name: Select installed iOS runtimes and iPhones
         id: plan
         run: |
-          node --test scripts/ios-safari-smoke/plan.test.mjs
+          node --test scripts/ios-safari-smoke/*.test.mjs
           node scripts/ios-safari-smoke/plan.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

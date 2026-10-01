@@ -60,8 +60,11 @@ configurations. XCUITest native taps subsequently reached Discover and search,
 but coordinate translation missed The 100 after Safari's input zoom, even
 with explicit recalibration. A WebKit automation-session trial also stalled
 on its first navigation. This workflow therefore taps the actual Safari
-accessibility link/button in XCUITest's native context, then returns to the web
-context for assertions. It requires one visible target and a trusted click;
+accessibility text/button in XCUITest's native context as a position reference.
+It taps the centre of the full DOM control's visible portion, not just the text
+rectangle that can fall under Safari's browser-toolbar shadow, then returns to
+the web context for assertions. Zoom is accounted for explicitly. It requires
+one accessibility anchor, a visible control and a trusted click;
 it never substitutes JavaScript-generated clicks. Native accessibility trees
 are uploaded alongside screenshots for diagnosing missing or ambiguous targets.
 The search evidence records `visualViewport` scale and offsets rather than

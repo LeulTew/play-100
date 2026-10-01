@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
+import { tapCoordinates } from './coordinates.mjs';
 
 const site = 'https://play-100-collection.vercel.app';
 const endpoint = 'http://127.0.0.1:4444';
@@ -18,6 +19,7 @@ const results = {
   documents: [],
   pageErrors: [],
   errorAllowlist,
+  nativeTaps: [],
   passed: false,
 };
 let session;
@@ -27,7 +29,7 @@ async function command(method, path, body) {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(path === '/session' ? 300_000 : 90_000),
+    signal: AbortSignal.timeout(path === '/session' ? 420_000 : 90_000),
   });
   const payload = await response.json();
   if (!response.ok || payload.value?.error) {
@@ -185,26 +187,45 @@ async function click(selector) {
   assert.ok(id, `No WebDriver element for ${selector}`);
   const label = await execute(`return arguments[0].getAttribute('aria-label') ||
     arguments[0].querySelector('h3')?.textContent.trim() || arguments[0].innerText.trim();`, element);
-  await tap(label, !selector.includes('.game-link'));
+  await tap(element, label);
   return element;
 }
 
-async function tap(label, exact = true) {
+async function tap(element, label) {
   const before = await execute('return window.__iosSmoke.clicks.length;');
+  const measurements = await execute(`
+    const element = arguments[0];
+    const aria = element.getAttribute('aria-label');
+    const anchor = aria ? element : element.querySelector('h3') ||
+      [...element.children].find(child => child.textContent.trim() === arguments[1]) || element;
+    const rect = node => {
+      const { left, top, right, bottom } = node.getBoundingClientRect();
+      return { left, top, right, bottom };
+    };
+    const viewport = visualViewport;
+    return {
+      target: rect(element), anchor: rect(anchor), nativeType: aria ? 'XCUIElementTypeButton' : 'XCUIElementTypeStaticText',
+      viewport: { offsetLeft: viewport.offsetLeft, offsetTop: viewport.offsetTop,
+        width: viewport.width, height: viewport.height, scale: viewport.scale }
+    };
+  `, element, label);
   const context = await wd('GET', '/context');
   await wd('POST', '/context', { name: 'NATIVE_APP' });
   try {
     await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd('GET', '/source'));
-    const value = `visible == true AND (type == "XCUIElementTypeLink" OR type == "XCUIElementTypeButton") AND label ${exact ? '==' : 'CONTAINS'} ${JSON.stringify(label)}`;
+    const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
     const deadline = Date.now() + 15_000;
     let elements = [];
     while (!elements.length && Date.now() < deadline) {
       elements = await wd('POST', '/elements', { using: '-ios predicate string', value });
       if (!elements.length) await delay(300);
     }
-    assert.equal(elements.length, 1, `Expected one visible native accessibility target for ${label}.`);
+    assert.equal(elements.length, 1, `Expected one native accessibility anchor for ${label}.`);
     const id = elements[0]['element-6066-11e4-a52e-4f735466cecf'];
-    await wd('POST', `/element/${id}/click`, {});
+    const nativeAnchor = await wd('GET', `/element/${id}/rect`);
+    const coordinates = tapCoordinates({ ...measurements, nativeAnchor });
+    results.nativeTaps.push({ label, ...measurements, nativeAnchor, coordinates });
+    await execute('mobile: tap', coordinates);
   } finally {
     await wd('POST', '/context', { name: context });
   }
@@ -213,11 +234,11 @@ async function tap(label, exact = true) {
 }
 
 async function navigation(label) {
-  await waitFor(`${visible}
+  const element = await waitFor(`${visible}
     return [...document.querySelectorAll('.mobile-nav a')]
       .find(element => visible(element) && element.textContent.trim() === ${JSON.stringify(label)}) || null;
   `, `bottom navigation ${label}`);
-  await tap(label);
+  await tap(element, label);
 }
 
 await mkdir(output, { recursive: true });
@@ -250,6 +271,7 @@ try {
       'appium:deviceName': results.device,
       'appium:platformVersion': results.runtime,
       'appium:noReset': true,
+      'appium:nativeWebTap': true,
       'appium:webviewConnectTimeout': 60_000,
       'appium:newCommandTimeout': 120,
       'appium:wdaLaunchTimeout': 180_000,
