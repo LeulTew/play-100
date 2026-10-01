@@ -59,5 +59,9 @@ export function useCapabilities(preference: MotionPreference) {
   useEffect(() => {
     document.documentElement.dataset.motion = animate ? 'on' : 'off';
   }, [animate]);
+  // The device class the stylesheet drops costly paint effects for (components.css).
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-constrained', capabilities.constrained);
+  }, [capabilities.constrained]);
   return { ...capabilities, animate };
 }
