@@ -151,6 +151,23 @@ the stylesheet has loaded.
 On `/` the `load` event may fire before the app starts; nothing depends on it
 (idle prefetching checks `document.readyState` first).
 
+Some phones fail the probes with every local face: a Galaxy A03s (Android 13,
+Samsung's font stack) measured the display probe 11% wide and the bold probe
+0.27% narrow, so it painted nothing until React's first commit, about 8 s in.
+When only the probes fail on an accepted route (and the engine is not
+[outdated](#the-failure-notice)), the app still starts at once, but once every
+stylesheet has loaded, which brings the web fonts' `@font-face` rules while the
+preloads fetch their files, the boot script waits up to 1.5 s for
+`document.fonts.load()` of the three faces the shell uses. If they load in time,
+it measures the probes again in the web fonts (`.p100-probe-web`, the same
+expected boxes) and, when they pass and the notice is still hidden, shows the
+shell, which then renders in the fonts React's first commit uses, so nothing
+shifts. The module entry is added only after the next frame, or when the 1.5 s
+wait ends, so the shell can never appear after React's first commit or over the
+notice. A timeout, a rejected load, failing web probes or a missing
+`document.fonts` add the entry at once and leave the shell hidden. The wait makes
+no extra requests and writes no storage.
+
 ### The failure notice
 
 `#root` ends with a hidden `<main class="app-error" id="p100-boot-error">` after
@@ -184,6 +201,17 @@ On `/` the notice usually appears before the entry stylesheet has arrived, so it
 looks the same and keeps its 48 px button and 44 px link at every viewport with
 the entry stylesheet, before it and without it. The build refuses a `#root`
 whose last child is not this notice.
+
+An engine below the [browser floor](../README.md#browser-support) cannot run the
+app at all: a Galaxy A10's WebView 81 throws `SyntaxError: Unexpected token '='`
+on the entry. The boot script listens for window `error` events, and a
+`SyntaxError` (other than `JSON.parse`'s), or a missing `Object.hasOwn`
+(Chromium 93 and older, Safari 15.3 and older), marks the engine outdated; it
+uses no `eval` or `new Function`, which the policy forbids. The notice then hides
+its generic alert and shows the second one, "This browser needs an update to open
+the collection.", with one line for the platform: update Chrome and Android System
+WebView on Android, iOS on an iPhone or iPad, the browser elsewhere. It keeps the
+Reload button and the workbook link.
 
 ## Content Security Policy
 

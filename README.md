@@ -237,6 +237,11 @@ The floor is the oldest browser that renders and runs the whole app:
 `vite.config.ts` gives Lightning CSS exactly these browsers as `build.cssTarget`, so the stylesheets
 are minified for the floor; the JavaScript target stays `es2022`.
 
+Below the floor the app cannot run. When the engine fails to parse the app's modules (a `SyntaxError`)
+or lacks `Object.hasOwn`, the startup notice says what to update instead of its generic copy: Chrome and
+Android System WebView on Android, iOS on an iPhone or iPad, and the browser elsewhere, with a Reload
+button and the workbook download (see `docs/first-paint-shell.md`).
+
 Above the floor, these are progressive enhancements. Each browser below its version gets the result
 described:
 
